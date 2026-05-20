@@ -4,16 +4,18 @@ Pi is a minimal terminal coding harness. It is designed to stay small at the cor
 
 ## Quick start
 
-On linux or mac you can install Pi with curl:
+Install Pi with npm:
+
+```bash
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+```
+
+`--ignore-scripts` disables dependency lifecycle scripts during install. Pi does not require install scripts for normal npm installs.
+
+On Linux or macOS, you can also use the installer:
 
 ```bash
 curl -fsSL https://pi.dev/install.sh | sh
-```
-
-Or alternatively with npm:
-
-```bash
-npm install -g @earendil-works/pi-coding-agent
 ```
 
 To uninstall pi itself, use npm for curl and npm installs:

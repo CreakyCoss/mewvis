@@ -22,7 +22,7 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 import type { DocumentType } from "@smithy/types";
-import { calculateCost } from "../models.js";
+import { calculateCost } from "../models.ts";
 import type {
 	Api,
 	AssistantMessage,
@@ -40,13 +40,13 @@ import type {
 	Tool,
 	ToolCall,
 	ToolResultMessage,
-} from "../types.js";
-import { AssistantMessageEventStream } from "../utils/event-stream.js";
-import { parseStreamingJson } from "../utils/json-parse.js";
-import { createHttpProxyAgentsForTarget } from "../utils/node-http-proxy.js";
-import { sanitizeSurrogates } from "../utils/sanitize-unicode.js";
-import { adjustMaxTokensForThinking, buildBaseOptions, clampReasoning } from "./simple-options.js";
-import { transformMessages } from "./transform-messages.js";
+} from "../types.ts";
+import { AssistantMessageEventStream } from "../utils/event-stream.ts";
+import { parseStreamingJson } from "../utils/json-parse.ts";
+import { createHttpProxyAgentsForTarget } from "../utils/node-http-proxy.ts";
+import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
+import { adjustMaxTokensForThinking, buildBaseOptions, clampReasoning } from "./simple-options.ts";
+import { transformMessages } from "./transform-messages.ts";
 
 export type BedrockThinkingDisplay = "summarized" | "omitted";
 
@@ -314,8 +314,10 @@ export const streamSimpleBedrock: StreamFunction<"bedrock-converse-stream", Simp
 			} satisfies BedrockOptions);
 		}
 
+		// Undefined means the caller did not request an output cap; let the helper use the model cap.
+		// Do not coerce to 0 here, or the thinking budget would become the entire maxTokens value.
 		const adjusted = adjustMaxTokensForThinking(
-			base.maxTokens || 0,
+			base.maxTokens,
 			model.maxTokens,
 			options.reasoning,
 			options.thinkingBudgets,
