@@ -1,0 +1,3 @@
+packages:
+  - "ai/pi/packages/*"
+  - "apps/*"

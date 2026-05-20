@@ -1,0 +1,10 @@
+{
+  "name": "novel-claw",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:ai": "cd ai/pi && npm install && npm run build",
+    "dev:desktop": "cd apps/desktop && pnpm tauri dev",
+    "build:desktop": "cd apps/desktop && pnpm tauri build"
+  }
+}
