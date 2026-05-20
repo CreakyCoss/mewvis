@@ -68,13 +68,15 @@ I regularly publish my own `pi-mono` work sessions here:
 ## Quick Start
 
 ```bash
-curl -fsSL https://pi.dev/install.sh | sh
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 ```
 
-Or with npm:
+`--ignore-scripts` disables dependency lifecycle scripts during install. Pi does not require install scripts for normal npm installs.
+
+Installer alternative:
 
 ```bash
-npm install -g @earendil-works/pi-coding-agent
+curl -fsSL https://pi.dev/install.sh | sh
 ```
 
 Authenticate with an API key:
