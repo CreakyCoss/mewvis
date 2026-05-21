@@ -109,30 +109,55 @@
 CREATE TABLE workspaces (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    description TEXT,               -- 工作区描述
     path TEXT NOT NULL,              -- 工作区实际目录路径
+    is_pinned INTEGER DEFAULT 0,    -- 是否置顶（1=置顶，0=不置顶）
+    "order" INTEGER DEFAULT 0,      -- 分组内排序，数值越小越靠前
+    group_id TEXT,                   -- 外键，关联 workspace_groups（可空）
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    is_active INTEGER DEFAULT 0
+    FOREIGN KEY (group_id) REFERENCES workspace_groups(id) ON DELETE SET NULL
 );
+
+-- 工作区分组表
+CREATE TABLE workspace_groups (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,       -- 分组名称，唯一不可重复
+    "order" INTEGER DEFAULT 0,       -- 排序，数值越小越靠前
+    is_default INTEGER DEFAULT 0,    -- 是否为默认分组（1=默认，默认分组不可删除）
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- 排序规则：is_pinned DESC, group_order ASC, "order" ASC, created_at DESC
+-- 分组和工作区的排序统一在前端处理，后端返回全部数据即可
+-- is_default 用于标识默认分组（默认分组不可删除，仅可重命名）
 
 -- LLM 提供者配置（含多模型）
 CREATE TABLE llm_providers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    provider_type TEXT NOT NULL,     -- 'anthropic', 'openai', 'google', etc.
+    provider TEXT NOT NULL,          -- 'anthropic', 'openai', 'google', etc.
     api_key TEXT,
     base_url TEXT,
-    is_default INTEGER DEFAULT 0,
-    models_json TEXT NOT NULL,       -- JSON 数组：[{"id": "claude-sonnet-4-7", "name": "Claude Sonnet 4"}]
+    is_default INTEGER DEFAULT 0,    -- 是否为默认 Provider
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
 
--- 全局设置
-CREATE TABLE settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
+-- 模型表（替代 models_json）
+CREATE TABLE provider_models (
+    id TEXT PRIMARY KEY,
+    provider_id TEXT NOT NULL,      -- 外键，关联 llm_providers
+    model_id TEXT NOT NULL,          -- 模型 ID，如 "claude-sonnet-4-7"
+    model_name TEXT NOT NULL,        -- 模型显示名称，如 "Claude Sonnet 4"
+    is_enabled INTEGER DEFAULT 1,     -- 是否启用
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,
+    UNIQUE(provider_id, model_id)
 );
+
 ```
 
 #### 工作区数据库 (`{workspace_path}/workspace.db`)
@@ -230,7 +255,7 @@ src/                             # React 前端
 1. 实现 `config_db.rs` — 全局配置数据库
 2. 实现 `workspace_db.rs` — 工作区数据库（创建在 `{workspace_path}/workspace.db`）
 3. 实现 workspace commands（创建/切换/删除，验证目录存在）
-4. 实现 llm_providers 的 CRUD（含 models_json）
+4. 实现 llm_providers 和 provider_models 的 CRUD
 
 ### Phase 3: AI 适配层
 1. 定义 `AIAdapter` 接口
