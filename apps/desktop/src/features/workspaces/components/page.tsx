@@ -1,9 +1,12 @@
+import { useState } from "react";
+import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";
 import { PageHeader } from "./page-header";
 import { useOverview } from "../hooks/use-overview";
 
 export const WorkspacesPage = () => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const {
     overview,
     form,
@@ -23,6 +26,7 @@ export const WorkspacesPage = () => {
         <PageHeader
           configDbPath={overview?.configDbPath}
           onCreateWorkspace={() => setIsDialogOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
         {error && (
@@ -50,6 +54,11 @@ export const WorkspacesPage = () => {
         onOpenChange={setIsDialogOpen}
         onFormChange={setForm}
         onSubmit={saveWorkspace}
+      />
+
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
       />
     </main>
   );

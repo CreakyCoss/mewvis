@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "migrate:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin migrate_config_db --"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

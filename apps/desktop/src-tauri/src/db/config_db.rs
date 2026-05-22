@@ -2,12 +2,12 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager};
 
-const DEFAULT_GROUP_ID: &str = "default";
+use super::id::{is_record_id, new_record_id};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +42,39 @@ pub struct WorkspaceOverview {
     pub workspaces: Vec<Workspace>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmProvider {
+    pub id: String,
+    pub name: String,
+    pub vendor: String,
+    pub provider: String,
+    pub api_key: Option<String>,
+    pub base_url: Option<String>,
+    pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub models: Vec<ProviderModel>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderModel {
+    pub id: String,
+    pub provider_id: String,
+    pub model_id: String,
+    pub model_name: String,
+    pub is_enabled: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmSettings {
+    pub providers: Vec<LlmProvider>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWorkspaceInput {
@@ -49,6 +82,34 @@ pub struct CreateWorkspaceInput {
     pub description: Option<String>,
     pub path: String,
     pub group_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveProviderModelInput {
+    pub id: Option<String>,
+    pub model_id: String,
+    pub model_name: String,
+    pub is_enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveLlmProviderInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub vendor: String,
+    pub provider: String,
+    pub api_key: Option<String>,
+    pub base_url: Option<String>,
+    pub is_default: bool,
+    pub models: Vec<SaveProviderModelInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveLlmSettingsInput {
+    pub providers: Vec<SaveLlmProviderInput>,
 }
 
 pub fn config_db_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -62,17 +123,7 @@ pub fn config_db_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir.join("config.db"))
 }
 
-pub fn initialize(app: &AppHandle) -> Result<(), String> {
-    let db_path = config_db_path(app)?;
-    let conn =
-        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
-    migrate(&conn)?;
-    seed_default_group(&conn)?;
-    Ok(())
-}
-
 pub fn overview(app: &AppHandle) -> Result<WorkspaceOverview, String> {
-    initialize(app)?;
     let db_path = config_db_path(app)?;
     let conn =
         Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
@@ -87,9 +138,101 @@ pub fn overview(app: &AppHandle) -> Result<WorkspaceOverview, String> {
     })
 }
 
-pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<Workspace, String> {
-    initialize(app)?;
+pub fn llm_settings(app: &AppHandle) -> Result<LlmSettings, String> {
+    let db_path = config_db_path(app)?;
+    let conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
 
+    Ok(LlmSettings {
+        providers: load_llm_providers(&conn)?,
+    })
+}
+
+pub fn save_llm_settings(
+    app: &AppHandle,
+    input: SaveLlmSettingsInput,
+) -> Result<LlmSettings, String> {
+    validate_llm_settings(&input)?;
+
+    let db_path = config_db_path(app)?;
+    let mut conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+
+    let tx = conn
+        .transaction()
+        .map_err(|error| format!("无法开始保存 LLM 设置：{error}"))?;
+    tx.execute("DELETE FROM llm_providers", [])
+        .map_err(|error| format!("无法清空 LLM Provider：{error}"))?;
+
+    let now = now_millis()?;
+    let default_index = input
+        .providers
+        .iter()
+        .position(|provider| provider.is_default)
+        .unwrap_or(0);
+
+    for (provider_index, provider) in input.providers.iter().enumerate() {
+        let provider_id = normalize_record_id(provider.id.as_deref());
+        let name = provider.name.trim();
+        let vendor = provider.vendor.trim();
+        let provider_name = provider.provider.trim();
+        let api_key = normalize_optional_text(provider.api_key.as_deref());
+        let base_url = normalize_optional_text(provider.base_url.as_deref());
+        let is_default = provider_index == default_index;
+
+        tx.execute(
+            r#"
+            INSERT INTO llm_providers (
+                id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            "#,
+            params![
+                provider_id,
+                name,
+                vendor,
+                provider_name,
+                api_key,
+                base_url,
+                is_default as i64,
+                now,
+                now
+            ],
+        )
+        .map_err(|error| format!("无法保存 LLM Provider：{error}"))?;
+
+        for model in &provider.models {
+            let model_id = normalize_record_id(model.id.as_deref());
+            tx.execute(
+                r#"
+                INSERT INTO provider_models (
+                    id, provider_id, model_id, model_name, is_enabled, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                "#,
+                params![
+                    model_id,
+                    provider_id,
+                    model.model_id.trim(),
+                    model.model_name.trim(),
+                    model.is_enabled as i64,
+                    now,
+                    now
+                ],
+            )
+            .map_err(|error| format!("无法保存 LLM 模型：{error}"))?;
+        }
+    }
+
+    tx.commit()
+        .map_err(|error| format!("无法提交 LLM 设置：{error}"))?;
+
+    llm_settings(app)
+}
+
+pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<Workspace, String> {
     let name = input.name.trim();
     if name.is_empty() {
         return Err("工作区名称不能为空".to_string());
@@ -101,16 +244,14 @@ pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<
     }
 
     fs::create_dir_all(&workspace_path).map_err(|error| format!("无法创建工作区目录：{error}"))?;
-    create_workspace_db(&workspace_path)?;
+    super::migrate::migrate_workspace_database(&workspace_path)?;
 
     let db_path = config_db_path(app)?;
     let conn =
         Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
-    migrate(&conn)?;
-    seed_default_group(&conn)?;
 
     let now = now_millis()?;
-    let id = format!("workspace-{now}");
+    let id = new_record_id();
     let description = input.description.and_then(|value| {
         let trimmed = value.trim().to_string();
         (!trimmed.is_empty()).then_some(trimmed)
@@ -130,84 +271,6 @@ pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<
     .map_err(|error| format!("无法保存工作区：{error}"))?;
 
     load_workspace(&conn, &id)?.ok_or_else(|| "工作区保存后未能读取".to_string())
-}
-
-fn migrate(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        r#"
-        PRAGMA foreign_keys = ON;
-
-        CREATE TABLE IF NOT EXISTS workspace_groups (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE,
-            "order" INTEGER DEFAULT 0,
-            is_default INTEGER DEFAULT 0,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS workspaces (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            path TEXT NOT NULL,
-            is_pinned INTEGER DEFAULT 0,
-            "order" INTEGER DEFAULT 0,
-            group_id TEXT,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            FOREIGN KEY (group_id) REFERENCES workspace_groups(id) ON DELETE SET NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS llm_providers (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            provider TEXT NOT NULL,
-            api_key TEXT,
-            base_url TEXT,
-            is_default INTEGER DEFAULT 0,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS provider_models (
-            id TEXT PRIMARY KEY,
-            provider_id TEXT NOT NULL,
-            model_id TEXT NOT NULL,
-            model_name TEXT NOT NULL,
-            is_enabled INTEGER DEFAULT 1,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,
-            UNIQUE(provider_id, model_id)
-        );
-        "#,
-    )
-    .map_err(|error| format!("配置数据库迁移失败：{error}"))?;
-    Ok(())
-}
-
-fn seed_default_group(conn: &Connection) -> Result<(), String> {
-    let now = now_millis()?;
-    conn.execute(
-        r#"
-        INSERT INTO workspace_groups (id, name, "order", is_default, created_at, updated_at)
-        VALUES (?1, '默认分组', 0, 1, ?2, ?3)
-        ON CONFLICT(id) DO UPDATE SET is_default = 1
-        "#,
-        params![DEFAULT_GROUP_ID, now, now],
-    )
-    .map_err(|error| format!("默认分组初始化失败：{error}"))?;
-    Ok(())
-}
-
-fn create_workspace_db(workspace_path: &Path) -> Result<(), String> {
-    let db_path = workspace_path.join("workspace.db");
-    let conn =
-        Connection::open(db_path).map_err(|error| format!("无法创建工作区数据库：{error}"))?;
-    conn.execute_batch("PRAGMA user_version = 1;")
-        .map_err(|error| format!("工作区数据库初始化失败：{error}"))?;
-    Ok(())
 }
 
 fn load_groups(conn: &Connection) -> Result<Vec<WorkspaceGroup>, String> {
@@ -271,6 +334,78 @@ fn load_workspace(conn: &Connection, id: &str) -> Result<Option<Workspace>, Stri
     .map_err(|error| format!("无法读取工作区：{error}"))
 }
 
+fn load_llm_providers(conn: &Connection) -> Result<Vec<LlmProvider>, String> {
+    let mut statement = conn
+        .prepare(
+            r#"
+            SELECT id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
+            FROM llm_providers
+            ORDER BY is_default DESC, created_at ASC
+            "#,
+        )
+        .map_err(|error| format!("无法读取 LLM Provider：{error}"))?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(LlmProvider {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                vendor: row.get(2)?,
+                provider: row.get(3)?,
+                api_key: row.get(4)?,
+                base_url: row.get(5)?,
+                is_default: row.get::<_, i64>(6)? == 1,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+                models: Vec::new(),
+            })
+        })
+        .map_err(|error| format!("无法读取 LLM Provider：{error}"))?;
+
+    let mut providers = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析 LLM Provider：{error}"))?;
+
+    for provider in &mut providers {
+        provider.models = load_provider_models(conn, &provider.id)?;
+    }
+
+    Ok(providers)
+}
+
+fn load_provider_models(
+    conn: &Connection,
+    provider_id: &str,
+) -> Result<Vec<ProviderModel>, String> {
+    let mut statement = conn
+        .prepare(
+            r#"
+            SELECT id, provider_id, model_id, model_name, is_enabled, created_at, updated_at
+            FROM provider_models
+            WHERE provider_id = ?1
+            ORDER BY created_at ASC
+            "#,
+        )
+        .map_err(|error| format!("无法读取 LLM 模型：{error}"))?;
+
+    let rows = statement
+        .query_map(params![provider_id], |row| {
+            Ok(ProviderModel {
+                id: row.get(0)?,
+                provider_id: row.get(1)?,
+                model_id: row.get(2)?,
+                model_name: row.get(3)?,
+                is_enabled: row.get::<_, i64>(4)? == 1,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })
+        .map_err(|error| format!("无法读取 LLM 模型：{error}"))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析 LLM 模型：{error}"))
+}
+
 fn workspace_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
     Ok(Workspace {
         id: row.get(0)?,
@@ -289,10 +424,13 @@ fn normalize_group_id(
     conn: &Connection,
     group_id: Option<String>,
 ) -> Result<Option<String>, String> {
-    let trimmed = group_id
+    let default_group_id = load_default_group_id(conn)?;
+    let Some(trimmed) = group_id
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| DEFAULT_GROUP_ID.to_string());
+    else {
+        return Ok(Some(default_group_id));
+    };
 
     let exists: Option<String> = conn
         .query_row(
@@ -303,7 +441,66 @@ fn normalize_group_id(
         .optional()
         .map_err(|error| format!("无法读取分组：{error}"))?;
 
-    Ok(Some(exists.unwrap_or_else(|| DEFAULT_GROUP_ID.to_string())))
+    Ok(Some(exists.unwrap_or(default_group_id)))
+}
+
+fn load_default_group_id(conn: &Connection) -> Result<String, String> {
+    conn.query_row(
+        r#"
+        SELECT id
+        FROM workspace_groups
+        WHERE is_default = 1
+        ORDER BY "order" ASC, created_at ASC
+        LIMIT 1
+        "#,
+        [],
+        |row| row.get(0),
+    )
+    .optional()
+    .map_err(|error| format!("无法读取默认分组：{error}"))?
+    .ok_or_else(|| "默认分组不存在，请先初始化配置数据库".to_string())
+}
+
+fn validate_llm_settings(input: &SaveLlmSettingsInput) -> Result<(), String> {
+    for provider in &input.providers {
+        if provider.name.trim().is_empty() {
+            return Err("Provider 名称不能为空".to_string());
+        }
+
+        if provider.vendor.trim().is_empty() {
+            return Err("供应商不能为空".to_string());
+        }
+
+        if provider.provider.trim().is_empty() {
+            return Err("Provider 类型不能为空".to_string());
+        }
+
+        for model in &provider.models {
+            if model.model_id.trim().is_empty() {
+                return Err("模型 ID 不能为空".to_string());
+            }
+
+            if model.model_name.trim().is_empty() {
+                return Err("模型名称不能为空".to_string());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn normalize_record_id(id: Option<&str>) -> String {
+    id.map(str::trim)
+        .filter(|value| is_record_id(value))
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(new_record_id)
+}
+
+fn normalize_optional_text(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 fn next_workspace_order(conn: &Connection, group_id: Option<&str>) -> Result<i64, String> {

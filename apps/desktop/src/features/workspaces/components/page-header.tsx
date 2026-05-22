@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 type PageHeaderProps = {
   configDbPath?: string;
   onCreateWorkspace: () => void;
+  onOpenSettings: () => void;
 };
 
 export const PageHeader = ({
   configDbPath,
   onCreateWorkspace,
+  onOpenSettings,
 }: PageHeaderProps) => {
   return (
     <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -29,8 +31,8 @@ export const PageHeader = ({
         <Button
           variant="outline"
           type="button"
-          disabled
-          title="LLM 设置将在后续阶段实现"
+          onClick={onOpenSettings}
+          title="LLM 设置"
         >
           <Settings className="size-4" />
           <span>LLM 设置</span>

@@ -5,6 +5,7 @@
   "scripts": {
     "build:ai": "cd ai/pi && npm install && npm run build",
     "dev:desktop": "cd apps/desktop && pnpm tauri dev",
-    "build:desktop": "cd apps/desktop && pnpm tauri build"
+    "build:desktop": "cd apps/desktop && pnpm tauri build",
+    "migrate:config-db": "pnpm --filter desktop migrate:config-db"
   }
 }
