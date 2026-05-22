@@ -16,31 +16,31 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   WorkspaceForm,
   WorkspaceGroup,
-  WorkspaceGroupWithItems,
+  WorkspaceSection,
 } from "../types";
 
-type CreateWorkspaceDialogProps = {
+type CreateDialogProps = {
   open: boolean;
   form: WorkspaceForm;
   groups: WorkspaceGroup[];
-  groupsWithWorkspaces: WorkspaceGroupWithItems[];
+  sections: WorkspaceSection[];
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: (updater: (current: WorkspaceForm) => WorkspaceForm) => void;
   onSubmit: () => Promise<void>;
 };
 
-export function CreateWorkspaceDialog({
+export const CreateDialog = ({
   open: isOpen,
   form,
   groups,
-  groupsWithWorkspaces,
+  sections,
   isSaving,
   onOpenChange,
   onFormChange,
   onSubmit,
-}: CreateWorkspaceDialogProps) {
-  async function chooseDirectory() {
+}: CreateDialogProps) => {
+  const chooseDirectory = async () => {
     const selected = await open({
       directory: true,
       multiple: false,
@@ -50,16 +50,16 @@ export function CreateWorkspaceDialog({
     if (typeof selected === "string") {
       onFormChange((current) => ({ ...current, path: selected }));
     }
-  }
+  };
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void onSubmit();
-  }
+  };
 
   const visibleGroups = groups.length
     ? groups
-    : groupsWithWorkspaces.map(({ group }) => group);
+    : sections.map(({ group }) => group);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -165,4 +165,4 @@ export function CreateWorkspaceDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

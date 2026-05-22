@@ -32,7 +32,7 @@ export type WorkspaceForm = {
   groupId: string;
 };
 
-export type WorkspaceGroupWithItems = {
+export type WorkspaceSection = {
   group: WorkspaceGroup;
   workspaces: Workspace[];
 };

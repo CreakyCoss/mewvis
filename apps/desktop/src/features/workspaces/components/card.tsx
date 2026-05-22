@@ -1,11 +1,11 @@
 import { Folder, Sparkles } from "lucide-react";
 import type { Workspace } from "../types";
 
-type WorkspaceCardProps = {
+type CardProps = {
   workspace: Workspace;
 };
 
-export function WorkspaceCard({ workspace }: WorkspaceCardProps) {
+export const Card = ({ workspace }: CardProps) => {
   return (
     <article className="rounded-md border border-border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:bg-muted/40">
       <div className="flex items-start gap-3">
@@ -31,4 +31,4 @@ export function WorkspaceCard({ workspace }: WorkspaceCardProps) {
       </div>
     </article>
   );
-}
+};

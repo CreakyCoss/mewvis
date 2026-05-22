@@ -1,15 +1,15 @@
 import { Database, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type WorkspacePageHeaderProps = {
+type PageHeaderProps = {
   configDbPath?: string;
   onCreateWorkspace: () => void;
 };
 
-export function WorkspacePageHeader({
+export const PageHeader = ({
   configDbPath,
   onCreateWorkspace,
-}: WorkspacePageHeaderProps) {
+}: PageHeaderProps) => {
   return (
     <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-1">
@@ -42,4 +42,4 @@ export function WorkspacePageHeader({
       </div>
     </header>
   );
-}
+};

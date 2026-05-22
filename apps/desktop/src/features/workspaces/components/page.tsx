@@ -1,13 +1,13 @@
-import { CreateWorkspaceDialog } from "./create-workspace-dialog";
-import { WorkspaceContent } from "./workspace-content";
-import { WorkspacePageHeader } from "./workspace-page-header";
-import { useWorkspaceOverview } from "../hooks/use-workspace-overview";
+import { CreateDialog } from "./create-dialog";
+import { Content } from "./content";
+import { PageHeader } from "./page-header";
+import { useOverview } from "../hooks/use-overview";
 
-export function WorkspacePage() {
+export const WorkspacesPage = () => {
   const {
     overview,
     form,
-    groupsWithWorkspaces,
+    sections,
     isDialogOpen,
     isLoading,
     isSaving,
@@ -15,12 +15,12 @@ export function WorkspacePage() {
     setForm,
     setIsDialogOpen,
     saveWorkspace,
-  } = useWorkspaceOverview();
+  } = useOverview();
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-6">
-        <WorkspacePageHeader
+        <PageHeader
           configDbPath={overview?.configDbPath}
           onCreateWorkspace={() => setIsDialogOpen(true)}
         />
@@ -32,20 +32,20 @@ export function WorkspacePage() {
         )}
 
         <section className="flex-1 py-6">
-          <WorkspaceContent
+          <Content
             overview={overview}
-            groupsWithWorkspaces={groupsWithWorkspaces}
+            sections={sections}
             isLoading={isLoading}
             onCreateWorkspace={() => setIsDialogOpen(true)}
           />
         </section>
       </div>
 
-      <CreateWorkspaceDialog
+      <CreateDialog
         open={isDialogOpen}
         form={form}
         groups={overview?.groups ?? []}
-        groupsWithWorkspaces={groupsWithWorkspaces}
+        sections={sections}
         isSaving={isSaving}
         onOpenChange={setIsDialogOpen}
         onFormChange={setForm}
@@ -53,4 +53,4 @@ export function WorkspacePage() {
       />
     </main>
   );
-}
+};

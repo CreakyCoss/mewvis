@@ -1,6 +1,6 @@
 import type {
   WorkspaceGroup,
-  WorkspaceGroupWithItems,
+  WorkspaceSection,
   WorkspaceOverview,
 } from "../types";
 
@@ -13,9 +13,9 @@ const fallbackDefaultGroup: WorkspaceGroup = {
   updatedAt: 0,
 };
 
-export function groupWorkspaces(
+export const buildSections = (
   overview: WorkspaceOverview | null,
-): WorkspaceGroupWithItems[] {
+): WorkspaceSection[] => {
   const groups = overview?.groups ?? [];
   const workspaces = overview?.workspaces ?? [];
   const defaultGroup =
@@ -49,4 +49,4 @@ export function groupWorkspaces(
 
     return { group, workspaces: items };
   });
-}
+};

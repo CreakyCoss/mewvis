@@ -1,8 +1,8 @@
-import { WorkspacePage } from "@/features/workspaces/components/workspace-page";
+import { WorkspacesPage } from "@/features/workspaces/components/page";
 import "./App.css";
 
-function App() {
-  return <WorkspacePage />;
-}
+const App = () => {
+  return <WorkspacesPage />;
+};
 
 export default App;

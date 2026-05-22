@@ -5,9 +5,9 @@ import {
   type WorkspaceForm,
   type WorkspaceOverview,
 } from "../types";
-import { groupWorkspaces } from "../utils/group-workspaces";
+import { buildSections } from "../utils/sections";
 
-export function useWorkspaceOverview() {
+export const useOverview = () => {
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
   const [form, setForm] = useState<WorkspaceForm>(defaultWorkspaceForm);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -33,8 +33,8 @@ export function useWorkspaceOverview() {
     void loadOverview();
   }, [loadOverview]);
 
-  const groupsWithWorkspaces = useMemo(
-    () => groupWorkspaces(overview),
+  const sections = useMemo(
+    () => buildSections(overview),
     [overview],
   );
 
@@ -57,7 +57,7 @@ export function useWorkspaceOverview() {
   return {
     overview,
     form,
-    groupsWithWorkspaces,
+    sections,
     isDialogOpen,
     isLoading,
     isSaving,
@@ -67,4 +67,4 @@ export function useWorkspaceOverview() {
     loadOverview,
     saveWorkspace,
   };
-}
+};

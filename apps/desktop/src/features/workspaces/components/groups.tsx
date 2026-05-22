@@ -1,16 +1,16 @@
-import { WorkspaceCard } from "./workspace-card";
-import type { WorkspaceGroupWithItems } from "../types";
+import { Card } from "./card";
+import type { WorkspaceSection } from "../types";
 
-type WorkspaceGroupsProps = {
-  groupsWithWorkspaces: WorkspaceGroupWithItems[];
+type GroupsProps = {
+  sections: WorkspaceSection[];
 };
 
-export function WorkspaceGroups({
-  groupsWithWorkspaces,
-}: WorkspaceGroupsProps) {
+export const Groups = ({
+  sections,
+}: GroupsProps) => {
   return (
     <div className="space-y-8">
-      {groupsWithWorkspaces.map(({ group, workspaces }) => (
+      {sections.map(({ group, workspaces }) => (
         <section key={group.id} className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-muted-foreground">
@@ -28,7 +28,7 @@ export function WorkspaceGroups({
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {workspaces.map((workspace) => (
-                <WorkspaceCard key={workspace.id} workspace={workspace} />
+                <Card key={workspace.id} workspace={workspace} />
               ))}
             </div>
           )}
@@ -36,4 +36,4 @@ export function WorkspaceGroups({
       ))}
     </div>
   );
-}
+};

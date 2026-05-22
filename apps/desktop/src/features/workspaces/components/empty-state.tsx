@@ -1,13 +1,13 @@
 import { FolderOpen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type WorkspaceEmptyStateProps = {
+type EmptyStateProps = {
   onCreateWorkspace: () => void;
 };
 
-export function WorkspaceEmptyState({
+export const EmptyState = ({
   onCreateWorkspace,
-}: WorkspaceEmptyStateProps) {
+}: EmptyStateProps) => {
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-md border border-dashed border-border bg-muted/30 px-6 text-center">
       <div className="flex size-12 items-center justify-center rounded-md bg-background ring-1 ring-border">
@@ -25,4 +25,4 @@ export function WorkspaceEmptyState({
       </Button>
     </div>
   );
-}
+};
