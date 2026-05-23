@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bot,
@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { getLlmSettings } from "@/features/llm-settings/api";
-import type { LlmProvider } from "@/features/llm-settings/types";
+import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
 import { getAiAgentSettings } from "@/features/agent-settings/api";
 import type { AgentProfile, AiAgent } from "@/features/agent-settings/types";
@@ -67,6 +67,7 @@ type WorkspaceChatPageProps = {
 
 type WorkspaceView = "chat" | "file" | "split";
 type ModelSource = "direct" | "agent";
+type ChatMode = "chat" | "agent" | "collab";
 
 type FileReferenceMatch = {
   token: string;
@@ -90,6 +91,38 @@ type ActiveReferenceToken = {
   start: number;
   end: number;
   query: string;
+};
+
+type ComposerSubmitInput = {
+  text: string;
+  referencedFilePreviews: WorkspaceFileEntry[];
+  unresolvedFileReferences: FileReferenceMatch[];
+  ambiguousFileReferences: FileReferenceMatch[];
+};
+
+type ChatComposerProps = {
+  files: WorkspaceFileEntry[];
+  resetKey: number;
+  isSending: boolean;
+  activeAgentTaskId: string;
+  isSettingsLoading: boolean;
+  chatMode: ChatMode;
+  modelSource: ModelSource;
+  agentProfiles: AgentProfile[];
+  providers: LlmProvider[];
+  selectedProvider: LlmProvider | null;
+  selectedProviderId: string;
+  selectedModels: ProviderModel[];
+  selectedModel: ProviderModel | null;
+  selectedAgent: AgentProfile | null;
+  reviewerAgent: AgentProfile | null;
+  onChatModeChange: (mode: ChatMode) => void;
+  onModelSourceChange: (source: ModelSource) => void;
+  onSelectedAgentChange: (agentId: string) => void;
+  onReviewerAgentChange: (agentId: string) => void;
+  onProviderChange: (providerId: string) => void;
+  onModelChange: (modelId: string) => void;
+  onSubmit: (input: ComposerSubmitInput) => void;
 };
 
 const createMessageId = () => crypto.randomUUID();
@@ -446,12 +479,412 @@ const buildSystemPrompt = (
   ].join("\n");
 };
 
+const buildCollaborationSystemPrompt = (
+  workspace: Workspace,
+  activeFile: WorkspaceFile | null,
+  referencedFiles: ResolvedFileReference[],
+  enabledSkills: WorkspaceSkill[],
+  selectedAgent: AgentProfile,
+  phase: "draft" | "review" | "revise",
+) => {
+  const basePrompt = buildSystemPrompt(
+    workspace,
+    activeFile,
+    referencedFiles,
+    enabledSkills,
+    selectedAgent,
+  );
+  const phaseInstruction = {
+    draft: [
+      "协作阶段：写作初稿。",
+      "请作为写作 Agent，根据用户需求产出完整可审查的初稿或方案。",
+      "不要评价自己的结果，重点完成可交付内容。",
+    ],
+    review: [
+      "协作阶段：审查意见。",
+      "请作为审查 Agent，严格审查上一位 Agent 的输出。",
+      "请指出结构、逻辑、人物、节奏、设定、表达或可执行性问题，并给出具体修改建议。",
+      "不要直接重写全文，重点输出审查意见。",
+    ],
+    revise: [
+      "协作阶段：修订定稿。",
+      "请作为写作 Agent，根据审查意见修订上一版内容。",
+      "最终输出应是用户可以直接使用的版本，可以简要说明采纳了哪些关键修改。",
+    ],
+  }[phase].join("\n");
+
+  return [basePrompt, phaseInstruction].join("\n\n");
+};
+
+const ChatComposer = memo(({
+  files,
+  resetKey,
+  isSending,
+  activeAgentTaskId,
+  isSettingsLoading,
+  chatMode,
+  modelSource,
+  agentProfiles,
+  providers,
+  selectedProvider,
+  selectedProviderId,
+  selectedModels,
+  selectedModel,
+  selectedAgent,
+  reviewerAgent,
+  onChatModeChange,
+  onModelSourceChange,
+  onSelectedAgentChange,
+  onReviewerAgentChange,
+  onProviderChange,
+  onModelChange,
+  onSubmit,
+}: ChatComposerProps) => {
+  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [promptCursor, setPromptCursor] = useState(0);
+
+  useEffect(() => {
+    setPrompt("");
+    setPromptCursor(0);
+  }, [resetKey]);
+
+  const selectableFiles = useMemo(
+    () => files.filter((file) => !file.isDirectory),
+    [files],
+  );
+  const activeReferenceToken = useMemo(
+    () => getActiveReferenceToken(prompt, promptCursor),
+    [prompt, promptCursor],
+  );
+  const referenceSuggestions = useMemo(() => {
+    if (!activeReferenceToken) {
+      return [];
+    }
+
+    const query = activeReferenceToken.query.toLowerCase();
+    const candidates = query
+      ? selectableFiles.filter((file) => {
+        const path = file.path.toLowerCase();
+        const name = file.name.toLowerCase();
+        return path.includes(query) || name.includes(query);
+      })
+      : selectableFiles;
+
+    return candidates.slice(0, 8);
+  }, [activeReferenceToken, selectableFiles]);
+  const fileReferenceMatches = useMemo(
+    () => resolveFileReferenceMatches(prompt, files),
+    [files, prompt],
+  );
+  const referencedFilePreviews = useMemo(
+    () => summarizeReferenceMatches(fileReferenceMatches),
+    [fileReferenceMatches],
+  );
+  const unresolvedFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
+    [fileReferenceMatches],
+  );
+  const ambiguousFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
+    [fileReferenceMatches],
+  );
+
+  const updatePromptCursor = () => {
+    setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
+  };
+
+  const insertFileReference = (file: WorkspaceFileEntry) => {
+    if (!activeReferenceToken) {
+      return;
+    }
+
+    const reference = quoteReferencePath(file.path);
+    const nextPrompt = [
+      prompt.slice(0, activeReferenceToken.start),
+      reference,
+      " ",
+      prompt.slice(activeReferenceToken.end),
+    ].join("");
+    const nextCursor = activeReferenceToken.start + reference.length + 1;
+
+    setPrompt(nextPrompt);
+    setPromptCursor(nextCursor);
+    window.setTimeout(() => {
+      promptInputRef.current?.focus();
+      promptInputRef.current?.setSelectionRange(nextCursor, nextCursor);
+    }, 0);
+  };
+
+  const submitPrompt = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const text = prompt.trim();
+    if (!text || isSending || activeAgentTaskId) {
+      return;
+    }
+
+    onSubmit({
+      text,
+      referencedFilePreviews,
+      unresolvedFileReferences,
+      ambiguousFileReferences,
+    });
+    setPrompt("");
+    setPromptCursor(0);
+  };
+
+  return (
+    <>
+      {fileReferenceMatches.length > 0 && (
+        <div className="mx-auto mb-3 flex max-w-5xl flex-wrap gap-2 text-xs">
+          {referencedFilePreviews.map((file) => (
+            <span
+              key={file.path}
+              className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
+            >
+              <Link className="size-3" />
+              <span className="truncate">{file.path}</span>
+            </span>
+          ))}
+          {unresolvedFileReferences.map((match) => (
+            <span
+              key={`missing-${match.token}`}
+              className="inline-flex max-w-full items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
+            >
+              未找到 @{match.token}
+            </span>
+          ))}
+          {ambiguousFileReferences.map((match) => (
+            <span
+              key={`ambiguous-${match.token}`}
+              className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground"
+              title={match.matches.map((file) => file.path).join("\n")}
+            >
+              @{match.token} 匹配 {match.matches.length} 个文件
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mx-auto mb-3 flex max-w-5xl flex-wrap items-center justify-between gap-2">
+        <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+          <Button
+            type="button"
+            size="sm"
+            variant={chatMode === "chat" ? "secondary" : "ghost"}
+            className="h-7 px-2"
+            onClick={() => onChatModeChange("chat")}
+          >
+            <MessageSquare className="size-3.5" />
+            <span>聊天</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={chatMode === "agent" ? "secondary" : "ghost"}
+            className="h-7 px-2"
+            onClick={() => onChatModeChange("agent")}
+          >
+            <Wrench className="size-3.5" />
+            <span>Agent</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={chatMode === "collab" ? "secondary" : "ghost"}
+            className="h-7 px-2"
+            onClick={() => onChatModeChange("collab")}
+            disabled={agentProfiles.length === 0}
+          >
+            <Sparkles className="size-3.5" />
+            <span>协作</span>
+          </Button>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+          {chatMode === "collab" ? (
+            <>
+              <select
+                className="h-9 min-w-40 max-w-64 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={selectedAgent?.id ?? ""}
+                disabled={isSettingsLoading || agentProfiles.length === 0}
+                onChange={(event) => onSelectedAgentChange(event.currentTarget.value)}
+                title="写作 Agent"
+              >
+                {agentProfiles.length === 0 ? (
+                  <option value="">未配置写作 Agent</option>
+                ) : (
+                  agentProfiles.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      写作：{agent.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              <select
+                className="h-9 min-w-40 max-w-64 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={reviewerAgent?.id ?? ""}
+                disabled={isSettingsLoading || agentProfiles.length === 0}
+                onChange={(event) => onReviewerAgentChange(event.currentTarget.value)}
+                title="审查 Agent"
+              >
+                {agentProfiles.length === 0 ? (
+                  <option value="">未配置审查 Agent</option>
+                ) : (
+                  agentProfiles.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      审查：{agent.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </>
+          ) : (
+            <>
+              <select
+                className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={modelSource}
+                disabled={isSettingsLoading}
+                onChange={(event) => onModelSourceChange(event.currentTarget.value as ModelSource)}
+              >
+                <option value="agent" disabled={agentProfiles.length === 0}>
+                  Agent
+                </option>
+                <option value="direct">模型</option>
+              </select>
+              {modelSource === "agent" ? (
+                <select
+                  className="h-9 min-w-0 max-w-72 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={selectedAgent?.id ?? ""}
+                  disabled={isSettingsLoading || agentProfiles.length === 0}
+                  onChange={(event) => onSelectedAgentChange(event.currentTarget.value)}
+                >
+                  {agentProfiles.length === 0 ? (
+                    <option value="">未配置 Agent</option>
+                  ) : (
+                    agentProfiles.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name} / {agent.model.modelName || agent.model.modelId}
+                      </option>
+                    ))
+                  )}
+                </select>
+              ) : (
+                <>
+                  <select
+                    className="h-9 min-w-36 max-w-52 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    value={selectedProviderId}
+                    disabled={isSettingsLoading || providers.length === 0}
+                    onChange={(event) => onProviderChange(event.currentTarget.value)}
+                  >
+                    {providers.length === 0 ? (
+                      <option value="">未配置 LLM</option>
+                    ) : (
+                      providers.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <select
+                    className="h-9 min-w-40 max-w-64 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    value={selectedModel?.id ?? ""}
+                    disabled={!selectedProvider || selectedModels.length === 0}
+                    onChange={(event) => onModelChange(event.currentTarget.value)}
+                  >
+                    {selectedModels.length === 0 ? (
+                      <option value="">未启用模型</option>
+                    ) : (
+                      selectedModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.modelName || model.modelId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <form
+        action="#"
+        className="mx-auto flex max-w-5xl items-end gap-2"
+        onSubmit={submitPrompt}
+      >
+        <div className="relative min-w-0 flex-1">
+          {activeReferenceToken && (
+            <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
+              <div className="border-b border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground">
+                {activeReferenceToken.query
+                  ? `选择引用文件：${activeReferenceToken.query}`
+                  : "选择要引用的文件"}
+              </div>
+              <div className="max-h-56 overflow-auto p-1">
+                {referenceSuggestions.length > 0 ? (
+                  referenceSuggestions.map((file) => (
+                    <button
+                      key={file.path}
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => insertFileReference(file)}
+                    >
+                      <FileText className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                    没有匹配的文件
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <Textarea
+            ref={promptInputRef}
+            value={prompt}
+            onChange={(event) => {
+              setPrompt(event.currentTarget.value);
+              setPromptCursor(event.currentTarget.selectionStart);
+            }}
+            placeholder="输入问题，使用 @文件名 引用工作区文件"
+            rows={3}
+            className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
+            onClick={updatePromptCursor}
+            onSelect={updatePromptCursor}
+            onKeyUp={updatePromptCursor}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+        </div>
+        <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
+          {isSending || activeAgentTaskId ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Send className="size-4" />
+          )}
+          <span>{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
+        </Button>
+      </form>
+    </>
+  );
+});
+ChatComposer.displayName = "ChatComposer";
+
 export const WorkspaceChatPage = ({
   workspace,
   onBack,
 }: WorkspaceChatPageProps) => {
   const codingAgent = useMemo(() => createCodingAgentAdapter(), []);
-  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const isHydratingSessionRef = useRef(false);
@@ -462,6 +895,7 @@ export const WorkspaceChatPage = ({
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [modelSource, setModelSource] = useState<ModelSource>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [selectedReviewerAgentId, setSelectedReviewerAgentId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -479,10 +913,9 @@ export const WorkspaceChatPage = ({
   const [fileViewMode, setFileViewMode] = useState<"source" | "preview">("source");
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [isFileSaving, setIsFileSaving] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [promptCursor, setPromptCursor] = useState(0);
+  const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [chatMode, setChatMode] = useState<"chat" | "agent">("agent");
+  const [chatMode, setChatMode] = useState<ChatMode>("agent");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
@@ -594,7 +1027,7 @@ export const WorkspaceChatPage = ({
     }
 
     setSessionsError("");
-    setPrompt("");
+    setComposerResetKey((current) => current + 1);
     setPendingAgentQuestion(null);
     hydrateSession(null);
   };
@@ -658,10 +1091,6 @@ export const WorkspaceChatPage = ({
     });
   };
 
-  const updatePromptCursor = () => {
-    setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
-  };
-
   const loadLlmOptions = useCallback(async () => {
     setIsSettingsLoading(true);
     setSettingsError("");
@@ -692,6 +1121,11 @@ export const WorkspaceChatPage = ({
         const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
         const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
         return currentProfile?.id ?? profiles[0]?.id ?? "";
+      });
+      setSelectedReviewerAgentId((currentAgentId) => {
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
+        return currentProfile?.id ?? profiles[1]?.id ?? profiles[0]?.id ?? "";
       });
       setModelSource((currentSource) => {
         const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
@@ -1002,43 +1436,6 @@ export const WorkspaceChatPage = ({
     () => files.filter((file) => !file.isDirectory),
     [files],
   );
-  const activeReferenceToken = useMemo(
-    () => getActiveReferenceToken(prompt, promptCursor),
-    [prompt, promptCursor],
-  );
-  const referenceSuggestions = useMemo(() => {
-    if (!activeReferenceToken) {
-      return [];
-    }
-
-    const query = activeReferenceToken.query.toLowerCase();
-    const candidates = query
-      ? selectableFiles.filter((file) => {
-        const path = file.path.toLowerCase();
-        const name = file.name.toLowerCase();
-        return path.includes(query) || name.includes(query);
-      })
-      : selectableFiles;
-
-    return candidates.slice(0, 8);
-  }, [activeReferenceToken, selectableFiles]);
-  const fileReferenceMatches = useMemo(
-    () => resolveFileReferenceMatches(prompt, files),
-    [files, prompt],
-  );
-  const referencedFilePreviews = useMemo(
-    () => summarizeReferenceMatches(fileReferenceMatches),
-    [fileReferenceMatches],
-  );
-  const unresolvedFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
-    [fileReferenceMatches],
-  );
-  const ambiguousFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
-    [fileReferenceMatches],
-  );
-
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? null,
     [providers, selectedProviderId],
@@ -1064,6 +1461,13 @@ export const WorkspaceChatPage = ({
       ?? agentProfiles[0]
       ?? null,
     [agentProfiles, selectedAgentId],
+  );
+  const reviewerAgent = useMemo(
+    () => agentProfiles.find((agent) => agent.id === selectedReviewerAgentId)
+      ?? agentProfiles.find((agent) => agent.id !== selectedAgent?.id)
+      ?? selectedAgent
+      ?? null,
+    [agentProfiles, selectedAgent, selectedReviewerAgentId],
   );
   const effectiveProvider = modelSource === "agent"
     ? selectedAgent?.provider ?? null
@@ -1099,6 +1503,17 @@ export const WorkspaceChatPage = ({
       setModelSource("direct");
     }
   }, [agentProfiles.length, hasLoadedSettings, modelSource, selectedAgent]);
+
+  useEffect(() => {
+    if (!reviewerAgent) {
+      setSelectedReviewerAgentId("");
+      return;
+    }
+
+    if (!agentProfiles.some((agent) => agent.id === selectedReviewerAgentId)) {
+      setSelectedReviewerAgentId(reviewerAgent.id);
+    }
+  }, [agentProfiles, reviewerAgent, selectedReviewerAgentId]);
 
   useEffect(() => {
     if (!isMarkdownFile && fileViewMode === "preview") {
@@ -1146,28 +1561,6 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const insertFileReference = (file: WorkspaceFileEntry) => {
-    if (!activeReferenceToken) {
-      return;
-    }
-
-    const reference = quoteReferencePath(file.path);
-    const nextPrompt = [
-      prompt.slice(0, activeReferenceToken.start),
-      reference,
-      " ",
-      prompt.slice(activeReferenceToken.end),
-    ].join("");
-    const nextCursor = activeReferenceToken.start + reference.length + 1;
-
-    setPrompt(nextPrompt);
-    setPromptCursor(nextCursor);
-    window.setTimeout(() => {
-      promptInputRef.current?.focus();
-      promptInputRef.current?.setSelectionRange(nextCursor, nextCursor);
-    }, 0);
-  };
-
   const submitAgentQuestionAnswer = async (answerValue: string) => {
     const answer = answerValue.trim();
     if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
@@ -1200,16 +1593,22 @@ export const WorkspaceChatPage = ({
     );
   };
 
-  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const text = prompt.trim();
+  const sendMessage = async ({
+    text,
+    referencedFilePreviews,
+    unresolvedFileReferences,
+    ambiguousFileReferences,
+  }: ComposerSubmitInput) => {
     if (!text || isSending || activeAgentTaskId) {
       return;
     }
 
-    if (!effectiveProvider || !effectiveModel) {
+    if (chatMode === "collab" && (!selectedAgent || !reviewerAgent)) {
+      setChatError("请选择写作 Agent 和审查 Agent");
+      return;
+    }
+
+    if (chatMode !== "collab" && (!effectiveProvider || !effectiveModel)) {
       setChatError("请选择要使用的 LLM 和模型");
       return;
     }
@@ -1269,18 +1668,153 @@ export const WorkspaceChatPage = ({
       text: "",
       status: "loading",
       createdAt: now,
-      agentAvatar: modelSource === "agent" ? selectedAgent?.avatar : undefined,
-      agentName: modelSource === "agent" ? selectedAgent?.name : undefined,
+      agentAvatar: modelSource === "agent" || chatMode === "collab" ? selectedAgent?.avatar : undefined,
+      agentName: chatMode === "collab" && selectedAgent && reviewerAgent
+        ? `${selectedAgent.name} + ${reviewerAgent.name}`
+        : modelSource === "agent" ? selectedAgent?.name : undefined,
       agentEvents: chatMode === "agent" ? [] : undefined,
     };
 
-    setPrompt("");
     setMessages((current) => [...current, userUiMessage, assistantUiMessage]);
     setConversation(nextConversation);
     setIsSending(true);
     setChatError("");
 
     try {
+      if (chatMode === "collab" && selectedAgent && reviewerAgent) {
+        const draftResult = await chatWithLlm({
+          provider: selectedAgent.provider,
+          model: selectedAgent.model,
+          systemPrompt: buildCollaborationSystemPrompt(
+            workspace,
+            activeFile,
+            referencedFiles,
+            enabledSkills,
+            selectedAgent,
+            "draft",
+          ),
+          messages: nextConversation,
+        });
+        const draftText = draftResult.text.trim();
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          text: [
+            `## ${selectedAgent.name}：初稿`,
+            draftText,
+            "",
+            `## ${reviewerAgent.name}：审查中`,
+            "",
+            "正在审查初稿...",
+          ].join("\n\n"),
+          thinking: draftResult.thinking?.trim() || undefined,
+          status: "streaming",
+        }));
+
+        const reviewResult = await chatWithLlm({
+          provider: reviewerAgent.provider,
+          model: reviewerAgent.model,
+          systemPrompt: buildCollaborationSystemPrompt(
+            workspace,
+            activeFile,
+            referencedFiles,
+            enabledSkills,
+            reviewerAgent,
+            "review",
+          ),
+          messages: [
+            ...nextConversation,
+            {
+              role: "assistant",
+              content: draftText,
+              timestamp: Date.now(),
+            },
+          ],
+        });
+        const reviewText = reviewResult.text.trim();
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          text: [
+            `## ${selectedAgent.name}：初稿`,
+            draftText,
+            "",
+            `## ${reviewerAgent.name}：审查意见`,
+            reviewText,
+            "",
+            `## ${selectedAgent.name}：修订中`,
+            "",
+            "正在根据审查意见修订...",
+          ].join("\n\n"),
+          thinking: [message.thinking, reviewResult.thinking?.trim()].filter(Boolean).join("\n\n") || undefined,
+          status: "streaming",
+        }));
+
+        const finalResult = await chatWithLlm({
+          provider: selectedAgent.provider,
+          model: selectedAgent.model,
+          systemPrompt: buildCollaborationSystemPrompt(
+            workspace,
+            activeFile,
+            referencedFiles,
+            enabledSkills,
+            selectedAgent,
+            "revise",
+          ),
+          messages: [
+            ...nextConversation,
+            {
+              role: "assistant",
+              content: draftText,
+              timestamp: Date.now(),
+            },
+            {
+              role: "user",
+              content: `这是审查 Agent 的意见，请据此修订并输出最终版本：\n\n${reviewText}`,
+              timestamp: Date.now(),
+            },
+          ],
+        });
+        const finalText = finalResult.text.trim();
+        const collaborationText = [
+          `## ${selectedAgent.name}：最终修订`,
+          finalText,
+          "",
+          "<details>",
+          `<summary>${selectedAgent.name} 初稿</summary>`,
+          "",
+          draftText,
+          "",
+          "</details>",
+          "",
+          "<details>",
+          `<summary>${reviewerAgent.name} 审查意见</summary>`,
+          "",
+          reviewText,
+          "",
+          "</details>",
+        ].join("\n\n");
+
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          text: collaborationText,
+          thinking: [message.thinking, finalResult.thinking?.trim()].filter(Boolean).join("\n\n") || undefined,
+          status: "done",
+        }));
+        setConversation((current) => [
+          ...current,
+          {
+            role: "assistant",
+            content: collaborationText,
+            timestamp: Date.now(),
+          },
+        ]);
+        return;
+      }
+
+      if (!effectiveProvider || !effectiveModel) {
+        setChatError("请选择要使用的 LLM 和模型");
+        return;
+      }
+
       if (chatMode === "agent") {
         activeAgentMessageIdRef.current = assistantMessageId;
         const task = await codingAgent.startTask({
@@ -1446,7 +1980,7 @@ export const WorkspaceChatPage = ({
           {messages.length === 0 ? (
             <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
               <span className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-                {modelSource === "agent" && selectedAgent ? (
+                {(modelSource === "agent" || chatMode === "collab") && selectedAgent ? (
                   <img
                     src={activeAgentAvatar.src}
                     alt=""
@@ -1643,7 +2177,11 @@ export const WorkspaceChatPage = ({
                     {isAssistantLoading ? (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="size-4 animate-spin" />
-                        <span>{message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}</span>
+                        <span>
+                          {message.mode === "collab"
+                            ? "Agent 正在协作"
+                            : message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}
+                        </span>
                       </div>
                       ) : (
                         message.role === "assistant" ? (
@@ -1686,36 +2224,6 @@ export const WorkspaceChatPage = ({
         {(chatError || settingsError || skillsError || sessionsError) && (
           <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {chatError || settingsError || skillsError || sessionsError}
-          </div>
-        )}
-        {fileReferenceMatches.length > 0 && (
-          <div className="mx-auto mb-3 flex max-w-5xl flex-wrap gap-2 text-xs">
-            {referencedFilePreviews.map((file) => (
-              <span
-                key={file.path}
-                className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
-              >
-                <Link className="size-3" />
-                <span className="truncate">{file.path}</span>
-              </span>
-            ))}
-            {unresolvedFileReferences.map((match) => (
-              <span
-                key={`missing-${match.token}`}
-                className="inline-flex max-w-full items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
-              >
-                未找到 @{match.token}
-              </span>
-            ))}
-            {ambiguousFileReferences.map((match) => (
-              <span
-                key={`ambiguous-${match.token}`}
-                className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground"
-                title={match.matches.map((file) => file.path).join("\n")}
-              >
-                @{match.token} 匹配 {match.matches.length} 个文件
-              </span>
-            ))}
           </div>
         )}
         {pendingAgentQuestion && (
@@ -1833,166 +2341,34 @@ export const WorkspaceChatPage = ({
             )}
           </form>
         )}
-        <div className="mx-auto mb-3 flex max-w-5xl flex-wrap items-center justify-between gap-2">
-          <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
-            <Button
-              type="button"
-              size="sm"
-              variant={chatMode === "chat" ? "secondary" : "ghost"}
-              className="h-7 px-2"
-              onClick={() => setChatMode("chat")}
-            >
-              <MessageSquare className="size-3.5" />
-              <span>聊天</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={chatMode === "agent" ? "secondary" : "ghost"}
-              className="h-7 px-2"
-              onClick={() => setChatMode("agent")}
-            >
-              <Wrench className="size-3.5" />
-              <span>Agent</span>
-            </Button>
-          </div>
-
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-            <select
-              className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={modelSource}
-              disabled={isSettingsLoading}
-              onChange={(event) => setModelSource(event.currentTarget.value as ModelSource)}
-            >
-              <option value="agent" disabled={agentProfiles.length === 0}>
-                Agent
-              </option>
-              <option value="direct">模型</option>
-            </select>
-            {modelSource === "agent" ? (
-              <select
-                className="h-9 min-w-0 max-w-72 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                value={selectedAgent?.id ?? ""}
-                disabled={isSettingsLoading || agentProfiles.length === 0}
-                onChange={(event) => setSelectedAgentId(event.currentTarget.value)}
-              >
-                {agentProfiles.length === 0 ? (
-                  <option value="">未配置 Agent</option>
-                ) : (
-                  agentProfiles.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name} / {agent.model.modelName || agent.model.modelId}
-                    </option>
-                  ))
-                )}
-              </select>
-            ) : (
-              <>
-                <select
-                  className="h-9 min-w-36 max-w-52 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={selectedProviderId}
-                  disabled={isSettingsLoading || providers.length === 0}
-                  onChange={(event) => {
-                    const providerId = event.currentTarget.value;
-                    const provider = providers.find((item) => item.id === providerId);
-                    setSelectedProviderId(providerId);
-                    setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-                  }}
-                >
-                  {providers.length === 0 ? (
-                    <option value="">未配置 LLM</option>
-                  ) : (
-                    providers.map((provider) => (
-                      <option key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <select
-                  className="h-9 min-w-40 max-w-64 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={selectedModel?.id ?? ""}
-                  disabled={!selectedProvider || selectedModels.length === 0}
-                  onChange={(event) => setSelectedModelId(event.currentTarget.value)}
-                >
-                  {selectedModels.length === 0 ? (
-                    <option value="">未启用模型</option>
-                  ) : (
-                    selectedModels.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.modelName || model.modelId}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </>
-            )}
-          </div>
-        </div>
-        <form
-          action="#"
-          className="mx-auto flex max-w-5xl items-end gap-2"
-          onSubmit={(event) => void sendMessage(event)}
-        >
-          <div className="relative min-w-0 flex-1">
-            {activeReferenceToken && (
-              <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-                <div className="border-b border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground">
-                  {activeReferenceToken.query
-                    ? `选择引用文件：${activeReferenceToken.query}`
-                    : "选择要引用的文件"}
-                </div>
-                <div className="max-h-56 overflow-auto p-1">
-                  {referenceSuggestions.length > 0 ? (
-                    referenceSuggestions.map((file) => (
-                      <button
-                        key={file.path}
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => insertFileReference(file)}
-                      >
-                        <FileText className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                      没有匹配的文件
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <Textarea
-              ref={promptInputRef}
-              value={prompt}
-              onChange={(event) => {
-                setPrompt(event.currentTarget.value);
-                setPromptCursor(event.currentTarget.selectionStart);
-              }}
-              placeholder="输入问题，使用 @文件名 引用工作区文件"
-              rows={3}
-              className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
-              onClick={updatePromptCursor}
-              onSelect={updatePromptCursor}
-              onKeyUp={updatePromptCursor}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-          </div>
-          <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
-            {isSending || activeAgentTaskId ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
-            <span>{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
-          </Button>
-        </form>
+        <ChatComposer
+          files={files}
+          resetKey={composerResetKey}
+          isSending={isSending}
+          activeAgentTaskId={activeAgentTaskId}
+          isSettingsLoading={isSettingsLoading}
+          chatMode={chatMode}
+          modelSource={modelSource}
+          agentProfiles={agentProfiles}
+          providers={providers}
+          selectedProvider={selectedProvider}
+          selectedProviderId={selectedProviderId}
+          selectedModels={selectedModels}
+          selectedModel={selectedModel}
+          selectedAgent={selectedAgent}
+          reviewerAgent={reviewerAgent}
+          onChatModeChange={setChatMode}
+          onModelSourceChange={setModelSource}
+          onSelectedAgentChange={setSelectedAgentId}
+          onReviewerAgentChange={setSelectedReviewerAgentId}
+          onProviderChange={(providerId) => {
+            const provider = providers.find((item) => item.id === providerId);
+            setSelectedProviderId(providerId);
+            setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+          }}
+          onModelChange={setSelectedModelId}
+          onSubmit={(input) => void sendMessage(input)}
+        />
       </div>
     </section>
   );
@@ -2256,9 +2632,11 @@ export const WorkspaceChatPage = ({
                 >
                   <RefreshCw className="size-4" />
                 </Button>
-                <Badge variant={effectiveProvider && effectiveModel ? "secondary" : "outline"}>
-                  {effectiveProvider && effectiveModel
-                    ? modelSource === "agent" && selectedAgent
+                <Badge variant={(chatMode === "collab" && selectedAgent && reviewerAgent) || (effectiveProvider && effectiveModel) ? "secondary" : "outline"}>
+                  {chatMode === "collab" && selectedAgent && reviewerAgent
+                    ? `${selectedAgent.name} + ${reviewerAgent.name}`
+                    : effectiveProvider && effectiveModel
+                      ? modelSource === "agent" && selectedAgent
                       ? selectedAgent.name
                       : chatMode === "agent" ? codingAgent.name : "后端请求"
                     : "待配置"}

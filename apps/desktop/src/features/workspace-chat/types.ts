@@ -19,7 +19,7 @@ export type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   createdAt: number;
-  mode?: "chat" | "agent";
+  mode?: "chat" | "agent" | "collab";
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
   agentEvents?: CodingAgentEvent[];
