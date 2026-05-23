@@ -23,6 +23,8 @@ export type ChatMessage = {
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
   agentEvents?: CodingAgentEvent[];
+  agentAvatar?: string;
+  agentName?: string;
   referencedFiles?: Array<{ path: string }>;
 };
 

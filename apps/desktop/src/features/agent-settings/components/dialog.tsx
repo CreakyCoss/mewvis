@@ -156,19 +156,22 @@ export const AgentSettingsDialog = ({
 
                 <div className="space-y-2">
                   <Label>选择头像</Label>
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                     {agentAvatarOptions.map((avatar) => (
                       <button
                         key={avatar.id}
                         type="button"
                         className={[
-                          "rounded-md border bg-card p-1.5 shadow-xs transition-all hover:border-primary/45 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          "rounded-md border bg-card p-1.5 text-center shadow-xs transition-all hover:border-primary/45 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                           draft.avatar === avatar.id ? "border-primary ring-1 ring-primary/20" : "border-border",
                         ].join(" ")}
                         title={avatar.label}
                         onClick={() => updateDraft((current) => ({ ...current, avatar: avatar.id }))}
                       >
                         <img src={avatar.src} alt={avatar.label} className="aspect-square w-full rounded-md" />
+                        <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                          {avatar.label}
+                        </span>
                       </button>
                     ))}
                   </div>

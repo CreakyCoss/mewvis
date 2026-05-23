@@ -1079,6 +1079,9 @@ export const WorkspaceChatPage = ({
     () => isMarkdownPath(filePath),
     [filePath],
   );
+  const activeAgentAvatar = resolveAgentAvatar(
+    modelSource === "agent" ? selectedAgent?.avatar : null,
+  );
 
   useEffect(() => {
     if (!selectedProvider) {
@@ -1266,6 +1269,8 @@ export const WorkspaceChatPage = ({
       text: "",
       status: "loading",
       createdAt: now,
+      agentAvatar: modelSource === "agent" ? selectedAgent?.avatar : undefined,
+      agentName: modelSource === "agent" ? selectedAgent?.name : undefined,
       agentEvents: chatMode === "agent" ? [] : undefined,
     };
 
@@ -1441,7 +1446,15 @@ export const WorkspaceChatPage = ({
           {messages.length === 0 ? (
             <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
               <span className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-                <Bot className="size-6" />
+                {modelSource === "agent" && selectedAgent ? (
+                  <img
+                    src={activeAgentAvatar.src}
+                    alt=""
+                    className="size-10 rounded-md"
+                  />
+                ) : (
+                  <Bot className="size-6" />
+                )}
               </span>
               <div className="space-y-1">
                 <h3 className="text-base font-semibold">开始和工作区助手对话</h3>
@@ -1472,6 +1485,9 @@ export const WorkspaceChatPage = ({
                 message.role === "assistant" &&
                 (message.status === "loading" || message.status === "streaming") &&
                 !message.text.trim();
+              const messageAgentAvatar = resolveAgentAvatar(
+                message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
+              );
 
               return (
                 <div
@@ -1480,9 +1496,16 @@ export const WorkspaceChatPage = ({
                   data-role={message.role}
                 >
                   {message.role === "assistant" && (
-                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary shadow-xs">
-                      {message.mode === "agent" ? (
-                        <Wrench className="size-4" />
+                    <div
+                      className="mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-accent text-primary shadow-xs"
+                      title={message.agentName}
+                    >
+                      {message.mode === "agent" || message.agentAvatar ? (
+                        <img
+                          src={messageAgentAvatar.src}
+                          alt=""
+                          className="size-full object-cover"
+                        />
                       ) : (
                         <Bot className="size-4" />
                       )}
@@ -2236,7 +2259,7 @@ export const WorkspaceChatPage = ({
                 <Badge variant={effectiveProvider && effectiveModel ? "secondary" : "outline"}>
                   {effectiveProvider && effectiveModel
                     ? modelSource === "agent" && selectedAgent
-                      ? resolveAgentAvatar(selectedAgent.avatar).label
+                      ? selectedAgent.name
                       : chatMode === "agent" ? codingAgent.name : "后端请求"
                     : "待配置"}
                 </Badge>

@@ -12,12 +12,12 @@ export type AgentAvatarOption = {
 };
 
 export const agentAvatarOptions: AgentAvatarOption[] = [
-  { id: "cat-mint", label: "薄荷猫", src: catMint },
-  { id: "cat-peach", label: "蜜桃猫", src: catPeach },
-  { id: "cat-sky", label: "晴空猫", src: catSky },
-  { id: "cat-lavender", label: "薰衣草猫", src: catLavender },
-  { id: "cat-sun", label: "太阳猫", src: catSun },
-  { id: "cat-graphite", label: "石墨猫", src: catGraphite },
+  { id: "cat-sun", label: "橘猫", src: catSun },
+  { id: "cat-lavender", label: "布偶猫", src: catLavender },
+  { id: "cat-sky", label: "暹罗猫", src: catSky },
+  { id: "cat-peach", label: "三花猫", src: catPeach },
+  { id: "cat-graphite", label: "英短蓝猫", src: catGraphite },
+  { id: "cat-mint", label: "奶牛猫", src: catMint },
 ];
 
 export const defaultAgentAvatar = agentAvatarOptions[0];
