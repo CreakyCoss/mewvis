@@ -7,10 +7,44 @@ import type {
 import type { AIAdapter, ChatChunk, ChatOptions, ChatResult, ProviderConfig } from "./base";
 
 const textFromMessage = (message: AssistantMessage) => {
-  return message.content
+  const text = message.content
     .filter((content) => content.type === "text")
     .map((content) => content.text)
-    .join("");
+    .join("")
+    .trim();
+
+  if (text) {
+    return text;
+  }
+
+  const thinking = message.content
+    .filter((content) => content.type === "thinking")
+    .map((content) => content.thinking)
+    .join("")
+    .trim();
+
+  if (thinking) {
+    return thinking;
+  }
+
+  const toolCalls = message.content
+    .filter((content) => content.type === "toolCall")
+    .map((content) => `${content.name}(${JSON.stringify(content.arguments)})`);
+
+  if (toolCalls.length) {
+    return `模型返回了工具调用：\n${toolCalls.join("\n")}`;
+  }
+
+  if (message.errorMessage) {
+    return `模型返回错误：${message.errorMessage}`;
+  }
+
+  const diagnostic = message.diagnostics?.find((item) => item.error?.message);
+  if (diagnostic?.error?.message) {
+    return `模型请求失败：${diagnostic.error.message}`;
+  }
+
+  return `模型未返回可展示文本。stopReason=${message.stopReason}`;
 };
 
 export class PiAIAdapter implements AIAdapter {

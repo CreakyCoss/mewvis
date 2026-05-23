@@ -4,8 +4,13 @@ import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";
 import { PageHeader } from "./page-header";
 import { useOverview } from "../hooks/use-overview";
+import type { Workspace } from "../types";
 
-export const WorkspacesPage = () => {
+type WorkspacesPageProps = {
+  onOpenWorkspace: (workspace: Workspace) => void;
+};
+
+export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const {
     overview,
@@ -41,6 +46,7 @@ export const WorkspacesPage = () => {
             sections={sections}
             isLoading={isLoading}
             onCreateWorkspace={() => setIsDialogOpen(true)}
+            onOpenWorkspace={onOpenWorkspace}
           />
         </section>
       </div>

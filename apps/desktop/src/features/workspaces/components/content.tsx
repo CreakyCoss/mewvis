@@ -1,12 +1,13 @@
 import { EmptyState } from "./empty-state";
 import { Groups } from "./groups";
-import type { WorkspaceSection, WorkspaceOverview } from "../types";
+import type { Workspace, WorkspaceSection, WorkspaceOverview } from "../types";
 
 type ContentProps = {
   overview: WorkspaceOverview | null;
   sections: WorkspaceSection[];
   isLoading: boolean;
   onCreateWorkspace: () => void;
+  onOpenWorkspace: (workspace: Workspace) => void;
 };
 
 export const Content = ({
@@ -14,6 +15,7 @@ export const Content = ({
   sections,
   isLoading,
   onCreateWorkspace,
+  onOpenWorkspace,
 }: ContentProps) => {
   if (isLoading) {
     return (
@@ -27,5 +29,5 @@ export const Content = ({
     return <EmptyState onCreateWorkspace={onCreateWorkspace} />;
   }
 
-  return <Groups sections={sections} />;
+  return <Groups sections={sections} onOpenWorkspace={onOpenWorkspace} />;
 };

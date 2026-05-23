@@ -3,11 +3,16 @@ import type { Workspace } from "../types";
 
 type CardProps = {
   workspace: Workspace;
+  onOpen: (workspace: Workspace) => void;
 };
 
-export const Card = ({ workspace }: CardProps) => {
+export const Card = ({ workspace, onOpen }: CardProps) => {
   return (
-    <article className="rounded-md border border-border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:bg-muted/40">
+    <button
+      type="button"
+      className="rounded-md border border-border bg-card p-4 text-left text-card-foreground shadow-xs transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      onClick={() => onOpen(workspace)}
+    >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <Folder className="size-4" />
@@ -29,6 +34,6 @@ export const Card = ({ workspace }: CardProps) => {
           </p>
         </div>
       </div>
-    </article>
+    </button>
   );
 };

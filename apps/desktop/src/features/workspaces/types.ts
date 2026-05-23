@@ -41,5 +41,5 @@ export const defaultWorkspaceForm: WorkspaceForm = {
   name: "",
   description: "",
   path: "",
-  groupId: "default",
+  groupId: "",
 };

@@ -1,12 +1,14 @@
 import { Card } from "./card";
-import type { WorkspaceSection } from "../types";
+import type { Workspace, WorkspaceSection } from "../types";
 
 type GroupsProps = {
   sections: WorkspaceSection[];
+  onOpenWorkspace: (workspace: Workspace) => void;
 };
 
 export const Groups = ({
   sections,
+  onOpenWorkspace,
 }: GroupsProps) => {
   return (
     <div className="space-y-8">
@@ -28,7 +30,11 @@ export const Groups = ({
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {workspaces.map((workspace) => (
-                <Card key={workspace.id} workspace={workspace} />
+                <Card
+                  key={workspace.id}
+                  workspace={workspace}
+                  onOpen={onOpenWorkspace}
+                />
               ))}
             </div>
           )}
