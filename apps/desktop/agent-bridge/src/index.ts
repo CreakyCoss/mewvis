@@ -529,6 +529,8 @@ const main = async () => {
 };
 
 main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  console.error(message);
   writeEvent({
     type: "error",
     message: error instanceof Error ? error.message : String(error),

@@ -47,7 +47,7 @@ pub fn bundled_skills_path(app: &AppHandle) -> Result<Option<PathBuf>, String> {
         return Ok(Some(dev_path));
     }
 
-    for candidate in ["skills", "resources/skills"] {
+    for candidate in ["_up_/resources/skills", "resources/skills", "skills"] {
         let path = app
             .path()
             .resolve(candidate, BaseDirectory::Resource)

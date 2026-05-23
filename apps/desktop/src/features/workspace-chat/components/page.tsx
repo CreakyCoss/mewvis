@@ -1006,6 +1006,8 @@ export const WorkspaceChatPage = ({
   const codingAgent = useMemo(() => createCodingAgentAdapter(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
+  const lastAgentErrorRef = useRef("");
+  const lastAgentStderrRef = useRef("");
   const isHydratingSessionRef = useRef(false);
   const saveSessionTimerRef = useRef<number | null>(null);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
@@ -1514,10 +1516,17 @@ export const WorkspaceChatPage = ({
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
+        lastAgentErrorRef.current = "";
+        lastAgentStderrRef.current = "";
         void loadFiles();
       }
 
+      if (event.type === "stderr") {
+        lastAgentStderrRef.current = event.message;
+      }
+
       if (event.type === "error") {
+        lastAgentErrorRef.current = event.message;
         setChatError(event.message);
         updateMessage(messageId, (message) => ({
           ...message,
@@ -1531,7 +1540,10 @@ export const WorkspaceChatPage = ({
       }
 
       if (event.type === "exit" && !event.success) {
-        const message = `Agent 任务异常退出：${event.code ?? "unknown"}`;
+        const message =
+          lastAgentErrorRef.current ||
+          lastAgentStderrRef.current ||
+          `Agent 任务异常退出：${event.code ?? "unknown"}`;
         setChatError(message);
         updateMessage(messageId, (currentMessage) => ({
           ...currentMessage,
@@ -1542,6 +1554,8 @@ export const WorkspaceChatPage = ({
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
+        lastAgentErrorRef.current = "";
+        lastAgentStderrRef.current = "";
       }
     }).then((unsubscribe) => {
       cleanup = unsubscribe;
@@ -1941,6 +1955,8 @@ export const WorkspaceChatPage = ({
 
       if (chatMode === "agent") {
         activeAgentMessageIdRef.current = assistantMessageId;
+        lastAgentErrorRef.current = "";
+        lastAgentStderrRef.current = "";
         const task = await codingAgent.startTask({
           workspacePath: workspace.path,
           prompt: buildAgentPrompt(

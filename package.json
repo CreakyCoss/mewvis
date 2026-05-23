@@ -6,6 +6,8 @@
     "build:ai": "cd ai/pi && npm install && npm run build",
     "dev:desktop": "cd apps/desktop && pnpm tauri dev",
     "build:desktop": "cd apps/desktop && pnpm tauri build",
+    "build:desktop:win": "cd apps/desktop && pnpm build:win",
+    "build:desktop:win:arm64": "cd apps/desktop && pnpm build:win:arm64",
     "migrate:config-db": "pnpm --filter desktop migrate:config-db"
   }
 }

@@ -2,17 +2,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
+    fs::{self, OpenOptions},
     io::{BufRead, BufReader, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, ChildStdin, Command, Stdio},
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
 const AGENT_EVENT: &str = "coding_agent_event";
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Default)]
 pub struct CodingAgentTasks {
@@ -78,16 +81,54 @@ pub fn start_coding_agent_task(
 
     let task_id = Uuid::now_v7().to_string();
     let bridge_path = resolve_agent_bridge_path(&app)?;
-    let bundled_skills_path =
-        super::skills::bundled_skills_path(&app)?.map(|path| path.to_string_lossy().to_string());
+    let bundled_skills_path = super::skills::bundled_skills_path(&app)?.map(|path| path_for_node(&path));
     let node_binary = resolve_node_binary(&app)?;
-    let mut child = Command::new(&node_binary)
-        .arg(bridge_path)
+    let bridge_dir = bridge_path.parent().map(PathBuf::from);
+    let agent_dir = app.path().app_data_dir().ok().map(|path| path.join("pi-agent"));
+    if let Some(agent_dir) = &agent_dir {
+        let _ = fs::create_dir_all(agent_dir);
+    }
+
+    append_agent_diagnostic(
+        &app,
+        format!(
+            "start task={task_id} workspace={} node={} node_exists={} bridge={} bridge_exists={} skills={} agent_dir={}",
+            input.workspace_path,
+            node_binary.display(),
+            node_binary.exists(),
+            bridge_path.display(),
+            bridge_path.exists(),
+            bundled_skills_path.as_deref().unwrap_or("<none>"),
+            agent_dir
+                .as_ref()
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|| "<none>".to_string()),
+        ),
+    );
+
+    let node_binary_arg = path_for_node(&node_binary);
+    let bridge_path_arg = path_for_node(&bridge_path);
+    let mut command = Command::new(&node_binary_arg);
+    command
+        .arg(&bridge_path_arg)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    if let Some(bridge_dir) = &bridge_dir {
+        command.env("PI_PACKAGE_DIR", path_for_node(bridge_dir));
+    }
+    if let Some(agent_dir) = &agent_dir {
+        command.env("PI_CODING_AGENT_DIR", path_for_node(agent_dir));
+    }
+    hide_subprocess_window(&mut command);
+
+    let mut child = command
         .spawn()
         .map_err(|error| {
+            append_agent_diagnostic(
+                &app,
+                format!("spawn failed task={task_id} error={error}"),
+            );
             format!(
                 "启动 Coding Agent bridge 失败：{error}。Node 路径：{}",
                 node_binary.display()
@@ -152,6 +193,7 @@ pub fn start_coding_agent_task(
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines().map_while(Result::ok) {
+                append_agent_diagnostic(&app, format!("stderr task={task_id} {line}"));
                 emit_agent_event(
                     &app,
                     json!({
@@ -195,6 +237,14 @@ pub fn start_coding_agent_task(
                 "success": status.success(),
                 "code": status.code(),
             }),
+        );
+        append_agent_diagnostic(
+            &app_for_wait,
+            format!(
+                "exit task={task_id_for_wait} success={} code={:?}",
+                status.success(),
+                status.code(),
+            ),
         );
 
         if let Ok(mut tasks) = tasks_for_wait.lock() {
@@ -365,6 +415,43 @@ fn emit_bridge_line(app: &AppHandle, task_id: &str, line: &str) {
 fn emit_agent_event(app: &AppHandle, event: Value) {
     let _ = app.emit(AGENT_EVENT, event);
 }
+
+fn append_agent_diagnostic(app: &AppHandle, message: impl AsRef<str>) {
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    let _ = fs::create_dir_all(&dir);
+    let path = dir.join("agent-bridge.log");
+    let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) else {
+        return;
+    };
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default();
+    let _ = writeln!(file, "[{timestamp}] {}", message.as_ref());
+}
+
+fn path_for_node(path: &Path) -> String {
+    let value = path.to_string_lossy();
+    if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    if let Some(rest) = value.strip_prefix(r"\\?\") {
+        return rest.to_string();
+    }
+    value.to_string()
+}
+
+#[cfg(windows)]
+fn hide_subprocess_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_subprocess_window(_command: &mut Command) {}
 
 trait CleanPath {
     fn clean(self) -> Self;
