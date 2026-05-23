@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     fs,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
@@ -75,6 +76,12 @@ pub struct LlmSettings {
     pub providers: Vec<LlmProvider>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSkillSettings {
+    pub enabled_skill_names: Vec<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWorkspaceInput {
@@ -110,6 +117,13 @@ pub struct SaveLlmProviderInput {
 #[serde(rename_all = "camelCase")]
 pub struct SaveLlmSettingsInput {
     pub providers: Vec<SaveLlmProviderInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveWorkspaceSkillsInput {
+    pub workspace_id: String,
+    pub enabled_skill_names: Vec<String>,
 }
 
 pub fn config_db_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -148,6 +162,67 @@ pub fn llm_settings(app: &AppHandle) -> Result<LlmSettings, String> {
     Ok(LlmSettings {
         providers: load_llm_providers(&conn)?,
     })
+}
+
+pub fn workspace_skill_settings(
+    app: &AppHandle,
+    workspace_id: &str,
+) -> Result<WorkspaceSkillSettings, String> {
+    let db_path = config_db_path(app)?;
+    let conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+
+    ensure_workspace_exists(&conn, workspace_id)?;
+
+    Ok(WorkspaceSkillSettings {
+        enabled_skill_names: load_workspace_skill_names(&conn, workspace_id)?,
+    })
+}
+
+pub fn save_workspace_skill_settings(
+    app: &AppHandle,
+    input: SaveWorkspaceSkillsInput,
+) -> Result<WorkspaceSkillSettings, String> {
+    let workspace_id = input.workspace_id.trim();
+    if workspace_id.is_empty() {
+        return Err("工作区 ID 不能为空".to_string());
+    }
+
+    let db_path = config_db_path(app)?;
+    let mut conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+    ensure_workspace_exists(&conn, workspace_id)?;
+
+    let skill_names = normalize_skill_names(input.enabled_skill_names);
+    let now = now_millis()?;
+    let tx = conn
+        .transaction()
+        .map_err(|error| format!("无法开始保存工作区 Skills：{error}"))?;
+    tx.execute(
+        "DELETE FROM workspace_enabled_skills WHERE workspace_id = ?1",
+        params![workspace_id],
+    )
+    .map_err(|error| format!("无法清空工作区 Skills：{error}"))?;
+
+    for skill_name in skill_names {
+        tx.execute(
+            r#"
+            INSERT INTO workspace_enabled_skills (workspace_id, skill_name, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4)
+            "#,
+            params![workspace_id, skill_name, now, now],
+        )
+        .map_err(|error| format!("无法保存工作区 Skill：{error}"))?;
+    }
+
+    tx.commit()
+        .map_err(|error| format!("无法提交工作区 Skills：{error}"))?;
+
+    workspace_skill_settings(app, workspace_id)
 }
 
 pub fn save_llm_settings(
@@ -334,6 +409,47 @@ fn load_workspace(conn: &Connection, id: &str) -> Result<Option<Workspace>, Stri
     .map_err(|error| format!("无法读取工作区：{error}"))
 }
 
+fn ensure_workspace_exists(conn: &Connection, workspace_id: &str) -> Result<(), String> {
+    let exists = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM workspaces WHERE id = ?1)",
+            params![workspace_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| format!("无法读取工作区：{error}"))?
+        == 1;
+
+    if exists {
+        Ok(())
+    } else {
+        Err("工作区不存在".to_string())
+    }
+}
+
+fn load_workspace_skill_names(
+    conn: &Connection,
+    workspace_id: &str,
+) -> Result<Vec<String>, String> {
+    let mut statement = conn
+        .prepare(
+            r#"
+            SELECT skill_name
+            FROM workspace_enabled_skills
+            WHERE workspace_id = ?1
+            ORDER BY created_at ASC, skill_name ASC
+            "#,
+        )
+        .map_err(|error| format!("无法读取工作区 Skills：{error}"))?;
+
+    let skill_names = statement
+        .query_map(params![workspace_id], |row| row.get::<_, String>(0))
+        .map_err(|error| format!("无法读取工作区 Skills：{error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析工作区 Skills：{error}"))?;
+
+    Ok(skill_names)
+}
+
 fn load_llm_providers(conn: &Connection) -> Result<Vec<LlmProvider>, String> {
     let mut statement = conn
         .prepare(
@@ -501,6 +617,16 @@ fn normalize_optional_text(value: Option<&str>) -> Option<String> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
+}
+
+fn normalize_skill_names(skill_names: Vec<String>) -> Vec<String> {
+    skill_names
+        .into_iter()
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn next_workspace_order(conn: &Connection, group_id: Option<&str>) -> Result<i64, String> {

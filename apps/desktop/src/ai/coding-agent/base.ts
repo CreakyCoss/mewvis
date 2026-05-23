@@ -9,14 +9,36 @@ export type CodingAgentTaskInput = {
   provider: CodingAgentProvider;
   model: CodingAgentModel;
   allowedTools?: string[];
+  enabledSkills?: string[];
 };
 
 export type CodingAgentTask = {
   taskId: string;
 };
 
+export type CodingAgentQuestionInput = {
+  type: "text" | "select";
+  label?: string;
+  options?: Array<{
+    value: string;
+    label: string;
+    description?: string;
+  }>;
+  selected?: string;
+};
+
 export type CodingAgentEvent =
   | { type: "started"; taskId: string }
+  | {
+    type: "question";
+    taskId: string;
+    questionId: string;
+    question: string;
+    context?: string | null;
+    input?: CodingAgentQuestionInput;
+  }
+  | { type: "question_answered"; taskId: string; questionId: string; answer: string }
+  | { type: "replace_text"; taskId: string; text: string }
   | { type: "text_delta"; taskId: string; delta: string }
   | { type: "thinking_delta"; taskId: string; delta: string }
   | { type: "thinking_end"; taskId: string; content: string }
@@ -32,6 +54,7 @@ export interface CodingAgentAdapter {
   readonly id: string;
   readonly name: string;
   startTask(input: CodingAgentTaskInput): Promise<CodingAgentTask>;
+  answerQuestion(taskId: string, questionId: string, answer: string): Promise<void>;
   abortTask(taskId: string): Promise<void>;
   subscribe(listener: (event: CodingAgentEvent) => void): Promise<() => void>;
 }

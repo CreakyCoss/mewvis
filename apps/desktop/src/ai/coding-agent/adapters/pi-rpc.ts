@@ -29,6 +29,12 @@ export class PiRpcCodingAgentAdapter implements CodingAgentAdapter {
     await invoke("abort_coding_agent_task", { taskId });
   }
 
+  async answerQuestion(taskId: string, questionId: string, answer: string): Promise<void> {
+    await invoke("answer_coding_agent_question", {
+      input: { taskId, questionId, answer },
+    });
+  }
+
   async subscribe(listener: (event: CodingAgentEvent) => void) {
     return listen<CodingAgentEvent>("coding_agent_event", (event) => {
       listener(event.payload);

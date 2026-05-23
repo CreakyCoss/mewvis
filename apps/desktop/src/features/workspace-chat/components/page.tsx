@@ -11,16 +11,18 @@ import {
   FileText,
   FileType,
   Folder,
+  Link,
   Loader2,
   MessageSquare,
   Plus,
   RefreshCw,
   Save,
   Send,
+  Sparkles,
   User,
   Wrench,
 } from "lucide-react";
-import type { CodingAgentEvent } from "@/ai/coding-agent/base";
+import type { CodingAgentEvent, CodingAgentQuestionInput } from "@/ai/coding-agent/base";
 import { createCodingAgentAdapter } from "@/ai/coding-agent/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider } from "@/features/llm-settings/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
+import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
+import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
+import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import type { Workspace } from "@/features/workspaces/types";
 import {
   chatWithLlm,
@@ -52,9 +57,169 @@ type WorkspaceChatPageProps = {
 
 type WorkspaceView = "chat" | "file" | "split";
 
+type FileReferenceMatch = {
+  token: string;
+  matches: WorkspaceFileEntry[];
+};
+
+type ResolvedFileReference = {
+  path: string;
+  content: string;
+};
+
+type PendingAgentQuestion = {
+  taskId: string;
+  questionId: string;
+  question: string;
+  context?: string | null;
+  input?: CodingAgentQuestionInput;
+};
+
+type ActiveReferenceToken = {
+  start: number;
+  end: number;
+  query: string;
+};
+
 const createMessageId = () => crypto.randomUUID();
 
 const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
+
+const quoteReferencePath = (path: string) =>
+  /[\s，。；,;]/.test(path) ? `@"${path}"` : `@${path}`;
+
+const getActiveReferenceToken = (
+  text: string,
+  cursor: number,
+): ActiveReferenceToken | null => {
+  const beforeCursor = text.slice(0, cursor);
+  const atIndex = beforeCursor.lastIndexOf("@");
+
+  if (atIndex < 0) {
+    return null;
+  }
+
+  const tokenPrefix = beforeCursor.slice(atIndex + 1);
+  if (/[\s，。；,;]/.test(tokenPrefix)) {
+    return null;
+  }
+
+  const previousChar = atIndex > 0 ? text[atIndex - 1] : "";
+  if (previousChar && !/[\s([{，。；,;]/.test(previousChar)) {
+    return null;
+  }
+
+  const afterCursor = text.slice(cursor);
+  const suffixMatch = afterCursor.match(/^[^\s，。；,;]*/);
+  const suffix = suffixMatch?.[0] ?? "";
+
+  return {
+    start: atIndex,
+    end: cursor + suffix.length,
+    query: `${tokenPrefix}${suffix}`.trim(),
+  };
+};
+
+const extractFileReferenceTokens = (text: string) => {
+  const tokens = new Set<string>();
+  const matcher = /@(?:"([^"]+)"|'([^']+)'|([^\s，。；；,;]+))/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = matcher.exec(text))) {
+    const token = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+    if (token) {
+      tokens.add(token);
+    }
+  }
+
+  return [...tokens];
+};
+
+const resolveFileReferenceMatches = (
+  text: string,
+  files: WorkspaceFileEntry[],
+): FileReferenceMatch[] => {
+  const selectable = files.filter((file) => !file.isDirectory);
+
+  return extractFileReferenceTokens(text).map((token) => {
+    const normalizedToken = token.toLowerCase();
+    const exactMatches = selectable.filter((file) => {
+      const path = file.path.toLowerCase();
+      const name = file.name.toLowerCase();
+      return path === normalizedToken || name === normalizedToken;
+    });
+
+    if (exactMatches.length > 0) {
+      return { token, matches: exactMatches };
+    }
+
+    return {
+      token,
+      matches: selectable.filter((file) => {
+        const path = file.path.toLowerCase();
+        const name = file.name.toLowerCase();
+        return path.includes(normalizedToken) || name.includes(normalizedToken);
+      }),
+    };
+  });
+};
+
+const summarizeReferenceMatches = (matches: FileReferenceMatch[]) => {
+  const resolved = matches.flatMap((match) =>
+    match.matches.length === 1 ? [match.matches[0]] : [],
+  );
+
+  const uniquePaths = new Set<string>();
+  return resolved.filter((file) => {
+    if (uniquePaths.has(file.path)) {
+      return false;
+    }
+    uniquePaths.add(file.path);
+    return true;
+  });
+};
+
+const appendReferencesToPrompt = (
+  text: string,
+  references: ResolvedFileReference[],
+) => {
+  if (references.length === 0) {
+    return text;
+  }
+
+  return [
+    text,
+    "",
+    "用户在消息中引用了以下文件，请优先使用这些文件作为上下文：",
+    references
+      .map((file) => [
+        `## ${file.path}`,
+        "```",
+        file.content.slice(0, 20000),
+        "```",
+      ].join("\n"))
+      .join("\n\n"),
+  ].join("\n");
+};
+
+const buildAgentPrompt = (
+  text: string,
+  references: ResolvedFileReference[],
+  history: ConversationMessage[],
+) => {
+  const recentHistory = history.slice(-8);
+  const historyContext = recentHistory.length
+    ? [
+      "以下是最近对话历史。用户当前输入可能是在回答助手上一轮提出的问题，请结合历史理解：",
+      recentHistory
+        .map((message) => `${message.role === "user" ? "用户" : "助手"}：${message.content}`)
+        .join("\n\n"),
+      "",
+    ].join("\n")
+    : "";
+
+  return appendReferencesToPrompt(`${historyContext}当前用户输入：\n${text}`, references);
+};
 
 const stringifyBrief = (value: unknown) => {
   const text = typeof value === "string" ? value : JSON.stringify(value);
@@ -73,6 +238,14 @@ const describeAgentEvent = (event: CodingAgentEvent) => {
 
   if (event.type === "tool_start") {
     return `调用工具 ${event.toolName}: ${stringifyBrief(event.args)}`;
+  }
+
+  if (event.type === "question") {
+    return `等待用户回答：${event.question}`;
+  }
+
+  if (event.type === "question_answered") {
+    return `用户已回答：${event.answer}`;
   }
 
   if (event.type === "tool_update") {
@@ -102,18 +275,102 @@ const describeAgentEvent = (event: CodingAgentEvent) => {
   return "";
 };
 
+type AgentEventGroup = {
+  id: string;
+  title: string;
+  status: "running" | "done" | "error" | "info";
+  events: CodingAgentEvent[];
+};
+
+const describeAgentGroupEvent = (event: CodingAgentEvent) => {
+  if (event.type === "tool_start") {
+    return `开始：${stringifyBrief(event.args)}`;
+  }
+
+  if (event.type === "tool_update") {
+    return `更新：${stringifyBrief(event.partialResult)}`;
+  }
+
+  if (event.type === "tool_end") {
+    return `${event.isError ? "失败" : "完成"}：${stringifyBrief(event.result)}`;
+  }
+
+  return describeAgentEvent(event);
+};
+
+const groupAgentEvents = (events: CodingAgentEvent[]) => {
+  const groups: AgentEventGroup[] = [];
+  const lastToolGroupByName = new Map<string, AgentEventGroup>();
+
+  events.forEach((event, index) => {
+    if (event.type === "tool_start") {
+      const group: AgentEventGroup = {
+        id: `${index}-${event.toolName}`,
+        title: event.toolName,
+        status: "running",
+        events: [event],
+      };
+      groups.push(group);
+      lastToolGroupByName.set(event.toolName, group);
+      return;
+    }
+
+    if (event.type === "tool_update" || event.type === "tool_end") {
+      const group = lastToolGroupByName.get(event.toolName);
+      if (group) {
+        group.events.push(event);
+        if (event.type === "tool_end") {
+          group.status = event.isError ? "error" : "done";
+          lastToolGroupByName.delete(event.toolName);
+        }
+        return;
+      }
+    }
+
+    const group: AgentEventGroup = {
+      id: `${index}-${event.type}`,
+      title: event.type === "stderr" ? "Agent 日志" : describeAgentEvent(event),
+      status: event.type === "error" ? "error" : "info",
+      events: [event],
+    };
+    groups.push(group);
+  });
+
+  return groups;
+};
+
 const isTimelineEvent = (event: CodingAgentEvent) =>
   event.type !== "text_delta" &&
   event.type !== "thinking_delta" &&
   event.type !== "thinking_end" &&
+  event.type !== "replace_text" &&
   event.type !== "done";
 
 const buildSystemPrompt = (
   workspace: Workspace,
   activeFile: WorkspaceFile | null,
+  referencedFiles: ResolvedFileReference[],
+  enabledSkills: WorkspaceSkill[],
 ) => {
   const fileContext = activeFile
     ? `\n\n当前打开文件：${activeFile.path}\n\n${activeFile.content.slice(0, 12000)}`
+    : "";
+  const referenceContext = referencedFiles.length
+    ? `\n\n用户引用文件：\n${referencedFiles
+      .map((file) => [
+        `## ${file.path}`,
+        file.content.slice(0, 20000),
+      ].join("\n\n"))
+      .join("\n\n")}`
+    : "";
+  const skillsContext = enabledSkills.length
+    ? `\n\n当前工作区启用的 Skills：\n${enabledSkills
+      .map((skill) => [
+        `<skill name="${skill.name}">`,
+        skill.content.slice(0, 12000),
+        "</skill>",
+      ].join("\n"))
+      .join("\n\n")}`
     : "";
 
   return [
@@ -123,6 +380,8 @@ const buildSystemPrompt = (
     "你可以帮助用户规划、写作、分析和修改项目文件。",
     "如果需要创建或修改文件，请明确说明目标路径和内容；用户可以在文件面板中保存。",
     fileContext,
+    referenceContext,
+    skillsContext,
   ].join("\n");
 };
 
@@ -131,6 +390,7 @@ export const WorkspaceChatPage = ({
   onBack,
 }: WorkspaceChatPageProps) => {
   const codingAgent = useMemo(() => createCodingAgentAdapter(), []);
+  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const [providers, setProviders] = useState<LlmProvider[]>([]);
@@ -138,6 +398,12 @@ export const WorkspaceChatPage = ({
   const [selectedModelId, setSelectedModelId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+  const [skills, setSkills] = useState<WorkspaceSkill[]>([]);
+  const [enabledSkillNames, setEnabledSkillNames] = useState<string[]>([]);
+  const [isSkillsDialogOpen, setIsSkillsDialogOpen] = useState(false);
+  const [skillsError, setSkillsError] = useState("");
+  const [isSkillsLoading, setIsSkillsLoading] = useState(false);
+  const [isSkillsSaving, setIsSkillsSaving] = useState(false);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [filePath, setFilePath] = useState("");
@@ -147,12 +413,18 @@ export const WorkspaceChatPage = ({
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [isFileSaving, setIsFileSaving] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [promptCursor, setPromptCursor] = useState(0);
   const [chatError, setChatError] = useState("");
   const [chatMode, setChatMode] = useState<"chat" | "agent">("chat");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
+  const [pendingAgentQuestion, setPendingAgentQuestion] = useState<PendingAgentQuestion | null>(null);
+  const [agentQuestionAnswer, setAgentQuestionAnswer] = useState("");
+  const [customAgentQuestionAnswer, setCustomAgentQuestionAnswer] = useState("");
+  const [isAnsweringAgentQuestion, setIsAnsweringAgentQuestion] = useState(false);
   const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(() => new Set());
+  const [expandedAgentEventIds, setExpandedAgentEventIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
 
@@ -175,6 +447,22 @@ export const WorkspaceChatPage = ({
       }
       return next;
     });
+  };
+
+  const toggleAgentEvents = (messageId: string) => {
+    setExpandedAgentEventIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const updatePromptCursor = () => {
+    setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
   };
 
   const loadLlmOptions = useCallback(async () => {
@@ -206,6 +494,68 @@ export const WorkspaceChatPage = ({
     }
   }, []);
 
+  const loadWorkspaceSkills = useCallback(async () => {
+    setIsSkillsLoading(true);
+    setSkillsError("");
+
+    try {
+      const settings = await getWorkspaceSkills(workspace.id);
+      setSkills(settings.skills);
+      setEnabledSkillNames(
+        settings.skills
+          .filter((skill) => skill.enabled)
+          .map((skill) => skill.name),
+      );
+    } catch (caught) {
+      setSkillsError(String(caught));
+    } finally {
+      setIsSkillsLoading(false);
+    }
+  }, [workspace.id]);
+
+  const toggleWorkspaceSkill = (name: string, enabled: boolean) => {
+    setEnabledSkillNames((current) => {
+      const next = new Set(current);
+      if (enabled) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return [...next].sort();
+    });
+  };
+
+  const handleSkillsDialogOpenChange = (open: boolean) => {
+    setIsSkillsDialogOpen(open);
+    if (!open) {
+      setEnabledSkillNames(
+        skills
+          .filter((skill) => skill.enabled)
+          .map((skill) => skill.name),
+      );
+    }
+  };
+
+  const saveSkills = async () => {
+    setIsSkillsSaving(true);
+    setSkillsError("");
+
+    try {
+      const settings = await saveWorkspaceSkills(workspace.id, enabledSkillNames);
+      setSkills(settings.skills);
+      setEnabledSkillNames(
+        settings.skills
+          .filter((skill) => skill.enabled)
+          .map((skill) => skill.name),
+      );
+      setIsSkillsDialogOpen(false);
+    } catch (caught) {
+      setSkillsError(String(caught));
+    } finally {
+      setIsSkillsSaving(false);
+    }
+  };
+
   const loadFiles = useCallback(async () => {
     setIsFilesLoading(true);
     setFileError("");
@@ -227,6 +577,10 @@ export const WorkspaceChatPage = ({
   useEffect(() => {
     void loadLlmOptions();
   }, [loadLlmOptions]);
+
+  useEffect(() => {
+    void loadWorkspaceSkills();
+  }, [loadWorkspaceSkills]);
 
   useEffect(() => {
     activeAgentTaskIdRef.current = activeAgentTaskId;
@@ -273,12 +627,43 @@ export const WorkspaceChatPage = ({
         return;
       }
 
+      if (event.type === "replace_text") {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          text: event.text,
+          status: "streaming",
+        }));
+        return;
+      }
+
       if (isTimelineEvent(event)) {
         updateMessage(messageId, (message) => ({
           ...message,
           agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
           status: event.type === "error" ? "error" : message.status,
         }));
+      }
+
+      if (event.type === "question") {
+        setPendingAgentQuestion({
+          taskId: event.taskId,
+          questionId: event.questionId,
+          question: event.question,
+          context: event.context,
+          input: event.input,
+        });
+        setAgentQuestionAnswer(event.input?.selected ?? "");
+        setCustomAgentQuestionAnswer("");
+        return;
+      }
+
+      if (event.type === "question_answered") {
+        setPendingAgentQuestion((current) =>
+          current?.questionId === event.questionId ? null : current,
+        );
+        setAgentQuestionAnswer("");
+        setCustomAgentQuestionAnswer("");
+        return;
       }
 
       if (event.type === "done") {
@@ -297,6 +682,7 @@ export const WorkspaceChatPage = ({
           },
         ]);
         setActiveAgentTaskId("");
+        setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
         void loadFiles();
@@ -310,6 +696,7 @@ export const WorkspaceChatPage = ({
           status: "error",
         }));
         setActiveAgentTaskId("");
+        setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
       }
@@ -323,6 +710,7 @@ export const WorkspaceChatPage = ({
           status: "error",
         }));
         setActiveAgentTaskId("");
+        setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
       }
@@ -338,6 +726,42 @@ export const WorkspaceChatPage = ({
   const selectableFiles = useMemo(
     () => files.filter((file) => !file.isDirectory),
     [files],
+  );
+  const activeReferenceToken = useMemo(
+    () => getActiveReferenceToken(prompt, promptCursor),
+    [prompt, promptCursor],
+  );
+  const referenceSuggestions = useMemo(() => {
+    if (!activeReferenceToken) {
+      return [];
+    }
+
+    const query = activeReferenceToken.query.toLowerCase();
+    const candidates = query
+      ? selectableFiles.filter((file) => {
+        const path = file.path.toLowerCase();
+        const name = file.name.toLowerCase();
+        return path.includes(query) || name.includes(query);
+      })
+      : selectableFiles;
+
+    return candidates.slice(0, 8);
+  }, [activeReferenceToken, selectableFiles]);
+  const fileReferenceMatches = useMemo(
+    () => resolveFileReferenceMatches(prompt, files),
+    [files, prompt],
+  );
+  const referencedFilePreviews = useMemo(
+    () => summarizeReferenceMatches(fileReferenceMatches),
+    [fileReferenceMatches],
+  );
+  const unresolvedFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
+    [fileReferenceMatches],
+  );
+  const ambiguousFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
+    [fileReferenceMatches],
   );
 
   const selectedProvider = useMemo(
@@ -356,6 +780,10 @@ export const WorkspaceChatPage = ({
       ?? null,
     [selectedModelId, selectedModels],
   );
+  const enabledSkills = useMemo(() => {
+    const names = new Set(enabledSkillNames);
+    return skills.filter((skill) => names.has(skill.name));
+  }, [enabledSkillNames, skills]);
   const isMarkdownFile = useMemo(
     () => isMarkdownPath(filePath),
     [filePath],
@@ -418,6 +846,60 @@ export const WorkspaceChatPage = ({
     }
   };
 
+  const insertFileReference = (file: WorkspaceFileEntry) => {
+    if (!activeReferenceToken) {
+      return;
+    }
+
+    const reference = quoteReferencePath(file.path);
+    const nextPrompt = [
+      prompt.slice(0, activeReferenceToken.start),
+      reference,
+      " ",
+      prompt.slice(activeReferenceToken.end),
+    ].join("");
+    const nextCursor = activeReferenceToken.start + reference.length + 1;
+
+    setPrompt(nextPrompt);
+    setPromptCursor(nextCursor);
+    window.setTimeout(() => {
+      promptInputRef.current?.focus();
+      promptInputRef.current?.setSelectionRange(nextCursor, nextCursor);
+    }, 0);
+  };
+
+  const submitAgentQuestionAnswer = async (answerValue: string) => {
+    const answer = answerValue.trim();
+    if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
+      return;
+    }
+
+    setIsAnsweringAgentQuestion(true);
+    setChatError("");
+
+    try {
+      await codingAgent.answerQuestion(
+        pendingAgentQuestion.taskId,
+        pendingAgentQuestion.questionId,
+        answer,
+      );
+      setAgentQuestionAnswer("");
+      setCustomAgentQuestionAnswer("");
+    } catch (caught) {
+      setChatError(String(caught));
+    } finally {
+      setIsAnsweringAgentQuestion(false);
+    }
+  };
+
+  const answerAgentQuestion = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await submitAgentQuestionAnswer(
+      agentQuestionAnswer === "other" ? customAgentQuestionAnswer : agentQuestionAnswer,
+    );
+  };
+
   const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -429,6 +911,39 @@ export const WorkspaceChatPage = ({
 
     if (!selectedProvider || !selectedModel) {
       setChatError("请选择要使用的 LLM 和模型");
+      return;
+    }
+
+    if (unresolvedFileReferences.length > 0) {
+      setChatError(`未找到引用文件：${unresolvedFileReferences.map((match) => `@${match.token}`).join("、")}`);
+      return;
+    }
+
+    if (ambiguousFileReferences.length > 0) {
+      setChatError(
+        ambiguousFileReferences
+          .map((match) => {
+            const candidates = match.matches.slice(0, 5).map((file) => file.path).join("、");
+            return `@${match.token} 匹配到多个文件：${candidates}`;
+          })
+          .join("\n"),
+      );
+      return;
+    }
+
+    let referencedFiles: ResolvedFileReference[] = [];
+    try {
+      referencedFiles = await Promise.all(
+        referencedFilePreviews.map(async (file) => {
+          const content = await readWorkspaceFile(workspace.path, file.path);
+          return {
+            path: content.path,
+            content: content.content,
+          };
+        }),
+      );
+    } catch (caught) {
+      setChatError(`读取引用文件失败：${String(caught)}`);
       return;
     }
 
@@ -445,6 +960,7 @@ export const WorkspaceChatPage = ({
       role: "user",
       text,
       createdAt: now,
+      referencedFiles: referencedFiles.map((file) => ({ path: file.path })),
     };
     const assistantUiMessage: ChatMessage = {
       id: assistantMessageId,
@@ -467,10 +983,11 @@ export const WorkspaceChatPage = ({
         activeAgentMessageIdRef.current = assistantMessageId;
         const task = await codingAgent.startTask({
           workspacePath: workspace.path,
-          prompt: text,
+          prompt: buildAgentPrompt(text, referencedFiles, conversation),
           provider: selectedProvider,
           model: selectedModel,
-          allowedTools: ["read", "edit", "write"],
+          allowedTools: ["read", "edit", "write", "ls", "find", "grep", "ask_user"],
+          enabledSkills: enabledSkills.map((skill) => skill.name),
         });
         activeAgentTaskIdRef.current = task.taskId;
         setActiveAgentTaskId(task.taskId);
@@ -484,7 +1001,7 @@ export const WorkspaceChatPage = ({
       const result = await chatWithLlm({
         provider: selectedProvider,
         model: selectedModel,
-        systemPrompt: buildSystemPrompt(workspace, activeFile),
+        systemPrompt: buildSystemPrompt(workspace, activeFile, referencedFiles, enabledSkills),
         messages: nextConversation,
       });
       const assistantText = result.text.trim();
@@ -633,6 +1150,16 @@ export const WorkspaceChatPage = ({
                 message.status === "done" &&
                 !expandedThinkingIds.has(message.id);
               const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
+              const agentEventGroups = groupAgentEvents(agentEvents);
+              const isAgentEventsCollapsed =
+                message.status === "done" && !expandedAgentEventIds.has(message.id);
+              const visibleAgentEventGroups =
+                message.status === "done" || expandedAgentEventIds.has(message.id)
+                  ? agentEventGroups
+                  : agentEventGroups.slice(-5);
+              const hiddenAgentEventGroupCount =
+                agentEventGroups.length - visibleAgentEventGroups.length;
+              const agentErrorCount = agentEventGroups.filter((group) => group.status === "error").length;
               const isAssistantLoading =
                 message.role === "assistant" &&
                 (message.status === "loading" || message.status === "streaming") &&
@@ -683,25 +1210,102 @@ export const WorkspaceChatPage = ({
                       </div>
                     )}
 
-                    {message.role === "assistant" && agentEvents.length > 0 && (
-                      <div className="mb-2 space-y-1.5 rounded-md border border-border/70 bg-muted/35 px-2.5 py-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    {message.role === "assistant" && agentEventGroups.length > 0 && (
+                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleAgentEvents(message.id)}
+                        >
+                          {isAgentEventsCollapsed ? (
+                            <ChevronRight className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
                           <Wrench className="size-3.5" />
                           <span>Agent 执行</span>
+                          <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">
+                            {agentEventGroups.length} 段
+                          </span>
+                          {agentErrorCount > 0 && (
+                            <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
+                              {agentErrorCount} 个错误
+                            </span>
+                          )}
                           {(message.status === "loading" || message.status === "streaming") && (
                             <Loader2 className="ml-auto size-3 animate-spin" />
                           )}
-                        </div>
-                        <div className="space-y-1 text-xs leading-5 text-muted-foreground">
-                          {agentEvents.map((event, index) => (
-                            <div
-                              key={`${message.id}-${event.type}-${index}`}
-                              className="rounded-sm border border-border/60 bg-background px-2 py-1"
-                            >
-                              {describeAgentEvent(event)}
-                            </div>
-                          ))}
-                        </div>
+                        </button>
+                        {!isAgentEventsCollapsed && (
+                          <div className="max-h-72 space-y-1.5 overflow-auto border-t border-border/60 px-2.5 py-2">
+                            {hiddenAgentEventGroupCount > 0 && (
+                              <div className="rounded-sm border border-dashed border-border/70 bg-background/60 px-2 py-1 text-xs text-muted-foreground">
+                                已折叠较早的 {hiddenAgentEventGroupCount} 段执行过程，当前显示最近阶段。
+                              </div>
+                            )}
+                            {visibleAgentEventGroups.map((group) => {
+                              const latestEvent = group.events[group.events.length - 1];
+                              const statusLabel =
+                                group.status === "running"
+                                  ? "执行中"
+                                  : group.status === "done"
+                                    ? "完成"
+                                    : group.status === "error"
+                                      ? "异常"
+                                      : "信息";
+
+                              return (
+                                <details
+                                  key={`${message.id}-${group.id}`}
+                                  className="group rounded-sm border border-border/60 bg-background"
+                                  open={group.status === "running" || group.status === "error"}
+                                >
+                                  <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                    <ChevronRight className="size-3 transition-transform group-open:rotate-90" />
+                                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                      {group.title}
+                                    </span>
+                                    <span
+                                      className={[
+                                        "rounded-sm px-1.5 py-0.5 text-[11px]",
+                                        group.status === "error"
+                                          ? "bg-destructive/10 text-destructive"
+                                          : group.status === "running"
+                                            ? "bg-primary/10 text-primary"
+                                            : "bg-muted text-muted-foreground",
+                                      ].join(" ")}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                    <span className="text-[11px]">
+                                      {group.events.length} 条
+                                    </span>
+                                  </summary>
+                                  <div className="space-y-1 border-t border-border/50 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                                    {group.events.slice(-8).map((event, index) => (
+                                      <div
+                                        key={`${message.id}-${group.id}-${event.type}-${index}`}
+                                        className="whitespace-pre-wrap break-words rounded-sm bg-muted/45 px-2 py-1"
+                                      >
+                                        {describeAgentGroupEvent(event)}
+                                      </div>
+                                    ))}
+                                    {group.events.length > 8 && (
+                                      <div className="rounded-sm bg-muted/35 px-2 py-1 text-[11px]">
+                                        已省略本段较早的 {group.events.length - 8} 条更新。
+                                      </div>
+                                    )}
+                                  </div>
+                                  {latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                    <div className="border-t border-border/50 px-2 py-1 text-[11px] text-destructive">
+                                      工具执行失败，请展开查看最后几条输出。
+                                    </div>
+                                  )}
+                                </details>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -710,15 +1314,30 @@ export const WorkspaceChatPage = ({
                         <Loader2 className="size-4 animate-spin" />
                         <span>{message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}</span>
                       </div>
-                    ) : (
-                      message.role === "assistant" ? (
-                        <MarkdownContent content={message.text} />
                       ) : (
-                        <div className="whitespace-pre-wrap">
-                          {message.text}
-                        </div>
-                      )
-                    )}
+                        message.role === "assistant" ? (
+                          <MarkdownContent content={message.text} />
+                        ) : (
+                          <div className="space-y-2">
+                            {message.referencedFiles && message.referencedFiles.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {message.referencedFiles.map((file) => (
+                                  <span
+                                    key={file.path}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
+                                  >
+                                    <Link className="size-3" />
+                                    <span className="truncate">{file.path}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="whitespace-pre-wrap">
+                              {message.text}
+                            </div>
+                          </div>
+                        )
+                      )}
                   </div>
                   {message.role === "user" && (
                     <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
@@ -733,28 +1352,211 @@ export const WorkspaceChatPage = ({
       </ScrollArea>
 
       <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
-        {(chatError || settingsError) && (
+        {(chatError || settingsError || skillsError) && (
           <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {chatError || settingsError}
+            {chatError || settingsError || skillsError}
           </div>
+        )}
+        {fileReferenceMatches.length > 0 && (
+          <div className="mx-auto mb-3 flex max-w-5xl flex-wrap gap-2 text-xs">
+            {referencedFilePreviews.map((file) => (
+              <span
+                key={file.path}
+                className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
+              >
+                <Link className="size-3" />
+                <span className="truncate">{file.path}</span>
+              </span>
+            ))}
+            {unresolvedFileReferences.map((match) => (
+              <span
+                key={`missing-${match.token}`}
+                className="inline-flex max-w-full items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
+              >
+                未找到 @{match.token}
+              </span>
+            ))}
+            {ambiguousFileReferences.map((match) => (
+              <span
+                key={`ambiguous-${match.token}`}
+                className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground"
+                title={match.matches.map((file) => file.path).join("\n")}
+              >
+                @{match.token} 匹配 {match.matches.length} 个文件
+              </span>
+            ))}
+          </div>
+        )}
+        {pendingAgentQuestion && (
+          <form
+            action="#"
+            className="mx-auto mb-3 max-w-5xl rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
+            onSubmit={(event) => void answerAgentQuestion(event)}
+          >
+            <div className="mb-2 flex items-start gap-2">
+              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
+                <MessageSquare className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-foreground">
+                  {pendingAgentQuestion.input?.label || "Agent 需要你的回答"}
+                </div>
+                {pendingAgentQuestion.context && (
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {pendingAgentQuestion.context}
+                  </div>
+                )}
+                <div className="mt-1 whitespace-pre-wrap text-sm leading-6">
+                  {pendingAgentQuestion.question}
+                </div>
+              </div>
+            </div>
+            {pendingAgentQuestion.input?.type === "select" &&
+            (pendingAgentQuestion.input.options?.length ?? 0) > 0 ? (
+              <div className="space-y-2">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(pendingAgentQuestion.input.options ?? []).map((option) => {
+                    const isSelected = agentQuestionAnswer === option.value;
+                    const isOther = option.value === "other";
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={[
+                          "rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
+                        ].join(" ")}
+                        disabled={isAnsweringAgentQuestion}
+                        onClick={() => {
+                          setAgentQuestionAnswer(option.value);
+                          if (!isOther) {
+                            void submitAgentQuestionAnswer(option.value);
+                          }
+                        }}
+                      >
+                        <span className="block font-medium">{option.label}</span>
+                        {option.description && (
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {option.description}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {agentQuestionAnswer === "other" && (
+                  <div className="flex items-end gap-2">
+                    <Textarea
+                      value={customAgentQuestionAnswer}
+                      onChange={(event) => setCustomAgentQuestionAnswer(event.currentTarget.value)}
+                      placeholder="请输入自定义答案"
+                      rows={2}
+                      className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isAnsweringAgentQuestion || !customAgentQuestionAnswer.trim()}
+                    >
+                      {isAnsweringAgentQuestion ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Send className="size-4" />
+                      )}
+                      <span>回复</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={agentQuestionAnswer}
+                  onChange={(event) => setAgentQuestionAnswer(event.currentTarget.value)}
+                  placeholder="直接回答这个问题，Agent 会继续执行"
+                  rows={2}
+                  className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  disabled={isAnsweringAgentQuestion || !agentQuestionAnswer.trim()}
+                >
+                  {isAnsweringAgentQuestion ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                  <span>回复</span>
+                </Button>
+              </div>
+            )}
+          </form>
         )}
         <form
           action="#"
           className="mx-auto flex max-w-5xl items-end gap-2"
           onSubmit={(event) => void sendMessage(event)}
         >
-          <Textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.currentTarget.value)}
-            placeholder="输入问题，或描述希望创建/修改的文件"
-            rows={3}
-            className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
+          <div className="relative min-w-0 flex-1">
+            {activeReferenceToken && (
+              <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
+                <div className="border-b border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground">
+                  {activeReferenceToken.query
+                    ? `选择引用文件：${activeReferenceToken.query}`
+                    : "选择要引用的文件"}
+                </div>
+                <div className="max-h-56 overflow-auto p-1">
+                  {referenceSuggestions.length > 0 ? (
+                    referenceSuggestions.map((file) => (
+                      <button
+                        key={file.path}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => insertFileReference(file)}
+                      >
+                        <FileText className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      没有匹配的文件
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <Textarea
+              ref={promptInputRef}
+              value={prompt}
+              onChange={(event) => {
+                setPrompt(event.currentTarget.value);
+                setPromptCursor(event.currentTarget.selectionStart);
+              }}
+              placeholder="输入问题，使用 @文件名 引用工作区文件"
+              rows={3}
+              className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
+              onClick={updatePromptCursor}
+              onSelect={updatePromptCursor}
+              onKeyUp={updatePromptCursor}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+          </div>
           <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
             {isSending || activeAgentTaskId ? (
               <Loader2 className="size-4 animate-spin" />
@@ -770,6 +1572,17 @@ export const WorkspaceChatPage = ({
 
   return (
     <main className="flex h-screen min-h-screen bg-muted/35 text-foreground">
+      <SkillsDialog
+        open={isSkillsDialogOpen}
+        skills={skills}
+        enabledSkillNames={enabledSkillNames}
+        isLoading={isSkillsLoading}
+        isSaving={isSkillsSaving}
+        error={skillsError}
+        onOpenChange={handleSkillsDialogOpenChange}
+        onToggleSkill={toggleWorkspaceSkill}
+        onSave={() => void saveSkills()}
+      />
       <aside className="flex w-[300px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="border-b border-sidebar-border px-4 py-4">
           <Button type="button" variant="ghost" onClick={onBack} className="mb-4 px-2">
@@ -924,6 +1737,25 @@ export const WorkspaceChatPage = ({
                     <span>Agent</span>
                   </Button>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={enabledSkills.length > 0 ? "secondary" : "outline"}
+                  title="工作区 Skills"
+                  onClick={() => setIsSkillsDialogOpen(true)}
+                >
+                  {isSkillsLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  <span>Skills</span>
+                  {enabledSkills.length > 0 && (
+                    <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">
+                      {enabledSkills.length}
+                    </span>
+                  )}
+                </Button>
                 <select
                   className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                   value={selectedProviderId}

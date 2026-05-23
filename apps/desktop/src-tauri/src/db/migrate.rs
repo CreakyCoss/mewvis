@@ -115,6 +115,15 @@ fn create_config_schema(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,
             UNIQUE(provider_id, model_id)
         );
+
+        CREATE TABLE IF NOT EXISTS workspace_enabled_skills (
+            workspace_id TEXT NOT NULL,
+            skill_name TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (workspace_id, skill_name),
+            FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+        );
         "#,
     )
     .map_err(|error| format!("配置数据库初始化失败：{error}"))?;

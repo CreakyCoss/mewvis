@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
     path::PathBuf,
-    process::{Child, Command, Stdio},
+    process::{Child, ChildStdin, Command, Stdio},
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -16,7 +16,12 @@ const AGENT_EVENT: &str = "coding_agent_event";
 
 #[derive(Default)]
 pub struct CodingAgentTasks {
-    tasks: Arc<Mutex<HashMap<String, Arc<Mutex<Child>>>>>,
+    tasks: Arc<Mutex<HashMap<String, Arc<CodingAgentProcess>>>>,
+}
+
+pub struct CodingAgentProcess {
+    child: Mutex<Child>,
+    stdin: Mutex<ChildStdin>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,12 +51,21 @@ pub struct StartCodingAgentTaskInput {
     provider: CodingAgentProviderInput,
     model: CodingAgentModelInput,
     allowed_tools: Option<Vec<String>>,
+    enabled_skills: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartCodingAgentTaskOutput {
     task_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnswerCodingAgentQuestionInput {
+    task_id: String,
+    question_id: String,
+    answer: String,
 }
 
 #[tauri::command]
@@ -64,6 +78,8 @@ pub fn start_coding_agent_task(
 
     let task_id = Uuid::now_v7().to_string();
     let bridge_path = resolve_agent_bridge_path(&app)?;
+    let bundled_skills_path =
+        super::skills::bundled_skills_path(&app)?.map(|path| path.to_string_lossy().to_string());
     let mut child = Command::new(resolve_node_binary())
         .arg(bridge_path)
         .stdin(Stdio::piped())
@@ -79,15 +95,26 @@ pub fn start_coding_agent_task(
         "prompt": input.prompt,
         "provider": input.provider,
         "model": input.model,
+        "bundledSkillsPath": bundled_skills_path,
+        "enabledSkills": input.enabled_skills.unwrap_or_default(),
         "allowedTools": input.allowed_tools.unwrap_or_else(|| {
-            vec!["read".to_string(), "edit".to_string(), "write".to_string()]
+            vec![
+                "read".to_string(),
+                "edit".to_string(),
+                "write".to_string(),
+                "ls".to_string(),
+                "find".to_string(),
+                "grep".to_string(),
+                "ask_user".to_string(),
+            ]
         }),
     });
 
-    if let Some(mut stdin) = child.stdin.take() {
-        writeln!(stdin, "{command}")
-            .map_err(|error| format!("发送 Coding Agent 任务失败：{error}"))?;
-    }
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Coding Agent bridge stdin 不可用".to_string())?;
+    writeln!(stdin, "{command}").map_err(|error| format!("发送 Coding Agent 任务失败：{error}"))?;
 
     if let Some(stdout) = child.stdout.take() {
         let app = app.clone();
@@ -131,19 +158,22 @@ pub fn start_coding_agent_task(
         });
     }
 
-    let child = Arc::new(Mutex::new(child));
+    let process = Arc::new(CodingAgentProcess {
+        child: Mutex::new(child),
+        stdin: Mutex::new(stdin),
+    });
     state
         .tasks
         .lock()
         .map_err(|_| "Coding Agent 任务状态已损坏".to_string())?
-        .insert(task_id.clone(), child.clone());
+        .insert(task_id.clone(), process.clone());
 
     let app_for_wait = app.clone();
     let task_id_for_wait = task_id.clone();
     let tasks_for_wait = state.inner().tasks.clone();
     thread::spawn(move || {
         let status = loop {
-            if let Ok(mut child) = child.lock() {
+            if let Ok(mut child) = process.child.lock() {
                 if let Ok(Some(status)) = child.try_wait() {
                     break status;
                 }
@@ -170,6 +200,38 @@ pub fn start_coding_agent_task(
 }
 
 #[tauri::command]
+pub fn answer_coding_agent_question(
+    state: State<CodingAgentTasks>,
+    input: AnswerCodingAgentQuestionInput,
+) -> Result<(), String> {
+    let task = state
+        .tasks
+        .lock()
+        .map_err(|_| "Coding Agent 任务状态已损坏".to_string())?
+        .get(&input.task_id)
+        .cloned()
+        .ok_or_else(|| "Coding Agent 任务不存在或已结束".to_string())?;
+
+    let command = json!({
+        "type": "answer_question",
+        "taskId": input.task_id,
+        "questionId": input.question_id,
+        "answer": input.answer,
+    });
+
+    let mut stdin = task
+        .stdin
+        .lock()
+        .map_err(|_| "Coding Agent 输入通道已无法访问".to_string())?;
+    writeln!(stdin, "{command}").map_err(|error| format!("发送用户回答失败：{error}"))?;
+    stdin
+        .flush()
+        .map_err(|error| format!("刷新用户回答失败：{error}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn abort_coding_agent_task(
     state: State<CodingAgentTasks>,
     task_id: String,
@@ -181,7 +243,8 @@ pub fn abort_coding_agent_task(
         .remove(&task_id);
 
     if let Some(task) = task {
-        task.lock()
+        task.child
+            .lock()
             .map_err(|_| "Coding Agent 任务进程已无法访问".to_string())?
             .kill()
             .map_err(|error| format!("终止 Coding Agent 任务失败：{error}"))?;
