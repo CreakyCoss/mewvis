@@ -18,6 +18,8 @@ export type CodingAgentTask = {
 export type CodingAgentEvent =
   | { type: "started"; taskId: string }
   | { type: "text_delta"; taskId: string; delta: string }
+  | { type: "thinking_delta"; taskId: string; delta: string }
+  | { type: "thinking_end"; taskId: string; content: string }
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }

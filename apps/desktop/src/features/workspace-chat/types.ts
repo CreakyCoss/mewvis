@@ -1,3 +1,5 @@
+import type { CodingAgentEvent } from "@/ai/coding-agent/base";
+
 export type WorkspaceFileEntry = {
   path: string;
   name: string;
@@ -17,6 +19,10 @@ export type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   createdAt: number;
+  mode?: "chat" | "agent";
+  status?: "loading" | "streaming" | "done" | "error";
+  thinking?: string;
+  agentEvents?: CodingAgentEvent[];
 };
 
 export type ConversationMessage = {

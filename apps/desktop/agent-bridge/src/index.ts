@@ -38,6 +38,8 @@ type BridgeCommand = StartTaskCommand;
 type BridgeEvent =
   | { type: "started"; taskId: string }
   | { type: "text_delta"; taskId: string; delta: string }
+  | { type: "thinking_delta"; taskId: string; delta: string }
+  | { type: "thinking_end"; taskId: string; content: string }
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
@@ -104,16 +106,60 @@ const runTask = async (command: StartTaskCommand) => {
 
   let assistantText = "";
   const unsubscribe = session.subscribe((event) => {
-    if (
-      event.type === "message_update" &&
-      event.assistantMessageEvent.type === "text_delta"
-    ) {
-      assistantText += event.assistantMessageEvent.delta;
-      writeEvent({
-        type: "text_delta",
-        taskId: command.taskId,
-        delta: event.assistantMessageEvent.delta,
-      });
+    if (event.type === "message_update") {
+      if (event.assistantMessageEvent.type === "text_delta") {
+        assistantText += event.assistantMessageEvent.delta;
+        writeEvent({
+          type: "text_delta",
+          taskId: command.taskId,
+          delta: event.assistantMessageEvent.delta,
+        });
+        return;
+      }
+
+      if (event.assistantMessageEvent.type === "thinking_delta") {
+        writeEvent({
+          type: "thinking_delta",
+          taskId: command.taskId,
+          delta: event.assistantMessageEvent.delta,
+        });
+        return;
+      }
+
+      if (event.assistantMessageEvent.type === "thinking_end") {
+        writeEvent({
+          type: "thinking_end",
+          taskId: command.taskId,
+          content: event.assistantMessageEvent.content,
+        });
+        return;
+      }
+    }
+
+    if (event.type === "message_end") {
+      const content = "content" in event.message && Array.isArray(event.message.content)
+        ? event.message.content
+        : [];
+      const text = content
+        .filter((item): item is { type: "text"; text: string } => item.type === "text")
+        .map((item) => item.text)
+        .join("")
+        .trim();
+      if (text) {
+        assistantText = text;
+      }
+      const thinking = content
+        .filter((item): item is { type: "thinking"; thinking: string } => item.type === "thinking")
+        .map((item) => item.thinking)
+        .join("")
+        .trim();
+      if (thinking) {
+        writeEvent({
+          type: "thinking_end",
+          taskId: command.taskId,
+          content: thinking,
+        });
+      }
       return;
     }
 

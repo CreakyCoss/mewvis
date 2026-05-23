@@ -53,6 +53,12 @@ pub struct ChatMessageInput {
 #[serde(rename_all = "camelCase")]
 pub struct ChatWithLlmOutput {
     text: String,
+    thinking: Option<String>,
+}
+
+struct ChatCompletionOutput {
+    text: String,
+    thinking: Option<String>,
 }
 
 #[tauri::command]
@@ -64,14 +70,17 @@ pub async fn chat_with_llm(input: ChatWithLlmInput) -> Result<ChatWithLlmOutput,
         .build()
         .map_err(|error| format!("创建 LLM HTTP 客户端失败：{error}"))?;
 
-    let text = match input.provider.provider.as_str() {
+    let output = match input.provider.provider.as_str() {
         "anthropic" => chat_with_anthropic(&client, &input).await?,
         "google" => chat_with_gemini(&client, &input).await?,
         "openai" | "openrouter" => chat_with_openai_compatible(&client, &input).await?,
         provider => return Err(format!("暂不支持的 Provider 类型：{provider}")),
     };
 
-    Ok(ChatWithLlmOutput { text })
+    Ok(ChatWithLlmOutput {
+        text: output.text,
+        thinking: output.thinking,
+    })
 }
 
 fn validate_chat_input(input: &ChatWithLlmInput) -> Result<(), String> {
@@ -100,7 +109,7 @@ fn validate_chat_input(input: &ChatWithLlmInput) -> Result<(), String> {
 async fn chat_with_openai_compatible(
     client: &reqwest::Client,
     input: &ChatWithLlmInput,
-) -> Result<String, String> {
+) -> Result<ChatCompletionOutput, String> {
     let endpoint = join_endpoint(
         input.provider.base_url.as_deref(),
         "https://api.openai.com/v1",
@@ -138,6 +147,10 @@ async fn chat_with_openai_compatible(
         .unwrap_or("")
         .trim()
         .to_string();
+    let thinking = first_string_value(
+        value.pointer("/choices/0/message"),
+        &["reasoning_content", "reasoning", "thinking"],
+    );
 
     if text.is_empty() {
         return Err(format!(
@@ -146,13 +159,13 @@ async fn chat_with_openai_compatible(
         ));
     }
 
-    Ok(text)
+    Ok(ChatCompletionOutput { text, thinking })
 }
 
 async fn chat_with_anthropic(
     client: &reqwest::Client,
     input: &ChatWithLlmInput,
-) -> Result<String, String> {
+) -> Result<ChatCompletionOutput, String> {
     let endpoint = join_endpoint(
         input.provider.base_url.as_deref(),
         "https://api.anthropic.com",
@@ -205,6 +218,22 @@ async fn chat_with_anthropic(
         .unwrap_or_default()
         .trim()
         .to_string();
+    let thinking = value
+        .get("content")
+        .and_then(Value::as_array)
+        .map(|content| {
+            content
+                .iter()
+                .filter(|item| {
+                    item.get("type")
+                        .and_then(Value::as_str)
+                        .is_some_and(|kind| kind == "thinking")
+                })
+                .filter_map(|item| first_string_value(Some(item), &["thinking", "text"]))
+                .collect::<Vec<_>>()
+                .join("")
+        })
+        .filter(|content| !content.trim().is_empty());
 
     if text.is_empty() {
         return Err(format!(
@@ -213,13 +242,13 @@ async fn chat_with_anthropic(
         ));
     }
 
-    Ok(text)
+    Ok(ChatCompletionOutput { text, thinking })
 }
 
 async fn chat_with_gemini(
     client: &reqwest::Client,
     input: &ChatWithLlmInput,
-) -> Result<String, String> {
+) -> Result<ChatCompletionOutput, String> {
     let base_url = input
         .provider
         .base_url
@@ -264,6 +293,12 @@ async fn chat_with_gemini(
         .map(|parts| {
             parts
                 .iter()
+                .filter(|part| {
+                    !part
+                        .get("thought")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                })
                 .filter_map(|part| part.get("text").and_then(Value::as_str))
                 .collect::<Vec<_>>()
                 .join("")
@@ -271,6 +306,22 @@ async fn chat_with_gemini(
         .unwrap_or_default()
         .trim()
         .to_string();
+    let thinking = value
+        .pointer("/candidates/0/content/parts")
+        .and_then(Value::as_array)
+        .map(|parts| {
+            parts
+                .iter()
+                .filter(|part| {
+                    part.get("thought")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                })
+                .filter_map(|part| part.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("")
+        })
+        .filter(|content| !content.trim().is_empty());
 
     if text.is_empty() {
         return Err(format!(
@@ -279,7 +330,7 @@ async fn chat_with_gemini(
         ));
     }
 
-    Ok(text)
+    Ok(ChatCompletionOutput { text, thinking })
 }
 
 async fn read_json_response(
@@ -322,6 +373,15 @@ fn bearer_headers(api_key: &str) -> Result<HeaderMap, String> {
             .map_err(|_| "API Key 包含非法字符".to_string())?,
     );
     Ok(headers)
+}
+
+fn first_string_value(value: Option<&Value>, keys: &[&str]) -> Option<String> {
+    let value = value?;
+    keys.iter()
+        .filter_map(|key| value.get(key).and_then(Value::as_str))
+        .map(str::trim)
+        .find(|text| !text.is_empty())
+        .map(ToString::to_string)
 }
 
 fn required_api_key(input: &ChatWithLlmInput) -> Result<&str, String> {

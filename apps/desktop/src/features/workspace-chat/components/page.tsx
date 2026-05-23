@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bot,
+  Brain,
+  ChevronDown,
+  ChevronRight,
   FileText,
   Folder,
   Loader2,
@@ -31,6 +34,7 @@ import {
   readWorkspaceFile,
   writeWorkspaceFile,
 } from "../api";
+import { MarkdownContent } from "./markdown-content";
 import type {
   ChatMessage,
   ConversationMessage,
@@ -91,6 +95,12 @@ const describeAgentEvent = (event: CodingAgentEvent) => {
   return "";
 };
 
+const isTimelineEvent = (event: CodingAgentEvent) =>
+  event.type !== "text_delta" &&
+  event.type !== "thinking_delta" &&
+  event.type !== "thinking_end" &&
+  event.type !== "done";
+
 const buildSystemPrompt = (
   workspace: Workspace,
   activeFile: WorkspaceFile | null,
@@ -115,6 +125,7 @@ export const WorkspaceChatPage = ({
 }: WorkspaceChatPageProps) => {
   const codingAgent = useMemo(() => createCodingAgentAdapter(), []);
   const activeAgentTaskIdRef = useRef("");
+  const activeAgentMessageIdRef = useRef("");
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
@@ -132,9 +143,30 @@ export const WorkspaceChatPage = ({
   const [chatMode, setChatMode] = useState<"chat" | "agent">("chat");
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
-  const [agentEvents, setAgentEvents] = useState<CodingAgentEvent[]>([]);
+  const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+
+  const updateMessage = useCallback((
+    messageId: string,
+    updater: (message: ChatMessage) => ChatMessage,
+  ) => {
+    setMessages((current) =>
+      current.map((message) => message.id === messageId ? updater(message) : message),
+    );
+  }, []);
+
+  const toggleThinking = (messageId: string) => {
+    setExpandedThinkingIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
 
   const loadLlmOptions = useCallback(async () => {
     setIsSettingsLoading(true);
@@ -200,41 +232,90 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      if (event.type !== "text_delta") {
-        setAgentEvents((current) => [...current, event].slice(-80));
+      const messageId = activeAgentMessageIdRef.current;
+      if (!messageId) {
+        return;
+      }
+
+      if (event.type === "text_delta") {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          text: `${message.text}${event.delta}`,
+          status: "streaming",
+        }));
+        return;
+      }
+
+      if (event.type === "thinking_delta") {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          thinking: `${message.thinking ?? ""}${event.delta}`,
+          status: "streaming",
+        }));
+        return;
+      }
+
+      if (event.type === "thinking_end") {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          thinking: event.content || message.thinking,
+          status: "streaming",
+        }));
+        return;
+      }
+
+      if (isTimelineEvent(event)) {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
+          status: event.type === "error" ? "error" : message.status,
+        }));
       }
 
       if (event.type === "done") {
-        const assistantText = event.text.trim() || "Agent 任务已完成。";
-        setMessages((current) => [
-          ...current,
-          {
-            id: createMessageId(),
-            role: "assistant",
-            text: assistantText,
-            createdAt: Date.now(),
-          },
-        ]);
+        const assistantText = event.text.trim();
+        updateMessage(messageId, (message) => ({
+          ...message,
+          text: assistantText || message.text || "Agent 任务已完成。",
+          status: "done",
+        }));
         setConversation((current) => [
           ...current,
           {
             role: "assistant",
-            content: assistantText,
+            content: assistantText || "Agent 任务已完成。",
             timestamp: Date.now(),
           },
         ]);
         setActiveAgentTaskId("");
+        activeAgentTaskIdRef.current = "";
+        activeAgentMessageIdRef.current = "";
         void loadFiles();
       }
 
       if (event.type === "error") {
         setChatError(event.message);
+        updateMessage(messageId, (message) => ({
+          ...message,
+          text: event.message,
+          status: "error",
+        }));
         setActiveAgentTaskId("");
+        activeAgentTaskIdRef.current = "";
+        activeAgentMessageIdRef.current = "";
       }
 
       if (event.type === "exit" && !event.success) {
-        setChatError(`Agent 任务异常退出：${event.code ?? "unknown"}`);
+        const message = `Agent 任务异常退出：${event.code ?? "unknown"}`;
+        setChatError(message);
+        updateMessage(messageId, (currentMessage) => ({
+          ...currentMessage,
+          text: message,
+          status: "error",
+        }));
         setActiveAgentTaskId("");
+        activeAgentTaskIdRef.current = "";
+        activeAgentMessageIdRef.current = "";
       }
     }).then((unsubscribe) => {
       cleanup = unsubscribe;
@@ -243,7 +324,7 @@ export const WorkspaceChatPage = ({
     return () => {
       cleanup?.();
     };
-  }, [codingAgent, loadFiles]);
+  }, [codingAgent, loadFiles, updateMessage]);
 
   const selectableFiles = useMemo(
     () => files.filter((file) => !file.isDirectory),
@@ -324,7 +405,13 @@ export const WorkspaceChatPage = ({
       return;
     }
 
+    if (!selectedProvider || !selectedModel) {
+      setChatError("请选择要使用的 LLM 和模型");
+      return;
+    }
+
     const now = Date.now();
+    const assistantMessageId = createMessageId();
     const userMessage: ConversationMessage = {
       role: "user",
       content: text,
@@ -337,20 +424,25 @@ export const WorkspaceChatPage = ({
       text,
       createdAt: now,
     };
+    const assistantUiMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      mode: chatMode,
+      text: "",
+      status: "loading",
+      createdAt: now,
+      agentEvents: chatMode === "agent" ? [] : undefined,
+    };
 
     setPrompt("");
-    setMessages((current) => [...current, userUiMessage]);
+    setMessages((current) => [...current, userUiMessage, assistantUiMessage]);
     setConversation(nextConversation);
     setIsSending(true);
     setChatError("");
 
     try {
-      if (!selectedProvider || !selectedModel) {
-        throw new Error("请选择要使用的 LLM 和模型");
-      }
-
       if (chatMode === "agent") {
-        setAgentEvents([]);
+        activeAgentMessageIdRef.current = assistantMessageId;
         const task = await codingAgent.startTask({
           workspacePath: workspace.path,
           prompt: text,
@@ -358,7 +450,12 @@ export const WorkspaceChatPage = ({
           model: selectedModel,
           allowedTools: ["read", "edit", "write"],
         });
+        activeAgentTaskIdRef.current = task.taskId;
         setActiveAgentTaskId(task.taskId);
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          status: "streaming",
+        }));
         return;
       }
 
@@ -370,15 +467,12 @@ export const WorkspaceChatPage = ({
       });
       const assistantText = result.text.trim();
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: createMessageId(),
-          role: "assistant",
-          text: assistantText,
-          createdAt: Date.now(),
-        },
-      ]);
+      updateMessage(assistantMessageId, (message) => ({
+        ...message,
+        text: assistantText,
+        thinking: result.thinking?.trim() || undefined,
+        status: "done",
+      }));
       setConversation((current) => [
         ...current,
         {
@@ -388,7 +482,16 @@ export const WorkspaceChatPage = ({
         },
       ]);
     } catch (caught) {
-      setChatError(String(caught));
+      const message = String(caught);
+      setChatError(message);
+      activeAgentTaskIdRef.current = "";
+      activeAgentMessageIdRef.current = "";
+      setActiveAgentTaskId("");
+      updateMessage(assistantMessageId, (currentMessage) => ({
+        ...currentMessage,
+        text: message,
+        status: "error",
+      }));
     } finally {
       setIsSending(false);
     }
@@ -609,50 +712,113 @@ export const WorkspaceChatPage = ({
                 </div>
               </div>
             ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className="flex gap-3 data-[role=user]:justify-end"
-                  data-role={message.role}
-                >
-                  {message.role === "assistant" && (
-                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <Bot className="size-4" />
-                    </div>
-                  )}
+              messages.map((message) => {
+                const thinking = message.thinking?.trim();
+                const isThinkingCollapsed =
+                  Boolean(thinking) &&
+                  message.status === "done" &&
+                  !expandedThinkingIds.has(message.id);
+                const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
+                const isAssistantLoading =
+                  message.role === "assistant" &&
+                  (message.status === "loading" || message.status === "streaming") &&
+                  !message.text.trim();
+
+                return (
                   <div
-                    className="max-w-[78%] whitespace-pre-wrap rounded-md px-3 py-2 text-sm leading-6 data-[role=assistant]:bg-muted data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                    key={message.id}
+                    className="flex gap-3 data-[role=user]:justify-end"
                     data-role={message.role}
                   >
-                    {message.text}
-                  </div>
-                  {message.role === "user" && (
-                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <User className="size-4" />
+                    {message.role === "assistant" && (
+                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        {message.mode === "agent" ? (
+                          <Wrench className="size-4" />
+                        ) : (
+                          <Bot className="size-4" />
+                        )}
+                      </div>
+                    )}
+                    <div
+                      className="max-w-[78%] rounded-md px-3 py-2 text-sm leading-6 data-[role=assistant]:bg-muted data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                      data-role={message.role}
+                    >
+                      {message.role === "assistant" && thinking && (
+                        <div className="mb-2 rounded-md border border-border/70 bg-background/60">
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                            onClick={() => toggleThinking(message.id)}
+                          >
+                            {isThinkingCollapsed ? (
+                              <ChevronRight className="size-3.5" />
+                            ) : (
+                              <ChevronDown className="size-3.5" />
+                            )}
+                            <Brain className="size-3.5" />
+                            <span>Thinking</span>
+                            {message.status !== "done" && (
+                              <Loader2 className="ml-auto size-3 animate-spin" />
+                            )}
+                          </button>
+                          {!isThinkingCollapsed && (
+                            <div className="max-h-48 overflow-auto border-t border-border/60 px-2 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                              {thinking}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {message.role === "assistant" && agentEvents.length > 0 && (
+                        <div className="mb-2 space-y-1 rounded-md border border-border/70 bg-background/60 px-2 py-2">
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <Wrench className="size-3.5" />
+                            <span>Agent 执行</span>
+                            {(message.status === "loading" || message.status === "streaming") && (
+                              <Loader2 className="ml-auto size-3 animate-spin" />
+                            )}
+                          </div>
+                          <div className="space-y-1 text-xs leading-5 text-muted-foreground">
+                            {agentEvents.map((event, index) => (
+                              <div
+                                key={`${message.id}-${event.type}-${index}`}
+                                className="rounded-sm bg-muted/60 px-2 py-1"
+                              >
+                                {describeAgentEvent(event)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {isAssistantLoading ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="size-4 animate-spin" />
+                          <span>{message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}</span>
+                        </div>
+                      ) : (
+                        message.role === "assistant" ? (
+                          <MarkdownContent content={message.text} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">
+                            {message.text}
+                          </div>
+                        )
+                      )}
                     </div>
-                  )}
-                </div>
-              ))
+                    {message.role === "user" && (
+                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <User className="size-4" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </ScrollArea>
 
         <div className="border-t border-border px-6 py-4">
-          {agentEvents.length > 0 && (
-            <div className="mx-auto mb-3 max-w-4xl rounded-md border border-border bg-muted/30 px-3 py-2">
-              <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Wrench className="size-3.5" />
-                <span>Agent 执行</span>
-              </div>
-              <div className="max-h-28 space-y-1 overflow-auto text-xs text-muted-foreground">
-                {agentEvents.map((event, index) => (
-                  <div key={`${event.taskId}-${event.type}-${index}`}>
-                    {describeAgentEvent(event)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {(chatError || settingsError) && (
             <div className="mx-auto mb-3 max-w-4xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {chatError || settingsError}
@@ -676,12 +842,12 @@ export const WorkspaceChatPage = ({
               }}
             />
             <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
-              {isSending ? (
+              {isSending || activeAgentTaskId ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Send className="size-4" />
               )}
-              <span>发送</span>
+              <span>{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
             </Button>
           </form>
         </div>

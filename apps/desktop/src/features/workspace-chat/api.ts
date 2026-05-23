@@ -12,6 +12,7 @@ export type ChatWithLlmInput = {
 
 export type ChatWithLlmOutput = {
   text: string;
+  thinking?: string | null;
 };
 
 export async function listWorkspaceFiles(workspacePath: string) {
