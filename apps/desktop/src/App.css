@@ -138,3 +138,382 @@
     font: inherit;
     }
 }
+
+@keyframes agent-idle-fishing {
+  0%, 100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(2px) rotate(1.5deg);
+  }
+}
+
+@keyframes agent-working-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-3px) scale(1.04);
+  }
+}
+
+@keyframes agent-work-ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes agent-status-dot {
+  0%, 80%, 100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes agent-chair-sway {
+  0%, 100% {
+    transform: translateX(-50%) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(-50%) rotate(1.5deg);
+  }
+}
+
+@keyframes agent-typing-left {
+  0%, 100% {
+    transform: rotate(18deg) translateY(0);
+  }
+  50% {
+    transform: rotate(10deg) translateY(2px);
+  }
+}
+
+@keyframes agent-typing-right {
+  0%, 100% {
+    transform: rotate(-18deg) translateY(1px);
+  }
+  50% {
+    transform: rotate(-10deg) translateY(0);
+  }
+}
+
+@keyframes agent-screen-pulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.agent-workstation {
+  position: relative;
+  height: 124px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 93%, oklch(0 0 0 / 10%) 0 16%, transparent 42%),
+    linear-gradient(180deg, oklch(0.99 0.004 248) 0%, oklch(0.94 0.009 248) 100%);
+}
+
+.dark .agent-workstation {
+  background:
+    radial-gradient(ellipse at 50% 93%, oklch(0 0 0 / 26%) 0 16%, transparent 42%),
+    linear-gradient(180deg, oklch(0.24 0.014 248) 0%, oklch(0.19 0.012 248) 100%);
+}
+
+.agent-desk {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  width: 86px;
+  height: 42px;
+  transform: translateX(-50%);
+  border-radius: 2px 2px 7px 7px;
+  background: oklch(1 0 0 / 78%);
+  box-shadow: 0 14px 26px oklch(0 0 0 / 10%);
+}
+
+.dark .agent-desk {
+  background: oklch(0.32 0.012 248 / 86%);
+}
+
+.agent-desk::before,
+.agent-desk::after {
+  content: "";
+  position: absolute;
+  top: 38px;
+  width: 4px;
+  height: 42px;
+  border-radius: 999px;
+  background: oklch(0.78 0.01 248);
+}
+
+.dark .agent-desk::before,
+.dark .agent-desk::after {
+  background: oklch(0.44 0.012 248);
+}
+
+.agent-desk::before {
+  left: 8px;
+}
+
+.agent-desk::after {
+  right: 8px;
+}
+
+.agent-monitor {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 44px;
+  height: 25px;
+  transform: translateX(-50%);
+  border: 3px solid oklch(0.22 0.014 248);
+  border-radius: 2px;
+  background: oklch(0.15 0.012 248);
+}
+
+.agent-monitor::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 16px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 0 0 4px 4px;
+  background: oklch(0.78 0.01 248);
+}
+
+.agent-monitor span {
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: agent-screen-pulse 1.2s ease-in-out infinite;
+}
+
+.agent-monitor span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.agent-monitor span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.agent-keyboard {
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  width: 32px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: oklch(0.86 0.008 248);
+}
+
+.dark .agent-keyboard {
+  background: oklch(0.48 0.012 248);
+}
+
+.agent-note {
+  position: absolute;
+  top: 15px;
+  left: 9px;
+  width: 16px;
+  height: 13px;
+  border-radius: 2px;
+  background: oklch(0.94 0.025 80);
+  box-shadow: inset 0 -3px 0 oklch(0.82 0.03 80);
+}
+
+.agent-chair {
+  position: absolute;
+  left: 50%;
+  bottom: 19px;
+  width: 42px;
+  height: 42px;
+  transform: translateX(-50%);
+  border-radius: 13px 13px 18px 18px;
+  background: oklch(0.42 0.014 248);
+  box-shadow: 0 12px 20px oklch(0 0 0 / 14%);
+}
+
+.agent-chair::before {
+  content: "";
+  position: absolute;
+  top: 40px;
+  left: 18px;
+  width: 6px;
+  height: 22px;
+  border-radius: 999px;
+  background: oklch(0.38 0.014 248);
+}
+
+.agent-worker {
+  position: absolute;
+  left: 50%;
+  bottom: 45px;
+  width: 34px;
+  height: 42px;
+  transform: translateX(-50%);
+  transform-origin: center bottom;
+  z-index: 2;
+}
+
+.agent-worker-head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  transform: translateX(-50%);
+  border: 2px solid oklch(0.98 0.004 248);
+  border-radius: 10px;
+  background: var(--accent);
+}
+
+.agent-worker-head img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-worker-body {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 34px;
+  height: 23px;
+  transform: translateX(-50%);
+  border-radius: 12px 12px 6px 6px;
+  background: oklch(0.14 0.012 248);
+}
+
+.agent-worker-body::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.agent-arm {
+  position: absolute;
+  top: 31px;
+  width: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background: oklch(0.14 0.012 248);
+}
+
+.agent-arm.left {
+  left: -5px;
+  animation: agent-typing-left 0.42s ease-in-out infinite;
+}
+
+.agent-arm.right {
+  right: -5px;
+  animation: agent-typing-right 0.42s ease-in-out infinite;
+}
+
+.agent-idle-bubble {
+  position: absolute;
+  top: -5px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 82%);
+  box-shadow: 6px -6px 0 -2px oklch(1 0 0 / 72%);
+}
+
+.agent-shadow {
+  position: absolute;
+  right: 20px;
+  bottom: 7px;
+  left: 20px;
+  height: 12px;
+  border-radius: 50%;
+  background: oklch(0 0 0 / 10%);
+  filter: blur(3px);
+}
+
+.agent-role-tag {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  background: oklch(1 0 0 / 74%);
+  padding: 2px 5px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.dark .agent-role-tag {
+  background: oklch(0.16 0.012 248 / 78%);
+}
+
+.agent-workstation.is-idle .agent-chair,
+.agent-workstation.is-idle .agent-worker {
+  animation: agent-chair-sway 3s ease-in-out infinite;
+}
+
+.agent-workstation.is-idle {
+  opacity: 0.86;
+}
+
+.agent-avatar-idle {
+  animation: agent-idle-fishing 2.8s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.agent-avatar-working {
+  animation: agent-working-bounce 0.9s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.agent-work-ring {
+  animation: agent-work-ring 1.15s ease-out infinite;
+}
+
+.agent-status-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.agent-status-dots span {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: agent-status-dot 1s ease-in-out infinite;
+}
+
+.agent-status-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.agent-status-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
