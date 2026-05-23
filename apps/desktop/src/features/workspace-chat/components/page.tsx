@@ -6,7 +6,10 @@ import {
   Brain,
   ChevronDown,
   ChevronRight,
+  Columns3,
+  Eye,
   FileText,
+  FileType,
   Folder,
   Loader2,
   MessageSquare,
@@ -47,7 +50,11 @@ type WorkspaceChatPageProps = {
   onBack: () => void;
 };
 
+type WorkspaceView = "chat" | "file" | "split";
+
 const createMessageId = () => crypto.randomUUID();
+
+const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
 
 const stringifyBrief = (value: unknown) => {
   const text = typeof value === "string" ? value : JSON.stringify(value);
@@ -114,7 +121,7 @@ const buildSystemPrompt = (
     `工作区名称：${workspace.name}`,
     `工作区路径：${workspace.path}`,
     "你可以帮助用户规划、写作、分析和修改项目文件。",
-    "如果需要创建或修改文件，请明确说明目标路径和内容；用户可以在左侧文件编辑器中保存。",
+    "如果需要创建或修改文件，请明确说明目标路径和内容；用户可以在文件面板中保存。",
     fileContext,
   ].join("\n");
 };
@@ -136,11 +143,13 @@ export const WorkspaceChatPage = ({
   const [filePath, setFilePath] = useState("");
   const [fileContent, setFileContent] = useState("");
   const [fileError, setFileError] = useState("");
+  const [fileViewMode, setFileViewMode] = useState<"source" | "preview">("source");
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [isFileSaving, setIsFileSaving] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [chatError, setChatError] = useState("");
   const [chatMode, setChatMode] = useState<"chat" | "agent">("chat");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
   const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(() => new Set());
@@ -347,6 +356,10 @@ export const WorkspaceChatPage = ({
       ?? null,
     [selectedModelId, selectedModels],
   );
+  const isMarkdownFile = useMemo(
+    () => isMarkdownPath(filePath),
+    [filePath],
+  );
 
   useEffect(() => {
     if (!selectedProvider) {
@@ -359,6 +372,12 @@ export const WorkspaceChatPage = ({
     }
   }, [selectedModel, selectedProvider]);
 
+  useEffect(() => {
+    if (!isMarkdownFile && fileViewMode === "preview") {
+      setFileViewMode("source");
+    }
+  }, [fileViewMode, isMarkdownFile]);
+
   const openFile = async (path: string) => {
     setFileError("");
 
@@ -367,6 +386,7 @@ export const WorkspaceChatPage = ({
       setActiveFile(file);
       setFilePath(file.path);
       setFileContent(file.content);
+      setWorkspaceView((current) => current === "split" ? "split" : "file");
     } catch (caught) {
       setFileError(String(caught));
     }
@@ -377,6 +397,8 @@ export const WorkspaceChatPage = ({
     setFilePath("");
     setFileContent("");
     setFileError("");
+    setFileViewMode("source");
+    setWorkspaceView((current) => current === "split" ? "split" : "file");
   };
 
   const saveFile = async () => {
@@ -497,9 +519,258 @@ export const WorkspaceChatPage = ({
     }
   };
 
+  const filePanel = (
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/70 px-5 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+            <FileText className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">文件查看</h3>
+            <p className="truncate text-xs text-muted-foreground">
+              {filePath || "选择或新建一个文件"}
+            </p>
+          </div>
+        </div>
+        {isMarkdownFile && (
+          <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+            <Button
+              type="button"
+              size="sm"
+              variant={fileViewMode === "source" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setFileViewMode("source")}
+            >
+              <FileType className="size-3.5" />
+              <span>原文</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={fileViewMode === "preview" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setFileViewMode("preview")}
+            >
+              <Eye className="size-3.5" />
+              <span>预览</span>
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-5">
+        <Input
+          value={filePath}
+          onChange={(event) => setFilePath(event.currentTarget.value)}
+          placeholder="例如：chapters/01.md"
+        />
+        {isMarkdownFile && fileViewMode === "preview" ? (
+          <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden rounded-md border border-input bg-card shadow-xs">
+            <div className="mx-auto w-full max-w-4xl p-6">
+              {fileContent.trim() ? (
+                <MarkdownContent content={fileContent} />
+              ) : (
+                <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
+                  暂无可预览内容
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        ) : (
+          <Textarea
+            value={fileContent}
+            onChange={(event) => setFileContent(event.currentTarget.value)}
+            placeholder="选择文件或输入新文件内容"
+            className="min-h-0 flex-1 resize-none overflow-auto bg-card font-mono text-sm leading-6 shadow-xs"
+          />
+        )}
+        {fileError && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {fileError}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end border-t border-border/80 bg-card/80 px-5 py-3">
+        <Button
+          type="button"
+          onClick={() => void saveFile()}
+          disabled={isFileSaving || !filePath.trim()}
+        >
+          {isFileSaving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
+          <span>{activeFile ? "保存修改" : "创建文件"}</span>
+        </Button>
+      </div>
+    </section>
+  );
+
+  const chatPanel = (
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
+          {messages.length === 0 ? (
+            <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
+              <span className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+                <Bot className="size-6" />
+              </span>
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold">开始和工作区助手对话</h3>
+                <p className="text-sm text-muted-foreground">
+                  选择文件后提问，助手会把当前文件内容纳入上下文。
+                </p>
+              </div>
+            </div>
+          ) : (
+            messages.map((message) => {
+              const thinking = message.thinking?.trim();
+              const isThinkingCollapsed =
+                Boolean(thinking) &&
+                message.status === "done" &&
+                !expandedThinkingIds.has(message.id);
+              const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
+              const isAssistantLoading =
+                message.role === "assistant" &&
+                (message.status === "loading" || message.status === "streaming") &&
+                !message.text.trim();
+
+              return (
+                <div
+                  key={message.id}
+                  className="flex gap-3 data-[role=user]:justify-end"
+                  data-role={message.role}
+                >
+                  {message.role === "assistant" && (
+                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary shadow-xs">
+                      {message.mode === "agent" ? (
+                        <Wrench className="size-4" />
+                      ) : (
+                        <Bot className="size-4" />
+                      )}
+                    </div>
+                  )}
+                  <div
+                    className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                    data-role={message.role}
+                  >
+                    {message.role === "assistant" && thinking && (
+                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleThinking(message.id)}
+                        >
+                          {isThinkingCollapsed ? (
+                            <ChevronRight className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
+                          <Brain className="size-3.5" />
+                          <span>Thinking</span>
+                          {message.status !== "done" && (
+                            <Loader2 className="ml-auto size-3 animate-spin" />
+                          )}
+                        </button>
+                        {!isThinkingCollapsed && (
+                          <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                            {thinking}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {message.role === "assistant" && agentEvents.length > 0 && (
+                      <div className="mb-2 space-y-1.5 rounded-md border border-border/70 bg-muted/35 px-2.5 py-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <Wrench className="size-3.5" />
+                          <span>Agent 执行</span>
+                          {(message.status === "loading" || message.status === "streaming") && (
+                            <Loader2 className="ml-auto size-3 animate-spin" />
+                          )}
+                        </div>
+                        <div className="space-y-1 text-xs leading-5 text-muted-foreground">
+                          {agentEvents.map((event, index) => (
+                            <div
+                              key={`${message.id}-${event.type}-${index}`}
+                              className="rounded-sm border border-border/60 bg-background px-2 py-1"
+                            >
+                              {describeAgentEvent(event)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {isAssistantLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>{message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}</span>
+                      </div>
+                    ) : (
+                      message.role === "assistant" ? (
+                        <MarkdownContent content={message.text} />
+                      ) : (
+                        <div className="whitespace-pre-wrap">
+                          {message.text}
+                        </div>
+                      )
+                    )}
+                  </div>
+                  {message.role === "user" && (
+                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
+                      <User className="size-4" />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
+        {(chatError || settingsError) && (
+          <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {chatError || settingsError}
+          </div>
+        )}
+        <form
+          action="#"
+          className="mx-auto flex max-w-5xl items-end gap-2"
+          onSubmit={(event) => void sendMessage(event)}
+        >
+          <Textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.currentTarget.value)}
+            placeholder="输入问题，或描述希望创建/修改的文件"
+            rows={3}
+            className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
+            {isSending || activeAgentTaskId ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
+            <span>{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
+          </Button>
+        </form>
+      </div>
+    </section>
+  );
+
   return (
     <main className="flex h-screen min-h-screen bg-muted/35 text-foreground">
-      <aside className="flex w-[380px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <aside className="flex w-[300px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="border-b border-sidebar-border px-4 py-4">
           <Button type="button" variant="ghost" onClick={onBack} className="mb-4 px-2">
             <ArrowLeft className="size-4" />
@@ -541,7 +812,7 @@ export const WorkspaceChatPage = ({
             </div>
           </div>
 
-          <ScrollArea className="h-60 border-b border-sidebar-border">
+          <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-1 p-2.5">
               {isFilesLoading ? (
                 <div className="px-2 py-8 text-center text-sm text-muted-foreground">
@@ -567,37 +838,6 @@ export const WorkspaceChatPage = ({
               )}
             </div>
           </ScrollArea>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-            <Input
-              value={filePath}
-              onChange={(event) => setFilePath(event.currentTarget.value)}
-              placeholder="例如：chapters/01.md"
-            />
-            <Textarea
-              value={fileContent}
-              onChange={(event) => setFileContent(event.currentTarget.value)}
-              placeholder="选择文件或输入新文件内容"
-              className="min-h-0 flex-1 resize-none bg-card font-mono text-sm leading-6"
-            />
-            {fileError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {fileError}
-              </div>
-            )}
-            <Button
-              type="button"
-              onClick={() => void saveFile()}
-              disabled={isFileSaving || !filePath.trim()}
-            >
-              {isFileSaving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              <span>{activeFile ? "保存修改" : "创建文件"}</span>
-            </Button>
-          </div>
         </div>
       </aside>
 
@@ -605,10 +845,22 @@ export const WorkspaceChatPage = ({
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-              <MessageSquare className="size-4" />
+              {workspaceView === "file" ? (
+                <FileText className="size-4" />
+              ) : workspaceView === "split" ? (
+                <Columns3 className="size-4" />
+              ) : (
+                <MessageSquare className="size-4" />
+              )}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-semibold">AI 工作台</h2>
+              <h2 className="text-base font-semibold">
+                {workspaceView === "file"
+                  ? "文件工作台"
+                  : workspaceView === "split"
+                    ? "拆分工作台"
+                    : "AI 工作台"}
+              </h2>
               <p className="truncate text-xs text-muted-foreground">
                 当前模型：{selectedProvider?.name ?? "未选择"} / {selectedModel?.modelName ?? "未选择"}
               </p>
@@ -619,9 +871,9 @@ export const WorkspaceChatPage = ({
               <Button
                 type="button"
                 size="sm"
-                variant={chatMode === "chat" ? "secondary" : "ghost"}
+                variant={workspaceView === "chat" ? "secondary" : "ghost"}
                 className="h-7 px-2"
-                onClick={() => setChatMode("chat")}
+                onClick={() => setWorkspaceView("chat")}
               >
                 <MessageSquare className="size-3.5" />
                 <span>聊天</span>
@@ -629,232 +881,129 @@ export const WorkspaceChatPage = ({
               <Button
                 type="button"
                 size="sm"
-                variant={chatMode === "agent" ? "secondary" : "ghost"}
+                variant={workspaceView === "file" ? "secondary" : "ghost"}
                 className="h-7 px-2"
-                onClick={() => setChatMode("agent")}
+                onClick={() => setWorkspaceView("file")}
               >
-                <Wrench className="size-3.5" />
-                <span>Agent</span>
+                <FileText className="size-3.5" />
+                <span>文件</span>
               </Button>
-            </div>
-            <select
-              className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedProviderId}
-              disabled={isSettingsLoading || providers.length === 0}
-              onChange={(event) => {
-                const providerId = event.currentTarget.value;
-                const provider = providers.find((item) => item.id === providerId);
-                setSelectedProviderId(providerId);
-                setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-              }}
-            >
-              {providers.length === 0 ? (
-                <option value="">未配置 LLM</option>
-              ) : (
-                providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </option>
-                ))
-              )}
-            </select>
-            <select
-              className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={selectedModel?.id ?? ""}
-              disabled={!selectedProvider || selectedModels.length === 0}
-              onChange={(event) => setSelectedModelId(event.currentTarget.value)}
-            >
-              {selectedModels.length === 0 ? (
-                <option value="">未启用模型</option>
-              ) : (
-                selectedModels.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.modelName || model.modelId}
-                  </option>
-                ))
-              )}
-            </select>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              title="刷新 LLM 配置"
-              onClick={() => void loadLlmOptions()}
-            >
-              <RefreshCw className="size-4" />
-            </Button>
-            <Badge variant={selectedProvider && selectedModel ? "secondary" : "outline"}>
-              {selectedProvider && selectedModel
-                ? chatMode === "agent" ? codingAgent.name : "后端请求"
-                : "待配置"}
-            </Badge>
-            {activeAgentTaskId && (
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
-                onClick={() => void codingAgent.abortTask(activeAgentTaskId)}
+                variant={workspaceView === "split" ? "secondary" : "ghost"}
+                className="h-7 px-2"
+                onClick={() => setWorkspaceView("split")}
               >
-                停止
+                <Columns3 className="size-3.5" />
+                <span>拆分</span>
               </Button>
+            </div>
+
+            {workspaceView !== "file" && (
+              <>
+                <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={chatMode === "chat" ? "secondary" : "ghost"}
+                    className="h-7 px-2"
+                    onClick={() => setChatMode("chat")}
+                  >
+                    <MessageSquare className="size-3.5" />
+                    <span>聊天</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={chatMode === "agent" ? "secondary" : "ghost"}
+                    className="h-7 px-2"
+                    onClick={() => setChatMode("agent")}
+                  >
+                    <Wrench className="size-3.5" />
+                    <span>Agent</span>
+                  </Button>
+                </div>
+                <select
+                  className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={selectedProviderId}
+                  disabled={isSettingsLoading || providers.length === 0}
+                  onChange={(event) => {
+                    const providerId = event.currentTarget.value;
+                    const provider = providers.find((item) => item.id === providerId);
+                    setSelectedProviderId(providerId);
+                    setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+                  }}
+                >
+                  {providers.length === 0 ? (
+                    <option value="">未配置 LLM</option>
+                  ) : (
+                    providers.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <select
+                  className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={selectedModel?.id ?? ""}
+                  disabled={!selectedProvider || selectedModels.length === 0}
+                  onChange={(event) => setSelectedModelId(event.currentTarget.value)}
+                >
+                  {selectedModels.length === 0 ? (
+                    <option value="">未启用模型</option>
+                  ) : (
+                    selectedModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.modelName || model.modelId}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="刷新 LLM 配置"
+                  onClick={() => void loadLlmOptions()}
+                >
+                  <RefreshCw className="size-4" />
+                </Button>
+                <Badge variant={selectedProvider && selectedModel ? "secondary" : "outline"}>
+                  {selectedProvider && selectedModel
+                    ? chatMode === "agent" ? codingAgent.name : "后端请求"
+                    : "待配置"}
+                </Badge>
+                {activeAgentTaskId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void codingAgent.abortTask(activeAgentTaskId)}
+                  >
+                    停止
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </header>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
-            {messages.length === 0 ? (
-              <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
-                <span className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-                  <Bot className="size-6" />
-                </span>
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold">开始和工作区助手对话</h3>
-                  <p className="text-sm text-muted-foreground">
-                    选择文件后提问，助手会把当前文件内容纳入上下文。
-                  </p>
-                </div>
-              </div>
-            ) : (
-              messages.map((message) => {
-                const thinking = message.thinking?.trim();
-                const isThinkingCollapsed =
-                  Boolean(thinking) &&
-                  message.status === "done" &&
-                  !expandedThinkingIds.has(message.id);
-                const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
-                const isAssistantLoading =
-                  message.role === "assistant" &&
-                  (message.status === "loading" || message.status === "streaming") &&
-                  !message.text.trim();
-
-                return (
-                  <div
-                    key={message.id}
-                    className="flex gap-3 data-[role=user]:justify-end"
-                    data-role={message.role}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary shadow-xs">
-                        {message.mode === "agent" ? (
-                          <Wrench className="size-4" />
-                        ) : (
-                          <Bot className="size-4" />
-                        )}
-                      </div>
-                    )}
-                    <div
-                      className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
-                      data-role={message.role}
-                    >
-                      {message.role === "assistant" && thinking && (
-                        <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                            onClick={() => toggleThinking(message.id)}
-                          >
-                            {isThinkingCollapsed ? (
-                              <ChevronRight className="size-3.5" />
-                            ) : (
-                              <ChevronDown className="size-3.5" />
-                            )}
-                            <Brain className="size-3.5" />
-                            <span>Thinking</span>
-                            {message.status !== "done" && (
-                              <Loader2 className="ml-auto size-3 animate-spin" />
-                            )}
-                          </button>
-                          {!isThinkingCollapsed && (
-                            <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-                              {thinking}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {message.role === "assistant" && agentEvents.length > 0 && (
-                        <div className="mb-2 space-y-1.5 rounded-md border border-border/70 bg-muted/35 px-2.5 py-2">
-                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Wrench className="size-3.5" />
-                            <span>Agent 执行</span>
-                            {(message.status === "loading" || message.status === "streaming") && (
-                              <Loader2 className="ml-auto size-3 animate-spin" />
-                            )}
-                          </div>
-                          <div className="space-y-1 text-xs leading-5 text-muted-foreground">
-                            {agentEvents.map((event, index) => (
-                              <div
-                                key={`${message.id}-${event.type}-${index}`}
-                                className="rounded-sm border border-border/60 bg-background px-2 py-1"
-                              >
-                                {describeAgentEvent(event)}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {isAssistantLoading ? (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Loader2 className="size-4 animate-spin" />
-                          <span>{message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}</span>
-                        </div>
-                      ) : (
-                        message.role === "assistant" ? (
-                          <MarkdownContent content={message.text} />
-                        ) : (
-                          <div className="whitespace-pre-wrap">
-                            {message.text}
-                          </div>
-                        )
-                      )}
-                    </div>
-                    {message.role === "user" && (
-                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
-                        <User className="size-4" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
-          {(chatError || settingsError) && (
-            <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {chatError || settingsError}
+        {workspaceView === "split" ? (
+          <div className="grid min-h-0 flex-1 overflow-hidden grid-cols-[minmax(0,1fr)_minmax(360px,0.95fr)]">
+            <div className="min-h-0 overflow-hidden border-r border-border/80">
+              {filePanel}
             </div>
-          )}
-          <form
-            action="#"
-            className="mx-auto flex max-w-5xl items-end gap-2"
-            onSubmit={(event) => void sendMessage(event)}
-          >
-            <Textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.currentTarget.value)}
-              placeholder="输入问题，或描述希望创建/修改的文件"
-              rows={3}
-              className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <Button type="submit" disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}>
-              {isSending || activeAgentTaskId ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-              <span>{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
-            </Button>
-          </form>
-        </div>
+            <div className="min-h-0 overflow-hidden">
+              {chatPanel}
+            </div>
+          </div>
+        ) : workspaceView === "file" ? (
+          filePanel
+        ) : (
+          chatPanel
+        )}
       </section>
     </main>
   );
