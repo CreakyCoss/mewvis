@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm build:agent-bridge && vite",
     "build": "pnpm build:agent-bridge && tsc && vite build",
-    "build:agent-bridge": "tsc -p agent-bridge/tsconfig.json --noEmit && esbuild agent-bridge/src/index.ts --bundle --platform=node --format=esm --target=node22 --banner:js=\"import { createRequire as __novelCreateRequire } from 'node:module'; const require = __novelCreateRequire(import.meta.url);\" --outfile=agent-bridge/dist/index.js",
+    "build:agent-bridge": "tsc -p agent-bridge/tsconfig.json --noEmit && esbuild agent-bridge/src/index.ts --bundle --platform=node --format=esm --target=node22 --banner:js=\"import { createRequire as __novelCreateRequire } from 'node:module'; const require = __novelCreateRequire(import.meta.url);\" --outfile=agent-bridge/dist/index.js && node agent-bridge/scripts/copy-node-runtime.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "migrate:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin migrate_config_db --"

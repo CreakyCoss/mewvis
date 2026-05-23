@@ -80,13 +80,19 @@ pub fn start_coding_agent_task(
     let bridge_path = resolve_agent_bridge_path(&app)?;
     let bundled_skills_path =
         super::skills::bundled_skills_path(&app)?.map(|path| path.to_string_lossy().to_string());
-    let mut child = Command::new(resolve_node_binary())
+    let node_binary = resolve_node_binary(&app)?;
+    let mut child = Command::new(&node_binary)
         .arg(bridge_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|error| format!("启动 Coding Agent bridge 失败：{error}"))?;
+        .map_err(|error| {
+            format!(
+                "启动 Coding Agent bridge 失败：{error}。Node 路径：{}",
+                node_binary.display()
+            )
+        })?;
 
     let command = json!({
         "type": "start_task",
@@ -269,8 +275,38 @@ fn validate_start_input(input: &StartCodingAgentTaskInput) -> Result<(), String>
     Ok(())
 }
 
-fn resolve_node_binary() -> String {
-    std::env::var("NOVEL_CLAW_NODE").unwrap_or_else(|_| "node".to_string())
+fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Ok(path) = std::env::var("NOVEL_CLAW_NODE") {
+        let path = PathBuf::from(path);
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
+    let bundled_names = if cfg!(windows) {
+        vec!["node.exe"]
+    } else {
+        vec!["node"]
+    };
+
+    for name in bundled_names {
+        for candidate in [
+            format!("_up_/agent-bridge/dist/{name}"),
+            format!("agent-bridge/dist/{name}"),
+            format!("dist/{name}"),
+            name.to_string(),
+        ] {
+            let path = app
+                .path()
+                .resolve(&candidate, BaseDirectory::Resource)
+                .map_err(|error| format!("定位 Node 运行时失败：{error}"))?;
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+    }
+
+    Ok(PathBuf::from("node"))
 }
 
 fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -288,7 +324,12 @@ fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, String> {
         return Ok(dev_path);
     }
 
-    for candidate in ["agent-bridge/dist/index.js", "dist/index.js", "index.js"] {
+    for candidate in [
+        "_up_/agent-bridge/dist/index.js",
+        "agent-bridge/dist/index.js",
+        "dist/index.js",
+        "index.js",
+    ] {
         let path = app
             .path()
             .resolve(candidate, BaseDirectory::Resource)
