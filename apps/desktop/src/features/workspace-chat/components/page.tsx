@@ -19,6 +19,7 @@ import {
   Save,
   Send,
   Sparkles,
+  Trash2,
   User,
   Wrench,
 } from "lucide-react";
@@ -42,13 +43,18 @@ import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import type { Workspace } from "@/features/workspaces/types";
 import {
   chatWithLlm,
+  deleteChatSession,
   listWorkspaceFiles,
+  listChatSessions,
+  loadChatSession,
   readWorkspaceFile,
+  saveChatSession,
   writeWorkspaceFile,
 } from "../api";
 import { MarkdownContent } from "./markdown-content";
 import type {
   ChatMessage,
+  ChatSessionMeta,
   ConversationMessage,
   WorkspaceFile,
   WorkspaceFileEntry,
@@ -88,7 +94,27 @@ type ActiveReferenceToken = {
 
 const createMessageId = () => crypto.randomUUID();
 
+const DEFAULT_SESSION_TITLE = "新的聊天";
+
 const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
+
+const formatSessionTime = (timestamp: number) =>
+  new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+
+const deriveSessionTitle = (messages: ChatMessage[]) => {
+  const firstUserText = messages.find((message) => message.role === "user")?.text.trim();
+
+  if (!firstUserText) {
+    return DEFAULT_SESSION_TITLE;
+  }
+
+  return firstUserText.replace(/\s+/g, " ").slice(0, 36);
+};
 
 const quoteReferencePath = (path: string) =>
   /[\s，。；,;]/.test(path) ? `@"${path}"` : `@${path}`;
@@ -428,14 +454,17 @@ export const WorkspaceChatPage = ({
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
+  const isHydratingSessionRef = useRef(false);
+  const saveSessionTimerRef = useRef<number | null>(null);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
-  const [modelSource, setModelSource] = useState<ModelSource>("direct");
+  const [modelSource, setModelSource] = useState<ModelSource>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
   const [skills, setSkills] = useState<WorkspaceSkill[]>([]);
   const [enabledSkillNames, setEnabledSkillNames] = useState<string[]>([]);
   const [isSkillsDialogOpen, setIsSkillsDialogOpen] = useState(false);
@@ -453,7 +482,7 @@ export const WorkspaceChatPage = ({
   const [prompt, setPrompt] = useState("");
   const [promptCursor, setPromptCursor] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [chatMode, setChatMode] = useState<"chat" | "agent">("chat");
+  const [chatMode, setChatMode] = useState<"chat" | "agent">("agent");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
@@ -465,6 +494,12 @@ export const WorkspaceChatPage = ({
   const [expandedAgentEventIds, setExpandedAgentEventIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSessionMeta[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
+  const [isSessionSaving, setIsSessionSaving] = useState(false);
+  const [sessionsError, setSessionsError] = useState("");
 
   const updateMessage = useCallback((
     messageId: string,
@@ -474,6 +509,130 @@ export const WorkspaceChatPage = ({
       current.map((message) => message.id === messageId ? updater(message) : message),
     );
   }, []);
+
+  const hydrateSession = useCallback((
+    session: {
+      id: string | null;
+      title: string;
+      messages: ChatMessage[];
+      conversation: ConversationMessage[];
+    } | null,
+  ) => {
+    if (saveSessionTimerRef.current) {
+      window.clearTimeout(saveSessionTimerRef.current);
+      saveSessionTimerRef.current = null;
+    }
+    isHydratingSessionRef.current = true;
+    setMessages(session?.messages ?? []);
+    setConversation(session?.conversation ?? []);
+    setCurrentSessionId(session?.id ?? null);
+    setCurrentSessionTitle(session?.title || DEFAULT_SESSION_TITLE);
+    setExpandedThinkingIds(new Set());
+    setExpandedAgentEventIds(new Set());
+    window.setTimeout(() => {
+      isHydratingSessionRef.current = false;
+    }, 0);
+  }, []);
+
+  const loadSessions = useCallback(async () => {
+    setIsSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const [sessions, latestSession] = await Promise.all([
+        listChatSessions(workspace.path),
+        loadChatSession(workspace.path),
+      ]);
+      setChatSessions(sessions);
+      hydrateSession(latestSession
+        ? {
+          id: latestSession.id,
+          title: latestSession.title,
+          messages: latestSession.messages,
+          conversation: latestSession.conversation,
+        }
+        : null);
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsSessionsLoading(false);
+    }
+  }, [hydrateSession, workspace.path]);
+
+  const loadSessionById = async (sessionId: string) => {
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再切换聊天记录");
+      return;
+    }
+
+    setIsSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const session = await loadChatSession(workspace.path, sessionId);
+      if (!session) {
+        setSessionsError("未找到这条聊天记录");
+        return;
+      }
+      hydrateSession({
+        id: session.id,
+        title: session.title,
+        messages: session.messages,
+        conversation: session.conversation,
+      });
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsSessionsLoading(false);
+    }
+  };
+
+  const startNewSession = () => {
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再新建聊天");
+      return;
+    }
+
+    setSessionsError("");
+    setPrompt("");
+    setPendingAgentQuestion(null);
+    hydrateSession(null);
+  };
+
+  const removeSession = async (sessionId: string) => {
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再删除聊天记录");
+      return;
+    }
+
+    const confirmed = window.confirm("永久删除该聊天记录？此操作不可恢复。");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const nextSessions = await deleteChatSession(workspace.path, sessionId);
+      setChatSessions(nextSessions);
+      if (currentSessionId === sessionId) {
+        const latestSession = await loadChatSession(workspace.path);
+        hydrateSession(latestSession
+          ? {
+            id: latestSession.id,
+            title: latestSession.title,
+            messages: latestSession.messages,
+            conversation: latestSession.conversation,
+          }
+          : null);
+      }
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsSessionsLoading(false);
+    }
+  };
 
   const toggleThinking = (messageId: string) => {
     setExpandedThinkingIds((current) => {
@@ -534,9 +693,14 @@ export const WorkspaceChatPage = ({
         const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
         return currentProfile?.id ?? profiles[0]?.id ?? "";
       });
+      setModelSource((currentSource) => {
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        return currentSource === "agent" && profiles.length === 0 ? "direct" : currentSource;
+      });
     } catch (caught) {
       setSettingsError(String(caught));
     } finally {
+      setHasLoadedSettings(true);
       setIsSettingsLoading(false);
     }
   }, []);
@@ -622,6 +786,10 @@ export const WorkspaceChatPage = ({
   }, [loadFiles]);
 
   useEffect(() => {
+    void loadSessions();
+  }, [loadSessions]);
+
+  useEffect(() => {
     void loadLlmOptions();
   }, [loadLlmOptions]);
 
@@ -632,6 +800,66 @@ export const WorkspaceChatPage = ({
   useEffect(() => {
     activeAgentTaskIdRef.current = activeAgentTaskId;
   }, [activeAgentTaskId]);
+
+  useEffect(() => () => {
+    if (saveSessionTimerRef.current) {
+      window.clearTimeout(saveSessionTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isHydratingSessionRef.current) {
+      return;
+    }
+
+    if (saveSessionTimerRef.current) {
+      window.clearTimeout(saveSessionTimerRef.current);
+    }
+
+    if (messages.length === 0) {
+      return;
+    }
+
+    const title = deriveSessionTitle(messages);
+    if (title !== currentSessionTitle) {
+      setCurrentSessionTitle(title);
+    }
+
+    saveSessionTimerRef.current = window.setTimeout(() => {
+      setIsSessionSaving(true);
+      setSessionsError("");
+
+      void saveChatSession({
+        workspacePath: workspace.path,
+        sessionId: currentSessionId,
+        title,
+        messages,
+        conversation,
+      })
+        .then((session) => {
+          setCurrentSessionId(session.id);
+          setCurrentSessionTitle(session.title);
+          setChatSessions((current) => {
+            const nextMeta: ChatSessionMeta = {
+              id: session.id,
+              title: session.title,
+              path: "",
+              createdAt: session.createdAt,
+              updatedAt: session.updatedAt,
+              messageCount: session.messages.length,
+            };
+            const withoutCurrent = current.filter((item) => item.id !== session.id);
+            return [nextMeta, ...withoutCurrent].sort((left, right) => right.updatedAt - left.updatedAt);
+          });
+        })
+        .catch((caught) => {
+          setSessionsError(String(caught));
+        })
+        .finally(() => {
+          setIsSessionSaving(false);
+        });
+    }, 700);
+  }, [conversation, currentSessionId, currentSessionTitle, messages, workspace.path]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -864,10 +1092,10 @@ export const WorkspaceChatPage = ({
   }, [selectedModel, selectedProvider]);
 
   useEffect(() => {
-    if (modelSource === "agent" && !selectedAgent && agentProfiles.length === 0) {
+    if (hasLoadedSettings && modelSource === "agent" && !selectedAgent && agentProfiles.length === 0) {
       setModelSource("direct");
     }
-  }, [agentProfiles.length, modelSource, selectedAgent]);
+  }, [agentProfiles.length, hasLoadedSettings, modelSource, selectedAgent]);
 
   useEffect(() => {
     if (!isMarkdownFile && fileViewMode === "preview") {
@@ -1432,9 +1660,9 @@ export const WorkspaceChatPage = ({
       </ScrollArea>
 
       <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
-        {(chatError || settingsError || skillsError) && (
+        {(chatError || settingsError || skillsError || sessionsError) && (
           <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {chatError || settingsError || skillsError}
+            {chatError || settingsError || skillsError || sessionsError}
           </div>
         )}
         {fileReferenceMatches.length > 0 && (
@@ -1582,6 +1810,102 @@ export const WorkspaceChatPage = ({
             )}
           </form>
         )}
+        <div className="mx-auto mb-3 flex max-w-5xl flex-wrap items-center justify-between gap-2">
+          <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+            <Button
+              type="button"
+              size="sm"
+              variant={chatMode === "chat" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setChatMode("chat")}
+            >
+              <MessageSquare className="size-3.5" />
+              <span>聊天</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={chatMode === "agent" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setChatMode("agent")}
+            >
+              <Wrench className="size-3.5" />
+              <span>Agent</span>
+            </Button>
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+            <select
+              className="h-9 w-28 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={modelSource}
+              disabled={isSettingsLoading}
+              onChange={(event) => setModelSource(event.currentTarget.value as ModelSource)}
+            >
+              <option value="agent" disabled={agentProfiles.length === 0}>
+                Agent
+              </option>
+              <option value="direct">模型</option>
+            </select>
+            {modelSource === "agent" ? (
+              <select
+                className="h-9 min-w-0 max-w-72 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={selectedAgent?.id ?? ""}
+                disabled={isSettingsLoading || agentProfiles.length === 0}
+                onChange={(event) => setSelectedAgentId(event.currentTarget.value)}
+              >
+                {agentProfiles.length === 0 ? (
+                  <option value="">未配置 Agent</option>
+                ) : (
+                  agentProfiles.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} / {agent.model.modelName || agent.model.modelId}
+                    </option>
+                  ))
+                )}
+              </select>
+            ) : (
+              <>
+                <select
+                  className="h-9 min-w-36 max-w-52 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={selectedProviderId}
+                  disabled={isSettingsLoading || providers.length === 0}
+                  onChange={(event) => {
+                    const providerId = event.currentTarget.value;
+                    const provider = providers.find((item) => item.id === providerId);
+                    setSelectedProviderId(providerId);
+                    setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+                  }}
+                >
+                  {providers.length === 0 ? (
+                    <option value="">未配置 LLM</option>
+                  ) : (
+                    providers.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <select
+                  className="h-9 min-w-40 max-w-64 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={selectedModel?.id ?? ""}
+                  disabled={!selectedProvider || selectedModels.length === 0}
+                  onChange={(event) => setSelectedModelId(event.currentTarget.value)}
+                >
+                  {selectedModels.length === 0 ? (
+                    <option value="">未启用模型</option>
+                  ) : (
+                    selectedModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.modelName || model.modelId}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </>
+            )}
+          </div>
+        </div>
         <form
           action="#"
           className="mx-auto flex max-w-5xl items-end gap-2"
@@ -1678,6 +2002,87 @@ export const WorkspaceChatPage = ({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
+          <div className="border-b border-sidebar-border">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <MessageSquare className="size-4" />
+                <span>聊天记录</span>
+                {isSessionSaving && (
+                  <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="刷新聊天记录"
+                  disabled={isSessionsLoading}
+                  onClick={() => void loadSessions()}
+                >
+                  <RefreshCw className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="新建聊天"
+                  onClick={startNewSession}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="max-h-56 space-y-1 overflow-auto px-2.5 pb-3">
+              {messages.length > 0 && !currentSessionId && (
+                <div className="rounded-md border border-primary/20 bg-card px-2.5 py-2 text-sm">
+                  <div className="truncate font-medium">{currentSessionTitle}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">正在保存新聊天</div>
+                </div>
+              )}
+              {isSessionsLoading ? (
+                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  正在读取聊天记录
+                </div>
+              ) : chatSessions.length ? (
+                chatSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="group flex items-center gap-1 rounded-md border border-transparent transition-colors hover:border-sidebar-border hover:bg-sidebar-accent data-[active=true]:border-primary/25 data-[active=true]:bg-card"
+                    data-active={session.id === currentSessionId}
+                  >
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 px-2.5 py-2 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+                      onClick={() => void loadSessionById(session.id)}
+                    >
+                      <div className="truncate text-sm font-medium">{session.title}</div>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{formatSessionTime(session.updatedAt)}</span>
+                        <span>{session.messageCount} 条</span>
+                      </div>
+                    </button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      title="永久删除聊天"
+                      className="mr-1 size-7 opacity-70 hover:text-destructive group-hover:opacity-100"
+                      onClick={() => void removeSession(session.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  暂无聊天记录
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Folder className="size-4" />
@@ -1755,6 +2160,9 @@ export const WorkspaceChatPage = ({
                     : "AI 工作台"}
               </h2>
               <p className="truncate text-xs text-muted-foreground">
+                {currentSessionTitle !== DEFAULT_SESSION_TITLE
+                  ? `${currentSessionTitle} · `
+                  : ""}
                 {modelSource === "agent" && selectedAgent
                   ? `当前 Agent：${selectedAgent.name} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
                   : `当前模型：${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`}
@@ -1797,51 +2205,6 @@ export const WorkspaceChatPage = ({
 
             {workspaceView !== "file" && (
               <>
-                <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={chatMode === "chat" ? "secondary" : "ghost"}
-                    className="h-7 px-2"
-                    onClick={() => setChatMode("chat")}
-                  >
-                    <MessageSquare className="size-3.5" />
-                    <span>聊天</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={chatMode === "agent" ? "secondary" : "ghost"}
-                    className="h-7 px-2"
-                    onClick={() => setChatMode("agent")}
-                  >
-                    <Wrench className="size-3.5" />
-                    <span>Agent</span>
-                  </Button>
-                </div>
-                <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={modelSource === "direct" ? "secondary" : "ghost"}
-                    className="h-7 px-2"
-                    onClick={() => setModelSource("direct")}
-                  >
-                    <Bot className="size-3.5" />
-                    <span>模型</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={modelSource === "agent" ? "secondary" : "ghost"}
-                    className="h-7 px-2"
-                    onClick={() => setModelSource("agent")}
-                    disabled={agentProfiles.length === 0}
-                  >
-                    <Wrench className="size-3.5" />
-                    <span>Agent</span>
-                  </Button>
-                </div>
                 <Button
                   type="button"
                   size="sm"
@@ -1861,64 +2224,6 @@ export const WorkspaceChatPage = ({
                     </span>
                   )}
                 </Button>
-                {modelSource === "agent" ? (
-                  <select
-                    className="h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                    value={selectedAgent?.id ?? ""}
-                    disabled={isSettingsLoading || agentProfiles.length === 0}
-                    onChange={(event) => setSelectedAgentId(event.currentTarget.value)}
-                  >
-                    {agentProfiles.length === 0 ? (
-                      <option value="">未配置 Agent</option>
-                    ) : (
-                      agentProfiles.map((agent) => (
-                        <option key={agent.id} value={agent.id}>
-                          {agent.name} / {agent.model.modelName || agent.model.modelId}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                ) : (
-                  <>
-                    <select
-                      className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={selectedProviderId}
-                      disabled={isSettingsLoading || providers.length === 0}
-                      onChange={(event) => {
-                        const providerId = event.currentTarget.value;
-                        const provider = providers.find((item) => item.id === providerId);
-                        setSelectedProviderId(providerId);
-                        setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-                      }}
-                    >
-                      {providers.length === 0 ? (
-                        <option value="">未配置 LLM</option>
-                      ) : (
-                        providers.map((provider) => (
-                          <option key={provider.id} value={provider.id}>
-                            {provider.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <select
-                      className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={selectedModel?.id ?? ""}
-                      disabled={!selectedProvider || selectedModels.length === 0}
-                      onChange={(event) => setSelectedModelId(event.currentTarget.value)}
-                    >
-                      {selectedModels.length === 0 ? (
-                        <option value="">未启用模型</option>
-                      ) : (
-                        selectedModels.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.modelName || model.modelId}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </>
-                )}
                 <Button
                   type="button"
                   size="icon"

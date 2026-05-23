@@ -31,3 +31,21 @@ export type ConversationMessage = {
   content: string;
   timestamp: number;
 };
+
+export type ChatSessionMeta = {
+  id: string;
+  title: string;
+  path: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+};
+
+export type ChatSession = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+  conversation: ConversationMessage[];
+};
