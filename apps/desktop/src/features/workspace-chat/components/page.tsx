@@ -498,21 +498,23 @@ export const WorkspaceChatPage = ({
   };
 
   return (
-    <main className="flex h-screen min-h-screen bg-background text-foreground">
-      <aside className="flex w-[360px] shrink-0 flex-col border-r border-border bg-muted/20">
-        <div className="border-b border-border px-4 py-4">
-          <Button type="button" variant="ghost" onClick={onBack} className="mb-3 px-2">
+    <main className="flex h-screen min-h-screen bg-muted/35 text-foreground">
+      <aside className="flex w-[380px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <div className="border-b border-sidebar-border px-4 py-4">
+          <Button type="button" variant="ghost" onClick={onBack} className="mb-4 px-2">
             <ArrowLeft className="size-4" />
             <span>工作区</span>
           </Button>
           <div className="min-w-0 space-y-1">
-            <h1 className="truncate text-lg font-semibold">{workspace.name}</h1>
-            <p className="truncate text-xs text-muted-foreground">{workspace.path}</p>
+            <h1 className="truncate text-xl font-semibold">{workspace.name}</h1>
+            <p className="truncate rounded-sm bg-sidebar-accent px-2 py-1 font-mono text-xs text-sidebar-accent-foreground/80">
+              {workspace.path}
+            </p>
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Folder className="size-4" />
               <span>文件</span>
@@ -539,8 +541,8 @@ export const WorkspaceChatPage = ({
             </div>
           </div>
 
-          <ScrollArea className="h-56 border-b border-border">
-            <div className="space-y-1 p-2">
+          <ScrollArea className="h-60 border-b border-sidebar-border">
+            <div className="space-y-1 p-2.5">
               {isFilesLoading ? (
                 <div className="px-2 py-8 text-center text-sm text-muted-foreground">
                   正在读取文件
@@ -550,7 +552,7 @@ export const WorkspaceChatPage = ({
                   <button
                     key={file.path}
                     type="button"
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none data-[active=true]:bg-muted"
+                    className="flex w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:border-primary/25 data-[active=true]:bg-card"
                     data-active={file.path === activeFile?.path}
                     onClick={() => void openFile(file.path)}
                   >
@@ -576,7 +578,7 @@ export const WorkspaceChatPage = ({
               value={fileContent}
               onChange={(event) => setFileContent(event.currentTarget.value)}
               placeholder="选择文件或输入新文件内容"
-              className="min-h-0 flex-1 resize-none font-mono text-sm"
+              className="min-h-0 flex-1 resize-none bg-card font-mono text-sm leading-6"
             />
             {fileError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -599,21 +601,21 @@ export const WorkspaceChatPage = ({
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <section className="flex min-w-0 flex-1 flex-col bg-background">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
               <MessageSquare className="size-4" />
             </div>
-            <div>
-              <h2 className="text-base font-semibold">AI 聊天</h2>
-              <p className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">AI 工作台</h2>
+              <p className="truncate text-xs text-muted-foreground">
                 当前模型：{selectedProvider?.name ?? "未选择"} / {selectedModel?.modelName ?? "未选择"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 rounded-md border border-input bg-background p-0.5">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
               <Button
                 type="button"
                 size="sm"
@@ -636,7 +638,7 @@ export const WorkspaceChatPage = ({
               </Button>
             </div>
             <select
-              className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               value={selectedProviderId}
               disabled={isSettingsLoading || providers.length === 0}
               onChange={(event) => {
@@ -657,7 +659,7 @@ export const WorkspaceChatPage = ({
               )}
             </select>
             <select
-              className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               value={selectedModel?.id ?? ""}
               disabled={!selectedProvider || selectedModels.length === 0}
               onChange={(event) => setSelectedModelId(event.currentTarget.value)}
@@ -700,12 +702,14 @@ export const WorkspaceChatPage = ({
         </header>
 
         <ScrollArea className="min-h-0 flex-1">
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-6 py-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
             {messages.length === 0 ? (
-              <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/20 px-6 text-center">
-                <Bot className="size-8 text-muted-foreground" />
+              <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
+                <span className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+                  <Bot className="size-6" />
+                </span>
                 <div className="space-y-1">
-                  <h3 className="text-base font-medium">开始和工作区助手对话</h3>
+                  <h3 className="text-base font-semibold">开始和工作区助手对话</h3>
                   <p className="text-sm text-muted-foreground">
                     选择文件后提问，助手会把当前文件内容纳入上下文。
                   </p>
@@ -731,7 +735,7 @@ export const WorkspaceChatPage = ({
                     data-role={message.role}
                   >
                     {message.role === "assistant" && (
-                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary shadow-xs">
                         {message.mode === "agent" ? (
                           <Wrench className="size-4" />
                         ) : (
@@ -740,14 +744,14 @@ export const WorkspaceChatPage = ({
                       </div>
                     )}
                     <div
-                      className="max-w-[78%] rounded-md px-3 py-2 text-sm leading-6 data-[role=assistant]:bg-muted data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                      className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
                       data-role={message.role}
                     >
                       {message.role === "assistant" && thinking && (
-                        <div className="mb-2 rounded-md border border-border/70 bg-background/60">
+                        <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
                           <button
                             type="button"
-                            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                            className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
                             onClick={() => toggleThinking(message.id)}
                           >
                             {isThinkingCollapsed ? (
@@ -762,7 +766,7 @@ export const WorkspaceChatPage = ({
                             )}
                           </button>
                           {!isThinkingCollapsed && (
-                            <div className="max-h-48 overflow-auto border-t border-border/60 px-2 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                            <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
                               {thinking}
                             </div>
                           )}
@@ -770,7 +774,7 @@ export const WorkspaceChatPage = ({
                       )}
 
                       {message.role === "assistant" && agentEvents.length > 0 && (
-                        <div className="mb-2 space-y-1 rounded-md border border-border/70 bg-background/60 px-2 py-2">
+                        <div className="mb-2 space-y-1.5 rounded-md border border-border/70 bg-muted/35 px-2.5 py-2">
                           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Wrench className="size-3.5" />
                             <span>Agent 执行</span>
@@ -782,7 +786,7 @@ export const WorkspaceChatPage = ({
                             {agentEvents.map((event, index) => (
                               <div
                                 key={`${message.id}-${event.type}-${index}`}
-                                className="rounded-sm bg-muted/60 px-2 py-1"
+                                className="rounded-sm border border-border/60 bg-background px-2 py-1"
                               >
                                 {describeAgentEvent(event)}
                               </div>
@@ -807,7 +811,7 @@ export const WorkspaceChatPage = ({
                       )}
                     </div>
                     {message.role === "user" && (
-                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
                         <User className="size-4" />
                       </div>
                     )}
@@ -818,15 +822,15 @@ export const WorkspaceChatPage = ({
           </div>
         </ScrollArea>
 
-        <div className="border-t border-border px-6 py-4">
+        <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
           {(chatError || settingsError) && (
-            <div className="mx-auto mb-3 max-w-4xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {chatError || settingsError}
             </div>
           )}
           <form
             action="#"
-            className="mx-auto flex max-w-4xl items-end gap-2"
+            className="mx-auto flex max-w-5xl items-end gap-2"
             onSubmit={(event) => void sendMessage(event)}
           >
             <Textarea
@@ -834,7 +838,7 @@ export const WorkspaceChatPage = ({
               onChange={(event) => setPrompt(event.currentTarget.value)}
               placeholder="输入问题，或描述希望创建/修改的文件"
               rows={3}
-              className="max-h-40 min-h-20 resize-none"
+              className="max-h-40 min-h-20 resize-none bg-background shadow-xs"
               onKeyDown={(event) => {
                 if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.currentTarget.form?.requestSubmit();

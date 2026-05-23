@@ -26,8 +26,8 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
   } = useOverview();
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-6">
+    <main className="min-h-screen bg-muted/35 text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-6">
         <PageHeader
           configDbPath={overview?.configDbPath}
           onCreateWorkspace={() => setIsDialogOpen(true)}
@@ -40,7 +40,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
           </div>
         )}
 
-        <section className="flex-1 py-6">
+        <section className="flex-1 py-7">
           <Content
             overview={overview}
             sections={sections}

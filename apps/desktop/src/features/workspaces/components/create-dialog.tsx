@@ -63,9 +63,9 @@ export const CreateDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="border border-border/70 shadow-lg sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>新增工作区</DialogTitle>
+          <DialogTitle className="text-lg">新增工作区</DialogTitle>
           <DialogDescription>
             填写工作区信息，并选择一个用于保存 workspace.db 的目录。
           </DialogDescription>

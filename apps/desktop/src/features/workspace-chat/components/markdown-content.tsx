@@ -52,8 +52,10 @@ export const MarkdownContent = ({
             if (!isBlock) {
               return (
                 <code
-                  className={`rounded px-1 py-0.5 font-mono text-[0.88em] ${
-                    inverted ? "bg-primary-foreground/15" : "bg-background"
+                  className={`rounded-sm border px-1 py-0.5 font-mono text-[0.88em] ${
+                    inverted
+                      ? "border-primary-foreground/20 bg-primary-foreground/15"
+                      : "border-border/60 bg-muted/60 text-foreground"
                   }`}
                 >
                   {children}
@@ -69,10 +71,10 @@ export const MarkdownContent = ({
           },
           pre: ({ children }) => (
             <pre
-              className={`mb-2 max-w-full overflow-x-auto rounded-md border px-3 py-2 last:mb-0 ${
+              className={`mb-2 max-w-full overflow-x-auto rounded-md border px-3 py-2.5 shadow-xs last:mb-0 ${
                 inverted
                   ? "border-primary-foreground/20 bg-primary-foreground/10"
-                  : "border-border bg-background"
+                  : "border-border/80 bg-muted/45"
               }`}
             >
               {children}
@@ -86,7 +88,7 @@ export const MarkdownContent = ({
             </div>
           ),
           th: ({ children }) => (
-            <th className="border border-border bg-background px-2 py-1 font-medium">
+            <th className="border border-border bg-muted/60 px-2 py-1 font-medium">
               {children}
             </th>
           ),

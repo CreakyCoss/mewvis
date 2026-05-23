@@ -19,7 +19,7 @@ export const Content = ({
 }: ContentProps) => {
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-64 items-center justify-center rounded-md border border-border/70 bg-card text-sm text-muted-foreground shadow-xs">
         正在读取工作区
       </div>
     );
