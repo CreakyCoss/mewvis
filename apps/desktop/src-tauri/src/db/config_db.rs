@@ -78,6 +78,25 @@ pub struct LlmSettings {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AiAgent {
+    pub id: String,
+    pub name: String,
+    pub avatar: String,
+    pub description: Option<String>,
+    pub provider_id: String,
+    pub model_id: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiAgentSettings {
+    pub agents: Vec<AiAgent>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceSkillSettings {
     pub enabled_skill_names: Vec<String>,
 }
@@ -126,6 +145,17 @@ pub struct SaveWorkspaceSkillsInput {
     pub enabled_skill_names: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveAiAgentInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub avatar: String,
+    pub description: Option<String>,
+    pub provider_id: String,
+    pub model_id: String,
+}
+
 pub fn config_db_path(app: &AppHandle) -> Result<PathBuf, String> {
     let config_dir = app
         .path()
@@ -162,6 +192,103 @@ pub fn llm_settings(app: &AppHandle) -> Result<LlmSettings, String> {
     Ok(LlmSettings {
         providers: load_llm_providers(&conn)?,
     })
+}
+
+pub fn ai_agent_settings(app: &AppHandle) -> Result<AiAgentSettings, String> {
+    let db_path = config_db_path(app)?;
+    let conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+
+    Ok(AiAgentSettings {
+        agents: load_ai_agents(&conn)?,
+    })
+}
+
+pub fn save_ai_agent(app: &AppHandle, input: SaveAiAgentInput) -> Result<AiAgentSettings, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("Agent 名称不能为空".to_string());
+    }
+
+    let avatar = input.avatar.trim();
+    if avatar.is_empty() {
+        return Err("请选择 Agent 头像".to_string());
+    }
+
+    let provider_id = input.provider_id.trim();
+    if provider_id.is_empty() {
+        return Err("请选择 Agent 使用的 LLM".to_string());
+    }
+
+    let model_id = input.model_id.trim();
+    if model_id.is_empty() {
+        return Err("请选择 Agent 使用的模型".to_string());
+    }
+
+    let db_path = config_db_path(app)?;
+    let conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+    ensure_provider_model_exists(&conn, provider_id, model_id)?;
+
+    let now = now_millis()?;
+    let id = normalize_record_id(input.id.as_deref());
+    let description = normalize_optional_text(input.description.as_deref());
+    let exists = agent_exists(&conn, &id)?;
+
+    if exists {
+        conn.execute(
+            r#"
+            UPDATE ai_agents
+            SET name = ?2, avatar = ?3, description = ?4, provider_id = ?5, model_id = ?6, updated_at = ?7
+            WHERE id = ?1
+            "#,
+            params![id, name, avatar, description, provider_id, model_id, now],
+        )
+        .map_err(|error| format!("无法更新 Agent：{error}"))?;
+    } else {
+        conn.execute(
+            r#"
+            INSERT INTO ai_agents (
+                id, name, avatar, description, provider_id, model_id, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "#,
+            params![
+                id,
+                name,
+                avatar,
+                description,
+                provider_id,
+                model_id,
+                now,
+                now
+            ],
+        )
+        .map_err(|error| format!("无法保存 Agent：{error}"))?;
+    }
+
+    ai_agent_settings(app)
+}
+
+pub fn delete_ai_agent(app: &AppHandle, id: &str) -> Result<AiAgentSettings, String> {
+    let id = id.trim();
+    if id.is_empty() {
+        return Err("Agent ID 不能为空".to_string());
+    }
+
+    let db_path = config_db_path(app)?;
+    let conn =
+        Connection::open(&db_path).map_err(|error| format!("无法打开配置数据库：{error}"))?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|error| format!("无法启用外键约束：{error}"))?;
+
+    conn.execute("DELETE FROM ai_agents WHERE id = ?1", params![id])
+        .map_err(|error| format!("无法删除 Agent：{error}"))?;
+
+    ai_agent_settings(app)
 }
 
 pub fn workspace_skill_settings(
@@ -522,6 +649,36 @@ fn load_provider_models(
         .map_err(|error| format!("无法解析 LLM 模型：{error}"))
 }
 
+fn load_ai_agents(conn: &Connection) -> Result<Vec<AiAgent>, String> {
+    let mut statement = conn
+        .prepare(
+            r#"
+            SELECT id, name, avatar, description, provider_id, model_id, created_at, updated_at
+            FROM ai_agents
+            ORDER BY created_at ASC
+            "#,
+        )
+        .map_err(|error| format!("无法读取 Agent：{error}"))?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(AiAgent {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                avatar: row.get(2)?,
+                description: row.get(3)?,
+                provider_id: row.get(4)?,
+                model_id: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })
+        .map_err(|error| format!("无法读取 Agent：{error}"))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析 Agent：{error}"))
+}
+
 fn workspace_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
     Ok(Workspace {
         id: row.get(0)?,
@@ -534,6 +691,43 @@ fn workspace_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
         created_at: row.get(7)?,
         updated_at: row.get(8)?,
     })
+}
+
+fn agent_exists(conn: &Connection, id: &str) -> Result<bool, String> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM ai_agents WHERE id = ?1)",
+        params![id],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|value| value == 1)
+    .map_err(|error| format!("无法读取 Agent：{error}"))
+}
+
+fn ensure_provider_model_exists(
+    conn: &Connection,
+    provider_id: &str,
+    model_id: &str,
+) -> Result<(), String> {
+    let exists = conn
+        .query_row(
+            r#"
+            SELECT EXISTS(
+                SELECT 1
+                FROM provider_models
+                WHERE id = ?2 AND provider_id = ?1 AND is_enabled = 1
+            )
+            "#,
+            params![provider_id, model_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| format!("无法读取 Agent 模型：{error}"))?
+        == 1;
+
+    if exists {
+        Ok(())
+    } else {
+        Err("请选择有效且已启用的模型".to_string())
+    }
 }
 
 fn normalize_group_id(

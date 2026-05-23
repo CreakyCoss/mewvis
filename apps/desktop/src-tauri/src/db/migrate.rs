@@ -124,6 +124,19 @@ fn create_config_schema(conn: &Connection) -> Result<(), String> {
             PRIMARY KEY (workspace_id, skill_name),
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS ai_agents (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            avatar TEXT NOT NULL,
+            description TEXT,
+            provider_id TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,
+            FOREIGN KEY (model_id) REFERENCES provider_models(id) ON DELETE CASCADE
+        );
         "#,
     )
     .map_err(|error| format!("配置数据库初始化失败：{error}"))?;
@@ -224,6 +237,7 @@ fn normalize_config_record_ids(conn: &Connection) -> Result<(), String> {
     normalize_workspace_ids(conn)?;
     normalize_llm_provider_ids(conn)?;
     normalize_provider_model_ids(conn)?;
+    normalize_ai_agent_ids(conn)?;
 
     conn.execute_batch("PRAGMA foreign_keys = ON;")
         .map_err(|error| format!("无法恢复外键约束：{error}"))?;
@@ -273,6 +287,17 @@ fn normalize_provider_model_ids(conn: &Connection) -> Result<(), String> {
             params![new_record_id(), id],
         )
         .map_err(|error| format!("无法迁移 LLM 模型 ID：{error}"))?;
+    }
+    Ok(())
+}
+
+fn normalize_ai_agent_ids(conn: &Connection) -> Result<(), String> {
+    for id in invalid_record_ids(conn, "ai_agents")? {
+        conn.execute(
+            "UPDATE ai_agents SET id = ?1 WHERE id = ?2",
+            params![new_record_id(), id],
+        )
+        .map_err(|error| format!("无法迁移 Agent ID：{error}"))?;
     }
     Ok(())
 }

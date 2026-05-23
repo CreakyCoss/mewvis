@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";
@@ -11,6 +12,7 @@ type WorkspacesPageProps = {
 };
 
 export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
+  const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const {
     overview,
@@ -31,6 +33,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
         <PageHeader
           configDbPath={overview?.configDbPath}
           onCreateWorkspace={() => setIsDialogOpen(true)}
+          onOpenAgents={() => setIsAgentSettingsOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
@@ -65,6 +68,11 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
       <SettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
+      />
+
+      <AgentSettingsDialog
+        open={isAgentSettingsOpen}
+        onOpenChange={setIsAgentSettingsOpen}
       />
     </main>
   );

@@ -1,0 +1,18 @@
+use tauri::AppHandle;
+
+use crate::db::config_db::{self, AiAgentSettings, SaveAiAgentInput};
+
+#[tauri::command]
+pub fn get_ai_agent_settings(app: AppHandle) -> Result<AiAgentSettings, String> {
+    config_db::ai_agent_settings(&app)
+}
+
+#[tauri::command]
+pub fn save_ai_agent(app: AppHandle, input: SaveAiAgentInput) -> Result<AiAgentSettings, String> {
+    config_db::save_ai_agent(&app, input)
+}
+
+#[tauri::command]
+pub fn delete_ai_agent(app: AppHandle, id: String) -> Result<AiAgentSettings, String> {
+    config_db::delete_ai_agent(&app, &id)
+}

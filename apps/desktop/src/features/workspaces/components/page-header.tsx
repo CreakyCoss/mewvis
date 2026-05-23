@@ -1,15 +1,17 @@
-import { Database, Plus, Settings } from "lucide-react";
+import { Bot, Database, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type PageHeaderProps = {
   configDbPath?: string;
   onCreateWorkspace: () => void;
+  onOpenAgents: () => void;
   onOpenSettings: () => void;
 };
 
 export const PageHeader = ({
   configDbPath,
   onCreateWorkspace,
+  onOpenAgents,
   onOpenSettings,
 }: PageHeaderProps) => {
   return (
@@ -33,6 +35,15 @@ export const PageHeader = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={onOpenAgents}
+          title="Agent 设置"
+        >
+          <Bot className="size-4" />
+          <span>Agent 设置</span>
+        </Button>
         <Button
           variant="outline"
           type="button"

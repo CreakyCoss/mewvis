@@ -22,6 +22,7 @@ import {
   User,
   Wrench,
 } from "lucide-react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { CodingAgentEvent, CodingAgentQuestionInput } from "@/ai/coding-agent/base";
 import { createCodingAgentAdapter } from "@/ai/coding-agent/registry";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider } from "@/features/llm-settings/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
+import { getAiAgentSettings } from "@/features/agent-settings/api";
+import type { AgentProfile, AiAgent } from "@/features/agent-settings/types";
+import { resolveAgentProfiles } from "@/features/agent-settings/utils";
 import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
@@ -56,6 +60,7 @@ type WorkspaceChatPageProps = {
 };
 
 type WorkspaceView = "chat" | "file" | "split";
+type ModelSource = "direct" | "agent";
 
 type FileReferenceMatch = {
   token: string;
@@ -206,6 +211,7 @@ const buildAgentPrompt = (
   text: string,
   references: ResolvedFileReference[],
   history: ConversationMessage[],
+  selectedAgent: AgentProfile | null,
 ) => {
   const recentHistory = history.slice(-8);
   const historyContext = recentHistory.length
@@ -217,8 +223,27 @@ const buildAgentPrompt = (
       "",
     ].join("\n")
     : "";
+  const agentContext = selectedAgent
+    ? [
+        `当前使用 Agent：${selectedAgent.name}`,
+        selectedAgent.description ? `Agent 描述：${selectedAgent.description}` : "",
+        "请优先保持这个 Agent 的角色定位、语气和工作方式。",
+        "",
+      ].filter(Boolean).join("\n")
+    : "";
+  const interactionInstructions = [
+    "交互规则：",
+    "- 当继续执行前缺少必要信息、需要用户选择方向、需要确认方案，或存在多个合理选项时，必须调用 ask_user 工具询问用户，不要只在正文里提问。",
+    "- 如果问题是开放式回答，调用 ask_user 时使用 input.type = \"text\"。",
+    "- 如果问题有明确候选项，调用 ask_user 时使用 input.type = \"select\"，并提供至少两个 options；可以加入 { value: \"other\", label: \"请输入\" } 让用户自定义。",
+    "- 调用 ask_user 后，等待用户回答，再基于回答继续原任务。",
+    "",
+  ].join("\n");
 
-  return appendReferencesToPrompt(`${historyContext}当前用户输入：\n${text}`, references);
+  return appendReferencesToPrompt(
+    `${agentContext}${interactionInstructions}${historyContext}当前用户输入：\n${text}`,
+    references,
+  );
 };
 
 const stringifyBrief = (value: unknown) => {
@@ -351,6 +376,7 @@ const buildSystemPrompt = (
   activeFile: WorkspaceFile | null,
   referencedFiles: ResolvedFileReference[],
   enabledSkills: WorkspaceSkill[],
+  selectedAgent: AgentProfile | null,
 ) => {
   const fileContext = activeFile
     ? `\n\n当前打开文件：${activeFile.path}\n\n${activeFile.content.slice(0, 12000)}`
@@ -372,6 +398,14 @@ const buildSystemPrompt = (
       ].join("\n"))
       .join("\n\n")}`
     : "";
+  const agentContext = selectedAgent
+    ? [
+        "",
+        `当前 Agent：${selectedAgent.name}`,
+        selectedAgent.description ? `Agent 描述：${selectedAgent.description}` : "",
+        "请优先保持这个 Agent 的角色定位、语气和工作方式。",
+      ].filter(Boolean).join("\n")
+    : "";
 
   return [
     "你是 Novel Claw 的工作区 AI 助手。",
@@ -379,6 +413,7 @@ const buildSystemPrompt = (
     `工作区路径：${workspace.path}`,
     "你可以帮助用户规划、写作、分析和修改项目文件。",
     "如果需要创建或修改文件，请明确说明目标路径和内容；用户可以在文件面板中保存。",
+    agentContext,
     fileContext,
     referenceContext,
     skillsContext,
@@ -396,6 +431,9 @@ export const WorkspaceChatPage = ({
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [agents, setAgents] = useState<AiAgent[]>([]);
+  const [modelSource, setModelSource] = useState<ModelSource>("direct");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [skills, setSkills] = useState<WorkspaceSkill[]>([]);
@@ -470,11 +508,15 @@ export const WorkspaceChatPage = ({
     setSettingsError("");
 
     try {
-      const settings = await getLlmSettings();
+      const [settings, agentSettings] = await Promise.all([
+        getLlmSettings(),
+        getAiAgentSettings(),
+      ]);
       const nextProviders = settings.providers;
       const defaultProvider = findDefaultProvider(nextProviders);
 
       setProviders(nextProviders);
+      setAgents(agentSettings.agents);
       setSelectedProviderId((currentProviderId) => {
         const currentProvider = nextProviders.find((provider) => provider.id === currentProviderId);
         const nextProvider = currentProvider ?? defaultProvider;
@@ -486,6 +528,11 @@ export const WorkspaceChatPage = ({
         });
 
         return nextProvider?.id ?? "";
+      });
+      setSelectedAgentId((currentAgentId) => {
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
+        return currentProfile?.id ?? profiles[0]?.id ?? "";
       });
     } catch (caught) {
       setSettingsError(String(caught));
@@ -780,6 +827,22 @@ export const WorkspaceChatPage = ({
       ?? null,
     [selectedModelId, selectedModels],
   );
+  const agentProfiles = useMemo(
+    () => resolveAgentProfiles(agents, providers),
+    [agents, providers],
+  );
+  const selectedAgent = useMemo(
+    () => agentProfiles.find((agent) => agent.id === selectedAgentId)
+      ?? agentProfiles[0]
+      ?? null,
+    [agentProfiles, selectedAgentId],
+  );
+  const effectiveProvider = modelSource === "agent"
+    ? selectedAgent?.provider ?? null
+    : selectedProvider;
+  const effectiveModel = modelSource === "agent"
+    ? selectedAgent?.model ?? null
+    : selectedModel;
   const enabledSkills = useMemo(() => {
     const names = new Set(enabledSkillNames);
     return skills.filter((skill) => names.has(skill.name));
@@ -799,6 +862,12 @@ export const WorkspaceChatPage = ({
       setSelectedModelId(selectedProvider.models.find((model) => model.isEnabled)?.id ?? "");
     }
   }, [selectedModel, selectedProvider]);
+
+  useEffect(() => {
+    if (modelSource === "agent" && !selectedAgent && agentProfiles.length === 0) {
+      setModelSource("direct");
+    }
+  }, [agentProfiles.length, modelSource, selectedAgent]);
 
   useEffect(() => {
     if (!isMarkdownFile && fileViewMode === "preview") {
@@ -909,7 +978,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    if (!selectedProvider || !selectedModel) {
+    if (!effectiveProvider || !effectiveModel) {
       setChatError("请选择要使用的 LLM 和模型");
       return;
     }
@@ -983,9 +1052,14 @@ export const WorkspaceChatPage = ({
         activeAgentMessageIdRef.current = assistantMessageId;
         const task = await codingAgent.startTask({
           workspacePath: workspace.path,
-          prompt: buildAgentPrompt(text, referencedFiles, conversation),
-          provider: selectedProvider,
-          model: selectedModel,
+          prompt: buildAgentPrompt(
+            text,
+            referencedFiles,
+            conversation,
+            modelSource === "agent" ? selectedAgent : null,
+          ),
+          provider: effectiveProvider,
+          model: effectiveModel,
           allowedTools: ["read", "edit", "write", "ls", "find", "grep", "ask_user"],
           enabledSkills: enabledSkills.map((skill) => skill.name),
         });
@@ -999,9 +1073,15 @@ export const WorkspaceChatPage = ({
       }
 
       const result = await chatWithLlm({
-        provider: selectedProvider,
-        model: selectedModel,
-        systemPrompt: buildSystemPrompt(workspace, activeFile, referencedFiles, enabledSkills),
+        provider: effectiveProvider,
+        model: effectiveModel,
+        systemPrompt: buildSystemPrompt(
+          workspace,
+          activeFile,
+          referencedFiles,
+          enabledSkills,
+          modelSource === "agent" ? selectedAgent : null,
+        ),
         messages: nextConversation,
       });
       const assistantText = result.text.trim();
@@ -1675,7 +1755,9 @@ export const WorkspaceChatPage = ({
                     : "AI 工作台"}
               </h2>
               <p className="truncate text-xs text-muted-foreground">
-                当前模型：{selectedProvider?.name ?? "未选择"} / {selectedModel?.modelName ?? "未选择"}
+                {modelSource === "agent" && selectedAgent
+                  ? `当前 Agent：${selectedAgent.name} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
+                  : `当前模型：${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`}
               </p>
             </div>
           </div>
@@ -1737,6 +1819,29 @@ export const WorkspaceChatPage = ({
                     <span>Agent</span>
                   </Button>
                 </div>
+                <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={modelSource === "direct" ? "secondary" : "ghost"}
+                    className="h-7 px-2"
+                    onClick={() => setModelSource("direct")}
+                  >
+                    <Bot className="size-3.5" />
+                    <span>模型</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={modelSource === "agent" ? "secondary" : "ghost"}
+                    className="h-7 px-2"
+                    onClick={() => setModelSource("agent")}
+                    disabled={agentProfiles.length === 0}
+                  >
+                    <Wrench className="size-3.5" />
+                    <span>Agent</span>
+                  </Button>
+                </div>
                 <Button
                   type="button"
                   size="sm"
@@ -1756,55 +1861,78 @@ export const WorkspaceChatPage = ({
                     </span>
                   )}
                 </Button>
-                <select
-                  className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={selectedProviderId}
-                  disabled={isSettingsLoading || providers.length === 0}
-                  onChange={(event) => {
-                    const providerId = event.currentTarget.value;
-                    const provider = providers.find((item) => item.id === providerId);
-                    setSelectedProviderId(providerId);
-                    setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-                  }}
-                >
-                  {providers.length === 0 ? (
-                    <option value="">未配置 LLM</option>
-                  ) : (
-                    providers.map((provider) => (
-                      <option key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <select
-                  className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={selectedModel?.id ?? ""}
-                  disabled={!selectedProvider || selectedModels.length === 0}
-                  onChange={(event) => setSelectedModelId(event.currentTarget.value)}
-                >
-                  {selectedModels.length === 0 ? (
-                    <option value="">未启用模型</option>
-                  ) : (
-                    selectedModels.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.modelName || model.modelId}
-                      </option>
-                    ))
-                  )}
-                </select>
+                {modelSource === "agent" ? (
+                  <select
+                    className="h-9 max-w-64 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    value={selectedAgent?.id ?? ""}
+                    disabled={isSettingsLoading || agentProfiles.length === 0}
+                    onChange={(event) => setSelectedAgentId(event.currentTarget.value)}
+                  >
+                    {agentProfiles.length === 0 ? (
+                      <option value="">未配置 Agent</option>
+                    ) : (
+                      agentProfiles.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name} / {agent.model.modelName || agent.model.modelId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                ) : (
+                  <>
+                    <select
+                      className="h-9 max-w-48 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      value={selectedProviderId}
+                      disabled={isSettingsLoading || providers.length === 0}
+                      onChange={(event) => {
+                        const providerId = event.currentTarget.value;
+                        const provider = providers.find((item) => item.id === providerId);
+                        setSelectedProviderId(providerId);
+                        setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+                      }}
+                    >
+                      {providers.length === 0 ? (
+                        <option value="">未配置 LLM</option>
+                      ) : (
+                        providers.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <select
+                      className="h-9 max-w-56 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      value={selectedModel?.id ?? ""}
+                      disabled={!selectedProvider || selectedModels.length === 0}
+                      onChange={(event) => setSelectedModelId(event.currentTarget.value)}
+                    >
+                      {selectedModels.length === 0 ? (
+                        <option value="">未启用模型</option>
+                      ) : (
+                        selectedModels.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.modelName || model.modelId}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </>
+                )}
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  title="刷新 LLM 配置"
+                  title="刷新 LLM 与 Agent 配置"
                   onClick={() => void loadLlmOptions()}
                 >
                   <RefreshCw className="size-4" />
                 </Button>
-                <Badge variant={selectedProvider && selectedModel ? "secondary" : "outline"}>
-                  {selectedProvider && selectedModel
-                    ? chatMode === "agent" ? codingAgent.name : "后端请求"
+                <Badge variant={effectiveProvider && effectiveModel ? "secondary" : "outline"}>
+                  {effectiveProvider && effectiveModel
+                    ? modelSource === "agent" && selectedAgent
+                      ? resolveAgentAvatar(selectedAgent.avatar).label
+                      : chatMode === "agent" ? codingAgent.name : "后端请求"
                     : "待配置"}
                 </Badge>
                 {activeAgentTaskId && (

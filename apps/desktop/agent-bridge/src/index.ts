@@ -255,7 +255,7 @@ const createResourceLoader = async (command: StartTaskCommand) => {
         pi.registerTool({
           name: "ask_user",
           label: "Ask User",
-          description: "Ask the user a question and wait for their answer. Use text for open-ended answers. Use select only when you provide at least two options.",
+          description: "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.",
           parameters: Type.Object({
             question: Type.String({ description: "The question to show the user" }),
             context: Type.Optional(Type.String({ description: "Optional short context explaining why this is needed" })),
