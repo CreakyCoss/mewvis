@@ -1,10 +1,11 @@
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { ProviderConfig } from "./adapters/base";
+import { createRuntimeModelConfig } from "@/features/llm-settings/model-catalog";
+import type { LlmProviderConfig } from "./base";
 
-export const toProviderConfig = (
+export const toLlmProviderConfig = (
   provider: LlmProvider,
   selectedModel?: ProviderModel,
-): ProviderConfig | null => {
+): LlmProviderConfig | null => {
   const model = selectedModel ?? provider.models.find((item) => item.isEnabled);
 
   if (!model) {
@@ -18,10 +19,6 @@ export const toProviderConfig = (
     provider: provider.provider,
     apiKey: provider.apiKey,
     baseUrl: provider.baseUrl,
-    model: {
-      id: model.id,
-      modelId: model.modelId,
-      modelName: model.modelName,
-    },
+    model: createRuntimeModelConfig(provider, model),
   };
 };

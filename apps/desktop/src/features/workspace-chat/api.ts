@@ -1,4 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createLlmRuntimeAdapter } from "@/llm-runtime/factory";
+import { toLlmProviderConfig } from "@/llm-runtime/config";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type { ChatMessage, ChatSession, ChatSessionMeta, WorkspaceFile, WorkspaceFileEntry } from "./types";
 import type { ConversationMessage } from "./types";
@@ -41,7 +43,16 @@ export async function writeWorkspaceFile(
 }
 
 export async function chatWithLlm(input: ChatWithLlmInput) {
-  return invoke<ChatWithLlmOutput>("chat_with_llm", { input });
+  const config = toLlmProviderConfig(input.provider, input.model);
+  if (!config) {
+    throw new Error("请至少启用一个模型");
+  }
+
+  const adapter = await createLlmRuntimeAdapter(config.provider, config);
+  return adapter.chat({
+    systemPrompt: input.systemPrompt,
+    messages: input.messages,
+  });
 }
 
 export async function listChatSessions(workspacePath: string) {

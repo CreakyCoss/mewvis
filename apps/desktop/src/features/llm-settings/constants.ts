@@ -1,4 +1,8 @@
-import { MODELS } from "../../../../../ai/pi/packages/ai/src/models.generated.ts";
+import {
+  getCatalogModels,
+  getCatalogProviders,
+  type NovelClawModelConfig,
+} from "./model-catalog";
 
 export type ProviderType = "anthropic" | "openai" | "google" | "openrouter";
 
@@ -17,20 +21,8 @@ export type ModelOption = {
   name: string;
 };
 
-type GeneratedModel = {
-  id: string;
-  name: string;
-  api: string;
-  provider: string;
-  baseUrl: string;
-};
-
-const generatedModels = MODELS as Record<string, Record<string, GeneratedModel>>;
-
-const getGeneratedProviders = () => Object.keys(generatedModels);
-
 const readModels = (provider: string) => {
-  return Object.values(generatedModels[provider] ?? {});
+  return getCatalogModels(provider);
 };
 
 export const providerTypeOptions: ProviderTypeOption[] = [
@@ -54,7 +46,7 @@ export const getProviderTypeLabel = (providerType: string) => {
 
 export const getModelProviderType = (
   vendor: string,
-  model: GeneratedModel,
+  model: NovelClawModelConfig,
 ): ProviderType | null => {
   if (vendor === "openrouter") {
     return "openrouter";
@@ -81,7 +73,7 @@ export const getModelProviderType = (
 };
 
 export const getVendorOptions = (): VendorOption[] => {
-  return getGeneratedProviders()
+  return getCatalogProviders()
     .filter((vendor) =>
       readModels(vendor).some((model) => getModelProviderType(vendor, model)),
     )

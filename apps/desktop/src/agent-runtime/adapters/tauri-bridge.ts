@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
-  CodingAgentAdapter,
+  AgentRuntimeAdapter,
   CodingAgentEvent,
   CodingAgentTask,
   CodingAgentTaskInput,
@@ -11,9 +11,9 @@ type StartCodingAgentTaskOutput = {
   taskId: string;
 };
 
-export class PiRpcCodingAgentAdapter implements CodingAgentAdapter {
-  readonly id = "pi-rpc";
-  readonly name = "Pi Coding Agent";
+export class TauriBridgeCodingAgentAdapter implements AgentRuntimeAdapter {
+  readonly id = "tauri-bridge";
+  readonly name = "Coding Agent Bridge";
 
   async startTask(input: CodingAgentTaskInput): Promise<CodingAgentTask> {
     const result = await invoke<StartCodingAgentTaskOutput>("start_coding_agent_task", {

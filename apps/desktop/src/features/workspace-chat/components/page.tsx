@@ -24,10 +24,27 @@ import {
   Wrench,
 } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import type { CodingAgentEvent, CodingAgentQuestionInput } from "@/ai/coding-agent/base";
-import { createCodingAgentAdapter } from "@/ai/coding-agent/registry";
+import {
+  AGENT_TOOL_DEFINITIONS,
+  DEFAULT_ALLOWED_AGENT_TOOLS,
+  normalizeAllowedAgentTools,
+} from "@/agent-runtime/contract";
+import {
+  toCodingAgentModelConfig,
+  toCodingAgentProviderConfig,
+} from "@/agent-runtime/config";
+import type { AgentToolName, CodingAgentEvent, CodingAgentQuestionInput } from "@/agent-runtime/base";
+import { createAgentRuntimeAdapter } from "@/agent-runtime/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
@@ -1003,7 +1020,7 @@ export const WorkspaceChatPage = ({
   workspace,
   onBack,
 }: WorkspaceChatPageProps) => {
-  const codingAgent = useMemo(() => createCodingAgentAdapter(), []);
+  const codingAgent = useMemo(() => createAgentRuntimeAdapter(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
@@ -1037,6 +1054,9 @@ export const WorkspaceChatPage = ({
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
+  const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(
+    DEFAULT_ALLOWED_AGENT_TOOLS,
+  );
   const [collaborationPhase, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isSending, setIsSending] = useState(false);
@@ -1063,6 +1083,16 @@ export const WorkspaceChatPage = ({
     setMessages((current) =>
       current.map((message) => message.id === messageId ? updater(message) : message),
     );
+  }, []);
+
+  const toggleAllowedAgentTool = useCallback((toolId: AgentToolName, enabled: boolean) => {
+    setAllowedAgentTools((current) => {
+      if (enabled) {
+        return current.includes(toolId) ? current : normalizeAllowedAgentTools([...current, toolId]);
+      }
+
+      return current.filter((item) => item !== toolId);
+    });
   }, []);
 
   const hydrateSession = useCallback((
@@ -1965,9 +1995,9 @@ export const WorkspaceChatPage = ({
             conversation,
             modelSource === "agent" ? selectedAgent : null,
           ),
-          provider: effectiveProvider,
-          model: effectiveModel,
-          allowedTools: ["read", "edit", "write", "ls", "find", "grep", "ask_user"],
+          provider: toCodingAgentProviderConfig(effectiveProvider),
+          model: toCodingAgentModelConfig(effectiveProvider, effectiveModel),
+          allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
           enabledSkills: enabledSkills.map((skill) => skill.name),
         });
         activeAgentTaskIdRef.current = task.taskId;
@@ -2752,6 +2782,38 @@ export const WorkspaceChatPage = ({
 
             {workspaceView !== "file" && (
               <>
+                {chatMode === "agent" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={allowedAgentTools.length === DEFAULT_ALLOWED_AGENT_TOOLS.length ? "outline" : "secondary"}
+                        title="Agent 工具"
+                      >
+                        <Wrench className="size-4" />
+                        <span>工具</span>
+                        <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">
+                          {allowedAgentTools.length}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuLabel>Agent 工具</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {AGENT_TOOL_DEFINITIONS.map((tool) => (
+                        <DropdownMenuCheckboxItem
+                          key={tool.name}
+                          checked={allowedAgentTools.includes(tool.name)}
+                          onCheckedChange={(checked) => toggleAllowedAgentTool(tool.name, checked)}
+                          title={tool.description}
+                        >
+                          {tool.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <Button
                   type="button"
                   size="sm"

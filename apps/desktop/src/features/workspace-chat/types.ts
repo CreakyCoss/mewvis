@@ -1,4 +1,4 @@
-import type { CodingAgentEvent } from "@/ai/coding-agent/base";
+import type { CodingAgentEvent } from "@/agent-runtime/base";
 
 export type WorkspaceFileEntry = {
   path: string;

@@ -11,6 +11,7 @@
     "build:agent-bridge:win-arm64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target win-arm64",
     "build:win": "node scripts/build-windows.mjs x64",
     "build:win:arm64": "node scripts/build-windows.mjs arm64",
+    "sync-models": "node scripts/sync-models.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "migrate:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin migrate_config_db --"

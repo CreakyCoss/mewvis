@@ -1,13 +1,13 @@
 import { useCallback, useState } from "react";
-import { createAdapter } from "@/ai/adapters/factory";
-import type { AIAdapter } from "@/ai/adapters/base";
-import { toProviderConfig } from "@/ai/registry";
+import { createLlmRuntimeAdapter } from "@/llm-runtime/factory";
+import type { LlmRuntimeAdapter } from "@/llm-runtime/base";
+import { toLlmProviderConfig } from "@/llm-runtime/config";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
 
 export const useAIAdapter = () => {
-  const [adapter, setAdapter] = useState<AIAdapter | null>(null);
+  const [adapter, setAdapter] = useState<LlmRuntimeAdapter | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,13 +26,13 @@ export const useAIAdapter = () => {
         throw new Error("请先配置 LLM Provider");
       }
 
-      const config = toProviderConfig(provider, selectedModel);
+      const config = toLlmProviderConfig(provider, selectedModel);
 
       if (!config) {
         throw new Error("请至少启用一个模型");
       }
 
-      const nextAdapter = await createAdapter(config.provider, config);
+      const nextAdapter = await createLlmRuntimeAdapter(config.provider, config);
       setAdapter(nextAdapter);
       return nextAdapter;
     } catch (caught) {

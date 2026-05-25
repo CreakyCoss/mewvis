@@ -44,6 +44,15 @@ pub struct CodingAgentModelInput {
     id: String,
     model_id: String,
     model_name: String,
+    base_url: Option<String>,
+    reasoning: Option<bool>,
+    thinking_level_map: Option<Value>,
+    input: Option<Vec<String>>,
+    cost: Option<Value>,
+    context_window: Option<u64>,
+    max_tokens: Option<u64>,
+    headers: Option<Value>,
+    compat: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,6 +91,10 @@ pub fn start_coding_agent_task(
     let task_id = Uuid::now_v7().to_string();
     let bridge_path = resolve_agent_bridge_path(&app)?;
     let bundled_skills_path = super::skills::bundled_skills_path(&app)?.map(|path| path_for_node(&path));
+    let skill_paths = workspace_skill_paths(&input.workspace_path)
+        .into_iter()
+        .map(|path| path_for_node(&path))
+        .collect::<Vec<_>>();
     let node_binary = resolve_node_binary(&app)?;
     let bridge_dir = bridge_path.parent().map(PathBuf::from);
     let agent_dir = app.path().app_data_dir().ok().map(|path| path.join("pi-agent"));
@@ -92,13 +105,18 @@ pub fn start_coding_agent_task(
     append_agent_diagnostic(
         &app,
         format!(
-            "start task={task_id} workspace={} node={} node_exists={} bridge={} bridge_exists={} skills={} agent_dir={}",
+            "start task={task_id} workspace={} node={} node_exists={} bridge={} bridge_exists={} bundled_skills={} workspace_skills={} agent_dir={}",
             input.workspace_path,
             node_binary.display(),
             node_binary.exists(),
             bridge_path.display(),
             bridge_path.exists(),
             bundled_skills_path.as_deref().unwrap_or("<none>"),
+            if skill_paths.is_empty() {
+                "<none>".to_string()
+            } else {
+                skill_paths.join(",")
+            },
             agent_dir
                 .as_ref()
                 .map(|path| path.to_string_lossy().to_string())
@@ -143,6 +161,7 @@ pub fn start_coding_agent_task(
         "provider": input.provider,
         "model": input.model,
         "bundledSkillsPath": bundled_skills_path,
+        "skillPaths": skill_paths,
         "enabledSkills": input.enabled_skills.unwrap_or_default(),
         "allowedTools": input.allowed_tools.unwrap_or_else(|| {
             vec![
@@ -255,6 +274,16 @@ pub fn start_coding_agent_task(
     Ok(StartCodingAgentTaskOutput { task_id })
 }
 
+fn workspace_skill_paths(workspace_path: &str) -> Vec<PathBuf> {
+    let workspace = PathBuf::from(workspace_path);
+
+    [".novel-claw/skills", ".codex/skills", ".agents/skills"]
+        .into_iter()
+        .map(|path| workspace.join(path).clean())
+        .filter(|path| path.exists() && path.is_dir())
+        .collect()
+}
+
 #[tauri::command]
 pub fn answer_coding_agent_question(
     state: State<CodingAgentTasks>,
@@ -325,7 +354,7 @@ fn validate_start_input(input: &StartCodingAgentTaskInput) -> Result<(), String>
     Ok(())
 }
 
-fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
+pub(super) fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("NOVEL_CLAW_NODE") {
         let path = PathBuf::from(path);
         if path.exists() {
@@ -359,7 +388,7 @@ fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(PathBuf::from("node"))
 }
 
-fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, String> {
+pub(super) fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("NOVEL_CLAW_AGENT_BRIDGE") {
         let path = PathBuf::from(path);
         if path.exists() {
@@ -416,7 +445,7 @@ fn emit_agent_event(app: &AppHandle, event: Value) {
     let _ = app.emit(AGENT_EVENT, event);
 }
 
-fn append_agent_diagnostic(app: &AppHandle, message: impl AsRef<str>) {
+pub(super) fn append_agent_diagnostic(app: &AppHandle, message: impl AsRef<str>) {
     let Ok(dir) = app.path().app_data_dir() else {
         return;
     };
@@ -432,7 +461,7 @@ fn append_agent_diagnostic(app: &AppHandle, message: impl AsRef<str>) {
     let _ = writeln!(file, "[{timestamp}] {}", message.as_ref());
 }
 
-fn path_for_node(path: &Path) -> String {
+pub(super) fn path_for_node(path: &Path) -> String {
     let value = path.to_string_lossy();
     if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
         return format!(r"\\{rest}");
@@ -444,14 +473,14 @@ fn path_for_node(path: &Path) -> String {
 }
 
 #[cfg(windows)]
-fn hide_subprocess_window(command: &mut Command) {
+pub(super) fn hide_subprocess_window(command: &mut Command) {
     use std::os::windows::process::CommandExt;
 
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
 #[cfg(not(windows))]
-fn hide_subprocess_window(_command: &mut Command) {}
+pub(super) fn hide_subprocess_window(_command: &mut Command) {}
 
 trait CleanPath {
     fn clean(self) -> Self;
