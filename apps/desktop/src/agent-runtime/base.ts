@@ -17,7 +17,7 @@ export type {
   CodingAgentTask,
   CodingAgentTaskInput,
   KnownAgentToolName,
-  NovelClawAgentToolName,
+  AskUserAgentToolName,
 } from "./contract";
 
 export interface AgentRuntimeAdapter {

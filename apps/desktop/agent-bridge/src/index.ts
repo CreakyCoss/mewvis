@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { resolveAgentRunner } from "./agents/index.js";
-import { runPiAiChat } from "./llm/pi-ai.js";
-import type { AnswerQuestionCommand, AskUserInput, BridgeCommand, BridgeEvent, ChatResult } from "./protocol.js";
+import { resolveBridgeRunner } from "./runners/index.js";
+import { isRunnableBridgeCommand } from "./runners/types.js";
+import type { AnswerQuestionCommand, AskUserInput, BridgeCommand, BridgeEvent, ChatResult } from "./contracts/protocol.js";
 
 const writeEvent = (event: BridgeEvent) => {
   output.write(`${JSON.stringify(event)}\n`);
@@ -89,6 +89,21 @@ const readFollowUpCommands = async (
   }
 };
 
+const handleRunnableCommand = async (command: Exclude<BridgeCommand, AnswerQuestionCommand>) => {
+  if (!isRunnableBridgeCommand(command)) {
+    throw new Error("Agent bridge 首条命令必须是 start_task 或 chat");
+  }
+
+  const { mode, runner } = resolveBridgeRunner(command);
+  const result = await runner(command, {
+    askUser,
+    emit: writeEvent,
+  });
+  if (mode === "llm") {
+    writeChatResult(result as ChatResult);
+  }
+};
+
 const main = async () => {
   const reader = createInterface({ input });
   const iterator = reader[Symbol.asyncIterator]();
@@ -100,7 +115,7 @@ const main = async () => {
 
   const command = parseCommand(line.value);
   if (command.type === "chat") {
-    writeChatResult(await runPiAiChat(command));
+    await handleRunnableCommand(command);
     reader.close();
     return;
   }
@@ -117,11 +132,7 @@ const main = async () => {
     });
   });
 
-  const runTask = resolveAgentRunner();
-  await runTask(command, {
-    askUser,
-    emit: writeEvent,
-  });
+  await handleRunnableCommand(command);
   reader.close();
   await followUpReader;
 };

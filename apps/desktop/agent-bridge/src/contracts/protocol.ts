@@ -1,4 +1,4 @@
-import type { AgentToolName } from "./agent-contract.js";
+import type { AgentToolName } from "./tools.js";
 
 export type ProviderInput = {
   id: string;
@@ -31,6 +31,7 @@ export type ModelInput = {
 
 export type StartTaskCommand = {
   type: "start_task";
+  runtime?: string | null;
   taskId: string;
   workspacePath: string;
   prompt: string;
@@ -56,6 +57,7 @@ export type ChatMessageInput = {
 
 export type ChatCommand = {
   type: "chat";
+  runtime?: string | null;
   provider: ProviderInput;
   model: ModelInput;
   systemPrompt: string;
@@ -66,6 +68,10 @@ export type ChatResult = {
   type: "chat_result";
   text: string;
   thinking?: string | null;
+};
+
+export type AgentRunResult = {
+  text: string;
 };
 
 export type BridgeCommand = StartTaskCommand | AnswerQuestionCommand | ChatCommand;

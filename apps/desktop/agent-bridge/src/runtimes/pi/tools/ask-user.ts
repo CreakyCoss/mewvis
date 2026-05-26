@@ -1,0 +1,79 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AskUserInput } from "../../../contracts/protocol.js";
+import type { AskUser } from "../../../contracts/runtime.js";
+import {
+  ASK_USER_TOOL_DESCRIPTION,
+  ASK_USER_TOOL_LABEL,
+  ASK_USER_TOOL_NAME,
+  ASK_USER_TOOL_PARAMETERS,
+  type AskUserCall,
+  type AskUserToolParams,
+  normalizeAskUserInput,
+} from "../../../tools/ask-user.js";
+import { findXmlElement, parseXmlFragment } from "../../../utils/xml.js";
+import { toPiToolParameters } from "./schema.js";
+
+export const parsePiAskUserFunctionCall = (text: string): AskUserCall | null => {
+  if (!text.includes("<invoke") || !text.includes(ASK_USER_TOOL_NAME)) {
+    return null;
+  }
+
+  const invoke = findXmlElement(
+    parseXmlFragment(text),
+    (element) => element.name === "invoke" && element.attributes.name === ASK_USER_TOOL_NAME,
+  );
+  if (!invoke) {
+    return null;
+  }
+
+  const parameter = (name: string) =>
+    invoke.children.find((element) => element.name === "parameter" && element.attributes.name === name)?.text.trim();
+  const question = parameter("question");
+  if (!question) {
+    return null;
+  }
+
+  const inputText = parameter("input");
+  let parsedInput: AskUserInput | undefined;
+  if (inputText) {
+    try {
+      parsedInput = normalizeAskUserInput(JSON.parse(inputText));
+    } catch {
+      parsedInput = undefined;
+    }
+  }
+
+  return {
+    question,
+    context: parameter("context") ?? null,
+    input: parsedInput,
+  };
+};
+
+export const registerPiAskUserTool = (
+  pi: ExtensionAPI,
+  taskId: string,
+  askUser: AskUser,
+) => {
+  pi.registerTool({
+    name: ASK_USER_TOOL_NAME,
+    label: ASK_USER_TOOL_LABEL,
+    description: ASK_USER_TOOL_DESCRIPTION,
+    parameters: toPiToolParameters(ASK_USER_TOOL_PARAMETERS),
+    execute: async (_toolCallId, params) => {
+      const rawParams = params as AskUserToolParams;
+      const input = normalizeAskUserInput(rawParams.input);
+      const answer = await askUser(taskId, rawParams.question, rawParams.context, input);
+
+      return {
+        content: [{ type: "text", text: answer }],
+        details: {
+          question: rawParams.question,
+          context: rawParams.context ?? null,
+          input: input ?? null,
+          answer,
+        },
+      };
+    },
+  });
+};

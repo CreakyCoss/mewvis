@@ -1,13 +1,82 @@
-import { Type, type TSchema } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { AskUser } from "../agents/types.js";
-import type { AskUserInput, AskUserOption } from "../protocol.js";
-import { findXmlElement, parseXmlFragment } from "../utils/xml.js";
+import type { AskUserInput, AskUserOption } from "../contracts/protocol.js";
+import type { ToolParameterDefinition } from "./types.js";
 
-type ParsedAskUserCall = {
+export const ASK_USER_TOOL_NAME = "ask_user";
+export const ASK_USER_TOOL_LABEL = "Ask User";
+export const ASK_USER_TOOL_DESCRIPTION = "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.";
+
+export const ASK_USER_TOOL_PARAMETERS = {
+  type: "object",
+  properties: {
+    question: {
+      type: "string",
+      description: "The question to show the user",
+    },
+    context: {
+      type: "string",
+      description: "Optional short context explaining why this is needed",
+      optional: true,
+    },
+    input: {
+      type: "object",
+      optional: true,
+      properties: {
+        type: {
+          type: "union",
+          description: "The UI control type to render for the answer",
+          anyOf: [
+            { type: "literal", value: "text" },
+            { type: "literal", value: "select" },
+          ],
+        },
+        label: {
+          type: "string",
+          description: "Short label shown above the control",
+          optional: true,
+        },
+        options: {
+          type: "array",
+          description: "Required when type is select. Provide at least two options, optionally including { value: 'other', label: '请输入' } for free-form input.",
+          optional: true,
+          items: {
+            type: "object",
+            properties: {
+              value: {
+                type: "string",
+                description: "Stable value returned to the agent when this option is selected",
+              },
+              label: {
+                type: "string",
+                description: "Human readable option label",
+              },
+              description: {
+                type: "string",
+                description: "Optional helper text for this option",
+                optional: true,
+              },
+            },
+          },
+        },
+        selected: {
+          type: "string",
+          description: "Default selected option value",
+          optional: true,
+        },
+      },
+    },
+  },
+} as const satisfies ToolParameterDefinition;
+
+export type AskUserCall = {
   question: string;
   context?: string | null;
   input?: AskUserInput;
+};
+
+export type AskUserToolParams = {
+  question: string;
+  context?: string | null;
+  input?: unknown;
 };
 
 export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined => {
@@ -43,89 +112,4 @@ export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined 
         }, [])
       : undefined,
   };
-};
-
-export const parseAskUserFunctionCall = (text: string): ParsedAskUserCall | null => {
-  if (!text.includes("<invoke") || !text.includes("ask_user")) {
-    return null;
-  }
-
-  const invoke = findXmlElement(
-    parseXmlFragment(text),
-    (element) => element.name === "invoke" && element.attributes.name === "ask_user",
-  );
-  if (!invoke) {
-    return null;
-  }
-
-  const parameter = (name: string) =>
-    invoke.children.find((element) => element.name === "parameter" && element.attributes.name === name)?.text.trim();
-  const question = parameter("question");
-  if (!question) {
-    return null;
-  }
-
-  const inputText = parameter("input");
-  let parsedInput: AskUserInput | undefined;
-  if (inputText) {
-    try {
-      parsedInput = normalizeAskUserInput(JSON.parse(inputText));
-    } catch {
-      parsedInput = undefined;
-    }
-  }
-
-  return {
-    question,
-    context: parameter("context") ?? null,
-    input: parsedInput,
-  };
-};
-
-export const registerAskUserTool = (
-  pi: ExtensionAPI,
-  taskId: string,
-  askUser: AskUser,
-) => {
-  pi.registerTool({
-    name: "ask_user",
-    label: "Ask User",
-    description: "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.",
-    parameters: Type.Object({
-      question: Type.String({ description: "The question to show the user" }),
-      context: Type.Optional(Type.String({ description: "Optional short context explaining why this is needed" })),
-      input: Type.Optional(Type.Object({
-        type: Type.Union([
-          Type.Literal("text"),
-          Type.Literal("select"),
-        ], { description: "The UI control type to render for the answer" }),
-        label: Type.Optional(Type.String({ description: "Short label shown above the control" })),
-        options: Type.Optional(Type.Array(Type.Object({
-          value: Type.String({ description: "Stable value returned to the agent when this option is selected" }),
-          label: Type.String({ description: "Human readable option label" }),
-          description: Type.Optional(Type.String({ description: "Optional helper text for this option" })),
-        }), { description: "Required when type is select. Provide at least two options, optionally including { value: 'other', label: '请输入' } for free-form input." })),
-        selected: Type.Optional(Type.String({ description: "Default selected option value" })),
-      })),
-    }) as TSchema,
-    execute: async (_toolCallId, params) => {
-      const rawParams = params as {
-        question: string;
-        context?: string | null;
-        input?: unknown;
-      };
-      const input = normalizeAskUserInput(rawParams.input);
-      const answer = await askUser(taskId, rawParams.question, rawParams.context, input);
-
-      return {
-        content: [{ type: "text", text: answer }],
-        details: {
-          question: rawParams.question,
-          context: rawParams.context ?? null,
-          input: input ?? null,
-          answer,
-        },
-      };
-    },
-  });
 };

@@ -23,8 +23,8 @@ export type BuiltInAgentToolName =
   | "find"
   | "ls";
 
-export type NovelClawAgentToolName = "ask_user";
-export type KnownAgentToolName = BuiltInAgentToolName | NovelClawAgentToolName;
+export type AskUserAgentToolName = "ask_user";
+export type KnownAgentToolName = BuiltInAgentToolName | AskUserAgentToolName;
 export type AgentToolName = KnownAgentToolName | (string & {});
 
 export type AgentToolDefinition = {
@@ -33,7 +33,7 @@ export type AgentToolDefinition = {
   description: string;
   category: AgentToolCategory;
   riskLevel: AgentToolRiskLevel;
-  source: "agent-runtime" | "novel-claw" | "extension";
+  source: "agent-runtime" | "bridge" | "extension";
   enabledByDefault: boolean;
 };
 
@@ -98,7 +98,7 @@ export const AGENT_TOOL_DEFINITIONS = [
     description: "在缺少必要信息时向用户提问",
     category: "interaction",
     riskLevel: "low",
-    source: "novel-claw",
+    source: "bridge",
     enabledByDefault: true,
   },
   {

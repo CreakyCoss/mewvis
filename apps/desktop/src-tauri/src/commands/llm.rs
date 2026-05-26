@@ -153,6 +153,7 @@ fn chat_with_pi_ai_bridge_blocking(
 
     let command = json!({
         "type": "chat",
+        "runtime": input.runtime,
         "provider": input.provider,
         "model": input.model,
         "systemPrompt": input.system_prompt,
