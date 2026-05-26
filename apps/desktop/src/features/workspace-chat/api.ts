@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { createLlmRuntimeAdapter } from "@/llm-runtime/factory";
 import { toLlmProviderConfig } from "@/llm-runtime/config";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { ChatMessage, ChatSession, ChatSessionMeta, WorkspaceFile, WorkspaceFileEntry } from "./types";
+import type { ChatContextSummary, ChatMessage, ChatSession, ChatSessionMeta, WorkspaceFile, WorkspaceFileEntry } from "./types";
 import type { ConversationMessage } from "./types";
 
 export type ChatWithLlmInput = {
@@ -10,6 +10,9 @@ export type ChatWithLlmInput = {
   model: ProviderModel;
   systemPrompt: string;
   messages: ConversationMessage[];
+  stream?: boolean;
+  onTextDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
 };
 
 export type ChatWithLlmOutput = {
@@ -52,6 +55,9 @@ export async function chatWithLlm(input: ChatWithLlmInput) {
   return adapter.chat({
     systemPrompt: input.systemPrompt,
     messages: input.messages,
+    stream: input.stream ?? true,
+    onTextDelta: input.onTextDelta,
+    onThinkingDelta: input.onThinkingDelta,
   });
 }
 
@@ -76,6 +82,7 @@ export async function saveChatSession(input: {
   title?: string | null;
   messages: ChatMessage[];
   conversation: ConversationMessage[];
+  context?: ChatContextSummary | null;
 }) {
   return invoke<ChatSession>("save_chat_session", { input });
 }

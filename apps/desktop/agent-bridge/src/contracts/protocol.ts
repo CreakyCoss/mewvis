@@ -58,6 +58,8 @@ export type ChatMessageInput = {
 export type ChatCommand = {
   type: "chat";
   runtime?: string | null;
+  streamId?: string | null;
+  stream?: boolean;
   provider: ProviderInput;
   model: ModelInput;
   systemPrompt: string;

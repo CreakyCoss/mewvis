@@ -3,12 +3,14 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
-    io::Write,
+    io::{BufRead, BufReader, Read, Write},
     process::{Command, Stdio},
+    thread,
 };
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 const DEFAULT_LLM_RUNTIME: &str = "pi-ai";
+const LLM_CHAT_EVENT: &str = "llm_chat_event";
 
 #[tauri::command]
 pub fn get_llm_settings(app: AppHandle) -> Result<LlmSettings, String> {
@@ -27,6 +29,8 @@ pub fn save_llm_settings(
 #[serde(rename_all = "camelCase")]
 pub struct ChatWithLlmInput {
     runtime: Option<String>,
+    stream_id: Option<String>,
+    stream: Option<bool>,
     provider: ChatProviderInput,
     model: ChatModelInput,
     system_prompt: String,
@@ -151,9 +155,12 @@ fn chat_with_pi_ai_bridge_blocking(
         )
     })?;
 
+    let stream_id = input.stream_id.clone();
     let command = json!({
         "type": "chat",
         "runtime": input.runtime,
+        "streamId": stream_id,
+        "stream": input.stream.unwrap_or(true),
         "provider": input.provider,
         "model": input.model,
         "systemPrompt": input.system_prompt,
@@ -167,30 +174,64 @@ fn chat_with_pi_ai_bridge_blocking(
     writeln!(stdin, "{command}").map_err(|error| format!("发送 LLM 请求失败：{error}"))?;
     drop(stdin);
 
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("读取 LLM bridge 输出失败：{error}"))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stderr_handle = child.stderr.take().map(|stderr| {
+        thread::spawn(move || {
+            let mut stderr_text = String::new();
+            let mut reader = BufReader::new(stderr);
+            let _ = reader.read_to_string(&mut stderr_text);
+            stderr_text
+        })
+    });
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "LLM bridge stdout 不可用".to_string())?;
+    let reader = BufReader::new(stdout);
+    let mut result_line: Option<String> = None;
+    let mut output_lines = Vec::new();
+
+    for line in reader.lines() {
+        let line = line.map_err(|error| format!("读取 LLM bridge 输出失败：{error}"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        output_lines.push(line.clone());
+
+        if let Some(value) = parse_llm_bridge_line(&line)? {
+            if value.get("type").and_then(Value::as_str) == Some("chat_result") {
+                result_line = Some(line);
+            } else {
+                emit_llm_stream_event(&app, stream_id.as_deref(), &value);
+            }
+        }
+    }
+
+    let status = child
+        .wait()
+        .map_err(|error| format!("等待 LLM bridge 结束失败：{error}"))?;
+    let stderr = stderr_handle
+        .and_then(|handle| handle.join().ok())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
 
     if !stderr.is_empty() {
         super::agent::append_agent_diagnostic(&app, format!("llm bridge stderr {stderr}"));
     }
 
-    let line = stdout
-        .lines()
-        .find(|line| !line.trim().is_empty())
+    let line = result_line
         .ok_or_else(|| {
             format!(
                 "LLM bridge 未返回结果：{}",
                 if stderr.is_empty() {
-                    format!("exit={:?}", output.status.code())
+                    format!("exit={:?} stdout={}", status.code(), output_lines.join("\n"))
                 } else {
                     stderr.clone()
                 }
             )
         })?;
-    let value: Value = serde_json::from_str(line)
+    let value: Value = serde_json::from_str(&line)
         .map_err(|error| format!("解析 LLM bridge 输出失败：{error}，raw={line}"))?;
 
     if value.get("type").and_then(Value::as_str) == Some("error") {
@@ -201,11 +242,11 @@ fn chat_with_pi_ai_bridge_blocking(
             .to_string());
     }
 
-    if !output.status.success() {
+    if !status.success() {
         return Err(format!(
             "LLM bridge 执行失败：{}",
             if stderr.is_empty() {
-                format!("exit={:?}", output.status.code())
+                format!("exit={:?}", status.code())
             } else {
                 stderr
             }
@@ -217,6 +258,38 @@ fn chat_with_pi_ai_bridge_blocking(
     }
 
     serde_json::from_value(value).map_err(|error| format!("解析 LLM bridge 结果失败：{error}"))
+}
+
+fn parse_llm_bridge_line(line: &str) -> Result<Option<Value>, String> {
+    let value: Value = serde_json::from_str(line)
+        .map_err(|error| format!("解析 LLM bridge 输出失败：{error}，raw={line}"))?;
+    Ok(Some(value))
+}
+
+fn emit_llm_stream_event(app: &AppHandle, stream_id: Option<&str>, value: &Value) {
+    let Some(stream_id) = stream_id else {
+        return;
+    };
+    let Some(event_type) = value.get("type").and_then(Value::as_str) else {
+        return;
+    };
+
+    if event_type != "text_delta" && event_type != "thinking_delta" {
+        return;
+    }
+
+    let Some(delta) = value.get("delta").and_then(Value::as_str) else {
+        return;
+    };
+
+    let _ = app.emit(
+        LLM_CHAT_EVENT,
+        json!({
+            "type": event_type,
+            "streamId": stream_id,
+            "delta": delta,
+        }),
+    );
 }
 
 fn validate_chat_input(input: &ChatWithLlmInput) -> Result<(), String> {

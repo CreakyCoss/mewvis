@@ -59,6 +59,14 @@ import { SkillsDialog } from "@/features/workspace-skills/components/skills-dial
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import type { Workspace } from "@/features/workspaces/types";
 import {
+  buildRuntimeConversationContext,
+  buildRuntimeConversationMessages,
+  formatConversationForSummary,
+  updateConversationContext,
+  type ConversationSummarizer,
+  type RuntimeConversationContext,
+} from "../context";
+import {
   chatWithLlm,
   deleteChatSession,
   listWorkspaceFiles,
@@ -70,6 +78,7 @@ import {
 } from "../api";
 import { MarkdownContent } from "./markdown-content";
 import type {
+  ChatContextSummary,
   ChatMessage,
   ChatSessionMeta,
   ConversationMessage,
@@ -293,14 +302,20 @@ const appendReferencesToPrompt = (
 const buildAgentPrompt = (
   text: string,
   references: ResolvedFileReference[],
-  history: ConversationMessage[],
+  history: RuntimeConversationContext,
   selectedAgent: AgentProfile | null,
 ) => {
-  const recentHistory = history.slice(-8);
-  const historyContext = recentHistory.length
+  const summaryContext = history.summary
+    ? [
+      "以下是更早对话的压缩摘要，仅用于恢复跨任务上下文：",
+      history.summary,
+      "",
+    ].join("\n")
+    : "";
+  const historyContext = history.recentMessages.length
     ? [
       "以下是最近对话历史。用户当前输入可能是在回答助手上一轮提出的问题，请结合历史理解：",
-      recentHistory
+      history.recentMessages
         .map((message) => `${message.role === "user" ? "用户" : "助手"}：${message.content}`)
         .join("\n\n"),
       "",
@@ -324,9 +339,46 @@ const buildAgentPrompt = (
   ].join("\n");
 
   return appendReferencesToPrompt(
-    `${agentContext}${interactionInstructions}${historyContext}当前用户输入：\n${text}`,
+    `${agentContext}${interactionInstructions}${summaryContext}${historyContext}当前用户输入：\n${text}`,
     references,
   );
+};
+
+const createConversationSummarizer = (
+  provider: LlmProvider,
+  model: ProviderModel,
+): ConversationSummarizer => async ({ previousSummary, messages }) => {
+  if (messages.length === 0) {
+    return previousSummary;
+  }
+
+  const result = await chatWithLlm({
+    provider,
+    model,
+    stream: false,
+    systemPrompt: [
+      "你是聊天历史压缩器。请把跨任务恢复所需的信息压缩成中文摘要。",
+      "要求：保留用户目标、已确认的决策、关键约束、文件/路径/实体名、未完成事项、助手已经给出的重要结论。",
+      "不要添加新事实，不要回答用户问题，不要输出寒暄。",
+      "输出适合继续追加滚动摘要的纯文本，尽量精炼。",
+    ].join("\n"),
+    messages: [
+      {
+        role: "user",
+        content: [
+          previousSummary
+            ? `已有摘要：\n${previousSummary}`
+            : "已有摘要：无",
+          "",
+          "需要并入摘要的新对话：",
+          formatConversationForSummary(messages),
+        ].join("\n"),
+        timestamp: Date.now(),
+      },
+    ],
+  });
+
+  return result.text.trim() || previousSummary;
 };
 
 const stringifyBrief = (value: unknown) => {
@@ -1025,6 +1077,9 @@ export const WorkspaceChatPage = ({
   const activeAgentMessageIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
   const lastAgentStderrRef = useRef("");
+  const handledAgentDoneTaskIdsRef = useRef<Set<string>>(new Set());
+  const conversationContextRef = useRef<ChatContextSummary | null>(null);
+  const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const isHydratingSessionRef = useRef(false);
   const saveSessionTimerRef = useRef<number | null>(null);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
@@ -1069,6 +1124,7 @@ export const WorkspaceChatPage = ({
   const [expandedAgentEventIds, setExpandedAgentEventIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+  const [conversationContext, setConversationContext] = useState<ChatContextSummary | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSessionMeta[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
@@ -1101,6 +1157,7 @@ export const WorkspaceChatPage = ({
       title: string;
       messages: ChatMessage[];
       conversation: ConversationMessage[];
+      context?: ChatContextSummary | null;
     } | null,
   ) => {
     if (saveSessionTimerRef.current) {
@@ -1110,6 +1167,7 @@ export const WorkspaceChatPage = ({
     isHydratingSessionRef.current = true;
     setMessages(session?.messages ?? []);
     setConversation(session?.conversation ?? []);
+    setConversationContext(session?.context ?? null);
     setCurrentSessionId(session?.id ?? null);
     setCurrentSessionTitle(session?.title || DEFAULT_SESSION_TITLE);
     setExpandedThinkingIds(new Set());
@@ -1135,6 +1193,7 @@ export const WorkspaceChatPage = ({
           title: latestSession.title,
           messages: latestSession.messages,
           conversation: latestSession.conversation,
+          context: latestSession.context,
         }
         : null);
     } catch (caught) {
@@ -1164,6 +1223,7 @@ export const WorkspaceChatPage = ({
         title: session.title,
         messages: session.messages,
         conversation: session.conversation,
+        context: session.context,
       });
     } catch (caught) {
       setSessionsError(String(caught));
@@ -1209,6 +1269,7 @@ export const WorkspaceChatPage = ({
             title: latestSession.title,
             messages: latestSession.messages,
             conversation: latestSession.conversation,
+            context: latestSession.context,
           }
           : null);
       }
@@ -1387,6 +1448,10 @@ export const WorkspaceChatPage = ({
     activeAgentTaskIdRef.current = activeAgentTaskId;
   }, [activeAgentTaskId]);
 
+  useEffect(() => {
+    conversationContextRef.current = conversationContext;
+  }, [conversationContext]);
+
   useEffect(() => () => {
     if (saveSessionTimerRef.current) {
       window.clearTimeout(saveSessionTimerRef.current);
@@ -1421,6 +1486,7 @@ export const WorkspaceChatPage = ({
         title,
         messages,
         conversation,
+        context: conversationContext,
       })
         .then((session) => {
           setCurrentSessionId(session.id);
@@ -1445,10 +1511,11 @@ export const WorkspaceChatPage = ({
           setIsSessionSaving(false);
         });
     }, 700);
-  }, [conversation, currentSessionId, currentSessionTitle, messages, workspace.path]);
+  }, [conversation, conversationContext, currentSessionId, currentSessionTitle, messages, workspace.path]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
+    let disposed = false;
 
     void codingAgent.subscribe((event) => {
       const currentTaskId = activeAgentTaskIdRef.current;
@@ -1528,20 +1595,36 @@ export const WorkspaceChatPage = ({
       }
 
       if (event.type === "done") {
+        if (handledAgentDoneTaskIdsRef.current.has(event.taskId)) {
+          return;
+        }
+        handledAgentDoneTaskIdsRef.current.add(event.taskId);
+
         const assistantText = event.text.trim();
         updateMessage(messageId, (message) => ({
           ...message,
           text: assistantText || message.text || "Agent 任务已完成。",
           status: "done",
         }));
-        setConversation((current) => [
-          ...current,
-          {
-            role: "assistant",
-            content: assistantText || "Agent 任务已完成。",
-            timestamp: Date.now(),
-          },
-        ]);
+        setConversation((current) => {
+          const nextConversation: ConversationMessage[] = [
+            ...current,
+            {
+              role: "assistant",
+              content: assistantText || "Agent 任务已完成。",
+              timestamp: Date.now(),
+            },
+          ];
+          void updateConversationContext(
+            nextConversation,
+            conversationContextRef.current,
+            conversationSummarizerRef.current ?? undefined,
+          ).then((nextContext) => {
+            conversationContextRef.current = nextContext;
+            setConversationContext(nextContext);
+          });
+          return nextConversation;
+        });
         setActiveAgentTaskId("");
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
@@ -1588,10 +1671,15 @@ export const WorkspaceChatPage = ({
         lastAgentStderrRef.current = "";
       }
     }).then((unsubscribe) => {
+      if (disposed) {
+        unsubscribe();
+        return;
+      }
       cleanup = unsubscribe;
     });
 
     return () => {
+      disposed = true;
       cleanup?.();
     };
   }, [codingAgent, loadFiles, updateMessage]);
@@ -1845,11 +1933,34 @@ export const WorkspaceChatPage = ({
     setChatError("");
 
     try {
+      const summaryProvider = chatMode === "collab" && selectedAgent
+        ? selectedAgent.provider
+        : effectiveProvider;
+      const summaryModel = chatMode === "collab" && selectedAgent
+        ? selectedAgent.model
+        : effectiveModel;
+      const summarizeConversation = summaryProvider && summaryModel
+        ? createConversationSummarizer(summaryProvider, summaryModel)
+        : undefined;
+      conversationSummarizerRef.current = summarizeConversation ?? null;
+      const nextConversationContext = await updateConversationContext(
+        nextConversation,
+        conversationContext,
+        summarizeConversation,
+      );
+      const runtimeMessages = buildRuntimeConversationMessages(
+        nextConversation,
+        nextConversationContext,
+      );
+      setConversationContext(nextConversationContext);
+      conversationContextRef.current = nextConversationContext;
+
       if (chatMode === "collab" && selectedAgent && reviewerAgent) {
         setCollaborationPhase("drafting");
         const draftResult = await chatWithLlm({
           provider: selectedAgent.provider,
           model: selectedAgent.model,
+          stream: false,
           systemPrompt: buildCollaborationSystemPrompt(
             workspace,
             activeFile,
@@ -1858,7 +1969,7 @@ export const WorkspaceChatPage = ({
             selectedAgent,
             "draft",
           ),
-          messages: nextConversation,
+          messages: runtimeMessages,
         });
         const draftText = draftResult.text.trim();
         updateMessage(assistantMessageId, (message) => ({
@@ -1879,6 +1990,7 @@ export const WorkspaceChatPage = ({
         const reviewResult = await chatWithLlm({
           provider: reviewerAgent.provider,
           model: reviewerAgent.model,
+          stream: false,
           systemPrompt: buildCollaborationSystemPrompt(
             workspace,
             activeFile,
@@ -1887,14 +1999,14 @@ export const WorkspaceChatPage = ({
             reviewerAgent,
             "review",
           ),
-          messages: [
+          messages: buildRuntimeConversationMessages([
             ...nextConversation,
             {
               role: "assistant",
               content: draftText,
               timestamp: Date.now(),
             },
-          ],
+          ], nextConversationContext),
         });
         const reviewText = reviewResult.text.trim();
         updateMessage(assistantMessageId, (message) => ({
@@ -1918,6 +2030,7 @@ export const WorkspaceChatPage = ({
         const finalResult = await chatWithLlm({
           provider: selectedAgent.provider,
           model: selectedAgent.model,
+          stream: false,
           systemPrompt: buildCollaborationSystemPrompt(
             workspace,
             activeFile,
@@ -1926,7 +2039,7 @@ export const WorkspaceChatPage = ({
             selectedAgent,
             "revise",
           ),
-          messages: [
+          messages: buildRuntimeConversationMessages([
             ...nextConversation,
             {
               role: "assistant",
@@ -1938,7 +2051,7 @@ export const WorkspaceChatPage = ({
               content: `这是审查 Agent 的意见，请据此修订并输出最终版本：\n\n${reviewText}`,
               timestamp: Date.now(),
             },
-          ],
+          ], nextConversationContext),
         });
         const finalText = finalResult.text.trim();
         const collaborationText = [
@@ -1966,14 +2079,22 @@ export const WorkspaceChatPage = ({
           thinking: [message.thinking, finalResult.thinking?.trim()].filter(Boolean).join("\n\n") || undefined,
           status: "done",
         }));
-        setConversation((current) => [
-          ...current,
+        const finalConversation: ConversationMessage[] = [
+          ...nextConversation,
           {
             role: "assistant",
             content: collaborationText,
             timestamp: Date.now(),
           },
-        ]);
+        ];
+        setConversation(finalConversation);
+        const finalContext = await updateConversationContext(
+          finalConversation,
+          conversationContextRef.current,
+          summarizeConversation,
+        );
+        conversationContextRef.current = finalContext;
+        setConversationContext(finalContext);
         setCollaborationPhase("idle");
         return;
       }
@@ -1992,7 +2113,7 @@ export const WorkspaceChatPage = ({
           prompt: buildAgentPrompt(
             text,
             referencedFiles,
-            conversation,
+            buildRuntimeConversationContext(conversation, nextConversationContext),
             modelSource === "agent" ? selectedAgent : null,
           ),
           provider: toCodingAgentProviderConfig(effectiveProvider),
@@ -2000,6 +2121,7 @@ export const WorkspaceChatPage = ({
           allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
           enabledSkills: enabledSkills.map((skill) => skill.name),
         });
+        handledAgentDoneTaskIdsRef.current.delete(task.taskId);
         activeAgentTaskIdRef.current = task.taskId;
         setActiveAgentTaskId(task.taskId);
         updateMessage(assistantMessageId, (message) => ({
@@ -2019,7 +2141,21 @@ export const WorkspaceChatPage = ({
           enabledSkills,
           modelSource === "agent" ? selectedAgent : null,
         ),
-        messages: nextConversation,
+        messages: runtimeMessages,
+        onTextDelta: (delta) => {
+          updateMessage(assistantMessageId, (message) => ({
+            ...message,
+            text: `${message.text}${delta}`,
+            status: "streaming",
+          }));
+        },
+        onThinkingDelta: (delta) => {
+          updateMessage(assistantMessageId, (message) => ({
+            ...message,
+            thinking: `${message.thinking ?? ""}${delta}`,
+            status: "streaming",
+          }));
+        },
       });
       const assistantText = result.text.trim();
 
@@ -2029,14 +2165,22 @@ export const WorkspaceChatPage = ({
         thinking: result.thinking?.trim() || undefined,
         status: "done",
       }));
-      setConversation((current) => [
-        ...current,
+      const finalConversation: ConversationMessage[] = [
+        ...nextConversation,
         {
           role: "assistant",
           content: assistantText,
           timestamp: Date.now(),
         },
-      ]);
+      ];
+      setConversation(finalConversation);
+      const finalContext = await updateConversationContext(
+        finalConversation,
+        conversationContextRef.current,
+        summarizeConversation,
+      );
+      conversationContextRef.current = finalContext;
+      setConversationContext(finalContext);
     } catch (caught) {
       const message = String(caught);
       setChatError(message);

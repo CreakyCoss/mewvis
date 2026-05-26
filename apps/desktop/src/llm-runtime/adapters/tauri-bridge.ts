@@ -26,6 +26,8 @@ export class TauriBridgeLlmRuntimeAdapter implements LlmRuntimeAdapter {
     const output = await invoke<ChatWithLlmOutput>("chat_with_llm", {
       input: {
         runtime: "system",
+        streamId: undefined,
+        stream: options.stream ?? true,
         provider: this.config,
         model: this.config.model,
         systemPrompt: options.systemPrompt,

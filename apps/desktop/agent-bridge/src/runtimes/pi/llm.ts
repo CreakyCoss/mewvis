@@ -1,5 +1,6 @@
 import {
   completeSimple,
+  streamSimple,
   type Api,
   type AssistantMessage,
   type Context,
@@ -8,7 +9,7 @@ import {
   type Usage,
 } from "@earendil-works/pi-ai";
 import type { ChatCommand, ChatMessageInput, ChatResult } from "../../contracts/protocol.js";
-import type { BaseLLM } from "../../contracts/runtime.js";
+import type { BaseLLM, LlmRuntimeContext } from "../../contracts/runtime.js";
 import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
 
 const PI_LLM_MODEL_SOURCE = "input" satisfies PiModelSource;
@@ -16,7 +17,13 @@ const PI_LLM_MODEL_SOURCE = "input" satisfies PiModelSource;
 export class PiLLM implements BaseLLM {
   readonly id = "pi-ai";
 
-  async chat(command: ChatCommand): Promise<ChatResult> {
+  async chat(command: ChatCommand, context: LlmRuntimeContext): Promise<ChatResult> {
+    return command.stream === false
+      ? this.complete(command)
+      : this.stream(command, context);
+  }
+
+  private async complete(command: ChatCommand): Promise<ChatResult> {
     const apiKey = requirePiApiKey(command.provider);
     const model = createPiRuntimeModel(command.provider, command.model, {
       modelSource: PI_LLM_MODEL_SOURCE,
@@ -27,6 +34,50 @@ export class PiLLM implements BaseLLM {
       { apiKey },
     );
 
+    return this.createChatResult(message);
+  }
+
+  private async stream(command: ChatCommand, context: LlmRuntimeContext): Promise<ChatResult> {
+    const apiKey = requirePiApiKey(command.provider);
+    const model = createPiRuntimeModel(command.provider, command.model, {
+      modelSource: PI_LLM_MODEL_SOURCE,
+    });
+    const stream = streamSimple(
+      model,
+      this.createContext(command, model),
+      { apiKey },
+    );
+    let message: AssistantMessage | null = null;
+
+    for await (const event of stream) {
+      if (event.type === "text_delta" && command.streamId) {
+        context.emit({
+          type: "text_delta",
+          taskId: command.streamId,
+          delta: event.delta,
+        });
+      }
+      if (event.type === "thinking_delta" && command.streamId) {
+        context.emit({
+          type: "thinking_delta",
+          taskId: command.streamId,
+          delta: event.delta,
+        });
+      }
+      if (event.type === "done") {
+        message = event.message;
+      }
+      if (event.type === "error") {
+        message = event.error;
+      }
+    }
+
+    message ??= await stream.result();
+
+    return this.createChatResult(message);
+  }
+
+  private createChatResult(message: AssistantMessage): ChatResult {
     return {
       type: "chat_result",
       text: this.textFromMessage(message),

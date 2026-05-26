@@ -9,10 +9,15 @@ export type AskUser = (
 
 export type EmitBridgeEvent = (event: BridgeEvent) => void;
 
-export type AgentRunnerContext = {
-  askUser: AskUser;
+export type BridgeEmitContext = {
   emit: EmitBridgeEvent;
 };
+
+export type AgentRuntimeContext = BridgeEmitContext & {
+  askUser: AskUser;
+};
+
+export type LlmRuntimeContext = BridgeEmitContext;
 
 export type RuntimeMode = "agent" | "llm";
 
@@ -21,14 +26,17 @@ export abstract class BaseAgent {
 
   abstract run(
     command: StartTaskCommand,
-    context: AgentRunnerContext,
+    context: AgentRuntimeContext,
   ): Promise<AgentRunResult>;
 }
 
 export abstract class BaseLLM {
   constructor(readonly id: string) {}
 
-  abstract chat(command: ChatCommand): Promise<ChatResult>;
+  abstract chat(
+    command: ChatCommand,
+    context: LlmRuntimeContext,
+  ): Promise<ChatResult>;
 }
 
 export type AgentRuntime = BaseAgent;

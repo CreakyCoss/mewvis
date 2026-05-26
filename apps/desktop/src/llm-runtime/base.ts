@@ -20,6 +20,9 @@ export type LlmChatMessage = {
 export type LlmChatOptions = {
   systemPrompt: string;
   messages: LlmChatMessage[];
+  stream?: boolean;
+  onTextDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
 };
 
 export type LlmChatResult = {

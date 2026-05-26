@@ -10,12 +10,12 @@ const toAgentRunner = (runtime: AgentRuntime): BridgeRunner => async (command, c
   return runtime.run(command, context);
 };
 
-const toLlmRunner = (runtime: LlmRuntime): BridgeRunner => async (command) => {
+const toLlmRunner = (runtime: LlmRuntime): BridgeRunner => async (command, context) => {
   if (command.type !== "chat") {
     throw new Error(`LLM runtime 不支持命令：${command.type}`);
   }
 
-  return runtime.chat(command);
+  return runtime.chat(command, context);
 };
 
 const modeForCommand = (command: RunnableBridgeCommand): RuntimeMode => {

@@ -34,6 +34,12 @@ export type ConversationMessage = {
   timestamp: number;
 };
 
+export type ChatContextSummary = {
+  summary: string;
+  summarizedUntilIndex: number;
+  updatedAt: number;
+};
+
 export type ChatSessionMeta = {
   id: string;
   title: string;
@@ -50,4 +56,5 @@ export type ChatSession = {
   updatedAt: number;
   messages: ChatMessage[];
   conversation: ConversationMessage[];
+  context?: ChatContextSummary | null;
 };
