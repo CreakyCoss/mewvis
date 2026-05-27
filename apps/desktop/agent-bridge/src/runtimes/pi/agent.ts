@@ -10,9 +10,10 @@ import {
   type Skill,
 } from "@earendil-works/pi-coding-agent";
 import { normalizeAllowedAgentTools } from "../../contracts/tools.js";
-import type {
-  AgentRunResult,
-  StartTaskCommand,
+import {
+  BridgeEventType,
+  type AgentRunResult,
+  type StartTaskCommand,
 } from "../../contracts/protocol.js";
 import type { AgentRuntimeContext, AskUser, BaseAgent } from "../../contracts/runtime.js";
 import { parsePiAskUserFunctionCall, registerPiAskUserTool } from "./tools/ask-user.js";
@@ -65,21 +66,21 @@ export class PiAgent implements BaseAgent {
               assistantText += event.assistantMessageEvent.delta;
               streamedText += event.assistantMessageEvent.delta;
               emit({
-                type: "text_delta",
+                type: BridgeEventType.TextDelta,
                 taskId: command.taskId,
                 delta: event.assistantMessageEvent.delta,
               });
               return;
             case "thinking_delta":
               emit({
-                type: "thinking_delta",
+                type: BridgeEventType.ThinkingDelta,
                 taskId: command.taskId,
                 delta: event.assistantMessageEvent.delta,
               });
               return;
             case "thinking_end":
               emit({
-                type: "thinking_end",
+                type: BridgeEventType.ThinkingEnd,
                 taskId: command.taskId,
                 content: event.assistantMessageEvent.content,
               });
@@ -106,7 +107,7 @@ export class PiAgent implements BaseAgent {
           const thinking = this.getMessageThinking(event);
           if (thinking) {
             emit({
-              type: "thinking_end",
+              type: BridgeEventType.ThinkingEnd,
               taskId: command.taskId,
               content: thinking,
             });
@@ -115,7 +116,7 @@ export class PiAgent implements BaseAgent {
         }
         case "tool_execution_start":
           emit({
-            type: "tool_start",
+            type: BridgeEventType.ToolStart,
             taskId: command.taskId,
             toolName: event.toolName,
             args: event.args,
@@ -123,7 +124,7 @@ export class PiAgent implements BaseAgent {
           return;
         case "tool_execution_update":
           emit({
-            type: "tool_update",
+            type: BridgeEventType.ToolUpdate,
             taskId: command.taskId,
             toolName: event.toolName,
             partialResult: event.partialResult,
@@ -131,7 +132,7 @@ export class PiAgent implements BaseAgent {
           return;
         case "tool_execution_end":
           emit({
-            type: "tool_end",
+            type: BridgeEventType.ToolEnd,
             taskId: command.taskId,
             toolName: event.toolName,
             isError: event.isError,
@@ -144,7 +145,7 @@ export class PiAgent implements BaseAgent {
     });
 
     try {
-      emit({ type: "started", taskId: command.taskId });
+      emit({ type: BridgeEventType.Started, taskId: command.taskId });
       let nextPrompt: string | null = command.prompt;
       while (nextPrompt) {
         assistantText = "";
@@ -157,7 +158,7 @@ export class PiAgent implements BaseAgent {
         }
 
         emit({
-          type: "replace_text",
+          type: BridgeEventType.ReplaceText,
           taskId: command.taskId,
           text: "",
         });
@@ -173,7 +174,7 @@ export class PiAgent implements BaseAgent {
         text: assistantText.trim(),
       };
       emit({
-        type: "done",
+        type: BridgeEventType.Done,
         taskId: command.taskId,
         text: result.text,
       });

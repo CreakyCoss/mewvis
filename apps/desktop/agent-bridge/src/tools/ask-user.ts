@@ -1,4 +1,4 @@
-import type { AskUserInput, AskUserOption } from "../contracts/protocol.js";
+import { AskUserInputType, type AskUserInput, type AskUserOption } from "../contracts/protocol.js";
 import type { ToolParameterDefinition } from "./types.js";
 
 export const ASK_USER_TOOL_NAME = "ask_user";
@@ -25,8 +25,8 @@ export const ASK_USER_TOOL_PARAMETERS = {
           type: "union",
           description: "The UI control type to render for the answer",
           anyOf: [
-            { type: "literal", value: "text" },
-            { type: "literal", value: "select" },
+            { type: "literal", value: AskUserInputType.Text },
+            { type: "literal", value: AskUserInputType.Select },
           ],
         },
         label: {
@@ -85,7 +85,7 @@ export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined 
   }
 
   const input = value as Partial<AskUserInput>;
-  if (input.type !== "select" && input.type !== "text") {
+  if (input.type !== AskUserInputType.Select && input.type !== AskUserInputType.Text) {
     return undefined;
   }
 

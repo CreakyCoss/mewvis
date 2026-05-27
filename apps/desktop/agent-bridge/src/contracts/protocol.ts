@@ -1,5 +1,35 @@
 import type { AgentToolName } from "./tools.js";
 
+export enum BridgeCommandType {
+  StartTask = "start_task",
+  AnswerQuestion = "answer_question",
+  Chat = "chat",
+}
+
+export enum BridgeResultType {
+  ChatResult = "chat_result",
+}
+
+export enum BridgeEventType {
+  Started = "started",
+  Question = "question",
+  QuestionAnswered = "question_answered",
+  ReplaceText = "replace_text",
+  TextDelta = "text_delta",
+  ThinkingDelta = "thinking_delta",
+  ThinkingEnd = "thinking_end",
+  ToolStart = "tool_start",
+  ToolUpdate = "tool_update",
+  ToolEnd = "tool_end",
+  Done = "done",
+  Error = "error",
+}
+
+export enum AskUserInputType {
+  Text = "text",
+  Select = "select",
+}
+
 export type ProviderInput = {
   id: string;
   name: string;
@@ -30,7 +60,7 @@ export type ModelInput = {
 };
 
 export type StartTaskCommand = {
-  type: "start_task";
+  type: BridgeCommandType.StartTask;
   runtime?: string | null;
   taskId: string;
   workspacePath: string;
@@ -44,7 +74,7 @@ export type StartTaskCommand = {
 };
 
 export type AnswerQuestionCommand = {
-  type: "answer_question";
+  type: BridgeCommandType.AnswerQuestion;
   taskId: string;
   questionId: string;
   answer: string;
@@ -56,7 +86,7 @@ export type ChatMessageInput = {
 };
 
 export type ChatCommand = {
-  type: "chat";
+  type: BridgeCommandType.Chat;
   runtime?: string | null;
   streamId?: string | null;
   stream?: boolean;
@@ -67,7 +97,7 @@ export type ChatCommand = {
 };
 
 export type ChatResult = {
-  type: "chat_result";
+  type: BridgeResultType.ChatResult;
   text: string;
   thinking?: string | null;
 };
@@ -85,29 +115,29 @@ export type AskUserOption = {
 };
 
 export type AskUserInput = {
-  type: "text" | "select";
+  type: AskUserInputType;
   label?: string;
   options?: AskUserOption[];
   selected?: string;
 };
 
 export type BridgeEvent =
-  | { type: "started"; taskId: string }
+  | { type: BridgeEventType.Started; taskId: string }
   | {
-    type: "question";
+    type: BridgeEventType.Question;
     taskId: string;
     questionId: string;
     question: string;
     context?: string | null;
     input?: AskUserInput;
   }
-  | { type: "question_answered"; taskId: string; questionId: string; answer: string }
-  | { type: "replace_text"; taskId: string; text: string }
-  | { type: "text_delta"; taskId: string; delta: string }
-  | { type: "thinking_delta"; taskId: string; delta: string }
-  | { type: "thinking_end"; taskId: string; content: string }
-  | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
-  | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
-  | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
-  | { type: "done"; taskId: string; text: string }
-  | { type: "error"; taskId?: string; message: string };
+  | { type: BridgeEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
+  | { type: BridgeEventType.ReplaceText; taskId: string; text: string }
+  | { type: BridgeEventType.TextDelta; taskId: string; delta: string }
+  | { type: BridgeEventType.ThinkingDelta; taskId: string; delta: string }
+  | { type: BridgeEventType.ThinkingEnd; taskId: string; content: string }
+  | { type: BridgeEventType.ToolStart; taskId: string; toolName: string; args: unknown }
+  | { type: BridgeEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
+  | { type: BridgeEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | { type: BridgeEventType.Done; taskId: string; text: string }
+  | { type: BridgeEventType.Error; taskId?: string; message: string };

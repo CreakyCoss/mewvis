@@ -1,43 +1,50 @@
 import type { AgentRuntime, LlmRuntime, RuntimeMode } from "../contracts/runtime.js";
 import { resolveRuntime } from "../runtimes/index.js";
-import type { BridgeRunner, BridgeRunnerResolution, RunnableBridgeCommand } from "./types.js";
+import type {
+  AgentBridgeRunner,
+  AgentBridgeRunnerResolution,
+  BridgeRunnerResolution,
+  LlmBridgeRunner,
+  LlmBridgeRunnerResolution,
+  RunnableBridgeCommand,
+} from "./types.js";
+import { BridgeCommandType, type ChatCommand, type StartTaskCommand } from "../contracts/protocol.js";
 
-const toAgentRunner = (runtime: AgentRuntime): BridgeRunner => async (command, context) => {
-  if (command.type !== "start_task") {
-    throw new Error(`Agent runtime 不支持命令：${command.type}`);
-  }
-
+const toAgentRunner = (runtime: AgentRuntime): AgentBridgeRunner => async (command, context) => {
   return runtime.run(command, context);
 };
 
-const toLlmRunner = (runtime: LlmRuntime): BridgeRunner => async (command, context) => {
-  if (command.type !== "chat") {
-    throw new Error(`LLM runtime 不支持命令：${command.type}`);
-  }
-
+const toLlmRunner = (runtime: LlmRuntime): LlmBridgeRunner => async (command, context) => {
   return runtime.chat(command, context);
 };
 
 const modeForCommand = (command: RunnableBridgeCommand): RuntimeMode => {
-  if (command.type === "start_task") {
+  if (command.type === BridgeCommandType.StartTask) {
     return "agent";
   }
 
   return "llm";
 };
 
-export const resolveBridgeRunner = (
+export function resolveBridgeRunner(command: StartTaskCommand): AgentBridgeRunnerResolution;
+export function resolveBridgeRunner(command: ChatCommand): LlmBridgeRunnerResolution;
+export function resolveBridgeRunner(
   command: RunnableBridgeCommand,
-): BridgeRunnerResolution => {
+): BridgeRunnerResolution {
   const mode = modeForCommand(command);
   const resolution = resolveRuntime(mode, command.runtime);
-  const runner = resolution.mode === "agent"
-    ? toAgentRunner(resolution.implementation)
-    : toLlmRunner(resolution.implementation);
+
+  if (resolution.mode === "agent") {
+    return {
+      mode: resolution.mode,
+      runtime: resolution.runtime,
+      runner: toAgentRunner(resolution.implementation),
+    };
+  }
 
   return {
-    mode,
+    mode: resolution.mode,
     runtime: resolution.runtime,
-    runner,
+    runner: toLlmRunner(resolution.implementation),
   };
-};
+}

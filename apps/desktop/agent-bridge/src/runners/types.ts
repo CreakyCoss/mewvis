@@ -1,19 +1,38 @@
-import type { AgentRunResult, BridgeCommand, ChatCommand, ChatResult, StartTaskCommand } from "../contracts/protocol.js";
-import type { AgentRuntimeContext, RuntimeMode } from "../contracts/runtime.js";
+import {
+  BridgeCommandType,
+  type AgentRunResult,
+  type BridgeCommand,
+  type ChatCommand,
+  type ChatResult,
+  type StartTaskCommand,
+} from "../contracts/protocol.js";
+import type { AgentRuntimeContext, LlmRuntimeContext } from "../contracts/runtime.js";
 
 export type RunnableBridgeCommand = StartTaskCommand | ChatCommand;
-export type BridgeRuntimeResult = AgentRunResult | ChatResult;
 
-export type BridgeRunner = (
-  command: RunnableBridgeCommand,
+export type AgentBridgeRunner = (
+  command: StartTaskCommand,
   context: AgentRuntimeContext,
-) => Promise<BridgeRuntimeResult>;
+) => Promise<AgentRunResult>;
 
-export type BridgeRunnerResolution = {
-  mode: RuntimeMode;
+export type LlmBridgeRunner = (
+  command: ChatCommand,
+  context: LlmRuntimeContext,
+) => Promise<ChatResult>;
+
+export type AgentBridgeRunnerResolution = {
+  mode: "agent";
   runtime: string;
-  runner: BridgeRunner;
+  runner: AgentBridgeRunner;
 };
 
+export type LlmBridgeRunnerResolution = {
+  mode: "llm";
+  runtime: string;
+  runner: LlmBridgeRunner;
+};
+
+export type BridgeRunnerResolution = AgentBridgeRunnerResolution | LlmBridgeRunnerResolution;
+
 export const isRunnableBridgeCommand = (command: BridgeCommand): command is RunnableBridgeCommand =>
-  command.type === "start_task" || command.type === "chat";
+  command.type === BridgeCommandType.StartTask || command.type === BridgeCommandType.Chat;

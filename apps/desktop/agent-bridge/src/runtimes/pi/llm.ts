@@ -8,7 +8,13 @@ import {
   type Model,
   type Usage,
 } from "@earendil-works/pi-ai";
-import type { ChatCommand, ChatMessageInput, ChatResult } from "../../contracts/protocol.js";
+import {
+  BridgeEventType,
+  BridgeResultType,
+  type ChatCommand,
+  type ChatMessageInput,
+  type ChatResult,
+} from "../../contracts/protocol.js";
 import type { BaseLLM, LlmRuntimeContext } from "../../contracts/runtime.js";
 import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
 
@@ -52,14 +58,14 @@ export class PiLLM implements BaseLLM {
     for await (const event of stream) {
       if (event.type === "text_delta" && command.streamId) {
         context.emit({
-          type: "text_delta",
+          type: BridgeEventType.TextDelta,
           taskId: command.streamId,
           delta: event.delta,
         });
       }
       if (event.type === "thinking_delta" && command.streamId) {
         context.emit({
-          type: "thinking_delta",
+          type: BridgeEventType.ThinkingDelta,
           taskId: command.streamId,
           delta: event.delta,
         });
@@ -79,7 +85,7 @@ export class PiLLM implements BaseLLM {
 
   private createChatResult(message: AssistantMessage): ChatResult {
     return {
-      type: "chat_result",
+      type: BridgeResultType.ChatResult,
       text: this.textFromMessage(message),
       thinking: this.thinkingFromMessage(message),
     };
