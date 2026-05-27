@@ -23,7 +23,14 @@ const writeChatResult = (result: ChatResult) => {
   output.write(`${JSON.stringify(result)}\n`);
 };
 
-const pendingQuestions = new Map<string, (answer: string) => void>();
+const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
+
+type PendingQuestion = {
+  resolve: (answer: string) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
+const pendingQuestions = new Map<string, PendingQuestion>();
 
 const askUser = (
   taskId: string,
@@ -42,8 +49,16 @@ const askUser = (
     input,
   });
 
-  return new Promise<string>((resolve) => {
-    pendingQuestions.set(questionId, resolve);
+  return new Promise<string>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pendingQuestions.delete(questionId);
+      reject(new Error(`等待用户回答超时：${questionId}`));
+    }, ASK_USER_TIMEOUT_MS);
+
+    pendingQuestions.set(questionId, {
+      resolve,
+      timeout,
+    });
   });
 };
 
@@ -61,8 +76,8 @@ const parseCommand = (line: string): BridgeCommand => {
 };
 
 const handleAnswer = (command: AnswerQuestionCommand) => {
-  const resolve = pendingQuestions.get(command.questionId);
-  if (!resolve) {
+  const pendingQuestion = pendingQuestions.get(command.questionId);
+  if (!pendingQuestion) {
     writeEvent({
       type: BridgeEventType.Error,
       taskId: command.taskId,
@@ -72,13 +87,14 @@ const handleAnswer = (command: AnswerQuestionCommand) => {
   }
 
   pendingQuestions.delete(command.questionId);
+  clearTimeout(pendingQuestion.timeout);
   writeEvent({
     type: BridgeEventType.QuestionAnswered,
     taskId: command.taskId,
     questionId: command.questionId,
     answer: command.answer,
   });
-  resolve(command.answer);
+  pendingQuestion.resolve(command.answer);
 };
 
 const readFollowUpCommands = async (
