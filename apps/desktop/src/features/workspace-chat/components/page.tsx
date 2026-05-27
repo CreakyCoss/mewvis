@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
   FileText,
   FileType,
   Folder,
+  FolderOpen,
   Link,
   Loader2,
   MessageSquare,
@@ -33,7 +34,7 @@ import {
   toCodingAgentModelConfig,
   toCodingAgentProviderConfig,
 } from "@/agent-runtime/config";
-import type { AgentToolName, CodingAgentEvent, CodingAgentQuestionInput } from "@/agent-runtime/base";
+import type { AgentToolName } from "@/agent-runtime/base";
 import { createAgentRuntimeAdapter } from "@/agent-runtime/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,11 +62,19 @@ import type { Workspace } from "@/features/workspaces/types";
 import {
   buildRuntimeConversationContext,
   buildRuntimeConversationMessages,
-  formatConversationForSummary,
   updateConversationContext,
   type ConversationSummarizer,
-  type RuntimeConversationContext,
 } from "../context";
+import type {
+  ChatMode,
+  CollaborationPhase,
+  ComposerSubmitInput,
+  FileTreeNode,
+  ModelSource,
+  PendingAgentQuestion,
+  ResolvedFileReference,
+  WorkspaceView,
+} from "../page-types";
 import {
   chatWithLlm,
   deleteChatSession,
@@ -85,46 +94,43 @@ import type {
   WorkspaceFile,
   WorkspaceFileEntry,
 } from "../types";
+import {
+  AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS,
+  appendAgentToolEventBlock,
+  describeAgentGroupEvent,
+  finalizeLastAgentThinkingBlock,
+  groupAgentEvents,
+  isTimelineEvent,
+  mergeAgentThinking,
+  removeEmptyAgentThinkingBlocks,
+  updateLastAgentTextBlock,
+  updateLastAgentThinkingBlock,
+} from "../utils/agent-blocks";
+import { buildFileTree, getParentDirectoryPaths } from "../utils/file-tree";
+import {
+  getActiveReferenceToken,
+  quoteReferencePath,
+  resolveFileReferenceMatches,
+  summarizeReferenceMatches,
+} from "../utils/references";
+import {
+  buildAgentPrompt,
+  buildCollaborationSystemPrompt,
+  buildSystemPrompt,
+  createConversationSummarizer,
+} from "../utils/prompts";
+import {
+  createMessageId,
+  DEFAULT_SESSION_TITLE,
+  deriveSessionTitle,
+  formatSessionTime,
+  isMarkdownPath,
+} from "../utils/sessions";
+import { CollaborationStatusPanel } from "./collaboration-status-panel";
 
 type WorkspaceChatPageProps = {
   workspace: Workspace;
   onBack: () => void;
-};
-
-type WorkspaceView = "chat" | "file" | "split";
-type ModelSource = "direct" | "agent";
-type ChatMode = "chat" | "agent" | "collab";
-type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
-
-type FileReferenceMatch = {
-  token: string;
-  matches: WorkspaceFileEntry[];
-};
-
-type ResolvedFileReference = {
-  path: string;
-  content: string;
-};
-
-type PendingAgentQuestion = {
-  taskId: string;
-  questionId: string;
-  question: string;
-  context?: string | null;
-  input?: CodingAgentQuestionInput;
-};
-
-type ActiveReferenceToken = {
-  start: number;
-  end: number;
-  query: string;
-};
-
-type ComposerSubmitInput = {
-  text: string;
-  referencedFilePreviews: WorkspaceFileEntry[];
-  unresolvedFileReferences: FileReferenceMatch[];
-  ambiguousFileReferences: FileReferenceMatch[];
 };
 
 type ChatComposerProps = {
@@ -151,558 +157,6 @@ type ChatComposerProps = {
   onModelChange: (modelId: string) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
 };
-
-type CollaborationStatusPanelProps = {
-  writerAgent: AgentProfile | null;
-  reviewerAgent: AgentProfile | null;
-  phase: CollaborationPhase;
-};
-
-const createMessageId = () => crypto.randomUUID();
-
-const DEFAULT_SESSION_TITLE = "新的聊天";
-
-const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
-
-const formatSessionTime = (timestamp: number) =>
-  new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-
-const deriveSessionTitle = (messages: ChatMessage[]) => {
-  const firstUserText = messages.find((message) => message.role === "user")?.text.trim();
-
-  if (!firstUserText) {
-    return DEFAULT_SESSION_TITLE;
-  }
-
-  return firstUserText.replace(/\s+/g, " ").slice(0, 36);
-};
-
-const quoteReferencePath = (path: string) =>
-  /[\s，。；,;]/.test(path) ? `@"${path}"` : `@${path}`;
-
-const getActiveReferenceToken = (
-  text: string,
-  cursor: number,
-): ActiveReferenceToken | null => {
-  const beforeCursor = text.slice(0, cursor);
-  const atIndex = beforeCursor.lastIndexOf("@");
-
-  if (atIndex < 0) {
-    return null;
-  }
-
-  const tokenPrefix = beforeCursor.slice(atIndex + 1);
-  if (/[\s，。；,;]/.test(tokenPrefix)) {
-    return null;
-  }
-
-  const previousChar = atIndex > 0 ? text[atIndex - 1] : "";
-  if (previousChar && !/[\s([{，。；,;]/.test(previousChar)) {
-    return null;
-  }
-
-  const afterCursor = text.slice(cursor);
-  const suffixMatch = afterCursor.match(/^[^\s，。；,;]*/);
-  const suffix = suffixMatch?.[0] ?? "";
-
-  return {
-    start: atIndex,
-    end: cursor + suffix.length,
-    query: `${tokenPrefix}${suffix}`.trim(),
-  };
-};
-
-const extractFileReferenceTokens = (text: string) => {
-  const tokens = new Set<string>();
-  const matcher = /@(?:"([^"]+)"|'([^']+)'|([^\s，。；；,;]+))/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = matcher.exec(text))) {
-    const token = (match[1] ?? match[2] ?? match[3] ?? "").trim();
-    if (token) {
-      tokens.add(token);
-    }
-  }
-
-  return [...tokens];
-};
-
-const resolveFileReferenceMatches = (
-  text: string,
-  files: WorkspaceFileEntry[],
-): FileReferenceMatch[] => {
-  const selectable = files.filter((file) => !file.isDirectory);
-
-  return extractFileReferenceTokens(text).map((token) => {
-    const normalizedToken = token.toLowerCase();
-    const exactMatches = selectable.filter((file) => {
-      const path = file.path.toLowerCase();
-      const name = file.name.toLowerCase();
-      return path === normalizedToken || name === normalizedToken;
-    });
-
-    if (exactMatches.length > 0) {
-      return { token, matches: exactMatches };
-    }
-
-    return {
-      token,
-      matches: selectable.filter((file) => {
-        const path = file.path.toLowerCase();
-        const name = file.name.toLowerCase();
-        return path.includes(normalizedToken) || name.includes(normalizedToken);
-      }),
-    };
-  });
-};
-
-const summarizeReferenceMatches = (matches: FileReferenceMatch[]) => {
-  const resolved = matches.flatMap((match) =>
-    match.matches.length === 1 ? [match.matches[0]] : [],
-  );
-
-  const uniquePaths = new Set<string>();
-  return resolved.filter((file) => {
-    if (uniquePaths.has(file.path)) {
-      return false;
-    }
-    uniquePaths.add(file.path);
-    return true;
-  });
-};
-
-const appendReferencesToPrompt = (
-  text: string,
-  references: ResolvedFileReference[],
-) => {
-  if (references.length === 0) {
-    return text;
-  }
-
-  return [
-    text,
-    "",
-    "用户在消息中引用了以下文件，请优先使用这些文件作为上下文：",
-    references
-      .map((file) => [
-        `## ${file.path}`,
-        "```",
-        file.content.slice(0, 20000),
-        "```",
-      ].join("\n"))
-      .join("\n\n"),
-  ].join("\n");
-};
-
-const buildAgentPrompt = (
-  text: string,
-  references: ResolvedFileReference[],
-  history: RuntimeConversationContext,
-  selectedAgent: AgentProfile | null,
-) => {
-  const summaryContext = history.summary
-    ? [
-      "以下是更早对话的压缩摘要，仅用于恢复跨任务上下文：",
-      history.summary,
-      "",
-    ].join("\n")
-    : "";
-  const historyContext = history.recentMessages.length
-    ? [
-      "以下是最近对话历史。用户当前输入可能是在回答助手上一轮提出的问题，请结合历史理解：",
-      history.recentMessages
-        .map((message) => `${message.role === "user" ? "用户" : "助手"}：${message.content}`)
-        .join("\n\n"),
-      "",
-    ].join("\n")
-    : "";
-  const agentContext = selectedAgent
-    ? [
-        `当前使用 Agent：${selectedAgent.name}`,
-        selectedAgent.description ? `Agent 描述：${selectedAgent.description}` : "",
-        "请优先保持这个 Agent 的角色定位、语气和工作方式。",
-        "",
-      ].filter(Boolean).join("\n")
-    : "";
-  const interactionInstructions = [
-    "交互规则：",
-    "- 当继续执行前缺少必要信息、需要用户选择方向、需要确认方案，或存在多个合理选项时，必须调用 ask_user 工具询问用户，不要只在正文里提问。",
-    "- 如果问题是开放式回答，调用 ask_user 时使用 input.type = \"text\"。",
-    "- 如果问题有明确候选项，调用 ask_user 时使用 input.type = \"select\"，并提供至少两个 options；可以加入 { value: \"other\", label: \"请输入\" } 让用户自定义。",
-    "- 调用 ask_user 后，等待用户回答，再基于回答继续原任务。",
-    "",
-  ].join("\n");
-
-  return appendReferencesToPrompt(
-    `${agentContext}${interactionInstructions}${summaryContext}${historyContext}当前用户输入：\n${text}`,
-    references,
-  );
-};
-
-const createConversationSummarizer = (
-  provider: LlmProvider,
-  model: ProviderModel,
-): ConversationSummarizer => async ({ previousSummary, messages }) => {
-  if (messages.length === 0) {
-    return previousSummary;
-  }
-
-  const result = await chatWithLlm({
-    provider,
-    model,
-    stream: false,
-    systemPrompt: [
-      "你是聊天历史压缩器。请把跨任务恢复所需的信息压缩成中文摘要。",
-      "要求：保留用户目标、已确认的决策、关键约束、文件/路径/实体名、未完成事项、助手已经给出的重要结论。",
-      "不要添加新事实，不要回答用户问题，不要输出寒暄。",
-      "输出适合继续追加滚动摘要的纯文本，尽量精炼。",
-    ].join("\n"),
-    messages: [
-      {
-        role: "user",
-        content: [
-          previousSummary
-            ? `已有摘要：\n${previousSummary}`
-            : "已有摘要：无",
-          "",
-          "需要并入摘要的新对话：",
-          formatConversationForSummary(messages),
-        ].join("\n"),
-        timestamp: Date.now(),
-      },
-    ],
-  });
-
-  return result.text.trim() || previousSummary;
-};
-
-const stringifyBrief = (value: unknown) => {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-
-  if (!text) {
-    return "";
-  }
-
-  return text.length > 240 ? `${text.slice(0, 240)}...` : text;
-};
-
-const describeAgentEvent = (event: CodingAgentEvent) => {
-  if (event.type === "started") {
-    return "Agent 已启动";
-  }
-
-  if (event.type === "tool_start") {
-    return `调用工具 ${event.toolName}: ${stringifyBrief(event.args)}`;
-  }
-
-  if (event.type === "question") {
-    return `等待用户回答：${event.question}`;
-  }
-
-  if (event.type === "question_answered") {
-    return `用户已回答：${event.answer}`;
-  }
-
-  if (event.type === "tool_update") {
-    return `工具更新 ${event.toolName}: ${stringifyBrief(event.partialResult)}`;
-  }
-
-  if (event.type === "tool_end") {
-    return `${event.isError ? "工具失败" : "工具完成"} ${event.toolName}: ${stringifyBrief(event.result)}`;
-  }
-
-  if (event.type === "stderr") {
-    return `Agent 日志：${event.message}`;
-  }
-
-  if (event.type === "exit") {
-    return event.success ? "Agent 任务已退出" : `Agent 任务异常退出：${event.code ?? "unknown"}`;
-  }
-
-  if (event.type === "error") {
-    return `Agent 错误：${event.message}`;
-  }
-
-  if (event.type === "done") {
-    return "Agent 任务完成";
-  }
-
-  return "";
-};
-
-type AgentEventGroup = {
-  id: string;
-  title: string;
-  status: "running" | "done" | "error" | "info";
-  events: CodingAgentEvent[];
-};
-
-const describeAgentGroupEvent = (event: CodingAgentEvent) => {
-  if (event.type === "tool_start") {
-    return `开始：${stringifyBrief(event.args)}`;
-  }
-
-  if (event.type === "tool_update") {
-    return `更新：${stringifyBrief(event.partialResult)}`;
-  }
-
-  if (event.type === "tool_end") {
-    return `${event.isError ? "失败" : "完成"}：${stringifyBrief(event.result)}`;
-  }
-
-  return describeAgentEvent(event);
-};
-
-const groupAgentEvents = (events: CodingAgentEvent[]) => {
-  const groups: AgentEventGroup[] = [];
-  const lastToolGroupByName = new Map<string, AgentEventGroup>();
-
-  events.forEach((event, index) => {
-    if (event.type === "tool_start") {
-      const group: AgentEventGroup = {
-        id: `${index}-${event.toolName}`,
-        title: event.toolName,
-        status: "running",
-        events: [event],
-      };
-      groups.push(group);
-      lastToolGroupByName.set(event.toolName, group);
-      return;
-    }
-
-    if (event.type === "tool_update" || event.type === "tool_end") {
-      const group = lastToolGroupByName.get(event.toolName);
-      if (group) {
-        group.events.push(event);
-        if (event.type === "tool_end") {
-          group.status = event.isError ? "error" : "done";
-          lastToolGroupByName.delete(event.toolName);
-        }
-        return;
-      }
-    }
-
-    const group: AgentEventGroup = {
-      id: `${index}-${event.type}`,
-      title: event.type === "stderr" ? "Agent 日志" : describeAgentEvent(event),
-      status: event.type === "error" ? "error" : "info",
-      events: [event],
-    };
-    groups.push(group);
-  });
-
-  return groups;
-};
-
-const isTimelineEvent = (event: CodingAgentEvent) =>
-  event.type !== "text_delta" &&
-  event.type !== "thinking_delta" &&
-  event.type !== "thinking_end" &&
-  event.type !== "replace_text" &&
-  event.type !== "done";
-
-const buildSystemPrompt = (
-  workspace: Workspace,
-  activeFile: WorkspaceFile | null,
-  referencedFiles: ResolvedFileReference[],
-  enabledSkills: WorkspaceSkill[],
-  selectedAgent: AgentProfile | null,
-) => {
-  const fileContext = activeFile
-    ? `\n\n当前打开文件：${activeFile.path}\n\n${activeFile.content.slice(0, 12000)}`
-    : "";
-  const referenceContext = referencedFiles.length
-    ? `\n\n用户引用文件：\n${referencedFiles
-      .map((file) => [
-        `## ${file.path}`,
-        file.content.slice(0, 20000),
-      ].join("\n\n"))
-      .join("\n\n")}`
-    : "";
-  const skillsContext = enabledSkills.length
-    ? `\n\n当前工作区启用的 Skills：\n${enabledSkills
-      .map((skill) => [
-        `<skill name="${skill.name}">`,
-        skill.content.slice(0, 12000),
-        "</skill>",
-      ].join("\n"))
-      .join("\n\n")}`
-    : "";
-  const agentContext = selectedAgent
-    ? [
-        "",
-        `当前 Agent：${selectedAgent.name}`,
-        selectedAgent.description ? `Agent 描述：${selectedAgent.description}` : "",
-        "请优先保持这个 Agent 的角色定位、语气和工作方式。",
-      ].filter(Boolean).join("\n")
-    : "";
-
-  return [
-    "你是 Novel Claw 的工作区 AI 助手。",
-    `工作区名称：${workspace.name}`,
-    `工作区路径：${workspace.path}`,
-    "你可以帮助用户规划、写作、分析和修改项目文件。",
-    "如果需要创建或修改文件，请明确说明目标路径和内容；用户可以在文件面板中保存。",
-    agentContext,
-    fileContext,
-    referenceContext,
-    skillsContext,
-  ].join("\n");
-};
-
-const buildCollaborationSystemPrompt = (
-  workspace: Workspace,
-  activeFile: WorkspaceFile | null,
-  referencedFiles: ResolvedFileReference[],
-  enabledSkills: WorkspaceSkill[],
-  selectedAgent: AgentProfile,
-  phase: "draft" | "review" | "revise",
-) => {
-  const basePrompt = buildSystemPrompt(
-    workspace,
-    activeFile,
-    referencedFiles,
-    enabledSkills,
-    selectedAgent,
-  );
-  const phaseInstruction = {
-    draft: [
-      "协作阶段：写作初稿。",
-      "请作为写作 Agent，根据用户需求产出完整可审查的初稿或方案。",
-      "不要评价自己的结果，重点完成可交付内容。",
-    ],
-    review: [
-      "协作阶段：审查意见。",
-      "请作为审查 Agent，严格审查上一位 Agent 的输出。",
-      "请指出结构、逻辑、人物、节奏、设定、表达或可执行性问题，并给出具体修改建议。",
-      "不要直接重写全文，重点输出审查意见。",
-    ],
-    revise: [
-      "协作阶段：修订定稿。",
-      "请作为写作 Agent，根据审查意见修订上一版内容。",
-      "最终输出应是用户可以直接使用的版本，可以简要说明采纳了哪些关键修改。",
-    ],
-  }[phase].join("\n");
-
-  return [basePrompt, phaseInstruction].join("\n\n");
-};
-
-const getCollaborationAgentStatus = (
-  role: "writer" | "reviewer",
-  phase: CollaborationPhase,
-) => {
-  const isWorking =
-    (role === "writer" && (phase === "drafting" || phase === "revising")) ||
-    (role === "reviewer" && phase === "reviewing");
-
-  if (isWorking) {
-    return {
-      label: role === "writer"
-        ? phase === "drafting" ? "写作中" : "修订中"
-        : "审查中",
-      state: "working",
-    } as const;
-  }
-
-  return {
-    label: phase === "idle" ? "摸鱼中" : "待命中",
-    state: phase === "idle" ? "idle" : "waiting",
-  } as const;
-};
-
-const CollaborationStatusPanel = memo(({
-  writerAgent,
-  reviewerAgent,
-  phase,
-}: CollaborationStatusPanelProps) => {
-  const items = [
-    { role: "writer" as const, title: "写作", agent: writerAgent },
-    { role: "reviewer" as const, title: "审查", agent: reviewerAgent },
-  ];
-
-  return (
-    <div className="border-t border-sidebar-border bg-sidebar px-3 py-3">
-      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-medium text-sidebar-foreground">Agent 协作状态</span>
-        <span>{phase === "idle" ? "空闲" : "执行中"}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {items.map((item) => {
-          const status = getCollaborationAgentStatus(item.role, phase);
-          const avatar = resolveAgentAvatar(item.agent?.avatar);
-
-          return (
-            <div
-              key={item.role}
-              className="overflow-hidden rounded-md border border-sidebar-border bg-card/70 shadow-xs"
-            >
-              <div className="px-2 pt-2 text-center">
-                <div className="truncate text-xs font-medium text-sidebar-foreground">
-                  {item.agent?.name ?? "未选择"}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {status.label}
-                </div>
-              </div>
-              <div
-                className={[
-                  "agent-workstation",
-                  status.state === "working" ? "is-working" : "is-idle",
-                ].join(" ")}
-              >
-                <div className="agent-desk">
-                  <div className="agent-monitor">
-                    {status.state === "working" && (
-                      <>
-                        <span />
-                        <span />
-                        <span />
-                      </>
-                    )}
-                  </div>
-                  <div className="agent-keyboard" />
-                  <div className="agent-note" />
-                </div>
-                <div className="agent-chair" />
-                <div className="agent-worker">
-                  <div className="agent-worker-head">
-                    <img src={avatar.src} alt="" />
-                  </div>
-                  <div className="agent-worker-body" />
-                  {status.state === "working" ? (
-                    <>
-                      <span className="agent-arm left" />
-                      <span className="agent-arm right" />
-                    </>
-                  ) : (
-                    <span className="agent-idle-bubble" />
-                  )}
-                </div>
-                <div className="agent-shadow" />
-                <div className="agent-role-tag">
-                  {item.title}
-                  {status.state === "working" && (
-                    <span className="agent-status-dots" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
-CollaborationStatusPanel.displayName = "CollaborationStatusPanel";
 
 const ChatComposer = memo(({
   files,
@@ -1082,6 +536,8 @@ export const WorkspaceChatPage = ({
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const isHydratingSessionRef = useRef(false);
   const saveSessionTimerRef = useRef<number | null>(null);
+  const agentBlockCollapseTimersRef = useRef<Map<string, number>>(new Map());
+  const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
@@ -1105,6 +561,7 @@ export const WorkspaceChatPage = ({
   const [fileError, setFileError] = useState("");
   const [fileViewMode, setFileViewMode] = useState<"source" | "preview">("source");
   const [isFilesLoading, setIsFilesLoading] = useState(false);
+  const [expandedFileTreePaths, setExpandedFileTreePaths] = useState<Set<string>>(() => new Set());
   const [isFileSaving, setIsFileSaving] = useState(false);
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
@@ -1139,6 +596,30 @@ export const WorkspaceChatPage = ({
     setMessages((current) =>
       current.map((message) => message.id === messageId ? updater(message) : message),
     );
+  }, []);
+
+  const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      const viewport = chatScrollAreaRef.current?.querySelector<HTMLElement>(
+        "[data-slot='scroll-area-viewport']",
+      );
+      viewport?.scrollTo({
+        top: viewport.scrollHeight,
+        behavior,
+      });
+    });
+  }, []);
+
+  const scrollActiveThinkingToBottom = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const thinkingBlocks = chatScrollAreaRef.current?.querySelectorAll<HTMLElement>(
+        "[data-agent-thinking-content='true']",
+      );
+      const latestThinkingBlock = thinkingBlocks?.item(thinkingBlocks.length - 1);
+      if (latestThinkingBlock) {
+        latestThinkingBlock.scrollTop = latestThinkingBlock.scrollHeight;
+      }
+    });
   }, []);
 
   const toggleAllowedAgentTool = useCallback((toolId: AgentToolName, enabled: boolean) => {
@@ -1291,6 +772,53 @@ export const WorkspaceChatPage = ({
       return next;
     });
   };
+
+  const toggleAgentThinkingBlock = (messageId: string, blockId: string) => {
+    updateMessage(messageId, (message) => ({
+      ...message,
+      agentBlocks: message.agentBlocks?.map((block) =>
+        block.id === blockId && block.type === "thinking"
+          ? { ...block, isCollapsed: !block.isCollapsed }
+          : block,
+      ),
+    }));
+  };
+
+  const toggleAgentBlock = (messageId: string, blockId: string) => {
+    updateMessage(messageId, (message) => ({
+      ...message,
+      agentBlocks: message.agentBlocks?.map((block) =>
+        block.id === blockId && (block.type === "thinking" || block.type === "tool")
+          ? { ...block, isCollapsed: !block.isCollapsed }
+          : block,
+      ),
+    }));
+  };
+
+  const collapseAgentBlock = useCallback((messageId: string, blockId: string) => {
+    updateMessage(messageId, (message) => ({
+      ...message,
+      agentBlocks: message.agentBlocks?.map((block) =>
+        block.id === blockId && (block.type === "thinking" || block.type === "tool")
+          ? { ...block, isCollapsed: true }
+          : block,
+      ),
+    }));
+  }, [updateMessage]);
+
+  const scheduleAgentBlockCollapse = useCallback((messageId: string, blockId: string) => {
+    const timerKey = `${messageId}:${blockId}`;
+    const existingTimer = agentBlockCollapseTimersRef.current.get(timerKey);
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
+    const timer = window.setTimeout(() => {
+      agentBlockCollapseTimersRef.current.delete(timerKey);
+      collapseAgentBlock(messageId, blockId);
+    }, AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS);
+    agentBlockCollapseTimersRef.current.set(timerKey, timer);
+  }, [collapseAgentBlock]);
 
   const toggleAgentEvents = (messageId: string) => {
     setExpandedAgentEventIds((current) => {
@@ -1456,6 +984,8 @@ export const WorkspaceChatPage = ({
     if (saveSessionTimerRef.current) {
       window.clearTimeout(saveSessionTimerRef.current);
     }
+    agentBlockCollapseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    agentBlockCollapseTimersRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -1514,6 +1044,25 @@ export const WorkspaceChatPage = ({
   }, [conversation, conversationContext, currentSessionId, currentSessionTitle, messages, workspace.path]);
 
   useEffect(() => {
+    scrollActiveThinkingToBottom();
+    scrollChatToBottom(messages.length > 2 ? "smooth" : "auto");
+  }, [messages, pendingAgentQuestion, scrollActiveThinkingToBottom, scrollChatToBottom]);
+
+  useEffect(() => {
+    messages.forEach((message) => {
+      if (message.role !== "assistant" || message.mode !== "agent") {
+        return;
+      }
+
+      message.agentBlocks?.forEach((block) => {
+        if (block.type === "tool" && block.status === "done" && !block.isCollapsed) {
+          scheduleAgentBlockCollapse(message.id, block.id);
+        }
+      });
+    });
+  }, [messages, scheduleAgentBlockCollapse]);
+
+  useEffect(() => {
     let cleanup: (() => void) | undefined;
     let disposed = false;
 
@@ -1529,29 +1078,50 @@ export const WorkspaceChatPage = ({
       }
 
       if (event.type === "text_delta") {
-        updateMessage(messageId, (message) => ({
-          ...message,
-          text: `${message.text}${event.delta}`,
-          status: "streaming",
-        }));
+        updateMessage(messageId, (message) => {
+          const text = `${message.text}${event.delta}`;
+          return {
+            ...message,
+            text,
+            agentBlocks: updateLastAgentTextBlock(message, (content) => `${content}${event.delta}`),
+            status: "streaming",
+          };
+        });
         return;
       }
 
       if (event.type === "thinking_delta") {
-        updateMessage(messageId, (message) => ({
-          ...message,
-          thinking: `${message.thinking ?? ""}${event.delta}`,
-          status: "streaming",
-        }));
+        updateMessage(messageId, (message) => {
+          const agentBlocks = updateLastAgentThinkingBlock(
+            message,
+            (content) => `${content}${event.delta}`,
+          );
+          return {
+            ...message,
+            thinking: mergeAgentThinking(agentBlocks),
+            agentBlocks,
+            status: "streaming",
+          };
+        });
         return;
       }
 
       if (event.type === "thinking_end") {
-        updateMessage(messageId, (message) => ({
-          ...message,
-          thinking: event.content || message.thinking,
-          status: "streaming",
-        }));
+        let thinkingBlockId: string | null = null;
+        updateMessage(messageId, (message) => {
+          const result = finalizeLastAgentThinkingBlock(message, event.content);
+          const agentBlocks = result.blocks;
+          thinkingBlockId = result.blockId;
+          return {
+            ...message,
+            thinking: mergeAgentThinking(agentBlocks),
+            agentBlocks,
+            status: "streaming",
+          };
+        });
+        if (thinkingBlockId) {
+          scheduleAgentBlockCollapse(messageId, thinkingBlockId);
+        }
         return;
       }
 
@@ -1559,17 +1129,36 @@ export const WorkspaceChatPage = ({
         updateMessage(messageId, (message) => ({
           ...message,
           text: event.text,
+          agentBlocks: updateLastAgentTextBlock(message, () => event.text),
           status: "streaming",
         }));
         return;
       }
 
       if (isTimelineEvent(event)) {
-        updateMessage(messageId, (message) => ({
-          ...message,
-          agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
-          status: event.type === "error" ? "error" : message.status,
-        }));
+        let completedToolBlockId: string | null = null;
+        updateMessage(messageId, (message) => {
+          let agentBlocks = message.agentBlocks;
+          if (
+            event.type === "tool_start" ||
+            event.type === "tool_update" ||
+            event.type === "tool_end"
+          ) {
+            const result = appendAgentToolEventBlock(message, event);
+            agentBlocks = result.blocks;
+            completedToolBlockId = event.type === "tool_end" ? result.blockId : null;
+          }
+
+          return {
+            ...message,
+            agentBlocks,
+            agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
+            status: event.type === "error" ? "error" : message.status,
+          };
+        });
+        if (completedToolBlockId && event.type === "tool_end" && !event.isError) {
+          scheduleAgentBlockCollapse(messageId, completedToolBlockId);
+        }
       }
 
       if (event.type === "question") {
@@ -1601,11 +1190,20 @@ export const WorkspaceChatPage = ({
         handledAgentDoneTaskIdsRef.current.add(event.taskId);
 
         const assistantText = event.text.trim();
-        updateMessage(messageId, (message) => ({
-          ...message,
-          text: assistantText || message.text || "Agent 任务已完成。",
-          status: "done",
-        }));
+        updateMessage(messageId, (message) => {
+          const text = assistantText || message.text || "Agent 任务已完成。";
+          const hasTextBlock = message.agentBlocks?.some((block) => block.type === "text");
+          const agentBlocks = removeEmptyAgentThinkingBlocks(message.agentBlocks);
+          return {
+            ...message,
+            text,
+            agentBlocks: hasTextBlock ? agentBlocks : updateLastAgentTextBlock({
+              ...message,
+              agentBlocks,
+            }, () => text),
+            status: "done",
+          };
+        });
         setConversation((current) => {
           const nextConversation: ConversationMessage[] = [
             ...current,
@@ -1688,6 +1286,7 @@ export const WorkspaceChatPage = ({
     () => files.filter((file) => !file.isDirectory),
     [files],
   );
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? null,
     [providers, selectedProviderId],
@@ -1738,6 +1337,21 @@ export const WorkspaceChatPage = ({
   const activeAgentAvatar = resolveAgentAvatar(
     modelSource === "agent" ? selectedAgent?.avatar : null,
   );
+
+  useEffect(() => {
+    setExpandedFileTreePaths((current) => {
+      const next = new Set(current);
+      files.forEach((file) => {
+        if (file.isDirectory && !file.path.includes("/")) {
+          next.add(file.path);
+        }
+      });
+      if (activeFile?.path) {
+        getParentDirectoryPaths(activeFile.path).forEach((path) => next.add(path));
+      }
+      return next;
+    });
+  }, [activeFile?.path, files]);
 
   useEffect(() => {
     if (!selectedProvider) {
@@ -1925,6 +1539,7 @@ export const WorkspaceChatPage = ({
         ? `${selectedAgent.name} + ${reviewerAgent.name}`
         : modelSource === "agent" ? selectedAgent?.name : undefined,
       agentEvents: chatMode === "agent" ? [] : undefined,
+      agentBlocks: chatMode === "agent" ? [] : undefined,
     };
 
     setMessages((current) => [...current, userUiMessage, assistantUiMessage]);
@@ -2198,6 +1813,73 @@ export const WorkspaceChatPage = ({
     }
   };
 
+  const toggleFileTreeDirectory = (path: string) => {
+    setExpandedFileTreePaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const renderFileTreeNode = (node: FileTreeNode, depth: number): ReactNode => {
+    const isExpanded = expandedFileTreePaths.has(node.path);
+    const paddingLeft = `${0.5 + depth * 0.85}rem`;
+
+    if (node.isDirectory) {
+      return (
+        <div key={node.path}>
+          <button
+            type="button"
+            className="flex h-8 w-full items-center gap-1.5 rounded-md border border-transparent pr-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+            style={{ paddingLeft }}
+            onClick={() => toggleFileTreeDirectory(node.path)}
+          >
+            <ChevronRight
+              className={[
+                "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                isExpanded ? "rotate-90" : "",
+              ].join(" ")}
+            />
+            {isExpanded ? (
+              <FolderOpen className="size-4 shrink-0 text-sidebar-primary" />
+            ) : (
+              <Folder className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+            {node.children.length > 0 && (
+              <span className="rounded-sm bg-sidebar-accent px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                {node.children.length}
+              </span>
+            )}
+          </button>
+          {isExpanded && node.children.length > 0 && (
+            <div className="space-y-0.5">
+              {node.children.map((child) => renderFileTreeNode(child, depth + 1))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={node.path}
+        type="button"
+        className="flex h-8 w-full items-center gap-2 rounded-md border border-transparent pr-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:border-primary/25 data-[active=true]:bg-card"
+        style={{ paddingLeft: `${1.55 + depth * 0.85}rem` }}
+        data-active={node.path === activeFile?.path}
+        onClick={() => void openFile(node.path)}
+      >
+        <FileText className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate">{node.name}</span>
+      </button>
+    );
+  };
+
   const filePanel = (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/70 px-5 py-3">
@@ -2290,7 +1972,7 @@ export const WorkspaceChatPage = ({
 
   const chatPanel = (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden">
+      <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
           {messages.length === 0 ? (
             <div className="flex min-h-[380px] flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/35 px-6 text-center">
@@ -2337,6 +2019,11 @@ export const WorkspaceChatPage = ({
               const messageAgentAvatar = resolveAgentAvatar(
                 message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
               );
+              const agentBlocks = message.agentBlocks ?? [];
+              const hasAgentBlocks =
+                message.role === "assistant" &&
+                message.mode === "agent" &&
+                agentBlocks.length > 0;
 
               return (
                 <div
@@ -2364,7 +2051,7 @@ export const WorkspaceChatPage = ({
                     className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
                     data-role={message.role}
                   >
-                    {message.role === "assistant" && thinking && (
+                    {message.role === "assistant" && !hasAgentBlocks && thinking && (
                       <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
                         <button
                           type="button"
@@ -2390,7 +2077,7 @@ export const WorkspaceChatPage = ({
                       </div>
                     )}
 
-                    {message.role === "assistant" && agentEventGroups.length > 0 && (
+                    {message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
                       <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
                         <button
                           type="button"
@@ -2489,7 +2176,144 @@ export const WorkspaceChatPage = ({
                       </div>
                     )}
 
-                    {isAssistantLoading ? (
+                    {hasAgentBlocks ? (
+                      <div className="space-y-2">
+                        {agentBlocks.map((block) => {
+                          if (block.type === "thinking") {
+                            const isCollapsed = Boolean(block.isCollapsed);
+
+                            return (
+                              <div
+                                key={block.id}
+                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                              >
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                                  onClick={() => toggleAgentThinkingBlock(message.id, block.id)}
+                                >
+                                  {isCollapsed ? (
+                                    <ChevronRight className="size-3.5" />
+                                  ) : (
+                                    <ChevronDown className="size-3.5" />
+                                  )}
+                                  <Brain className="size-3.5" />
+                                  <span>Thinking</span>
+                                  {message.status !== "done" && agentBlocks.at(-1)?.id === block.id && (
+                                    <Loader2 className="ml-auto size-3 animate-spin" />
+                                  )}
+                                </button>
+                                <div
+                                  className={[
+                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+                                  ].join(" ")}
+                                >
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div
+                                      className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+                                      data-agent-thinking-content="true"
+                                    >
+                                      {block.content.trim() || "正在思考..."}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (block.type === "tool") {
+                            const latestEvent = block.events[block.events.length - 1];
+                            const isCollapsed = Boolean(block.isCollapsed);
+                            const statusLabel =
+                              block.status === "running"
+                                ? "执行中"
+                                : block.status === "done"
+                                  ? "完成"
+                                  : "异常";
+
+                            return (
+                              <div
+                                key={block.id}
+                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                              >
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={() => toggleAgentBlock(message.id, block.id)}
+                                >
+                                  <ChevronRight
+                                    className={[
+                                      "size-3 transition-transform",
+                                      isCollapsed ? "" : "rotate-90",
+                                    ].join(" ")}
+                                  />
+                                  <Wrench className="size-3.5" />
+                                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                    {block.toolName}
+                                  </span>
+                                  <span
+                                    className={[
+                                      "rounded-sm px-1.5 py-0.5 text-[11px]",
+                                      block.status === "error"
+                                        ? "bg-destructive/10 text-destructive"
+                                        : block.status === "running"
+                                          ? "bg-primary/10 text-primary"
+                                          : "bg-background text-muted-foreground",
+                                    ].join(" ")}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                  <span className="text-[11px]">
+                                    {block.events.length} 条
+                                  </span>
+                                </button>
+                                <div
+                                  className={[
+                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+                                  ].join(" ")}
+                                >
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div className="space-y-1 border-t border-border/50 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                                      {block.events.slice(-8).map((event, index) => (
+                                        <div
+                                          key={`${block.id}-${event.type}-${index}`}
+                                          className="whitespace-pre-wrap break-words rounded-sm bg-background/70 px-2 py-1"
+                                        >
+                                          {describeAgentGroupEvent(event)}
+                                        </div>
+                                      ))}
+                                      {block.events.length > 8 && (
+                                        <div className="rounded-sm bg-background/60 px-2 py-1 text-[11px]">
+                                          已省略本段较早的 {block.events.length - 8} 条更新。
+                                        </div>
+                                      )}
+                                    </div>
+                                    {latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                      <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                        工具执行失败，请展开查看最后几条输出。
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {isCollapsed && latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                  <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                    工具执行失败
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={block.id} className="agent-response-block">
+                              <MarkdownContent content={block.content} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : isAssistantLoading ? (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="size-4 animate-spin" />
                         <span>
@@ -2825,24 +2649,13 @@ export const WorkspaceChatPage = ({
           </div>
 
           <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-1 p-2.5">
+            <div className="space-y-0.5 p-2.5">
               {isFilesLoading ? (
                 <div className="px-2 py-8 text-center text-sm text-muted-foreground">
                   正在读取文件
                 </div>
               ) : selectableFiles.length ? (
-                selectableFiles.map((file) => (
-                  <button
-                    key={file.path}
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:border-primary/25 data-[active=true]:bg-card"
-                    data-active={file.path === activeFile?.path}
-                    onClick={() => void openFile(file.path)}
-                  >
-                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                  </button>
-                ))
+                fileTree.map((node) => renderFileTreeNode(node, 0))
               ) : (
                 <div className="px-2 py-8 text-center text-sm text-muted-foreground">
                   暂无可编辑文件

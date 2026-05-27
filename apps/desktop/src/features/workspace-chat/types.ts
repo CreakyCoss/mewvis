@@ -14,6 +14,27 @@ export type WorkspaceFile = {
   updatedAt: number | null;
 };
 
+export type AgentMessageBlock =
+  | {
+    id: string;
+    type: "thinking";
+    content: string;
+    isCollapsed?: boolean;
+  }
+  | {
+    id: string;
+    type: "text";
+    content: string;
+  }
+  | {
+    id: string;
+    type: "tool";
+    toolName: string;
+    status: "running" | "done" | "error";
+    events: CodingAgentEvent[];
+    isCollapsed?: boolean;
+  };
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -23,6 +44,7 @@ export type ChatMessage = {
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
   agentEvents?: CodingAgentEvent[];
+  agentBlocks?: AgentMessageBlock[];
   agentAvatar?: string;
   agentName?: string;
   referencedFiles?: Array<{ path: string }>;
