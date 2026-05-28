@@ -1,7 +1,7 @@
 import type { CodingAgentQuestionInput } from "@/agent-runtime/base";
 import type { WorkspaceFileEntry } from "./types";
 
-export type WorkspaceView = "chat" | "file" | "split";
+export type WorkspaceView = "chat" | "file" | "split" | "settings";
 export type ModelSource = "direct" | "agent";
 export type ChatMode = "chat" | "agent" | "collab";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
