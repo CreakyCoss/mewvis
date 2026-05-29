@@ -4,7 +4,7 @@ use tauri::AppHandle;
 
 use super::defaults::seed_config_defaults;
 use crate::db::{
-    migrations::run_config_migrations,
+    migrations::{database_user_version, run_config_migrations, CONFIG_SCHEMA_VERSION},
     paths::config_db_path,
     rebuild::{
         replace_sqlite_database_files, restore_matching_tables,
@@ -16,16 +16,38 @@ use crate::db::{
 
 pub use crate::db::paths::default_config_db_path;
 
+// 非开发环境下，版本一致的配置库走快速路径，避免每次启动重复执行建表、迁移和 schema 校验。
+const ENABLE_RELEASE_CONFIG_DATABASE_FAST_PATH: bool = true;
+
+// 快速路径仍保留默认数据修复，成本很低，也能避免默认分组缺失导致基础 UI 不可用。
+const SEED_CONFIG_DEFAULTS_ON_FAST_PATH: bool = true;
+
 pub fn initialize_config_database(app: &AppHandle) -> Result<(), String> {
     initialize_config_database_path(&config_db_path(app)?)
 }
 
 pub fn initialize_config_database_path(db_path: &Path) -> Result<(), String> {
     let conn = open_config_database(db_path)?;
+    if should_use_config_database_fast_path(&conn)? {
+        if SEED_CONFIG_DEFAULTS_ON_FAST_PATH {
+            seed_config_defaults(&conn)?;
+        }
+        return Ok(());
+    }
+
     let is_new_database = !database_has_user_tables(&conn)?;
     create_config_schema(&conn)?;
     run_config_migrations(&conn, is_new_database)?;
     seed_config_defaults(&conn)
+}
+
+fn should_use_config_database_fast_path(conn: &Connection) -> Result<bool, String> {
+    // 开发环境保持完整初始化流程，方便尽早发现 schema、迁移或 seed 逻辑问题。
+    if cfg!(debug_assertions) || !ENABLE_RELEASE_CONFIG_DATABASE_FAST_PATH {
+        return Ok(false);
+    }
+
+    Ok(database_user_version(conn)? == CONFIG_SCHEMA_VERSION)
 }
 
 pub fn rebuild_config_database_path(db_path: &Path) -> Result<DatabaseRestoreReport, String> {
@@ -127,6 +149,96 @@ mod tests {
 
         assert_eq!(user_version, 3);
         assert_eq!(default_group_count, 1);
+
+        remove_temp_config_db(&db_path);
+    }
+
+    #[test]
+    fn rebuild_config_database_restores_table_when_new_columns_have_defaults() {
+        let db_path = temp_config_db_path();
+        let conn = Connection::open(&db_path).expect("open old config database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE llm_providers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                api_key TEXT,
+                base_url TEXT,
+                is_default INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            "#,
+        )
+        .expect("create old provider table");
+        conn.execute(
+            r#"
+            INSERT INTO llm_providers (
+                id, name, provider, api_key, base_url, is_default, created_at, updated_at
+            ) VALUES (?1, 'Old Provider', 'openai-compatible', NULL, NULL, 1, 1, 1)
+            "#,
+            params!["provider-with-default-column"],
+        )
+        .expect("insert old provider");
+        drop(conn);
+
+        let report = rebuild_config_database_path(&db_path).expect("rebuild config database");
+        assert!(report
+            .restored_tables
+            .contains(&"llm_providers".to_string()));
+        assert!(report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("vendor")));
+
+        let conn = Connection::open(&db_path).expect("open rebuilt config database");
+        let (name, vendor): (String, String) = conn
+            .query_row(
+                "SELECT name, vendor FROM llm_providers WHERE id = ?1",
+                params!["provider-with-default-column"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read restored provider");
+
+        assert_eq!(name, "Old Provider");
+        assert_eq!(vendor, "");
+
+        remove_temp_config_db(&db_path);
+    }
+
+    #[test]
+    fn rebuild_config_database_skips_table_when_only_id_matches() {
+        let db_path = temp_config_db_path();
+        let conn = Connection::open(&db_path).expect("open old config database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE llm_providers (
+                id TEXT PRIMARY KEY
+            );
+            "#,
+        )
+        .expect("create old provider table");
+        conn.execute(
+            "INSERT INTO llm_providers (id) VALUES (?1)",
+            params!["provider-with-only-id"],
+        )
+        .expect("insert old provider");
+        drop(conn);
+
+        let report = rebuild_config_database_path(&db_path).expect("rebuild config database");
+        assert!(report.skipped_tables.contains(&"llm_providers".to_string()));
+
+        let conn = Connection::open(&db_path).expect("open rebuilt config database");
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM llm_providers WHERE id = ?1",
+                params!["provider-with-only-id"],
+                |row| row.get(0),
+            )
+            .expect("read provider count");
+
+        assert_eq!(count, 0);
 
         remove_temp_config_db(&db_path);
     }

@@ -30,6 +30,11 @@ struct DatabaseTableSnapshot {
     rows: Vec<Vec<Value>>,
 }
 
+struct RestoreTablePlan<'a> {
+    table: &'a DatabaseTableSnapshot,
+    defaulted_columns: Vec<String>,
+}
+
 struct DatabaseFileBackup {
     backup_dir: PathBuf,
     files: Vec<BackedUpDatabaseFile>,
@@ -85,11 +90,19 @@ pub(crate) fn restore_matching_tables(
 ) -> Result<DatabaseRestoreReport, String> {
     let mut restorable_tables = Vec::new();
     let mut skipped_tables = Vec::new();
+    let mut warnings = Vec::new();
 
     for table in &snapshot.tables {
         let current_columns = table_columns(conn, &table.name)?;
-        if same_column_names(&current_columns, &table.columns) {
-            restorable_tables.push(table);
+        if let Some(plan) = restore_table_plan(table, &current_columns) {
+            if !plan.defaulted_columns.is_empty() {
+                warnings.push(format!(
+                    "表 {} 新增字段 {} 未从旧库恢复，将使用默认值或 NULL",
+                    table.name,
+                    plan.defaulted_columns.join(", ")
+                ));
+            }
+            restorable_tables.push(plan);
         } else {
             skipped_tables.push(table.name.clone());
         }
@@ -102,10 +115,10 @@ pub(crate) fn restore_matching_tables(
         let mut restored_rows = 0;
         let mut restored_tables = Vec::new();
 
-        for table in restorable_tables {
-            restore_table(conn, table)?;
-            restored_rows += table.rows.len();
-            restored_tables.push(table.name.clone());
+        for plan in restorable_tables {
+            restore_table(conn, plan.table)?;
+            restored_rows += plan.table.rows.len();
+            restored_tables.push(plan.table.name.clone());
         }
 
         validate_foreign_keys(conn)?;
@@ -114,7 +127,7 @@ pub(crate) fn restore_matching_tables(
             restored_tables,
             skipped_tables,
             restored_rows,
-            warnings: Vec::new(),
+            warnings,
         })
     })();
 
@@ -326,12 +339,40 @@ fn table_rows(
     Ok(rows)
 }
 
-fn same_column_names(left: &[String], right: &[String]) -> bool {
-    if left.is_empty() || right.is_empty() {
-        return false;
+fn restore_table_plan<'a>(
+    table: &'a DatabaseTableSnapshot,
+    current_columns: &[String],
+) -> Option<RestoreTablePlan<'a>> {
+    if table.columns.is_empty() || current_columns.is_empty() {
+        return None;
     }
 
-    left.iter().collect::<BTreeSet<_>>() == right.iter().collect::<BTreeSet<_>>()
+    // 只有主键相同的旧表恢复价值很低，避免生成只有 id、其他字段全走默认值的空壳记录。
+    if table.columns.iter().all(|column| column == "id") {
+        return None;
+    }
+
+    let current_column_names = current_columns.iter().collect::<BTreeSet<_>>();
+    if table
+        .columns
+        .iter()
+        .any(|column| !current_column_names.contains(column))
+    {
+        return None;
+    }
+
+    // 旧字段都是新表字段时才恢复；新表额外字段不写入，让 SQLite 使用 DEFAULT 或 NULL。
+    let old_column_names = table.columns.iter().collect::<BTreeSet<_>>();
+    let defaulted_columns = current_columns
+        .iter()
+        .filter(|column| !old_column_names.contains(column))
+        .cloned()
+        .collect();
+
+    Some(RestoreTablePlan {
+        table,
+        defaulted_columns,
+    })
 }
 
 fn validate_foreign_keys(conn: &Connection) -> Result<(), String> {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, FolderOpen, Loader2, Trash2 } from "lucide-react";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,6 +20,12 @@ import type { ConfigDatabaseStatus } from "../types";
 type ConfigDatabaseDialogProps = {
   onRecovered: () => void | Promise<void>;
 };
+
+function revealItemInDir(path: string) {
+  return invoke("plugin:opener|reveal_item_in_dir", {
+    paths: [path],
+  });
+}
 
 export const ConfigDatabaseDialog = ({
   onRecovered,
