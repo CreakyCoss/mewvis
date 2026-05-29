@@ -1,11 +1,11 @@
-import type { AgentRuntime, LlmRuntime, RuntimeMode } from "../contracts/runtime.js";
+import type { AgentRuntime, ChatRuntime, RuntimeMode } from "../contracts/runtime.js";
 import { resolveRuntime } from "../runtimes/index.js";
 import type {
   AgentBridgeRunner,
   AgentBridgeRunnerResolution,
   BridgeRunnerResolution,
-  LlmBridgeRunner,
-  LlmBridgeRunnerResolution,
+  ChatBridgeRunner,
+  ChatBridgeRunnerResolution,
   RunnableBridgeCommand,
 } from "./types.js";
 import { BridgeCommandType, type ChatCommand, type StartTaskCommand } from "../contracts/protocol.js";
@@ -14,7 +14,7 @@ const toAgentRunner = (runtime: AgentRuntime): AgentBridgeRunner => async (comma
   return runtime.run(command, context);
 };
 
-const toLlmRunner = (runtime: LlmRuntime): LlmBridgeRunner => async (command, context) => {
+const toChatRunner = (runtime: ChatRuntime): ChatBridgeRunner => async (command, context) => {
   return runtime.chat(command, context);
 };
 
@@ -23,28 +23,26 @@ const modeForCommand = (command: RunnableBridgeCommand): RuntimeMode => {
     return "agent";
   }
 
-  return "llm";
+  return "chat";
 };
 
 export function resolveBridgeRunner(command: StartTaskCommand): AgentBridgeRunnerResolution;
-export function resolveBridgeRunner(command: ChatCommand): LlmBridgeRunnerResolution;
+export function resolveBridgeRunner(command: ChatCommand): ChatBridgeRunnerResolution;
 export function resolveBridgeRunner(
   command: RunnableBridgeCommand,
 ): BridgeRunnerResolution {
   const mode = modeForCommand(command);
-  const resolution = resolveRuntime(mode, command.runtime);
+  const resolution = resolveRuntime(mode, command.bridgeAgentId);
 
   if (resolution.mode === "agent") {
     return {
       mode: resolution.mode,
-      runtime: resolution.runtime,
       runner: toAgentRunner(resolution.implementation),
     };
   }
 
   return {
     mode: resolution.mode,
-    runtime: resolution.runtime,
-    runner: toLlmRunner(resolution.implementation),
+    runner: toChatRunner(resolution.implementation),
   };
 }

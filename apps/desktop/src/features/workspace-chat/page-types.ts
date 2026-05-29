@@ -1,4 +1,4 @@
-import type { CodingAgentQuestionInput } from "@/agent-runtime/base";
+import type { CodingAgentQuestionInput } from "@/agent-runtime/contract";
 import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "file" | "split" | "settings";

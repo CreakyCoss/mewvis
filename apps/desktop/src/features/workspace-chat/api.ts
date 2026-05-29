@@ -1,11 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createLlmRuntimeAdapter } from "@/llm-runtime/factory";
-import { toLlmProviderConfig } from "@/llm-runtime/config";
+import { createAgentRuntime } from "@/agent-runtime/runtime";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import {
+  toAgentRuntimeModelConfig,
+  toAgentRuntimeProviderConfig,
+} from "./utils/agent-runtime-config";
 import type { ChatContextSummary, ChatMessage, ChatSession, ChatSessionMeta, WorkspaceFile, WorkspaceFileEntry } from "./types";
 import type { ConversationMessage } from "./types";
 
-export type ChatWithLlmInput = {
+const agentRuntime = createAgentRuntime();
+
+export type RunAgentRuntimeChatInput = {
+  bridgeAgentId?: string;
   provider: LlmProvider;
   model: ProviderModel;
   systemPrompt: string;
@@ -15,7 +21,7 @@ export type ChatWithLlmInput = {
   onThinkingDelta?: (delta: string) => void;
 };
 
-export type ChatWithLlmOutput = {
+export type RunAgentRuntimeChatOutput = {
   text: string;
   thinking?: string | null;
 };
@@ -45,14 +51,14 @@ export async function writeWorkspaceFile(
   });
 }
 
-export async function chatWithLlm(input: ChatWithLlmInput) {
-  const config = toLlmProviderConfig(input.provider, input.model);
-  if (!config) {
-    throw new Error("请至少启用一个模型");
-  }
-
-  const adapter = await createLlmRuntimeAdapter(config.provider, config);
-  return adapter.chat({
+export async function runAgentRuntimeChat(
+  input: RunAgentRuntimeChatInput,
+): Promise<RunAgentRuntimeChatOutput> {
+  return agentRuntime.run({
+    type: "chat",
+    bridgeAgentId: input.bridgeAgentId,
+    provider: toAgentRuntimeProviderConfig(input.provider),
+    model: toAgentRuntimeModelConfig(input.provider, input.model),
     systemPrompt: input.systemPrompt,
     messages: input.messages,
     stream: input.stream ?? true,

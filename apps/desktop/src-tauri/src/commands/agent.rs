@@ -58,6 +58,7 @@ pub struct CodingAgentModelInput {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartCodingAgentTaskInput {
+    bridge_agent_id: Option<String>,
     workspace_path: String,
     prompt: String,
     provider: CodingAgentProviderInput,
@@ -155,6 +156,7 @@ pub fn start_coding_agent_task(
 
     let command = json!({
         "type": "start_task",
+        "bridgeAgentId": input.bridge_agent_id,
         "taskId": task_id,
         "workspacePath": input.workspace_path,
         "prompt": input.prompt,

@@ -15,15 +15,15 @@ import {
   type ChatMessageInput,
   type ChatResult,
 } from "../../contracts/protocol.js";
-import type { BaseLLM, LlmRuntimeContext } from "../../contracts/runtime.js";
+import type { BaseChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
 import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
 
-const PI_LLM_MODEL_SOURCE = "input" satisfies PiModelSource;
+const PI_CHAT_MODEL_SOURCE = "input" satisfies PiModelSource;
 
-export class PiLLM implements BaseLLM {
+export class PiChatRuntime implements BaseChatRuntime {
   readonly id = "pi-ai";
 
-  async chat(command: ChatCommand, context: LlmRuntimeContext): Promise<ChatResult> {
+  async chat(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     return command.stream === false
       ? this.complete(command)
       : this.stream(command, context);
@@ -32,7 +32,7 @@ export class PiLLM implements BaseLLM {
   private async complete(command: ChatCommand): Promise<ChatResult> {
     const apiKey = requirePiApiKey(command.provider);
     const model = createPiRuntimeModel(command.provider, command.model, {
-      modelSource: PI_LLM_MODEL_SOURCE,
+      modelSource: PI_CHAT_MODEL_SOURCE,
     });
     const message = await completeSimple(
       model,
@@ -43,10 +43,10 @@ export class PiLLM implements BaseLLM {
     return this.createChatResult(message);
   }
 
-  private async stream(command: ChatCommand, context: LlmRuntimeContext): Promise<ChatResult> {
+  private async stream(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     const apiKey = requirePiApiKey(command.provider);
     const model = createPiRuntimeModel(command.provider, command.model, {
-      modelSource: PI_LLM_MODEL_SOURCE,
+      modelSource: PI_CHAT_MODEL_SOURCE,
     });
     const stream = streamSimple(
       model,

@@ -61,7 +61,7 @@ export type ModelInput = {
 
 export type StartTaskCommand = {
   type: BridgeCommandType.StartTask;
-  runtime?: string | null;
+  bridgeAgentId?: string | null;
   taskId: string;
   workspacePath: string;
   prompt: string;
@@ -87,7 +87,7 @@ export type ChatMessageInput = {
 
 export type ChatCommand = {
   type: BridgeCommandType.Chat;
-  runtime?: string | null;
+  bridgeAgentId?: string | null;
   streamId?: string | null;
   stream?: boolean;
   provider: ProviderInput;

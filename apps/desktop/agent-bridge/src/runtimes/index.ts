@@ -1,82 +1,63 @@
-import type { AgentRuntime, BridgeRuntimeProvider, LlmRuntime, RuntimeMode } from "../contracts/runtime.js";
-import { piRuntimeProvider } from "./pi/index.js";
+import type {
+  AgentRuntime,
+  BridgeAgent,
+  ChatRuntime,
+  RuntimeMode,
+} from "../contracts/runtime.js";
+import { piBridgeAgent } from "./pi/index.js";
 
 export type RuntimeResolution =
   | {
     mode: "agent";
-    runtime: string;
     implementation: AgentRuntime;
   }
   | {
-    mode: "llm";
-    runtime: string;
-    implementation: LlmRuntime;
+    mode: "chat";
+    implementation: ChatRuntime;
   };
 
-const defaultRuntimeByMode = {
-  agent: piRuntimeProvider.agent.id,
-  llm: piRuntimeProvider.llm.id,
-} satisfies Record<RuntimeMode, string>;
+const defaultBridgeAgentId = piBridgeAgent.id;
 
-const runtimeProviders = [
-  piRuntimeProvider,
-] satisfies readonly BridgeRuntimeProvider[];
+const bridgeAgents = [
+  piBridgeAgent,
+] satisfies readonly BridgeAgent[];
 
-const createRuntimeRegistry = (
-  providers: readonly BridgeRuntimeProvider[],
-): {
-  agent: Record<string, AgentRuntime>;
-  llm: Record<string, LlmRuntime>;
-} => {
-  const registry: {
-    agent: Record<string, AgentRuntime>;
-    llm: Record<string, LlmRuntime>;
-  } = {
-    agent: {},
-    llm: {},
-  };
+const createBridgeAgentRegistry = (
+  agents: readonly BridgeAgent[],
+): Record<string, BridgeAgent> =>
+  Object.fromEntries(agents.map((agent) => [agent.id, agent]));
 
-  for (const provider of providers) {
-    if (provider.agent) {
-      registry.agent[provider.agent.id] = provider.agent;
-    }
-    if (provider.llm) {
-      registry.llm[provider.llm.id] = provider.llm;
-    }
-  }
-
-  return registry;
-};
-
-const runtimeRegistry = createRuntimeRegistry(runtimeProviders);
+const bridgeAgentRegistry = createBridgeAgentRegistry(bridgeAgents);
 
 export const resolveRuntime = (
   mode: RuntimeMode,
-  runtimeId?: string | null,
+  bridgeAgentId?: string | null,
 ): RuntimeResolution => {
-  const runtime = runtimeId?.trim() || defaultRuntimeByMode[mode];
+  const resolvedBridgeAgentId = bridgeAgentId?.trim() || defaultBridgeAgentId;
+  const bridgeAgent = bridgeAgentRegistry[resolvedBridgeAgentId];
+  if (!bridgeAgent) {
+    throw new Error(`未配置 bridge agent：${resolvedBridgeAgentId}`);
+  }
 
   if (mode === "agent") {
-    const implementation = runtimeRegistry.agent[runtime];
+    const implementation = bridgeAgent.agent;
     if (!implementation) {
-      throw new Error(`未配置 agent runtime：${runtime}`);
+      throw new Error(`bridge agent 不支持 agent runtime：${resolvedBridgeAgentId}`);
     }
 
     return {
       mode,
-      runtime,
       implementation,
     };
   }
 
-  const implementation = runtimeRegistry.llm[runtime];
+  const implementation = bridgeAgent.chat;
   if (!implementation) {
-    throw new Error(`未配置 llm runtime：${runtime}`);
+    throw new Error(`bridge agent 不支持 chat runtime：${resolvedBridgeAgentId}`);
   }
 
   return {
     mode,
-    runtime,
     implementation,
   };
 };

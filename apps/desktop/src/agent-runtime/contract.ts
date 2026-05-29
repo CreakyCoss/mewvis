@@ -1,6 +1,43 @@
-import type { RuntimeModelConfig } from "@/features/llm-settings/model-catalog";
+import {
+  AGENT_TOOL_DEFINITIONS as BRIDGE_AGENT_TOOL_DEFINITIONS,
+  DEFAULT_ALLOWED_AGENT_TOOLS as BRIDGE_DEFAULT_ALLOWED_AGENT_TOOLS,
+  normalizeAllowedAgentTools as normalizeBridgeAllowedAgentTools,
+} from "@agent-bridge/contracts/tools";
 
-export type CodingAgentProviderConfig = {
+export type AgentToolName = string;
+
+export type AgentToolDefinition = Readonly<{
+  name: AgentToolName;
+  label: string;
+  description: string;
+  enabledByDefault: boolean;
+}>;
+
+type AgentToolDefinitions = readonly AgentToolDefinition[];
+
+type BridgeAgentToolDefinition = (typeof BRIDGE_AGENT_TOOL_DEFINITIONS)[number];
+
+const toAgentRuntimeToolDefinition = (tool: BridgeAgentToolDefinition): AgentToolDefinition =>
+  Object.freeze({
+    name: tool.name,
+    label: tool.label,
+    description: tool.description,
+    enabledByDefault: tool.enabledByDefault,
+  } satisfies AgentToolDefinition);
+
+export const AGENT_TOOL_DEFINITIONS: AgentToolDefinitions = Object.freeze(
+  BRIDGE_AGENT_TOOL_DEFINITIONS.map(toAgentRuntimeToolDefinition),
+);
+
+export const DEFAULT_ALLOWED_AGENT_TOOLS: readonly AgentToolName[] = Object.freeze([
+  ...BRIDGE_DEFAULT_ALLOWED_AGENT_TOOLS,
+]);
+
+export const normalizeAllowedAgentTools = (
+  tools: readonly AgentToolName[] | undefined,
+): AgentToolName[] => normalizeBridgeAllowedAgentTools(tools);
+
+export type AgentRuntimeProviderConfig = {
   id: string;
   name: string;
   vendor: string;
@@ -9,124 +46,24 @@ export type CodingAgentProviderConfig = {
   baseUrl?: string | null;
 };
 
-export type CodingAgentModelConfig = RuntimeModelConfig;
-
-export type AgentToolCategory = "file" | "search" | "shell" | "interaction" | "custom";
-export type AgentToolRiskLevel = "low" | "medium" | "high";
-
-export type BuiltInAgentToolName =
-  | "read"
-  | "bash"
-  | "edit"
-  | "write"
-  | "grep"
-  | "find"
-  | "ls";
-
-export type AskUserAgentToolName = "ask_user";
-export type KnownAgentToolName = BuiltInAgentToolName | AskUserAgentToolName;
-export type AgentToolName = KnownAgentToolName | (string & {});
-
-export type AgentToolDefinition = {
-  name: AgentToolName;
-  label: string;
-  description: string;
-  category: AgentToolCategory;
-  riskLevel: AgentToolRiskLevel;
-  source: "agent-runtime" | "bridge" | "extension";
-  enabledByDefault: boolean;
-};
-
-export const AGENT_TOOL_DEFINITIONS = [
-  {
-    name: "read",
-    label: "读取",
-    description: "读取工作区文件内容",
-    category: "file",
-    riskLevel: "low",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "edit",
-    label: "编辑",
-    description: "编辑已有文件",
-    category: "file",
-    riskLevel: "medium",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "write",
-    label: "写入",
-    description: "写入或创建文件",
-    category: "file",
-    riskLevel: "medium",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "ls",
-    label: "列目录",
-    description: "列出目录内容",
-    category: "search",
-    riskLevel: "low",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "find",
-    label: "查找文件",
-    description: "按文件名查找工作区文件",
-    category: "search",
-    riskLevel: "low",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "grep",
-    label: "搜索文本",
-    description: "在工作区文件中搜索文本",
-    category: "search",
-    riskLevel: "low",
-    source: "agent-runtime",
-    enabledByDefault: true,
-  },
-  {
-    name: "ask_user",
-    label: "询问用户",
-    description: "在缺少必要信息时向用户提问",
-    category: "interaction",
-    riskLevel: "low",
-    source: "bridge",
-    enabledByDefault: true,
-  },
-  {
-    name: "bash",
-    label: "Shell",
-    description: "执行工作区 shell 命令",
-    category: "shell",
-    riskLevel: "high",
-    source: "agent-runtime",
-    enabledByDefault: false,
-  },
-] as const satisfies readonly AgentToolDefinition[];
-
-export const DEFAULT_ALLOWED_AGENT_TOOLS = AGENT_TOOL_DEFINITIONS
-  .filter((tool) => tool.enabledByDefault)
-  .map((tool) => tool.name);
-
-export const getAgentToolDefinition = (name: string): AgentToolDefinition | undefined =>
-  AGENT_TOOL_DEFINITIONS.find((tool) => tool.name === name);
-
-export const normalizeAllowedAgentTools = (
-  tools: readonly AgentToolName[] | undefined,
-): AgentToolName[] => {
-  if (!tools) {
-    return [...DEFAULT_ALLOWED_AGENT_TOOLS];
-  }
-
-  return [...new Set(tools)];
+export type AgentRuntimeModelConfig = {
+  id: string;
+  modelId: string;
+  modelName: string;
+  baseUrl?: string;
+  reasoning?: boolean;
+  thinkingLevelMap?: Record<string, string | null>;
+  input?: Array<"text" | "image">;
+  cost?: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+  contextWindow?: number;
+  maxTokens?: number;
+  headers?: Record<string, string>;
+  compat?: unknown;
 };
 
 export type CodingAgentQuestionInput = {
@@ -163,15 +100,51 @@ export type CodingAgentEvent =
   | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };
 
+export type CodingAgentDeltaEvent = Extract<
+  CodingAgentEvent,
+  { type: "text_delta" | "thinking_delta" }
+>;
+
+export type AgentRuntimeChatEvent = Omit<CodingAgentDeltaEvent, "taskId"> & {
+  streamId: string;
+};
+
 export type CodingAgentTaskInput = {
+  bridgeAgentId?: string | null;
   workspacePath: string;
   prompt: string;
-  provider: CodingAgentProviderConfig;
-  model: CodingAgentModelConfig;
+  provider: AgentRuntimeProviderConfig;
+  model: AgentRuntimeModelConfig;
   allowedTools?: AgentToolName[];
   enabledSkills?: string[];
 };
 
 export type CodingAgentTask = {
   taskId: string;
+};
+
+export type AgentRuntimeChatMessage = {
+  role: string;
+  content: string;
+};
+
+export type AgentRuntimeChatInput = {
+  type: "chat";
+  bridgeAgentId?: string | null;
+  provider: AgentRuntimeProviderConfig;
+  model: AgentRuntimeModelConfig;
+  systemPrompt: string;
+  messages: AgentRuntimeChatMessage[];
+  stream?: boolean;
+  onTextDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
+};
+
+export type AgentRuntimeAgentInput = CodingAgentTaskInput & {
+  type: "agent";
+};
+
+export type AgentRuntimeChatResult = {
+  text: string;
+  thinking?: string | null;
 };

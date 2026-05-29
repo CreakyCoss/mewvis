@@ -2,7 +2,7 @@ import type { AgentProfile } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import type { Workspace } from "@/features/workspaces/types";
-import { chatWithLlm } from "../api";
+import { runAgentRuntimeChat } from "../api";
 import {
   buildRuntimeConversationContext,
   formatConversationForSummary,
@@ -66,7 +66,7 @@ export const createConversationSummarizer = (
     return previousSummary;
   }
 
-  const result = await chatWithLlm({
+  const result = await runAgentRuntimeChat({
     provider,
     model,
     stream: false,

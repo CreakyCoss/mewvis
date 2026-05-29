@@ -1,4 +1,11 @@
-import type { AgentRunResult, AskUserInput, BridgeEvent, ChatCommand, ChatResult, StartTaskCommand } from "./protocol.js";
+import type {
+  AgentRunResult,
+  AskUserInput,
+  BridgeEvent,
+  ChatCommand,
+  ChatResult,
+  StartTaskCommand,
+} from "./protocol.js";
 
 export type AskUser = (
   taskId: string,
@@ -17,9 +24,9 @@ export type AgentRuntimeContext = BridgeEmitContext & {
   askUser: AskUser;
 };
 
-export type LlmRuntimeContext = BridgeEmitContext;
+export type ChatRuntimeContext = BridgeEmitContext;
 
-export type RuntimeMode = "agent" | "llm";
+export type RuntimeMode = "agent" | "chat";
 
 export abstract class BaseAgent {
   constructor(readonly id: string) {}
@@ -30,21 +37,21 @@ export abstract class BaseAgent {
   ): Promise<AgentRunResult>;
 }
 
-export abstract class BaseLLM {
+export abstract class BaseChatRuntime {
   constructor(readonly id: string) {}
 
   abstract chat(
     command: ChatCommand,
-    context: LlmRuntimeContext,
+    context: ChatRuntimeContext,
   ): Promise<ChatResult>;
 }
 
 export type AgentRuntime = BaseAgent;
 
-export type LlmRuntime = BaseLLM;
+export type ChatRuntime = BaseChatRuntime;
 
-export type BridgeRuntimeProvider = {
+export type BridgeAgent = {
   id: string;
   agent?: AgentRuntime;
-  llm?: LlmRuntime;
+  chat?: ChatRuntime;
 };

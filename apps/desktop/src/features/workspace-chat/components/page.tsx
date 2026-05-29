@@ -33,13 +33,9 @@ import {
   AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS,
   normalizeAllowedAgentTools,
+  type AgentToolName,
 } from "@/agent-runtime/contract";
-import {
-  toCodingAgentModelConfig,
-  toCodingAgentProviderConfig,
-} from "@/agent-runtime/config";
-import type { AgentToolName } from "@/agent-runtime/base";
-import { createAgentRuntimeAdapter } from "@/agent-runtime/registry";
+import { createAgentRuntime } from "@/agent-runtime/runtime";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -78,6 +74,10 @@ import {
   updateConversationContext,
   type ConversationSummarizer,
 } from "../context";
+import {
+  toAgentRuntimeModelConfig,
+  toAgentRuntimeProviderConfig,
+} from "../utils/agent-runtime-config";
 import type {
   ChatMode,
   CollaborationPhase,
@@ -89,12 +89,12 @@ import type {
   WorkspaceView,
 } from "../page-types";
 import {
-  chatWithLlm,
   deleteChatSession,
   listWorkspaceFiles,
   listChatSessions,
   loadChatSession,
   readWorkspaceFile,
+  runAgentRuntimeChat,
   saveChatSession,
   writeWorkspaceFile,
 } from "../api";
@@ -573,7 +573,7 @@ export const WorkspaceChatPage = ({
   workspace,
   onOpenWorkspace,
 }: WorkspaceChatPageProps) => {
-  const codingAgent = useMemo(() => createAgentRuntimeAdapter(), []);
+  const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
@@ -613,9 +613,9 @@ export const WorkspaceChatPage = ({
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
-  const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(
-    DEFAULT_ALLOWED_AGENT_TOOLS,
-  );
+  const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
+    ...DEFAULT_ALLOWED_AGENT_TOOLS,
+  ]);
   const [collaborationPhase, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
@@ -1149,7 +1149,7 @@ export const WorkspaceChatPage = ({
     let cleanup: (() => void) | undefined;
     let disposed = false;
 
-    void codingAgent.subscribe((event) => {
+    void agentRuntime.subscribe((event) => {
       const currentTaskId = activeAgentTaskIdRef.current;
       if (currentTaskId && event.taskId !== currentTaskId) {
         return;
@@ -1363,7 +1363,7 @@ export const WorkspaceChatPage = ({
       disposed = true;
       cleanup?.();
     };
-  }, [codingAgent, loadFiles, updateMessage]);
+  }, [agentRuntime, loadFiles, updateMessage]);
 
   const selectableFiles = useMemo(
     () => files.filter((file) => !file.isDirectory),
@@ -1523,7 +1523,7 @@ export const WorkspaceChatPage = ({
     setChatError("");
 
     try {
-      await codingAgent.answerQuestion(
+      await agentRuntime.answerQuestion(
         pendingAgentQuestion.taskId,
         pendingAgentQuestion.questionId,
         answer,
@@ -1658,7 +1658,7 @@ export const WorkspaceChatPage = ({
 
       if (chatMode === "collab" && selectedAgent && reviewerAgent) {
         setCollaborationPhase("drafting");
-        const draftResult = await chatWithLlm({
+        const draftResult = await runAgentRuntimeChat({
           provider: selectedAgent.provider,
           model: selectedAgent.model,
           stream: false,
@@ -1688,7 +1688,7 @@ export const WorkspaceChatPage = ({
         }));
 
         setCollaborationPhase("reviewing");
-        const reviewResult = await chatWithLlm({
+        const reviewResult = await runAgentRuntimeChat({
           provider: reviewerAgent.provider,
           model: reviewerAgent.model,
           stream: false,
@@ -1728,7 +1728,7 @@ export const WorkspaceChatPage = ({
         }));
 
         setCollaborationPhase("revising");
-        const finalResult = await chatWithLlm({
+        const finalResult = await runAgentRuntimeChat({
           provider: selectedAgent.provider,
           model: selectedAgent.model,
           stream: false,
@@ -1809,7 +1809,8 @@ export const WorkspaceChatPage = ({
         activeAgentMessageIdRef.current = assistantMessageId;
         lastAgentErrorRef.current = "";
         lastAgentStderrRef.current = "";
-        const task = await codingAgent.startTask({
+        const task = await agentRuntime.run({
+          type: "agent",
           workspacePath: workspace.path,
           prompt: buildAgentPrompt(
             text,
@@ -1817,8 +1818,8 @@ export const WorkspaceChatPage = ({
             buildRuntimeConversationContext(conversation, nextConversationContext),
             modelSource === "agent" ? selectedAgent : null,
           ),
-          provider: toCodingAgentProviderConfig(effectiveProvider),
-          model: toCodingAgentModelConfig(effectiveProvider, effectiveModel),
+          provider: toAgentRuntimeProviderConfig(effectiveProvider),
+          model: toAgentRuntimeModelConfig(effectiveProvider, effectiveModel),
           allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
           enabledSkills: enabledSkills.map((skill) => skill.name),
         });
@@ -1832,7 +1833,7 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      const result = await chatWithLlm({
+      const result = await runAgentRuntimeChat({
         provider: effectiveProvider,
         model: effectiveModel,
         systemPrompt: buildSystemPrompt(
@@ -2954,7 +2955,7 @@ export const WorkspaceChatPage = ({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => void codingAgent.abortTask(activeAgentTaskId)}
+                onClick={() => void agentRuntime.abortTask(activeAgentTaskId)}
               >
                 停止
               </Button>

@@ -12,6 +12,7 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@agent-bridge": path.resolve(__dirname, "./agent-bridge/src"),
     },
   },
 

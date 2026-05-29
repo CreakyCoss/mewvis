@@ -1,4 +1,4 @@
-import type { CodingAgentEvent } from "@/agent-runtime/base";
+import type { CodingAgentEvent } from "@/agent-runtime/contract";
 
 export type WorkspaceFileEntry = {
   path: string;

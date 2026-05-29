@@ -1,9 +1,9 @@
 import { PiAgent } from "./agent.js";
-import { PiLLM } from "./llm.js";
-import type { BridgeRuntimeProvider } from "../../contracts/runtime.js";
+import { PiChatRuntime } from "./chat.js";
+import type { BridgeAgent } from "../../contracts/runtime.js";
 
-export const piRuntimeProvider = {
+export const piBridgeAgent = {
   id: "pi",
   agent: new PiAgent(),
-  llm: new PiLLM(),
-} satisfies BridgeRuntimeProvider;
+  chat: new PiChatRuntime(),
+} satisfies BridgeAgent;

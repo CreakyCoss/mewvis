@@ -1,10 +1,13 @@
 import { createRuntimeModelConfig } from "@/features/llm-settings/model-catalog";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { CodingAgentModelConfig, CodingAgentProviderConfig } from "./contract";
+import type {
+  AgentRuntimeModelConfig,
+  AgentRuntimeProviderConfig,
+} from "@/agent-runtime/contract";
 
-export const toCodingAgentProviderConfig = (
+export const toAgentRuntimeProviderConfig = (
   provider: LlmProvider,
-): CodingAgentProviderConfig => ({
+): AgentRuntimeProviderConfig => ({
   id: provider.id,
   name: provider.name,
   vendor: provider.vendor,
@@ -13,7 +16,7 @@ export const toCodingAgentProviderConfig = (
   baseUrl: provider.baseUrl,
 });
 
-export const toCodingAgentModelConfig = (
+export const toAgentRuntimeModelConfig = (
   provider: Pick<LlmProvider, "vendor" | "provider" | "baseUrl">,
   model: ProviderModel,
-): CodingAgentModelConfig => createRuntimeModelConfig(provider, model);
+): AgentRuntimeModelConfig => createRuntimeModelConfig(provider, model);

@@ -10,7 +10,7 @@ use commands::{
     chat_sessions::{
         delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session,
     },
-    llm::{chat_with_llm, get_llm_settings, save_llm_settings},
+    llm::{get_llm_settings, run_agent_runtime_chat, save_llm_settings},
     skills::{get_workspace_skills, save_workspace_skills},
     workspace::{create_workspace, get_workspace_overview},
     workspace_files::{list_workspace_files, read_workspace_file, write_workspace_file},
@@ -36,7 +36,7 @@ pub fn run() {
             get_ai_agent_settings,
             save_ai_agent,
             delete_ai_agent,
-            chat_with_llm,
+            run_agent_runtime_chat,
             start_coding_agent_task,
             answer_coding_agent_question,
             abort_coding_agent_task,
