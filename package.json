@@ -9,6 +9,8 @@
     "build:desktop:win": "cd apps/desktop && pnpm build:win",
     "build:desktop:win:arm64": "cd apps/desktop && pnpm build:win:arm64",
     "sync-models": "pnpm --filter desktop sync-models",
-    "init:config-db": "pnpm --filter desktop init:config-db"
+    "init:config-db": "pnpm --filter desktop init:config-db",
+    "rebuild:config-db": "pnpm --filter desktop rebuild:config-db",
+    "init:config-db:rebuild-on-error": "pnpm --filter desktop init:config-db:rebuild-on-error"
   }
 }
