@@ -1,36 +1,23 @@
 use super::{
-    bridge::{append_agent_diagnostic, path_for_node, CleanPath},
+    bridge::{append_agent_diagnostic, path_for_node},
+    events::{emit_agent_event, emit_bridge_line},
     process::{
         build_agent_bridge_command, resolve_agent_bridge_process_config, spawn_agent_bridge_command,
     },
+    skills::{bundled_skills_path_for_bridge, workspace_skill_paths_for_bridge},
+    task_state::AgentRuntimeAgentTasks,
     types::{AgentRuntimeModelInput, AgentRuntimeProviderInput},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::{
-    collections::HashMap,
     fs,
     io::{BufRead, BufReader, Write},
-    path::PathBuf,
-    process::{Child, ChildStdin},
-    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
-
-const AGENT_RUNTIME_AGENT_EVENT: &str = "agent_runtime_agent_event";
-
-#[derive(Default)]
-pub struct AgentRuntimeAgentTasks {
-    tasks: Arc<Mutex<HashMap<String, Arc<AgentRuntimeAgentProcess>>>>,
-}
-
-pub struct AgentRuntimeAgentProcess {
-    child: Mutex<Child>,
-    stdin: Mutex<ChildStdin>,
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,12 +55,8 @@ pub fn run_agent_runtime_agent(
 
     let task_id = Uuid::now_v7().to_string();
     let bridge_process = resolve_agent_bridge_process_config(&app)?;
-    let bundled_skills_path =
-        super::super::skills::bundled_skills_path(&app)?.map(|path| path_for_node(&path));
-    let skill_paths = workspace_skill_paths(&input.workspace_path)
-        .into_iter()
-        .map(|path| path_for_node(&path))
-        .collect::<Vec<_>>();
+    let bundled_skills_path = bundled_skills_path_for_bridge(&app)?;
+    let skill_paths = workspace_skill_paths_for_bridge(&input.workspace_path);
     let agent_dir = app
         .path()
         .app_data_dir()
@@ -192,25 +175,15 @@ pub fn run_agent_runtime_agent(
         });
     }
 
-    let process = Arc::new(AgentRuntimeAgentProcess {
-        child: Mutex::new(child),
-        stdin: Mutex::new(stdin),
-    });
-    state
-        .tasks
-        .lock()
-        .map_err(|_| "Agent runtime agent 任务状态已损坏".to_string())?
-        .insert(task_id.clone(), process.clone());
+    let process = state.insert(task_id.clone(), child, stdin)?;
 
     let app_for_wait = app.clone();
     let task_id_for_wait = task_id.clone();
-    let tasks_for_wait = state.inner().tasks.clone();
+    let tasks_for_wait = state.inner().clone();
     thread::spawn(move || {
         let status = loop {
-            if let Ok(mut child) = process.child.lock() {
-                if let Ok(Some(status)) = child.try_wait() {
-                    break status;
-                }
+            if let Some(status) = process.try_wait() {
+                break status;
             }
 
             thread::sleep(Duration::from_millis(200));
@@ -233,22 +206,10 @@ pub fn run_agent_runtime_agent(
             ),
         );
 
-        if let Ok(mut tasks) = tasks_for_wait.lock() {
-            tasks.remove(&task_id_for_wait);
-        }
+        tasks_for_wait.remove(&task_id_for_wait);
     });
 
     Ok(RunAgentRuntimeAgentOutput { task_id })
-}
-
-fn workspace_skill_paths(workspace_path: &str) -> Vec<PathBuf> {
-    let workspace = PathBuf::from(workspace_path);
-
-    [".novel-claw/skills", ".codex/skills", ".agents/skills"]
-        .into_iter()
-        .map(|path| workspace.join(path).clean())
-        .filter(|path| path.exists() && path.is_dir())
-        .collect()
 }
 
 #[tauri::command]
@@ -256,14 +217,6 @@ pub fn answer_agent_runtime_question(
     state: State<AgentRuntimeAgentTasks>,
     input: AnswerAgentRuntimeQuestionInput,
 ) -> Result<(), String> {
-    let task = state
-        .tasks
-        .lock()
-        .map_err(|_| "Agent runtime agent 任务状态已损坏".to_string())?
-        .get(&input.task_id)
-        .cloned()
-        .ok_or_else(|| "Agent runtime agent 任务不存在或已结束".to_string())?;
-
     let command = json!({
         "type": "answer_question",
         "taskId": input.task_id,
@@ -271,16 +224,7 @@ pub fn answer_agent_runtime_question(
         "answer": input.answer,
     });
 
-    let mut stdin = task
-        .stdin
-        .lock()
-        .map_err(|_| "Agent runtime agent 输入通道已无法访问".to_string())?;
-    writeln!(stdin, "{command}").map_err(|error| format!("发送用户回答失败：{error}"))?;
-    stdin
-        .flush()
-        .map_err(|error| format!("刷新用户回答失败：{error}"))?;
-
-    Ok(())
+    state.answer_question(&input.task_id, &command)
 }
 
 #[tauri::command]
@@ -288,21 +232,7 @@ pub fn abort_agent_runtime_agent(
     state: State<AgentRuntimeAgentTasks>,
     task_id: String,
 ) -> Result<(), String> {
-    let task = state
-        .tasks
-        .lock()
-        .map_err(|_| "Agent runtime agent 任务状态已损坏".to_string())?
-        .remove(&task_id);
-
-    if let Some(task) = task {
-        task.child
-            .lock()
-            .map_err(|_| "Agent runtime agent 任务进程已无法访问".to_string())?
-            .kill()
-            .map_err(|error| format!("终止 Agent runtime agent 任务失败：{error}"))?;
-    }
-
-    Ok(())
+    state.abort(&task_id)
 }
 
 fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String> {
@@ -315,28 +245,4 @@ fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String>
     }
 
     Ok(())
-}
-
-fn emit_bridge_line(app: &AppHandle, task_id: &str, line: &str) {
-    match serde_json::from_str::<Value>(line) {
-        Ok(mut value) => {
-            if value.get("taskId").is_none() {
-                value["taskId"] = Value::String(task_id.to_string());
-            }
-            emit_agent_event(app, value);
-        }
-        Err(error) => emit_agent_event(
-            app,
-            json!({
-                "type": "error",
-                "taskId": task_id,
-                "message": format!("解析 Agent runtime agent 输出失败：{error}"),
-                "raw": line,
-            }),
-        ),
-    }
-}
-
-fn emit_agent_event(app: &AppHandle, event: Value) {
-    let _ = app.emit(AGENT_RUNTIME_AGENT_EVENT, event);
 }

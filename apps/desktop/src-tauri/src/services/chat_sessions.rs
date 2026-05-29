@@ -63,7 +63,6 @@ pub struct ChatSession {
     pub context: Option<Value>,
 }
 
-#[tauri::command]
 pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSessionMeta>, String> {
     let dir = chat_dir(&input.workspace_path)?;
     if !dir.exists() {
@@ -94,7 +93,6 @@ pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSession
     Ok(sessions)
 }
 
-#[tauri::command]
 pub fn load_chat_session(input: LoadChatSessionInput) -> Result<Option<ChatSession>, String> {
     let sessions = list_chat_sessions(ChatSessionPathInput {
         workspace_path: input.workspace_path.clone(),
@@ -118,7 +116,6 @@ pub fn load_chat_session(input: LoadChatSessionInput) -> Result<Option<ChatSessi
     Ok(Some(session))
 }
 
-#[tauri::command]
 pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, String> {
     let dir = chat_dir(&input.workspace_path)?;
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
@@ -154,7 +151,6 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
     Ok(session)
 }
 
-#[tauri::command]
 pub fn delete_chat_session(input: DeleteChatSessionInput) -> Result<Vec<ChatSessionMeta>, String> {
     let path = session_path(&input.workspace_path, &input.session_id)?;
     if path.exists() {

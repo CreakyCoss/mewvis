@@ -14,7 +14,7 @@
     "sync-models": "node scripts/sync-models.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
-    "migrate:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin migrate_config_db --"
+    "init:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin init_config_db --"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

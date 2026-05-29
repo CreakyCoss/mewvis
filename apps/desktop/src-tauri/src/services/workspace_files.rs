@@ -44,7 +44,6 @@ pub struct WorkspaceFile {
     pub updated_at: Option<i64>,
 }
 
-#[tauri::command]
 pub fn list_workspace_files(input: WorkspacePathInput) -> Result<Vec<WorkspaceFileEntry>, String> {
     let root = workspace_root(&input.workspace_path)?;
     let mut entries = Vec::new();
@@ -58,7 +57,6 @@ pub fn list_workspace_files(input: WorkspacePathInput) -> Result<Vec<WorkspaceFi
     Ok(entries)
 }
 
-#[tauri::command]
 pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFile, String> {
     let root = workspace_root(&input.workspace_path)?;
     let path = resolve_workspace_path(&root, &input.relative_path)?;
@@ -83,7 +81,6 @@ pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFil
     })
 }
 
-#[tauri::command]
 pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceFile, String> {
     let root = workspace_root(&input.workspace_path)?;
     let path = resolve_workspace_path(&root, &input.relative_path)?;
