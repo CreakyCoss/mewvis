@@ -4,6 +4,8 @@ export const DEFAULT_SESSION_TITLE = "新的聊天";
 
 export const createMessageId = () => crypto.randomUUID();
 
+export const createChatSessionId = () => `chat-${crypto.randomUUID()}`;
+
 export const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
 
 export const formatSessionTime = (timestamp: number) => {

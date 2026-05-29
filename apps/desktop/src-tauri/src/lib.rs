@@ -15,9 +15,10 @@ use commands::{
         delete_ai_agent, get_ai_agent_settings, get_llm_settings, save_ai_agent, save_llm_settings,
     },
     workspace::{
-        create_workspace, delete_chat_session, get_workspace_overview, get_workspace_skills,
-        list_chat_sessions, list_workspace_files, load_chat_session, read_workspace_file,
-        save_chat_session, save_workspace_skills, update_workspace, write_workspace_file,
+        cleanup_orphan_agent_sessions, create_workspace, delete_chat_session,
+        get_agent_session_status, get_workspace_overview, get_workspace_skills, list_chat_sessions,
+        list_workspace_files, load_chat_session, read_workspace_file, save_chat_session,
+        save_workspace_skills, update_workspace, write_workspace_file,
     },
 };
 
@@ -53,6 +54,8 @@ pub fn run() {
             load_chat_session,
             save_chat_session,
             delete_chat_session,
+            get_agent_session_status,
+            cleanup_orphan_agent_sessions,
             list_workspace_files,
             read_workspace_file,
             write_workspace_file

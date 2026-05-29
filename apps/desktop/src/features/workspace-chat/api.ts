@@ -5,7 +5,16 @@ import {
   toAgentRuntimeModelConfig,
   toAgentRuntimeProviderConfig,
 } from "./utils/agent-runtime-config";
-import type { ChatContextSummary, ChatMessage, ChatSession, ChatSessionMeta, WorkspaceFile, WorkspaceFileEntry } from "./types";
+import type {
+  AgentSessionStatus,
+  ChatContextSummary,
+  ChatMessage,
+  ChatSession,
+  ChatSessionMeta,
+  CleanupAgentSessionsResult,
+  WorkspaceFile,
+  WorkspaceFileEntry,
+} from "./types";
 import type { ConversationMessage } from "./types";
 
 const agentRuntime = createAgentRuntime();
@@ -98,5 +107,23 @@ export async function saveChatSession(input: {
 export async function deleteChatSession(workspacePath: string, sessionId: string) {
   return invoke<ChatSessionMeta[]>("delete_chat_session", {
     input: { workspacePath, sessionId },
+  });
+}
+
+export async function getAgentSessionStatus(
+  workspacePath: string,
+  sessionId?: string | null,
+) {
+  return invoke<AgentSessionStatus>("get_agent_session_status", {
+    input: { workspacePath, sessionId },
+  });
+}
+
+export async function cleanupOrphanAgentSessions(
+  workspacePath: string,
+  protectedSessionId?: string | null,
+) {
+  return invoke<CleanupAgentSessionsResult>("cleanup_orphan_agent_sessions", {
+    input: { workspacePath, protectedSessionId },
   });
 }

@@ -1,6 +1,7 @@
 use crate::services::chat_sessions::{
-    self, ChatSession, ChatSessionMeta, ChatSessionPathInput, DeleteChatSessionInput,
-    LoadChatSessionInput, SaveChatSessionInput,
+    self, AgentSessionStatus, AgentSessionStatusInput, ChatSession, ChatSessionMeta,
+    ChatSessionPathInput, CleanupAgentSessionsInput, CleanupAgentSessionsResult,
+    DeleteChatSessionInput, LoadChatSessionInput, SaveChatSessionInput,
 };
 
 #[tauri::command]
@@ -21,4 +22,18 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
 #[tauri::command]
 pub fn delete_chat_session(input: DeleteChatSessionInput) -> Result<Vec<ChatSessionMeta>, String> {
     chat_sessions::delete_chat_session(input)
+}
+
+#[tauri::command]
+pub fn get_agent_session_status(
+    input: AgentSessionStatusInput,
+) -> Result<AgentSessionStatus, String> {
+    chat_sessions::get_agent_session_status(input)
+}
+
+#[tauri::command]
+pub fn cleanup_orphan_agent_sessions(
+    input: CleanupAgentSessionsInput,
+) -> Result<CleanupAgentSessionsResult, String> {
+    chat_sessions::cleanup_orphan_agent_sessions(input)
 }

@@ -1,4 +1,5 @@
 import {
+  Database,
   ChevronRight,
   FileText,
   Folder,
@@ -6,12 +7,13 @@ import {
   PanelRightClose,
   Plus,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AgentProfile } from "@/features/agent-settings/types";
 import type { ChatMode, CollaborationPhase, FileTreeNode } from "../../page-types";
-import type { WorkspaceFile } from "../../types";
+import type { AgentSessionStatus, WorkspaceFile } from "../../types";
 import { CollaborationStatusPanel } from "../collaboration-status-panel";
 import { MarkdownContent } from "../markdown-content";
 
@@ -27,13 +29,39 @@ type ContextPanelProps = {
   collaborationPhase: CollaborationPhase;
   selectedAgent: AgentProfile | null;
   reviewerAgent: AgentProfile | null;
+  currentSessionId: string | null;
+  agentSessionStatus: AgentSessionStatus | null;
+  agentSessionError: string;
+  isAgentSessionLoading: boolean;
+  latestAgentExecutionSummary: string;
   onRefreshFiles: () => void;
+  onRefreshAgentSession: () => void;
+  onCleanupAgentSessions: () => void;
   onPrepareNewFile: () => void;
   onClose: () => void;
   onOpenFile: (path: string) => void;
   onToggleDirectory: (path: string) => void;
   onEditFile: () => void;
 };
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) {
+    return `${bytes.toLocaleString()} B`;
+  }
+
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+};
+
+const formatCompactNumber = (value: number) =>
+  value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export const ContextPanel = ({
   selectableFileCount,
@@ -47,7 +75,14 @@ export const ContextPanel = ({
   collaborationPhase,
   selectedAgent,
   reviewerAgent,
+  currentSessionId,
+  agentSessionStatus,
+  agentSessionError,
+  isAgentSessionLoading,
+  latestAgentExecutionSummary,
   onRefreshFiles,
+  onRefreshAgentSession,
+  onCleanupAgentSessions,
   onPrepareNewFile,
   onClose,
   onOpenFile,
@@ -149,6 +184,135 @@ export const ContextPanel = ({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-4 p-3">
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1 text-xs font-medium text-muted-foreground">
+              <span>Agent 记忆</span>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  title="刷新 Agent 记忆状态"
+                  disabled={isAgentSessionLoading}
+                  onClick={onRefreshAgentSession}
+                >
+                  <RefreshCw
+                    className={[
+                      "size-3.5",
+                      isAgentSessionLoading ? "animate-spin" : "",
+                    ].join(" ")}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  title="清理孤儿 Agent 上下文"
+                  disabled={isAgentSessionLoading}
+                  onClick={onCleanupAgentSessions}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-md border border-sidebar-border bg-card text-card-foreground">
+              <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-xs">
+                <Database className="size-3.5 shrink-0 text-sidebar-primary" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">
+                    {currentSessionId
+                      ? agentSessionStatus?.exists
+                        ? "已建立长期上下文"
+                        : "暂无长期上下文"
+                      : "工作区 Agent 上下文"}
+                  </div>
+                  <div className="mt-0.5 truncate text-muted-foreground">
+                    {currentSessionId ?? "当前未绑定聊天，显示工作区总量"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 px-3 py-2 text-xs text-muted-foreground">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <span>Session 文件</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatCompactNumber(agentSessionStatus?.sessionFileCount ?? 0)}
+                  </span>
+                  <span>活跃消息</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatCompactNumber(agentSessionStatus?.activeMessageCount ?? 0)}
+                    <span className="text-muted-foreground">
+                      {" / "}
+                      {formatCompactNumber(agentSessionStatus?.messageCount ?? 0)}
+                    </span>
+                  </span>
+                  <span>活跃工具</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatCompactNumber(agentSessionStatus?.activeToolCallCount ?? 0)}
+                    <span className="text-muted-foreground">
+                      {" / "}
+                      {formatCompactNumber(agentSessionStatus?.toolCallCount ?? 0)}
+                    </span>
+                  </span>
+                  <span>压缩次数</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatCompactNumber(agentSessionStatus?.compactionCount ?? 0)}
+                  </span>
+                  <span>活跃上下文粗估</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatCompactNumber(agentSessionStatus?.estimatedContextTokens ?? 0)} tokens
+                  </span>
+                  <span>占用空间</span>
+                  <span className="truncate text-right text-card-foreground">
+                    {formatBytes(agentSessionStatus?.totalBytes ?? 0)}
+                  </span>
+                </div>
+
+                {agentSessionStatus?.sessionDir && (
+                  <div className="truncate border-t border-border/70 pt-2">
+                    {agentSessionStatus.sessionDir}
+                  </div>
+                )}
+
+                {agentSessionStatus?.latestCompaction && (
+                  <div className="space-y-1 border-t border-border/70 pt-2">
+                    <div className="font-medium text-card-foreground">最近压缩</div>
+                    <div>
+                      {agentSessionStatus.latestCompaction.tokensBefore
+                        ? `${formatCompactNumber(agentSessionStatus.latestCompaction.tokensBefore)} tokens`
+                        : "已压缩"}
+                      {agentSessionStatus.latestCompaction.timestamp
+                        ? ` · ${agentSessionStatus.latestCompaction.timestamp}`
+                        : ""}
+                    </div>
+                    {agentSessionStatus.latestCompaction.summary && (
+                      <div className="line-clamp-3 whitespace-pre-wrap">
+                        {agentSessionStatus.latestCompaction.summary}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {latestAgentExecutionSummary && (
+                  <div className="space-y-1 border-t border-border/70 pt-2">
+                    <div className="font-medium text-card-foreground">最近执行摘要</div>
+                    <pre className="max-h-28 overflow-auto whitespace-pre-wrap break-words font-sans text-xs leading-5">
+                      {latestAgentExecutionSummary}
+                    </pre>
+                  </div>
+                )}
+
+                {agentSessionError && (
+                  <div className="border-t border-border/70 pt-2 text-sidebar-primary">
+                    {agentSessionError}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           <section className="space-y-2">
             <div className="flex items-center justify-between px-1 text-xs font-medium text-muted-foreground">
               <span>文件</span>

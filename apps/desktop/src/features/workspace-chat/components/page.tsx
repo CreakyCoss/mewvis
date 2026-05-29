@@ -14,7 +14,7 @@ import type { AiAgent } from "@/features/agent-settings/types";
 import { resolveAgentProfiles } from "@/features/agent-settings/utils";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
-import type { LlmProvider } from "@/features/llm-settings/types";
+import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
 import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
@@ -23,7 +23,9 @@ import { getWorkspaceOverview } from "@/features/workspaces/api";
 import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
 import { buildSections } from "@/features/workspaces/utils/sections";
 import {
+  cleanupOrphanAgentSessions,
   deleteChatSession,
+  getAgentSessionStatus,
   listChatSessions,
   listWorkspaceFiles,
   loadChatSession,
@@ -33,8 +35,14 @@ import {
   writeWorkspaceFile,
 } from "../api";
 import {
+  buildUnsyncedAgentConversationContext,
+  createAgentSessionFingerprint,
+  EMPTY_RUNTIME_CONVERSATION_CONTEXT,
   buildRuntimeConversationContext,
   buildRuntimeConversationMessages,
+  markAgentConversationSynced,
+  normalizeChatContextSummary,
+  normalizeConversationMessages,
   updateConversationContext,
   type ConversationSummarizer,
 } from "../context";
@@ -48,6 +56,7 @@ import type {
   WorkspaceView,
 } from "../page-types";
 import type {
+  AgentSessionStatus,
   ChatContextSummary,
   ChatMessage,
   ChatSessionMeta,
@@ -71,12 +80,23 @@ import {
 } from "../utils/agent-runtime-config";
 import { buildFileTree, getParentDirectoryPaths } from "../utils/file-tree";
 import {
+  buildAgentBootstrapPrompt,
   buildAgentPrompt,
   buildCollaborationSystemPrompt,
   buildSystemPrompt,
+  createPromptContextLimits,
   createConversationSummarizer,
 } from "../utils/prompts";
 import {
+  buildAgentConversationContent,
+  buildAgentExecutionSummary,
+  createAgentMemoryTrace,
+  extractAgentExecutionSummary,
+  recordAgentMemoryEvent,
+  type AgentMemoryTrace,
+} from "../utils/agent-memory";
+import {
+  createChatSessionId,
   createMessageId,
   DEFAULT_SESSION_TITLE,
   deriveSessionTitle,
@@ -105,9 +125,11 @@ export const WorkspaceChatPage = ({
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
+  const activeAgentSessionIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
   const lastAgentStderrRef = useRef("");
   const handledAgentDoneTaskIdsRef = useRef<Set<string>>(new Set());
+  const activeAgentTraceRef = useRef<AgentMemoryTrace>(createAgentMemoryTrace());
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const isHydratingSessionRef = useRef(false);
@@ -174,6 +196,9 @@ export const WorkspaceChatPage = ({
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [, setIsSessionSaving] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
+  const [agentSessionStatus, setAgentSessionStatus] = useState<AgentSessionStatus | null>(null);
+  const [agentSessionError, setAgentSessionError] = useState("");
+  const [isAgentSessionLoading, setIsAgentSessionLoading] = useState(false);
 
   const updateMessage = useCallback((
     messageId: string,
@@ -250,9 +275,14 @@ export const WorkspaceChatPage = ({
       saveSessionTimerRef.current = null;
     }
     isHydratingSessionRef.current = true;
+    const normalizedConversation = normalizeConversationMessages(session?.conversation ?? []);
+    const normalizedContext = normalizeChatContextSummary(
+      session?.context ?? null,
+      normalizedConversation,
+    );
     setMessages(session?.messages ?? []);
-    setConversation(session?.conversation ?? []);
-    setConversationContext(session?.context ?? null);
+    setConversation(normalizedConversation);
+    setConversationContext(normalizedContext);
     setCurrentSessionId(session?.id ?? null);
     setCurrentSessionTitle(session?.title || DEFAULT_SESSION_TITLE);
     setExpandedThinkingIds(new Set());
@@ -287,6 +317,39 @@ export const WorkspaceChatPage = ({
       setIsSessionsLoading(false);
     }
   }, [hydrateSession, workspace.path]);
+
+  const refreshAgentSessionStatus = useCallback(async () => {
+    setIsAgentSessionLoading(true);
+    setAgentSessionError("");
+
+    try {
+      const status = await getAgentSessionStatus(workspace.path, currentSessionId);
+      setAgentSessionStatus(status);
+    } catch (caught) {
+      setAgentSessionError(String(caught));
+    } finally {
+      setIsAgentSessionLoading(false);
+    }
+  }, [currentSessionId, workspace.path]);
+
+  const cleanupAgentSessions = useCallback(async () => {
+    setIsAgentSessionLoading(true);
+    setAgentSessionError("");
+
+    try {
+      const result = await cleanupOrphanAgentSessions(workspace.path, currentSessionId);
+      await refreshAgentSessionStatus();
+      setAgentSessionError(
+        result.removedCount > 0
+          ? `已清理 ${result.removedCount} 个孤儿上下文`
+          : "没有需要清理的孤儿上下文",
+      );
+    } catch (caught) {
+      setAgentSessionError(String(caught));
+    } finally {
+      setIsAgentSessionLoading(false);
+    }
+  }, [currentSessionId, refreshAgentSessionStatus, workspace.path]);
 
   const loadSessionById = async (sessionId: string) => {
     if (activeAgentTaskIdRef.current) {
@@ -580,6 +643,10 @@ export const WorkspaceChatPage = ({
   }, [loadSessions]);
 
   useEffect(() => {
+    void refreshAgentSessionStatus();
+  }, [refreshAgentSessionStatus]);
+
+  useEffect(() => {
     void loadLlmOptions();
   }, [loadLlmOptions]);
 
@@ -677,6 +744,69 @@ export const WorkspaceChatPage = ({
     });
   }, [messages, scheduleAgentBlockCollapse]);
 
+  const appendAgentConversationResult = useCallback((
+    assistantText: string,
+    status: "done" | "error",
+    statusMessage?: string,
+  ) => {
+    const agentSessionId = activeAgentSessionIdRef.current || currentSessionId;
+    const executionSummary = buildAgentExecutionSummary(
+      activeAgentTraceRef.current,
+      status,
+      statusMessage,
+    );
+    const conversationContent = buildAgentConversationContent(assistantText);
+
+    setConversation((current) => {
+      const nextConversation: ConversationMessage[] = [
+        ...current,
+        {
+          id: activeAgentMessageIdRef.current || createMessageId(),
+          role: "assistant",
+          content: conversationContent,
+          timestamp: Date.now(),
+          metadata: {
+            agentExecutionSummary: executionSummary,
+            agentRunStatus: status,
+            agentSessionId,
+          },
+        },
+      ];
+
+      void updateConversationContext(
+        nextConversation,
+        conversationContextRef.current,
+        conversationSummarizerRef.current ?? undefined,
+      ).then(async (nextContext) => {
+        let latestAgentSessionStatus = agentSessionStatus;
+        if (agentSessionId) {
+          try {
+            latestAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
+            setAgentSessionStatus(latestAgentSessionStatus);
+            setAgentSessionError("");
+          } catch (caught) {
+            setAgentSessionError(String(caught));
+          }
+        }
+
+        const syncedContext = agentSessionId
+          ? markAgentConversationSynced(nextContext, nextConversation, {
+            sessionId: agentSessionId,
+            updatedAt: Date.now(),
+            lastRunStatus: status,
+            sessionFingerprint: createAgentSessionFingerprint(latestAgentSessionStatus),
+          })
+          : nextContext;
+        conversationContextRef.current = syncedContext;
+        setConversationContext(syncedContext);
+      });
+
+      return nextConversation;
+    });
+
+    return executionSummary;
+  }, [agentSessionStatus, currentSessionId, workspace.path]);
+
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let disposed = false;
@@ -691,6 +821,8 @@ export const WorkspaceChatPage = ({
       if (!messageId) {
         return;
       }
+
+      recordAgentMemoryEvent(activeAgentTraceRef.current, event);
 
       if (event.type === "text_delta") {
         updateMessage(messageId, (message) => {
@@ -805,6 +937,7 @@ export const WorkspaceChatPage = ({
         handledAgentDoneTaskIdsRef.current.add(event.taskId);
 
         const assistantText = event.text.trim();
+        const conversationText = assistantText || "Agent 任务已完成。";
         updateMessage(messageId, (message) => {
           const text = assistantText || message.text || "Agent 任务已完成。";
           const hasTextBlock = message.agentBlocks?.some((block) => block.type === "text");
@@ -819,32 +952,17 @@ export const WorkspaceChatPage = ({
             status: "done",
           };
         });
-        setConversation((current) => {
-          const nextConversation: ConversationMessage[] = [
-            ...current,
-            {
-              role: "assistant",
-              content: assistantText || "Agent 任务已完成。",
-              timestamp: Date.now(),
-            },
-          ];
-          void updateConversationContext(
-            nextConversation,
-            conversationContextRef.current,
-            conversationSummarizerRef.current ?? undefined,
-          ).then((nextContext) => {
-            conversationContextRef.current = nextContext;
-            setConversationContext(nextContext);
-          });
-          return nextConversation;
-        });
+        appendAgentConversationResult(conversationText, "done");
         setActiveAgentTaskId("");
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
+        activeAgentSessionIdRef.current = "";
+        activeAgentTraceRef.current = createAgentMemoryTrace();
         lastAgentErrorRef.current = "";
         lastAgentStderrRef.current = "";
         void loadFiles();
+        void refreshAgentSessionStatus();
       }
 
       if (event.type === "stderr") {
@@ -852,6 +970,13 @@ export const WorkspaceChatPage = ({
       }
 
       if (event.type === "error") {
+        const terminalTaskId = event.taskId ?? currentTaskId;
+        if (terminalTaskId && handledAgentDoneTaskIdsRef.current.has(terminalTaskId)) {
+          return;
+        }
+        if (terminalTaskId) {
+          handledAgentDoneTaskIdsRef.current.add(terminalTaskId);
+        }
         lastAgentErrorRef.current = event.message;
         setChatError(event.message);
         updateMessage(messageId, (message) => ({
@@ -859,13 +984,21 @@ export const WorkspaceChatPage = ({
           text: event.message,
           status: "error",
         }));
+        appendAgentConversationResult(event.message, "error", event.message);
         setActiveAgentTaskId("");
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
+        activeAgentSessionIdRef.current = "";
+        activeAgentTraceRef.current = createAgentMemoryTrace();
+        void refreshAgentSessionStatus();
       }
 
       if (event.type === "exit" && !event.success) {
+        if (handledAgentDoneTaskIdsRef.current.has(event.taskId)) {
+          return;
+        }
+        handledAgentDoneTaskIdsRef.current.add(event.taskId);
         const message =
           lastAgentErrorRef.current ||
           lastAgentStderrRef.current ||
@@ -876,12 +1009,16 @@ export const WorkspaceChatPage = ({
           text: message,
           status: "error",
         }));
+        appendAgentConversationResult(message, "error", message);
         setActiveAgentTaskId("");
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
+        activeAgentSessionIdRef.current = "";
+        activeAgentTraceRef.current = createAgentMemoryTrace();
         lastAgentErrorRef.current = "";
         lastAgentStderrRef.current = "";
+        void refreshAgentSessionStatus();
       }
     }).then((unsubscribe) => {
       if (disposed) {
@@ -895,7 +1032,7 @@ export const WorkspaceChatPage = ({
       disposed = true;
       cleanup?.();
     };
-  }, [agentRuntime, loadFiles, updateMessage]);
+  }, [agentRuntime, appendAgentConversationResult, loadFiles, refreshAgentSessionStatus, updateMessage]);
 
   const selectableFiles = useMemo(
     () => files.filter((file) => !file.isDirectory),
@@ -961,6 +1098,20 @@ export const WorkspaceChatPage = ({
     const names = new Set(enabledSkillNames);
     return skills.filter((skill) => names.has(skill.name));
   }, [enabledSkillNames, skills]);
+  const latestAgentExecutionSummary = useMemo(() => {
+    for (let index = conversation.length - 1; index >= 0; index -= 1) {
+      const message = conversation[index];
+      if (message.role !== "assistant") {
+        continue;
+      }
+      const summary = extractAgentExecutionSummary(message);
+      if (summary) {
+        return summary;
+      }
+    }
+
+    return "";
+  }, [conversation]);
 
   useEffect(() => {
     if (selectedRuntimeAgent && selectedRuntimeAgent.id !== selectedRuntimeAgentId) {
@@ -1172,15 +1323,17 @@ export const WorkspaceChatPage = ({
     }
 
     const now = Date.now();
+    const userMessageId = createMessageId();
     const assistantMessageId = createMessageId();
     const userMessage: ConversationMessage = {
+      id: userMessageId,
       role: "user",
       content: text,
       timestamp: now,
     };
     const nextConversation = [...conversation, userMessage];
     const userUiMessage: ChatMessage = {
-      id: createMessageId(),
+      id: userMessageId,
       role: "user",
       text,
       createdAt: now,
@@ -1200,7 +1353,13 @@ export const WorkspaceChatPage = ({
       agentEvents: chatMode === "agent" ? [] : undefined,
       agentBlocks: chatMode === "agent" ? [] : undefined,
     };
+    const nextSessionId = chatMode === "agent" && !currentSessionId
+      ? createChatSessionId()
+      : currentSessionId;
 
+    if (nextSessionId && nextSessionId !== currentSessionId) {
+      setCurrentSessionId(nextSessionId);
+    }
     setMessages((current) => [...current, userUiMessage, assistantUiMessage]);
     setConversation(nextConversation);
     setIsSending(true);
@@ -1226,6 +1385,13 @@ export const WorkspaceChatPage = ({
         nextConversation,
         nextConversationContext,
       );
+      const conversationSummary = nextConversationContext?.summary;
+      const limitsFor = (
+        provider?: LlmProvider | null,
+        model?: ProviderModel | null,
+      ) => createPromptContextLimits(
+        provider && model ? toAgentRuntimeModelConfig(provider, model) : null,
+      );
       setConversationContext(nextConversationContext);
       conversationContextRef.current = nextConversationContext;
 
@@ -1243,6 +1409,12 @@ export const WorkspaceChatPage = ({
             enabledSkills,
             selectedAgent,
             "draft",
+            {
+              limits: limitsFor(selectedAgent.provider, selectedAgent.model),
+              conversationSummary,
+              agentExecutionSummary: latestAgentExecutionSummary,
+              contextQuery: text,
+            },
           ),
           messages: runtimeMessages,
         });
@@ -1274,10 +1446,17 @@ export const WorkspaceChatPage = ({
             enabledSkills,
             reviewerAgent,
             "review",
+            {
+              limits: limitsFor(reviewerAgent.provider, reviewerAgent.model),
+              conversationSummary,
+              agentExecutionSummary: latestAgentExecutionSummary,
+              contextQuery: text,
+            },
           ),
           messages: buildRuntimeConversationMessages([
             ...nextConversation,
             {
+              id: createMessageId(),
               role: "assistant",
               content: draftText,
               timestamp: Date.now(),
@@ -1315,15 +1494,23 @@ export const WorkspaceChatPage = ({
             enabledSkills,
             selectedAgent,
             "revise",
+            {
+              limits: limitsFor(selectedAgent.provider, selectedAgent.model),
+              conversationSummary,
+              agentExecutionSummary: latestAgentExecutionSummary,
+              contextQuery: text,
+            },
           ),
           messages: buildRuntimeConversationMessages([
             ...nextConversation,
             {
+              id: createMessageId(),
               role: "assistant",
               content: draftText,
               timestamp: Date.now(),
             },
             {
+              id: createMessageId(),
               role: "user",
               content: `这是审查 Agent 的意见，请据此修订并输出最终版本：\n\n${reviewText}`,
               timestamp: Date.now(),
@@ -1359,6 +1546,7 @@ export const WorkspaceChatPage = ({
         const finalConversation: ConversationMessage[] = [
           ...nextConversation,
           {
+            id: assistantMessageId,
             role: "assistant",
             content: collaborationText,
             timestamp: Date.now(),
@@ -1383,17 +1571,53 @@ export const WorkspaceChatPage = ({
 
       if (chatMode === "agent") {
         activeAgentMessageIdRef.current = assistantMessageId;
+        activeAgentSessionIdRef.current = nextSessionId ?? "";
+        activeAgentTraceRef.current = createAgentMemoryTrace();
         lastAgentErrorRef.current = "";
         lastAgentStderrRef.current = "";
+        let currentAgentSessionStatus = agentSessionStatus;
+        if (nextSessionId) {
+          try {
+            currentAgentSessionStatus = await getAgentSessionStatus(workspace.path, nextSessionId);
+            setAgentSessionStatus(currentAgentSessionStatus);
+          } catch (caught) {
+            setAgentSessionError(String(caught));
+          }
+        }
+        const shouldBootstrapAgentContext =
+          !currentSessionId ||
+          currentAgentSessionStatus?.exists === false ||
+          currentAgentSessionStatus?.sessionFileCount === 0;
+        const agentBootstrapHistory = buildRuntimeConversationContext(conversation, nextConversationContext);
+        const agentPromptHistory = shouldBootstrapAgentContext
+          ? EMPTY_RUNTIME_CONVERSATION_CONTEXT
+          : buildUnsyncedAgentConversationContext(
+            conversation,
+            nextConversationContext,
+            nextSessionId,
+          );
+        const agentLimits = limitsFor(effectiveProvider, effectiveModel);
         const task = await agentRuntime.run({
           type: "agent",
           agentId: runtimeAgentId,
           workspacePath: workspace.path,
+          chatSessionId: nextSessionId,
+          bootstrapContext: buildAgentBootstrapPrompt(
+            agentBootstrapHistory,
+            modelSource === "agent" ? selectedAgent : null,
+            agentLimits,
+          ),
           prompt: buildAgentPrompt(
             text,
             referencedFiles,
-            buildRuntimeConversationContext(conversation, nextConversationContext),
+            agentPromptHistory,
             modelSource === "agent" ? selectedAgent : null,
+            agentLimits,
+            {
+              includeConversationSummary: agentPromptHistory.syncStatus === "stale",
+              includeRecentConversation: true,
+              contextQuery: text,
+            },
           ),
           provider: effectiveProvider ? toAgentRuntimeProviderConfig(effectiveProvider) : undefined,
           model: effectiveProvider && effectiveModel
@@ -1422,6 +1646,12 @@ export const WorkspaceChatPage = ({
           referencedFiles,
           enabledSkills,
           modelSource === "agent" ? selectedAgent : null,
+          {
+            limits: limitsFor(effectiveProvider, effectiveModel),
+            conversationSummary,
+            agentExecutionSummary: latestAgentExecutionSummary,
+            contextQuery: text,
+          },
         ),
         messages: runtimeMessages,
         onTextDelta: (delta) => {
@@ -1450,6 +1680,7 @@ export const WorkspaceChatPage = ({
       const finalConversation: ConversationMessage[] = [
         ...nextConversation,
         {
+          id: assistantMessageId,
           role: "assistant",
           content: assistantText,
           timestamp: Date.now(),
@@ -1474,6 +1705,11 @@ export const WorkspaceChatPage = ({
         text: message,
         status: "error",
       }));
+      if (chatMode === "agent") {
+        appendAgentConversationResult(message, "error", message);
+        activeAgentSessionIdRef.current = "";
+        activeAgentTraceRef.current = createAgentMemoryTrace();
+      }
     } finally {
       setIsSending(false);
       setCollaborationPhase("idle");
@@ -1678,7 +1914,14 @@ export const WorkspaceChatPage = ({
               collaborationPhase={collaborationPhase}
               selectedAgent={selectedAgent}
               reviewerAgent={reviewerAgent}
+              currentSessionId={currentSessionId}
+              agentSessionStatus={agentSessionStatus}
+              agentSessionError={agentSessionError}
+              isAgentSessionLoading={isAgentSessionLoading}
+              latestAgentExecutionSummary={latestAgentExecutionSummary}
               onRefreshFiles={() => void loadFiles()}
+              onRefreshAgentSession={() => void refreshAgentSessionStatus()}
+              onCleanupAgentSessions={() => void cleanupAgentSessions()}
               onPrepareNewFile={prepareNewFile}
               onClose={() => setIsContextPanelOpen(false)}
               onOpenFile={(path) => void openFile(path)}

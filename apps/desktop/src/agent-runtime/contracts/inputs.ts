@@ -7,7 +7,9 @@ import type { AgentToolName } from "./tools";
 export type AgentRuntimeAgentTaskInput = {
   agentId?: string | null;
   workspacePath: string;
+  chatSessionId?: string | null;
   prompt: string;
+  bootstrapContext?: string | null;
   provider?: AgentRuntimeProviderConfig | null;
   model?: AgentRuntimeModelConfig | null;
   allowedTools?: AgentToolName[];

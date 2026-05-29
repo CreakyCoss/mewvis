@@ -51,15 +51,46 @@ export type ChatMessage = {
 };
 
 export type ConversationMessage = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  metadata?: {
+    agentExecutionSummary?: string;
+    agentRunStatus?: "done" | "error";
+    agentSessionId?: string | null;
+  } | null;
+};
+
+export type AgentConversationSyncMessage = {
+  id: string;
+  role: "user" | "assistant";
+  contentHash: string;
+  timestamp: number;
+};
+
+export type AgentConversationSync = {
+  sessionId: string;
+  syncedMessages: AgentConversationSyncMessage[];
+  updatedAt: number;
+  lastRunStatus: "done" | "error";
+  lastSyncedMessageId?: string | null;
+  sessionFingerprint?: {
+    latestSessionFile?: string | null;
+    sessionFileCount: number;
+    totalBytes: number;
+    messageCount: number;
+    compactionCount: number;
+  } | null;
+  // Backward compatibility for sessions saved before message-id based sync.
+  syncedUntilIndex?: number;
 };
 
 export type ChatContextSummary = {
   summary: string;
   summarizedUntilIndex: number;
   updatedAt: number;
+  agentSync?: AgentConversationSync | null;
 };
 
 export type ChatSessionMeta = {
@@ -79,4 +110,28 @@ export type ChatSession = {
   messages: ChatMessage[];
   conversation: ConversationMessage[];
   context?: ChatContextSummary | null;
+};
+
+export type AgentSessionStatus = {
+  exists: boolean;
+  sessionDir: string;
+  latestSessionFile?: string | null;
+  sessionFileCount: number;
+  totalBytes: number;
+  messageCount: number;
+  toolCallCount: number;
+  activeMessageCount: number;
+  activeToolCallCount: number;
+  estimatedContextTokens: number;
+  compactionCount: number;
+  latestCompaction?: {
+    summary: string;
+    tokensBefore?: number | null;
+    timestamp?: string | null;
+  } | null;
+};
+
+export type CleanupAgentSessionsResult = {
+  removedCount: number;
+  removedBytes: number;
 };

@@ -4,7 +4,8 @@ mod overview;
 mod skills;
 
 pub use chat_sessions::{
-    delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session,
+    cleanup_orphan_agent_sessions, delete_chat_session, get_agent_session_status,
+    list_chat_sessions, load_chat_session, save_chat_session,
 };
 pub use files::{list_workspace_files, read_workspace_file, write_workspace_file};
 pub use overview::{create_workspace, get_workspace_overview, update_workspace};

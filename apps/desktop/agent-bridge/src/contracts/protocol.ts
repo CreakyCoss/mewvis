@@ -67,7 +67,9 @@ export type StartTaskCommand = {
   agentId?: string | null;
   taskId: string;
   workspacePath: string;
+  chatSessionId?: string | null;
   prompt: string;
+  bootstrapContext?: string | null;
   provider?: ProviderInput | null;
   model?: ModelInput | null;
   allowedTools?: AgentToolName[];
