@@ -1,0 +1,666 @@
+import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
+import {
+  Bot,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  Link,
+  Loader2,
+  MessageSquare,
+  Send,
+  User,
+  Wrench,
+} from "lucide-react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/agent-runtime/contracts";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import type { AgentProfile } from "@/features/agent-settings/types";
+import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import type { Workspace } from "@/features/workspaces/types";
+import type { ChatMode, ComposerSubmitInput, ModelSource, PendingAgentQuestion } from "../../page-types";
+import type { ChatMessage, WorkspaceFileEntry } from "../../types";
+import {
+  describeAgentGroupEvent,
+  groupAgentEvents,
+  isTimelineEvent,
+} from "../../utils/agent-blocks";
+import { Composer } from "../composer";
+import { MarkdownContent } from "../markdown-content";
+
+type ChatPanelProps = {
+  chatScrollAreaRef: RefObject<HTMLDivElement | null>;
+  workspace: Workspace;
+  messages: ChatMessage[];
+  expandedThinkingIds: Set<string>;
+  expandedAgentEventIds: Set<string>;
+  modelSource: ModelSource;
+  selectedAgent: AgentProfile | null;
+  chatError: string;
+  settingsError: string;
+  skillsError: string;
+  sessionsError: string;
+  pendingAgentQuestion: PendingAgentQuestion | null;
+  agentQuestionAnswer: string;
+  customAgentQuestionAnswer: string;
+  isAnsweringAgentQuestion: boolean;
+  files: WorkspaceFileEntry[];
+  composerResetKey: number;
+  isSending: boolean;
+  activeAgentTaskId: string;
+  isSettingsLoading: boolean;
+  chatMode: ChatMode;
+  availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
+  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
+  runtimeAgentId: string;
+  agentProfiles: AgentProfile[];
+  providers: LlmProvider[];
+  selectedProviderId: string;
+  selectedModel: ProviderModel | null;
+  reviewerAgent: AgentProfile | null;
+  allowedAgentTools: AgentToolName[];
+  toggleThinking: (messageId: string) => void;
+  toggleAgentEvents: (messageId: string) => void;
+  toggleAgentThinkingBlock: (messageId: string, blockId: string) => void;
+  toggleAgentBlock: (messageId: string, blockId: string) => void;
+  answerAgentQuestion: (event: FormEvent<HTMLFormElement>) => void;
+  setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
+  setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
+  submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
+  setChatMode: Dispatch<SetStateAction<ChatMode>>;
+  setModelSource: Dispatch<SetStateAction<ModelSource>>;
+  setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
+  setSelectedAgentId: Dispatch<SetStateAction<string>>;
+  setSelectedReviewerAgentId: Dispatch<SetStateAction<string>>;
+  setSelectedProviderId: Dispatch<SetStateAction<string>>;
+  setSelectedModelId: Dispatch<SetStateAction<string>>;
+  toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
+  sendMessage: (input: ComposerSubmitInput) => Promise<void>;
+};
+
+export const ChatPanel = ({
+  chatScrollAreaRef,
+  workspace,
+  messages,
+  expandedThinkingIds,
+  expandedAgentEventIds,
+  modelSource,
+  selectedAgent,
+  chatError,
+  settingsError,
+  skillsError,
+  sessionsError,
+  pendingAgentQuestion,
+  agentQuestionAnswer,
+  customAgentQuestionAnswer,
+  isAnsweringAgentQuestion,
+  files,
+  composerResetKey,
+  isSending,
+  activeAgentTaskId,
+  isSettingsLoading,
+  chatMode,
+  availableRuntimeAgents,
+  selectedRuntimeAgent,
+  runtimeAgentId,
+  agentProfiles,
+  providers,
+  selectedProviderId,
+  selectedModel,
+  reviewerAgent,
+  allowedAgentTools,
+  toggleThinking,
+  toggleAgentEvents,
+  toggleAgentThinkingBlock,
+  toggleAgentBlock,
+  answerAgentQuestion,
+  setAgentQuestionAnswer,
+  setCustomAgentQuestionAnswer,
+  submitAgentQuestionAnswer,
+  setChatMode,
+  setModelSource,
+  setSelectedRuntimeAgentId,
+  setSelectedAgentId,
+  setSelectedReviewerAgentId,
+  setSelectedProviderId,
+  setSelectedModelId,
+  toggleAllowedAgentTool,
+  sendMessage,
+}: ChatPanelProps) => (
+
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
+          {messages.length === 0 ? (
+            <div className="flex min-h-[44vh] flex-col items-center justify-center gap-4 px-6 text-center">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-semibold">
+                  我们应该在 {workspace.name} 中构建什么？
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  选择左侧会话继续，或者直接开始一个新的工作区任务。
+                </p>
+              </div>
+            </div>
+          ) : (
+            messages.map((message) => {
+              const thinking = message.thinking?.trim();
+              const isThinkingCollapsed =
+                Boolean(thinking) &&
+                message.status === "done" &&
+                !expandedThinkingIds.has(message.id);
+              const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
+              const agentEventGroups = groupAgentEvents(agentEvents);
+              const isAgentEventsCollapsed =
+                message.status === "done" && !expandedAgentEventIds.has(message.id);
+              const visibleAgentEventGroups =
+                message.status === "done" || expandedAgentEventIds.has(message.id)
+                  ? agentEventGroups
+                  : agentEventGroups.slice(-5);
+              const hiddenAgentEventGroupCount =
+                agentEventGroups.length - visibleAgentEventGroups.length;
+              const agentErrorCount = agentEventGroups.filter((group) => group.status === "error").length;
+              const isAssistantLoading =
+                message.role === "assistant" &&
+                (message.status === "loading" || message.status === "streaming") &&
+                !message.text.trim();
+              const messageAgentAvatar = resolveAgentAvatar(
+                message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
+              );
+              const agentBlocks = message.agentBlocks ?? [];
+              const hasAgentBlocks =
+                message.role === "assistant" &&
+                message.mode === "agent" &&
+                agentBlocks.length > 0;
+
+              return (
+                <div
+                  key={message.id}
+                  className="flex gap-3 data-[role=user]:justify-end"
+                  data-role={message.role}
+                >
+                  {message.role === "assistant" && (
+                    <div
+                      className="mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-accent text-primary shadow-xs"
+                      title={message.agentName}
+                    >
+                      {message.mode === "agent" || message.agentAvatar ? (
+                        <img
+                          src={messageAgentAvatar.src}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <Bot className="size-4" />
+                      )}
+                    </div>
+                  )}
+                  <div
+                    className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                    data-role={message.role}
+                  >
+                    {message.role === "assistant" && !hasAgentBlocks && thinking && (
+                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleThinking(message.id)}
+                        >
+                          {isThinkingCollapsed ? (
+                            <ChevronRight className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
+                          <Brain className="size-3.5" />
+                          <span>Thinking</span>
+                          {message.status !== "done" && (
+                            <Loader2 className="ml-auto size-3 animate-spin" />
+                          )}
+                        </button>
+                        {!isThinkingCollapsed && (
+                          <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                            {thinking}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
+                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleAgentEvents(message.id)}
+                        >
+                          {isAgentEventsCollapsed ? (
+                            <ChevronRight className="size-3.5" />
+                          ) : (
+                            <ChevronDown className="size-3.5" />
+                          )}
+                          <Wrench className="size-3.5" />
+                          <span>Agent 执行</span>
+                          <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">
+                            {agentEventGroups.length} 段
+                          </span>
+                          {agentErrorCount > 0 && (
+                            <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
+                              {agentErrorCount} 个错误
+                            </span>
+                          )}
+                          {(message.status === "loading" || message.status === "streaming") && (
+                            <Loader2 className="ml-auto size-3 animate-spin" />
+                          )}
+                        </button>
+                        {!isAgentEventsCollapsed && (
+                          <div className="max-h-72 space-y-1.5 overflow-auto border-t border-border/60 px-2.5 py-2">
+                            {hiddenAgentEventGroupCount > 0 && (
+                              <div className="rounded-sm border border-dashed border-border/70 bg-background/60 px-2 py-1 text-xs text-muted-foreground">
+                                已折叠较早的 {hiddenAgentEventGroupCount} 段执行过程，当前显示最近阶段。
+                              </div>
+                            )}
+                            {visibleAgentEventGroups.map((group) => {
+                              const latestEvent = group.events[group.events.length - 1];
+                              const statusLabel =
+                                group.status === "running"
+                                  ? "执行中"
+                                  : group.status === "done"
+                                    ? "完成"
+                                    : group.status === "error"
+                                      ? "异常"
+                                      : "信息";
+
+                              return (
+                                <details
+                                  key={`${message.id}-${group.id}`}
+                                  className="group rounded-sm border border-border/60 bg-background"
+                                  open={group.status === "running" || group.status === "error"}
+                                >
+                                  <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                    <ChevronRight className="size-3 transition-transform group-open:rotate-90" />
+                                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                      {group.title}
+                                    </span>
+                                    <span
+                                      className={[
+                                        "rounded-sm px-1.5 py-0.5 text-[11px]",
+                                        group.status === "error"
+                                          ? "bg-destructive/10 text-destructive"
+                                          : group.status === "running"
+                                            ? "bg-primary/10 text-primary"
+                                            : "bg-muted text-muted-foreground",
+                                      ].join(" ")}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                    <span className="text-[11px]">
+                                      {group.events.length} 条
+                                    </span>
+                                  </summary>
+                                  <div className="space-y-1 border-t border-border/50 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                                    {group.events.slice(-8).map((event, index) => (
+                                      <div
+                                        key={`${message.id}-${group.id}-${event.type}-${index}`}
+                                        className="whitespace-pre-wrap break-words rounded-sm bg-muted/45 px-2 py-1"
+                                      >
+                                        {describeAgentGroupEvent(event)}
+                                      </div>
+                                    ))}
+                                    {group.events.length > 8 && (
+                                      <div className="rounded-sm bg-muted/35 px-2 py-1 text-[11px]">
+                                        已省略本段较早的 {group.events.length - 8} 条更新。
+                                      </div>
+                                    )}
+                                  </div>
+                                  {latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                    <div className="border-t border-border/50 px-2 py-1 text-[11px] text-destructive">
+                                      工具执行失败，请展开查看最后几条输出。
+                                    </div>
+                                  )}
+                                </details>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {hasAgentBlocks ? (
+                      <div className="space-y-2">
+                        {agentBlocks.map((block) => {
+                          if (block.type === "thinking") {
+                            const isCollapsed = Boolean(block.isCollapsed);
+
+                            return (
+                              <div
+                                key={block.id}
+                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                              >
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                                  onClick={() => toggleAgentThinkingBlock(message.id, block.id)}
+                                >
+                                  {isCollapsed ? (
+                                    <ChevronRight className="size-3.5" />
+                                  ) : (
+                                    <ChevronDown className="size-3.5" />
+                                  )}
+                                  <Brain className="size-3.5" />
+                                  <span>Thinking</span>
+                                  {message.status !== "done" && agentBlocks.at(-1)?.id === block.id && (
+                                    <Loader2 className="ml-auto size-3 animate-spin" />
+                                  )}
+                                </button>
+                                <div
+                                  className={[
+                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+                                  ].join(" ")}
+                                >
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div
+                                      className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+                                      data-agent-thinking-content="true"
+                                    >
+                                      {block.content.trim() || "正在思考..."}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (block.type === "tool") {
+                            const latestEvent = block.events[block.events.length - 1];
+                            const isCollapsed = Boolean(block.isCollapsed);
+                            const statusLabel =
+                              block.status === "running"
+                                ? "执行中"
+                                : block.status === "done"
+                                  ? "完成"
+                                  : "异常";
+
+                            return (
+                              <div
+                                key={block.id}
+                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                              >
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={() => toggleAgentBlock(message.id, block.id)}
+                                >
+                                  <ChevronRight
+                                    className={[
+                                      "size-3 transition-transform",
+                                      isCollapsed ? "" : "rotate-90",
+                                    ].join(" ")}
+                                  />
+                                  <Wrench className="size-3.5" />
+                                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                    {block.toolName}
+                                  </span>
+                                  <span
+                                    className={[
+                                      "rounded-sm px-1.5 py-0.5 text-[11px]",
+                                      block.status === "error"
+                                        ? "bg-destructive/10 text-destructive"
+                                        : block.status === "running"
+                                          ? "bg-primary/10 text-primary"
+                                          : "bg-background text-muted-foreground",
+                                    ].join(" ")}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                  <span className="text-[11px]">
+                                    {block.events.length} 条
+                                  </span>
+                                </button>
+                                <div
+                                  className={[
+                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+                                  ].join(" ")}
+                                >
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div className="space-y-1 border-t border-border/50 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                                      {block.events.slice(-8).map((event, index) => (
+                                        <div
+                                          key={`${block.id}-${event.type}-${index}`}
+                                          className="whitespace-pre-wrap break-words rounded-sm bg-background/70 px-2 py-1"
+                                        >
+                                          {describeAgentGroupEvent(event)}
+                                        </div>
+                                      ))}
+                                      {block.events.length > 8 && (
+                                        <div className="rounded-sm bg-background/60 px-2 py-1 text-[11px]">
+                                          已省略本段较早的 {block.events.length - 8} 条更新。
+                                        </div>
+                                      )}
+                                    </div>
+                                    {latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                      <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                        工具执行失败，请展开查看最后几条输出。
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {isCollapsed && latestEvent?.type === "tool_end" && latestEvent.isError && (
+                                  <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                    工具执行失败
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={block.id} className="agent-response-block">
+                              <MarkdownContent content={block.content} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : isAssistantLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>
+                          {message.mode === "collab"
+                            ? "Agent 正在协作"
+                            : message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}
+                        </span>
+                      </div>
+                      ) : (
+                        message.role === "assistant" ? (
+                          <MarkdownContent content={message.text} />
+                        ) : (
+                          <div className="space-y-2">
+                            {message.referencedFiles && message.referencedFiles.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {message.referencedFiles.map((file) => (
+                                  <span
+                                    key={file.path}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
+                                  >
+                                    <Link className="size-3" />
+                                    <span className="truncate">{file.path}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="whitespace-pre-wrap">
+                              {message.text}
+                            </div>
+                          </div>
+                        )
+                      )}
+                  </div>
+                  {message.role === "user" && (
+                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
+                      <User className="size-4" />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
+        {(chatError || settingsError || skillsError || sessionsError) && (
+          <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {chatError || settingsError || skillsError || sessionsError}
+          </div>
+        )}
+        {pendingAgentQuestion && (
+          <form
+            action="#"
+            className="mx-auto mb-3 max-w-5xl rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
+            onSubmit={(event) => void answerAgentQuestion(event)}
+          >
+            <div className="mb-2 flex items-start gap-2">
+              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
+                <MessageSquare className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-foreground">
+                  {pendingAgentQuestion.input?.label || "Agent 需要你的回答"}
+                </div>
+                {pendingAgentQuestion.context && (
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {pendingAgentQuestion.context}
+                  </div>
+                )}
+                <div className="mt-1 whitespace-pre-wrap text-sm leading-6">
+                  {pendingAgentQuestion.question}
+                </div>
+              </div>
+            </div>
+            {pendingAgentQuestion.input?.type === "select" &&
+            (pendingAgentQuestion.input.options?.length ?? 0) > 0 ? (
+              <div className="space-y-2">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(pendingAgentQuestion.input.options ?? []).map((option) => {
+                    const isSelected = agentQuestionAnswer === option.value;
+                    const isOther = option.value === "other";
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={[
+                          "rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
+                        ].join(" ")}
+                        disabled={isAnsweringAgentQuestion}
+                        onClick={() => {
+                          setAgentQuestionAnswer(option.value);
+                          if (!isOther) {
+                            void submitAgentQuestionAnswer(option.value);
+                          }
+                        }}
+                      >
+                        <span className="block font-medium">{option.label}</span>
+                        {option.description && (
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {option.description}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {agentQuestionAnswer === "other" && (
+                  <div className="flex items-end gap-2">
+                    <Textarea
+                      value={customAgentQuestionAnswer}
+                      onChange={(event) => setCustomAgentQuestionAnswer(event.currentTarget.value)}
+                      placeholder="请输入自定义答案"
+                      rows={2}
+                      className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isAnsweringAgentQuestion || !customAgentQuestionAnswer.trim()}
+                    >
+                      {isAnsweringAgentQuestion ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Send className="size-4" />
+                      )}
+                      <span>回复</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={agentQuestionAnswer}
+                  onChange={(event) => setAgentQuestionAnswer(event.currentTarget.value)}
+                  placeholder="直接回答这个问题，Agent 会继续执行"
+                  rows={2}
+                  className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  disabled={isAnsweringAgentQuestion || !agentQuestionAnswer.trim()}
+                >
+                  {isAnsweringAgentQuestion ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                  <span>回复</span>
+                </Button>
+              </div>
+            )}
+          </form>
+        )}
+        <Composer
+          files={files}
+          resetKey={composerResetKey}
+          isSending={isSending}
+          activeAgentTaskId={activeAgentTaskId}
+          isSettingsLoading={isSettingsLoading}
+          chatMode={chatMode}
+          modelSource={modelSource}
+          runtimeAgents={availableRuntimeAgents}
+          selectedRuntimeAgent={selectedRuntimeAgent}
+          selectedRuntimeAgentId={runtimeAgentId}
+          agentProfiles={agentProfiles}
+          providers={providers}
+          selectedProviderId={selectedProviderId}
+          selectedModel={selectedModel}
+          selectedAgent={selectedAgent}
+          reviewerAgent={reviewerAgent}
+          allowedAgentTools={allowedAgentTools}
+          onChatModeChange={setChatMode}
+          onModelSourceChange={setModelSource}
+          onRuntimeAgentChange={setSelectedRuntimeAgentId}
+          onSelectedAgentChange={setSelectedAgentId}
+          onReviewerAgentChange={setSelectedReviewerAgentId}
+          onProviderChange={(providerId) => {
+            const provider = providers.find((item) => item.id === providerId);
+            setSelectedProviderId(providerId);
+            setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+          }}
+          onModelChange={setSelectedModelId}
+          onToggleAllowedAgentTool={toggleAllowedAgentTool}
+          onSubmit={(input) => void sendMessage(input)}
+        />
+      </div>
+    </section>
+);

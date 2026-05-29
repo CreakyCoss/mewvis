@@ -1,69 +1,21 @@
-import type { FormEvent, ReactNode } from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bot,
-  Brain,
-  ChevronDown,
-  ChevronRight,
-  Columns3,
-  Eye,
-  FileText,
-  FileType,
-  Folder,
-  FolderOpen,
-  Link,
-  Loader2,
-  MessageSquare,
-  PanelRightClose,
-  PanelRightOpen,
-  Plug,
-  Plus,
-  RefreshCw,
-  Save,
-  Search,
-  Send,
-  Settings,
-  Sparkles,
-  Trash2,
-  User,
-  Wrench,
-} from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import {
-  AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS,
   normalizeAllowedAgentTools,
-  type AgentRuntimeAgentDefinition,
   type AgentRuntimeAgentCapability,
+  type AgentRuntimeAgentDefinition,
   type AgentToolName,
 } from "@/agent-runtime/contracts";
 import { createAgentRuntime } from "@/agent-runtime/runtime";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
-import { getLlmSettings } from "@/features/llm-settings/api";
-import { SettingsDialog } from "@/features/llm-settings/components/dialog";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import { findDefaultProvider } from "@/features/llm-settings/utils";
 import { getAiAgentSettings } from "@/features/agent-settings/api";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import type { AgentProfile, AiAgent } from "@/features/agent-settings/types";
+import type { AiAgent } from "@/features/agent-settings/types";
 import { resolveAgentProfiles } from "@/features/agent-settings/utils";
+import { getLlmSettings } from "@/features/llm-settings/api";
+import { SettingsDialog } from "@/features/llm-settings/components/dialog";
+import type { LlmProvider } from "@/features/llm-settings/types";
+import { findDefaultProvider } from "@/features/llm-settings/utils";
 import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
@@ -71,36 +23,30 @@ import { getWorkspaceOverview } from "@/features/workspaces/api";
 import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
 import { buildSections } from "@/features/workspaces/utils/sections";
 import {
-  buildRuntimeConversationContext,
-  buildRuntimeConversationMessages,
-  updateConversationContext,
-  type ConversationSummarizer,
-} from "../context";
-import {
-  toAgentRuntimeModelConfig,
-  toAgentRuntimeProviderConfig,
-} from "../utils/agent-runtime-config";
-import type {
-  ChatMode,
-  CollaborationPhase,
-  ComposerSubmitInput,
-  FileTreeNode,
-  ModelSource,
-  PendingAgentQuestion,
-  ResolvedFileReference,
-  WorkspaceView,
-} from "../page-types";
-import {
   deleteChatSession,
-  listWorkspaceFiles,
   listChatSessions,
+  listWorkspaceFiles,
   loadChatSession,
   readWorkspaceFile,
   runAgentRuntimeChat,
   saveChatSession,
   writeWorkspaceFile,
 } from "../api";
-import { MarkdownContent } from "./markdown-content";
+import {
+  buildRuntimeConversationContext,
+  buildRuntimeConversationMessages,
+  updateConversationContext,
+  type ConversationSummarizer,
+} from "../context";
+import type {
+  ChatMode,
+  CollaborationPhase,
+  ComposerSubmitInput,
+  ModelSource,
+  PendingAgentQuestion,
+  ResolvedFileReference,
+  WorkspaceView,
+} from "../page-types";
 import type {
   ChatContextSummary,
   ChatMessage,
@@ -112,22 +58,18 @@ import type {
 import {
   AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS,
   appendAgentToolEventBlock,
-  describeAgentGroupEvent,
   finalizeLastAgentThinkingBlock,
-  groupAgentEvents,
   isTimelineEvent,
   mergeAgentThinking,
   removeEmptyAgentThinkingBlocks,
   updateLastAgentTextBlock,
   updateLastAgentThinkingBlock,
 } from "../utils/agent-blocks";
-import { buildFileTree, getParentDirectoryPaths } from "../utils/file-tree";
 import {
-  getActiveReferenceToken,
-  quoteReferencePath,
-  resolveFileReferenceMatches,
-  summarizeReferenceMatches,
-} from "../utils/references";
+  toAgentRuntimeModelConfig,
+  toAgentRuntimeProviderConfig,
+} from "../utils/agent-runtime-config";
+import { buildFileTree, getParentDirectoryPaths } from "../utils/file-tree";
 import {
   buildAgentPrompt,
   buildCollaborationSystemPrompt,
@@ -138,475 +80,19 @@ import {
   createMessageId,
   DEFAULT_SESSION_TITLE,
   deriveSessionTitle,
-  formatSessionTime,
   isMarkdownPath,
 } from "../utils/sessions";
-import { CollaborationStatusPanel } from "./collaboration-status-panel";
+import { ChatPanel } from "./panels/chat";
+import { ContextPanel } from "./panels/context";
+import { FilePanel } from "./panels/file";
+import { SettingsPanel } from "./panels/settings";
+import { Sidebar } from "./sidebar";
+import { WorkbenchHeader } from "./workbench-header";
 
 type WorkspaceChatPageProps = {
   workspace: Workspace;
   onOpenWorkspace: (workspace: Workspace) => void;
 };
-
-type ChatComposerProps = {
-  files: WorkspaceFileEntry[];
-  resetKey: number;
-  isSending: boolean;
-  activeAgentTaskId: string;
-  isSettingsLoading: boolean;
-  chatMode: ChatMode;
-  modelSource: ModelSource;
-  runtimeAgents: readonly AgentRuntimeAgentDefinition[];
-  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
-  selectedRuntimeAgentId: string;
-  agentProfiles: AgentProfile[];
-  providers: LlmProvider[];
-  selectedProviderId: string;
-  selectedModel: ProviderModel | null;
-  selectedAgent: AgentProfile | null;
-  reviewerAgent: AgentProfile | null;
-  allowedAgentTools: AgentToolName[];
-  onChatModeChange: (mode: ChatMode) => void;
-  onModelSourceChange: (source: ModelSource) => void;
-  onRuntimeAgentChange: (agentId: string) => void;
-  onSelectedAgentChange: (agentId: string) => void;
-  onReviewerAgentChange: (agentId: string) => void;
-  onProviderChange: (providerId: string) => void;
-  onModelChange: (modelId: string) => void;
-  onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
-  onSubmit: (input: ComposerSubmitInput) => void;
-};
-
-const ChatComposer = memo(({
-  files,
-  resetKey,
-  isSending,
-  activeAgentTaskId,
-  isSettingsLoading,
-  chatMode,
-  modelSource,
-  runtimeAgents,
-  selectedRuntimeAgent,
-  selectedRuntimeAgentId,
-  agentProfiles,
-  providers,
-  selectedProviderId,
-  selectedModel,
-  selectedAgent,
-  reviewerAgent,
-  allowedAgentTools,
-  onChatModeChange,
-  onModelSourceChange,
-  onRuntimeAgentChange,
-  onSelectedAgentChange,
-  onReviewerAgentChange,
-  onProviderChange,
-  onModelChange,
-  onToggleAllowedAgentTool,
-  onSubmit,
-}: ChatComposerProps) => {
-  const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [prompt, setPrompt] = useState("");
-  const [promptCursor, setPromptCursor] = useState(0);
-
-  useEffect(() => {
-    setPrompt("");
-    setPromptCursor(0);
-  }, [resetKey]);
-
-  const selectableFiles = useMemo(
-    () => files.filter((file) => !file.isDirectory),
-    [files],
-  );
-  const activeReferenceToken = useMemo(
-    () => getActiveReferenceToken(prompt, promptCursor),
-    [prompt, promptCursor],
-  );
-  const referenceSuggestions = useMemo(() => {
-    if (!activeReferenceToken) {
-      return [];
-    }
-
-    const query = activeReferenceToken.query.toLowerCase();
-    const candidates = query
-      ? selectableFiles.filter((file) => {
-        const path = file.path.toLowerCase();
-        const name = file.name.toLowerCase();
-        return path.includes(query) || name.includes(query);
-      })
-      : selectableFiles;
-
-    return candidates.slice(0, 8);
-  }, [activeReferenceToken, selectableFiles]);
-  const fileReferenceMatches = useMemo(
-    () => resolveFileReferenceMatches(prompt, files),
-    [files, prompt],
-  );
-  const referencedFilePreviews = useMemo(
-    () => summarizeReferenceMatches(fileReferenceMatches),
-    [fileReferenceMatches],
-  );
-  const unresolvedFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
-    [fileReferenceMatches],
-  );
-  const ambiguousFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
-    [fileReferenceMatches],
-  );
-  const modeLabel =
-    chatMode === "collab" ? "协作" : chatMode === "agent" ? "Agent" : "聊天";
-  const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
-  const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
-    ? "无需模型"
-    : chatMode === "collab" && selectedAgent && reviewerAgent
-    ? `${selectedAgent.name} + ${reviewerAgent.name}`
-    : modelSource === "agent"
-      ? selectedAgent?.name ?? "选择 Agent"
-      : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
-  const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
-
-  const updatePromptCursor = () => {
-    setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
-  };
-
-  const insertFileReference = (file: WorkspaceFileEntry) => {
-    if (!activeReferenceToken) {
-      return;
-    }
-
-    const reference = quoteReferencePath(file.path);
-    const nextPrompt = [
-      prompt.slice(0, activeReferenceToken.start),
-      reference,
-      " ",
-      prompt.slice(activeReferenceToken.end),
-    ].join("");
-    const nextCursor = activeReferenceToken.start + reference.length + 1;
-
-    setPrompt(nextPrompt);
-    setPromptCursor(nextCursor);
-    window.setTimeout(() => {
-      promptInputRef.current?.focus();
-      promptInputRef.current?.setSelectionRange(nextCursor, nextCursor);
-    }, 0);
-  };
-
-  const submitPrompt = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const text = prompt.trim();
-    if (!text || isSending || activeAgentTaskId) {
-      return;
-    }
-
-    onSubmit({
-      text,
-      referencedFilePreviews,
-      unresolvedFileReferences,
-      ambiguousFileReferences,
-    });
-    setPrompt("");
-    setPromptCursor(0);
-  };
-
-  return (
-    <>
-      {fileReferenceMatches.length > 0 && (
-        <div className="mx-auto mb-3 flex max-w-5xl flex-wrap gap-2 text-xs">
-          {referencedFilePreviews.map((file) => (
-            <span
-              key={file.path}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
-            >
-              <Link className="size-3" />
-              <span className="truncate">{file.path}</span>
-            </span>
-          ))}
-          {unresolvedFileReferences.map((match) => (
-            <span
-              key={`missing-${match.token}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
-            >
-              未找到 @{match.token}
-            </span>
-          ))}
-          {ambiguousFileReferences.map((match) => (
-            <span
-              key={`ambiguous-${match.token}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground"
-              title={match.matches.map((file) => file.path).join("\n")}
-            >
-              @{match.token} 匹配 {match.matches.length} 个文件
-            </span>
-          ))}
-        </div>
-      )}
-
-      <form
-        action="#"
-        className="mx-auto flex max-w-5xl flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm focus-within:ring-3 focus-within:ring-ring/25"
-        onSubmit={submitPrompt}
-      >
-        <div className="relative min-w-0">
-          {activeReferenceToken && (
-            <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-              <div className="border-b border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground">
-                {activeReferenceToken.query
-                  ? `选择引用文件：${activeReferenceToken.query}`
-                  : "选择要引用的文件"}
-              </div>
-              <div className="max-h-56 overflow-auto p-1">
-                {referenceSuggestions.length > 0 ? (
-                  referenceSuggestions.map((file) => (
-                    <button
-                      key={file.path}
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => insertFileReference(file)}
-                    >
-                      <FileText className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                    没有匹配的文件
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <Textarea
-            ref={promptInputRef}
-            value={prompt}
-            onChange={(event) => {
-              setPrompt(event.currentTarget.value);
-              setPromptCursor(event.currentTarget.selectionStart);
-            }}
-            placeholder="输入问题，使用 @文件名 引用工作区文件"
-            rows={3}
-            className="max-h-40 min-h-24 resize-none border-0 bg-transparent px-4 py-3 text-base shadow-none focus-visible:ring-0"
-            onClick={updatePromptCursor}
-            onSelect={updatePromptCursor}
-            onKeyUp={updatePromptCursor}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                  {chatMode === "collab" ? (
-                    <Sparkles className="size-3.5" />
-                  ) : chatMode === "agent" ? (
-                    <Wrench className="size-3.5" />
-                  ) : (
-                    <MessageSquare className="size-3.5" />
-                  )}
-                  <span>{modeLabel}</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-36">
-                <DropdownMenuLabel>模式</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={chatMode} onValueChange={(value) => onChatModeChange(value as ChatMode)}>
-                  <DropdownMenuRadioItem value="chat">聊天</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="agent">Agent</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="collab" disabled={agentProfiles.length === 0}>
-                    协作
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 max-w-48 px-2 text-xs"
-                  disabled={isSettingsLoading || (chatMode !== "collab" && !runtimeAgentRequiresModel)}
-                  title={modelLabel}
-                >
-                  <span className="truncate">{modelLabel}</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>模型选择</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {agentProfiles.length > 0 && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>Agent</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      <DropdownMenuRadioGroup
-                        value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
-                        onValueChange={(value) => {
-                          onModelSourceChange("agent");
-                          onSelectedAgentChange(value);
-                        }}
-                      >
-                        {agentProfiles.map((agent) => (
-                          <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                            <span className="truncate">{agent.name}</span>
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>模型</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-52">
-                    {providers.length === 0 ? (
-                      <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
-                    ) : (
-                      providers.map((provider) => {
-                        const enabledModels = provider.models.filter((model) => model.isEnabled);
-
-                        return (
-                          <DropdownMenuSub key={provider.id}>
-                            <DropdownMenuSubTrigger>{provider.name}</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              {enabledModels.length === 0 ? (
-                                <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuRadioGroup
-                                  value={selectedProviderId === provider.id ? selectedModel?.id ?? "" : ""}
-                                  onValueChange={(value) => {
-                                    onModelSourceChange("direct");
-                                    onProviderChange(provider.id);
-                                    onModelChange(value);
-                                  }}
-                                >
-                                  {enabledModels.map((model) => (
-                                    <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                      <span className="truncate">{model.modelName || model.modelId}</span>
-                                    </DropdownMenuRadioItem>
-                                  ))}
-                                </DropdownMenuRadioGroup>
-                              )}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        );
-                      })
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                {chatMode === "collab" && agentProfiles.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>写作 Agent</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-56">
-                        <DropdownMenuRadioGroup value={selectedAgent?.id ?? ""} onValueChange={onSelectedAgentChange}>
-                          {agentProfiles.map((agent) => (
-                            <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                              <span className="truncate">{agent.name}</span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>审查 Agent</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-56">
-                        <DropdownMenuRadioGroup value={reviewerAgent?.id ?? ""} onValueChange={onReviewerAgentChange}>
-                          {agentProfiles.map((agent) => (
-                            <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                              <span className="truncate">{agent.name}</span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 max-w-44 px-2 text-xs">
-                  <Plug className="size-3.5" />
-                  <span className="truncate">{runtimeAgentLabel}</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60">
-                <DropdownMenuLabel>运行时 Agent</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
-                  {runtimeAgents.map((agent) => (
-                    <DropdownMenuRadioItem
-                      key={agent.id}
-                      value={agent.id}
-                      title={agent.description}
-                    >
-                      <span className="truncate">{agent.label}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {chatMode === "agent" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                    <Wrench className="size-3.5" />
-                    <span>工具 {allowedAgentTools.length}</span>
-                    <ChevronDown className="size-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuLabel>Agent 工具</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {AGENT_TOOL_DEFINITIONS.map((tool) => (
-                    <DropdownMenuCheckboxItem
-                      key={tool.name}
-                      checked={allowedAgentTools.includes(tool.name)}
-                      onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                      title={tool.description}
-                    >
-                      {tool.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            size="icon"
-            className="size-9 shrink-0 rounded-full"
-            disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}
-            title={isSending || activeAgentTaskId ? "处理中" : "发送"}
-          >
-            {isSending || activeAgentTaskId ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
-            <span className="sr-only">{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
-          </Button>
-        </div>
-      </form>
-    </>
-  );
-});
-ChatComposer.displayName = "ChatComposer";
 
 export const WorkspaceChatPage = ({
   workspace,
@@ -2002,754 +1488,82 @@ export const WorkspaceChatPage = ({
     });
   };
 
-  const renderFileTreeNode = (node: FileTreeNode, depth: number): ReactNode => {
-    const isExpanded = expandedFileTreePaths.has(node.path);
-    const paddingLeft = `${0.5 + depth * 0.85}rem`;
-
-    if (node.isDirectory) {
-      return (
-        <div key={node.path}>
-          <button
-            type="button"
-            className="flex h-8 w-full items-center gap-1.5 rounded-md border border-transparent pr-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
-            style={{ paddingLeft }}
-            onClick={() => toggleFileTreeDirectory(node.path)}
-          >
-            <ChevronRight
-              className={[
-                "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                isExpanded ? "rotate-90" : "",
-              ].join(" ")}
-            />
-            {isExpanded ? (
-              <FolderOpen className="size-4 shrink-0 text-sidebar-primary" />
-            ) : (
-              <Folder className="size-4 shrink-0 text-muted-foreground" />
-            )}
-            <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
-            {node.children.length > 0 && (
-              <span className="rounded-sm bg-sidebar-accent px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                {node.children.length}
-              </span>
-            )}
-          </button>
-          {isExpanded && node.children.length > 0 && (
-            <div className="space-y-0.5">
-              {node.children.map((child) => renderFileTreeNode(child, depth + 1))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <button
-        key={node.path}
-        type="button"
-        className="flex h-8 w-full items-center gap-2 rounded-md border border-transparent pr-2 text-left text-sm transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:border-primary/25 data-[active=true]:bg-card"
-        style={{ paddingLeft: `${1.55 + depth * 0.85}rem` }}
-        data-active={node.path === activeFile?.path}
-        onClick={() => void openFile(node.path)}
-      >
-        <FileText className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      </button>
-    );
-  };
-
   const filePanel = (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/70 px-5 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-            <FileText className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold">文件查看</h3>
-            <p className="truncate text-xs text-muted-foreground">
-              {filePath || "选择或新建一个文件"}
-            </p>
-          </div>
-        </div>
-        {isMarkdownFile && (
-          <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
-            <Button
-              type="button"
-              size="sm"
-              variant={fileViewMode === "source" ? "secondary" : "ghost"}
-              className="h-7 px-2"
-              onClick={() => setFileViewMode("source")}
-            >
-              <FileType className="size-3.5" />
-              <span>原文</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={fileViewMode === "preview" ? "secondary" : "ghost"}
-              className="h-7 px-2"
-              onClick={() => setFileViewMode("preview")}
-            >
-              <Eye className="size-3.5" />
-              <span>预览</span>
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-5">
-        <Input
-          value={filePath}
-          onChange={(event) => setFilePath(event.currentTarget.value)}
-          placeholder="例如：chapters/01.md"
-        />
-        {isMarkdownFile && fileViewMode === "preview" ? (
-          <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden rounded-md border border-input bg-card shadow-xs">
-            <div className="mx-auto w-full max-w-4xl p-6">
-              {fileContent.trim() ? (
-                <MarkdownContent content={fileContent} />
-              ) : (
-                <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-                  暂无可预览内容
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        ) : (
-          <Textarea
-            value={fileContent}
-            onChange={(event) => setFileContent(event.currentTarget.value)}
-            placeholder="选择文件或输入新文件内容"
-            className="min-h-0 flex-1 resize-none overflow-auto bg-card font-mono text-sm leading-6 shadow-xs"
-          />
-        )}
-        {fileError && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {fileError}
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end border-t border-border/80 bg-card/80 px-5 py-3">
-        <Button
-          type="button"
-          onClick={() => void saveFile()}
-          disabled={isFileSaving || !filePath.trim()}
-        >
-          {isFileSaving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          <span>{activeFile ? "保存修改" : "创建文件"}</span>
-        </Button>
-      </div>
-    </section>
+    <FilePanel
+      activeFile={activeFile}
+      filePath={filePath}
+      fileContent={fileContent}
+      fileError={fileError}
+      fileViewMode={fileViewMode}
+      isMarkdownFile={isMarkdownFile}
+      isFileSaving={isFileSaving}
+      onFilePathChange={setFilePath}
+      onFileContentChange={setFileContent}
+      onFileViewModeChange={setFileViewMode}
+      onSaveFile={() => void saveFile()}
+    />
   );
 
   const chatPanel = (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
-          {messages.length === 0 ? (
-            <div className="flex min-h-[44vh] flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="space-y-2">
-                <h3 className="text-2xl font-semibold">
-                  我们应该在 {workspace.name} 中构建什么？
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  选择左侧会话继续，或者直接开始一个新的工作区任务。
-                </p>
-              </div>
-            </div>
-          ) : (
-            messages.map((message) => {
-              const thinking = message.thinking?.trim();
-              const isThinkingCollapsed =
-                Boolean(thinking) &&
-                message.status === "done" &&
-                !expandedThinkingIds.has(message.id);
-              const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
-              const agentEventGroups = groupAgentEvents(agentEvents);
-              const isAgentEventsCollapsed =
-                message.status === "done" && !expandedAgentEventIds.has(message.id);
-              const visibleAgentEventGroups =
-                message.status === "done" || expandedAgentEventIds.has(message.id)
-                  ? agentEventGroups
-                  : agentEventGroups.slice(-5);
-              const hiddenAgentEventGroupCount =
-                agentEventGroups.length - visibleAgentEventGroups.length;
-              const agentErrorCount = agentEventGroups.filter((group) => group.status === "error").length;
-              const isAssistantLoading =
-                message.role === "assistant" &&
-                (message.status === "loading" || message.status === "streaming") &&
-                !message.text.trim();
-              const messageAgentAvatar = resolveAgentAvatar(
-                message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
-              );
-              const agentBlocks = message.agentBlocks ?? [];
-              const hasAgentBlocks =
-                message.role === "assistant" &&
-                message.mode === "agent" &&
-                agentBlocks.length > 0;
-
-              return (
-                <div
-                  key={message.id}
-                  className="flex gap-3 data-[role=user]:justify-end"
-                  data-role={message.role}
-                >
-                  {message.role === "assistant" && (
-                    <div
-                      className="mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-accent text-primary shadow-xs"
-                      title={message.agentName}
-                    >
-                      {message.mode === "agent" || message.agentAvatar ? (
-                        <img
-                          src={messageAgentAvatar.src}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <Bot className="size-4" />
-                      )}
-                    </div>
-                  )}
-                  <div
-                    className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
-                    data-role={message.role}
-                  >
-                    {message.role === "assistant" && !hasAgentBlocks && thinking && (
-                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                          onClick={() => toggleThinking(message.id)}
-                        >
-                          {isThinkingCollapsed ? (
-                            <ChevronRight className="size-3.5" />
-                          ) : (
-                            <ChevronDown className="size-3.5" />
-                          )}
-                          <Brain className="size-3.5" />
-                          <span>Thinking</span>
-                          {message.status !== "done" && (
-                            <Loader2 className="ml-auto size-3 animate-spin" />
-                          )}
-                        </button>
-                        {!isThinkingCollapsed && (
-                          <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-                            {thinking}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
-                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                          onClick={() => toggleAgentEvents(message.id)}
-                        >
-                          {isAgentEventsCollapsed ? (
-                            <ChevronRight className="size-3.5" />
-                          ) : (
-                            <ChevronDown className="size-3.5" />
-                          )}
-                          <Wrench className="size-3.5" />
-                          <span>Agent 执行</span>
-                          <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">
-                            {agentEventGroups.length} 段
-                          </span>
-                          {agentErrorCount > 0 && (
-                            <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
-                              {agentErrorCount} 个错误
-                            </span>
-                          )}
-                          {(message.status === "loading" || message.status === "streaming") && (
-                            <Loader2 className="ml-auto size-3 animate-spin" />
-                          )}
-                        </button>
-                        {!isAgentEventsCollapsed && (
-                          <div className="max-h-72 space-y-1.5 overflow-auto border-t border-border/60 px-2.5 py-2">
-                            {hiddenAgentEventGroupCount > 0 && (
-                              <div className="rounded-sm border border-dashed border-border/70 bg-background/60 px-2 py-1 text-xs text-muted-foreground">
-                                已折叠较早的 {hiddenAgentEventGroupCount} 段执行过程，当前显示最近阶段。
-                              </div>
-                            )}
-                            {visibleAgentEventGroups.map((group) => {
-                              const latestEvent = group.events[group.events.length - 1];
-                              const statusLabel =
-                                group.status === "running"
-                                  ? "执行中"
-                                  : group.status === "done"
-                                    ? "完成"
-                                    : group.status === "error"
-                                      ? "异常"
-                                      : "信息";
-
-                              return (
-                                <details
-                                  key={`${message.id}-${group.id}`}
-                                  className="group rounded-sm border border-border/60 bg-background"
-                                  open={group.status === "running" || group.status === "error"}
-                                >
-                                  <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-                                    <ChevronRight className="size-3 transition-transform group-open:rotate-90" />
-                                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                                      {group.title}
-                                    </span>
-                                    <span
-                                      className={[
-                                        "rounded-sm px-1.5 py-0.5 text-[11px]",
-                                        group.status === "error"
-                                          ? "bg-destructive/10 text-destructive"
-                                          : group.status === "running"
-                                            ? "bg-primary/10 text-primary"
-                                            : "bg-muted text-muted-foreground",
-                                      ].join(" ")}
-                                    >
-                                      {statusLabel}
-                                    </span>
-                                    <span className="text-[11px]">
-                                      {group.events.length} 条
-                                    </span>
-                                  </summary>
-                                  <div className="space-y-1 border-t border-border/50 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
-                                    {group.events.slice(-8).map((event, index) => (
-                                      <div
-                                        key={`${message.id}-${group.id}-${event.type}-${index}`}
-                                        className="whitespace-pre-wrap break-words rounded-sm bg-muted/45 px-2 py-1"
-                                      >
-                                        {describeAgentGroupEvent(event)}
-                                      </div>
-                                    ))}
-                                    {group.events.length > 8 && (
-                                      <div className="rounded-sm bg-muted/35 px-2 py-1 text-[11px]">
-                                        已省略本段较早的 {group.events.length - 8} 条更新。
-                                      </div>
-                                    )}
-                                  </div>
-                                  {latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                    <div className="border-t border-border/50 px-2 py-1 text-[11px] text-destructive">
-                                      工具执行失败，请展开查看最后几条输出。
-                                    </div>
-                                  )}
-                                </details>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {hasAgentBlocks ? (
-                      <div className="space-y-2">
-                        {agentBlocks.map((block) => {
-                          if (block.type === "thinking") {
-                            const isCollapsed = Boolean(block.isCollapsed);
-
-                            return (
-                              <div
-                                key={block.id}
-                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
-                              >
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                                  onClick={() => toggleAgentThinkingBlock(message.id, block.id)}
-                                >
-                                  {isCollapsed ? (
-                                    <ChevronRight className="size-3.5" />
-                                  ) : (
-                                    <ChevronDown className="size-3.5" />
-                                  )}
-                                  <Brain className="size-3.5" />
-                                  <span>Thinking</span>
-                                  {message.status !== "done" && agentBlocks.at(-1)?.id === block.id && (
-                                    <Loader2 className="ml-auto size-3 animate-spin" />
-                                  )}
-                                </button>
-                                <div
-                                  className={[
-                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
-                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
-                                  ].join(" ")}
-                                >
-                                  <div className="min-h-0 overflow-hidden">
-                                    <div
-                                      className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
-                                      data-agent-thinking-content="true"
-                                    >
-                                      {block.content.trim() || "正在思考..."}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          if (block.type === "tool") {
-                            const latestEvent = block.events[block.events.length - 1];
-                            const isCollapsed = Boolean(block.isCollapsed);
-                            const statusLabel =
-                              block.status === "running"
-                                ? "执行中"
-                                : block.status === "done"
-                                  ? "完成"
-                                  : "异常";
-
-                            return (
-                              <div
-                                key={block.id}
-                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
-                              >
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
-                                  onClick={() => toggleAgentBlock(message.id, block.id)}
-                                >
-                                  <ChevronRight
-                                    className={[
-                                      "size-3 transition-transform",
-                                      isCollapsed ? "" : "rotate-90",
-                                    ].join(" ")}
-                                  />
-                                  <Wrench className="size-3.5" />
-                                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                                    {block.toolName}
-                                  </span>
-                                  <span
-                                    className={[
-                                      "rounded-sm px-1.5 py-0.5 text-[11px]",
-                                      block.status === "error"
-                                        ? "bg-destructive/10 text-destructive"
-                                        : block.status === "running"
-                                          ? "bg-primary/10 text-primary"
-                                          : "bg-background text-muted-foreground",
-                                    ].join(" ")}
-                                  >
-                                    {statusLabel}
-                                  </span>
-                                  <span className="text-[11px]">
-                                    {block.events.length} 条
-                                  </span>
-                                </button>
-                                <div
-                                  className={[
-                                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
-                                    isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
-                                  ].join(" ")}
-                                >
-                                  <div className="min-h-0 overflow-hidden">
-                                    <div className="space-y-1 border-t border-border/50 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
-                                      {block.events.slice(-8).map((event, index) => (
-                                        <div
-                                          key={`${block.id}-${event.type}-${index}`}
-                                          className="whitespace-pre-wrap break-words rounded-sm bg-background/70 px-2 py-1"
-                                        >
-                                          {describeAgentGroupEvent(event)}
-                                        </div>
-                                      ))}
-                                      {block.events.length > 8 && (
-                                        <div className="rounded-sm bg-background/60 px-2 py-1 text-[11px]">
-                                          已省略本段较早的 {block.events.length - 8} 条更新。
-                                        </div>
-                                      )}
-                                    </div>
-                                    {latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                      <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
-                                        工具执行失败，请展开查看最后几条输出。
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                {isCollapsed && latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                  <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
-                                    工具执行失败
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div key={block.id} className="agent-response-block">
-                              <MarkdownContent content={block.content} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : isAssistantLoading ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>
-                          {message.mode === "collab"
-                            ? "Agent 正在协作"
-                            : message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}
-                        </span>
-                      </div>
-                      ) : (
-                        message.role === "assistant" ? (
-                          <MarkdownContent content={message.text} />
-                        ) : (
-                          <div className="space-y-2">
-                            {message.referencedFiles && message.referencedFiles.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {message.referencedFiles.map((file) => (
-                                  <span
-                                    key={file.path}
-                                    className="inline-flex max-w-full items-center gap-1 rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
-                                  >
-                                    <Link className="size-3" />
-                                    <span className="truncate">{file.path}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            <div className="whitespace-pre-wrap">
-                              {message.text}
-                            </div>
-                          </div>
-                        )
-                      )}
-                  </div>
-                  {message.role === "user" && (
-                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
-                      <User className="size-4" />
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </ScrollArea>
-
-      <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
-        {(chatError || settingsError || skillsError || sessionsError) && (
-          <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {chatError || settingsError || skillsError || sessionsError}
-          </div>
-        )}
-        {pendingAgentQuestion && (
-          <form
-            action="#"
-            className="mx-auto mb-3 max-w-5xl rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
-            onSubmit={(event) => void answerAgentQuestion(event)}
-          >
-            <div className="mb-2 flex items-start gap-2">
-              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
-                <MessageSquare className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-foreground">
-                  {pendingAgentQuestion.input?.label || "Agent 需要你的回答"}
-                </div>
-                {pendingAgentQuestion.context && (
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {pendingAgentQuestion.context}
-                  </div>
-                )}
-                <div className="mt-1 whitespace-pre-wrap text-sm leading-6">
-                  {pendingAgentQuestion.question}
-                </div>
-              </div>
-            </div>
-            {pendingAgentQuestion.input?.type === "select" &&
-            (pendingAgentQuestion.input.options?.length ?? 0) > 0 ? (
-              <div className="space-y-2">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(pendingAgentQuestion.input.options ?? []).map((option) => {
-                    const isSelected = agentQuestionAnswer === option.value;
-                    const isOther = option.value === "other";
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={[
-                          "rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                          isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
-                        ].join(" ")}
-                        disabled={isAnsweringAgentQuestion}
-                        onClick={() => {
-                          setAgentQuestionAnswer(option.value);
-                          if (!isOther) {
-                            void submitAgentQuestionAnswer(option.value);
-                          }
-                        }}
-                      >
-                        <span className="block font-medium">{option.label}</span>
-                        {option.description && (
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                            {option.description}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {agentQuestionAnswer === "other" && (
-                  <div className="flex items-end gap-2">
-                    <Textarea
-                      value={customAgentQuestionAnswer}
-                      onChange={(event) => setCustomAgentQuestionAnswer(event.currentTarget.value)}
-                      placeholder="请输入自定义答案"
-                      rows={2}
-                      className="min-h-14 flex-1 resize-none bg-background shadow-xs"
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                          event.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isAnsweringAgentQuestion || !customAgentQuestionAnswer.trim()}
-                    >
-                      {isAnsweringAgentQuestion ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Send className="size-4" />
-                      )}
-                      <span>回复</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-end gap-2">
-                <Textarea
-                  value={agentQuestionAnswer}
-                  onChange={(event) => setAgentQuestionAnswer(event.currentTarget.value)}
-                  placeholder="直接回答这个问题，Agent 会继续执行"
-                  rows={2}
-                  className="min-h-14 flex-1 resize-none bg-background shadow-xs"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  disabled={isAnsweringAgentQuestion || !agentQuestionAnswer.trim()}
-                >
-                  {isAnsweringAgentQuestion ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
-                  )}
-                  <span>回复</span>
-                </Button>
-              </div>
-            )}
-          </form>
-        )}
-        <ChatComposer
-          files={files}
-          resetKey={composerResetKey}
-          isSending={isSending}
-          activeAgentTaskId={activeAgentTaskId}
-          isSettingsLoading={isSettingsLoading}
-          chatMode={chatMode}
-          modelSource={modelSource}
-          runtimeAgents={availableRuntimeAgents}
-          selectedRuntimeAgent={selectedRuntimeAgent}
-          selectedRuntimeAgentId={runtimeAgentId}
-          agentProfiles={agentProfiles}
-          providers={providers}
-          selectedProviderId={selectedProviderId}
-          selectedModel={selectedModel}
-          selectedAgent={selectedAgent}
-          reviewerAgent={reviewerAgent}
-          allowedAgentTools={allowedAgentTools}
-          onChatModeChange={setChatMode}
-          onModelSourceChange={setModelSource}
-          onRuntimeAgentChange={setSelectedRuntimeAgentId}
-          onSelectedAgentChange={setSelectedAgentId}
-          onReviewerAgentChange={setSelectedReviewerAgentId}
-          onProviderChange={(providerId) => {
-            const provider = providers.find((item) => item.id === providerId);
-            setSelectedProviderId(providerId);
-            setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-          }}
-          onModelChange={setSelectedModelId}
-          onToggleAllowedAgentTool={toggleAllowedAgentTool}
-          onSubmit={(input) => void sendMessage(input)}
-        />
-      </div>
-    </section>
+    <ChatPanel
+      chatScrollAreaRef={chatScrollAreaRef}
+      workspace={workspace}
+      messages={messages}
+      expandedThinkingIds={expandedThinkingIds}
+      expandedAgentEventIds={expandedAgentEventIds}
+      modelSource={modelSource}
+      selectedAgent={selectedAgent}
+      chatError={chatError}
+      settingsError={settingsError}
+      skillsError={skillsError}
+      sessionsError={sessionsError}
+      pendingAgentQuestion={pendingAgentQuestion}
+      agentQuestionAnswer={agentQuestionAnswer}
+      customAgentQuestionAnswer={customAgentQuestionAnswer}
+      isAnsweringAgentQuestion={isAnsweringAgentQuestion}
+      files={files}
+      composerResetKey={composerResetKey}
+      isSending={isSending}
+      activeAgentTaskId={activeAgentTaskId}
+      isSettingsLoading={isSettingsLoading}
+      chatMode={chatMode}
+      availableRuntimeAgents={availableRuntimeAgents}
+      selectedRuntimeAgent={selectedRuntimeAgent}
+      runtimeAgentId={runtimeAgentId}
+      agentProfiles={agentProfiles}
+      providers={providers}
+      selectedProviderId={selectedProviderId}
+      selectedModel={selectedModel}
+      reviewerAgent={reviewerAgent}
+      allowedAgentTools={allowedAgentTools}
+      toggleThinking={toggleThinking}
+      toggleAgentEvents={toggleAgentEvents}
+      toggleAgentThinkingBlock={toggleAgentThinkingBlock}
+      toggleAgentBlock={toggleAgentBlock}
+      answerAgentQuestion={answerAgentQuestion}
+      setAgentQuestionAnswer={setAgentQuestionAnswer}
+      setCustomAgentQuestionAnswer={setCustomAgentQuestionAnswer}
+      submitAgentQuestionAnswer={submitAgentQuestionAnswer}
+      setChatMode={setChatMode}
+      setModelSource={setModelSource}
+      setSelectedRuntimeAgentId={setSelectedRuntimeAgentId}
+      setSelectedAgentId={setSelectedAgentId}
+      setSelectedReviewerAgentId={setSelectedReviewerAgentId}
+      setSelectedProviderId={setSelectedProviderId}
+      setSelectedModelId={setSelectedModelId}
+      toggleAllowedAgentTool={toggleAllowedAgentTool}
+      sendMessage={sendMessage}
+    />
   );
 
   const settingsPanel = (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex min-h-14 items-center justify-between border-b border-border/80 bg-card/80 px-5 py-3 backdrop-blur">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold">设置</h2>
-          <p className="truncate text-xs text-muted-foreground">
-            配置模型 Provider、可用模型，以及工作区中可复用的 Agent。
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setWorkspaceView("chat")}
-        >
-          <MessageSquare className="size-4" />
-          <span>返回应用</span>
-        </Button>
-      </header>
-
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto w-full max-w-6xl px-6 py-8">
-          <div className="mb-7 space-y-2">
-            <h3 className="text-2xl font-semibold">应用设置</h3>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              设置会影响所有工作区中的模型选择、Agent 配置和运行方式。
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-          <button
-            type="button"
-            className="rounded-md border border-border/80 bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            onClick={() => setIsLlmSettingsOpen(true)}
-          >
-            <span className="mb-4 flex size-10 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-              <Settings className="size-5" />
-            </span>
-            <span className="block text-base font-semibold">LLM 设置</span>
-            <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-              管理 Provider、API Key、Base URL 和启用模型。
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="rounded-md border border-border/80 bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            onClick={() => setIsAgentSettingsOpen(true)}
-          >
-            <span className="mb-4 flex size-10 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-              <Bot className="size-5" />
-            </span>
-            <span className="block text-base font-semibold">Agent 设置</span>
-            <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-              创建和维护 Agent，并绑定已配置的模型。
-            </span>
-          </button>
-          </div>
-
-          {(settingsError || skillsError) && (
-            <div className="mt-5 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {settingsError || skillsError}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    </section>
+    <SettingsPanel
+      settingsError={settingsError}
+      skillsError={skillsError}
+      onBack={() => setWorkspaceView("chat")}
+      onOpenLlmSettings={() => setIsLlmSettingsOpen(true)}
+      onOpenAgentSettings={() => setIsAgentSettingsOpen(true)}
+    />
   );
 
   return (
@@ -2783,281 +1597,46 @@ export const WorkspaceChatPage = ({
           }
         }}
       />
-      <aside className="hidden w-[288px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
-        <div className="border-b border-sidebar-border px-4 py-4">
-          <h1 className="truncate text-sm font-semibold">Novel Claw</h1>
-        </div>
-
-        <div className="space-y-1 border-b border-sidebar-border p-3">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 w-full justify-start px-2"
-            onClick={startNewSession}
-          >
-            <Plus className="size-4" />
-            <span>新对话</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 w-full justify-start px-2"
-            title="搜索"
-          >
-            <Search className="size-4" />
-            <span>搜索</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 w-full justify-start px-2"
-            title="工作区 Skills"
-            onClick={() => setIsSkillsDialogOpen(true)}
-          >
-            <Plug className="size-4" />
-            <span>插件</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 w-full justify-start px-2"
-            title="刷新 LLM 与 Agent 配置"
-            onClick={() => void loadLlmOptions()}
-          >
-            <RefreshCw className="size-4" />
-            <span>刷新配置</span>
-          </Button>
-        </div>
-
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-4 px-3 py-3">
-            <section className="space-y-3">
-              <div className="flex items-center justify-between px-1 text-sm font-medium text-muted-foreground">
-                <span>项目</span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    title="刷新项目"
-                    disabled={isProjectsLoading}
-                    className="size-6"
-                    onClick={() => void loadProjects()}
-                  >
-                    <RefreshCw className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-5">
-                {projectsError && (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                    {projectsError}
-                  </div>
-                )}
-                {isProjectsLoading ? (
-                  <div className="rounded-md px-2 py-8 text-center text-sm text-muted-foreground">
-                    正在读取项目
-                  </div>
-                ) : sidebarWorkspaces.length ? (
-                  sidebarWorkspaces.map((item) => (
-                    <div key={item.id} className="space-y-1.5">
-                      <button
-                        type="button"
-                        className="group/project flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:text-sidebar-foreground"
-                        data-active={item.id === workspace.id}
-                        onClick={() => onOpenWorkspace(item)}
-                        title={item.path}
-                      >
-                        <Folder className="size-4 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-base font-medium">
-                          {item.name}
-                        </span>
-                      </button>
-                      {item.id === workspace.id && (
-                        <div className="space-y-1">
-                          {messages.length > 0 && !currentSessionId && (
-                            <div className="mx-1 flex h-9 items-center rounded-md bg-sidebar-accent px-8 text-sm">
-                              <span className="min-w-0 flex-1 truncate font-semibold">
-                                {currentSessionTitle}
-                              </span>
-                              <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                                保存中
-                              </span>
-                            </div>
-                          )}
-                          {isSessionsLoading ? (
-                            <div className="px-8 py-3 text-sm text-muted-foreground">
-                              正在读取聊天记录
-                            </div>
-                          ) : chatSessions.length ? (
-                            <>
-                              {visibleSidebarSessions.map((session) => (
-                                <div
-                                  key={session.id}
-                                  className="group/session relative flex h-9 items-center rounded-md transition-colors hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent"
-                                  data-active={session.id === currentSessionId}
-                                >
-                                  <button
-                                    type="button"
-                                    className="min-w-0 flex-1 py-1 pl-8 pr-2 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
-                                    onClick={() => void loadSessionById(session.id)}
-                                    title={session.title}
-                                  >
-                                    <div className="truncate text-sm font-semibold leading-5 text-sidebar-foreground">
-                                      {session.title}
-                                    </div>
-                                  </button>
-                                  <span className="mr-2 shrink-0 text-xs tabular-nums text-muted-foreground">
-                                    {formatSessionTime(session.updatedAt)}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    title="永久删除聊天"
-                                    className="mr-1 size-7 opacity-0 hover:text-destructive group-hover/session:opacity-100 group-data-[active=true]/session:opacity-80"
-                                    onClick={() => void removeSession(session.id)}
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </Button>
-                                </div>
-                              ))}
-                              {chatSessions.length > 5 && (
-                                <button
-                                  type="button"
-                                  className="h-8 px-8 text-left text-sm font-medium text-muted-foreground hover:text-sidebar-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
-                                  onClick={() => setShowAllSessions((current) => !current)}
-                                >
-                                  {showAllSessions ? "收起显示" : "展开显示"}
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <div className="px-8 py-3 text-sm text-muted-foreground">
-                              暂无聊天记录
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-md px-2 py-8 text-center text-sm text-muted-foreground">
-                    暂无项目
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        </ScrollArea>
-
-        <div className="border-t border-sidebar-border p-3">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 w-full justify-start px-2"
-            title="设置"
-            onClick={() => setWorkspaceView("settings")}
-          >
-            <Settings className="size-4" />
-            <span>设置</span>
-          </Button>
-        </div>
-      </aside>
+      <Sidebar
+        workspace={workspace}
+        workspaces={sidebarWorkspaces}
+        currentSessionId={currentSessionId}
+        currentSessionTitle={currentSessionTitle}
+        hasUnsavedSession={messages.length > 0 && !currentSessionId}
+        isProjectsLoading={isProjectsLoading}
+        projectsError={projectsError}
+        isSessionsLoading={isSessionsLoading}
+        chatSessions={chatSessions}
+        visibleSessions={visibleSidebarSessions}
+        showAllSessions={showAllSessions}
+        onOpenWorkspace={onOpenWorkspace}
+        onStartNewSession={startNewSession}
+        onOpenSkills={() => setIsSkillsDialogOpen(true)}
+        onRefreshConfig={() => void loadLlmOptions()}
+        onRefreshProjects={() => void loadProjects()}
+        onLoadSession={(sessionId) => void loadSessionById(sessionId)}
+        onRemoveSession={(sessionId) => void removeSession(sessionId)}
+        onToggleShowAllSessions={() => setShowAllSessions((current) => !current)}
+        onOpenSettings={() => setWorkspaceView("settings")}
+      />
 
       <section className="flex min-w-0 flex-1 flex-col bg-background">
         {workspaceView !== "settings" && (
-        <header className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/80 px-4 py-3 backdrop-blur lg:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-              {workspaceView === "file" ? (
-                <FileText className="size-4" />
-              ) : workspaceView === "split" ? (
-                <Columns3 className="size-4" />
-              ) : (
-                <MessageSquare className="size-4" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold">
-                {workspaceView === "file"
-                  ? "文件工作台"
-                  : workspaceView === "split"
-                    ? "拆分工作台"
-                    : "AI 工作台"}
-              </h2>
-              <p className="truncate text-xs text-muted-foreground">
-                {currentSessionTitle !== DEFAULT_SESSION_TITLE
-                  ? `${currentSessionTitle} · `
-                  : ""}
-                {modelSource === "agent" && selectedAgent
-                  ? `当前 Agent：${selectedAgent.name} / ${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
-                  : runtimeAgentRequiresModel
-                    ? `当前模型：${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
-                    : `当前运行时：${selectedRuntimeAgent?.label ?? "运行时"}`}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
-              <Button
-                type="button"
-                size="sm"
-                variant={workspaceView === "chat" ? "secondary" : "ghost"}
-                className="h-7 px-2"
-                onClick={() => setWorkspaceView("chat")}
-              >
-                <MessageSquare className="size-3.5" />
-                <span>聊天</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={workspaceView === "file" ? "secondary" : "ghost"}
-                className="h-7 px-2"
-                onClick={() => setWorkspaceView("file")}
-              >
-                <FileText className="size-3.5" />
-                <span>文件</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={workspaceView === "split" ? "secondary" : "ghost"}
-                className="h-7 px-2"
-                onClick={() => setWorkspaceView("split")}
-              >
-                <Columns3 className="size-3.5" />
-                <span>拆分</span>
-              </Button>
-            </div>
-
-            <Button
-              type="button"
-              size="icon"
-              variant={isContextPanelOpen ? "secondary" : "ghost"}
-              title={isContextPanelOpen ? "收起右侧上下文" : "展开右侧上下文"}
-              onClick={() => setIsContextPanelOpen((current) => !current)}
-            >
-              {isContextPanelOpen ? (
-                <PanelRightClose className="size-4" />
-              ) : (
-                <PanelRightOpen className="size-4" />
-              )}
-            </Button>
-
-            {workspaceView !== "file" && activeAgentTaskId && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void agentRuntime.abortTask(activeAgentTaskId)}
-              >
-                停止
-              </Button>
-            )}
-          </div>
-        </header>
+          <WorkbenchHeader
+            workspaceView={workspaceView}
+            currentSessionTitle={currentSessionTitle}
+            modelSource={modelSource}
+            selectedAgent={selectedAgent}
+            selectedRuntimeAgent={selectedRuntimeAgent}
+            runtimeAgentRequiresModel={runtimeAgentRequiresModel}
+            effectiveProvider={effectiveProvider}
+            effectiveModel={effectiveModel}
+            isContextPanelOpen={isContextPanelOpen}
+            activeAgentTaskId={activeAgentTaskId}
+            onWorkspaceViewChange={setWorkspaceView}
+            onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
+            onAbortTask={() => void agentRuntime.abortTask(activeAgentTaskId)}
+          />
         )}
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -3081,131 +1660,25 @@ export const WorkspaceChatPage = ({
           </div>
 
           {isContextPanelOpen && workspaceView !== "settings" && (
-          <aside className="hidden w-[360px] shrink-0 flex-col border-l border-border/80 bg-sidebar text-sidebar-foreground xl:flex">
-            <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Folder className="size-4" />
-                <span>上下文</span>
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="刷新文件"
-                  onClick={() => void loadFiles()}
-                >
-                  <RefreshCw className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="新建文件"
-                  onClick={prepareNewFile}
-                >
-                  <Plus className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  title="收起右侧上下文"
-                  onClick={() => setIsContextPanelOpen(false)}
-                >
-                  <PanelRightClose className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="space-y-4 p-3">
-                <section className="space-y-2">
-                  <div className="flex items-center justify-between px-1 text-xs font-medium text-muted-foreground">
-                    <span>文件</span>
-                    <span>{selectableFiles.length} 个</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {isFilesLoading ? (
-                      <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-                        正在读取文件
-                      </div>
-                    ) : selectableFiles.length ? (
-                      fileTree.map((node) => renderFileTreeNode(node, 0))
-                    ) : (
-                      <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-                        暂无可编辑文件
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section className="space-y-2">
-                  <div className="px-1 text-xs font-medium text-muted-foreground">
-                    文件预览
-                  </div>
-                  <div className="overflow-hidden rounded-md border border-sidebar-border bg-card text-card-foreground">
-                    <div className="border-b border-border/70 px-3 py-2 text-xs">
-                      <div className="truncate font-medium">
-                        {activeFile?.path ?? "未选择文件"}
-                      </div>
-                      <div className="mt-1 text-muted-foreground">
-                        {activeFile
-                          ? `${fileContent.length.toLocaleString()} 字符`
-                          : "从文件树选择文件后在这里预览。"}
-                      </div>
-                    </div>
-                    <ScrollArea className="h-72">
-                      <div className="p-3">
-                        {activeFile ? (
-                          isMarkdownFile ? (
-                            fileContent.trim() ? (
-                              <div className="text-sm leading-6">
-                                <MarkdownContent content={fileContent} />
-                              </div>
-                            ) : (
-                              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                                暂无可预览内容
-                              </div>
-                            )
-                          ) : (
-                            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-muted-foreground">
-                              {fileContent || "暂无内容"}
-                            </pre>
-                          )
-                        ) : (
-                          <div className="flex h-48 items-center justify-center text-center text-sm text-muted-foreground">
-                            选择左侧文件树中的文件进行预览。
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                    {activeFile && (
-                      <div className="flex justify-end border-t border-border/70 px-3 py-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setWorkspaceView("file")}
-                        >
-                          <FileText className="size-3.5" />
-                          <span>编辑</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-            </ScrollArea>
-
-            {chatMode === "collab" && (
-              <CollaborationStatusPanel
-                writerAgent={selectedAgent}
-                reviewerAgent={reviewerAgent}
-                phase={collaborationPhase}
-              />
-            )}
-          </aside>
+            <ContextPanel
+              selectableFileCount={selectableFiles.length}
+              isFilesLoading={isFilesLoading}
+              fileTree={fileTree}
+              expandedFileTreePaths={expandedFileTreePaths}
+              activeFile={activeFile}
+              fileContent={fileContent}
+              isMarkdownFile={isMarkdownFile}
+              chatMode={chatMode}
+              collaborationPhase={collaborationPhase}
+              selectedAgent={selectedAgent}
+              reviewerAgent={reviewerAgent}
+              onRefreshFiles={() => void loadFiles()}
+              onPrepareNewFile={prepareNewFile}
+              onClose={() => setIsContextPanelOpen(false)}
+              onOpenFile={(path) => void openFile(path)}
+              onToggleDirectory={toggleFileTreeDirectory}
+              onEditFile={() => setWorkspaceView("file")}
+            />
           )}
         </div>
       </section>
