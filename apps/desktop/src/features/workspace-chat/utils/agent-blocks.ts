@@ -1,4 +1,4 @@
-import type { CodingAgentEvent } from "@/agent-runtime/contract";
+import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contract";
 import type { AgentMessageBlock, ChatMessage } from "../types";
 
 export const AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS = 2500;
@@ -7,7 +7,7 @@ export type AgentEventGroup = {
   id: string;
   title: string;
   status: "running" | "done" | "error" | "info";
-  events: CodingAgentEvent[];
+  events: AgentRuntimeAgentEvent[];
 };
 
 const createAgentBlockId = () => crypto.randomUUID();
@@ -22,7 +22,7 @@ const stringifyBrief = (value: unknown) => {
   return text.length > 240 ? `${text.slice(0, 240)}...` : text;
 };
 
-export const describeAgentEvent = (event: CodingAgentEvent) => {
+export const describeAgentEvent = (event: AgentRuntimeAgentEvent) => {
   if (event.type === "started") {
     return "Agent 已启动";
   }
@@ -66,7 +66,7 @@ export const describeAgentEvent = (event: CodingAgentEvent) => {
   return "";
 };
 
-export const describeAgentGroupEvent = (event: CodingAgentEvent) => {
+export const describeAgentGroupEvent = (event: AgentRuntimeAgentEvent) => {
   if (event.type === "tool_start") {
     return `开始：${stringifyBrief(event.args)}`;
   }
@@ -82,7 +82,7 @@ export const describeAgentGroupEvent = (event: CodingAgentEvent) => {
   return describeAgentEvent(event);
 };
 
-export const groupAgentEvents = (events: CodingAgentEvent[]) => {
+export const groupAgentEvents = (events: AgentRuntimeAgentEvent[]) => {
   const groups: AgentEventGroup[] = [];
   const lastToolGroupByName = new Map<string, AgentEventGroup>();
 
@@ -249,7 +249,7 @@ export const removeEmptyAgentThinkingBlocks = (blocks: AgentMessageBlock[] | und
 
 export const appendAgentToolEventBlock = (
   message: ChatMessage,
-  event: Extract<CodingAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
+  event: Extract<AgentRuntimeAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
 ) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const findRunningToolBlockIndex = () => {
@@ -296,7 +296,7 @@ export const appendAgentToolEventBlock = (
   return { blocks, blockId };
 };
 
-export const isTimelineEvent = (event: CodingAgentEvent) =>
+export const isTimelineEvent = (event: AgentRuntimeAgentEvent) =>
   event.type !== "text_delta" &&
   event.type !== "thinking_delta" &&
   event.type !== "thinking_end" &&

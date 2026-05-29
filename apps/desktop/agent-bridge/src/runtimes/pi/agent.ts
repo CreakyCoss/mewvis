@@ -15,7 +15,7 @@ import {
   type AgentRunResult,
   type StartTaskCommand,
 } from "../../contracts/protocol.js";
-import type { AgentRuntimeContext, AskUser, BaseAgent } from "../../contracts/runtime.js";
+import type { AgentRuntime, AgentRuntimeContext, AskUser } from "../../contracts/runtime.js";
 import { parsePiAskUserFunctionCall, registerPiAskUserTool } from "./tools/ask-user.js";
 import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
 
@@ -31,7 +31,7 @@ type PiAgentRunState = {
   errorReported: boolean;
 };
 
-export class PiAgent implements BaseAgent {
+export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
   async run(command: StartTaskCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {

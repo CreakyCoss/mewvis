@@ -1,4 +1,4 @@
-import type { CodingAgentQuestionInput } from "@/agent-runtime/contract";
+import type { AgentRuntimeAgentQuestionInput } from "@/agent-runtime/contract";
 import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "file" | "split" | "settings";
@@ -29,7 +29,7 @@ export type PendingAgentQuestion = {
   questionId: string;
   question: string;
   context?: string | null;
-  input?: CodingAgentQuestionInput;
+  input?: AgentRuntimeAgentQuestionInput;
 };
 
 export type ActiveReferenceToken = {

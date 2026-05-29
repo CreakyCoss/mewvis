@@ -11,7 +11,7 @@ import type { ConversationMessage } from "./types";
 const agentRuntime = createAgentRuntime();
 
 export type RunAgentRuntimeChatInput = {
-  bridgeAgentId?: string;
+  agentId?: string;
   provider: LlmProvider;
   model: ProviderModel;
   systemPrompt: string;
@@ -56,7 +56,7 @@ export async function runAgentRuntimeChat(
 ): Promise<RunAgentRuntimeChatOutput> {
   return agentRuntime.run({
     type: "chat",
-    bridgeAgentId: input.bridgeAgentId,
+    agentId: input.agentId,
     provider: toAgentRuntimeProviderConfig(input.provider),
     model: toAgentRuntimeModelConfig(input.provider, input.model),
     systemPrompt: input.systemPrompt,

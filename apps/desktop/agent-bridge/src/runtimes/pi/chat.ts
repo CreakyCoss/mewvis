@@ -15,12 +15,12 @@ import {
   type ChatMessageInput,
   type ChatResult,
 } from "../../contracts/protocol.js";
-import type { BaseChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
+import type { ChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
 import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
 
 const PI_CHAT_MODEL_SOURCE = "input" satisfies PiModelSource;
 
-export class PiChatRuntime implements BaseChatRuntime {
+export class PiChatRuntime implements ChatRuntime {
   readonly id = "pi-ai";
 
   async chat(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {

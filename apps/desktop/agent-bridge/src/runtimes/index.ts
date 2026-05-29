@@ -31,18 +31,18 @@ const bridgeAgentRegistry = createBridgeAgentRegistry(bridgeAgents);
 
 export const resolveRuntime = (
   mode: RuntimeMode,
-  bridgeAgentId?: string | null,
+  agentId?: string | null,
 ): RuntimeResolution => {
-  const resolvedBridgeAgentId = bridgeAgentId?.trim() || defaultBridgeAgentId;
-  const bridgeAgent = bridgeAgentRegistry[resolvedBridgeAgentId];
+  const resolvedAgentId = agentId?.trim() || defaultBridgeAgentId;
+  const bridgeAgent = bridgeAgentRegistry[resolvedAgentId];
   if (!bridgeAgent) {
-    throw new Error(`未配置 bridge agent：${resolvedBridgeAgentId}`);
+    throw new Error(`未配置 agent：${resolvedAgentId}`);
   }
 
   if (mode === "agent") {
     const implementation = bridgeAgent.agent;
     if (!implementation) {
-      throw new Error(`bridge agent 不支持 agent runtime：${resolvedBridgeAgentId}`);
+      throw new Error(`agent 不支持 agent runtime：${resolvedAgentId}`);
     }
 
     return {
@@ -53,7 +53,7 @@ export const resolveRuntime = (
 
   const implementation = bridgeAgent.chat;
   if (!implementation) {
-    throw new Error(`bridge agent 不支持 chat runtime：${resolvedBridgeAgentId}`);
+    throw new Error(`agent 不支持 chat runtime：${resolvedAgentId}`);
   }
 
   return {

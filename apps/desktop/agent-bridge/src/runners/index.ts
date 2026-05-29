@@ -32,7 +32,7 @@ export function resolveBridgeRunner(
   command: RunnableBridgeCommand,
 ): BridgeRunnerResolution {
   const mode = modeForCommand(command);
-  const resolution = resolveRuntime(mode, command.bridgeAgentId);
+  const resolution = resolveRuntime(mode, command.agentId);
 
   if (resolution.mode === "agent") {
     return {

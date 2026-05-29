@@ -28,27 +28,21 @@ export type ChatRuntimeContext = BridgeEmitContext;
 
 export type RuntimeMode = "agent" | "chat";
 
-export abstract class BaseAgent {
-  constructor(readonly id: string) {}
-
-  abstract run(
+export type AgentRuntime = {
+  readonly id: string;
+  run(
     command: StartTaskCommand,
     context: AgentRuntimeContext,
   ): Promise<AgentRunResult>;
-}
+};
 
-export abstract class BaseChatRuntime {
-  constructor(readonly id: string) {}
-
-  abstract chat(
+export type ChatRuntime = {
+  readonly id: string;
+  chat(
     command: ChatCommand,
     context: ChatRuntimeContext,
   ): Promise<ChatResult>;
-}
-
-export type AgentRuntime = BaseAgent;
-
-export type ChatRuntime = BaseChatRuntime;
+};
 
 export type BridgeAgent = {
   id: string;

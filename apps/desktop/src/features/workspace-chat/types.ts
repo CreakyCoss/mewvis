@@ -1,4 +1,4 @@
-import type { CodingAgentEvent } from "@/agent-runtime/contract";
+import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contract";
 
 export type WorkspaceFileEntry = {
   path: string;
@@ -31,7 +31,7 @@ export type AgentMessageBlock =
     type: "tool";
     toolName: string;
     status: "running" | "done" | "error";
-    events: CodingAgentEvent[];
+    events: AgentRuntimeAgentEvent[];
     isCollapsed?: boolean;
   };
 
@@ -43,7 +43,7 @@ export type ChatMessage = {
   mode?: "chat" | "agent" | "collab";
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
-  agentEvents?: CodingAgentEvent[];
+  agentEvents?: AgentRuntimeAgentEvent[];
   agentBlocks?: AgentMessageBlock[];
   agentAvatar?: string;
   agentName?: string;

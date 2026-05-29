@@ -66,7 +66,7 @@ export type AgentRuntimeModelConfig = {
   compat?: unknown;
 };
 
-export type CodingAgentQuestionInput = {
+export type AgentRuntimeAgentQuestionInput = {
   type: "text" | "select";
   label?: string;
   options?: Array<{
@@ -77,7 +77,21 @@ export type CodingAgentQuestionInput = {
   selected?: string;
 };
 
-export type CodingAgentEvent =
+export type AgentRuntimeTextDeltaEvent = {
+  type: "text_delta";
+  delta: string;
+};
+
+export type AgentRuntimeThinkingDeltaEvent = {
+  type: "thinking_delta";
+  delta: string;
+};
+
+export type AgentRuntimeDeltaEvent =
+  | AgentRuntimeTextDeltaEvent
+  | AgentRuntimeThinkingDeltaEvent;
+
+export type AgentRuntimeAgentEvent =
   | { type: "started"; taskId: string }
   | {
     type: "question";
@@ -85,12 +99,11 @@ export type CodingAgentEvent =
     questionId: string;
     question: string;
     context?: string | null;
-    input?: CodingAgentQuestionInput;
+    input?: AgentRuntimeAgentQuestionInput;
   }
   | { type: "question_answered"; taskId: string; questionId: string; answer: string }
   | { type: "replace_text"; taskId: string; text: string }
-  | { type: "text_delta"; taskId: string; delta: string }
-  | { type: "thinking_delta"; taskId: string; delta: string }
+  | (AgentRuntimeDeltaEvent & { taskId: string })
   | { type: "thinking_end"; taskId: string; content: string }
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
@@ -100,17 +113,12 @@ export type CodingAgentEvent =
   | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };
 
-export type CodingAgentDeltaEvent = Extract<
-  CodingAgentEvent,
-  { type: "text_delta" | "thinking_delta" }
->;
-
-export type AgentRuntimeChatEvent = Omit<CodingAgentDeltaEvent, "taskId"> & {
+export type AgentRuntimeChatEvent = AgentRuntimeDeltaEvent & {
   streamId: string;
 };
 
-export type CodingAgentTaskInput = {
-  bridgeAgentId?: string | null;
+export type AgentRuntimeAgentTaskInput = {
+  agentId?: string | null;
   workspacePath: string;
   prompt: string;
   provider: AgentRuntimeProviderConfig;
@@ -119,7 +127,7 @@ export type CodingAgentTaskInput = {
   enabledSkills?: string[];
 };
 
-export type CodingAgentTask = {
+export type AgentRuntimeAgentTask = {
   taskId: string;
 };
 
@@ -130,7 +138,7 @@ export type AgentRuntimeChatMessage = {
 
 export type AgentRuntimeChatInput = {
   type: "chat";
-  bridgeAgentId?: string | null;
+  agentId?: string | null;
   provider: AgentRuntimeProviderConfig;
   model: AgentRuntimeModelConfig;
   systemPrompt: string;
@@ -140,7 +148,7 @@ export type AgentRuntimeChatInput = {
   onThinkingDelta?: (delta: string) => void;
 };
 
-export type AgentRuntimeAgentInput = CodingAgentTaskInput & {
+export type AgentRuntimeAgentInput = AgentRuntimeAgentTaskInput & {
   type: "agent";
 };
 

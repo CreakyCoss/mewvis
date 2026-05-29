@@ -1,4 +1,4 @@
-pub mod agent;
+pub mod agent_runtime;
 pub mod agents;
 pub mod chat_sessions;
 pub mod llm;
