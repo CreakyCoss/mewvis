@@ -3,23 +3,27 @@ import { Folder, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ConfigDatabaseDialog } from "@/features/app-recovery/components/config-database-dialog";
+import { StartupGate } from "@/features/app-startup/components/startup-gate";
 import { WorkspaceChatPage } from "@/features/workspace-chat/components/page";
 import { CreateDialog } from "@/features/workspaces/components/create-dialog";
 import { useOverview } from "@/features/workspaces/hooks/use-overview";
 import type { Workspace } from "@/features/workspaces/types";
 import "./App.css";
 
-const App = () => {
+const WorkspaceApp = () => {
   const {
     overview,
     form,
+    editingWorkspace,
     sections,
     isDialogOpen,
     isLoading,
     isSaving,
     error,
     setForm,
-    setIsDialogOpen,
+    handleDialogOpenChange,
+    openCreateWorkspace,
+    openEditWorkspace,
     loadOverview,
     saveWorkspace,
   } = useOverview();
@@ -70,13 +74,38 @@ const App = () => {
     sessionStorage.removeItem("novel-claw:active-workspace");
   }, [activeWorkspace]);
 
+  const handleSaveWorkspace = async () => {
+    const saved = await saveWorkspace();
+    if (saved) {
+      setActiveWorkspace(saved);
+    }
+  };
+
+  const workspaceDialog = (
+    <CreateDialog
+      open={isDialogOpen}
+      mode={editingWorkspace ? "edit" : "create"}
+      form={form}
+      groups={overview?.groups ?? []}
+      sections={sections}
+      isSaving={isSaving}
+      error={error}
+      onOpenChange={handleDialogOpenChange}
+      onFormChange={setForm}
+      onSubmit={handleSaveWorkspace}
+    />
+  );
+
   if (activeWorkspace) {
     return (
       <>
         <WorkspaceChatPage
           workspace={activeWorkspace}
           onOpenWorkspace={setActiveWorkspace}
+          onCreateWorkspace={openCreateWorkspace}
+          onEditWorkspace={openEditWorkspace}
         />
+        {workspaceDialog}
         <ConfigDatabaseDialog onRecovered={loadOverview} />
       </>
     );
@@ -94,7 +123,7 @@ const App = () => {
               type="button"
               variant="ghost"
               className="h-8 w-full justify-start px-2"
-              onClick={() => setIsDialogOpen(true)}
+              onClick={openCreateWorkspace}
             >
               <Plus className="size-4" />
               <span>新增工作区</span>
@@ -156,26 +185,25 @@ const App = () => {
                 {error}
               </div>
             )}
-            <Button type="button" onClick={() => setIsDialogOpen(true)}>
+            <Button type="button" onClick={openCreateWorkspace}>
               <Plus className="size-4" />
               <span>新增工作区</span>
             </Button>
           </div>
         </section>
 
-        <CreateDialog
-          open={isDialogOpen}
-          form={form}
-          groups={overview?.groups ?? []}
-          sections={sections}
-          isSaving={isSaving}
-          onOpenChange={setIsDialogOpen}
-          onFormChange={setForm}
-          onSubmit={saveWorkspace}
-        />
+        {workspaceDialog}
       </main>
       <ConfigDatabaseDialog onRecovered={loadOverview} />
     </>
+  );
+};
+
+const App = () => {
+  return (
+    <StartupGate>
+      <WorkspaceApp />
+    </StartupGate>
   );
 };
 

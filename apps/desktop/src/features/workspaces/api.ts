@@ -15,3 +15,15 @@ export async function createWorkspace(input: WorkspaceForm) {
     },
   });
 }
+
+export async function updateWorkspace(workspaceId: string, input: WorkspaceForm) {
+  return invoke<Workspace>("update_workspace", {
+    input: {
+      id: workspaceId,
+      name: input.name,
+      description: input.description,
+      path: input.path,
+      groupId: input.groupId,
+    },
+  });
+}

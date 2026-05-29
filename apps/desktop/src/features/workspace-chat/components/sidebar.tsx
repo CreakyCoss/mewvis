@@ -18,6 +18,8 @@ type SidebarProps = {
   visibleSessions: ChatSessionMeta[];
   showAllSessions: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
+  onCreateWorkspace: () => void;
+  onEditWorkspace: (workspace: Workspace) => void;
   onStartNewSession: () => void;
   onOpenSkills: () => void;
   onRefreshConfig: () => void;
@@ -41,6 +43,8 @@ export const Sidebar = ({
   visibleSessions,
   showAllSessions,
   onOpenWorkspace,
+  onCreateWorkspace,
+  onEditWorkspace,
   onStartNewSession,
   onOpenSkills,
   onRefreshConfig,
@@ -106,6 +110,16 @@ export const Sidebar = ({
                 type="button"
                 size="icon"
                 variant="ghost"
+                title="新增工作区"
+                className="size-6"
+                onClick={onCreateWorkspace}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
                 title="刷新项目"
                 disabled={isProjectsLoading}
                 className="size-6"
@@ -128,18 +142,34 @@ export const Sidebar = ({
             ) : workspaces.length ? (
               workspaces.map((item) => (
                 <div key={item.id} className="space-y-1.5">
-                  <button
-                    type="button"
-                    className="group/project flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none data-[active=true]:text-sidebar-foreground"
+                  <div
+                    className="group/project flex h-8 items-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:text-sidebar-foreground"
                     data-active={item.id === workspace.id}
-                    onClick={() => onOpenWorkspace(item)}
-                    title={item.path}
                   >
-                    <Folder className="size-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate text-base font-medium">
-                      {item.name}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-2 px-1.5 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+                      onClick={() => onOpenWorkspace(item)}
+                      title={item.path}
+                    >
+                      <Folder className="size-4 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate text-base font-medium">
+                        {item.name}
+                      </span>
+                    </button>
+                    {item.id === workspace.id && (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        title="工作区设置"
+                        className="mr-1 size-7 opacity-0 group-hover/project:opacity-100 group-data-[active=true]/project:opacity-80"
+                        onClick={() => onEditWorkspace(item)}
+                      >
+                        <Settings className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
                   {item.id === workspace.id && (
                     <div className="space-y-1">
                       {hasUnsavedSession && (

@@ -5,10 +5,172 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Novel-Claw</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --startup-bg: #fafaf9;
+        --startup-ink: #090909;
+        --startup-track: #e8e8e5;
+      }
+
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+        background: var(--startup-bg);
+      }
+
+      body {
+        color: var(--startup-ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      .startup-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        min-height: 100dvh;
+        overflow: hidden;
+        background: var(--startup-bg);
+        color: var(--startup-ink);
+      }
+
+      .startup-screen__content {
+        display: flex;
+        width: min(480px, calc(100vw - 80px));
+        transform: translateY(16px);
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .startup-screen__brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+      }
+
+      .startup-screen__logo {
+        width: 78px;
+        height: 78px;
+        flex: 0 0 auto;
+        color: var(--startup-ink);
+        object-fit: contain;
+      }
+
+      .startup-screen__brand-name {
+        margin: 0;
+        font-size: 52px;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .startup-screen__progress {
+        position: relative;
+        width: min(464px, 100%);
+        height: 3px;
+        margin-top: 40px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--startup-track);
+      }
+
+      .startup-screen__progress::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        border-radius: inherit;
+        background: var(--startup-ink);
+        animation: startup-progress-fill 3s cubic-bezier(0.18, 0.82, 0.24, 1) forwards;
+      }
+
+      .startup-screen__status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      @keyframes startup-progress-fill {
+        0% {
+          width: 0%;
+        }
+        74% {
+          width: 78%;
+        }
+        100% {
+          width: 86%;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --startup-bg: #10100f;
+          --startup-ink: #f5f5f2;
+          --startup-track: #2a2a28;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .startup-screen__content {
+          width: min(360px, calc(100vw - 48px));
+        }
+
+        .startup-screen__brand {
+          gap: 18px;
+        }
+
+        .startup-screen__logo {
+          width: 60px;
+          height: 60px;
+        }
+
+        .startup-screen__brand-name {
+          font-size: 38px;
+        }
+
+        .startup-screen__progress {
+          margin-top: 32px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .startup-screen__progress::after {
+          width: 86%;
+          animation: none;
+        }
+      }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="startup-screen" aria-busy="true" aria-label="Novel Claw 正在启动">
+        <section class="startup-screen__content">
+          <div class="startup-screen__brand">
+            <img
+              class="startup-screen__logo"
+              src="/assets/startup-cat-icon.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <h1 class="startup-screen__brand-name">Novel Claw</h1>
+          </div>
+          <div class="startup-screen__progress" aria-hidden="true"></div>
+          <div class="startup-screen__status">正在初始化配置数据库</div>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

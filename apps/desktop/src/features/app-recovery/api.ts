@@ -8,6 +8,10 @@ export function getConfigDatabaseStatus() {
   return invoke<ConfigDatabaseStatus>("get_config_database_status");
 }
 
+export function initializeConfigDatabase() {
+  return invoke<ConfigDatabaseStatus>("initialize_config_database");
+}
+
 export function rebuildConfigDatabase() {
   return invoke<ConfigDatabaseStatus>("rebuild_config_database");
 }

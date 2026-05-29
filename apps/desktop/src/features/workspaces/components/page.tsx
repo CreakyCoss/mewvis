@@ -19,13 +19,15 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
   const {
     overview,
     form,
+    editingWorkspace,
     sections,
     isDialogOpen,
     isLoading,
     isSaving,
     error,
     setForm,
-    setIsDialogOpen,
+    handleDialogOpenChange,
+    openCreateWorkspace,
     saveWorkspace,
   } = useOverview();
 
@@ -48,7 +50,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
           <Button
             type="button"
             className="w-full justify-start"
-            onClick={() => setIsDialogOpen(true)}
+            onClick={openCreateWorkspace}
           >
             <Plus className="size-4" />
             <span>新增工作区</span>
@@ -179,7 +181,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
             >
               <Settings className="size-4" />
             </Button>
-            <Button type="button" onClick={() => setIsDialogOpen(true)}>
+            <Button type="button" onClick={openCreateWorkspace}>
               <Plus className="size-4" />
               <span>新增工作区</span>
             </Button>
@@ -198,7 +200,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
               overview={overview}
               sections={sections}
               isLoading={isLoading}
-              onCreateWorkspace={() => setIsDialogOpen(true)}
+              onCreateWorkspace={openCreateWorkspace}
               onOpenWorkspace={onOpenWorkspace}
             />
           </section>
@@ -207,11 +209,13 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
 
       <CreateDialog
         open={isDialogOpen}
+        mode={editingWorkspace ? "edit" : "create"}
         form={form}
         groups={overview?.groups ?? []}
         sections={sections}
         isSaving={isSaving}
-        onOpenChange={setIsDialogOpen}
+        error={error}
+        onOpenChange={handleDialogOpenChange}
         onFormChange={setForm}
         onSubmit={saveWorkspace}
       />

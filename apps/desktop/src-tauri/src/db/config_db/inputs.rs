@@ -11,6 +11,16 @@ pub struct CreateWorkspaceInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateWorkspaceInput {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub path: String,
+    pub group_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveProviderModelInput {
     pub id: Option<String>,
     pub model_id: String,

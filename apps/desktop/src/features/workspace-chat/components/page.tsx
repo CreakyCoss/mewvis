@@ -92,11 +92,15 @@ import { WorkbenchHeader } from "./workbench-header";
 type WorkspaceChatPageProps = {
   workspace: Workspace;
   onOpenWorkspace: (workspace: Workspace) => void;
+  onCreateWorkspace: () => void;
+  onEditWorkspace: (workspace: Workspace) => void;
 };
 
 export const WorkspaceChatPage = ({
   workspace,
   onOpenWorkspace,
+  onCreateWorkspace,
+  onEditWorkspace,
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -196,7 +200,7 @@ export const WorkspaceChatPage = ({
 
   useEffect(() => {
     void loadProjects();
-  }, [loadProjects]);
+  }, [loadProjects, workspace.id, workspace.updatedAt]);
 
   const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     window.requestAnimationFrame(() => {
@@ -1610,6 +1614,8 @@ export const WorkspaceChatPage = ({
         visibleSessions={visibleSidebarSessions}
         showAllSessions={showAllSessions}
         onOpenWorkspace={onOpenWorkspace}
+        onCreateWorkspace={onCreateWorkspace}
+        onEditWorkspace={onEditWorkspace}
         onStartNewSession={startNewSession}
         onOpenSkills={() => setIsSkillsDialogOpen(true)}
         onRefreshConfig={() => void loadLlmOptions()}

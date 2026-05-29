@@ -136,7 +136,7 @@
   textarea,
   select {
     font: inherit;
-    }
+  }
 }
 
 @keyframes agent-idle-fishing {

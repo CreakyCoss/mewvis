@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use super::{
     common::now_millis,
     connection::open_config_connection,
-    inputs::CreateWorkspaceInput,
+    inputs::{CreateWorkspaceInput, UpdateWorkspaceInput},
     models::{Workspace, WorkspaceGroup, WorkspaceOverview},
 };
 use crate::db::{id::new_record_id, paths::config_db_path};
@@ -60,6 +60,57 @@ pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<
     .map_err(|error| format!("无法保存工作区：{error}"))?;
 
     load_workspace(&conn, &id)?.ok_or_else(|| "工作区保存后未能读取".to_string())
+}
+
+pub fn update_workspace(app: &AppHandle, input: UpdateWorkspaceInput) -> Result<Workspace, String> {
+    let id = input.id.trim();
+    if id.is_empty() {
+        return Err("工作区 ID 不能为空".to_string());
+    }
+
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("工作区名称不能为空".to_string());
+    }
+
+    let workspace_path = PathBuf::from(input.path.trim());
+    if workspace_path.as_os_str().is_empty() {
+        return Err("请选择工作区目录".to_string());
+    }
+
+    let conn = open_config_connection(app)?;
+    let current = load_workspace(&conn, id)?.ok_or_else(|| "工作区不存在".to_string())?;
+    crate::db::setup::initialize_workspace_database(&workspace_path)?;
+
+    let now = now_millis()?;
+    let description = input.description.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    let group_id = normalize_group_id(&conn, input.group_id)?;
+    let next_order = if current.group_id.as_deref() == group_id.as_deref() {
+        current.order
+    } else {
+        next_workspace_order(&conn, group_id.as_deref())?
+    };
+    let path = workspace_path.to_string_lossy().to_string();
+
+    conn.execute(
+        r#"
+        UPDATE workspaces
+        SET name = ?1,
+            description = ?2,
+            path = ?3,
+            "order" = ?4,
+            group_id = ?5,
+            updated_at = ?6
+        WHERE id = ?7
+        "#,
+        params![name, description, path, next_order, group_id, now, id],
+    )
+    .map_err(|error| format!("无法保存工作区：{error}"))?;
+
+    load_workspace(&conn, id)?.ok_or_else(|| "工作区保存后未能读取".to_string())
 }
 
 pub(super) fn ensure_workspace_exists(conn: &Connection, workspace_id: &str) -> Result<(), String> {

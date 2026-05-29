@@ -21,25 +21,30 @@ import type {
 
 type CreateDialogProps = {
   open: boolean;
+  mode?: "create" | "edit";
   form: WorkspaceForm;
   groups: WorkspaceGroup[];
   sections: WorkspaceSection[];
   isSaving: boolean;
+  error?: string;
   onOpenChange: (open: boolean) => void;
   onFormChange: (updater: (current: WorkspaceForm) => WorkspaceForm) => void;
-  onSubmit: () => Promise<void>;
+  onSubmit: () => Promise<unknown> | unknown;
 };
 
 export const CreateDialog = ({
   open: isOpen,
+  mode = "create",
   form,
   groups,
   sections,
   isSaving,
+  error,
   onOpenChange,
   onFormChange,
   onSubmit,
 }: CreateDialogProps) => {
+  const isEditing = mode === "edit";
   const chooseDirectory = async () => {
     const selected = await open({
       directory: true,
@@ -65,9 +70,13 @@ export const CreateDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="border border-border/70 shadow-lg sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-lg">新增工作区</DialogTitle>
+          <DialogTitle className="text-lg">
+            {isEditing ? "工作区设置" : "新增工作区"}
+          </DialogTitle>
           <DialogDescription>
-            填写工作区信息，并选择一个用于保存 workspace.db 的目录。
+            {isEditing
+              ? "修改工作区信息并保存，保存时会校验并迁移 workspace.db。"
+              : "填写工作区信息，并选择一个用于保存 workspace.db 的目录。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,9 +165,17 @@ export const CreateDialog = ({
             </div>
           </div>
 
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? "正在创建" : "创建工作区"}
+              {isSaving
+                ? isEditing ? "正在保存" : "正在创建"
+                : isEditing ? "保存工作区" : "创建工作区"}
             </Button>
           </DialogFooter>
         </form>

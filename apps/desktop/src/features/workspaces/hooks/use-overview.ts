@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createWorkspace, getWorkspaceOverview } from "../api";
+import { createWorkspace, getWorkspaceOverview, updateWorkspace } from "../api";
 import {
   defaultWorkspaceForm,
+  type Workspace,
   type WorkspaceForm,
   type WorkspaceOverview,
 } from "../types";
@@ -10,6 +11,7 @@ import { buildSections } from "../utils/sections";
 export const useOverview = () => {
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
   const [form, setForm] = useState<WorkspaceForm>(defaultWorkspaceForm);
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,30 +35,64 @@ export const useOverview = () => {
     void loadOverview();
   }, [loadOverview]);
 
+  const openCreateWorkspace = useCallback(() => {
+    setError("");
+    setEditingWorkspace(null);
+    setForm(defaultWorkspaceForm);
+    setIsDialogOpen(true);
+  }, []);
+
+  const openEditWorkspace = useCallback((workspace: Workspace) => {
+    setError("");
+    setEditingWorkspace(workspace);
+    setForm({
+      name: workspace.name,
+      description: workspace.description ?? "",
+      path: workspace.path,
+      groupId: workspace.groupId ?? "",
+    });
+    setIsDialogOpen(true);
+  }, []);
+
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setError("");
+      setEditingWorkspace(null);
+      setForm(defaultWorkspaceForm);
+    }
+  }, []);
+
   const sections = useMemo(
     () => buildSections(overview),
     [overview],
   );
 
-  const saveWorkspace = useCallback(async () => {
+  const saveWorkspace = useCallback(async (): Promise<Workspace | null> => {
     setIsSaving(true);
     setError("");
 
     try {
-      await createWorkspace(form);
+      const workspace = editingWorkspace
+        ? await updateWorkspace(editingWorkspace.id, form)
+        : await createWorkspace(form);
       setForm(defaultWorkspaceForm);
+      setEditingWorkspace(null);
       setIsDialogOpen(false);
       await loadOverview();
+      return workspace;
     } catch (caught) {
       setError(String(caught));
+      return null;
     } finally {
       setIsSaving(false);
     }
-  }, [form, loadOverview]);
+  }, [editingWorkspace, form, loadOverview]);
 
   return {
     overview,
     form,
+    editingWorkspace,
     sections,
     isDialogOpen,
     isLoading,
@@ -64,6 +100,9 @@ export const useOverview = () => {
     error,
     setForm,
     setIsDialogOpen,
+    handleDialogOpenChange,
+    openCreateWorkspace,
+    openEditWorkspace,
     loadOverview,
     saveWorkspace,
   };
