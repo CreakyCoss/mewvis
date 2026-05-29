@@ -1,15 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
-  AgentRuntimeAgentInput,
+  AgentRuntimeAgentDefinitionsResult,
   AgentRuntimeAgentEvent,
-  AgentRuntimeAgentTask,
   AgentRuntimeChatEvent,
+  AgentRuntimeAgentInput,
+  AgentRuntimeAgentTask,
   AgentRuntimeChatInput,
   AgentRuntimeChatResult,
-} from "./contract";
+} from "./contracts";
 
 export interface AgentRuntime {
+  listAgents(): Promise<AgentRuntimeAgentDefinitionsResult>;
   run(input: AgentRuntimeAgentInput): Promise<AgentRuntimeAgentTask>;
   run(input: AgentRuntimeChatInput): Promise<AgentRuntimeChatResult>;
   answerQuestion(taskId: string, questionId: string, answer: string): Promise<void>;
@@ -19,6 +21,7 @@ export interface AgentRuntime {
 
 // These names must match the Rust Tauri command and event names exactly.
 const TAURI_AGENT_RUNTIME_COMMANDS = {
+  listAgents: "list_agent_runtime_agents",
   runAgent: "run_agent_runtime_agent",
   runChat: "run_agent_runtime_chat",
   answerQuestion: "answer_agent_runtime_question",
@@ -35,6 +38,10 @@ type RunAgentOutput = {
 };
 
 class TauriAgentRuntime implements AgentRuntime {
+  async listAgents(): Promise<AgentRuntimeAgentDefinitionsResult> {
+    return invoke<AgentRuntimeAgentDefinitionsResult>(TAURI_AGENT_RUNTIME_COMMANDS.listAgents);
+  }
+
   async run(input: AgentRuntimeAgentInput): Promise<AgentRuntimeAgentTask>;
   async run(input: AgentRuntimeChatInput): Promise<AgentRuntimeChatResult>;
   async run(input: AgentRuntimeAgentInput | AgentRuntimeChatInput) {

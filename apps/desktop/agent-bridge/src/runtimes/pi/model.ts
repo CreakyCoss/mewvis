@@ -3,7 +3,12 @@ import {
   type Api,
   type Model,
 } from "@earendil-works/pi-ai";
-import type { ModelInput, ProviderInput } from "../../contracts/protocol.js";
+import type {
+  ChatCommand,
+  ModelInput,
+  ProviderInput,
+  StartTaskCommand,
+} from "../../contracts/protocol.js";
 
 export type PiModelSource = "input" | "catalog";
 
@@ -18,6 +23,19 @@ export const requirePiApiKey = (provider: ProviderInput) => {
   }
 
   return apiKey;
+};
+
+export const requirePiRuntimeConfig = (
+  command: Pick<StartTaskCommand | ChatCommand, "provider" | "model">,
+): { provider: ProviderInput; model: ModelInput } => {
+  if (!command.provider || !command.model) {
+    throw new Error("Pi runtime 需要配置 LLM provider 和模型");
+  }
+
+  return {
+    provider: command.provider,
+    model: command.model,
+  };
 };
 
 export const piApiForProvider = (provider: string): Api => {

@@ -1,10 +1,18 @@
 import type {
   AgentRuntime,
-  BridgeAgent,
   ChatRuntime,
   RuntimeMode,
 } from "../contracts/runtime.js";
-import { piBridgeAgent } from "./pi/index.js";
+import {
+  bridgeAgentRegistry,
+  DEFAULT_BRIDGE_AGENT_ID,
+} from "./registry.js";
+
+export {
+  BRIDGE_AGENT_DEFINITIONS,
+  bridgeAgents,
+  DEFAULT_BRIDGE_AGENT_ID,
+} from "./registry.js";
 
 export type RuntimeResolution =
   | {
@@ -16,24 +24,11 @@ export type RuntimeResolution =
     implementation: ChatRuntime;
   };
 
-const defaultBridgeAgentId = piBridgeAgent.id;
-
-const bridgeAgents = [
-  piBridgeAgent,
-] satisfies readonly BridgeAgent[];
-
-const createBridgeAgentRegistry = (
-  agents: readonly BridgeAgent[],
-): Record<string, BridgeAgent> =>
-  Object.fromEntries(agents.map((agent) => [agent.id, agent]));
-
-const bridgeAgentRegistry = createBridgeAgentRegistry(bridgeAgents);
-
 export const resolveRuntime = (
   mode: RuntimeMode,
   agentId?: string | null,
 ): RuntimeResolution => {
-  const resolvedAgentId = agentId?.trim() || defaultBridgeAgentId;
+  const resolvedAgentId = agentId?.trim() || DEFAULT_BRIDGE_AGENT_ID;
   const bridgeAgent = bridgeAgentRegistry[resolvedAgentId];
   if (!bridgeAgent) {
     throw new Error(`未配置 agent：${resolvedAgentId}`);

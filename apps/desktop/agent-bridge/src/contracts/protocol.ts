@@ -1,12 +1,15 @@
 import type { AgentToolName } from "./tools.js";
+import type { BridgeAgentDefinition } from "./agents.js";
 
 export enum BridgeCommandType {
   StartTask = "start_task",
   AnswerQuestion = "answer_question",
   Chat = "chat",
+  ListAgents = "list_agents",
 }
 
 export enum BridgeResultType {
+  AgentDefinitions = "agent_definitions",
   ChatResult = "chat_result",
 }
 
@@ -65,8 +68,8 @@ export type StartTaskCommand = {
   taskId: string;
   workspacePath: string;
   prompt: string;
-  provider: ProviderInput;
-  model: ModelInput;
+  provider?: ProviderInput | null;
+  model?: ModelInput | null;
   allowedTools?: AgentToolName[];
   bundledSkillsPath?: string | string[] | null;
   skillPaths?: string[];
@@ -80,6 +83,10 @@ export type AnswerQuestionCommand = {
   answer: string;
 };
 
+export type ListAgentsCommand = {
+  type: BridgeCommandType.ListAgents;
+};
+
 export type ChatMessageInput = {
   role: string;
   content: string;
@@ -90,8 +97,8 @@ export type ChatCommand = {
   agentId?: string | null;
   streamId?: string | null;
   stream?: boolean;
-  provider: ProviderInput;
-  model: ModelInput;
+  provider?: ProviderInput | null;
+  model?: ModelInput | null;
   systemPrompt: string;
   messages: ChatMessageInput[];
 };
@@ -102,11 +109,21 @@ export type ChatResult = {
   thinking?: string | null;
 };
 
+export type AgentDefinitionsResult = {
+  type: BridgeResultType.AgentDefinitions;
+  defaultAgentId: string;
+  agents: readonly BridgeAgentDefinition[];
+};
+
 export type AgentRunResult = {
   text: string;
 };
 
-export type BridgeCommand = StartTaskCommand | AnswerQuestionCommand | ChatCommand;
+export type BridgeCommand =
+  | StartTaskCommand
+  | AnswerQuestionCommand
+  | ChatCommand
+  | ListAgentsCommand;
 
 export type AskUserOption = {
   value: string;

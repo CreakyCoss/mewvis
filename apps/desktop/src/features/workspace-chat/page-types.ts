@@ -1,4 +1,4 @@
-import type { AgentRuntimeAgentQuestionInput } from "@/agent-runtime/contract";
+import type { AgentRuntimeAgentQuestionInput } from "@/agent-runtime/contracts";
 import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "file" | "split" | "settings";

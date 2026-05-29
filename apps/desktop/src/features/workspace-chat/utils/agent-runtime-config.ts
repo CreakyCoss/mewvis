@@ -3,7 +3,7 @@ import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type {
   AgentRuntimeModelConfig,
   AgentRuntimeProviderConfig,
-} from "@/agent-runtime/contract";
+} from "@/agent-runtime/contracts";
 
 export const toAgentRuntimeProviderConfig = (
   provider: LlmProvider,

@@ -16,7 +16,12 @@ import {
   type ChatResult,
 } from "../../contracts/protocol.js";
 import type { ChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
-import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
+import {
+  createPiRuntimeModel,
+  requirePiApiKey,
+  requirePiRuntimeConfig,
+  type PiModelSource,
+} from "./model.js";
 
 const PI_CHAT_MODEL_SOURCE = "input" satisfies PiModelSource;
 
@@ -30,8 +35,9 @@ export class PiChatRuntime implements ChatRuntime {
   }
 
   private async complete(command: ChatCommand): Promise<ChatResult> {
-    const apiKey = requirePiApiKey(command.provider);
-    const model = createPiRuntimeModel(command.provider, command.model, {
+    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(provider);
+    const model = createPiRuntimeModel(provider, modelInput, {
       modelSource: PI_CHAT_MODEL_SOURCE,
     });
     const message = await completeSimple(
@@ -44,8 +50,9 @@ export class PiChatRuntime implements ChatRuntime {
   }
 
   private async stream(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
-    const apiKey = requirePiApiKey(command.provider);
-    const model = createPiRuntimeModel(command.provider, command.model, {
+    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(provider);
+    const model = createPiRuntimeModel(provider, modelInput, {
       modelSource: PI_CHAT_MODEL_SOURCE,
     });
     const stream = streamSimple(

@@ -33,8 +33,10 @@ import {
   AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS,
   normalizeAllowedAgentTools,
+  type AgentRuntimeAgentDefinition,
+  type AgentRuntimeAgentCapability,
   type AgentToolName,
-} from "@/agent-runtime/contract";
+} from "@/agent-runtime/contracts";
 import { createAgentRuntime } from "@/agent-runtime/runtime";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,6 +156,9 @@ type ChatComposerProps = {
   isSettingsLoading: boolean;
   chatMode: ChatMode;
   modelSource: ModelSource;
+  runtimeAgents: readonly AgentRuntimeAgentDefinition[];
+  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
+  selectedRuntimeAgentId: string;
   agentProfiles: AgentProfile[];
   providers: LlmProvider[];
   selectedProviderId: string;
@@ -163,6 +168,7 @@ type ChatComposerProps = {
   allowedAgentTools: AgentToolName[];
   onChatModeChange: (mode: ChatMode) => void;
   onModelSourceChange: (source: ModelSource) => void;
+  onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onReviewerAgentChange: (agentId: string) => void;
   onProviderChange: (providerId: string) => void;
@@ -179,6 +185,9 @@ const ChatComposer = memo(({
   isSettingsLoading,
   chatMode,
   modelSource,
+  runtimeAgents,
+  selectedRuntimeAgent,
+  selectedRuntimeAgentId,
   agentProfiles,
   providers,
   selectedProviderId,
@@ -188,6 +197,7 @@ const ChatComposer = memo(({
   allowedAgentTools,
   onChatModeChange,
   onModelSourceChange,
+  onRuntimeAgentChange,
   onSelectedAgentChange,
   onReviewerAgentChange,
   onProviderChange,
@@ -246,11 +256,15 @@ const ChatComposer = memo(({
   );
   const modeLabel =
     chatMode === "collab" ? "协作" : chatMode === "agent" ? "Agent" : "聊天";
-  const modelLabel = chatMode === "collab" && selectedAgent && reviewerAgent
+  const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
+  const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
+    ? "无需模型"
+    : chatMode === "collab" && selectedAgent && reviewerAgent
     ? `${selectedAgent.name} + ${reviewerAgent.name}`
     : modelSource === "agent"
       ? selectedAgent?.name ?? "选择 Agent"
       : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
+  const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
 
   const updatePromptCursor = () => {
     setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
@@ -421,7 +435,7 @@ const ChatComposer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 max-w-48 px-2 text-xs"
-                  disabled={isSettingsLoading}
+                  disabled={isSettingsLoading || (chatMode !== "collab" && !runtimeAgentRequiresModel)}
                   title={modelLabel}
                 >
                   <span className="truncate">{modelLabel}</span>
@@ -521,6 +535,31 @@ const ChatComposer = memo(({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-8 max-w-44 px-2 text-xs">
+                  <Plug className="size-3.5" />
+                  <span className="truncate">{runtimeAgentLabel}</span>
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60">
+                <DropdownMenuLabel>运行时 Agent</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
+                  {runtimeAgents.map((agent) => (
+                    <DropdownMenuRadioItem
+                      key={agent.id}
+                      value={agent.id}
+                      title={agent.description}
+                    >
+                      <span className="truncate">{agent.label}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {chatMode === "agent" && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -588,6 +627,9 @@ export const WorkspaceChatPage = ({
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [runtimeAgents, setRuntimeAgents] = useState<AgentRuntimeAgentDefinition[]>([]);
+  const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
+  const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [modelSource, setModelSource] = useState<ModelSource>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState("");
@@ -1386,6 +1428,22 @@ export const WorkspaceChatPage = ({
       ?? null,
     [selectedModelId, selectedModels],
   );
+  const runtimeAgentCapability: AgentRuntimeAgentCapability = chatMode === "agent" ? "agent" : "chat";
+  const availableRuntimeAgents = useMemo(
+    () => runtimeAgents.filter((agent) =>
+      agent.capabilities.includes(runtimeAgentCapability),
+    ),
+    [runtimeAgentCapability, runtimeAgents],
+  );
+  const selectedRuntimeAgent = useMemo(
+    () => availableRuntimeAgents.find((agent) => agent.id === selectedRuntimeAgentId)
+      ?? availableRuntimeAgents.find((agent) => agent.id === defaultRuntimeAgentId)
+      ?? availableRuntimeAgents[0]
+      ?? null,
+    [availableRuntimeAgents, defaultRuntimeAgentId, selectedRuntimeAgentId],
+  );
+  const runtimeAgentId = selectedRuntimeAgent?.id ?? defaultRuntimeAgentId;
+  const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const agentProfiles = useMemo(
     () => resolveAgentProfiles(agents, providers),
     [agents, providers],
@@ -1413,6 +1471,31 @@ export const WorkspaceChatPage = ({
     const names = new Set(enabledSkillNames);
     return skills.filter((skill) => names.has(skill.name));
   }, [enabledSkillNames, skills]);
+
+  useEffect(() => {
+    if (selectedRuntimeAgent && selectedRuntimeAgent.id !== selectedRuntimeAgentId) {
+      setSelectedRuntimeAgentId(selectedRuntimeAgent.id);
+    }
+  }, [selectedRuntimeAgent, selectedRuntimeAgentId]);
+
+  const loadRuntimeAgents = useCallback(async () => {
+    try {
+      const definitions = await agentRuntime.listAgents();
+      setRuntimeAgents([...definitions.agents]);
+      setDefaultRuntimeAgentId(definitions.defaultAgentId);
+      setSelectedRuntimeAgentId((currentAgentId) =>
+        definitions.agents.some((agent) => agent.id === currentAgentId)
+          ? currentAgentId
+          : definitions.defaultAgentId,
+      );
+    } catch (caught) {
+      setSettingsError(String(caught));
+    }
+  }, [agentRuntime]);
+
+  useEffect(() => {
+    void loadRuntimeAgents();
+  }, [loadRuntimeAgents]);
   const sidebarWorkspaces = useMemo(
     () => projectSections.flatMap((section) => section.workspaces),
     [projectSections],
@@ -1560,7 +1643,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    if (chatMode !== "collab" && (!effectiveProvider || !effectiveModel)) {
+    if (chatMode !== "collab" && runtimeAgentRequiresModel && (!effectiveProvider || !effectiveModel)) {
       setChatError("请选择要使用的 LLM 和模型");
       return;
     }
@@ -1640,7 +1723,7 @@ export const WorkspaceChatPage = ({
       const summaryModel = chatMode === "collab" && selectedAgent
         ? selectedAgent.model
         : effectiveModel;
-      const summarizeConversation = summaryProvider && summaryModel
+      const summarizeConversation = runtimeAgentRequiresModel && summaryProvider && summaryModel
         ? createConversationSummarizer(summaryProvider, summaryModel)
         : undefined;
       conversationSummarizerRef.current = summarizeConversation ?? null;
@@ -1659,6 +1742,7 @@ export const WorkspaceChatPage = ({
       if (chatMode === "collab" && selectedAgent && reviewerAgent) {
         setCollaborationPhase("drafting");
         const draftResult = await runAgentRuntimeChat({
+          agentId: runtimeAgentId,
           provider: selectedAgent.provider,
           model: selectedAgent.model,
           stream: false,
@@ -1689,6 +1773,7 @@ export const WorkspaceChatPage = ({
 
         setCollaborationPhase("reviewing");
         const reviewResult = await runAgentRuntimeChat({
+          agentId: runtimeAgentId,
           provider: reviewerAgent.provider,
           model: reviewerAgent.model,
           stream: false,
@@ -1729,6 +1814,7 @@ export const WorkspaceChatPage = ({
 
         setCollaborationPhase("revising");
         const finalResult = await runAgentRuntimeChat({
+          agentId: runtimeAgentId,
           provider: selectedAgent.provider,
           model: selectedAgent.model,
           stream: false,
@@ -1800,7 +1886,7 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      if (!effectiveProvider || !effectiveModel) {
+      if (runtimeAgentRequiresModel && (!effectiveProvider || !effectiveModel)) {
         setChatError("请选择要使用的 LLM 和模型");
         return;
       }
@@ -1811,6 +1897,7 @@ export const WorkspaceChatPage = ({
         lastAgentStderrRef.current = "";
         const task = await agentRuntime.run({
           type: "agent",
+          agentId: runtimeAgentId,
           workspacePath: workspace.path,
           prompt: buildAgentPrompt(
             text,
@@ -1818,8 +1905,10 @@ export const WorkspaceChatPage = ({
             buildRuntimeConversationContext(conversation, nextConversationContext),
             modelSource === "agent" ? selectedAgent : null,
           ),
-          provider: toAgentRuntimeProviderConfig(effectiveProvider),
-          model: toAgentRuntimeModelConfig(effectiveProvider, effectiveModel),
+          provider: effectiveProvider ? toAgentRuntimeProviderConfig(effectiveProvider) : undefined,
+          model: effectiveProvider && effectiveModel
+            ? toAgentRuntimeModelConfig(effectiveProvider, effectiveModel)
+            : undefined,
           allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
           enabledSkills: enabledSkills.map((skill) => skill.name),
         });
@@ -1834,6 +1923,7 @@ export const WorkspaceChatPage = ({
       }
 
       const result = await runAgentRuntimeChat({
+        agentId: runtimeAgentId,
         provider: effectiveProvider,
         model: effectiveModel,
         systemPrompt: buildSystemPrompt(
@@ -2566,6 +2656,9 @@ export const WorkspaceChatPage = ({
           isSettingsLoading={isSettingsLoading}
           chatMode={chatMode}
           modelSource={modelSource}
+          runtimeAgents={availableRuntimeAgents}
+          selectedRuntimeAgent={selectedRuntimeAgent}
+          selectedRuntimeAgentId={runtimeAgentId}
           agentProfiles={agentProfiles}
           providers={providers}
           selectedProviderId={selectedProviderId}
@@ -2575,6 +2668,7 @@ export const WorkspaceChatPage = ({
           allowedAgentTools={allowedAgentTools}
           onChatModeChange={setChatMode}
           onModelSourceChange={setModelSource}
+          onRuntimeAgentChange={setSelectedRuntimeAgentId}
           onSelectedAgentChange={setSelectedAgentId}
           onReviewerAgentChange={setSelectedReviewerAgentId}
           onProviderChange={(providerId) => {
@@ -2897,8 +2991,10 @@ export const WorkspaceChatPage = ({
                   ? `${currentSessionTitle} · `
                   : ""}
                 {modelSource === "agent" && selectedAgent
-                  ? `当前 Agent：${selectedAgent.name} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
-                  : `当前模型：${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`}
+                  ? `当前 Agent：${selectedAgent.name} / ${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
+                  : runtimeAgentRequiresModel
+                    ? `当前模型：${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
+                    : `当前运行时：${selectedRuntimeAgent?.label ?? "运行时"}`}
               </p>
             </div>
           </div>

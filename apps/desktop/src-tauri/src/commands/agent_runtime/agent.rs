@@ -1,7 +1,7 @@
 use super::{
-    bridge::{
-        append_agent_diagnostic, hide_subprocess_window, path_for_node, resolve_agent_bridge_path,
-        resolve_node_binary, CleanPath,
+    bridge::{append_agent_diagnostic, path_for_node, CleanPath},
+    process::{
+        build_agent_bridge_command, resolve_agent_bridge_process_config, spawn_agent_bridge_command,
     },
     types::{AgentRuntimeModelInput, AgentRuntimeProviderInput},
 };
@@ -12,7 +12,7 @@ use std::{
     fs,
     io::{BufRead, BufReader, Write},
     path::PathBuf,
-    process::{Child, ChildStdin, Command, Stdio},
+    process::{Child, ChildStdin},
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -38,8 +38,8 @@ pub struct RunAgentRuntimeAgentInput {
     agent_id: Option<String>,
     workspace_path: String,
     prompt: String,
-    provider: AgentRuntimeProviderInput,
-    model: AgentRuntimeModelInput,
+    provider: Option<AgentRuntimeProviderInput>,
+    model: Option<AgentRuntimeModelInput>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
 }
@@ -67,15 +67,13 @@ pub fn run_agent_runtime_agent(
     validate_agent_input(&input)?;
 
     let task_id = Uuid::now_v7().to_string();
-    let bridge_path = resolve_agent_bridge_path(&app)?;
+    let bridge_process = resolve_agent_bridge_process_config(&app)?;
     let bundled_skills_path =
         super::super::skills::bundled_skills_path(&app)?.map(|path| path_for_node(&path));
     let skill_paths = workspace_skill_paths(&input.workspace_path)
         .into_iter()
         .map(|path| path_for_node(&path))
         .collect::<Vec<_>>();
-    let node_binary = resolve_node_binary(&app)?;
-    let bridge_dir = bridge_path.parent().map(PathBuf::from);
     let agent_dir = app
         .path()
         .app_data_dir()
@@ -90,10 +88,10 @@ pub fn run_agent_runtime_agent(
         format!(
             "start task={task_id} workspace={} node={} node_exists={} bridge={} bridge_exists={} bundled_skills={} workspace_skills={} agent_dir={}",
             input.workspace_path,
-            node_binary.display(),
-            node_binary.exists(),
-            bridge_path.display(),
-            bridge_path.exists(),
+            bridge_process.node_binary.display(),
+            bridge_process.node_binary.exists(),
+            bridge_process.bridge_path.display(),
+            bridge_process.bridge_path.exists(),
             bundled_skills_path.as_deref().unwrap_or("<none>"),
             if skill_paths.is_empty() {
                 "<none>".to_string()
@@ -107,29 +105,18 @@ pub fn run_agent_runtime_agent(
         ),
     );
 
-    let node_binary_arg = path_for_node(&node_binary);
-    let bridge_path_arg = path_for_node(&bridge_path);
-    let mut command = Command::new(&node_binary_arg);
-    command
-        .arg(&bridge_path_arg)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    if let Some(bridge_dir) = &bridge_dir {
-        command.env("PI_PACKAGE_DIR", path_for_node(bridge_dir));
-    }
-    if let Some(agent_dir) = &agent_dir {
-        command.env("PI_CODING_AGENT_DIR", path_for_node(agent_dir));
-    }
-    hide_subprocess_window(&mut command);
-
-    let mut child = command.spawn().map_err(|error| {
-        append_agent_diagnostic(&app, format!("spawn failed task={task_id} error={error}"));
-        format!(
-            "启动 Agent runtime bridge 失败：{error}。Node 路径：{}",
-            node_binary.display()
-        )
-    })?;
+    let extra_env = agent_dir
+        .as_ref()
+        .map(|path| vec![("PI_CODING_AGENT_DIR".to_string(), path_for_node(path))])
+        .unwrap_or_default();
+    let command = build_agent_bridge_command(&bridge_process, extra_env);
+    let mut child = spawn_agent_bridge_command(
+        &app,
+        command,
+        "Agent runtime bridge",
+        &bridge_process.node_binary,
+        format!("task={task_id}"),
+    )?;
 
     let command = json!({
         "type": "start_task",
@@ -325,10 +312,6 @@ fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String>
 
     if input.prompt.trim().is_empty() {
         return Err("Agent 任务内容不能为空".to_string());
-    }
-
-    if input.model.model_id.trim().is_empty() {
-        return Err("请选择 Agent 使用的模型".to_string());
     }
 
     Ok(())

@@ -17,7 +17,12 @@ import {
 } from "../../contracts/protocol.js";
 import type { AgentRuntime, AgentRuntimeContext, AskUser } from "../../contracts/runtime.js";
 import { parsePiAskUserFunctionCall, registerPiAskUserTool } from "./tools/ask-user.js";
-import { createPiRuntimeModel, requirePiApiKey, type PiModelSource } from "./model.js";
+import {
+  createPiRuntimeModel,
+  requirePiApiKey,
+  requirePiRuntimeConfig,
+  type PiModelSource,
+} from "./model.js";
 
 const PI_AGENT_MODEL_SOURCE = "input" satisfies PiModelSource;
 const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -60,8 +65,9 @@ export class PiAgent implements AgentRuntime {
   }
 
   private async createSession(command: StartTaskCommand, askUser: AskUser) {
-    const apiKey = requirePiApiKey(command.provider);
-    const model = createPiRuntimeModel(command.provider, command.model, {
+    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(provider);
+    const model = createPiRuntimeModel(provider, modelInput, {
       modelSource: PI_AGENT_MODEL_SOURCE,
     });
     const authStorage = AuthStorage.inMemory();

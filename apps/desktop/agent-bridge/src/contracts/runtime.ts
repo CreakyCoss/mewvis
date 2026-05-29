@@ -6,6 +6,7 @@ import type {
   ChatResult,
   StartTaskCommand,
 } from "./protocol.js";
+import type { BridgeAgentDefinition } from "./agents.js";
 
 export type AskUser = (
   taskId: string,
@@ -44,8 +45,7 @@ export type ChatRuntime = {
   ): Promise<ChatResult>;
 };
 
-export type BridgeAgent = {
-  id: string;
+export type BridgeAgent = BridgeAgentDefinition & {
   agent?: AgentRuntime;
   chat?: ChatRuntime;
 };

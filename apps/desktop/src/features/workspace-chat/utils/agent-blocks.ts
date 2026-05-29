@@ -1,4 +1,4 @@
-import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contract";
+import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contracts";
 import type { AgentMessageBlock, ChatMessage } from "../types";
 
 export const AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS = 2500;

@@ -3,8 +3,8 @@ pub mod db;
 
 use commands::{
     agent_runtime::{
-        abort_agent_runtime_agent, answer_agent_runtime_question, run_agent_runtime_agent,
-        run_agent_runtime_chat, AgentRuntimeAgentTasks,
+        abort_agent_runtime_agent, answer_agent_runtime_question, list_agent_runtime_agents,
+        run_agent_runtime_agent, run_agent_runtime_chat, AgentRuntimeAgentTasks,
     },
     agents::{delete_ai_agent, get_ai_agent_settings, save_ai_agent},
     chat_sessions::{
@@ -36,6 +36,7 @@ pub fn run() {
             get_ai_agent_settings,
             save_ai_agent,
             delete_ai_agent,
+            list_agent_runtime_agents,
             run_agent_runtime_chat,
             run_agent_runtime_agent,
             answer_agent_runtime_question,

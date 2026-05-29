@@ -12,8 +12,8 @@ const agentRuntime = createAgentRuntime();
 
 export type RunAgentRuntimeChatInput = {
   agentId?: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  provider?: LlmProvider | null;
+  model?: ProviderModel | null;
   systemPrompt: string;
   messages: ConversationMessage[];
   stream?: boolean;
@@ -57,8 +57,10 @@ export async function runAgentRuntimeChat(
   return agentRuntime.run({
     type: "chat",
     agentId: input.agentId,
-    provider: toAgentRuntimeProviderConfig(input.provider),
-    model: toAgentRuntimeModelConfig(input.provider, input.model),
+    provider: input.provider ? toAgentRuntimeProviderConfig(input.provider) : undefined,
+    model: input.provider && input.model
+      ? toAgentRuntimeModelConfig(input.provider, input.model)
+      : undefined,
     systemPrompt: input.systemPrompt,
     messages: input.messages,
     stream: input.stream ?? true,
