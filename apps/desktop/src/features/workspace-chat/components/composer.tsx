@@ -10,6 +10,7 @@ import {
   Plug,
   Send,
   Sparkles,
+  Square,
   Wrench,
 } from "lucide-react";
 import {
@@ -78,6 +79,7 @@ type ComposerProps = {
   onModelChange: (modelId: string) => void;
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
+  onAbortTask: () => void;
 };
 
 export const Composer = memo(({
@@ -109,6 +111,7 @@ export const Composer = memo(({
   onModelChange,
   onToggleAllowedAgentTool,
   onSubmit,
+  onAbortTask,
 }: ComposerProps) => {
   const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -171,6 +174,20 @@ export const Composer = memo(({
       : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
   const contextWindowLabel = contextWindowPreset === 1000000 ? "1M" : "200k";
+  const isAgentRunning = Boolean(activeAgentTaskId);
+  const submitButtonLabel = isAgentRunning
+    ? "停止"
+    : isSending
+      ? "处理中"
+      : "发送";
+  const canSubmit = Boolean(prompt.trim()) && !isSending && !activeAgentTaskId;
+  const submitButtonClassName = [
+    "size-9 shrink-0 rounded-full bg-background shadow-[0_6px_18px_oklch(0_0_0_/_10%)] disabled:opacity-100",
+    "transition-all hover:-translate-y-px focus-visible:ring-primary/25 active:translate-y-px",
+    isAgentRunning || isSending || canSubmit
+      ? "text-primary hover:bg-primary/5 hover:text-primary"
+      : "text-muted-foreground/45 shadow-xs hover:bg-background",
+  ].join(" ");
 
   const updatePromptCursor = () => {
     setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
@@ -241,7 +258,7 @@ export const Composer = memo(({
           {ambiguousFileReferences.map((match) => (
             <span
               key={`ambiguous-${match.token}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground"
+              className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground shadow-xs"
               title={match.matches.map((file) => file.path).join("\n")}
             >
               @{match.token} 匹配 {match.matches.length} 个文件
@@ -250,15 +267,16 @@ export const Composer = memo(({
         </div>
       )}
 
-      <form
-        action="#"
-        className="mx-auto flex max-w-5xl flex-col overflow-hidden rounded-xl border border-input bg-card shadow-sm focus-within:ring-3 focus-within:ring-ring/25"
-        onSubmit={submitPrompt}
-      >
+      <div className="relative z-10 mx-auto w-full max-w-[69rem] px-3">
+        <form
+          action="#"
+          className="relative flex w-full flex-col overflow-hidden rounded-xl bg-card shadow-[0_14px_34px_-30px_rgb(15_23_42_/_0.34),0_2px_8px_-7px_rgb(15_23_42_/_0.18),0_1px_2px_rgb(15_23_42_/_0.06)] ring-1 ring-border/40 focus-within:ring-3 focus-within:ring-ring/20"
+          onSubmit={submitPrompt}
+        >
         <div className="relative min-w-0">
           {activeReferenceToken && (
-            <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-              <div className="border-b border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground">
+            <div className="absolute right-0 bottom-[calc(100%+0.5rem)] left-0 z-20 overflow-hidden rounded-md bg-popover text-popover-foreground shadow-lg">
+              <div className="bg-muted/35 px-2.5 py-1.5 text-xs text-muted-foreground">
                 {activeReferenceToken.query
                   ? `选择引用文件：${activeReferenceToken.query}`
                   : "选择要引用的文件"}
@@ -517,21 +535,26 @@ export const Composer = memo(({
           </div>
 
           <Button
-            type="submit"
+            type={isAgentRunning ? "button" : "submit"}
             size="icon"
-            className="size-9 shrink-0 rounded-full"
-            disabled={isSending || Boolean(activeAgentTaskId) || !prompt.trim()}
-            title={isSending || activeAgentTaskId ? "处理中" : "发送"}
+            className={submitButtonClassName}
+            variant="outline"
+            disabled={isAgentRunning ? false : isSending || !prompt.trim()}
+            title={submitButtonLabel}
+            onClick={isAgentRunning ? onAbortTask : undefined}
           >
-            {isSending || activeAgentTaskId ? (
+            {isAgentRunning ? (
+              <Square className="size-3.5 fill-current" />
+            ) : isSending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Send className="size-4" />
             )}
-            <span className="sr-only">{isSending || activeAgentTaskId ? "处理中" : "发送"}</span>
+            <span className="sr-only">{submitButtonLabel}</span>
           </Button>
         </div>
-      </form>
+        </form>
+      </div>
     </>
   );
 });

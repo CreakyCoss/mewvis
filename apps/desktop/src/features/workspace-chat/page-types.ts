@@ -1,7 +1,7 @@
 import type { AgentRuntimeAgentQuestionInput } from "@/agent-runtime/contracts";
 import type { WorkspaceFileEntry } from "./types";
 
-export type WorkspaceView = "chat" | "file" | "split" | "settings";
+export type WorkspaceView = "chat" | "settings";
 export type ModelSource = "direct" | "agent";
 export type ChatMode = "chat" | "agent" | "collab";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";

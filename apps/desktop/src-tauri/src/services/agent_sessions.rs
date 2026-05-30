@@ -137,10 +137,10 @@ pub fn cleanup_orphan_agent_sessions(
         });
     }
 
-    let protected_session_id = input
+    let protected_chat_id = input
         .protected_session_id
         .as_deref()
-        .map(sanitize_session_id)
+        .map(protected_chat_id_from_agent_session_path)
         .transpose()?;
 
     let mut removed_count = 0;
@@ -157,7 +157,7 @@ pub fn cleanup_orphan_agent_sessions(
             continue;
         };
         let is_known_legacy_chat =
-            valid_chat_ids.contains(id) || protected_session_id.as_deref() == Some(id);
+            valid_chat_ids.contains(id) || protected_chat_id.as_deref() == Some(id);
         if !is_known_legacy_chat && has_direct_session_files(&path)? {
             let size = directory_size(&path)?;
             fs::remove_dir_all(&path)
@@ -180,8 +180,7 @@ pub fn cleanup_orphan_agent_sessions(
             let Some(chat_id) = child_path.file_name().and_then(|value| value.to_str()) else {
                 continue;
             };
-            if valid_chat_ids.contains(chat_id) || protected_session_id.as_deref() == Some(chat_id)
-            {
+            if valid_chat_ids.contains(chat_id) || protected_chat_id.as_deref() == Some(chat_id) {
                 continue;
             }
 
@@ -269,6 +268,17 @@ fn sanitize_agent_session_path(session_id: &str) -> Result<Vec<String>, String> 
     }
 
     Ok(segments)
+}
+
+fn protected_chat_id_from_agent_session_path(session_id: &str) -> Result<String, String> {
+    let segments = sanitize_agent_session_path(session_id)?;
+    let chat_segment = if segments.len() >= 2 {
+        &segments[1]
+    } else {
+        &segments[0]
+    };
+
+    sanitize_session_id(chat_segment)
 }
 
 fn collect_agent_session_stats(
@@ -536,6 +546,34 @@ mod tests {
         assert_eq!(result.removed_count, 1);
         assert!(protected_dir.exists());
         assert!(!orphan_dir.exists());
+    }
+
+    #[test]
+    fn cleanup_orphan_agent_sessions_preserves_nested_protected_runtime_session() {
+        let workspace = TestWorkspace::new("cleanup-protected-nested");
+        let protected_dir = workspace.agent_session_dir("writer-agent/chat-unsaved/session-active");
+        let orphan_chat_dir = workspace.agent_session_dir("writer-agent/chat-orphan");
+        let orphan_session_dir = orphan_chat_dir.join("session-old");
+        fs::create_dir_all(&protected_dir).expect("create protected runtime session dir");
+        fs::create_dir_all(&orphan_session_dir).expect("create orphan runtime session dir");
+        fs::write(
+            orphan_session_dir.join("session.jsonl"),
+            "{\"type\":\"message\"}\n",
+        )
+        .expect("write orphan runtime session");
+
+        let result = cleanup_orphan_agent_sessions(
+            CleanupAgentSessionsInput {
+                workspace_path: workspace.path_string(),
+                protected_session_id: Some("writer-agent/chat-unsaved/session-active".to_string()),
+            },
+            &HashSet::new(),
+        )
+        .expect("cleanup orphan agent sessions");
+
+        assert_eq!(result.removed_count, 1);
+        assert!(protected_dir.exists());
+        assert!(!orphan_chat_dir.exists());
     }
 
     #[test]

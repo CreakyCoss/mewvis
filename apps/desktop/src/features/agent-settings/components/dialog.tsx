@@ -49,11 +49,11 @@ export const AgentSettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 border border-border/70 p-0 shadow-lg sm:max-w-5xl">
+      <DialogContent className="gap-5 border-transparent p-0 shadow-lg sm:max-w-5xl">
         <DialogHeader>
-          <div className="border-b border-border/80 px-6 pt-6 pb-4">
+          <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <span className="flex size-8 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
                 <Bot className="size-4" />
               </span>
               <span>Agent 设置</span>
@@ -71,7 +71,7 @@ export const AgentSettingsDialog = ({
         )}
 
         <div className="grid min-h-[520px] gap-0 md:grid-cols-[260px_1fr]">
-          <aside className="flex min-h-0 flex-col gap-3 border-b border-border/80 bg-muted/35 px-4 py-4 md:border-r md:border-b-0">
+          <aside className="flex min-h-0 flex-col gap-3 bg-muted/35 px-4 py-4 shadow-[10px_0_30px_-30px_rgb(15_23_42_/_0.35)]">
             <Button
               type="button"
               variant="outline"
@@ -93,8 +93,8 @@ export const AgentSettingsDialog = ({
                     className={[
                       "flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm shadow-xs transition-all",
                       agent.id === selectedAgentId
-                        ? "border-primary/30 bg-card text-foreground ring-1 ring-primary/15"
-                        : "border-border/70 bg-card/65 hover:bg-card",
+                        ? "border-primary/20 bg-card text-foreground ring-1 ring-primary/10"
+                        : "border-transparent bg-card/65 hover:bg-card",
                     ].join(" ")}
                     onClick={() => selectAgent(agent.id)}
                   >
@@ -109,7 +109,7 @@ export const AgentSettingsDialog = ({
                 );
               })}
               {!agents.length && !isLoading && (
-                <div className="rounded-md border border-dashed border-border bg-card/65 px-3 py-8 text-center text-sm text-muted-foreground">
+                <div className="rounded-md bg-card/65 px-3 py-8 text-center text-sm text-muted-foreground">
                   暂无自定义 Agent
                 </div>
               )}
@@ -140,7 +140,7 @@ export const AgentSettingsDialog = ({
                     <Label htmlFor="agent-avatar-preview">头像预览</Label>
                     <div
                       id="agent-avatar-preview"
-                      className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-2 shadow-xs"
+                      className="flex h-9 items-center gap-2 rounded-md bg-background px-2 shadow-xs"
                     >
                       <img
                         src={resolveAgentAvatar(draft.avatar).src}
@@ -162,8 +162,8 @@ export const AgentSettingsDialog = ({
                         key={avatar.id}
                         type="button"
                         className={[
-                          "rounded-md border bg-card p-1.5 text-center shadow-xs transition-all hover:border-primary/45 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                          draft.avatar === avatar.id ? "border-primary ring-1 ring-primary/20" : "border-border",
+                          "rounded-md border bg-card p-1.5 text-center shadow-xs transition-all hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          draft.avatar === avatar.id ? "border-primary/40 ring-1 ring-primary/15" : "border-transparent",
                         ].join(" ")}
                         title={avatar.label}
                         onClick={() => updateDraft((current) => ({ ...current, avatar: avatar.id }))}
@@ -248,7 +248,7 @@ export const AgentSettingsDialog = ({
                 </div>
 
                 {selectedAgentId && (
-                  <div className="flex justify-end rounded-md border border-border/70 bg-muted/35 px-3 py-2.5">
+                  <div className="flex justify-end rounded-md bg-muted/35 px-3 py-2.5">
                     <Button
                       type="button"
                       variant="outline"
@@ -265,7 +265,7 @@ export const AgentSettingsDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="border-t border-border/80 px-6 py-4">
+        <DialogFooter className="px-6 py-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>

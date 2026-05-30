@@ -1,4 +1,4 @@
-import { chmod, copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,11 @@ const PLATFORM_MAP = {
   "linux-arm64": { os: "linux", arch: "arm64", binary: "node", archiveBinPath: "bin/node" },
 };
 
+const WINDOWS_MACHINE_BY_TARGET = {
+  "win-x64": 0x8664,
+  "win-arm64": 0xaa64,
+};
+
 await mkdir(outputDir, { recursive: true });
 
 if (target) {
@@ -41,23 +46,20 @@ if (target) {
   const outputPath = join(outputDir, plat.binary);
 
   if (existsSync(cachedBinaryPath)) {
-    await copyFile(cachedBinaryPath, outputPath);
-    if (!target.startsWith("win")) {
-      await chmod(outputPath, 0o755);
+    if (await isTargetBinaryCompatible(cachedBinaryPath, target)) {
+      await copyFile(cachedBinaryPath, outputPath);
+      if (!target.startsWith("win")) {
+        await chmod(outputPath, 0o755);
+      }
+      console.log(`Node.js binary for ${target} restored from cache ${cachedBinaryPath}`);
+      process.exit(0);
     }
-    console.log(`Node.js binary for ${target} restored from cache ${cachedBinaryPath}`);
-    process.exit(0);
+
+    console.warn(`Ignoring incompatible cached Node.js binary for ${target}: ${cachedBinaryPath}`);
+    await rm(cachedBinaryPath, { force: true });
   }
 
-  if (existsSync(outputPath)) {
-    await mkdir(cacheDir, { recursive: true });
-    await copyFile(outputPath, cachedBinaryPath);
-    if (!target.startsWith("win")) {
-      await chmod(cachedBinaryPath, 0o755);
-    }
-    console.log(`Node.js binary for ${target} cached from existing ${outputPath}`);
-    process.exit(0);
-  }
+  await rm(outputPath, { force: true });
 
   const url = `https://nodejs.org/dist/${version}/${archiveName}`;
 
@@ -92,6 +94,12 @@ if (target) {
     ? join(extractedDir, plat.archiveBinPath)
     : join(extractedDir, plat.binary);
 
+  if (!(await isTargetBinaryCompatible(binarySrc, target))) {
+    console.error(`Downloaded Node.js binary is not compatible with ${target}: ${binarySrc}`);
+    await rm(tmpDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+
   await copyFile(binarySrc, outputPath);
   await mkdir(cacheDir, { recursive: true });
   await copyFile(binarySrc, cachedBinaryPath);
@@ -111,4 +119,34 @@ if (target) {
     await chmod(outputPath, 0o755);
   }
   console.log(`Node.js binary copied to ${outputPath}`);
+}
+
+async function isTargetBinaryCompatible(path, target) {
+  const expectedWindowsMachine = WINDOWS_MACHINE_BY_TARGET[target];
+  if (!expectedWindowsMachine) {
+    return true;
+  }
+
+  try {
+    const buffer = await readFile(path);
+    return readWindowsMachine(buffer) === expectedWindowsMachine;
+  } catch {
+    return false;
+  }
+}
+
+function readWindowsMachine(buffer) {
+  if (buffer.length < 0x40 || buffer.toString("ascii", 0, 2) !== "MZ") {
+    return null;
+  }
+
+  const peOffset = buffer.readUInt32LE(0x3c);
+  if (
+    peOffset + 6 > buffer.length ||
+    buffer.toString("ascii", peOffset, peOffset + 4) !== "PE\0\0"
+  ) {
+    return null;
+  }
+
+  return buffer.readUInt16LE(peOffset + 4);
 }

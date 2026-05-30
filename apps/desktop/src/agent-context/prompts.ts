@@ -410,7 +410,7 @@ export const buildSystemPrompt = (
     : "";
 
   return [
-    "你是 Novel Claw 的工作区 AI 助手。",
+    "你是 Mewvis 的工作区 AI 助手。",
     `工作区名称：${workspace.name}`,
     `工作区路径：${workspace.path}`,
     "你可以帮助用户规划、写作、分析和修改项目文件。",

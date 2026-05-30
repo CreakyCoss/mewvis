@@ -43,9 +43,9 @@ export const CollaborationStatusPanel = memo(({
   ];
 
   return (
-    <div className="border-t border-sidebar-border bg-sidebar px-3 py-3">
+    <div className="bg-transparent px-3 py-3">
       <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-medium text-sidebar-foreground">Agent 协作状态</span>
+        <span className="font-medium text-foreground">Agent 协作状态</span>
         <span>{phase === "idle" ? "空闲" : "执行中"}</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -56,10 +56,10 @@ export const CollaborationStatusPanel = memo(({
           return (
             <div
               key={item.role}
-              className="overflow-hidden rounded-md border border-sidebar-border bg-card/70 shadow-xs"
+              className="overflow-hidden rounded-md bg-card/70 shadow-xs"
             >
               <div className="px-2 pt-2 text-center">
-                <div className="truncate text-xs font-medium text-sidebar-foreground">
+                <div className="truncate text-xs font-medium text-foreground">
                   {item.agent?.name ?? "未选择"}
                 </div>
                 <div className="text-[11px] text-muted-foreground">

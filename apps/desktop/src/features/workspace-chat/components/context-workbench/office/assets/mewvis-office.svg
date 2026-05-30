@@ -1,0 +1,177 @@
+<svg width="1280" height="980" viewBox="0 0 1280 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="980" fill="#FBFBFA"/>
+  <defs>
+    <filter id="softShadow" x="-30%" y="-40%" width="170%" height="200%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="-18" dy="28" stdDeviation="17" flood-color="#000000" flood-opacity="0.14"/>
+    </filter>
+    <filter id="labelShadow" x="-20%" y="-40%" width="140%" height="180%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.2" flood-color="#ffffff" flood-opacity="0.95"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#ffffff" flood-opacity="0.85"/>
+    </filter>
+    <linearGradient id="deskTop" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eeeeec"/>
+    </linearGradient>
+    <linearGradient id="deskFront" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f1f1ef"/>
+    </linearGradient>
+    <linearGradient id="chairBack" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f8f8f6"/>
+      <stop offset="1" stop-color="#e7e7e3"/>
+    </linearGradient>
+    <linearGradient id="chairMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f4f4f1"/>
+      <stop offset="1" stop-color="#cfcfca"/>
+    </linearGradient>
+    <linearGradient id="screenDark" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#222222"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <linearGradient id="floorFade" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f5f5f4"/>
+    </linearGradient>
+    <g id="officeWorkstation">
+      <ellipse cx="158" cy="218" rx="132" ry="36" fill="#000000" opacity="0.055"/>
+      <rect x="20" y="84" width="276" height="60" rx="2" fill="url(#deskTop)"/>
+      <rect x="20" y="139" width="276" height="19" rx="1" fill="url(#deskFront)"/>
+      <path d="M20 139H296" stroke="#ECECEA"/>
+      <rect x="36" y="151" width="8" height="76" rx="4" fill="#DCDCD8"/>
+      <rect x="268" y="151" width="8" height="76" rx="4" fill="#DCDCD8"/>
+      <path d="M222 129H286V214H222V129Z" fill="#F1F1EE"/>
+      <path d="M222 129H286V153H222Z" fill="#FAFAF8"/>
+      <path d="M222 164H286M222 189H286" stroke="#E5E5E1"/>
+      <path d="M286 129L296 146V202L286 214V129Z" fill="#E3E3DF"/>
+      <rect x="100" y="-6" width="116" height="74" rx="4" fill="#D2D3CF"/>
+      <rect x="107" y="3" width="102" height="56" rx="2" fill="url(#screenDark)"/>
+      <path d="M100 -6H216V68H100Z" stroke="#F8F8F6" opacity="0.72"/>
+      <rect x="145" y="67" width="26" height="14" fill="#C5C5C0"/>
+      <rect x="127" y="78" width="62" height="9" rx="2" fill="#CECEC9"/>
+      <rect x="112" y="113" width="92" height="10" rx="5" fill="#E1E1DD"/>
+      <path d="M120 113V122M128 113V122M136 113V122M144 113V122M152 113V122M160 113V122M168 113V122M176 113V122M184 113V122M192 113V122" stroke="#D1D1CC"/>
+      <path d="M122 137H196L187 214H131L122 137Z" fill="url(#chairBack)"/>
+      <path d="M128 145H190L183 206H135L128 145Z" fill="#F7F7F5"/>
+      <rect x="117" y="174" width="84" height="14" rx="7" fill="#EDEDEB"/>
+      <path d="M159 213V235" stroke="url(#chairMetal)" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M159 235L125 250M159 235L193 250M159 235L145 258M159 235L173 258" stroke="url(#chairMetal)" stroke-width="4.5" stroke-linecap="round"/>
+      <circle cx="123" cy="252" r="4.5" fill="#C9C9C4"/>
+      <circle cx="195" cy="252" r="4.5" fill="#C9C9C4"/>
+      <circle cx="143" cy="260" r="4.5" fill="#C9C9C4"/>
+      <circle cx="175" cy="260" r="4.5" fill="#C9C9C4"/>
+    </g>
+  </defs>
+
+  <rect x="24" y="44" width="1232" height="890" rx="36" fill="url(#floorFade)"/>
+
+  <g id="living-area" opacity="0.86">
+    <g filter="url(#softShadow)">
+      <rect x="55" y="70" width="382" height="72" fill="#F3F3F1"/>
+      <rect x="55" y="134" width="84" height="150" fill="#F5F5F3"/>
+      <rect x="139" y="138" width="278" height="74" fill="#FFFFFF"/>
+      <rect x="126" y="205" width="304" height="58" fill="#F7F7F6"/>
+      <path d="M139 205H417" stroke="#E9E9E7"/>
+      <path d="M180 207V261M232 207V261M284 207V261M336 207V261" stroke="#ECECEA"/>
+    </g>
+    <g transform="translate(80 92)">
+      <g fill="#C98255">
+        <ellipse cx="18" cy="18" rx="15" ry="17"/>
+        <ellipse cx="60" cy="18" rx="15" ry="17" fill="#D4A16B"/>
+        <ellipse cx="120" cy="18" rx="15" ry="17" fill="#B96A45"/>
+        <ellipse cx="162" cy="18" rx="15" ry="17"/>
+        <ellipse cx="204" cy="18" rx="15" ry="17" fill="#B96A45"/>
+        <ellipse cx="246" cy="18" rx="15" ry="17"/>
+        <ellipse cx="145" cy="60" rx="15" ry="17" fill="#B96A45"/>
+        <ellipse cx="188" cy="60" rx="15" ry="17"/>
+        <ellipse cx="231" cy="60" rx="15" ry="17" fill="#B96A45"/>
+      </g>
+      <g fill="#72442E" opacity=".42">
+        <path d="M4 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M46 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M106 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M148 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M190 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M232 18h28c-2 18-26 18-28 0Z"/>
+        <path d="M131 60h28c-2 18-26 18-28 0Z"/>
+        <path d="M174 60h28c-2 18-26 18-28 0Z"/>
+        <path d="M217 60h28c-2 18-26 18-28 0Z"/>
+      </g>
+    </g>
+    <g transform="translate(335 72)">
+      <rect width="64" height="70" rx="7" fill="#D6D6D2"/>
+      <rect x="7" y="9" width="50" height="42" rx="4" fill="#C7C8C3"/>
+      <path d="M12 17h40M12 25h40M12 33h40M12 41h40" stroke="#989995"/>
+      <rect x="8" y="54" width="48" height="8" rx="3" fill="#B4B5B0"/>
+      <circle cx="19" cy="64" r="4" fill="#777873"/>
+      <circle cx="45" cy="64" r="4" fill="#777873"/>
+    </g>
+
+    <g transform="translate(62 346)" filter="url(#softShadow)">
+      <ellipse cx="185" cy="218" rx="158" ry="32" fill="#000000" opacity="0.055"/>
+      <rect x="28" y="62" width="318" height="154" rx="22" fill="#F7F7F5"/>
+      <rect x="45" y="78" width="284" height="122" rx="18" fill="#FFFFFF"/>
+      <g stroke="#D7C7A7" stroke-width="18" stroke-linecap="round">
+        <path d="M96 92V194"/>
+        <path d="M206 54V194"/>
+        <path d="M286 100V194"/>
+      </g>
+      <g stroke="#C3A66F" stroke-width="2.5" opacity="0.55">
+        <path d="M87 104H105M87 116H105M87 128H105M87 140H105M87 152H105M87 164H105"/>
+        <path d="M197 67H215M197 79H215M197 91H215M197 103H215M197 115H215M197 127H215"/>
+        <path d="M277 112H295M277 124H295M277 136H295M277 148H295M277 160H295"/>
+      </g>
+      <rect x="60" y="73" width="86" height="24" rx="12" fill="#EEE3D1"/>
+      <rect x="156" y="36" width="112" height="24" rx="12" fill="#EEE3D1"/>
+      <rect x="232" y="96" width="92" height="24" rx="12" fill="#EEE3D1"/>
+      <path d="M126 181C154 142 209 144 237 181" stroke="#E8DED0" stroke-width="14" stroke-linecap="round"/>
+      <path d="M133 181C157 153 203 154 229 181" stroke="#F7F0E7" stroke-width="10" stroke-linecap="round"/>
+      <rect x="48" y="169" width="95" height="28" rx="14" fill="#EDE6DB"/>
+      <path d="M55 183H135" stroke="#C9B997" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 7"/>
+      <path d="M206 62V92" stroke="#D6CEC2" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="206" cy="108" r="14" fill="#D89246"/>
+      <circle cx="206" cy="108" r="7" fill="#F2C16A" opacity="0.75"/>
+      <rect x="257" y="132" width="74" height="42" rx="21" fill="#E8DED0"/>
+      <ellipse cx="294" cy="153" rx="22" ry="13" fill="#FFFFFF"/>
+      <path d="M282 153C289 158 299 158 306 153" stroke="#CBB99B" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="68" cy="212" r="12" fill="#D89246"/>
+      <circle cx="106" cy="217" r="10" fill="#8FBF9D"/>
+      <circle cx="317" cy="213" r="11" fill="#6EA7D8"/>
+      <path d="M58 212H78M68 202V222M96 217H116M307 213H327" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.72"/>
+    </g>
+
+    <g transform="translate(56 735)" filter="url(#softShadow)">
+      <rect x="14" y="18" width="382" height="178" rx="24" fill="#F6F6F4"/>
+      <rect x="32" y="36" width="346" height="142" rx="20" fill="#FFFFFF"/>
+      <g transform="translate(62 72)">
+        <path d="M26 32C29 8 53 -3 78 12C101 -3 126 8 130 32C147 37 153 57 142 73C130 91 27 91 14 73C2 57 8 37 26 32Z" fill="#ECE3D5"/>
+        <ellipse cx="78" cy="60" rx="62" ry="31" fill="#D8C5A6"/>
+        <ellipse cx="78" cy="57" rx="43" ry="20" fill="#FFF8ED"/>
+        <path d="M45 30C54 23 62 23 70 30M87 30C96 23 105 23 113 30" stroke="#C4A978" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <g transform="translate(224 52)">
+        <rect x="42" y="14" width="36" height="106" rx="16" fill="#D8C49B"/>
+        <path d="M50 30H70M50 45H70M50 60H70M50 75H70M50 90H70M50 105H70" stroke="#B59A65" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+        <rect x="6" y="0" width="110" height="24" rx="12" fill="#F0E5D3"/>
+        <rect x="0" y="104" width="122" height="30" rx="15" fill="#EFE8DD"/>
+        <path d="M60 24V51" stroke="#CFC6BA" stroke-width="4" stroke-linecap="round"/>
+        <path d="M60 51C45 55 42 74 58 78C75 82 84 61 66 51" fill="none" stroke="#E8A351" stroke-width="7" stroke-linecap="round"/>
+      </g>
+      <g transform="translate(50 160)">
+        <circle cx="0" cy="0" r="9" fill="#E8A351"/>
+        <circle cx="34" cy="-4" r="8" fill="#86BFA8"/>
+        <circle cx="68" cy="2" r="10" fill="#6EA7D8"/>
+        <path d="M-9 0H9M26 -4H42M58 2H78" stroke="#FFFFFF" stroke-width="2" opacity="0.75"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="desks">
+    <use href="#officeWorkstation" transform="translate(505 110)"/>
+    <use href="#officeWorkstation" transform="translate(875 110)"/>
+    <use href="#officeWorkstation" transform="translate(505 390)"/>
+    <use href="#officeWorkstation" transform="translate(875 390)"/>
+    <use href="#officeWorkstation" transform="translate(505 670)"/>
+    <use href="#officeWorkstation" transform="translate(875 670)"/>
+  </g>
+
+</svg>

@@ -9,8 +9,8 @@ export const EmptyState = ({
   onCreateWorkspace,
 }: EmptyStateProps) => {
   return (
-    <div className="flex min-h-[380px] flex-col items-center justify-center gap-4 rounded-md border border-dashed border-border bg-card/70 px-6 text-center shadow-xs">
-      <div className="flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+    <div className="flex min-h-[380px] flex-col items-center justify-center gap-4 rounded-md bg-card/70 px-6 text-center shadow-xs">
+      <div className="flex size-12 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
         <FolderOpen className="size-6" />
       </div>
       <div className="space-y-1">

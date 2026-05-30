@@ -18,13 +18,13 @@ export const Groups = ({
             <h2 className="text-sm font-semibold text-foreground">
               {group.name}
             </h2>
-            <span className="rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground shadow-xs">
+            <span className="rounded-md bg-card px-2 py-1 text-xs text-muted-foreground shadow-xs">
               {workspaces.length} 个工作区
             </span>
           </div>
 
           {workspaces.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+            <div className="rounded-md bg-card/60 px-4 py-6 text-sm text-muted-foreground shadow-xs">
               当前分组暂无工作区
             </div>
           ) : (

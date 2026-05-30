@@ -1,4 +1,4 @@
-import { Bot, MessageSquare, Settings } from "lucide-react";
+import { Bot, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -18,16 +18,23 @@ export const SettingsPanel = ({
   onOpenAgentSettings,
 }: SettingsPanelProps) => (
   <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-    <header className="flex min-h-14 items-center justify-between border-b border-border/80 bg-card/80 px-5 py-3 backdrop-blur">
+    <header className="flex min-h-14 items-center justify-between bg-card/80 px-5 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur">
       <div className="min-w-0">
         <h2 className="text-base font-semibold">设置</h2>
         <p className="truncate text-xs text-muted-foreground">
           配置模型 Provider、可用模型，以及工作区中可复用的 Agent。
         </p>
       </div>
-      <Button type="button" variant="outline" onClick={onBack}>
-        <MessageSquare className="size-4" />
-        <span>返回应用</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="rounded-xl"
+        title="关闭设置"
+        aria-label="关闭设置"
+        onClick={onBack}
+      >
+        <X className="size-5" />
       </Button>
     </header>
 
@@ -43,10 +50,10 @@ export const SettingsPanel = ({
         <div className="grid gap-3 md:grid-cols-2">
           <button
             type="button"
-            className="rounded-md border border-border/80 bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onOpenLlmSettings}
           >
-            <span className="mb-4 flex size-10 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+            <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
               <Settings className="size-5" />
             </span>
             <span className="block text-base font-semibold">LLM 设置</span>
@@ -57,10 +64,10 @@ export const SettingsPanel = ({
 
           <button
             type="button"
-            className="rounded-md border border-border/80 bg-card p-4 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onOpenAgentSettings}
           >
-            <span className="mb-4 flex size-10 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+            <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
               <Bot className="size-5" />
             </span>
             <span className="block text-base font-semibold">Agent 设置</span>

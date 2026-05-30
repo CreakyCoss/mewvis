@@ -1,137 +1,40 @@
-import {
-  Columns3,
-  FileText,
-  MessageSquare,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
-import type { AgentRuntimeAgentDefinition } from "@/agent-runtime/contracts";
+import { PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AgentProfile } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { ModelSource, WorkspaceView } from "../page-types";
-import { DEFAULT_SESSION_TITLE } from "../utils/sessions";
+import { WindowDragRegion } from "@/components/window-drag-region";
 
 type WorkbenchHeaderProps = {
-  workspaceView: WorkspaceView;
-  currentSessionTitle: string;
-  modelSource: ModelSource;
-  selectedAgent: AgentProfile | null;
-  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
-  runtimeAgentRequiresModel: boolean;
-  effectiveProvider: LlmProvider | null;
-  effectiveModel: ProviderModel | null;
   isContextPanelOpen: boolean;
-  activeAgentTaskId: string;
-  onWorkspaceViewChange: (view: WorkspaceView) => void;
+  showToggle?: boolean;
   onToggleContextPanel: () => void;
-  onAbortTask: () => void;
 };
 
 export const WorkbenchHeader = ({
-  workspaceView,
-  currentSessionTitle,
-  modelSource,
-  selectedAgent,
-  selectedRuntimeAgent,
-  runtimeAgentRequiresModel,
-  effectiveProvider,
-  effectiveModel,
   isContextPanelOpen,
-  activeAgentTaskId,
-  onWorkspaceViewChange,
+  showToggle = true,
   onToggleContextPanel,
-  onAbortTask,
 }: WorkbenchHeaderProps) => (
-  <header className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/80 px-4 py-3 backdrop-blur lg:px-5">
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-9 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
-        {workspaceView === "file" ? (
-          <FileText className="size-4" />
-        ) : workspaceView === "split" ? (
-          <Columns3 className="size-4" />
-        ) : (
-          <MessageSquare className="size-4" />
-        )}
-      </div>
-      <div className="min-w-0">
-        <h2 className="text-base font-semibold">
-          {workspaceView === "file"
-            ? "文件工作台"
-            : workspaceView === "split"
-              ? "拆分工作台"
-              : "AI 工作台"}
-        </h2>
-        <p className="truncate text-xs text-muted-foreground">
-          {currentSessionTitle !== DEFAULT_SESSION_TITLE
-            ? `${currentSessionTitle} · `
-            : ""}
-          {modelSource === "agent" && selectedAgent
-            ? `当前 Agent：${selectedAgent.name} / ${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
-            : runtimeAgentRequiresModel
-              ? `当前模型：${selectedRuntimeAgent?.label ?? "运行时"} / ${effectiveProvider?.name ?? "未选择"} / ${effectiveModel?.modelName ?? "未选择"}`
-              : `当前运行时：${selectedRuntimeAgent?.label ?? "运行时"}`}
-        </p>
-      </div>
-    </div>
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
-      <div className="flex h-9 rounded-md border border-input bg-muted/60 p-0.5 shadow-xs">
+  <>
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-12 bg-background/65 shadow-[0_8px_24px_-26px_rgb(15_23_42_/_0.28)] backdrop-blur-md" />
+    <WindowDragRegion className="fixed top-0 right-16 left-0 z-[80] h-12" />
+    {showToggle && (
+      <div className="fixed top-1.5 right-4 z-40 flex items-center justify-end">
         <Button
           type="button"
-          size="sm"
-          variant={workspaceView === "chat" ? "secondary" : "ghost"}
-          className="h-7 px-2"
-          onClick={() => onWorkspaceViewChange("chat")}
+          size="icon"
+          variant="ghost"
+          className={[
+            "size-9 rounded-lg shadow-[0_8px_20px_-18px_rgb(15_23_42_/_0.45)] backdrop-blur transition-colors",
+            isContextPanelOpen
+              ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+              : "bg-background/85 text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+          ].join(" ")}
+          title={isContextPanelOpen ? "收起右侧文件树" : "展开右侧文件树"}
+          aria-label={isContextPanelOpen ? "收起右侧文件树" : "展开右侧文件树"}
+          onClick={onToggleContextPanel}
         >
-          <MessageSquare className="size-3.5" />
-          <span>聊天</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={workspaceView === "file" ? "secondary" : "ghost"}
-          className="h-7 px-2"
-          onClick={() => onWorkspaceViewChange("file")}
-        >
-          <FileText className="size-3.5" />
-          <span>文件</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={workspaceView === "split" ? "secondary" : "ghost"}
-          className="h-7 px-2"
-          onClick={() => onWorkspaceViewChange("split")}
-        >
-          <Columns3 className="size-3.5" />
-          <span>拆分</span>
+          <PanelRight className="size-[18px]" />
         </Button>
       </div>
-
-      <Button
-        type="button"
-        size="icon"
-        variant={isContextPanelOpen ? "secondary" : "ghost"}
-        title={isContextPanelOpen ? "收起右侧上下文" : "展开右侧上下文"}
-        onClick={onToggleContextPanel}
-      >
-        {isContextPanelOpen ? (
-          <PanelRightClose className="size-4" />
-        ) : (
-          <PanelRightOpen className="size-4" />
-        )}
-      </Button>
-
-      {workspaceView !== "file" && activeAgentTaskId && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={onAbortTask}
-        >
-          停止
-        </Button>
-      )}
-    </div>
-  </header>
+    )}
+  </>
 );

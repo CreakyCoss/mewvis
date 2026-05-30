@@ -110,6 +110,7 @@ import {
   isMarkdownPath,
 } from "../utils/sessions";
 import { ChatPanel } from "./panels/chat";
+import { ContextWorkbenchDialog } from "./context-workbench-dialog";
 import { ContextPanel } from "./panels/context";
 import { FilePanel } from "./panels/file";
 import { SettingsPanel } from "./panels/settings";
@@ -317,6 +318,8 @@ export const WorkspaceChatPage = ({
   const [collaborationPhase, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
+  const [isContextWorkbenchOpen, setIsContextWorkbenchOpen] = useState(false);
+  const [filePreviewMode, setFilePreviewMode] = useState<"closed" | "side" | "expanded">("closed");
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
@@ -345,6 +348,34 @@ export const WorkspaceChatPage = ({
   const [agentSessionError, setAgentSessionError] = useState("");
   const [isAgentSessionLoading, setIsAgentSessionLoading] = useState(false);
   const [isContextCompressing, setIsContextCompressing] = useState(false);
+
+  const closeSettingsAndContextPanels = useCallback(() => {
+    setWorkspaceView("chat");
+    setIsContextWorkbenchOpen(false);
+    setIsLlmSettingsOpen(false);
+    setIsAgentSettingsOpen(false);
+  }, []);
+
+  const openSettingsPanel = useCallback(() => {
+    setIsContextWorkbenchOpen(false);
+    setWorkspaceView("settings");
+  }, []);
+
+  const openContextWorkbench = useCallback(() => {
+    setWorkspaceView("chat");
+    setIsLlmSettingsOpen(false);
+    setIsAgentSettingsOpen(false);
+    setIsContextWorkbenchOpen(true);
+  }, []);
+
+  const handleContextWorkbenchOpenChange = useCallback((open: boolean) => {
+    setIsContextWorkbenchOpen(open);
+    if (open) {
+      setWorkspaceView("chat");
+      setIsLlmSettingsOpen(false);
+      setIsAgentSettingsOpen(false);
+    }
+  }, []);
 
   const updateMessage = useCallback((
     messageId: string,
@@ -520,6 +551,8 @@ export const WorkspaceChatPage = ({
   }, [agentRuntimeSessionId, refreshAgentSessionStatus, workspace.path]);
 
   const loadSessionById = async (sessionId: string) => {
+    closeSettingsAndContextPanels();
+
     if (activeAgentTaskIdRef.current) {
       setSessionsError("Agent 正在处理，结束后再切换聊天记录");
       return;
@@ -549,12 +582,15 @@ export const WorkspaceChatPage = ({
   };
 
   const startNewSession = () => {
+    closeSettingsAndContextPanels();
+
     if (activeAgentTaskIdRef.current) {
       setSessionsError("Agent 正在处理，结束后再新建聊天");
       return;
     }
 
     setSessionsError("");
+    setIsContextPanelOpen(false);
     setComposerResetKey((current) => current + 1);
     setPendingAgentQuestion(null);
     hydrateSession(null);
@@ -801,6 +837,7 @@ export const WorkspaceChatPage = ({
     setFileContent("");
     setFileError("");
     setFileViewMode("source");
+    setFilePreviewMode("closed");
     setExpandedFileTreePaths(new Set());
     setWorkspaceView("chat");
     setShowAllSessions(false);
@@ -1572,7 +1609,8 @@ export const WorkspaceChatPage = ({
       setActiveFile(file);
       setFilePath(file.path);
       setFileContent(file.content);
-      setWorkspaceView((current) => current === "split" ? "split" : "file");
+      setFilePreviewMode("side");
+      setWorkspaceView("chat");
     } catch (caught) {
       setFileError(String(caught));
     }
@@ -1584,7 +1622,8 @@ export const WorkspaceChatPage = ({
     setFileContent("");
     setFileError("");
     setFileViewMode("source");
-    setWorkspaceView((current) => current === "split" ? "split" : "file");
+    setFilePreviewMode("side");
+    setWorkspaceView("chat");
   };
 
   const saveFile = async () => {
@@ -2158,9 +2197,13 @@ export const WorkspaceChatPage = ({
       fileViewMode={fileViewMode}
       isMarkdownFile={isMarkdownFile}
       isFileSaving={isFileSaving}
+      previewMode={filePreviewMode === "expanded" ? "expanded" : "side"}
       onFilePathChange={setFilePath}
       onFileContentChange={setFileContent}
       onFileViewModeChange={setFileViewMode}
+      onExpandPreview={() => setFilePreviewMode("expanded")}
+      onCollapsePreview={() => setFilePreviewMode("side")}
+      onClosePreview={() => setFilePreviewMode("closed")}
       onSaveFile={() => void saveFile()}
     />
   );
@@ -2169,6 +2212,7 @@ export const WorkspaceChatPage = ({
     <ChatPanel
       chatScrollAreaRef={chatScrollAreaRef}
       workspace={workspace}
+      workspaces={sidebarWorkspaces}
       messages={messages}
       expandedThinkingIds={expandedThinkingIds}
       expandedAgentEventIds={expandedAgentEventIds}
@@ -2205,6 +2249,8 @@ export const WorkspaceChatPage = ({
       onEditHistoryMessage={editHistoryMessage}
       onDeleteHistoryMessage={deleteHistoryMessage}
       onMoveHistoryMessage={moveHistoryMessage}
+      onOpenWorkspace={onOpenWorkspace}
+      onCreateWorkspace={onCreateWorkspace}
       answerAgentQuestion={answerAgentQuestion}
       setAgentQuestionAnswer={setAgentQuestionAnswer}
       setCustomAgentQuestionAnswer={setCustomAgentQuestionAnswer}
@@ -2219,6 +2265,7 @@ export const WorkspaceChatPage = ({
       setSelectedModelId={setSelectedModelId}
       toggleAllowedAgentTool={toggleAllowedAgentTool}
       sendMessage={sendMessage}
+      onAbortTask={() => void agentRuntime.abortTask(activeAgentTaskId)}
     />
   );
 
@@ -2233,7 +2280,7 @@ export const WorkspaceChatPage = ({
   );
 
   return (
-    <main className="flex h-screen min-h-screen overflow-hidden bg-muted/35 text-foreground">
+    <main className="flex h-screen min-h-screen overflow-hidden bg-background text-foreground">
       <SkillsDialog
         open={isSkillsDialogOpen}
         skills={skills}
@@ -2263,6 +2310,22 @@ export const WorkspaceChatPage = ({
           }
         }}
       />
+      <ContextWorkbenchDialog
+        open={isContextWorkbenchOpen}
+        currentSessionId={currentSessionId}
+        currentSessionTitle={currentSessionTitle}
+        agentRuntimeSessionId={agentRuntimeSessionId}
+        activeAgentTaskId={activeAgentTaskId}
+        agentSessionStatus={agentSessionStatus}
+        agentSessionError={agentSessionError}
+        isAgentSessionLoading={isAgentSessionLoading}
+        isContextCompressing={isContextCompressing}
+        latestAgentExecutionSummary={latestAgentExecutionSummary}
+        onOpenChange={handleContextWorkbenchOpenChange}
+        onRefreshAgentSession={() => void refreshAgentSessionStatus()}
+        onCleanupAgentSessions={() => void cleanupAgentSessions()}
+        onCompressConversationContext={() => void compressConversationContext()}
+      />
       <Sidebar
         workspace={workspace}
         workspaces={sidebarWorkspaces}
@@ -2276,52 +2339,38 @@ export const WorkspaceChatPage = ({
         visibleSessions={visibleSidebarSessions}
         showAllSessions={showAllSessions}
         onOpenWorkspace={onOpenWorkspace}
-        onCreateWorkspace={onCreateWorkspace}
         onEditWorkspace={onEditWorkspace}
         onStartNewSession={startNewSession}
+        onOpenContext={openContextWorkbench}
         onOpenSkills={() => setIsSkillsDialogOpen(true)}
-        onRefreshConfig={() => void loadLlmOptions()}
-        onRefreshProjects={() => void loadProjects()}
         onLoadSession={(sessionId) => void loadSessionById(sessionId)}
         onRemoveSession={(sessionId) => void removeSession(sessionId)}
         onToggleShowAllSessions={() => setShowAllSessions((current) => !current)}
-        onOpenSettings={() => setWorkspaceView("settings")}
+        onOpenSettings={openSettingsPanel}
       />
 
-      <section className="flex min-w-0 flex-1 flex-col bg-background">
-        {workspaceView !== "settings" && (
-          <WorkbenchHeader
-            workspaceView={workspaceView}
-            currentSessionTitle={currentSessionTitle}
-            modelSource={modelSource}
-            selectedAgent={selectedAgent}
-            selectedRuntimeAgent={selectedRuntimeAgent}
-            runtimeAgentRequiresModel={runtimeAgentRequiresModel}
-            effectiveProvider={effectiveProvider}
-            effectiveModel={effectiveModel}
-            isContextPanelOpen={isContextPanelOpen}
-            activeAgentTaskId={activeAgentTaskId}
-            onWorkspaceViewChange={setWorkspaceView}
-            onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
-            onAbortTask={() => void agentRuntime.abortTask(activeAgentTaskId)}
-          />
-        )}
+      <WorkbenchHeader
+        isContextPanelOpen={isContextPanelOpen}
+        showToggle={workspaceView !== "settings"}
+        onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
+      />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="min-w-0 flex-1 overflow-hidden">
-            {workspaceView === "split" ? (
-              <div className="grid min-h-0 h-full overflow-hidden grid-cols-[minmax(0,1fr)_minmax(360px,0.95fr)]">
-                <div className="min-h-0 overflow-hidden border-r border-border/80">
-                  {filePanel}
-                </div>
-                <div className="min-h-0 overflow-hidden">
+      <section className="flex min-w-0 flex-1 flex-col bg-background pt-12">
+        <div className="flex min-h-0 flex-1 overflow-hidden bg-muted/20">
+          <div className="min-w-0 flex-1 overflow-hidden bg-background/95 shadow-[inset_8px_0_24px_-28px_rgb(15_23_42_/_0.35),inset_-8px_0_24px_-28px_rgb(15_23_42_/_0.28)]">
+            {workspaceView === "settings" ? (
+              settingsPanel
+            ) : filePreviewMode === "expanded" ? (
+              filePanel
+            ) : filePreviewMode === "side" ? (
+              <div className="grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)]">
+                <div className="min-h-0 overflow-hidden bg-background/95 shadow-[10px_0_28px_-30px_rgb(15_23_42_/_0.32)]">
                   {chatPanel}
                 </div>
+                <div className="min-h-0 overflow-hidden">
+                  {filePanel}
+                </div>
               </div>
-            ) : workspaceView === "file" ? (
-              filePanel
-            ) : workspaceView === "settings" ? (
-              settingsPanel
             ) : (
               chatPanel
             )}
@@ -2334,28 +2383,14 @@ export const WorkspaceChatPage = ({
               fileTree={fileTree}
               expandedFileTreePaths={expandedFileTreePaths}
               activeFile={activeFile}
-              fileContent={fileContent}
-              isMarkdownFile={isMarkdownFile}
               chatMode={chatMode}
               collaborationPhase={collaborationPhase}
               selectedAgent={selectedAgent}
               reviewerAgent={reviewerAgent}
-              currentSessionId={currentSessionId}
-              agentRuntimeSessionId={agentRuntimeSessionId}
-              agentSessionStatus={agentSessionStatus}
-              agentSessionError={agentSessionError}
-              isAgentSessionLoading={isAgentSessionLoading}
-              isContextCompressing={isContextCompressing}
-              latestAgentExecutionSummary={latestAgentExecutionSummary}
               onRefreshFiles={() => void loadFiles()}
-              onRefreshAgentSession={() => void refreshAgentSessionStatus()}
-              onCleanupAgentSessions={() => void cleanupAgentSessions()}
-              onCompressConversationContext={() => void compressConversationContext()}
               onPrepareNewFile={prepareNewFile}
-              onClose={() => setIsContextPanelOpen(false)}
               onOpenFile={(path) => void openFile(path)}
               onToggleDirectory={toggleFileTreeDirectory}
-              onEditFile={() => setWorkspaceView("file")}
             />
           )}
         </div>

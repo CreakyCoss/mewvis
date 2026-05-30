@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
   getProviderTypeLabel,
@@ -68,11 +67,11 @@ export const SettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 border border-border/70 p-0 shadow-lg sm:max-w-5xl">
+      <DialogContent className="gap-5 border-transparent p-0 shadow-lg sm:max-w-5xl">
         <DialogHeader>
-          <div className="border-b border-border/80 px-6 pt-6 pb-4">
+          <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <span className="flex size-8 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
                 <Settings className="size-4" />
               </span>
               <span>LLM 设置</span>
@@ -90,7 +89,7 @@ export const SettingsDialog = ({
         )}
 
         <div className="grid min-h-[500px] gap-0 md:grid-cols-[260px_1fr]">
-          <aside className="flex min-h-0 flex-col gap-3 border-b border-border/80 bg-muted/35 px-4 py-4 md:border-r md:border-b-0">
+          <aside className="flex min-h-0 flex-col gap-3 bg-muted/35 px-4 py-4 shadow-[10px_0_30px_-30px_rgb(15_23_42_/_0.35)]">
             <Button
               type="button"
               variant="outline"
@@ -110,8 +109,8 @@ export const SettingsDialog = ({
                   className={[
                     "flex w-full items-center justify-between rounded-md border px-3 py-2.5 text-left text-sm shadow-xs transition-all",
                     provider.id === selectedProviderId
-                      ? "border-primary/30 bg-card text-foreground ring-1 ring-primary/15"
-                      : "border-border/70 bg-card/65 hover:bg-card",
+                      ? "border-primary/20 bg-card text-foreground ring-1 ring-primary/10"
+                      : "border-transparent bg-card/65 hover:bg-card",
                   ].join(" ")}
                   onClick={() => setSelectedProviderId(provider.id)}
                 >
@@ -239,7 +238,7 @@ export const SettingsDialog = ({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/35 px-3 py-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/35 px-3 py-2.5">
                   <div className="flex items-center gap-2 text-sm">
                     <Switch
                       checked={selectedProvider.isDefault}
@@ -259,9 +258,7 @@ export const SettingsDialog = ({
                   </Button>
                 </div>
 
-                <Separator />
-
-                <div className="space-y-3">
+                <div className="space-y-3 rounded-2xl bg-muted/20 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">模型</h3>
@@ -291,7 +288,7 @@ export const SettingsDialog = ({
                     {selectedProvider.models.map((model) => (
                       <div
                         key={model.id}
-                        className="grid gap-3 rounded-md border border-border/80 bg-card p-3 shadow-xs md:grid-cols-[1fr_1fr_auto_auto]"
+                        className="grid gap-3 rounded-md bg-card p-3 shadow-xs md:grid-cols-[1fr_1fr_auto_auto]"
                       >
                         <div className="space-y-2">
                           <Label htmlFor={`${model.id}-model-id`}>模型 ID</Label>
@@ -391,7 +388,7 @@ export const SettingsDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="border-t border-border/80 px-6 pb-6 pt-4">
+        <DialogFooter className="px-6 pb-6 pt-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
           <Button type="button" onClick={handleSave} disabled={isSaving || isLoading}>
             <Save className="size-4" />
             <span>{isSaving ? "正在保存" : "保存设置"}</span>

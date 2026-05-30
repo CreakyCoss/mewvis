@@ -33,20 +33,20 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
 
   return (
     <main className="flex h-screen min-h-screen overflow-hidden bg-muted/35 text-foreground">
-      <aside className="hidden w-[272px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
-        <div className="border-b border-sidebar-border px-4 py-4">
+      <aside className="hidden w-[272px] shrink-0 flex-col bg-sidebar text-sidebar-foreground shadow-[10px_0_32px_-28px_rgb(15_23_42_/_0.45)] md:flex">
+        <div className="px-4 py-4">
           <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+            <div className="flex size-9 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
               <Folder className="size-4" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold">Novel Claw</h1>
+              <h1 className="truncate text-base font-semibold">Mewvis</h1>
               <p className="text-xs text-muted-foreground">工作区控制台</p>
             </div>
           </div>
         </div>
 
-        <div className="border-b border-sidebar-border px-3 py-3">
+        <div className="px-3 pb-3">
           <Button
             type="button"
             className="w-full justify-start"
@@ -80,7 +80,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
                           <button
                             key={workspace.id}
                             type="button"
-                            className="flex w-full items-start gap-2 rounded-md border border-transparent px-2 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+                            className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
                             onClick={() => onOpenWorkspace(workspace)}
                           >
                             <Folder className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -113,7 +113,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
               <div className="px-2 text-xs font-medium text-muted-foreground">
                 配置
               </div>
-              <div className="rounded-md border border-sidebar-border bg-sidebar-accent/45 p-2">
+              <div className="rounded-md bg-sidebar-accent/45 p-2 shadow-xs">
                 <div className="flex items-start gap-2 text-xs text-muted-foreground">
                   <Database className="mt-0.5 size-3.5 shrink-0 text-primary" />
                   <div className="min-w-0">
@@ -130,7 +130,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
           </div>
         </ScrollArea>
 
-        <div className="space-y-1 border-t border-sidebar-border p-3">
+        <div className="space-y-1 bg-sidebar/95 p-3">
           <Button
             type="button"
             variant="ghost"
@@ -153,7 +153,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col bg-background">
-        <header className="flex min-h-14 items-center justify-between gap-3 border-b border-border/80 bg-card/80 px-4 py-3 backdrop-blur md:px-5">
+        <header className="flex min-h-14 items-center justify-between gap-3 bg-card/80 px-4 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur md:px-5">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">工作区</h2>
             <p className="truncate text-xs text-muted-foreground">

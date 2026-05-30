@@ -8,11 +8,13 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Folder,
   Link,
   Loader2,
   MessageSquare,
   MoreHorizontal,
   Pencil,
+  Plus,
   Send,
   Trash2,
   Wrench,
@@ -25,6 +27,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,6 +55,7 @@ import { MarkdownContent } from "../markdown-content";
 type ChatPanelProps = {
   chatScrollAreaRef: RefObject<HTMLDivElement | null>;
   workspace: Workspace;
+  workspaces: Workspace[];
   messages: ChatMessage[];
   expandedThinkingIds: Set<string>;
   expandedAgentEventIds: Set<string>;
@@ -87,6 +92,8 @@ type ChatPanelProps = {
   onEditHistoryMessage: (messageId: string, nextText: string) => void;
   onDeleteHistoryMessage: (messageId: string) => void;
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
+  onOpenWorkspace: (workspace: Workspace) => void;
+  onCreateWorkspace: () => void;
   answerAgentQuestion: (event: FormEvent<HTMLFormElement>) => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
@@ -101,11 +108,13 @@ type ChatPanelProps = {
   setSelectedModelId: Dispatch<SetStateAction<string>>;
   toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
+  onAbortTask: () => void;
 };
 
 export const ChatPanel = ({
   chatScrollAreaRef,
   workspace,
+  workspaces,
   messages,
   expandedThinkingIds,
   expandedAgentEventIds,
@@ -142,6 +151,8 @@ export const ChatPanel = ({
   onEditHistoryMessage,
   onDeleteHistoryMessage,
   onMoveHistoryMessage,
+  onOpenWorkspace,
+  onCreateWorkspace,
   answerAgentQuestion,
   setAgentQuestionAnswer,
   setCustomAgentQuestionAnswer,
@@ -156,6 +167,7 @@ export const ChatPanel = ({
   setSelectedModelId,
   toggleAllowedAgentTool,
   sendMessage,
+  onAbortTask,
 }: ChatPanelProps) => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
@@ -238,20 +250,122 @@ export const ChatPanel = ({
     }, 140);
   };
 
-  return (
+  const workspaceOptions = [
+    workspace,
+    ...workspaces.filter((item) => item.id !== workspace.id),
+  ];
+  const isEmptyConversation = messages.length === 0 && !pendingAgentQuestion;
+  const workspaceSwitcher = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-9 max-w-full rounded-lg px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+          title={workspace.path}
+        >
+          <Folder className="size-4 shrink-0" />
+          <span className="min-w-0 truncate">{workspace.name}</span>
+          <ChevronDown className="size-3.5 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-80">
+        <DropdownMenuLabel>工作区</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {workspaceOptions.map((item) => (
+          <DropdownMenuItem
+            key={item.id}
+            className="items-start gap-2 py-2"
+            title={item.path}
+            onSelect={() => {
+              if (item.id !== workspace.id) {
+                onOpenWorkspace(item);
+              }
+            }}
+          >
+            <Folder className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{item.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{item.path}</span>
+            </span>
+            {item.id === workspace.id && (
+              <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+            )}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="gap-2 py-2" onSelect={onCreateWorkspace}>
+          <Plus className="size-4 text-muted-foreground" />
+          <span>新建工作区</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+  const emptyContextBar = (
+    <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-2 px-1 text-sm text-muted-foreground">
+      {workspaceSwitcher}
+    </div>
+  );
+  const statusBanner = (chatError || settingsError || skillsError || sessionsError) ? (
+    <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      {chatError || settingsError || skillsError || sessionsError}
+    </div>
+  ) : null;
+  const composerElement = (
+    <Composer
+      files={files}
+      resetKey={composerResetKey}
+      isSending={isSending}
+      activeAgentTaskId={activeAgentTaskId}
+      isSettingsLoading={isSettingsLoading}
+      chatMode={chatMode}
+      contextWindowPreset={contextWindowPreset}
+      modelSource={modelSource}
+      runtimeAgents={availableRuntimeAgents}
+      selectedRuntimeAgent={selectedRuntimeAgent}
+      selectedRuntimeAgentId={runtimeAgentId}
+      agentProfiles={agentProfiles}
+      providers={providers}
+      selectedProviderId={selectedProviderId}
+      selectedModel={selectedModel}
+      selectedAgent={selectedAgent}
+      reviewerAgent={reviewerAgent}
+      allowedAgentTools={allowedAgentTools}
+      onChatModeChange={setChatMode}
+      onContextWindowPresetChange={setContextWindowPreset}
+      onModelSourceChange={setModelSource}
+      onRuntimeAgentChange={setSelectedRuntimeAgentId}
+      onSelectedAgentChange={setSelectedAgentId}
+      onReviewerAgentChange={setSelectedReviewerAgentId}
+      onProviderChange={(providerId) => {
+        const provider = providers.find((item) => item.id === providerId);
+        setSelectedProviderId(providerId);
+        setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
+      }}
+      onModelChange={setSelectedModelId}
+      onToggleAllowedAgentTool={toggleAllowedAgentTool}
+      onSubmit={(input) => void sendMessage(input)}
+      onAbortTask={onAbortTask}
+    />
+  );
 
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+  return (
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-6">
-          {messages.length === 0 ? (
-            <div className="flex min-h-[44vh] flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="space-y-2">
-                <h3 className="text-2xl font-semibold">
-                  我们应该在 {workspace.name} 中构建什么？
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  选择左侧会话继续，或者直接开始一个新的工作区任务。
-                </p>
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-7 py-7">
+          {isEmptyConversation ? (
+            <div className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center px-2 py-10">
+              <div className="w-full space-y-7">
+                <div className="text-center">
+                  <h3 className="mx-auto max-w-4xl text-3xl font-semibold leading-tight tracking-normal text-foreground sm:text-4xl">
+                    我们应该在 {workspace.name} 中构建什么？
+                  </h3>
+                </div>
+                {statusBanner}
+                <div className="space-y-3">
+                  {composerElement}
+                  {emptyContextBar}
+                </div>
               </div>
             </div>
           ) : (
@@ -520,7 +634,7 @@ export const ChatPanel = ({
                       </div>
                     )}
                     <div
-                      className="relative rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                      className="relative rounded-md px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:bg-card data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
                       data-role={message.role}
                       onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
                       onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
@@ -576,7 +690,7 @@ export const ChatPanel = ({
                       </div>
                     )}
                     {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && thinking && (
-                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                      <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -594,7 +708,7 @@ export const ChatPanel = ({
                           )}
                         </button>
                         {!isThinkingCollapsed && (
-                          <div className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                          <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
                             {thinking}
                           </div>
                         )}
@@ -602,7 +716,7 @@ export const ChatPanel = ({
                     )}
 
                     {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
-                      <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
+                      <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -628,9 +742,9 @@ export const ChatPanel = ({
                           )}
                         </button>
                         {!isAgentEventsCollapsed && (
-                          <div className="max-h-72 space-y-1.5 overflow-auto border-t border-border/60 px-2.5 py-2">
+                          <div className="max-h-72 space-y-1.5 overflow-auto bg-background/45 px-2.5 py-2">
                             {hiddenAgentEventGroupCount > 0 && (
-                              <div className="rounded-sm border border-dashed border-border/70 bg-background/60 px-2 py-1 text-xs text-muted-foreground">
+                              <div className="rounded-sm bg-background/70 px-2 py-1 text-xs text-muted-foreground">
                                 已折叠较早的 {hiddenAgentEventGroupCount} 段执行过程，当前显示最近阶段。
                               </div>
                             )}
@@ -648,7 +762,7 @@ export const ChatPanel = ({
                               return (
                                 <details
                                   key={`${message.id}-${group.id}`}
-                                  className="group rounded-sm border border-border/60 bg-background"
+                                  className="group rounded-sm bg-background shadow-xs"
                                   open={group.status === "running" || group.status === "error"}
                                 >
                                   <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
@@ -672,7 +786,7 @@ export const ChatPanel = ({
                                       {group.events.length} 条
                                     </span>
                                   </summary>
-                                  <div className="space-y-1 border-t border-border/50 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                                  <div className="space-y-1 bg-muted/25 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
                                     {group.events.slice(-8).map((event, index) => (
                                       <div
                                         key={`${message.id}-${group.id}-${event.type}-${index}`}
@@ -688,7 +802,7 @@ export const ChatPanel = ({
                                     )}
                                   </div>
                                   {latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                    <div className="border-t border-border/50 px-2 py-1 text-[11px] text-destructive">
+                                    <div className="bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
                                       工具执行失败，请展开查看最后几条输出。
                                     </div>
                                   )}
@@ -709,7 +823,7 @@ export const ChatPanel = ({
                             return (
                               <div
                                 key={block.id}
-                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                                className="overflow-hidden rounded-md bg-muted/35 shadow-xs"
                               >
                                 <button
                                   type="button"
@@ -735,7 +849,7 @@ export const ChatPanel = ({
                                 >
                                   <div className="min-h-0 overflow-hidden">
                                     <div
-                                      className="max-h-48 overflow-auto border-t border-border/60 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+                                      className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
                                       data-agent-thinking-content="true"
                                     >
                                       {block.content.trim() || "正在思考..."}
@@ -759,7 +873,7 @@ export const ChatPanel = ({
                             return (
                               <div
                                 key={block.id}
-                                className="overflow-hidden rounded-md border border-border/70 bg-muted/35"
+                                className="overflow-hidden rounded-md bg-muted/35 shadow-xs"
                               >
                                 <button
                                   type="button"
@@ -799,7 +913,7 @@ export const ChatPanel = ({
                                   ].join(" ")}
                                 >
                                   <div className="min-h-0 overflow-hidden">
-                                    <div className="space-y-1 border-t border-border/50 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                                    <div className="space-y-1 bg-background/45 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
                                       {block.events.slice(-8).map((event, index) => (
                                         <div
                                           key={`${block.id}-${event.type}-${index}`}
@@ -815,14 +929,14 @@ export const ChatPanel = ({
                                       )}
                                     </div>
                                     {latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                      <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                      <div className="bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">
                                         工具执行失败，请展开查看最后几条输出。
                                       </div>
                                     )}
                                   </div>
                                 </div>
                                 {isCollapsed && latestEvent?.type === "tool_end" && latestEvent.isError && (
-                                  <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-destructive">
+                                  <div className="bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">
                                     工具执行失败
                                   </div>
                                 )}
@@ -880,162 +994,127 @@ export const ChatPanel = ({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border/80 bg-card/80 px-6 py-4 backdrop-blur">
-        {(chatError || settingsError || skillsError || sessionsError) && (
-          <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {chatError || settingsError || skillsError || sessionsError}
-          </div>
-        )}
-        {pendingAgentQuestion && (
-          <form
-            action="#"
-            className="mx-auto mb-3 max-w-5xl rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
-            onSubmit={(event) => void answerAgentQuestion(event)}
-          >
-            <div className="mb-2 flex items-start gap-2">
-              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
-                <MessageSquare className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-foreground">
-                  {pendingAgentQuestion.input?.label || "Agent 需要你的回答"}
+      {!isEmptyConversation && (
+        <div className="bg-background/90 px-7 py-4 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur">
+          {statusBanner}
+          {pendingAgentQuestion && (
+            <form
+              action="#"
+              className="mx-auto mb-3 max-w-5xl rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
+              onSubmit={(event) => void answerAgentQuestion(event)}
+            >
+              <div className="mb-2 flex items-start gap-2">
+                <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
+                  <MessageSquare className="size-4" />
                 </div>
-                {pendingAgentQuestion.context && (
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {pendingAgentQuestion.context}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground">
+                    {pendingAgentQuestion.input?.label || "Agent 需要你的回答"}
                   </div>
-                )}
-                <div className="mt-1 whitespace-pre-wrap text-sm leading-6">
-                  {pendingAgentQuestion.question}
+                  {pendingAgentQuestion.context && (
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {pendingAgentQuestion.context}
+                    </div>
+                  )}
+                  <div className="mt-1 whitespace-pre-wrap text-sm leading-6">
+                    {pendingAgentQuestion.question}
+                  </div>
                 </div>
               </div>
-            </div>
-            {pendingAgentQuestion.input?.type === "select" &&
-            (pendingAgentQuestion.input.options?.length ?? 0) > 0 ? (
-              <div className="space-y-2">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(pendingAgentQuestion.input.options ?? []).map((option) => {
-                    const isSelected = agentQuestionAnswer === option.value;
-                    const isOther = option.value === "other";
+              {pendingAgentQuestion.input?.type === "select" &&
+              (pendingAgentQuestion.input.options?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(pendingAgentQuestion.input.options ?? []).map((option) => {
+                      const isSelected = agentQuestionAnswer === option.value;
+                      const isOther = option.value === "other";
 
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={[
-                          "rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                          isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
-                        ].join(" ")}
-                        disabled={isAnsweringAgentQuestion}
-                        onClick={() => {
-                          setAgentQuestionAnswer(option.value);
-                          if (!isOther) {
-                            void submitAgentQuestionAnswer(option.value);
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={[
+                            "rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                            isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
+                          ].join(" ")}
+                          disabled={isAnsweringAgentQuestion}
+                          onClick={() => {
+                            setAgentQuestionAnswer(option.value);
+                            if (!isOther) {
+                              void submitAgentQuestionAnswer(option.value);
+                            }
+                          }}
+                        >
+                          <span className="block font-medium">{option.label}</span>
+                          {option.description && (
+                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                              {option.description}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {agentQuestionAnswer === "other" && (
+                    <div className="flex items-end gap-2">
+                      <Textarea
+                        value={customAgentQuestionAnswer}
+                        onChange={(event) => setCustomAgentQuestionAnswer(event.currentTarget.value)}
+                        placeholder="请输入自定义答案"
+                        rows={2}
+                        className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                            event.currentTarget.form?.requestSubmit();
                           }
                         }}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isAnsweringAgentQuestion || !customAgentQuestionAnswer.trim()}
                       >
-                        <span className="block font-medium">{option.label}</span>
-                        {option.description && (
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                            {option.description}
-                          </span>
+                        {isAnsweringAgentQuestion ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Send className="size-4" />
                         )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {agentQuestionAnswer === "other" && (
-                  <div className="flex items-end gap-2">
-                    <Textarea
-                      value={customAgentQuestionAnswer}
-                      onChange={(event) => setCustomAgentQuestionAnswer(event.currentTarget.value)}
-                      placeholder="请输入自定义答案"
-                      rows={2}
-                      className="min-h-14 flex-1 resize-none bg-background shadow-xs"
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                          event.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isAnsweringAgentQuestion || !customAgentQuestionAnswer.trim()}
-                    >
-                      {isAnsweringAgentQuestion ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Send className="size-4" />
-                      )}
-                      <span>回复</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-end gap-2">
-                <Textarea
-                  value={agentQuestionAnswer}
-                  onChange={(event) => setAgentQuestionAnswer(event.currentTarget.value)}
-                  placeholder="直接回答这个问题，Agent 会继续执行"
-                  rows={2}
-                  className="min-h-14 flex-1 resize-none bg-background shadow-xs"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  disabled={isAnsweringAgentQuestion || !agentQuestionAnswer.trim()}
-                >
-                  {isAnsweringAgentQuestion ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
+                        <span>回复</span>
+                      </Button>
+                    </div>
                   )}
-                  <span>回复</span>
-                </Button>
-              </div>
-            )}
-          </form>
-        )}
-        <Composer
-          files={files}
-          resetKey={composerResetKey}
-          isSending={isSending}
-          activeAgentTaskId={activeAgentTaskId}
-          isSettingsLoading={isSettingsLoading}
-          chatMode={chatMode}
-          contextWindowPreset={contextWindowPreset}
-          modelSource={modelSource}
-          runtimeAgents={availableRuntimeAgents}
-          selectedRuntimeAgent={selectedRuntimeAgent}
-          selectedRuntimeAgentId={runtimeAgentId}
-          agentProfiles={agentProfiles}
-          providers={providers}
-          selectedProviderId={selectedProviderId}
-          selectedModel={selectedModel}
-          selectedAgent={selectedAgent}
-          reviewerAgent={reviewerAgent}
-          allowedAgentTools={allowedAgentTools}
-          onChatModeChange={setChatMode}
-          onContextWindowPresetChange={setContextWindowPreset}
-          onModelSourceChange={setModelSource}
-          onRuntimeAgentChange={setSelectedRuntimeAgentId}
-          onSelectedAgentChange={setSelectedAgentId}
-          onReviewerAgentChange={setSelectedReviewerAgentId}
-          onProviderChange={(providerId) => {
-            const provider = providers.find((item) => item.id === providerId);
-            setSelectedProviderId(providerId);
-            setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-          }}
-          onModelChange={setSelectedModelId}
-          onToggleAllowedAgentTool={toggleAllowedAgentTool}
-          onSubmit={(input) => void sendMessage(input)}
-        />
-      </div>
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <Textarea
+                    value={agentQuestionAnswer}
+                    onChange={(event) => setAgentQuestionAnswer(event.currentTarget.value)}
+                    placeholder="直接回答这个问题，Agent 会继续执行"
+                    rows={2}
+                    className="min-h-14 flex-1 resize-none bg-background shadow-xs"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isAnsweringAgentQuestion || !agentQuestionAnswer.trim()}
+                  >
+                    {isAnsweringAgentQuestion ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                    <span>回复</span>
+                  </Button>
+                </div>
+              )}
+            </form>
+          )}
+          {composerElement}
+        </div>
+      )}
     </section>
   );
 };

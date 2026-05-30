@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Folder, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WindowDragRegion } from "@/components/window-drag-region";
 import { ConfigDatabaseDialog } from "@/features/app-recovery/components/config-database-dialog";
 import { StartupGate } from "@/features/app-startup/components/startup-gate";
 import { WorkspaceChatPage } from "@/features/workspace-chat/components/page";
@@ -113,12 +114,14 @@ const WorkspaceApp = () => {
 
   return (
     <>
-      <main className="flex h-screen min-h-screen overflow-hidden bg-background text-foreground">
-        <aside className="hidden w-[288px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
-          <div className="border-b border-sidebar-border px-4 py-4">
-            <h1 className="truncate text-sm font-semibold">Novel Claw</h1>
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-12 bg-background/85 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur" />
+      <WindowDragRegion className="fixed inset-x-0 top-0 z-[31] h-12" />
+      <main className="flex h-screen min-h-screen overflow-hidden bg-background pt-12 text-foreground">
+        <aside className="hidden w-[288px] shrink-0 flex-col bg-sidebar text-sidebar-foreground shadow-[10px_0_32px_-28px_rgb(15_23_42_/_0.45)] md:flex">
+          <div className="px-4 py-4">
+            <h1 className="truncate text-sm font-semibold">Mewvis</h1>
           </div>
-          <div className="space-y-1 border-b border-sidebar-border p-3">
+          <div className="space-y-1 px-3 pb-3">
             <Button
               type="button"
               variant="ghost"
@@ -149,7 +152,7 @@ const WorkspaceApp = () => {
                       <button
                         key={workspace.id}
                         type="button"
-                        className="flex h-8 w-full items-center gap-2 rounded-md border border-transparent px-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+                        className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
                         onClick={() => setActiveWorkspace(workspace)}
                       >
                         <Folder className="size-4 shrink-0 text-muted-foreground" />
@@ -171,7 +174,7 @@ const WorkspaceApp = () => {
 
         <section className="flex min-w-0 flex-1 flex-col items-center justify-center px-6 text-center">
           <div className="max-w-lg space-y-4">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-md border border-primary/15 bg-accent text-primary">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
               <Folder className="size-6" />
             </div>
             <div className="space-y-2">

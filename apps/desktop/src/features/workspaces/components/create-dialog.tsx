@@ -68,7 +68,7 @@ export const CreateDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="border border-border/70 shadow-lg sm:max-w-xl">
+      <DialogContent className="border-transparent shadow-lg sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-lg">
             {isEditing ? "工作区设置" : "新增工作区"}
