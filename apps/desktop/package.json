@@ -34,6 +34,7 @@
     "date-fns": "^4.2.1",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "js-tiktoken": "^1.0.21",
     "lucide-react": "^0.500.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.3",

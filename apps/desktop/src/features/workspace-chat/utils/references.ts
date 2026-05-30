@@ -1,6 +1,6 @@
+import { selectRelevantText } from "@/agent-context/context-selection";
 import type { ActiveReferenceToken, FileReferenceMatch, ResolvedFileReference } from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
-import { selectRelevantText } from "./context-selection";
 
 export const quoteReferencePath = (path: string) =>
   /[\s，。；,;]/.test(path) ? `@"${path}"` : `@${path}`;

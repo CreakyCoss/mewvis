@@ -1,25 +1,44 @@
-import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type FormEvent, type RefObject, type SetStateAction } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   Bot,
   Brain,
+  Check,
   ChevronDown,
   ChevronRight,
+  Copy,
   Link,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
+  Pencil,
   Send,
-  User,
+  Trash2,
   Wrench,
+  X,
 } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/agent-runtime/contracts";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentProfile } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type { Workspace } from "@/features/workspaces/types";
-import type { ChatMode, ComposerSubmitInput, ModelSource, PendingAgentQuestion } from "../../page-types";
+import type {
+  ChatMode,
+  ComposerSubmitInput,
+  ContextWindowPreset,
+  ModelSource,
+  PendingAgentQuestion,
+} from "../../page-types";
 import type { ChatMessage, WorkspaceFileEntry } from "../../types";
 import {
   describeAgentGroupEvent,
@@ -51,6 +70,7 @@ type ChatPanelProps = {
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
   chatMode: ChatMode;
+  contextWindowPreset: ContextWindowPreset;
   availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
   runtimeAgentId: string;
@@ -64,11 +84,15 @@ type ChatPanelProps = {
   toggleAgentEvents: (messageId: string) => void;
   toggleAgentThinkingBlock: (messageId: string, blockId: string) => void;
   toggleAgentBlock: (messageId: string, blockId: string) => void;
+  onEditHistoryMessage: (messageId: string, nextText: string) => void;
+  onDeleteHistoryMessage: (messageId: string) => void;
+  onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
   answerAgentQuestion: (event: FormEvent<HTMLFormElement>) => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
   setChatMode: Dispatch<SetStateAction<ChatMode>>;
+  setContextWindowPreset: Dispatch<SetStateAction<ContextWindowPreset>>;
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
@@ -101,6 +125,7 @@ export const ChatPanel = ({
   activeAgentTaskId,
   isSettingsLoading,
   chatMode,
+  contextWindowPreset,
   availableRuntimeAgents,
   selectedRuntimeAgent,
   runtimeAgentId,
@@ -114,11 +139,15 @@ export const ChatPanel = ({
   toggleAgentEvents,
   toggleAgentThinkingBlock,
   toggleAgentBlock,
+  onEditHistoryMessage,
+  onDeleteHistoryMessage,
+  onMoveHistoryMessage,
   answerAgentQuestion,
   setAgentQuestionAnswer,
   setCustomAgentQuestionAnswer,
   submitAgentQuestionAnswer,
   setChatMode,
+  setContextWindowPreset,
   setModelSource,
   setSelectedRuntimeAgentId,
   setSelectedAgentId,
@@ -127,7 +156,89 @@ export const ChatPanel = ({
   setSelectedModelId,
   toggleAllowedAgentTool,
   sendMessage,
-}: ChatPanelProps) => (
+}: ChatPanelProps) => {
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState("");
+  const [activeHistoryActionsMessageId, setActiveHistoryActionsMessageId] = useState<string | null>(null);
+  const [expandedHistoryActionsMessageId, setExpandedHistoryActionsMessageId] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [confirmingDeleteMessageId, setConfirmingDeleteMessageId] = useState<string | null>(null);
+  const historyActionsCloseTimerRef = useRef<number | null>(null);
+
+  const getMessageTextForAction = (message: ChatMessage) => {
+    const blockText = message.agentBlocks
+      ?.flatMap((block) => block.type === "text" ? [block.content] : [])
+      .join("\n\n")
+      .trim();
+
+    return message.text.trim() || blockText || "";
+  };
+
+  const beginHistoryEdit = (message: ChatMessage) => {
+    setConfirmingDeleteMessageId(null);
+    setEditingMessageId(message.id);
+    setEditingMessageText(message.text || getMessageTextForAction(message));
+  };
+
+  const cancelHistoryEdit = () => {
+    setEditingMessageId(null);
+    setEditingMessageText("");
+  };
+
+  const saveHistoryEdit = () => {
+    if (!editingMessageId) {
+      return;
+    }
+
+    onEditHistoryMessage(editingMessageId, editingMessageText);
+    cancelHistoryEdit();
+  };
+
+  const copyMessageText = (message: ChatMessage) => {
+    const text = getMessageTextForAction(message);
+    if (!text || !navigator.clipboard) {
+      return;
+    }
+
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedMessageId(message.id);
+      window.setTimeout(() => {
+        setCopiedMessageId((current) => current === message.id ? null : current);
+      }, 1200);
+    }).catch(() => undefined);
+  };
+
+  const clearHistoryActionsCloseTimer = () => {
+    if (historyActionsCloseTimerRef.current !== null) {
+      window.clearTimeout(historyActionsCloseTimerRef.current);
+      historyActionsCloseTimerRef.current = null;
+    }
+  };
+
+  const openHistoryActions = (messageId: string) => {
+    clearHistoryActionsCloseTimer();
+    setActiveHistoryActionsMessageId(messageId);
+    setExpandedHistoryActionsMessageId(messageId);
+    setConfirmingDeleteMessageId((current) =>
+      expandedHistoryActionsMessageId === messageId ? current : null,
+    );
+  };
+
+  const closeHistoryActions = (messageId: string) => {
+    clearHistoryActionsCloseTimer();
+    setExpandedHistoryActionsMessageId((current) => current === messageId ? null : current);
+    setActiveHistoryActionsMessageId((current) => current === messageId ? null : current);
+    setConfirmingDeleteMessageId((current) => current === messageId ? null : current);
+  };
+
+  const scheduleHistoryActionsClose = (messageId: string) => {
+    clearHistoryActionsCloseTimer();
+    historyActionsCloseTimerRef.current = window.setTimeout(() => {
+      closeHistoryActions(messageId);
+    }, 140);
+  };
+
+  return (
 
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
@@ -144,7 +255,7 @@ export const ChatPanel = ({
               </div>
             </div>
           ) : (
-            messages.map((message) => {
+            messages.map((message, messageIndex) => {
               const thinking = message.thinking?.trim();
               const isThinkingCollapsed =
                 Boolean(thinking) &&
@@ -173,11 +284,193 @@ export const ChatPanel = ({
                 message.role === "assistant" &&
                 message.mode === "agent" &&
                 agentBlocks.length > 0;
+              const isEditingHistoryMessage = editingMessageId === message.id;
+              const canChangeHistory =
+                !activeAgentTaskId &&
+                message.status !== "loading" &&
+                message.status !== "streaming";
+              const isHistoryActionsVisible = activeHistoryActionsMessageId === message.id;
+              const areHistoryActionsExpanded = expandedHistoryActionsMessageId === message.id;
+              const isConfirmingDelete = confirmingDeleteMessageId === message.id;
+              const historyActionButtonClass =
+                "size-7 rounded-md bg-transparent text-muted-foreground hover:bg-muted/45 hover:text-foreground";
+              const historyMenuItemClass =
+                "flex size-8 items-center justify-center rounded-lg p-0 text-muted-foreground focus:bg-muted/70 focus:text-foreground";
+              const messageAuthorLabel = message.agentName ?? (message.mode === "agent" ? "Agent" : "助手");
+              const messageTimeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              const messageActionText = getMessageTextForAction(message);
+              const canCopyMessage = messageActionText.length > 0;
+              const advancedHistoryActions = canChangeHistory ? (
+                <DropdownMenuContent
+                  align={message.role === "user" ? "end" : "start"}
+                  side="top"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  className="flex w-auto min-w-0 items-center gap-1 rounded-xl border-border/70 bg-popover/95 p-1.5 shadow-xl ring-1 ring-foreground/5 backdrop-blur"
+                  onMouseEnter={() => openHistoryActions(message.id)}
+                  onMouseLeave={() => scheduleHistoryActionsClose(message.id)}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  {isConfirmingDelete ? (
+                    <>
+                      <span className="px-1.5 text-xs font-medium whitespace-nowrap text-destructive">
+                        删除？
+                      </span>
+                      <DropdownMenuItem
+                        className={historyMenuItemClass}
+                        title="取消删除"
+                        aria-label="取消删除"
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setConfirmingDeleteMessageId(null);
+                          openHistoryActions(message.id);
+                        }}
+                      >
+                        <X className="size-3.5" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={[
+                          historyMenuItemClass,
+                          "text-destructive focus:bg-destructive/10 focus:text-destructive",
+                        ].join(" ")}
+                        variant="destructive"
+                        title="确认删除"
+                        aria-label="确认删除"
+                        onSelect={() => {
+                          onDeleteHistoryMessage(message.id);
+                          closeHistoryActions(message.id);
+                        }}
+                      >
+                        <Check className="size-3.5" />
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        className={historyMenuItemClass}
+                        title="编辑"
+                        aria-label="编辑消息"
+                        onSelect={() => {
+                          beginHistoryEdit(message);
+                          closeHistoryActions(message.id);
+                        }}
+                      >
+                        <Pencil className="size-3.5" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={historyMenuItemClass}
+                        title="上移"
+                        aria-label="上移消息"
+                        disabled={messageIndex === 0}
+                        onSelect={() => {
+                          onMoveHistoryMessage(message.id, "up");
+                          closeHistoryActions(message.id);
+                        }}
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={historyMenuItemClass}
+                        title="下移"
+                        aria-label="下移消息"
+                        disabled={messageIndex === messages.length - 1}
+                        onSelect={() => {
+                          onMoveHistoryMessage(message.id, "down");
+                          closeHistoryActions(message.id);
+                        }}
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={[
+                          historyMenuItemClass,
+                          "text-destructive focus:bg-destructive/10 focus:text-destructive",
+                        ].join(" ")}
+                        variant="destructive"
+                        title="删除"
+                        aria-label="删除消息"
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setConfirmingDeleteMessageId(message.id);
+                          openHistoryActions(message.id);
+                        }}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              ) : null;
+              const messageToolbar = canChangeHistory ? (
+                <div
+                  className={[
+                    "relative flex h-7 items-center gap-0.5 rounded-md bg-transparent px-0.5 text-[11px] text-muted-foreground transition-opacity duration-150",
+                    message.role === "user" ? "self-end" : "self-start",
+                    isHistoryActionsVisible ? "opacity-100" : "pointer-events-none opacity-0",
+                  ].join(" ")}
+                  onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
+                  onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
+                >
+                  {message.role === "user" && (
+                    <span className="px-1.5 tabular-nums text-muted-foreground/85">{messageTimeLabel}</span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={historyActionButtonClass}
+                    title="复制"
+                    aria-label="复制消息"
+                    disabled={!canCopyMessage}
+                    onClick={() => copyMessageText(message)}
+                  >
+                    {copiedMessageId === message.id ? (
+                      <Check className="size-3.5" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                    <span className="sr-only">复制</span>
+                  </Button>
+                  <DropdownMenu
+                    modal={false}
+                    open={areHistoryActionsExpanded}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        openHistoryActions(message.id);
+                        return;
+                      }
+
+                      closeHistoryActions(message.id);
+                    }}
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={historyActionButtonClass}
+                        title="更多操作"
+                        aria-label="更多消息操作"
+                        aria-expanded={areHistoryActionsExpanded}
+                        aria-haspopup="menu"
+                        onMouseEnter={() => openHistoryActions(message.id)}
+                      >
+                        <MoreHorizontal className="size-3.5" />
+                        <span className="sr-only">更多操作</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    {advancedHistoryActions}
+                  </DropdownMenu>
+                </div>
+              ) : null;
 
               return (
                 <div
                   key={message.id}
-                  className="flex gap-3 data-[role=user]:justify-end"
+                  className="flex gap-3 data-[role=user]:justify-end data-[role=user]:pr-6"
                   data-role={message.role}
                 >
                   {message.role === "assistant" && (
@@ -197,10 +490,92 @@ export const ChatPanel = ({
                     </div>
                   )}
                   <div
-                    className="max-w-[78%] rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                    className="flex max-w-[78%] flex-col gap-1 data-[role=assistant]:items-start data-[role=user]:items-end"
                     data-role={message.role}
+                    onMouseLeave={(event) => {
+                      if (expandedHistoryActionsMessageId === message.id) {
+                        scheduleHistoryActionsClose(message.id);
+                        return;
+                      }
+                      if (activeHistoryActionsMessageId === message.id) {
+                        setActiveHistoryActionsMessageId(null);
+                      }
+                      const activeElement = document.activeElement;
+                      if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
+                        activeElement.blur();
+                      }
+                    }}
                   >
-                    {message.role === "assistant" && !hasAgentBlocks && thinking && (
+                    {message.role === "assistant" && (
+                      <div
+                        className="relative flex h-6 w-fit items-center rounded-sm text-[11px] leading-none text-muted-foreground"
+                        onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
+                        onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
+                      >
+                        <div className="flex min-w-0 items-center gap-1.5 rounded-sm px-1">
+                          <span className="truncate font-medium">{messageAuthorLabel}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="shrink-0 tabular-nums">{messageTimeLabel}</span>
+                        </div>
+                      </div>
+                    )}
+                    <div
+                      className="relative rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:border-border/80 data-[role=assistant]:bg-card data-[role=user]:border-primary data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                      data-role={message.role}
+                      onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
+                      onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
+                    >
+                    {isEditingHistoryMessage && (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editingMessageText}
+                          onChange={(event) => setEditingMessageText(event.currentTarget.value)}
+                          rows={4}
+                          className={[
+                            "max-h-72 min-h-28 resize-y border bg-background text-sm leading-6 text-foreground shadow-xs",
+                            message.role === "user"
+                              ? "border-primary-foreground/30 bg-primary-foreground"
+                              : "",
+                          ].filter(Boolean).join(" ")}
+                          autoFocus
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              cancelHistoryEdit();
+                            }
+                            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                              event.preventDefault();
+                              saveHistoryEdit();
+                            }
+                          }}
+                        />
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={message.role === "user"
+                              ? "h-8 text-primary-foreground hover:bg-primary-foreground/15"
+                              : "h-8"}
+                            onClick={cancelHistoryEdit}
+                          >
+                            <X className="size-3.5" />
+                            <span>取消</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8"
+                            disabled={!editingMessageText.trim()}
+                            onClick={saveHistoryEdit}
+                          >
+                            <Check className="size-3.5" />
+                            <span>保存</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && thinking && (
                       <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
                         <button
                           type="button"
@@ -226,7 +601,7 @@ export const ChatPanel = ({
                       </div>
                     )}
 
-                    {message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
+                    {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
                       <div className="mb-2 overflow-hidden rounded-md border border-border/70 bg-muted/35">
                         <button
                           type="button"
@@ -325,7 +700,7 @@ export const ChatPanel = ({
                       </div>
                     )}
 
-                    {hasAgentBlocks ? (
+                    {!isEditingHistoryMessage && (hasAgentBlocks ? (
                       <div className="space-y-2">
                         {agentBlocks.map((block) => {
                           if (block.type === "thinking") {
@@ -494,13 +869,10 @@ export const ChatPanel = ({
                             </div>
                           </div>
                         )
-                      )}
-                  </div>
-                  {message.role === "user" && (
-                    <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-xs">
-                      <User className="size-4" />
+                      ))}
                     </div>
-                  )}
+                    {messageToolbar}
+                  </div>
                 </div>
               );
             })
@@ -636,6 +1008,7 @@ export const ChatPanel = ({
           activeAgentTaskId={activeAgentTaskId}
           isSettingsLoading={isSettingsLoading}
           chatMode={chatMode}
+          contextWindowPreset={contextWindowPreset}
           modelSource={modelSource}
           runtimeAgents={availableRuntimeAgents}
           selectedRuntimeAgent={selectedRuntimeAgent}
@@ -648,6 +1021,7 @@ export const ChatPanel = ({
           reviewerAgent={reviewerAgent}
           allowedAgentTools={allowedAgentTools}
           onChatModeChange={setChatMode}
+          onContextWindowPresetChange={setContextWindowPreset}
           onModelSourceChange={setModelSource}
           onRuntimeAgentChange={setSelectedRuntimeAgentId}
           onSelectedAgentChange={setSelectedAgentId}
@@ -663,4 +1037,5 @@ export const ChatPanel = ({
         />
       </div>
     </section>
-);
+  );
+};

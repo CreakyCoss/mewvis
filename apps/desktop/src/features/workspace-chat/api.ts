@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createAgentRuntime } from "@/agent-runtime/runtime";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import {
   toAgentRuntimeModelConfig,
   toAgentRuntimeProviderConfig,
-} from "./utils/agent-runtime-config";
+} from "@/agent-runtime/config";
+import { createAgentRuntime } from "@/agent-runtime/runtime";
+import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type {
   AgentSessionStatus,
   ChatContextSummary,
@@ -25,6 +25,7 @@ export type RunAgentRuntimeChatInput = {
   model?: ProviderModel | null;
   systemPrompt: string;
   messages: ConversationMessage[];
+  contextWindow?: number;
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
@@ -68,7 +69,10 @@ export async function runAgentRuntimeChat(
     agentId: input.agentId,
     provider: input.provider ? toAgentRuntimeProviderConfig(input.provider) : undefined,
     model: input.provider && input.model
-      ? toAgentRuntimeModelConfig(input.provider, input.model)
+      ? {
+        ...toAgentRuntimeModelConfig(input.provider, input.model),
+        ...(input.contextWindow ? { contextWindow: input.contextWindow } : {}),
+      }
       : undefined,
     systemPrompt: input.systemPrompt,
     messages: input.messages,
@@ -125,5 +129,11 @@ export async function cleanupOrphanAgentSessions(
 ) {
   return invoke<CleanupAgentSessionsResult>("cleanup_orphan_agent_sessions", {
     input: { workspacePath, protectedSessionId },
+  });
+}
+
+export async function resetAgentSessionsForChat(workspacePath: string, chatSessionId: string) {
+  return invoke<void>("reset_agent_sessions_for_chat", {
+    input: { workspacePath, chatSessionId },
   });
 }

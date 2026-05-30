@@ -1,5 +1,6 @@
 import {
   Database,
+  Archive,
   ChevronRight,
   FileText,
   Folder,
@@ -30,13 +31,16 @@ type ContextPanelProps = {
   selectedAgent: AgentProfile | null;
   reviewerAgent: AgentProfile | null;
   currentSessionId: string | null;
+  agentRuntimeSessionId: string | null;
   agentSessionStatus: AgentSessionStatus | null;
   agentSessionError: string;
   isAgentSessionLoading: boolean;
+  isContextCompressing: boolean;
   latestAgentExecutionSummary: string;
   onRefreshFiles: () => void;
   onRefreshAgentSession: () => void;
   onCleanupAgentSessions: () => void;
+  onCompressConversationContext: () => void;
   onPrepareNewFile: () => void;
   onClose: () => void;
   onOpenFile: (path: string) => void;
@@ -76,13 +80,16 @@ export const ContextPanel = ({
   selectedAgent,
   reviewerAgent,
   currentSessionId,
+  agentRuntimeSessionId,
   agentSessionStatus,
   agentSessionError,
   isAgentSessionLoading,
+  isContextCompressing,
   latestAgentExecutionSummary,
   onRefreshFiles,
   onRefreshAgentSession,
   onCleanupAgentSessions,
+  onCompressConversationContext,
   onPrepareNewFile,
   onClose,
   onOpenFile,
@@ -193,6 +200,17 @@ export const ContextPanel = ({
                   size="icon"
                   variant="ghost"
                   className="size-7"
+                  title="手动压缩应用上下文"
+                  disabled={isContextCompressing}
+                  onClick={onCompressConversationContext}
+                >
+                  <Archive className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
                   title="刷新 Agent 记忆状态"
                   disabled={isAgentSessionLoading}
                   onClick={onRefreshAgentSession}
@@ -222,14 +240,17 @@ export const ContextPanel = ({
                 <Database className="size-3.5 shrink-0 text-sidebar-primary" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">
-                    {currentSessionId
+                    {agentRuntimeSessionId
                       ? agentSessionStatus?.exists
                         ? "已建立长期上下文"
                         : "暂无长期上下文"
-                      : "工作区 Agent 上下文"}
+                      : currentSessionId
+                        ? "长期上下文待重建"
+                        : "工作区 Agent 上下文"}
                   </div>
                   <div className="mt-0.5 truncate text-muted-foreground">
-                    {currentSessionId ?? "当前未绑定聊天，显示工作区总量"}
+                    {agentRuntimeSessionId
+                      ?? (currentSessionId ? "下一次 Agent 运行会重建长期上下文" : "当前未绑定聊天")}
                   </div>
                 </div>
               </div>

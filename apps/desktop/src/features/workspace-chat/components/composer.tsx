@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   FileText,
+  Gauge,
   Link,
   Loader2,
   MessageSquare,
@@ -34,7 +35,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentProfile } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { ChatMode, ComposerSubmitInput, ModelSource } from "../page-types";
+import type {
+  ChatMode,
+  ComposerSubmitInput,
+  ContextWindowPreset,
+  ModelSource,
+} from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
 import {
   getActiveReferenceToken,
@@ -50,6 +56,7 @@ type ComposerProps = {
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
   chatMode: ChatMode;
+  contextWindowPreset: ContextWindowPreset;
   modelSource: ModelSource;
   runtimeAgents: readonly AgentRuntimeAgentDefinition[];
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
@@ -62,6 +69,7 @@ type ComposerProps = {
   reviewerAgent: AgentProfile | null;
   allowedAgentTools: AgentToolName[];
   onChatModeChange: (mode: ChatMode) => void;
+  onContextWindowPresetChange: (preset: ContextWindowPreset) => void;
   onModelSourceChange: (source: ModelSource) => void;
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
@@ -79,6 +87,7 @@ export const Composer = memo(({
   activeAgentTaskId,
   isSettingsLoading,
   chatMode,
+  contextWindowPreset,
   modelSource,
   runtimeAgents,
   selectedRuntimeAgent,
@@ -91,6 +100,7 @@ export const Composer = memo(({
   reviewerAgent,
   allowedAgentTools,
   onChatModeChange,
+  onContextWindowPresetChange,
   onModelSourceChange,
   onRuntimeAgentChange,
   onSelectedAgentChange,
@@ -160,6 +170,7 @@ export const Composer = memo(({
       ? selectedAgent?.name ?? "选择 Agent"
       : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
+  const contextWindowLabel = contextWindowPreset === 1000000 ? "1M" : "200k";
 
   const updatePromptCursor = () => {
     setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
@@ -319,6 +330,29 @@ export const Composer = memo(({
                   <DropdownMenuRadioItem value="collab" disabled={agentProfiles.length === 0}>
                     协作
                   </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                  <Gauge className="size-3.5" />
+                  <span>{contextWindowLabel}</span>
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuLabel>上下文窗口</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup
+                  value={String(contextWindowPreset)}
+                  onValueChange={(value) => {
+                    onContextWindowPresetChange(value === "1000000" ? 1000000 : 200000);
+                  }}
+                >
+                  <DropdownMenuRadioItem value="200000">200k tokens</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="1000000">1M tokens</DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>

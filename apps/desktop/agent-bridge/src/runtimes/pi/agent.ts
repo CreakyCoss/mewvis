@@ -328,8 +328,8 @@ export class PiAgent implements AgentRuntime {
   }
 
   private createSessionManager(command: StartTaskCommand) {
-    const chatSessionId = this.normalizeChatSessionId(command.chatSessionId);
-    if (!chatSessionId) {
+    const sessionPath = this.normalizeAgentSessionPath(command.chatSessionId);
+    if (sessionPath.length === 0) {
       return SessionManager.inMemory(command.workspacePath);
     }
 
@@ -337,21 +337,31 @@ export class PiAgent implements AgentRuntime {
       command.workspacePath,
       ".novel-claw",
       "agent-sessions",
-      chatSessionId,
+      ...sessionPath,
     );
     mkdirSync(sessionDir, { recursive: true });
     return SessionManager.continueRecent(command.workspacePath, sessionDir);
   }
 
-  private normalizeChatSessionId(chatSessionId: string | null | undefined) {
-    const id = chatSessionId?.trim().replace(/\.json$/, "");
-    if (!id) {
-      return null;
+  private normalizeAgentSessionPath(chatSessionId: string | null | undefined) {
+    const rawId = chatSessionId?.trim().replace(/\.json$/, "");
+    if (!rawId) {
+      return [];
     }
-    if (id.includes("/") || id.includes("\\") || id.includes("..") || id.startsWith(".")) {
+
+    const segments = rawId.split(/[\\/]+/).map((segment) => segment.trim()).filter(Boolean);
+    if (
+      segments.length === 0 ||
+      segments.some((segment) =>
+        segment === "." ||
+        segment === ".." ||
+        segment.includes("..") ||
+        segment.startsWith(".")
+      )
+    ) {
       throw new Error("聊天记录 ID 不合法，无法创建长期 Agent session");
     }
-    return id;
+    return segments;
   }
 
   private async createResourceLoader(

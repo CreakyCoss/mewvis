@@ -17,8 +17,8 @@ use commands::{
     workspace::{
         cleanup_orphan_agent_sessions, create_workspace, delete_chat_session,
         get_agent_session_status, get_workspace_overview, get_workspace_skills, list_chat_sessions,
-        list_workspace_files, load_chat_session, read_workspace_file, save_chat_session,
-        save_workspace_skills, update_workspace, write_workspace_file,
+        list_workspace_files, load_chat_session, read_workspace_file, reset_agent_sessions_for_chat,
+        save_chat_session, save_workspace_skills, update_workspace, write_workspace_file,
     },
 };
 
@@ -56,6 +56,7 @@ pub fn run() {
             delete_chat_session,
             get_agent_session_status,
             cleanup_orphan_agent_sessions,
+            reset_agent_sessions_for_chat,
             list_workspace_files,
             read_workspace_file,
             write_workspace_file
