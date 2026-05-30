@@ -43,11 +43,11 @@
       <path d="M222 129H286V153H222Z" fill="#FAFAF8"/>
       <path d="M222 164H286M222 189H286" stroke="#E5E5E1"/>
       <path d="M286 129L296 146V202L286 214V129Z" fill="#E3E3DF"/>
-      <rect x="100" y="-6" width="116" height="74" rx="4" fill="#D2D3CF"/>
-      <rect x="107" y="3" width="102" height="56" rx="2" fill="url(#screenDark)"/>
-      <path d="M100 -6H216V68H100Z" stroke="#F8F8F6" opacity="0.72"/>
-      <rect x="145" y="67" width="26" height="14" fill="#C5C5C0"/>
-      <rect x="127" y="78" width="62" height="9" rx="2" fill="#CECEC9"/>
+      <rect x="104" y="-2" width="108" height="66" rx="3" fill="#D2D3CF"/>
+      <rect x="108" y="3" width="100" height="56" rx="2" fill="url(#screenDark)"/>
+      <path d="M104 -2H212V64H104Z" stroke="#F8F8F6" opacity="0.72"/>
+      <rect x="145" y="63" width="26" height="14" fill="#C5C5C0"/>
+      <rect x="127" y="75" width="62" height="9" rx="2" fill="#CECEC9"/>
       <rect x="112" y="113" width="92" height="10" rx="5" fill="#E1E1DD"/>
       <path d="M120 113V122M128 113V122M136 113V122M144 113V122M152 113V122M160 113V122M168 113V122M176 113V122M184 113V122M192 113V122" stroke="#D1D1CC"/>
       <path d="M122 137H196L187 214H131L122 137Z" fill="url(#chairBack)"/>
@@ -64,7 +64,7 @@
 
   <rect x="24" y="44" width="1232" height="890" rx="36" fill="url(#floorFade)"/>
 
-  <g id="living-area" opacity="0.86">
+  <g id="living-area" opacity="0.86" display="none">
     <g filter="url(#softShadow)">
       <rect x="55" y="70" width="382" height="72" fill="#F3F3F1"/>
       <rect x="55" y="134" width="84" height="150" fill="#F5F5F3"/>

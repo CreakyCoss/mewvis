@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { X } from "lucide-react";
-import mewvisOfficeImageUrl from "./assets/mewvis-office.png";
+import catFurnitureStackImageUrl from "./assets/generated/cat-furniture-stack.png";
+import mewvisOfficeImageUrl from "./assets/mewvis-office.svg";
 import screenDashboardImageUrl from "./assets/screen-dashboard.png";
 import screenDesignImageUrl from "./assets/screen-design.png";
 import screenDocumentImageUrl from "./assets/screen-document.png";
@@ -21,6 +22,7 @@ const MIN_CAT_MOVE_DELAY_MS = 2 * 60 * 1000;
 const MAX_CAT_MOVE_DELAY_MS = 4 * 60 * 1000;
 const MIN_SCREEN_CONTENT_DELAY_MS = 45 * 1000;
 const MAX_SCREEN_CONTENT_DELAY_MS = 90 * 1000;
+const MAX_INITIAL_VISITORS = 2;
 const OFFICE_WIDTH = 1280;
 const OFFICE_HEIGHT = 980;
 const PROFILE_CARD_WIDTH = 540;
@@ -28,10 +30,10 @@ const PROFILE_CARD_HEIGHT = 430;
 const PROFILE_CARD_MARGIN = 36;
 const PROFILE_CARD_OFFSET = 88;
 const SCREEN_BLUE = "#36a9f4";
-const VISITOR_CAT_SCALE = 0.68;
+const VISITOR_CAT_SCALE = 0.72;
 const VISITOR_SLOTS = [
-  { id: "left", xOffset: -106, yOffset: 10, facing: "right" },
-  { id: "right", xOffset: 106, yOffset: 10, facing: "left" },
+  { id: "left", xOffset: -74, yOffset: 8, facing: "right" },
+  { id: "right", xOffset: 74, yOffset: 8, facing: "left" },
 ] as const satisfies Array<{
   id: "left" | "right";
   xOffset: number;
@@ -134,14 +136,6 @@ type ProfileAnchor = {
   y: number;
 };
 
-type PlayFixture = {
-  id: PlayAreaId;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
 const WORKSTATIONS: OfficeLocation[] = [
   {
     id: "core",
@@ -150,7 +144,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 329,
     scale: 0.92,
     type: "workstation",
-    screen: { left: 612, top: 113, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 613, top: 113, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["处理任务", "飞快敲字", "整理上下文"],
   },
   {
@@ -160,7 +154,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 329,
     scale: 0.92,
     type: "workstation",
-    screen: { left: 982, top: 113, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 983, top: 113, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["调界面", "看状态", "串到 App 工位"],
   },
   {
@@ -170,7 +164,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 609,
     scale: 0.92,
     type: "workstation",
-    screen: { left: 612, top: 393, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 613, top: 393, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["翻文件", "整理资料", "串到 File 工位"],
   },
   {
@@ -180,7 +174,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 609,
     scale: 0.92,
     type: "workstation",
-    screen: { left: 982, top: 393, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 983, top: 393, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["查资料", "盯网页", "串到 Browser 工位"],
   },
   {
@@ -190,7 +184,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 889,
     scale: 0.9,
     type: "workstation",
-    screen: { left: 612, top: 673, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 613, top: 673, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["润色文字", "想句子", "串到 Writer 工位"],
   },
   {
@@ -200,7 +194,7 @@ const WORKSTATIONS: OfficeLocation[] = [
     y: 889,
     scale: 0.9,
     type: "workstation",
-    screen: { left: 982, top: 673, width: 102, height: 56, accent: SCREEN_BLUE },
+    screen: { left: 983, top: 673, width: 100, height: 56, accent: SCREEN_BLUE },
     actions: ["检查细节", "挑问题", "串到 Review 工位"],
   },
 ];
@@ -209,8 +203,8 @@ const PLAY_AREAS: OfficeLocation[] = [
   {
     id: "coffee",
     label: "咖啡台",
-    x: 282,
-    y: 174,
+    x: 254,
+    y: 166,
     scale: 0.62,
     type: "play",
     actions: ["趴在高台", "偷看杯子", "晒太阳"],
@@ -219,26 +213,20 @@ const PLAY_AREAS: OfficeLocation[] = [
     id: "gym",
     label: "娱乐区",
     x: 252,
-    y: 536,
+    y: 528,
     scale: 0.74,
     type: "play",
-    actions: ["躺在猫沙发", "抓抓柱", "追逗猫球"],
+    actions: ["躺在猫爬架", "抓抓柱", "追逗猫球"],
   },
   {
     id: "nap",
     label: "休息角",
-    x: 232,
-    y: 852,
-    scale: 0.78,
+    x: 254,
+    y: 792,
+    scale: 0.68,
     type: "play",
-    actions: ["窝进藤编床", "守着玩具球", "躺平充电"],
+    actions: ["窝进猫窝", "守着玩具球", "躺平充电"],
   },
-];
-
-const PLAY_FIXTURES: PlayFixture[] = [
-  { id: "coffee", left: 98, top: 82, width: 330, height: 150 },
-  { id: "gym", left: 86, top: 410, width: 332, height: 182 },
-  { id: "nap", left: 90, top: 768, width: 354, height: 148 },
 ];
 
 const LOCATIONS = [...WORKSTATIONS, ...PLAY_AREAS];
@@ -498,19 +486,110 @@ const createOfficeCats = (): OfficeCat[] => {
   return [...FIXED_OFFICE_CATS, ...randomCats];
 };
 
-const createInitialCatStates = (officeCats: OfficeCat[]): CatState[] =>
-  officeCats.map((cat, index) => {
+const createHomeCatState = (
+  cat: OfficeCat,
+  isWorking: boolean,
+): CatState => {
+  const location = LOCATION_BY_ID[cat.home];
+  return {
+    catId: cat.id,
+    locationId: cat.home,
+    action: cat.id === "mewvis" && isWorking ? "处理中" : getLocationAction(cat, location),
+    facing: randomItem(["left", "right"] as const),
+    view: getCatLocationView(location),
+    isWalking: false,
+    walkAngle: 0,
+  };
+};
+
+const createInitialCatStates = (officeCats: OfficeCat[], isWorking: boolean): CatState[] => {
+  const statesByCatId = new Map<string, CatState>(
+    officeCats.map((cat) => [cat.id, createHomeCatState(cat, isWorking)]),
+  );
+  const movableCats = officeCats.filter((cat) => !(cat.id === "mewvis" && isWorking));
+  const visitorCountsByStation = new Map<WorkstationId, number>();
+  const targetVisitorCount = Math.floor(Math.random() * (MAX_INITIAL_VISITORS + 1));
+  let visitorCount = 0;
+
+  for (const cat of shuffleItems(movableCats)) {
+    if (visitorCount >= targetVisitorCount) {
+      break;
+    }
+
+    const availableStations = shuffleItems(WORKSTATIONS).filter((station) => {
+      if (station.id === cat.home) {
+        return false;
+      }
+
+      const stationId = station.id as WorkstationId;
+      const host = getWorkstationHost(officeCats, stationId);
+      const hostState = host ? statesByCatId.get(host.id) : null;
+      const visitorCountAtStation = visitorCountsByStation.get(stationId) ?? 0;
+
+      return (
+        hostState?.locationId === stationId &&
+        visitorCountAtStation < VISITOR_SLOTS.length
+      );
+    });
+
+    const nextLocation = availableStations[0];
+    if (!nextLocation) {
+      continue;
+    }
+
+    const stationId = nextLocation.id as WorkstationId;
+    visitorCountsByStation.set(stationId, (visitorCountsByStation.get(stationId) ?? 0) + 1);
+    statesByCatId.set(cat.id, {
+      catId: cat.id,
+      locationId: stationId,
+      action: getLocationAction(cat, nextLocation),
+      facing: nextLocation.x >= LOCATION_BY_ID[cat.home].x ? "right" : "left",
+      view: getCatLocationView(nextLocation),
+      isWalking: false,
+      walkAngle: 0,
+    });
+    visitorCount += 1;
+  }
+
+  const shouldPlacePlayCat = visitorCount === 0 || Math.random() < 0.58;
+  if (shouldPlacePlayCat) {
+    const playCat = shuffleItems(movableCats).find((cat) => {
+      const state = statesByCatId.get(cat.id);
+      return state?.locationId === cat.home;
+    });
+
+    if (playCat) {
+      const playLocation = randomItem(PLAY_AREAS);
+      statesByCatId.set(playCat.id, {
+        catId: playCat.id,
+        locationId: playLocation.id,
+        action: getLocationAction(playCat, playLocation),
+        facing: randomItem(["left", "right"] as const),
+        view: getCatLocationView(playLocation),
+        isWalking: false,
+        walkAngle: 0,
+      });
+    }
+  }
+
+  return officeCats.map((cat) => {
+    const state = statesByCatId.get(cat.id);
+    if (state) {
+      return state;
+    }
+
     const location = LOCATION_BY_ID[cat.home];
     return {
       catId: cat.id,
       locationId: cat.home,
-      action: index === 0 ? "处理中" : getLocationAction(cat, location),
-      facing: index % 2 === 0 ? "right" : "left",
+      action: getLocationAction(cat, location),
+      facing: "right",
       view: getCatLocationView(location),
       isWalking: false,
       walkAngle: 0,
     };
   });
+};
 
 const getCatState = (states: CatState[], catId: string) =>
   states.find((state) => state.catId === catId);
@@ -646,7 +725,7 @@ export const MewvisOffice = ({ isWorking }: MewvisOfficeProps) => {
   const isWorkingRef = useRef(isWorking);
   const settleTimeoutsRef = useRef<number[]>([]);
   const [officeCats] = useState<OfficeCat[]>(() => createOfficeCats());
-  const [catStates, setCatStates] = useState<CatState[]>(() => createInitialCatStates(officeCats));
+  const [catStates, setCatStates] = useState<CatState[]>(() => createInitialCatStates(officeCats, isWorking));
   const [screenTextureIds, setScreenTextureIds] = useState(createInitialScreenTextures);
   const [officeScale, setOfficeScale] = useState(1);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
@@ -887,24 +966,14 @@ export const MewvisOffice = ({ isWorking }: MewvisOfficeProps) => {
             aria-hidden="true"
           />
 
-          {PLAY_FIXTURES.map((fixture) => (
-            <div
-              key={`${fixture.id}-back`}
-              className={`mewvis-office-play-fixture is-${fixture.id} is-back`}
-              style={{
-                "--play-left": `${fixture.left}px`,
-                "--play-top": `${fixture.top}px`,
-                "--play-width": `${fixture.width}px`,
-                "--play-height": `${fixture.height}px`,
-              } as CSSProperties}
-              aria-hidden="true"
-            >
-              <span className="mewvis-office-play-backrest" />
-              <span className="mewvis-office-play-cushion" />
-              <span className="mewvis-office-play-arm is-left" />
-              <span className="mewvis-office-play-arm is-right" />
-            </div>
-          ))}
+          <img
+            className="mewvis-office-cat-furniture-image is-back"
+            src={catFurnitureStackImageUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            decoding="async"
+          />
 
           {WORKSTATIONS.map((station) => (
             (() => {
@@ -957,6 +1026,7 @@ export const MewvisOffice = ({ isWorking }: MewvisOfficeProps) => {
                   "mewvis-office-cat",
                   `is-facing-${placement.facing}`,
                   `is-${location.type}`,
+                  `is-location-${location.id}`,
                   placement.isVisitor ? "is-visitor" : "",
                   state.isWalking ? "is-walking" : "",
                 ].filter(Boolean).join(" ")}
@@ -981,22 +1051,14 @@ export const MewvisOffice = ({ isWorking }: MewvisOfficeProps) => {
             );
           })}
 
-          {PLAY_FIXTURES.map((fixture) => (
-            <div
-              key={`${fixture.id}-front`}
-              className={`mewvis-office-play-fixture is-${fixture.id} is-front`}
-              style={{
-                "--play-left": `${fixture.left}px`,
-                "--play-top": `${fixture.top}px`,
-                "--play-width": `${fixture.width}px`,
-                "--play-height": `${fixture.height}px`,
-              } as CSSProperties}
-              aria-hidden="true"
-            >
-              <span className="mewvis-office-play-front-rail" />
-              <span className="mewvis-office-play-front-shadow" />
-            </div>
-          ))}
+          <img
+            className="mewvis-office-cat-furniture-image is-front"
+            src={catFurnitureStackImageUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            decoding="async"
+          />
 
           {isWorking && (
             <div className="mewvis-office-busy-words">
