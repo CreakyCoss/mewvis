@@ -4,6 +4,7 @@ import type { AgentProfile } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import type { Workspace } from "@/features/workspaces/types";
+import { APP_DISPLAY_NAME } from "@/product-config";
 import {
   buildRuntimeConversationContext,
   formatConversationForSummary,
@@ -410,7 +411,7 @@ export const buildSystemPrompt = (
     : "";
 
   return [
-    "你是 Mewvis 的工作区 AI 助手。",
+    `你是 ${APP_DISPLAY_NAME} 的工作区 AI 助手。`,
     `工作区名称：${workspace.name}`,
     `工作区路径：${workspace.path}`,
     "你可以帮助用户规划、写作、分析和修改项目文件。",

@@ -1,5 +1,6 @@
 mod commands;
 pub mod db;
+mod product_config;
 mod services;
 
 use commands::{

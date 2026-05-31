@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, FolderOpen, Loader2, Trash2 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -30,19 +30,24 @@ function revealItemInDir(path: string) {
 export const ConfigDatabaseDialog = ({
   onRecovered,
 }: ConfigDatabaseDialogProps) => {
+  const shouldCheckConfigDatabase = isTauri();
   const [status, setStatus] = useState<ConfigDatabaseStatus | null>(null);
   const [statusLoadError, setStatusLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isRebuilding, setIsRebuilding] = useState(false);
 
   const loadStatus = useCallback(async () => {
+    if (!shouldCheckConfigDatabase) {
+      return;
+    }
+
     try {
       setStatusLoadError("");
       setStatus(await getConfigDatabaseStatus());
     } catch (caught) {
       setStatusLoadError(String(caught));
     }
-  }, []);
+  }, [shouldCheckConfigDatabase]);
 
   useEffect(() => {
     void loadStatus();
@@ -78,7 +83,9 @@ export const ConfigDatabaseDialog = ({
     }
   };
 
-  const setupError = status?.setupError ?? statusLoadError;
+  const setupError = shouldCheckConfigDatabase
+    ? status?.setupError ?? statusLoadError
+    : "";
   const rebuildWarnings = status?.lastRebuild?.warnings ?? [];
   const shouldShowRecoveredWarnings = !setupError && rebuildWarnings.length > 0;
   const isOpen = Boolean(setupError) || shouldShowRecoveredWarnings;

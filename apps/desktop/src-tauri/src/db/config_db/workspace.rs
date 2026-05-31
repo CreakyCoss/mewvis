@@ -8,14 +8,22 @@ use super::{
     inputs::{CreateWorkspaceInput, UpdateWorkspaceInput},
     models::{Workspace, WorkspaceGroup, WorkspaceOverview},
 };
-use crate::db::{id::new_record_id, paths::config_db_path};
+use crate::db::{
+    id::new_record_id,
+    paths::{config_db_path, default_workspace_path},
+};
+
+const DEFAULT_WORKSPACE_NAME: &str = "默认工作区";
+const DEFAULT_WORKSPACE_DESCRIPTION: &str = "用于未绑定具体工作区的会话";
 
 pub fn overview(app: &AppHandle) -> Result<WorkspaceOverview, String> {
     let db_path = config_db_path(app)?;
     let conn = open_config_connection(app)?;
+    ensure_default_workspace(app, &conn)?;
 
     let groups = load_groups(&conn)?;
-    let workspaces = load_workspaces(&conn)?;
+    let default_path = default_workspace_path(app)?;
+    let workspaces = mark_default_workspaces(load_workspaces(&conn)?, &default_path);
 
     Ok(WorkspaceOverview {
         config_db_path: db_path.to_string_lossy().to_string(),
@@ -33,6 +41,9 @@ pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<
     let workspace_path = PathBuf::from(input.path.trim());
     if workspace_path.as_os_str().is_empty() {
         return Err("请选择工作区目录".to_string());
+    }
+    if workspace_path == default_workspace_path(app)? {
+        return Err("默认工作区由系统管理，不能作为普通工作区创建".to_string());
     }
 
     fs::create_dir_all(&workspace_path).map_err(|error| format!("无法创建工作区目录：{error}"))?;
@@ -80,6 +91,9 @@ pub fn update_workspace(app: &AppHandle, input: UpdateWorkspaceInput) -> Result<
 
     let conn = open_config_connection(app)?;
     let current = load_workspace(&conn, id)?.ok_or_else(|| "工作区不存在".to_string())?;
+    if PathBuf::from(&current.path) == default_workspace_path(app)? {
+        return Err("默认工作区由系统管理，不能编辑".to_string());
+    }
     crate::db::setup::initialize_workspace_database(&workspace_path)?;
 
     let now = now_millis()?;
@@ -128,6 +142,44 @@ pub(super) fn ensure_workspace_exists(conn: &Connection, workspace_id: &str) -> 
     } else {
         Err("工作区不存在".to_string())
     }
+}
+
+fn ensure_default_workspace(app: &AppHandle, conn: &Connection) -> Result<Workspace, String> {
+    let workspace_path = default_workspace_path(app)?;
+    fs::create_dir_all(&workspace_path)
+        .map_err(|error| format!("无法创建默认工作区目录：{error}"))?;
+    crate::db::setup::initialize_workspace_database(&workspace_path)?;
+
+    let path = workspace_path.to_string_lossy().to_string();
+    if let Some(workspace) = load_workspace_by_path(conn, &path)? {
+        return Ok(workspace);
+    }
+
+    let now = now_millis()?;
+    let id = new_record_id();
+    let group_id = load_default_group_id(conn)?;
+    let next_order = next_workspace_order(conn, Some(&group_id))?;
+
+    conn.execute(
+        r#"
+        INSERT INTO workspaces (
+            id, name, description, path, is_pinned, "order", group_id, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?8)
+        "#,
+        params![
+            id,
+            DEFAULT_WORKSPACE_NAME,
+            DEFAULT_WORKSPACE_DESCRIPTION,
+            path,
+            next_order,
+            group_id,
+            now,
+            now
+        ],
+    )
+    .map_err(|error| format!("无法保存默认工作区：{error}"))?;
+
+    load_workspace(conn, &id)?.ok_or_else(|| "默认工作区保存后未能读取".to_string())
 }
 
 fn load_groups(conn: &Connection) -> Result<Vec<WorkspaceGroup>, String> {
@@ -191,18 +243,46 @@ fn load_workspace(conn: &Connection, id: &str) -> Result<Option<Workspace>, Stri
     .map_err(|error| format!("无法读取工作区：{error}"))
 }
 
+fn load_workspace_by_path(conn: &Connection, path: &str) -> Result<Option<Workspace>, String> {
+    conn.query_row(
+        r#"
+        SELECT id, name, description, path, is_pinned, "order", group_id, created_at, updated_at
+        FROM workspaces
+        WHERE path = ?1
+        ORDER BY created_at ASC
+        LIMIT 1
+        "#,
+        params![path],
+        workspace_from_row,
+    )
+    .optional()
+    .map_err(|error| format!("无法读取默认工作区：{error}"))
+}
+
 fn workspace_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
     Ok(Workspace {
         id: row.get(0)?,
         name: row.get(1)?,
         description: row.get(2)?,
         path: row.get(3)?,
+        is_default: false,
         is_pinned: row.get::<_, i64>(4)? == 1,
         order: row.get(5)?,
         group_id: row.get(6)?,
         created_at: row.get(7)?,
         updated_at: row.get(8)?,
     })
+}
+
+fn mark_default_workspaces(
+    mut workspaces: Vec<Workspace>,
+    default_path: &PathBuf,
+) -> Vec<Workspace> {
+    for workspace in &mut workspaces {
+        workspace.is_default = PathBuf::from(&workspace.path).as_path() == default_path.as_path();
+    }
+
+    workspaces
 }
 
 fn normalize_group_id(

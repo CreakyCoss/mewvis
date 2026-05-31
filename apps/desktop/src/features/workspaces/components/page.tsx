@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
+import { APP_DISPLAY_NAME } from "@/product-config";
 import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";
 import { useOverview } from "../hooks/use-overview";
@@ -40,7 +41,7 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
               <Folder className="size-4" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold">Mewvis</h1>
+              <h1 className="truncate text-base font-semibold">{APP_DISPLAY_NAME}</h1>
               <p className="text-xs text-muted-foreground">工作区控制台</p>
             </div>
           </div>

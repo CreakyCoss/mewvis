@@ -10,6 +10,7 @@ import screenMediaImageUrl from "./assets/screen-media.png";
 import screenResearchImageUrl from "./assets/screen-research.png";
 import screenVideoImageUrl from "./assets/screen-video.png";
 import { CatImage, type CatBreed } from "./cat-image";
+import { APP_DISPLAY_NAME } from "@/product-config";
 import "./mewvis-office.css";
 
 type MewvisOfficeProps = {
@@ -31,6 +32,7 @@ const PROFILE_CARD_MARGIN = 36;
 const PROFILE_CARD_OFFSET = 88;
 const SCREEN_BLUE = "#36a9f4";
 const VISITOR_CAT_SCALE = 0.72;
+const OFFICE_TITLE = `${APP_DISPLAY_NAME}办公室`;
 const VISITOR_SLOTS = [
   { id: "left", xOffset: -74, yOffset: 8, facing: "right" },
   { id: "right", xOffset: 74, yOffset: 8, facing: "left" },
@@ -139,7 +141,7 @@ type ProfileAnchor = {
 const WORKSTATIONS: OfficeLocation[] = [
   {
     id: "core",
-    label: "Mewvis 工位",
+    label: `${APP_DISPLAY_NAME} 工位`,
     x: 664,
     y: 329,
     scale: 0.92,
@@ -250,8 +252,8 @@ const SCREEN_TEXTURE_BY_ID = Object.fromEntries(
 const FIXED_OFFICE_CATS: OfficeCat[] = [
   {
     id: "mewvis",
-    name: "Mewvis",
-    displayName: "Mewvis",
+    name: APP_DISPLAY_NAME,
+    displayName: APP_DISPLAY_NAME,
     localizedName: "喵维斯",
     role: "Team Leader",
     breedName: "黄白猫",
@@ -950,13 +952,13 @@ export const MewvisOffice = ({ isWorking }: MewvisOfficeProps) => {
 
   return (
     <div className="mewvis-office-shell">
-      <h2 className="mewvis-office-title">Mewvis办公室</h2>
+      <h2 className="mewvis-office-title">{OFFICE_TITLE}</h2>
 
       <section
         ref={boardRef}
         className="mewvis-office-board"
         style={{ "--office-scale": officeScale } as CSSProperties}
-        aria-label="Mewvis办公室"
+        aria-label={OFFICE_TITLE}
       >
         <div className="mewvis-office-stage">
           <img

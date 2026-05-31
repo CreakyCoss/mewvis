@@ -352,12 +352,12 @@ export const ChatPanel = ({
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-7 py-7">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6 xl:px-7 xl:py-7">
           {isEmptyConversation ? (
             <div className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center px-2 py-10">
               <div className="w-full space-y-7">
                 <div className="text-center">
-                  <h3 className="mx-auto max-w-4xl text-3xl font-semibold leading-tight tracking-normal text-foreground sm:text-4xl">
+                  <h3 className="mx-auto max-w-4xl text-2xl font-semibold leading-tight tracking-normal text-foreground sm:text-3xl xl:text-4xl">
                     我们应该在 {workspace.name} 中构建什么？
                   </h3>
                 </div>
@@ -584,7 +584,7 @@ export const ChatPanel = ({
               return (
                 <div
                   key={message.id}
-                  className="flex gap-3 data-[role=user]:justify-end data-[role=user]:pr-6"
+                  className="flex gap-3 data-[role=user]:justify-end data-[role=user]:pr-2 xl:data-[role=user]:pr-6"
                   data-role={message.role}
                 >
                   {message.role === "assistant" && (
@@ -604,7 +604,7 @@ export const ChatPanel = ({
                     </div>
                   )}
                   <div
-                    className="flex max-w-[78%] flex-col gap-1 data-[role=assistant]:items-start data-[role=user]:items-end"
+                    className="flex max-w-[88%] flex-col gap-1 lg:max-w-[82%] xl:max-w-[78%] data-[role=assistant]:items-start data-[role=user]:items-end"
                     data-role={message.role}
                     onMouseLeave={(event) => {
                       if (expandedHistoryActionsMessageId === message.id) {
@@ -995,7 +995,7 @@ export const ChatPanel = ({
       </ScrollArea>
 
       {!isEmptyConversation && (
-        <div className="bg-background/90 px-7 py-4 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur">
+        <div className="bg-background/90 px-4 py-3 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur lg:px-6 xl:px-7 xl:py-4">
           {statusBanner}
           {pendingAgentQuestion && (
             <form

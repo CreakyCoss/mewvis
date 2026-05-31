@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
+import { arch as hostArch, platform as hostPlatform } from "node:os";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const bridgeRoot = join(scriptDir, "..");
@@ -13,7 +14,9 @@ const cacheDir = join(targetDir, "node-runtime-cache");
 
 const args = process.argv.slice(2);
 const targetIndex = args.indexOf("--target");
-const target = targetIndex !== -1 ? args[targetIndex + 1] : null;
+const target = targetIndex !== -1
+  ? args[targetIndex + 1]
+  : process.env.NODE_RUNTIME_TARGET ?? getHostNodeRuntimeTarget();
 
 const PLATFORM_MAP = {
   "win-x64": { os: "win", arch: "x64", binary: "node.exe" },
@@ -29,7 +32,13 @@ const WINDOWS_MACHINE_BY_TARGET = {
   "win-arm64": 0xaa64,
 };
 
+const DARWIN_CPU_TYPE_BY_TARGET = {
+  "darwin-x64": 0x01000007,
+  "darwin-arm64": 0x0100000c,
+};
+
 await mkdir(outputDir, { recursive: true });
+await removeStaleRuntimeBinaries();
 
 if (target) {
   const plat = PLATFORM_MAP[target];
@@ -121,15 +130,44 @@ if (target) {
   console.log(`Node.js binary copied to ${outputPath}`);
 }
 
+function getHostNodeRuntimeTarget() {
+  const os = hostPlatform();
+  const arch = hostArch();
+  if (os === "darwin" && (arch === "arm64" || arch === "x64")) {
+    return `darwin-${arch}`;
+  }
+  if (os === "win32" && (arch === "arm64" || arch === "x64")) {
+    return `win-${arch}`;
+  }
+  if (os === "linux" && (arch === "arm64" || arch === "x64")) {
+    return `linux-${arch}`;
+  }
+  return null;
+}
+
+async function removeStaleRuntimeBinaries() {
+  await Promise.all([
+    rm(join(outputDir, "node"), { force: true }),
+    rm(join(outputDir, "node.exe"), { force: true }),
+  ]);
+}
+
 async function isTargetBinaryCompatible(path, target) {
   const expectedWindowsMachine = WINDOWS_MACHINE_BY_TARGET[target];
+  const expectedDarwinCpuType = DARWIN_CPU_TYPE_BY_TARGET[target];
   if (!expectedWindowsMachine) {
-    return true;
+    if (!expectedDarwinCpuType) {
+      return true;
+    }
   }
 
   try {
     const buffer = await readFile(path);
-    return readWindowsMachine(buffer) === expectedWindowsMachine;
+    if (expectedWindowsMachine) {
+      return readWindowsMachine(buffer) === expectedWindowsMachine;
+    }
+
+    return readDarwinCpuTypes(buffer).includes(expectedDarwinCpuType);
   } catch {
     return false;
   }
@@ -149,4 +187,38 @@ function readWindowsMachine(buffer) {
   }
 
   return buffer.readUInt16LE(peOffset + 4);
+}
+
+function readDarwinCpuTypes(buffer) {
+  if (buffer.length < 8) {
+    return [];
+  }
+
+  const magic = buffer.readUInt32BE(0);
+  if (magic === 0xcafebabe || magic === 0xcafebabf) {
+    const isFat64 = magic === 0xcafebabf;
+    const archCount = buffer.readUInt32BE(4);
+    const archSize = isFat64 ? 32 : 20;
+    const cpuTypes = [];
+
+    for (let index = 0; index < archCount; index += 1) {
+      const offset = 8 + index * archSize;
+      if (offset + 4 > buffer.length) {
+        break;
+      }
+      cpuTypes.push(buffer.readUInt32BE(offset));
+    }
+
+    return cpuTypes;
+  }
+
+  if (magic === 0xfeedface || magic === 0xfeedfacf) {
+    return [buffer.readUInt32BE(4)];
+  }
+
+  if (magic === 0xcefaedfe || magic === 0xcffaedfe) {
+    return [buffer.readUInt32LE(4)];
+  }
+
+  return [];
 }

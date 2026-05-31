@@ -57,6 +57,7 @@ import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-sk
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
 import { getWorkspaceOverview } from "@/features/workspaces/api";
+import { isDefaultWorkspace } from "@/features/workspaces/default-workspace";
 import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
 import { buildSections } from "@/features/workspaces/utils/sections";
 import {
@@ -338,6 +339,16 @@ export const WorkspaceChatPage = ({
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [conversationContext, setConversationContext] = useState<ChatContextSummary | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSessionMeta[]>([]);
+  const [defaultChatSessions, setDefaultChatSessions] = useState<ChatSessionMeta[]>([]);
+  const [isDefaultSessionsLoading, setIsDefaultSessionsLoading] = useState(false);
+  const [pendingDefaultSessionId, setPendingDefaultSessionId] = useState<string | null>(null);
+  const [pendingWorkspaceSession, setPendingWorkspaceSession] = useState<{
+    workspaceId: string;
+    sessionId: string;
+  } | null>(null);
+  const [workspaceSessionsById, setWorkspaceSessionsById] = useState<Record<string, ChatSessionMeta[]>>({});
+  const [isWorkspaceSessionsLoading, setIsWorkspaceSessionsLoading] = useState(false);
+  const [shouldStartDefaultSession, setShouldStartDefaultSession] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
@@ -486,23 +497,72 @@ export const WorkspaceChatPage = ({
     }, 0);
   }, []);
 
+  const allSidebarWorkspaces = useMemo(
+    () => projectSections.flatMap((section) => section.workspaces),
+    [projectSections],
+  );
+  const defaultWorkspace = useMemo(
+    () => allSidebarWorkspaces.find(isDefaultWorkspace) ?? (isDefaultWorkspace(workspace) ? workspace : null),
+    [allSidebarWorkspaces, workspace],
+  );
+  const isActiveDefaultWorkspace = isDefaultWorkspace(workspace);
+  const sidebarWorkspaces = useMemo(
+    () => allSidebarWorkspaces.filter((item) => !isDefaultWorkspace(item)),
+    [allSidebarWorkspaces],
+  );
+  const sidebarChatSessions = isActiveDefaultWorkspace
+    ? chatSessions
+    : defaultChatSessions;
+  const visibleSidebarSessions = showAllSessions
+    ? sidebarChatSessions
+    : sidebarChatSessions.slice(0, 5);
+
   const loadSessions = useCallback(async () => {
     setIsSessionsLoading(true);
     setSessionsError("");
+    const workspaceSessionIdToLoad =
+      pendingWorkspaceSession?.workspaceId === workspace.id
+        ? pendingWorkspaceSession.sessionId
+        : null;
+    const sessionIdToLoad = isActiveDefaultWorkspace
+      ? pendingDefaultSessionId
+      : workspaceSessionIdToLoad;
+    const shouldStartEmptySession = isActiveDefaultWorkspace && shouldStartDefaultSession;
 
     try {
-      const [sessions, latestSession] = await Promise.all([
+      const [sessions, targetSession] = await Promise.all([
         listChatSessions(workspace.path),
-        loadChatSession(workspace.path),
+        shouldStartEmptySession
+          ? Promise.resolve(null)
+          : loadChatSession(workspace.path, sessionIdToLoad),
       ]);
       setChatSessions(sessions);
-      hydrateSession(latestSession
+      if (shouldStartEmptySession) {
+        closeSettingsAndContextPanels();
+        setSessionsError("");
+        setIsContextPanelOpen(false);
+        setComposerResetKey((current) => current + 1);
+        setPendingAgentQuestion(null);
+        setShouldStartDefaultSession(false);
+        hydrateSession(null);
+        return;
+      }
+
+      if (sessionIdToLoad) {
+        if (isActiveDefaultWorkspace) {
+          setPendingDefaultSessionId(null);
+        } else {
+          setPendingWorkspaceSession(null);
+        }
+      }
+
+      hydrateSession(targetSession
         ? {
-          id: latestSession.id,
-          title: latestSession.title,
-          messages: latestSession.messages,
-          conversation: latestSession.conversation,
-          context: latestSession.context,
+          id: targetSession.id,
+          title: targetSession.title,
+          messages: targetSession.messages,
+          conversation: targetSession.conversation,
+          context: targetSession.context,
         }
         : null);
     } catch (caught) {
@@ -510,7 +570,83 @@ export const WorkspaceChatPage = ({
     } finally {
       setIsSessionsLoading(false);
     }
-  }, [hydrateSession, workspace.path]);
+  }, [
+    closeSettingsAndContextPanels,
+    hydrateSession,
+    isActiveDefaultWorkspace,
+    pendingDefaultSessionId,
+    pendingWorkspaceSession,
+    shouldStartDefaultSession,
+    workspace.id,
+    workspace.path,
+  ]);
+
+  const loadWorkspaceSidebarSessions = useCallback(async () => {
+    if (!sidebarWorkspaces.length) {
+      setWorkspaceSessionsById({});
+      setIsWorkspaceSessionsLoading(false);
+      return;
+    }
+
+    setIsWorkspaceSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const entries = await Promise.all(
+        sidebarWorkspaces.map(async (item) => [
+          item.id,
+          await listChatSessions(item.path),
+        ] as const),
+      );
+      setWorkspaceSessionsById(Object.fromEntries(entries));
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsWorkspaceSessionsLoading(false);
+    }
+  }, [sidebarWorkspaces]);
+
+  const loadDefaultSidebarSessions = useCallback(async () => {
+    if (!defaultWorkspace || isActiveDefaultWorkspace) {
+      return;
+    }
+
+    setIsDefaultSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const sessions = await listChatSessions(defaultWorkspace.path);
+      setDefaultChatSessions(sessions);
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsDefaultSessionsLoading(false);
+    }
+  }, [defaultWorkspace, isActiveDefaultWorkspace]);
+
+  useEffect(() => {
+    if (isActiveDefaultWorkspace) {
+      setDefaultChatSessions(chatSessions);
+      return;
+    }
+
+    void loadDefaultSidebarSessions();
+  }, [chatSessions, isActiveDefaultWorkspace, loadDefaultSidebarSessions]);
+
+  useEffect(() => {
+    void loadWorkspaceSidebarSessions();
+  }, [loadWorkspaceSidebarSessions]);
+
+  useEffect(() => {
+    if (isActiveDefaultWorkspace) {
+      return;
+    }
+
+    setWorkspaceSessionsById((current) => ({
+      ...current,
+      [workspace.id]: chatSessions,
+    }));
+  }, [chatSessions, isActiveDefaultWorkspace, workspace.id]);
 
   const refreshAgentSessionStatus = useCallback(async () => {
     setIsAgentSessionLoading(true);
@@ -629,6 +765,112 @@ export const WorkspaceChatPage = ({
       setSessionsError(String(caught));
     } finally {
       setIsSessionsLoading(false);
+    }
+  };
+
+  const startSidebarSession = () => {
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再新建对话");
+      return;
+    }
+
+    if (!isActiveDefaultWorkspace && defaultWorkspace) {
+      setShouldStartDefaultSession(true);
+      onOpenWorkspace(defaultWorkspace);
+      return;
+    }
+
+    startNewSession();
+  };
+
+  const loadDefaultSessionById = async (sessionId: string) => {
+    if (!isActiveDefaultWorkspace && defaultWorkspace) {
+      setPendingDefaultSessionId(sessionId);
+      onOpenWorkspace(defaultWorkspace);
+      return;
+    }
+
+    await loadSessionById(sessionId);
+  };
+
+  const loadWorkspaceSessionById = async (targetWorkspace: Workspace, sessionId: string) => {
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再切换对话");
+      return;
+    }
+
+    if (targetWorkspace.id === workspace.id) {
+      await loadSessionById(sessionId);
+      return;
+    }
+
+    setPendingWorkspaceSession({ workspaceId: targetWorkspace.id, sessionId });
+    onOpenWorkspace(targetWorkspace);
+  };
+
+  const removeDefaultSession = async (sessionId: string) => {
+    if (isActiveDefaultWorkspace) {
+      await removeSession(sessionId);
+      return;
+    }
+
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再删除对话");
+      return;
+    }
+
+    if (!defaultWorkspace) {
+      setSessionsError("默认工作区暂时不可用");
+      return;
+    }
+
+    const confirmed = window.confirm("永久删除该对话？此操作不可恢复。");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDefaultSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const nextSessions = await deleteChatSession(defaultWorkspace.path, sessionId);
+      setDefaultChatSessions(nextSessions);
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsDefaultSessionsLoading(false);
+    }
+  };
+
+  const removeWorkspaceSession = async (targetWorkspace: Workspace, sessionId: string) => {
+    if (targetWorkspace.id === workspace.id && !isActiveDefaultWorkspace) {
+      await removeSession(sessionId);
+      return;
+    }
+
+    if (activeAgentTaskIdRef.current) {
+      setSessionsError("Agent 正在处理，结束后再删除对话");
+      return;
+    }
+
+    const confirmed = window.confirm("永久删除该对话？此操作不可恢复。");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsWorkspaceSessionsLoading(true);
+    setSessionsError("");
+
+    try {
+      const nextSessions = await deleteChatSession(targetWorkspace.path, sessionId);
+      setWorkspaceSessionsById((current) => ({
+        ...current,
+        [targetWorkspace.id]: nextSessions,
+      }));
+    } catch (caught) {
+      setSessionsError(String(caught));
+    } finally {
+      setIsWorkspaceSessionsLoading(false);
     }
   };
 
@@ -1541,13 +1783,6 @@ export const WorkspaceChatPage = ({
   useEffect(() => {
     void loadRuntimeAgents();
   }, [loadRuntimeAgents]);
-  const sidebarWorkspaces = useMemo(
-    () => projectSections.flatMap((section) => section.workspaces),
-    [projectSections],
-  );
-  const visibleSidebarSessions = showAllSessions
-    ? chatSessions
-    : chatSessions.slice(0, 5);
   const isMarkdownFile = useMemo(
     () => isMarkdownPath(filePath),
     [filePath],
@@ -2329,22 +2564,29 @@ export const WorkspaceChatPage = ({
       <Sidebar
         workspace={workspace}
         workspaces={sidebarWorkspaces}
-        currentSessionId={currentSessionId}
-        currentSessionTitle={currentSessionTitle}
-        hasUnsavedSession={messages.length > 0 && !currentSessionId}
+        activeSessionId={currentSessionId}
+        defaultCurrentSessionId={isActiveDefaultWorkspace ? currentSessionId : null}
+        defaultCurrentSessionTitle={isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
+        hasUnsavedDefaultSession={isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
+        workspaceCurrentSessionTitle={!isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
+        hasUnsavedWorkspaceSession={!isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
         isProjectsLoading={isProjectsLoading}
         projectsError={projectsError}
-        isSessionsLoading={isSessionsLoading}
-        chatSessions={chatSessions}
-        visibleSessions={visibleSidebarSessions}
+        isDefaultSessionsLoading={isActiveDefaultWorkspace ? isSessionsLoading : isDefaultSessionsLoading}
+        isWorkspaceSessionsLoading={(!isActiveDefaultWorkspace && isSessionsLoading) || isWorkspaceSessionsLoading}
+        defaultChatSessions={sidebarChatSessions}
+        visibleDefaultSessions={visibleSidebarSessions}
+        workspaceSessionsById={workspaceSessionsById}
         showAllSessions={showAllSessions}
         onOpenWorkspace={onOpenWorkspace}
         onEditWorkspace={onEditWorkspace}
-        onStartNewSession={startNewSession}
+        onStartNewSession={startSidebarSession}
         onOpenContext={openContextWorkbench}
         onOpenSkills={() => setIsSkillsDialogOpen(true)}
-        onLoadSession={(sessionId) => void loadSessionById(sessionId)}
-        onRemoveSession={(sessionId) => void removeSession(sessionId)}
+        onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}
+        onRemoveDefaultSession={(sessionId) => void removeDefaultSession(sessionId)}
+        onLoadWorkspaceSession={(targetWorkspace, sessionId) => void loadWorkspaceSessionById(targetWorkspace, sessionId)}
+        onRemoveWorkspaceSession={(targetWorkspace, sessionId) => void removeWorkspaceSession(targetWorkspace, sessionId)}
         onToggleShowAllSessions={() => setShowAllSessions((current) => !current)}
         onOpenSettings={openSettingsPanel}
       />
@@ -2363,7 +2605,7 @@ export const WorkspaceChatPage = ({
             ) : filePreviewMode === "expanded" ? (
               filePanel
             ) : filePreviewMode === "side" ? (
-              <div className="grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)]">
+              <div className="grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.76fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)]">
                 <div className="min-h-0 overflow-hidden bg-background/95 shadow-[10px_0_28px_-30px_rgb(15_23_42_/_0.32)]">
                   {chatPanel}
                 </div>

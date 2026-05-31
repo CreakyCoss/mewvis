@@ -11,6 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import productConfig from "../../../../product.config.json" with { type: "json" };
 import { normalizeAllowedAgentTools } from "../../contracts/tools.js";
 import {
   BridgeEventType,
@@ -335,7 +336,7 @@ export class PiAgent implements AgentRuntime {
 
     const sessionDir = resolve(
       command.workspacePath,
-      ".novel-claw",
+      productConfig.appDataDirName,
       "agent-sessions",
       ...sessionPath,
     );

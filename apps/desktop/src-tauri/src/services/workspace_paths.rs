@@ -1,9 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use crate::product_config::app_data_dir_name;
+
 pub(crate) fn workspace_root(path: &str) -> Result<PathBuf, String> {
     PathBuf::from(path.trim())
         .canonicalize()
         .map_err(|error| format!("无法定位工作区目录：{error}"))
+}
+
+pub(crate) fn workspace_app_data_dir(root: &Path) -> PathBuf {
+    root.join(app_data_dir_name())
 }
 
 pub(crate) fn display_workspace_relative(

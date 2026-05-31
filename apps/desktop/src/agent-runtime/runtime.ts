@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
   AgentRuntimeAgentDefinitionsResult,
@@ -44,7 +44,9 @@ class TauriAgentRuntime implements AgentRuntime {
 
   async run(input: AgentRuntimeAgentInput): Promise<AgentRuntimeAgentTask>;
   async run(input: AgentRuntimeChatInput): Promise<AgentRuntimeChatResult>;
-  async run(input: AgentRuntimeAgentInput | AgentRuntimeChatInput) {
+  async run(
+    input: AgentRuntimeAgentInput | AgentRuntimeChatInput,
+  ): Promise<AgentRuntimeAgentTask | AgentRuntimeChatResult> {
     if (input.type === "chat") {
       return this.runChat(input);
     }
@@ -115,5 +117,55 @@ class TauriAgentRuntime implements AgentRuntime {
   }
 }
 
+class WebPreviewAgentRuntime implements AgentRuntime {
+  async listAgents(): Promise<AgentRuntimeAgentDefinitionsResult> {
+    return {
+      defaultAgentId: "web-preview",
+      agents: [
+        {
+          id: "web-preview",
+          label: "Web 预览",
+          description: "用于普通浏览器预览界面的占位运行时。",
+          capabilities: ["chat", "agent"],
+          requiresModel: false,
+        },
+      ],
+    };
+  }
+
+  async run(input: AgentRuntimeAgentInput): Promise<AgentRuntimeAgentTask>;
+  async run(input: AgentRuntimeChatInput): Promise<AgentRuntimeChatResult>;
+  async run(input: AgentRuntimeAgentInput | AgentRuntimeChatInput) {
+    if (input.type === "chat") {
+      return this.runChat();
+    }
+
+    return this.runAgent();
+  }
+
+  private async runAgent(): Promise<AgentRuntimeAgentTask> {
+    return { taskId: crypto.randomUUID() };
+  }
+
+  private async runChat(): Promise<AgentRuntimeChatResult> {
+    return {
+      text: "当前为 Web 预览模式，未连接桌面运行时。",
+      thinking: null,
+    };
+  }
+
+  async answerQuestion(): Promise<void> {
+    return undefined;
+  }
+
+  async abortTask(): Promise<void> {
+    return undefined;
+  }
+
+  async subscribe(): Promise<() => void> {
+    return () => undefined;
+  }
+}
+
 export const createAgentRuntime = (): AgentRuntime =>
-  new TauriAgentRuntime();
+  isTauri() ? new TauriAgentRuntime() : new WebPreviewAgentRuntime();

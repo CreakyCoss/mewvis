@@ -1,7 +1,7 @@
 import {
   getCatalogModels,
   getCatalogProviders,
-  type NovelClawModelConfig,
+  type ModelCatalogConfig,
 } from "./model-catalog";
 
 export type ProviderType = "anthropic" | "openai" | "google" | "openrouter";
@@ -46,7 +46,7 @@ export const getProviderTypeLabel = (providerType: string) => {
 
 export const getModelProviderType = (
   vendor: string,
-  model: NovelClawModelConfig,
+  model: ModelCatalogConfig,
 ): ProviderType | null => {
   if (vendor === "openrouter") {
     return "openrouter";

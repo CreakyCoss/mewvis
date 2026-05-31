@@ -1,5 +1,6 @@
 import { Bot, Database, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { APP_DISPLAY_NAME } from "@/product-config";
 
 type PageHeaderProps = {
   configDbPath?: string;
@@ -26,7 +27,7 @@ export const PageHeader = ({
         </div>
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-normal">
-            Mewvis 工作区
+            {APP_DISPLAY_NAME} 工作区
           </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             组织项目、配置模型，并进入工作区继续创作与编辑。

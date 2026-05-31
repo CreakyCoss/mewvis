@@ -7,11 +7,13 @@ use std::{
 };
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 
+use crate::product_config::product_env_var;
+
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub(super) fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
-    if let Ok(path) = std::env::var("NOVEL_CLAW_NODE") {
+    if let Ok(path) = std::env::var(product_env_var("NODE")) {
         let path = PathBuf::from(path);
         if path.exists() {
             return Ok(path);
@@ -45,7 +47,7 @@ pub(super) fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 pub(super) fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, String> {
-    if let Ok(path) = std::env::var("NOVEL_CLAW_AGENT_BRIDGE") {
+    if let Ok(path) = std::env::var(product_env_var("AGENT_BRIDGE")) {
         let path = PathBuf::from(path);
         if path.exists() {
             return Ok(path);

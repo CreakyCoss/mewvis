@@ -24,6 +24,7 @@ if (!target) {
 
 const env = { ...process.env };
 const isWindowsHost = platform() === "win32";
+env.NODE_RUNTIME_TARGET = target.nodeTarget;
 
 prependExistingPath(env, [
   "/opt/homebrew/opt/llvm/bin",
@@ -45,8 +46,8 @@ if (!isWindowsHost) {
   ]);
 }
 
+await run("pnpm", ["sync-product-config"]);
 await run("pnpm", ["build:agent-bridge"]);
-await run("node", ["agent-bridge/scripts/copy-node-runtime.mjs", "--target", target.nodeTarget]);
 
 const tauriArgs = ["build", "--target", target.rustTarget];
 if (!isWindowsHost) {

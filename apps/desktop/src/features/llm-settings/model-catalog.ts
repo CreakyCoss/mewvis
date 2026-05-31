@@ -1,7 +1,7 @@
-import { NOVEL_CLAW_MODELS } from "./models.generated";
+import { MODEL_CATALOG } from "./models.generated";
 import type { LlmProvider, ProviderModel } from "./types";
 
-export type NovelClawModelConfig = {
+export type ModelCatalogConfig = {
   id: string;
   name: string;
   api: string;
@@ -22,7 +22,7 @@ export type NovelClawModelConfig = {
   compat?: unknown;
 };
 
-export type NovelClawModelCatalog = Record<string, Record<string, NovelClawModelConfig>>;
+export type ModelCatalog = Record<string, Record<string, ModelCatalogConfig>>;
 
 export type RuntimeModelConfig = {
   id: string;
@@ -44,19 +44,19 @@ export type RuntimeModelConfig = {
   compat?: unknown;
 };
 
-export const novelClawModels = NOVEL_CLAW_MODELS as NovelClawModelCatalog;
+export const modelCatalog = MODEL_CATALOG as ModelCatalog;
 
-export const getCatalogProviders = () => Object.keys(novelClawModels);
+export const getCatalogProviders = () => Object.keys(modelCatalog);
 
 export const getCatalogModels = (vendor: string) => {
-  return Object.values(novelClawModels[vendor] ?? {});
+  return Object.values(modelCatalog[vendor] ?? {});
 };
 
 export const getCatalogModel = (
   vendor: string,
   modelId: string,
-): NovelClawModelConfig | undefined => {
-  return novelClawModels[vendor]?.[modelId];
+): ModelCatalogConfig | undefined => {
+  return modelCatalog[vendor]?.[modelId];
 };
 
 export const createRuntimeModelConfig = (

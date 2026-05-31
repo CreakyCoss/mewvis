@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { isTauri } from "@tauri-apps/api/core";
 import { initializeConfigDatabase } from "@/features/app-recovery/api";
 import { StartupScreen } from "./startup-screen";
 
@@ -28,6 +29,13 @@ export const StartupGate = ({ children }: StartupGateProps) => {
     let isCancelled = false;
 
     const initialize = async () => {
+      if (!isTauri()) {
+        if (!isCancelled) {
+          setIsReady(true);
+        }
+        return;
+      }
+
       const minimumDuration = wait(MIN_STARTUP_DURATION_MS);
 
       try {

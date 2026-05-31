@@ -100,8 +100,8 @@ export const ContextPanel = ({
   };
 
   return (
-    <aside className="flex w-[clamp(300px,24vw,360px)] shrink-0 flex-col bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
-      <div className="flex items-center justify-between bg-transparent px-4 py-3">
+    <aside className="flex w-[clamp(232px,24vw,340px)] shrink-0 flex-col bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
+      <div className="flex items-center justify-between bg-transparent px-3 py-3 xl:px-4">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Folder className="size-4" />
           <span>文件</span>

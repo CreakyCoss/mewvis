@@ -1,6 +1,8 @@
 use crate::services::{
     agent_sessions,
-    workspace_paths::{ensure_under_root, sanitize_session_id, workspace_root},
+    workspace_paths::{
+        ensure_under_root, sanitize_session_id, workspace_app_data_dir, workspace_root,
+    },
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,7 +12,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-const CHAT_DIR: &str = ".novel-claw/chats";
+const CHAT_DIR_NAME: &str = "chats";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -188,7 +190,7 @@ fn session_meta(session: &ChatSession) -> ChatSessionMeta {
     ChatSessionMeta {
         id: session.id.clone(),
         title: session.title.clone(),
-        path: format!("{CHAT_DIR}/{}.json", session.id),
+        path: format!("{}/{}.json", chat_dir_display(), session.id),
         created_at: session.created_at,
         updated_at: session.updated_at,
         message_count: session
@@ -200,7 +202,11 @@ fn session_meta(session: &ChatSession) -> ChatSessionMeta {
 }
 
 fn chat_dir(workspace_path: &str) -> Result<PathBuf, String> {
-    Ok(workspace_root(workspace_path)?.join(CHAT_DIR))
+    Ok(workspace_app_data_dir(&workspace_root(workspace_path)?).join(CHAT_DIR_NAME))
+}
+
+fn chat_dir_display() -> String {
+    format!("{}/{}", crate::product_config::app_data_dir_name(), CHAT_DIR_NAME)
 }
 
 fn session_path(workspace_path: &str, session_id: &str) -> Result<PathBuf, String> {
@@ -276,7 +282,11 @@ mod tests {
 
     impl TestWorkspace {
         fn new(name: &str) -> Self {
-            let path = std::env::temp_dir().join(format!("novel-claw-{name}-{}", Uuid::now_v7()));
+            let path = std::env::temp_dir().join(format!(
+                "{}-{name}-{}",
+                crate::product_config::bundle_name(),
+                Uuid::now_v7()
+            ));
             fs::create_dir_all(&path).expect("create test workspace");
             Self { path }
         }
@@ -286,8 +296,8 @@ mod tests {
         }
 
         fn agent_session_dir(&self, session_id: &str) -> PathBuf {
-            self.path
-                .join(".novel-claw/agent-sessions")
+            workspace_app_data_dir(&self.path)
+                .join("agent-sessions")
                 .join(session_id)
         }
     }
@@ -323,7 +333,7 @@ mod tests {
         assert_eq!(session.id, "chat-test");
         assert!(workspace
             .path
-            .join(CHAT_DIR)
+            .join(chat_dir_display())
             .join("chat-test.json")
             .exists());
     }

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const productConfigPath = join(desktopRoot, "product.config.json");
 const codingAgentPackagePath = join(
   desktopRoot,
   "..",
@@ -16,9 +17,10 @@ const codingAgentPackagePath = join(
 const outputDir = join(desktopRoot, "agent-bridge", "dist");
 const outputPath = join(outputDir, "package.json");
 
+const productConfig = JSON.parse(await readFile(productConfigPath, "utf8"));
 const codingAgentPackage = JSON.parse(await readFile(codingAgentPackagePath, "utf8"));
 const runtimePackage = {
-  name: "novel-claw-agent-bridge",
+  name: productConfig.agentBridgePackageName,
   version: codingAgentPackage.version ?? "0.0.0",
   private: true,
   type: "module",

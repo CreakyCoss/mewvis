@@ -18,6 +18,7 @@ pub struct Workspace {
     pub name: String,
     pub description: Option<String>,
     pub path: String,
+    pub is_default: bool,
     pub is_pinned: bool,
     pub order: i64,
     pub group_id: Option<String>,

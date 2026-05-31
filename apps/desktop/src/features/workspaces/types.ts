@@ -12,6 +12,7 @@ export type Workspace = {
   name: string;
   description: string | null;
   path: string;
+  isDefault: boolean;
   isPinned: boolean;
   order: number;
   groupId: string | null;

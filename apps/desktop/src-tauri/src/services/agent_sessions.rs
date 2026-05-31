@@ -1,5 +1,6 @@
 use crate::services::workspace_paths::{
-    display_workspace_relative, ensure_under_root, sanitize_session_id, workspace_root,
+    display_workspace_relative, ensure_under_root, sanitize_session_id, workspace_app_data_dir,
+    workspace_root,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,7 +11,7 @@ use std::{
     time::SystemTime,
 };
 
-const AGENT_SESSION_DIR: &str = ".novel-claw/agent-sessions";
+const AGENT_SESSION_DIR_NAME: &str = "agent-sessions";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,7 +69,7 @@ pub fn get_agent_session_status(
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let root = workspace_root(&input.workspace_path)?;
-    let agent_root = root.join(AGENT_SESSION_DIR);
+    let agent_root = agent_session_root(&root);
     let session_path = session_id.map(sanitize_agent_session_path).transpose()?;
     let session_dir = session_path
         .as_ref()
@@ -85,7 +86,7 @@ pub fn get_agent_session_status(
         session_dir: if let Some(segments) =
             session_path.as_ref().filter(|segments| segments.len() == 1)
         {
-            format!("{AGENT_SESSION_DIR}/*/{}", segments[0])
+            format!("{}/*/{}", agent_session_dir_display(), segments[0])
         } else {
             display_workspace_relative(&input.workspace_path, &session_dir)?
         },
@@ -129,7 +130,7 @@ pub fn cleanup_orphan_agent_sessions(
     valid_chat_ids: &HashSet<String>,
 ) -> Result<CleanupAgentSessionsResult, String> {
     let root = workspace_root(&input.workspace_path)?;
-    let agent_root = root.join(AGENT_SESSION_DIR);
+    let agent_root = agent_session_root(&root);
     if !agent_root.exists() {
         return Ok(CleanupAgentSessionsResult {
             removed_count: 0,
@@ -211,7 +212,7 @@ pub fn delete_agent_sessions_for_chat(
 ) -> Result<(), String> {
     let chat_id = sanitize_session_id(chat_session_id)?;
     let root = workspace_root(workspace_path)?;
-    let agent_root = root.join(AGENT_SESSION_DIR);
+    let agent_root = agent_session_root(&root);
     if !agent_root.exists() {
         return Ok(());
     }
@@ -247,6 +248,18 @@ pub fn delete_agent_sessions_for_chat(
     }
 
     Ok(())
+}
+
+fn agent_session_root(root: &Path) -> PathBuf {
+    workspace_app_data_dir(root).join(AGENT_SESSION_DIR_NAME)
+}
+
+fn agent_session_dir_display() -> String {
+    format!(
+        "{}/{}",
+        crate::product_config::app_data_dir_name(),
+        AGENT_SESSION_DIR_NAME
+    )
 }
 
 fn sanitize_agent_session_path(session_id: &str) -> Result<Vec<String>, String> {
@@ -481,7 +494,11 @@ mod tests {
 
     impl TestWorkspace {
         fn new(name: &str) -> Self {
-            let path = std::env::temp_dir().join(format!("novel-claw-{name}-{}", Uuid::now_v7()));
+            let path = std::env::temp_dir().join(format!(
+                "{}-{name}-{}",
+                crate::product_config::bundle_name(),
+                Uuid::now_v7()
+            ));
             fs::create_dir_all(&path).expect("create test workspace");
             Self { path }
         }
@@ -491,7 +508,7 @@ mod tests {
         }
 
         fn agent_session_dir(&self, session_id: &str) -> PathBuf {
-            self.path.join(AGENT_SESSION_DIR).join(session_id)
+            agent_session_root(&self.path).join(session_id)
         }
     }
 

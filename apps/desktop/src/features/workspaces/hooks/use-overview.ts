@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createWorkspace, getWorkspaceOverview, updateWorkspace } from "../api";
+import { isDefaultWorkspace } from "../default-workspace";
 import {
   defaultWorkspaceForm,
   type Workspace,
@@ -43,6 +44,11 @@ export const useOverview = () => {
   }, []);
 
   const openEditWorkspace = useCallback((workspace: Workspace) => {
+    if (isDefaultWorkspace(workspace)) {
+      setError("默认工作区由系统管理，不能编辑");
+      return;
+    }
+
     setError("");
     setEditingWorkspace(workspace);
     setForm({

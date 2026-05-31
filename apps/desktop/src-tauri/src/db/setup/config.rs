@@ -286,7 +286,11 @@ mod tests {
     }
 
     fn temp_config_db_path() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("novel-claw-test-{}.db", Uuid::now_v7().simple()))
+        std::env::temp_dir().join(format!(
+            "{}-test-{}.db",
+            crate::product_config::bundle_name(),
+            Uuid::now_v7().simple()
+        ))
     }
 
     fn remove_temp_config_db(db_path: &Path) {
