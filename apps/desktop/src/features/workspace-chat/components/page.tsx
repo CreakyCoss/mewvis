@@ -278,6 +278,7 @@ export const WorkspaceChatPage = ({
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
   const isHydratingSessionRef = useRef(false);
+  const pendingNewSessionWorkspaceIdRef = useRef<string | null>(null);
   const saveSessionTimerRef = useRef<number | null>(null);
   const agentBlockCollapseTimersRef = useRef<Map<string, number>>(new Map());
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -348,7 +349,6 @@ export const WorkspaceChatPage = ({
   } | null>(null);
   const [workspaceSessionsById, setWorkspaceSessionsById] = useState<Record<string, ChatSessionMeta[]>>({});
   const [isWorkspaceSessionsLoading, setIsWorkspaceSessionsLoading] = useState(false);
-  const [shouldStartDefaultSession, setShouldStartDefaultSession] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
@@ -527,7 +527,8 @@ export const WorkspaceChatPage = ({
     const sessionIdToLoad = isActiveDefaultWorkspace
       ? pendingDefaultSessionId
       : workspaceSessionIdToLoad;
-    const shouldStartEmptySession = isActiveDefaultWorkspace && shouldStartDefaultSession;
+    const shouldStartPendingNewSession = pendingNewSessionWorkspaceIdRef.current === workspace.id;
+    const shouldStartEmptySession = shouldStartPendingNewSession;
 
     try {
       const [sessions, targetSession] = await Promise.all([
@@ -543,7 +544,9 @@ export const WorkspaceChatPage = ({
         setIsContextPanelOpen(false);
         setComposerResetKey((current) => current + 1);
         setPendingAgentQuestion(null);
-        setShouldStartDefaultSession(false);
+        if (shouldStartPendingNewSession) {
+          pendingNewSessionWorkspaceIdRef.current = null;
+        }
         hydrateSession(null);
         return;
       }
@@ -576,7 +579,6 @@ export const WorkspaceChatPage = ({
     isActiveDefaultWorkspace,
     pendingDefaultSessionId,
     pendingWorkspaceSession,
-    shouldStartDefaultSession,
     workspace.id,
     workspace.path,
   ]);
@@ -729,6 +731,9 @@ export const WorkspaceChatPage = ({
     setIsContextPanelOpen(false);
     setComposerResetKey((current) => current + 1);
     setPendingAgentQuestion(null);
+    setPendingDefaultSessionId(null);
+    setPendingWorkspaceSession(null);
+    pendingNewSessionWorkspaceIdRef.current = null;
     hydrateSession(null);
   };
 
@@ -774,17 +779,31 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    if (!isActiveDefaultWorkspace && defaultWorkspace) {
-      setShouldStartDefaultSession(true);
-      onOpenWorkspace(defaultWorkspace);
-      return;
-    }
-
     startNewSession();
   };
 
+  const openWorkspaceFromCurrentContext = useCallback((targetWorkspace: Workspace) => {
+    if (targetWorkspace.id === workspace.id) {
+      onOpenWorkspace(targetWorkspace);
+      return;
+    }
+
+    if (
+      messagesRef.current.length === 0 &&
+      !pendingAgentQuestion &&
+      !activeAgentTaskIdRef.current
+    ) {
+      pendingNewSessionWorkspaceIdRef.current = targetWorkspace.id;
+    } else {
+      pendingNewSessionWorkspaceIdRef.current = null;
+    }
+
+    onOpenWorkspace(targetWorkspace);
+  }, [onOpenWorkspace, pendingAgentQuestion, workspace.id]);
+
   const loadDefaultSessionById = async (sessionId: string) => {
     if (!isActiveDefaultWorkspace && defaultWorkspace) {
+      pendingNewSessionWorkspaceIdRef.current = null;
       setPendingDefaultSessionId(sessionId);
       onOpenWorkspace(defaultWorkspace);
       return;
@@ -800,10 +819,12 @@ export const WorkspaceChatPage = ({
     }
 
     if (targetWorkspace.id === workspace.id) {
+      pendingNewSessionWorkspaceIdRef.current = null;
       await loadSessionById(sessionId);
       return;
     }
 
+    pendingNewSessionWorkspaceIdRef.current = null;
     setPendingWorkspaceSession({ workspaceId: targetWorkspace.id, sessionId });
     onOpenWorkspace(targetWorkspace);
   };
@@ -2447,7 +2468,7 @@ export const WorkspaceChatPage = ({
     <ChatPanel
       chatScrollAreaRef={chatScrollAreaRef}
       workspace={workspace}
-      workspaces={sidebarWorkspaces}
+      workspaces={allSidebarWorkspaces}
       messages={messages}
       expandedThinkingIds={expandedThinkingIds}
       expandedAgentEventIds={expandedAgentEventIds}
@@ -2484,7 +2505,7 @@ export const WorkspaceChatPage = ({
       onEditHistoryMessage={editHistoryMessage}
       onDeleteHistoryMessage={deleteHistoryMessage}
       onMoveHistoryMessage={moveHistoryMessage}
-      onOpenWorkspace={onOpenWorkspace}
+      onOpenWorkspace={openWorkspaceFromCurrentContext}
       onCreateWorkspace={onCreateWorkspace}
       answerAgentQuestion={answerAgentQuestion}
       setAgentQuestionAnswer={setAgentQuestionAnswer}
@@ -2578,7 +2599,7 @@ export const WorkspaceChatPage = ({
         visibleDefaultSessions={visibleSidebarSessions}
         workspaceSessionsById={workspaceSessionsById}
         showAllSessions={showAllSessions}
-        onOpenWorkspace={onOpenWorkspace}
+        onOpenWorkspace={openWorkspaceFromCurrentContext}
         onEditWorkspace={onEditWorkspace}
         onStartNewSession={startSidebarSession}
         onOpenContext={openContextWorkbench}

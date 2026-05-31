@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Send,
   Trash2,
   Wrench,
@@ -27,7 +28,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -35,6 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentProfile } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import { isDefaultWorkspace } from "@/features/workspaces/default-workspace";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
   ChatMode,
@@ -175,6 +176,7 @@ export const ChatPanel = ({
   const [expandedHistoryActionsMessageId, setExpandedHistoryActionsMessageId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [confirmingDeleteMessageId, setConfirmingDeleteMessageId] = useState<string | null>(null);
+  const [workspaceSearch, setWorkspaceSearch] = useState("");
   const historyActionsCloseTimerRef = useRef<number | null>(null);
 
   const getMessageTextForAction = (message: ChatMessage) => {
@@ -250,13 +252,26 @@ export const ChatPanel = ({
     }, 140);
   };
 
-  const workspaceOptions = [
-    workspace,
-    ...workspaces.filter((item) => item.id !== workspace.id),
-  ];
+  const defaultWorkspace = workspaces.find(isDefaultWorkspace) ?? null;
+  const projectWorkspaces = workspaces.filter((item) => !isDefaultWorkspace(item));
+  const isDefaultWorkspaceSelected = isDefaultWorkspace(workspace);
+  const workspaceSwitcherLabel = isDefaultWorkspaceSelected ? "不使用项目" : workspace.name;
+  const normalizedWorkspaceSearch = workspaceSearch.trim().toLowerCase();
+  const visibleProjectWorkspaces = normalizedWorkspaceSearch
+    ? projectWorkspaces.filter((item) =>
+      item.name.toLowerCase().includes(normalizedWorkspaceSearch) ||
+      item.path.toLowerCase().includes(normalizedWorkspaceSearch),
+    )
+    : projectWorkspaces;
   const isEmptyConversation = messages.length === 0 && !pendingAgentQuestion;
   const workspaceSwitcher = (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (!open) {
+          setWorkspaceSearch("");
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -264,40 +279,88 @@ export const ChatPanel = ({
           className="h-9 max-w-full rounded-lg px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           title={workspace.path}
         >
-          <Folder className="size-4 shrink-0" />
-          <span className="min-w-0 truncate">{workspace.name}</span>
+          {isDefaultWorkspaceSelected ? (
+            <span className="relative flex size-4 shrink-0 items-center justify-center">
+              <Folder className="size-4" />
+              <X className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
+            </span>
+          ) : (
+            <Folder className="size-4 shrink-0" />
+          )}
+          <span className="min-w-0 truncate">{workspaceSwitcherLabel}</span>
           <ChevronDown className="size-3.5 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-80">
-        <DropdownMenuLabel>工作区</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {workspaceOptions.map((item) => (
+      <DropdownMenuContent
+        align="start"
+        className="w-80 rounded-2xl border-border/70 bg-popover p-2 shadow-xl"
+      >
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground/80" />
+          <input
+            type="search"
+            value={workspaceSearch}
+            onChange={(event) => setWorkspaceSearch(event.currentTarget.value)}
+            onKeyDown={(event) => event.stopPropagation()}
+            placeholder="搜索项目"
+            className="h-9 w-full rounded-lg border-0 bg-transparent pr-2 pl-8 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:bg-muted/45 focus:ring-0 focus:outline-none"
+          />
+        </div>
+        <div className="space-y-1">
+          {visibleProjectWorkspaces.length > 0 ? visibleProjectWorkspaces.map((item) => (
+            <DropdownMenuItem
+              key={item.id}
+              className="h-10 gap-3 rounded-lg px-2.5 text-sm font-medium"
+              title={item.path}
+              onSelect={() => {
+                if (item.id !== workspace.id) {
+                  onOpenWorkspace(item);
+                }
+              }}
+            >
+              <Folder className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{item.name}</span>
+              {item.id === workspace.id && (
+                <Check className="size-4 shrink-0 text-foreground" />
+              )}
+            </DropdownMenuItem>
+          )) : (
+            <div className="px-2.5 py-4 text-sm text-muted-foreground">
+              没有匹配的项目
+            </div>
+          )}
+        </div>
+        <DropdownMenuSeparator className="mx-2 my-2" />
+        <DropdownMenuItem
+          className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold"
+          onSelect={onCreateWorkspace}
+        >
+          <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+            <Folder className="size-4" />
+            <Plus className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">新建工作区</span>
+        </DropdownMenuItem>
+        {defaultWorkspace && (
           <DropdownMenuItem
-            key={item.id}
-            className="items-start gap-2 py-2"
-            title={item.path}
+            className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold"
+            title={defaultWorkspace.path}
             onSelect={() => {
-              if (item.id !== workspace.id) {
-                onOpenWorkspace(item);
+              if (defaultWorkspace.id !== workspace.id) {
+                onOpenWorkspace(defaultWorkspace);
               }
             }}
           >
-            <Folder className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{item.name}</span>
-              <span className="block truncate text-xs text-muted-foreground">{item.path}</span>
+            <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+              <Folder className="size-4" />
+              <X className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
             </span>
-            {item.id === workspace.id && (
-              <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate">不使用项目</span>
+            {defaultWorkspace.id === workspace.id && (
+              <Check className="size-4 shrink-0 text-foreground" />
             )}
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 py-2" onSelect={onCreateWorkspace}>
-          <Plus className="size-4 text-muted-foreground" />
-          <span>新建工作区</span>
-        </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -357,8 +420,15 @@ export const ChatPanel = ({
             <div className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center px-2 py-10">
               <div className="w-full space-y-7">
                 <div className="text-center">
-                  <h3 className="mx-auto max-w-4xl text-2xl font-semibold leading-tight tracking-normal text-foreground sm:text-3xl xl:text-4xl">
-                    我们应该在 {workspace.name} 中构建什么？
+                  <h3
+                    className="mx-auto flex w-full max-w-[38rem] min-w-0 items-baseline justify-center overflow-hidden text-center text-2xl font-semibold leading-tight tracking-normal whitespace-nowrap text-foreground sm:text-3xl xl:text-4xl"
+                    title={`我们应该在 ${workspace.name} 中构建什么？`}
+                  >
+                    <span className="shrink-0">我们应该在&nbsp;</span>
+                    <span className="min-w-0 truncate" title={workspace.name}>
+                      {workspace.name}
+                    </span>
+                    <span className="shrink-0">&nbsp;中构建什么？</span>
                   </h3>
                 </div>
                 {statusBanner}

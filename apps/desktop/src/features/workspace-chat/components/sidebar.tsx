@@ -278,24 +278,24 @@ export const Sidebar = ({
                 );
 
                 return (
-                  <div key={item.id} className="space-y-2">
+                  <div key={item.id} className="min-w-0 space-y-2">
                     <div
-                      className="group/workspace flex h-9 items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground"
+                      className="group/workspace flex h-9 min-w-0 items-center overflow-hidden rounded-md text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground"
                       data-active={isActiveWorkspace}
                     >
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+                        className="flex w-0 min-w-0 flex-1 items-center gap-2 overflow-hidden px-3 py-1 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
                         onClick={() => onOpenWorkspace(item)}
                         title={item.path}
                       >
                         <Folder className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1 truncate text-base font-medium">
+                        <span className="block min-w-0 flex-1 truncate text-base font-medium">
                           {item.name}
                         </span>
                       </button>
                       {isActiveWorkspace && (
-                        <div className="mr-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/workspace:opacity-100 group-focus-within/workspace:opacity-100">
+                        <div className="mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/workspace:opacity-100 group-focus-within/workspace:opacity-100">
                           <Button
                             type="button"
                             size="icon"
