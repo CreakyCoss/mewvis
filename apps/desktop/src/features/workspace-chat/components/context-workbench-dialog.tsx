@@ -253,11 +253,11 @@ export const ContextWorkbenchDialog = ({
           <aside className="min-h-0 min-w-0 bg-background p-5 shadow-[-10px_0_32px_-30px_rgb(15_23_42_/_0.28)]">
             <ScrollArea className="h-full">
               <div className="space-y-4 pr-1">
-                <section className="rounded-[28px] bg-card p-4 shadow-xs">
-                  <DialogHeader className="space-y-3 pr-12">
+                <section className="min-w-0 overflow-hidden rounded-[28px] bg-card p-4 shadow-xs">
+                  <DialogHeader className="min-w-0 space-y-3 pr-12">
                     <div className="flex min-w-0 items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <DialogTitle className="truncate text-2xl font-semibold tracking-normal" title={chatName}>
+                      <div className="w-0 min-w-0 flex-1 overflow-hidden">
+                        <DialogTitle className="block max-w-full truncate text-2xl font-semibold tracking-normal" title={chatName}>
                           {chatName}
                         </DialogTitle>
                         <DialogDescription className="sr-only">

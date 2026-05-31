@@ -82,8 +82,9 @@ const DraftSessionRow = ({
 }) => (
   <div
     className={[
-      "flex h-9 items-center rounded-md px-3 text-sm text-foreground transition-colors hover:bg-muted/55",
+      "flex h-9 min-w-0 items-center overflow-hidden rounded-md px-3 text-sm text-foreground transition-colors hover:bg-muted/55",
     ].join(" ")}
+    title={title}
   >
     <span className="min-w-0 flex-1 truncate pl-6 font-semibold text-foreground">
       {title}
@@ -119,7 +120,7 @@ const SessionRow = ({
   return (
     <div
       className={[
-        "group/session flex h-9 items-center rounded-md text-muted-foreground transition-colors",
+        "group/session flex h-9 min-w-0 items-center overflow-hidden rounded-md text-muted-foreground transition-colors",
         "hover:bg-muted/55 hover:text-foreground",
         "data-[active=true]:bg-muted/55 data-[active=true]:text-foreground",
       ].join(" ")}
@@ -128,7 +129,7 @@ const SessionRow = ({
     >
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center py-1 pr-3 pl-8 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
+        className="flex w-0 min-w-0 flex-1 items-center overflow-hidden py-1 pr-3 pl-8 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
         onClick={onLoad}
         title={`${session.title}\n${session.path}`}
       >
