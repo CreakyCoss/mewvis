@@ -1,13 +1,14 @@
 import type { FormEvent } from "react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bot,
   ChevronDown,
   FileText,
   Gauge,
   Link,
   Loader2,
   MessageSquare,
-  Plug,
+  Orbit,
   Send,
   Sparkles,
   Square,
@@ -165,13 +166,14 @@ export const Composer = memo(({
   const modeLabel =
     chatMode === "collab" ? "协作" : chatMode === "agent" ? "Agent" : "聊天";
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
-  const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
-    ? "无需模型"
-    : chatMode === "collab" && selectedAgent && reviewerAgent
+  const selectedModelLabel = chatMode === "collab" && selectedAgent && reviewerAgent
     ? `${selectedAgent.name} + ${reviewerAgent.name}`
     : modelSource === "agent"
       ? selectedAgent?.name ?? "选择 Agent"
       : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
+  const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
+    ? "无需模型"
+    : selectedModelLabel;
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
   const contextWindowLabel = contextWindowPreset === 1000000 ? "1M" : "200k";
   const isAgentRunning = Boolean(activeAgentTaskId);
@@ -331,7 +333,7 @@ export const Composer = memo(({
                   {chatMode === "collab" ? (
                     <Sparkles className="size-3.5" />
                   ) : chatMode === "agent" ? (
-                    <Wrench className="size-3.5" />
+                    <Bot className="size-3.5" />
                   ) : (
                     <MessageSquare className="size-3.5" />
                   )}
@@ -354,24 +356,170 @@ export const Composer = memo(({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                  <Gauge className="size-3.5" />
-                  <span>{contextWindowLabel}</span>
-                  <ChevronDown className="size-3" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
+                  title={`模型：${modelLabel}${contextWindowPreset === 1000000 ? ` / 窗口：${contextWindowLabel}` : ""}`}
+                >
+                  <Orbit className="size-3.5 shrink-0" />
+                  <span className="min-w-0 truncate">{modelLabel}</span>
+                  {contextWindowPreset === 1000000 && (
+                    <>
+                      <span className="shrink-0 text-muted-foreground">·</span>
+                      <span className="shrink-0 text-muted-foreground">{contextWindowLabel}</span>
+                    </>
+                  )}
+                  <ChevronDown className="size-3 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                <DropdownMenuLabel>上下文窗口</DropdownMenuLabel>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel>模型配置</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup
-                  value={String(contextWindowPreset)}
-                  onValueChange={(value) => {
-                    onContextWindowPresetChange(value === "1000000" ? 1000000 : 200000);
-                  }}
-                >
-                  <DropdownMenuRadioItem value="200000">200k tokens</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="1000000">1M tokens</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger
+                    disabled={isSettingsLoading}
+                    title={selectedModelLabel}
+                  >
+                    <Orbit className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">模型</span>
+                    <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {agentProfiles.length > 0 && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Bot className="size-3.5" />
+                          Agent
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-56">
+                          <DropdownMenuRadioGroup
+                            value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
+                            onValueChange={(value) => {
+                              onModelSourceChange("agent");
+                              onSelectedAgentChange(value);
+                            }}
+                          >
+                            {agentProfiles.map((agent) => (
+                              <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                                <span className="truncate">{agent.name}</span>
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Orbit className="size-3.5" />
+                        模型
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-52">
+                        {providers.length === 0 ? (
+                          <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
+                        ) : (
+                          providers.map((provider) => {
+                            const enabledModels = provider.models.filter((model) => model.isEnabled);
+
+                            return (
+                              <DropdownMenuSub key={provider.id}>
+                                <DropdownMenuSubTrigger>{provider.name}</DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent className="w-56">
+                                  {enabledModels.length === 0 ? (
+                                    <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuRadioGroup
+                                      value={selectedProviderId === provider.id ? selectedModel?.id ?? "" : ""}
+                                      onValueChange={(value) => {
+                                        onModelSourceChange("direct");
+                                        onProviderChange(provider.id);
+                                        onModelChange(value);
+                                      }}
+                                    >
+                                      {enabledModels.map((model) => (
+                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
+                                          <span className="truncate">{model.modelName || model.modelId}</span>
+                                        </DropdownMenuRadioItem>
+                                      ))}
+                                    </DropdownMenuRadioGroup>
+                                  )}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            );
+                          })
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    {chatMode === "collab" && agentProfiles.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>写作 Agent</DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-56">
+                            <DropdownMenuRadioGroup value={selectedAgent?.id ?? ""} onValueChange={onSelectedAgentChange}>
+                              {agentProfiles.map((agent) => (
+                                <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                                  <span className="truncate">{agent.name}</span>
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>审查 Agent</DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-56">
+                            <DropdownMenuRadioGroup value={reviewerAgent?.id ?? ""} onValueChange={onReviewerAgentChange}>
+                              {agentProfiles.map((agent) => (
+                                <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                                  <span className="truncate">{agent.name}</span>
+                                </DropdownMenuRadioItem>
+                              ))}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger title={runtimeAgentLabel}>
+                    <Bot className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">执行</span>
+                    <span className="max-w-28 truncate text-xs text-muted-foreground">{runtimeAgentLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-60">
+                    <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
+                      {runtimeAgents.map((agent) => (
+                        <DropdownMenuRadioItem
+                          key={agent.id}
+                          value={agent.id}
+                          title={agent.description}
+                        >
+                          <span className="truncate">{agent.label}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Gauge className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">窗口</span>
+                    <span className="text-xs text-muted-foreground">{contextWindowLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44">
+                    <DropdownMenuRadioGroup
+                      value={String(contextWindowPreset)}
+                      onValueChange={(value) => {
+                        onContextWindowPresetChange(value === "1000000" ? 1000000 : 200000);
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="200000">200k tokens</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="1000000">1M tokens</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -381,157 +529,30 @@ export const Composer = memo(({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 max-w-48 px-2 text-xs"
-                  disabled={isSettingsLoading || (chatMode !== "collab" && !runtimeAgentRequiresModel)}
-                  title={modelLabel}
+                  className="h-8 px-2 text-xs"
+                  disabled={chatMode !== "agent"}
                 >
-                  <span className="truncate">{modelLabel}</span>
+                  <Wrench className="size-3.5" />
+                  <span>工具</span>
+                  <span className="text-muted-foreground">{allowedAgentTools.length}</span>
                   <ChevronDown className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>模型选择</DropdownMenuLabel>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuLabel>工具</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {agentProfiles.length > 0 && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>Agent</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      <DropdownMenuRadioGroup
-                        value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
-                        onValueChange={(value) => {
-                          onModelSourceChange("agent");
-                          onSelectedAgentChange(value);
-                        }}
-                      >
-                        {agentProfiles.map((agent) => (
-                          <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                            <span className="truncate">{agent.name}</span>
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>模型</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-52">
-                    {providers.length === 0 ? (
-                      <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
-                    ) : (
-                      providers.map((provider) => {
-                        const enabledModels = provider.models.filter((model) => model.isEnabled);
-
-                        return (
-                          <DropdownMenuSub key={provider.id}>
-                            <DropdownMenuSubTrigger>{provider.name}</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              {enabledModels.length === 0 ? (
-                                <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuRadioGroup
-                                  value={selectedProviderId === provider.id ? selectedModel?.id ?? "" : ""}
-                                  onValueChange={(value) => {
-                                    onModelSourceChange("direct");
-                                    onProviderChange(provider.id);
-                                    onModelChange(value);
-                                  }}
-                                >
-                                  {enabledModels.map((model) => (
-                                    <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                      <span className="truncate">{model.modelName || model.modelId}</span>
-                                    </DropdownMenuRadioItem>
-                                  ))}
-                                </DropdownMenuRadioGroup>
-                              )}
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        );
-                      })
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                {chatMode === "collab" && agentProfiles.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>写作 Agent</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-56">
-                        <DropdownMenuRadioGroup value={selectedAgent?.id ?? ""} onValueChange={onSelectedAgentChange}>
-                          {agentProfiles.map((agent) => (
-                            <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                              <span className="truncate">{agent.name}</span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>审查 Agent</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-56">
-                        <DropdownMenuRadioGroup value={reviewerAgent?.id ?? ""} onValueChange={onReviewerAgentChange}>
-                          {agentProfiles.map((agent) => (
-                            <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                              <span className="truncate">{agent.name}</span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                )}
+                {AGENT_TOOL_DEFINITIONS.map((tool) => (
+                  <DropdownMenuCheckboxItem
+                    key={tool.name}
+                    checked={allowedAgentTools.includes(tool.name)}
+                    onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
+                    title={tool.description}
+                  >
+                    {tool.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 max-w-44 px-2 text-xs">
-                  <Plug className="size-3.5" />
-                  <span className="truncate">{runtimeAgentLabel}</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-60">
-                <DropdownMenuLabel>运行时 Agent</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
-                  {runtimeAgents.map((agent) => (
-                    <DropdownMenuRadioItem
-                      key={agent.id}
-                      value={agent.id}
-                      title={agent.description}
-                    >
-                      <span className="truncate">{agent.label}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {chatMode === "agent" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                    <Wrench className="size-3.5" />
-                    <span>工具 {allowedAgentTools.length}</span>
-                    <ChevronDown className="size-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuLabel>Agent 工具</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {AGENT_TOOL_DEFINITIONS.map((tool) => (
-                    <DropdownMenuCheckboxItem
-                      key={tool.name}
-                      checked={allowedAgentTools.includes(tool.name)}
-                      onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                      title={tool.description}
-                    >
-                      {tool.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
 
           <Button
