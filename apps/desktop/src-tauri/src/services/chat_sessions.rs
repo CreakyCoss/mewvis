@@ -95,7 +95,12 @@ pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSession
         sessions.push(session_meta(&session));
     }
 
-    sessions.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+    sessions.sort_by(|left, right| {
+        right
+            .created_at
+            .cmp(&left.created_at)
+            .then_with(|| right.id.cmp(&left.id))
+    });
     Ok(sessions)
 }
 

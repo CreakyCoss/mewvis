@@ -6,7 +6,7 @@ mod services;
 use commands::{
     agent_runtime::{
         abort_agent_runtime_agent, answer_agent_runtime_question, list_agent_runtime_agents,
-        run_agent_runtime_agent, run_agent_runtime_chat, AgentRuntimeAgentTasks,
+        run_agent_runtime_agent, run_agent_runtime_chat, AgentRuntimeSupervisor,
     },
     app::{
         get_config_database_status, initialize_config_database, rebuild_config_database,
@@ -27,7 +27,7 @@ use commands::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AgentRuntimeAgentTasks::default())
+        .manage(AgentRuntimeSupervisor::default())
         .manage(AppStartupState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

@@ -22,12 +22,23 @@ export const createAgentDefinitionsResult = (): AgentDefinitionsResult => ({
   agents: BRIDGE_AGENT_DEFINITIONS,
 });
 
+export const createAgentDefinitionsResultForCommand = (
+  command: { requestId?: string | null },
+): AgentDefinitionsResult => ({
+  ...createAgentDefinitionsResult(),
+  requestId: command.requestId ?? null,
+});
+
 export const handleChatCommand = async (
   command: ChatCommand,
   emit: EmitBridgeEvent,
 ): Promise<ChatResult> => {
   const { runner } = resolveBridgeRunner(command);
-  return runner(command, { emit });
+  const result = await runner(command, { emit });
+  return {
+    ...result,
+    requestId: command.requestId ?? null,
+  };
 };
 
 export const handleStartTaskCommand = async (

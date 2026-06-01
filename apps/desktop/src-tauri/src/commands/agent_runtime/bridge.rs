@@ -27,6 +27,15 @@ pub(super) fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
     };
 
     for name in bundled_names {
+        if cfg!(debug_assertions) {
+            let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join(format!("../agent-bridge/dist/{name}"))
+                .clean();
+            if dev_path.exists() {
+                return Ok(dev_path);
+            }
+        }
+
         for candidate in [
             format!("_up_/agent-bridge/dist/{name}"),
             format!("agent-bridge/dist/{name}"),
@@ -54,11 +63,13 @@ pub(super) fn resolve_agent_bridge_path(app: &AppHandle) -> Result<PathBuf, Stri
         }
     }
 
-    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../agent-bridge/dist/index.js")
-        .clean();
-    if dev_path.exists() {
-        return Ok(dev_path);
+    if cfg!(debug_assertions) {
+        let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../agent-bridge/dist/index.js")
+            .clean();
+        if dev_path.exists() {
+            return Ok(dev_path);
+        }
     }
 
     for candidate in [

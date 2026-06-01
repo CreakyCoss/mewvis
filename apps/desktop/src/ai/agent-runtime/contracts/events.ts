@@ -24,6 +24,15 @@ export type AgentRuntimeDeltaEvent =
   | AgentRuntimeThinkingDeltaEvent;
 
 export type AgentRuntimeAgentEvent =
+  | {
+    type: "state";
+    taskId: string;
+    taskState: string;
+    workerState: string;
+    workerId?: string;
+    sessionKey?: string;
+    queueDepth?: number;
+  }
   | { type: "started"; taskId: string }
   | {
     type: "question";

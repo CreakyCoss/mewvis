@@ -6,7 +6,7 @@ mod events;
 mod process;
 mod rpc;
 mod skills;
-mod task_state;
+mod supervisor;
 mod types;
 
 pub use agent::{
@@ -14,4 +14,4 @@ pub use agent::{
 };
 pub use agents::list_agent_runtime_agents;
 pub use chat::run_agent_runtime_chat;
-pub use task_state::AgentRuntimeAgentTasks;
+pub use supervisor::AgentRuntimeSupervisor;

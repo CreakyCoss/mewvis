@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronUp,
   Folder,
+  LoaderCircle,
   MessageSquarePlus,
   Pencil,
   Search,
@@ -38,7 +39,10 @@ type SidebarProps = {
   isWorkspaceSessionsLoading: boolean;
   defaultChatSessions: ChatSessionMeta[];
   visibleDefaultSessions: ChatSessionMeta[];
+  defaultWorkspacePath: string;
   workspaceSessionsById: Record<string, ChatSessionMeta[]>;
+  isAgentSessionRunning: (workspacePath: string, sessionId: string) => boolean;
+  suppressDefaultLoadingState: boolean;
   showAllSessions: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
   onEditWorkspace: (workspace: Workspace) => void;
@@ -56,6 +60,7 @@ type SidebarProps = {
 type SessionRowProps = {
   session: ChatSessionMeta;
   isActive: boolean;
+  isAgentRunning: boolean;
   isConfirmingDelete: boolean;
   onLoad: () => void;
   onRequestRemove: () => void;
@@ -98,6 +103,7 @@ const DraftSessionRow = ({
 const SessionRow = ({
   session,
   isActive,
+  isAgentRunning,
   isConfirmingDelete,
   onLoad,
   onRequestRemove,
@@ -131,7 +137,7 @@ const SessionRow = ({
         type="button"
         className="flex w-0 min-w-0 flex-1 items-center overflow-hidden py-1 pr-3 pl-8 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
         onClick={onLoad}
-        title={`${session.title}\n${session.path}`}
+        title={`${session.title}\n${session.path}${isAgentRunning ? "\nAgent 正在执行" : ""}`}
       >
         <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
           {session.title}
@@ -139,7 +145,14 @@ const SessionRow = ({
       </button>
       <div className="relative mr-2 flex h-full w-12 shrink-0 justify-end">
         <span className="absolute inset-y-0 right-0 flex items-center justify-end text-right text-xs tabular-nums text-muted-foreground/80 transition-opacity group-hover/session:opacity-0 group-focus-within/session:opacity-0">
-          {formatSessionTime(session.updatedAt)}
+          {isAgentRunning ? (
+            <LoaderCircle
+              className="size-3.5 animate-spin"
+              aria-label="Agent 正在执行"
+            />
+          ) : (
+            formatSessionTime(session.updatedAt)
+          )}
         </span>
         <Button
           type="button"
@@ -182,7 +195,10 @@ export const Sidebar = ({
   isWorkspaceSessionsLoading,
   defaultChatSessions,
   visibleDefaultSessions,
+  defaultWorkspacePath,
   workspaceSessionsById,
+  isAgentSessionRunning,
+  suppressDefaultLoadingState,
   showAllSessions,
   onOpenWorkspace,
   onEditWorkspace,
@@ -199,6 +215,15 @@ export const Sidebar = ({
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [confirmingDeleteSessionId, setConfirmingDeleteSessionId] = useState<string | null>(null);
   const hiddenSessionCount = Math.max(defaultChatSessions.length - visibleDefaultSessions.length, 0);
+  const hasPendingDefaultSession = defaultCurrentSessionId
+    ? !defaultChatSessions.some((session) => session.id === defaultCurrentSessionId)
+    : false;
+  const hasDraftDefaultSession = hasUnsavedDefaultSession || hasPendingDefaultSession;
+  const shouldShowDefaultLoading =
+    isDefaultSessionsLoading &&
+    defaultChatSessions.length === 0 &&
+    !hasDraftDefaultSession &&
+    !suppressDefaultLoadingState;
 
   const toggleWorkspaceSessions = (workspaceId: string) => {
     setExpandedWorkspaceIds((current) => {
@@ -277,6 +302,13 @@ export const Sidebar = ({
                   workspaceSessions.length - visibleWorkspaceSessions.length,
                   0,
                 );
+                const hasPendingWorkspaceSession = Boolean(
+                  isActiveWorkspace &&
+                  activeSessionId &&
+                  !workspaceSessions.some((session) => session.id === activeSessionId),
+                );
+                const hasDraftWorkspaceSession =
+                  isActiveWorkspace && (hasUnsavedWorkspaceSession || hasPendingWorkspaceSession);
 
                 return (
                   <div key={item.id} className="min-w-0 space-y-2">
@@ -313,7 +345,7 @@ export const Sidebar = ({
                     </div>
 
                     <div className="space-y-0.5">
-                      {isActiveWorkspace && hasUnsavedWorkspaceSession && (
+                      {hasDraftWorkspaceSession && (
                         <DraftSessionRow title={workspaceCurrentSessionTitle} />
                       )}
                       {isWorkspaceSessionsLoading && workspaceSessions.length === 0 ? (
@@ -327,6 +359,7 @@ export const Sidebar = ({
                               key={session.id}
                               session={session}
                               isActive={isActiveWorkspace && session.id === activeSessionId}
+                              isAgentRunning={isAgentSessionRunning(item.path, session.id)}
                               isConfirmingDelete={confirmingDeleteSessionId === `${item.id}:${session.id}`}
                               onLoad={() => onLoadWorkspaceSession(item, session.id)}
                               onRequestRemove={() => setConfirmingDeleteSessionId(`${item.id}:${session.id}`)}
@@ -353,11 +386,11 @@ export const Sidebar = ({
                             </button>
                           )}
                         </>
-                      ) : (
+                      ) : !hasDraftWorkspaceSession ? (
                         <div className="py-1 pr-3 pl-9 text-xs text-muted-foreground/70">
                           暂无工作区对话
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -371,10 +404,10 @@ export const Sidebar = ({
         <section className="space-y-3">
           <SectionHeader label="对话" />
           <div className="space-y-2">
-            {hasUnsavedDefaultSession && (
+            {hasDraftDefaultSession && (
               <DraftSessionRow title={defaultCurrentSessionTitle} />
             )}
-            {isDefaultSessionsLoading ? (
+            {shouldShowDefaultLoading ? (
               <div className="px-3 py-2 text-sm text-muted-foreground">
                 正在读取对话
               </div>
@@ -385,6 +418,7 @@ export const Sidebar = ({
                     key={session.id}
                     session={session}
                     isActive={session.id === defaultCurrentSessionId}
+                    isAgentRunning={isAgentSessionRunning(defaultWorkspacePath, session.id)}
                     isConfirmingDelete={confirmingDeleteSessionId === `default:${session.id}`}
                     onLoad={() => onLoadDefaultSession(session.id)}
                     onRequestRemove={() => setConfirmingDeleteSessionId(`default:${session.id}`)}
@@ -413,9 +447,9 @@ export const Sidebar = ({
                   </div>
                 )}
               </>
-            ) : (
+            ) : !hasDraftDefaultSession ? (
               <EmptyState>暂无对话</EmptyState>
-            )}
+            ) : null}
           </div>
         </section>
       </div>

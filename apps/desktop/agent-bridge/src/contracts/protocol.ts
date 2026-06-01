@@ -6,14 +6,20 @@ export enum BridgeCommandType {
   AnswerQuestion = "answer_question",
   Chat = "chat",
   ListAgents = "list_agents",
+  Ping = "ping",
+  Shutdown = "shutdown",
 }
 
 export enum BridgeResultType {
   AgentDefinitions = "agent_definitions",
   ChatResult = "chat_result",
+  Pong = "pong",
+  ShutdownAck = "shutdown_ack",
+  TaskResult = "task_result",
 }
 
 export enum BridgeEventType {
+  State = "state",
   Started = "started",
   Question = "question",
   QuestionAnswered = "question_answered",
@@ -64,6 +70,7 @@ export type ModelInput = {
 
 export type StartTaskCommand = {
   type: BridgeCommandType.StartTask;
+  requestId?: string | null;
   agentId?: string | null;
   taskId: string;
   workspacePath: string;
@@ -80,6 +87,7 @@ export type StartTaskCommand = {
 
 export type AnswerQuestionCommand = {
   type: BridgeCommandType.AnswerQuestion;
+  requestId?: string | null;
   taskId: string;
   questionId: string;
   answer: string;
@@ -87,6 +95,7 @@ export type AnswerQuestionCommand = {
 
 export type ListAgentsCommand = {
   type: BridgeCommandType.ListAgents;
+  requestId?: string | null;
 };
 
 export type ChatMessageInput = {
@@ -96,6 +105,7 @@ export type ChatMessageInput = {
 
 export type ChatCommand = {
   type: BridgeCommandType.Chat;
+  requestId?: string | null;
   agentId?: string | null;
   streamId?: string | null;
   stream?: boolean;
@@ -107,12 +117,14 @@ export type ChatCommand = {
 
 export type ChatResult = {
   type: BridgeResultType.ChatResult;
+  requestId?: string | null;
   text: string;
   thinking?: string | null;
 };
 
 export type AgentDefinitionsResult = {
   type: BridgeResultType.AgentDefinitions;
+  requestId?: string | null;
   defaultAgentId: string;
   agents: readonly BridgeAgentDefinition[];
 };
@@ -121,11 +133,41 @@ export type AgentRunResult = {
   text: string;
 };
 
+export type PingCommand = {
+  type: BridgeCommandType.Ping;
+  requestId?: string | null;
+};
+
+export type ShutdownCommand = {
+  type: BridgeCommandType.Shutdown;
+  requestId?: string | null;
+};
+
+export type PongResult = {
+  type: BridgeResultType.Pong;
+  requestId?: string | null;
+};
+
+export type ShutdownAckResult = {
+  type: BridgeResultType.ShutdownAck;
+  requestId?: string | null;
+};
+
+export type TaskResult = {
+  type: BridgeResultType.TaskResult;
+  requestId?: string | null;
+  taskId: string;
+  success: boolean;
+  message?: string;
+};
+
 export type BridgeCommand =
   | StartTaskCommand
   | AnswerQuestionCommand
   | ChatCommand
-  | ListAgentsCommand;
+  | ListAgentsCommand
+  | PingCommand
+  | ShutdownCommand;
 
 export type AskUserOption = {
   value: string;
@@ -141,6 +183,15 @@ export type AskUserInput = {
 };
 
 export type BridgeEvent =
+  | {
+    type: BridgeEventType.State;
+    taskId: string;
+    taskState: string;
+    workerState: string;
+    workerId?: string;
+    sessionKey?: string;
+    queueDepth?: number;
+  }
   | { type: BridgeEventType.Started; taskId: string }
   | {
     type: BridgeEventType.Question;

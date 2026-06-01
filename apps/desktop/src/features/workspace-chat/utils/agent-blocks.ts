@@ -22,7 +22,38 @@ const stringifyBrief = (value: unknown) => {
   return text.length > 240 ? `${text.slice(0, 240)}...` : text;
 };
 
+const describeTaskState = (state: string) => {
+  switch (state) {
+    case "queued":
+      return "Agent 任务已排队";
+    case "recovering":
+      return "Agent 队列任务正在恢复";
+    case "starting":
+      return "Agent 正在启动";
+    case "running":
+      return "Agent 正在运行";
+    case "waiting_user":
+      return "Agent 等待用户回答";
+    case "completing":
+      return "Agent 正在收尾";
+    case "done":
+      return "Agent 任务完成";
+    case "cancelling":
+      return "Agent 正在取消";
+    case "cancelled":
+      return "Agent 任务已取消";
+    case "failed":
+      return "Agent 任务失败";
+    default:
+      return `Agent 状态：${state}`;
+  }
+};
+
 export const describeAgentEvent = (event: AgentRuntimeAgentEvent) => {
+  if (event.type === "state") {
+    return describeTaskState(event.taskState);
+  }
+
   if (event.type === "started") {
     return "Agent 已启动";
   }
