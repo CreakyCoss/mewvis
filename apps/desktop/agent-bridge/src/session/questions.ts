@@ -56,11 +56,6 @@ export const createBridgeQuestionManager = (
   const handleAnswer = (command: AnswerQuestionCommand) => {
     const pendingQuestion = pendingQuestions.get(command.questionId);
     if (!pendingQuestion) {
-      emit({
-        type: BridgeEventType.Error,
-        taskId: command.taskId,
-        message: `未找到待回答的问题：${command.questionId}`,
-      });
       return;
     }
 

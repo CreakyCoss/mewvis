@@ -126,10 +126,23 @@ type RunningAgentTaskContext = {
   messages: ChatMessage[];
   conversation: ConversationMessage[];
   context: ChatContextSummary | null;
+  pendingQuestion: PendingAgentQuestion | null;
+  questionAnswer: string;
+  customQuestionAnswer: string;
   lastError: string;
   lastStderr: string;
   handledTerminal: boolean;
 };
+
+const pendingQuestionFromEvent = (
+  event: Extract<AgentRuntimeAgentEvent, { type: "question" }>,
+): PendingAgentQuestion => ({
+  taskId: event.taskId,
+  questionId: event.questionId,
+  question: event.question,
+  context: event.context,
+  input: event.input,
+});
 
 const sortChatSessionsByFixedOrder = (sessions: ChatSessionMeta[]) =>
   [...sessions].sort((left, right) =>
@@ -332,6 +345,10 @@ export const WorkspaceChatPage = ({
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
+  const pendingAgentQuestionRef = useRef<PendingAgentQuestion | null>(null);
+  const agentQuestionAnswerRef = useRef("");
+  const customAgentQuestionAnswerRef = useRef("");
+  const answeringAgentQuestionIdsRef = useRef<Set<string>>(new Set());
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
   const isHydratingSessionRef = useRef(false);
@@ -532,9 +549,15 @@ export const WorkspaceChatPage = ({
     activeAgentTraceRef.current = task.trace;
     lastAgentErrorRef.current = task.lastError;
     lastAgentStderrRef.current = task.lastStderr;
+    pendingAgentQuestionRef.current = task.pendingQuestion;
+    agentQuestionAnswerRef.current = task.questionAnswer;
+    customAgentQuestionAnswerRef.current = task.customQuestionAnswer;
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
+    setPendingAgentQuestion(task.pendingQuestion);
+    setAgentQuestionAnswer(task.questionAnswer);
+    setCustomAgentQuestionAnswer(task.customQuestionAnswer);
     const nextTitle = task.title || deriveSessionTitle(task.messages);
     currentSessionTitleRef.current = nextTitle;
     setCurrentSessionTitle(nextTitle);
@@ -558,6 +581,12 @@ export const WorkspaceChatPage = ({
       currentTask.messages = messagesRef.current;
       currentTask.conversation = conversationRef.current;
       currentTask.context = conversationContextRef.current;
+      currentTask.pendingQuestion =
+        pendingAgentQuestionRef.current?.taskId === currentTaskId
+          ? pendingAgentQuestionRef.current
+          : null;
+      currentTask.questionAnswer = agentQuestionAnswerRef.current;
+      currentTask.customQuestionAnswer = customAgentQuestionAnswerRef.current;
     }
 
     activeAgentTaskIdRef.current = "";
@@ -567,8 +596,13 @@ export const WorkspaceChatPage = ({
     activeAgentTraceRef.current = createAgentMemoryTrace();
     lastAgentErrorRef.current = "";
     lastAgentStderrRef.current = "";
+    pendingAgentQuestionRef.current = null;
+    agentQuestionAnswerRef.current = "";
+    customAgentQuestionAnswerRef.current = "";
     setActiveAgentTaskId("");
     setPendingAgentQuestion(null);
+    setAgentQuestionAnswer("");
+    setCustomAgentQuestionAnswer("");
   }, [workspace.path]);
 
   const loadProjects = useCallback(async () => {
@@ -690,7 +724,13 @@ export const WorkspaceChatPage = ({
       activeAgentSessionIdRef.current = runningTask.agentSessionId;
       activeAgentIdRef.current = runningTask.agentId;
       activeAgentTraceRef.current = runningTask.trace;
+      pendingAgentQuestionRef.current = runningTask.pendingQuestion;
+      agentQuestionAnswerRef.current = runningTask.questionAnswer;
+      customAgentQuestionAnswerRef.current = runningTask.customQuestionAnswer;
       setActiveAgentTaskId(runningTask.taskId);
+      setPendingAgentQuestion(runningTask.pendingQuestion);
+      setAgentQuestionAnswer(runningTask.questionAnswer);
+      setCustomAgentQuestionAnswer(runningTask.customQuestionAnswer);
     }
     window.setTimeout(() => {
       isHydratingSessionRef.current = false;
@@ -743,6 +783,9 @@ export const WorkspaceChatPage = ({
         setSessionsError("");
         setIsContextPanelOpen(false);
         setComposerResetKey((current) => current + 1);
+        pendingAgentQuestionRef.current = null;
+        agentQuestionAnswerRef.current = "";
+        customAgentQuestionAnswerRef.current = "";
         setPendingAgentQuestion(null);
         if (shouldStartPendingNewSession) {
           pendingNewSessionWorkspaceIdRef.current = null;
@@ -925,6 +968,9 @@ export const WorkspaceChatPage = ({
     setSessionsError("");
     setIsContextPanelOpen(false);
     setComposerResetKey((current) => current + 1);
+    pendingAgentQuestionRef.current = null;
+    agentQuestionAnswerRef.current = "";
+    customAgentQuestionAnswerRef.current = "";
     setPendingAgentQuestion(null);
     setPendingDefaultSessionId(null);
     setPendingWorkspaceSession(null);
@@ -1320,6 +1366,18 @@ export const WorkspaceChatPage = ({
   }, [currentSessionTitle]);
 
   useEffect(() => {
+    pendingAgentQuestionRef.current = pendingAgentQuestion;
+  }, [pendingAgentQuestion]);
+
+  useEffect(() => {
+    agentQuestionAnswerRef.current = agentQuestionAnswer;
+  }, [agentQuestionAnswer]);
+
+  useEffect(() => {
+    customAgentQuestionAnswerRef.current = customAgentQuestionAnswer;
+  }, [customAgentQuestionAnswer]);
+
+  useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
@@ -1555,6 +1613,27 @@ export const WorkspaceChatPage = ({
     ];
   }, []);
 
+  const clearPendingAgentQuestion = useCallback((questionId: string) => {
+    const currentQuestion = pendingAgentQuestionRef.current;
+    if (currentQuestion?.questionId === questionId) {
+      pendingAgentQuestionRef.current = null;
+      agentQuestionAnswerRef.current = "";
+      customAgentQuestionAnswerRef.current = "";
+      setPendingAgentQuestion(null);
+      setAgentQuestionAnswer("");
+      setCustomAgentQuestionAnswer("");
+    }
+
+    runningAgentTasksRef.current.forEach((task) => {
+      if (task.pendingQuestion?.questionId !== questionId) {
+        return;
+      }
+      task.pendingQuestion = null;
+      task.questionAnswer = "";
+      task.customQuestionAnswer = "";
+    });
+  }, []);
+
   const handleBackgroundAgentEvent = useCallback((task: RunningAgentTaskContext, event: AgentRuntimeAgentEvent) => {
     recordAgentMemoryEvent(task.trace, event);
 
@@ -1632,6 +1711,18 @@ export const WorkspaceChatPage = ({
       return;
     }
 
+    if (event.type === "question") {
+      task.pendingQuestion = pendingQuestionFromEvent(event);
+      task.questionAnswer = event.input?.selected ?? "";
+      task.customQuestionAnswer = "";
+      return;
+    }
+
+    if (event.type === "question_answered") {
+      clearPendingAgentQuestion(event.questionId);
+      return;
+    }
+
     if (event.type === "error") {
       if (task.handledTerminal) {
         return;
@@ -1696,6 +1787,7 @@ export const WorkspaceChatPage = ({
     }
   }, [
     appendRunningAgentTaskResult,
+    clearPendingAgentQuestion,
     persistRunningAgentTask,
     removeRunningAgentTask,
     updateRunningAgentTaskMessage,
@@ -1821,24 +1913,23 @@ export const WorkspaceChatPage = ({
       }
 
       if (event.type === "question") {
-        setPendingAgentQuestion({
-          taskId: event.taskId,
-          questionId: event.questionId,
-          question: event.question,
-          context: event.context,
-          input: event.input,
-        });
-        setAgentQuestionAnswer(event.input?.selected ?? "");
+        const pendingQuestion = pendingQuestionFromEvent(event);
+        if (taskContext) {
+          taskContext.pendingQuestion = pendingQuestion;
+          taskContext.questionAnswer = event.input?.selected ?? "";
+          taskContext.customQuestionAnswer = "";
+        }
+        pendingAgentQuestionRef.current = pendingQuestion;
+        agentQuestionAnswerRef.current = event.input?.selected ?? "";
+        customAgentQuestionAnswerRef.current = "";
+        setPendingAgentQuestion(pendingQuestion);
+        setAgentQuestionAnswer(agentQuestionAnswerRef.current);
         setCustomAgentQuestionAnswer("");
         return;
       }
 
       if (event.type === "question_answered") {
-        setPendingAgentQuestion((current) =>
-          current?.questionId === event.questionId ? null : current,
-        );
-        setAgentQuestionAnswer("");
-        setCustomAgentQuestionAnswer("");
+        clearPendingAgentQuestion(event.questionId);
         return;
       }
 
@@ -1867,6 +1958,7 @@ export const WorkspaceChatPage = ({
         appendAgentConversationResult(conversationText, "done");
         removeRunningAgentTask(event.taskId);
         setActiveAgentTaskId("");
+        pendingAgentQuestionRef.current = null;
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
@@ -1903,6 +1995,7 @@ export const WorkspaceChatPage = ({
           removeRunningAgentTask(terminalTaskId);
         }
         setActiveAgentTaskId("");
+        pendingAgentQuestionRef.current = null;
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
@@ -1930,6 +2023,7 @@ export const WorkspaceChatPage = ({
         appendAgentConversationResult(message, "error", message);
         removeRunningAgentTask(event.taskId);
         setActiveAgentTaskId("");
+        pendingAgentQuestionRef.current = null;
         setPendingAgentQuestion(null);
         activeAgentTaskIdRef.current = "";
         activeAgentMessageIdRef.current = "";
@@ -1955,6 +2049,7 @@ export const WorkspaceChatPage = ({
   }, [
     agentRuntime,
     appendAgentConversationResult,
+    clearPendingAgentQuestion,
     handleBackgroundAgentEvent,
     loadFiles,
     refreshAgentSessionStatus,
@@ -2390,21 +2485,28 @@ export const WorkspaceChatPage = ({
     if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
       return;
     }
+    if (answeringAgentQuestionIdsRef.current.has(pendingAgentQuestion.questionId)) {
+      return;
+    }
 
+    answeringAgentQuestionIdsRef.current.add(pendingAgentQuestion.questionId);
     setIsAnsweringAgentQuestion(true);
     setChatError("");
 
     try {
+      const answeredQuestionId = pendingAgentQuestion.questionId;
       await agentRuntime.answerQuestion(
         pendingAgentQuestion.taskId,
-        pendingAgentQuestion.questionId,
+        answeredQuestionId,
         answer,
       );
+      clearPendingAgentQuestion(answeredQuestionId);
       setAgentQuestionAnswer("");
       setCustomAgentQuestionAnswer("");
     } catch (caught) {
       setChatError(String(caught));
     } finally {
+      answeringAgentQuestionIdsRef.current.delete(pendingAgentQuestion.questionId);
       setIsAnsweringAgentQuestion(false);
     }
   };
@@ -2893,6 +2995,9 @@ export const WorkspaceChatPage = ({
           messages: nextMessages,
           conversation: nextConversation,
           context: nextConversationContext,
+          pendingQuestion: null,
+          questionAnswer: "",
+          customQuestionAnswer: "",
           lastError: "",
           lastStderr: "",
           handledTerminal: false,

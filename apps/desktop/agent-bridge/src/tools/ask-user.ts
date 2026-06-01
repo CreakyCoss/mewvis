@@ -36,14 +36,15 @@ export const ASK_USER_TOOL_PARAMETERS = {
         },
         options: {
           type: "array",
-          description: "Required when type is select. Provide at least two options, optionally including { value: 'other', label: '请输入' } for free-form input.",
+          description: "Required when type is select. Provide at least two options. Option value may be omitted; label will be used as the returned value.",
           optional: true,
           items: {
             type: "object",
             properties: {
               value: {
                 type: "string",
-                description: "Stable value returned to the agent when this option is selected",
+                description: "Stable value returned to the agent when this option is selected. Optional; defaults to label.",
+                optional: true,
               },
               label: {
                 type: "string",
@@ -95,17 +96,25 @@ export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined 
     selected: typeof input.selected === "string" ? input.selected : undefined,
     options: Array.isArray(input.options)
       ? input.options
-        .reduce<AskUserOption[]>((options, option) => {
+        .reduce<AskUserOption[]>((options, option, index) => {
           if (!option || typeof option !== "object") {
             return options;
           }
           const item = option as Partial<AskUserOption>;
-          if (typeof item.value !== "string" || typeof item.label !== "string") {
+          const value = typeof item.value === "string" && item.value.trim()
+            ? item.value
+            : typeof item.label === "string" && item.label.trim()
+              ? item.label
+              : "";
+          const label = typeof item.label === "string" && item.label.trim()
+            ? item.label
+            : value || `选项 ${index + 1}`;
+          if (!value && !label) {
             return options;
           }
           options.push({
-            value: item.value,
-            label: item.label,
+            value: value || label,
+            label,
             description: typeof item.description === "string" ? item.description : undefined,
           });
           return options;
