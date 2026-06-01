@@ -1,4 +1,4 @@
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 
 export type AiAgent = {
   id: string;

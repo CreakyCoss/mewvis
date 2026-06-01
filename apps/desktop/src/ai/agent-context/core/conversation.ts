@@ -35,7 +35,7 @@ export type UpdateConversationContextOptions = {
 export type RuntimeConversationContext = {
   summary: string;
   recentMessages: ConversationMessage[];
-  syncStatus?: "fresh" | "legacy" | "stale";
+  syncStatus?: "fresh" | "stale";
   agentSessionId?: string | null;
 };
 
@@ -141,53 +141,12 @@ export const createAgentSessionFingerprint = (
   }
   : null;
 
-const migrateLegacyAgentSync = (
-  sync: AgentConversationSync | null | undefined,
-  conversation: ConversationMessage[],
-) => {
-  if (!sync) {
-    return sync ?? null;
-  }
-
-  if (sync.syncedMessages?.length > 0) {
-    return sync;
-  }
-
-  const syncedUntilIndex = Math.min(
-    Math.max(0, sync.syncedUntilIndex ?? 0),
-    conversation.length,
-  );
-
-  return {
-    ...sync,
-    syncedMessages: conversation
-      .slice(0, syncedUntilIndex)
-      .map(toAgentConversationSyncMessage),
-    lastSyncedMessageId: conversation[syncedUntilIndex - 1]?.id ?? null,
-  };
-};
-
-const normalizeAgentSyncs = (
-  context: ChatContextSummary,
-  conversation: ConversationMessage[],
-) => {
-  const syncs = { ...(context.agentSyncs ?? {}) };
-  const legacySync = migrateLegacyAgentSync(context.agentSync, conversation);
-  if (legacySync && Object.keys(syncs).length === 0) {
-    syncs[createAgentContextKey(legacySync.agentId ?? "default")] = legacySync;
-  }
-
-  return syncs;
-};
-
 export const normalizeChatContextSummary = (
   context: ChatContextSummary | null | undefined,
-  conversation: ConversationMessage[],
 ) => context
   ? {
     ...context,
-    agentSyncs: normalizeAgentSyncs(context, conversation),
-    agentSync: migrateLegacyAgentSync(context.agentSync, conversation),
+    agentSyncs: context.agentSyncs ?? {},
   }
   : null;
 
@@ -195,7 +154,6 @@ export const getAgentConversationSync = (
   context: ChatContextSummary | null | undefined,
   agentId: string | null | undefined,
 ) => context?.agentSyncs?.[createAgentContextKey(agentId)]
-  ?? context?.agentSync
   ?? null;
 
 const truncateText = (text: string, maxLength: number) => {
@@ -295,7 +253,6 @@ export const updateConversationContext = async (
   const targetTokens = Math.floor(tokenBudget * SUMMARY_TARGET_RATIO);
   const totalTokens = countConversationTokens(conversation);
   const agentSyncs = currentContext?.agentSyncs ?? {};
-  const legacyAgentSync = currentContext?.agentSync ?? null;
   const nextConversationFingerprint = conversationFingerprint(conversation);
   const rebuildSummary = Boolean(options.forceSummarize || options.rebuildSummary);
   const existingConversationChanged = Boolean(
@@ -306,7 +263,6 @@ export const updateConversationContext = async (
   if (!rebuildSummary && totalTokens <= triggerTokens) {
     if (
       Object.keys(agentSyncs).length === 0 &&
-      !legacyAgentSync &&
       !currentContext?.historyInvalidatedAt
     ) {
       return null;
@@ -320,7 +276,6 @@ export const updateConversationContext = async (
       summaryFingerprint: null,
       conversationFingerprint: nextConversationFingerprint,
       agentSyncs,
-      agentSync: legacyAgentSync,
     };
   }
 
@@ -334,7 +289,6 @@ export const updateConversationContext = async (
       summaryFingerprint: null,
       conversationFingerprint: nextConversationFingerprint,
       agentSyncs,
-      agentSync: legacyAgentSync,
     };
   }
 
@@ -351,7 +305,6 @@ export const updateConversationContext = async (
       summaryFingerprint: currentContext?.summaryFingerprint ?? null,
       conversationFingerprint: nextConversationFingerprint,
       agentSyncs,
-      agentSync: legacyAgentSync,
     };
   }
 
@@ -388,7 +341,6 @@ export const updateConversationContext = async (
     },
     conversationFingerprint: nextConversationFingerprint,
     agentSyncs,
-    agentSync: legacyAgentSync,
   };
 };
 
@@ -431,8 +383,7 @@ export const buildUnsyncedAgentConversationContext = (
     return buildRuntimeConversationContext(conversation, context, tokenBudget);
   }
 
-  const migratedSync = migrateLegacyAgentSync(sync, conversation);
-  if (migratedSync?.invalidatedAt) {
+  if (sync.invalidatedAt) {
     return {
       summary: currentSummaryText(context, conversation),
       recentMessages: conversation.slice(findConversationTailStartByTokenBudget(conversation, tokenBudget)),
@@ -441,14 +392,14 @@ export const buildUnsyncedAgentConversationContext = (
     };
   }
 
-  const syncedMessages = migratedSync?.syncedMessages ?? [];
+  const syncedMessages = sync.syncedMessages ?? [];
 
   if (syncedMessages.length === 0) {
     return {
       summary: "",
       recentMessages: conversation.slice(findConversationTailStartByTokenBudget(conversation, tokenBudget)),
-      syncStatus: migratedSync?.syncedUntilIndex ? "legacy" : "fresh",
-      agentSessionId: migratedSync?.sessionId ?? null,
+      syncStatus: "fresh",
+      agentSessionId: sync.sessionId,
     };
   }
 
@@ -474,7 +425,7 @@ export const buildUnsyncedAgentConversationContext = (
     summary: "",
     recentMessages: unsyncedMessages.slice(findConversationTailStartByTokenBudget(unsyncedMessages, tokenBudget)),
     syncStatus: "fresh",
-    agentSessionId: migratedSync?.sessionId ?? null,
+    agentSessionId: sync.sessionId,
   };
 };
 
@@ -504,19 +455,8 @@ export const markAgentConversationSynced = (
       ...(context?.agentSyncs ?? {}),
       [key]: agentSync,
     },
-    agentSync,
   };
 };
-
-const invalidateAgentConversationSync = (
-  sync: AgentConversationSync | null | undefined,
-  invalidatedAt: number,
-) => sync
-  ? {
-    ...sync,
-    invalidatedAt,
-  }
-  : sync ?? null;
 
 const invalidateExistingAgentConversationSync = (
   sync: AgentConversationSync,
@@ -537,7 +477,6 @@ export const invalidateConversationContextForHistoryChange = (
       invalidateExistingAgentConversationSync(sync, invalidatedAt),
     ]),
   );
-  const legacyAgentSync = invalidateAgentConversationSync(context?.agentSync, invalidatedAt);
 
   return {
     summary: "",
@@ -547,7 +486,6 @@ export const invalidateConversationContextForHistoryChange = (
     summaryFingerprint: null,
     conversationFingerprint: conversationFingerprint(conversation),
     agentSyncs,
-    agentSync: legacyAgentSync,
   };
 };
 

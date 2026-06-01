@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getLlmSettings, saveLlmSettings } from "../api";
-import type { LlmSettingsDraft } from "../types";
+import type { LlmSettingsDraft } from "@/ai/llm/types";
 import {
   createModelDraft,
   createProviderDraft,

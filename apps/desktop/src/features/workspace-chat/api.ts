@@ -2,9 +2,9 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   toAgentRuntimeModelConfig,
   toAgentRuntimeProviderConfig,
-} from "@/agent-runtime/config";
-import { createAgentRuntime } from "@/agent-runtime/runtime";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+} from "@/ai/agent-runtime/config";
+import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type {
   AgentSessionStatus,
   ChatContextSummary,
@@ -25,7 +25,6 @@ export type RunAgentRuntimeChatInput = {
   model?: ProviderModel | null;
   systemPrompt: string;
   messages: ConversationMessage[];
-  contextWindow?: number;
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
@@ -81,10 +80,7 @@ export async function runAgentRuntimeChat(
     agentId: input.agentId,
     provider: input.provider ? toAgentRuntimeProviderConfig(input.provider) : undefined,
     model: input.provider && input.model
-      ? {
-        ...toAgentRuntimeModelConfig(input.provider, input.model),
-        ...(input.contextWindow ? { contextWindow: input.contextWindow } : {}),
-      }
+      ? toAgentRuntimeModelConfig(input.provider, input.model)
       : undefined,
     systemPrompt: input.systemPrompt,
     messages: input.messages,
@@ -167,6 +163,14 @@ export async function getAgentSessionStatus(
       activeMessageCount: 0,
       activeToolCallCount: 0,
       estimatedContextTokens: 0,
+      tokenUsage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+      },
+      tokenUsageMessageCount: 0,
       compactionCount: 0,
       latestCompaction: null,
     } satisfies AgentSessionStatus;

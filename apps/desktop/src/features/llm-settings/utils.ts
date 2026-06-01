@@ -4,7 +4,7 @@ import type {
   LlmSettings,
   LlmSettingsDraft,
   ProviderModelDraft,
-} from "./types";
+} from "@/ai/llm/types";
 import {
   getDefaultProviderType,
   getVendorModelOptions,

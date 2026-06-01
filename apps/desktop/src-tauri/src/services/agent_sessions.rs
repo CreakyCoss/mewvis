@@ -28,6 +28,16 @@ pub struct AgentSessionCompactionStatus {
     pub timestamp: Option<String>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSessionTokenUsage {
+    pub input: usize,
+    pub output: usize,
+    pub cache_read: usize,
+    pub cache_write: usize,
+    pub total_tokens: usize,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSessionStatus {
@@ -41,6 +51,8 @@ pub struct AgentSessionStatus {
     pub active_message_count: usize,
     pub active_tool_call_count: usize,
     pub estimated_context_tokens: usize,
+    pub token_usage: AgentSessionTokenUsage,
+    pub token_usage_message_count: usize,
     pub compaction_count: usize,
     pub latest_compaction: Option<AgentSessionCompactionStatus>,
 }
@@ -98,6 +110,8 @@ pub fn get_agent_session_status(
         active_message_count: 0,
         active_tool_call_count: 0,
         estimated_context_tokens: 0,
+        token_usage: AgentSessionTokenUsage::default(),
+        token_usage_message_count: 0,
         compaction_count: 0,
         latest_compaction: None,
     };
@@ -381,6 +395,7 @@ fn parse_agent_session_file(path: &Path, status: &mut AgentSessionStatus) -> Res
                 let Some(message) = entry.get("message") else {
                     continue;
                 };
+                accumulate_message_usage(message, status);
                 let tool_calls = count_tool_calls(message);
                 status.tool_call_count += tool_calls;
                 status.active_message_count += 1;
@@ -425,6 +440,38 @@ fn estimate_json_tokens(value: &Value) -> usize {
     serde_json::to_string(value)
         .map(|text| (text.chars().count() / 4).max(1))
         .unwrap_or(0)
+}
+
+fn accumulate_message_usage(message: &Value, status: &mut AgentSessionStatus) {
+    let Some(usage) = message.get("usage") else {
+        return;
+    };
+
+    let input = usage_usize(usage, "input").unwrap_or(0);
+    let output = usage_usize(usage, "output").unwrap_or(0);
+    let cache_read = usage_usize(usage, "cacheRead").unwrap_or(0);
+    let cache_write = usage_usize(usage, "cacheWrite").unwrap_or(0);
+    let total_tokens = usage_usize(usage, "totalTokens")
+        .filter(|value| *value > 0)
+        .unwrap_or(input + output + cache_read + cache_write);
+
+    if input == 0 && output == 0 && cache_read == 0 && cache_write == 0 && total_tokens == 0 {
+        return;
+    }
+
+    status.token_usage.input += input;
+    status.token_usage.output += output;
+    status.token_usage.cache_read += cache_read;
+    status.token_usage.cache_write += cache_write;
+    status.token_usage.total_tokens += total_tokens;
+    status.token_usage_message_count += 1;
+}
+
+fn usage_usize(usage: &Value, field: &str) -> Option<usize> {
+    usage
+        .get(field)
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
 }
 
 fn count_tool_calls(message: &Value) -> usize {
@@ -605,6 +652,13 @@ mod tests {
                     "type": "message",
                     "message": {
                         "role": "assistant",
+                        "usage": {
+                            "input": 10,
+                            "output": 20,
+                            "cacheRead": 30,
+                            "cacheWrite": 40,
+                            "totalTokens": 100
+                        },
                         "content": [
                             { "type": "text", "text": "已读取文件" },
                             { "type": "toolCall", "toolName": "read_file" }
@@ -646,6 +700,12 @@ mod tests {
         assert_eq!(status.active_tool_call_count, 0);
         assert_eq!(status.compaction_count, 1);
         assert!(status.estimated_context_tokens > 0);
+        assert_eq!(status.token_usage_message_count, 1);
+        assert_eq!(status.token_usage.input, 10);
+        assert_eq!(status.token_usage.output, 20);
+        assert_eq!(status.token_usage.cache_read, 30);
+        assert_eq!(status.token_usage.cache_write, 40);
+        assert_eq!(status.token_usage.total_tokens, 100);
         assert_eq!(
             status
                 .latest_compaction

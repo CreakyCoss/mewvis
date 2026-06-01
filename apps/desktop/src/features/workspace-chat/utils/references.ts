@@ -1,4 +1,4 @@
-import { selectRelevantText } from "@/agent-context/context-selection";
+import { selectRelevantText } from "@/ai/agent-context";
 import type { ActiveReferenceToken, FileReferenceMatch, ResolvedFileReference } from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
 

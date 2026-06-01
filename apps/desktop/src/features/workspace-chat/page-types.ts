@@ -1,11 +1,34 @@
-import type { AgentRuntimeAgentQuestionInput } from "@/agent-runtime/contracts";
-import type { WorkspaceFileEntry } from "./types";
+import type { AgentRuntimeAgentQuestionInput } from "@/ai/agent-runtime/contracts";
+import type { ConversationMessage, WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "settings";
 export type ModelSource = "direct" | "agent";
 export type ChatMode = "chat" | "agent" | "collab";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
-export type ContextWindowPreset = 200000 | 1000000;
+export type ContextWindowPreset = "auto" | 1000000;
+
+export type ContextDebugPayload = {
+  label: string;
+  content: string;
+};
+
+export type ContextDebugSnapshot = {
+  id: string;
+  updatedAt: number;
+  mode: ChatMode;
+  engineId: string;
+  contextWindow: number;
+  runtimeAgentId: string;
+  agentSessionId?: string | null;
+  providerName?: string | null;
+  modelName?: string | null;
+  activeFilePath?: string | null;
+  referencedFilePaths: string[];
+  enabledSkillNames: string[];
+  conversationSummary: string;
+  runtimeMessages: ConversationMessage[];
+  payloads: ContextDebugPayload[];
+};
 
 export type FileReferenceMatch = {
   token: string;

@@ -2,7 +2,7 @@ import {
   getCatalogModels,
   getCatalogProviders,
   type ModelCatalogConfig,
-} from "./model-catalog";
+} from "@/ai/llm/model-catalog";
 
 export type ProviderType = "anthropic" | "openai" | "google" | "openrouter";
 

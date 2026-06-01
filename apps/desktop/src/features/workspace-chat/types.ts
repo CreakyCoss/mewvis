@@ -1,8 +1,8 @@
-import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contracts";
+import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import type {
   ChatContextSummary,
   ConversationMessage,
-} from "@/agent-context/types";
+} from "@/ai/agent-context";
 
 export type {
   AgentConversationSync,
@@ -11,7 +11,7 @@ export type {
   ChatContextSummary,
   CleanupAgentSessionsResult,
   ConversationMessage,
-} from "@/agent-context/types";
+} from "@/ai/agent-context";
 
 export type WorkspaceFileEntry = {
   path: string;

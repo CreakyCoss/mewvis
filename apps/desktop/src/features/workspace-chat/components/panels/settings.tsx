@@ -1,22 +1,33 @@
-import { Bot, Settings, X } from "lucide-react";
+import { Bot, BrainCircuit, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ContextEngine } from "@/ai/agent-context";
 
 type SettingsPanelProps = {
   settingsError: string;
   skillsError: string;
+  contextEngineId: string;
+  contextEngines: ContextEngine[];
   onBack: () => void;
   onOpenLlmSettings: () => void;
   onOpenAgentSettings: () => void;
+  onContextEngineChange: (engineId: string) => void;
 };
 
 export const SettingsPanel = ({
   settingsError,
   skillsError,
+  contextEngineId,
+  contextEngines,
   onBack,
   onOpenLlmSettings,
   onOpenAgentSettings,
-}: SettingsPanelProps) => (
+  onContextEngineChange,
+}: SettingsPanelProps) => {
+  const selectedEngine = contextEngines.find((engine) => engine.id === contextEngineId) ?? contextEngines[0];
+
+  return (
   <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
     <header className="flex min-h-14 items-center justify-between bg-card/80 px-5 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur">
       <div className="min-w-0">
@@ -77,6 +88,36 @@ export const SettingsPanel = ({
           </button>
         </div>
 
+        <div className="mt-6 rounded-md bg-card p-4 shadow-xs">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+                <BrainCircuit className="size-5" />
+              </span>
+              <h4 className="text-base font-semibold">上下文引擎</h4>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                {selectedEngine?.description ?? "选择当前聊天用于摘要、检索和 Agent 长期上下文同步的实现。"}
+              </p>
+              {selectedEngine?.experimental && (
+                <span className="mt-3 inline-flex rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                  实验性
+                </span>
+              )}
+            </div>
+            <NativeSelect
+              className="w-full md:w-72"
+              value={contextEngineId}
+              onChange={(event) => onContextEngineChange(event.currentTarget.value)}
+            >
+              {contextEngines.map((engine) => (
+                <NativeSelectOption key={engine.id} value={engine.id}>
+                  {engine.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+        </div>
+
         {(settingsError || skillsError) && (
           <div className="mt-5 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {settingsError || skillsError}
@@ -85,4 +126,5 @@ export const SettingsPanel = ({
       </div>
     </ScrollArea>
   </section>
-);
+  );
+};

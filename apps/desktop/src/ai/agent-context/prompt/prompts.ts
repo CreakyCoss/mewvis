@@ -1,25 +1,18 @@
-import { toAgentRuntimeModelConfig, toAgentRuntimeProviderConfig } from "@/agent-runtime/config";
-import { createAgentRuntime } from "@/agent-runtime/runtime";
-import type { AgentProfile } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
-import type { WorkspaceSkill } from "@/features/workspace-skills/types";
-import type { Workspace } from "@/features/workspaces/types";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import {
   buildRuntimeConversationContext,
-  formatConversationForSummary,
-  type ConversationSummarizer,
   type RuntimeConversationContext,
-} from "./conversation";
+} from "../core/conversation";
 import type {
   ConversationMessage,
+  PromptAgentProfile,
   PromptFileReference,
+  PromptSkillContext,
+  PromptWorkspaceContext,
   PromptWorkspaceFile,
-} from "./types";
+} from "../core/types";
 import { selectRelevantText } from "./context-selection";
-import { createConversationTokenBudget } from "./token-budget";
-
-const agentRuntime = createAgentRuntime();
+import { createConversationTokenBudget } from "../core/token-budget";
 
 export type PromptContextLimits = {
   activeFileChars: number;
@@ -192,7 +185,7 @@ export const buildAgentPrompt = (
   text: string,
   references: PromptFileReference[],
   history: RuntimeConversationContext,
-  selectedAgent: AgentProfile | null,
+  selectedAgent: PromptAgentProfile | null,
   limits: PromptContextLimits = createPromptContextLimits(),
   options: BuildAgentPromptOptions = {},
 ) => {
@@ -257,7 +250,7 @@ export const buildAgentPrompt = (
 
 export const buildAgentBootstrapPrompt = (
   history: RuntimeConversationContext,
-  selectedAgent: AgentProfile | null,
+  selectedAgent: PromptAgentProfile | null,
   limits: PromptContextLimits = createPromptContextLimits(),
 ) => {
   const sections = [
@@ -288,49 +281,12 @@ export const buildAgentBootstrapPrompt = (
   return sections.length > 0 ? sections.join("\n\n") : "";
 };
 
-export const createConversationSummarizer = (
-  provider: LlmProvider,
-  model: ProviderModel,
-): ConversationSummarizer => async ({ previousSummary, messages }) => {
-  if (messages.length === 0) {
-    return previousSummary;
-  }
-
-  const result = await agentRuntime.run({
-    type: "chat",
-    provider: toAgentRuntimeProviderConfig(provider),
-    model: toAgentRuntimeModelConfig(provider, model),
-    stream: false,
-    systemPrompt: [
-      "你是聊天历史压缩器。请把跨任务恢复所需的信息压缩成中文摘要。",
-      "要求：保留用户目标、已确认的决策、关键约束、文件/路径/实体名、未完成事项、助手已经给出的重要结论。",
-      "不要添加新事实，不要回答用户问题，不要输出寒暄。",
-      "输出适合继续追加滚动摘要的纯文本，尽量精炼。",
-    ].join("\n"),
-    messages: [
-      {
-        role: "user",
-        content: [
-          previousSummary
-            ? `已有摘要：\n${previousSummary}`
-            : "已有摘要：无",
-          "",
-          "需要并入摘要的新对话：",
-          formatConversationForSummary(messages),
-        ].join("\n"),
-      },
-    ],
-  });
-
-  return result.text.trim() || previousSummary;
-};
-
 export const buildSystemPrompt = (
-  workspace: Workspace,
+  workspace: PromptWorkspaceContext,
   activeFile: PromptWorkspaceFile | null,
   referencedFiles: PromptFileReference[],
-  enabledSkills: WorkspaceSkill[],
-  selectedAgent: AgentProfile | null,
+  enabledSkills: PromptSkillContext[],
+  selectedAgent: PromptAgentProfile | null,
   options: BuildSystemPromptOptions = {},
 ) => {
   const limits = options.limits ?? createPromptContextLimits();
@@ -427,11 +383,11 @@ export const buildSystemPrompt = (
 };
 
 export const buildCollaborationSystemPrompt = (
-  workspace: Workspace,
+  workspace: PromptWorkspaceContext,
   activeFile: PromptWorkspaceFile | null,
   referencedFiles: PromptFileReference[],
-  enabledSkills: WorkspaceSkill[],
-  selectedAgent: AgentProfile,
+  enabledSkills: PromptSkillContext[],
+  selectedAgent: PromptAgentProfile,
   phase: "draft" | "review" | "revise",
   options: BuildSystemPromptOptions = {},
 ) => {

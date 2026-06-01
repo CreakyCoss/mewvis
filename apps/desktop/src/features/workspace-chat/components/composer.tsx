@@ -18,7 +18,7 @@ import {
   AGENT_TOOL_DEFINITIONS,
   type AgentRuntimeAgentDefinition,
   type AgentToolName,
-} from "@/agent-runtime/contracts";
+} from "@/ai/agent-runtime/contracts";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentProfile } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type {
   ChatMode,
   ComposerSubmitInput,
@@ -59,6 +59,7 @@ type ComposerProps = {
   isSettingsLoading: boolean;
   chatMode: ChatMode;
   contextWindowPreset: ContextWindowPreset;
+  effectiveContextWindow: number;
   modelSource: ModelSource;
   runtimeAgents: readonly AgentRuntimeAgentDefinition[];
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
@@ -83,6 +84,15 @@ type ComposerProps = {
   onAbortTask: () => void;
 };
 
+const formatContextWindowLabel = (tokens: number) => {
+  if (tokens >= 1000000) {
+    const value = tokens / 1000000;
+    return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}M`;
+  }
+
+  return `${Math.round(tokens / 1000)}k`;
+};
+
 export const Composer = memo(({
   files,
   resetKey,
@@ -91,6 +101,7 @@ export const Composer = memo(({
   isSettingsLoading,
   chatMode,
   contextWindowPreset,
+  effectiveContextWindow,
   modelSource,
   runtimeAgents,
   selectedRuntimeAgent,
@@ -175,7 +186,13 @@ export const Composer = memo(({
     ? "无需模型"
     : selectedModelLabel;
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
-  const contextWindowLabel = contextWindowPreset === 1000000 ? "1M" : "200k";
+  const contextWindowLabel = contextWindowPreset === "auto" ? "自动" : "1M";
+  const effectiveContextWindowLabel = formatContextWindowLabel(effectiveContextWindow);
+  const contextWindowTitleSuffix = contextWindowPreset === "auto"
+    ? "（自动）"
+    : effectiveContextWindow !== contextWindowPreset
+      ? `（选择 ${contextWindowLabel}）`
+      : "";
   const isAgentRunning = Boolean(activeAgentTaskId);
   const submitButtonLabel = isAgentRunning
     ? "停止"
@@ -361,14 +378,14 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`模型：${modelLabel}${contextWindowPreset === 1000000 ? ` / 窗口：${contextWindowLabel}` : ""}`}
+                  title={`模型：${modelLabel} / 应用窗口：${effectiveContextWindowLabel}${contextWindowTitleSuffix}`}
                 >
                   <Orbit className="size-3.5 shrink-0" />
                   <span className="min-w-0 truncate">{modelLabel}</span>
-                  {contextWindowPreset === 1000000 && (
+                  {effectiveContextWindow !== 200000 && (
                     <>
                       <span className="shrink-0 text-muted-foreground">·</span>
-                      <span className="shrink-0 text-muted-foreground">{contextWindowLabel}</span>
+                      <span className="shrink-0 text-muted-foreground">{effectiveContextWindowLabel}</span>
                     </>
                   )}
                   <ChevronDown className="size-3 shrink-0" />
@@ -509,13 +526,21 @@ export const Composer = memo(({
                     <span className="text-xs text-muted-foreground">{contextWindowLabel}</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-44">
+                    {(contextWindowPreset === "auto" || effectiveContextWindow !== contextWindowPreset) && (
+                      <>
+                        <DropdownMenuLabel>
+                          生效 {effectiveContextWindowLabel}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuRadioGroup
                       value={String(contextWindowPreset)}
                       onValueChange={(value) => {
-                        onContextWindowPresetChange(value === "1000000" ? 1000000 : 200000);
+                        onContextWindowPresetChange(value === "1000000" ? 1000000 : "auto");
                       }}
                     >
-                      <DropdownMenuRadioItem value="200000">200k tokens</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="auto">自动</DropdownMenuRadioItem>
                       <DropdownMenuRadioItem value="1000000">1M tokens</DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
                   </DropdownMenuSubContent>

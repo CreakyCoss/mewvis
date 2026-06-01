@@ -6,7 +6,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = join(scriptDir, "..");
 const repoRoot = join(desktopRoot, "..", "..");
 const sourcePath = join(repoRoot, "ai", "pi", "packages", "ai", "src", "models.generated.ts");
-const targetPath = join(desktopRoot, "src", "features", "llm-settings", "models.generated.ts");
+const targetPath = join(desktopRoot, "src", "ai", "llm", "models.generated.ts");
 
 const source = await readFile(sourcePath, "utf8");
 const objectStart = source.indexOf("export const MODELS =");

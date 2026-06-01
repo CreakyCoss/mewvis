@@ -1,5 +1,3 @@
-import type { AgentRuntimeAgentEvent } from "@/agent-runtime/contracts";
-
 type AgentToolTrace = {
   toolName: string;
   args: unknown;
@@ -20,6 +18,19 @@ export type AgentMemoryTrace = {
 };
 
 export type AgentRunStatus = "done" | "error";
+
+export type AgentMemoryEvent = {
+  type: string;
+  toolName?: string;
+  args?: unknown;
+  status?: string;
+  isError?: boolean;
+  result?: unknown;
+  questionId?: string;
+  question?: string;
+  context?: string | null;
+  answer?: string;
+};
 
 const MAX_SUMMARY_CHARS = 6000;
 const MAX_DETAIL_CHARS = 420;
@@ -99,9 +110,9 @@ const findRunningTool = (trace: AgentMemoryTrace, toolName: string) => {
 
 export const recordAgentMemoryEvent = (
   trace: AgentMemoryTrace,
-  event: AgentRuntimeAgentEvent,
+  event: AgentMemoryEvent,
 ) => {
-  if (event.type === "tool_start") {
+  if (event.type === "tool_start" && event.toolName) {
     trace.tools.push({
       toolName: event.toolName,
       args: event.args,
@@ -110,7 +121,7 @@ export const recordAgentMemoryEvent = (
     return;
   }
 
-  if (event.type === "tool_end") {
+  if (event.type === "tool_end" && event.toolName) {
     const tool = findRunningTool(trace, event.toolName);
     if (tool) {
       tool.status = event.isError ? "error" : "done";
@@ -127,7 +138,7 @@ export const recordAgentMemoryEvent = (
     return;
   }
 
-  if (event.type === "question") {
+  if (event.type === "question" && event.questionId && event.question) {
     trace.questions.push({
       questionId: event.questionId,
       question: event.question,
@@ -136,10 +147,10 @@ export const recordAgentMemoryEvent = (
     return;
   }
 
-  if (event.type === "question_answered") {
+  if (event.type === "question_answered" && event.questionId) {
     const question = trace.questions.find((item) => item.questionId === event.questionId);
     if (question) {
-      question.answer = event.answer;
+      question.answer = event.answer ?? "";
     }
   }
 };

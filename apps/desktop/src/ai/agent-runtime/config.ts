@@ -1,9 +1,9 @@
-import { createRuntimeModelConfig } from "@/features/llm-settings/model-catalog";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import { createRuntimeModelConfig } from "@/ai/llm/model-catalog";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type {
   AgentRuntimeModelConfig,
   AgentRuntimeProviderConfig,
-} from "@/agent-runtime/contracts";
+} from "@/ai/agent-runtime/contracts";
 
 export const toAgentRuntimeProviderConfig = (
   provider: LlmProvider,

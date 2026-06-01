@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getLlmSettings } from "@/features/llm-settings/api";
-import type { LlmProvider } from "@/features/llm-settings/types";
+import type { LlmProvider } from "@/ai/llm/types";
 import { deleteAiAgent, getAiAgentSettings, saveAiAgent } from "../api";
 import type { AiAgent, SaveAiAgentInput } from "../types";
 import { createAgentDraft } from "../utils";

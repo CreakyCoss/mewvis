@@ -1,5 +1,5 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
-import type { LlmProvider } from "@/features/llm-settings/types";
+import type { LlmProvider } from "@/ai/llm/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
 import type { AgentProfile, AiAgent, SaveAiAgentInput } from "./types";
 

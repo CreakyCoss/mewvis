@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/agent-runtime/contracts";
+import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/ai/agent-runtime/contracts";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,7 +34,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { AgentProfile } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/features/llm-settings/types";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { isDefaultWorkspace } from "@/features/workspaces/default-workspace";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
@@ -77,6 +77,7 @@ type ChatPanelProps = {
   isSettingsLoading: boolean;
   chatMode: ChatMode;
   contextWindowPreset: ContextWindowPreset;
+  effectiveContextWindow: number;
   availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
   runtimeAgentId: string;
@@ -136,6 +137,7 @@ export const ChatPanel = ({
   isSettingsLoading,
   chatMode,
   contextWindowPreset,
+  effectiveContextWindow,
   availableRuntimeAgents,
   selectedRuntimeAgent,
   runtimeAgentId,
@@ -383,6 +385,7 @@ export const ChatPanel = ({
       isSettingsLoading={isSettingsLoading}
       chatMode={chatMode}
       contextWindowPreset={contextWindowPreset}
+      effectiveContextWindow={effectiveContextWindow}
       modelSource={modelSource}
       runtimeAgents={availableRuntimeAgents}
       selectedRuntimeAgent={selectedRuntimeAgent}

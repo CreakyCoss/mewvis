@@ -32,8 +32,6 @@ export type AgentConversationSync = {
     messageCount: number;
     compactionCount: number;
   } | null;
-  // Backward compatibility for sessions saved before message-id based sync.
-  syncedUntilIndex?: number;
 };
 
 export type ConversationSummaryFingerprint = {
@@ -41,16 +39,46 @@ export type ConversationSummaryFingerprint = {
   contentHash: string;
 };
 
+export type ContextRagIndexSnapshot = {
+  indexId: string;
+  version: number;
+  status: "missing" | "building" | "ready" | "stale" | "error";
+  updatedAt?: number | null;
+  sourceFingerprint?: string | null;
+  documentCount?: number | null;
+  chunkCount?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type ContextMemoryLayerSnapshot = {
+  layerId: string;
+  kind: "conversation" | "workspace" | "agent" | "user" | "episodic" | "semantic";
+  version: number;
+  updatedAt: number;
+  itemCount?: number | null;
+  tokenCount?: number | null;
+  sourceFingerprint?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type ContextEngineState = {
+  id: string;
+  version: number;
+  updatedAt: number;
+  ragIndex?: ContextRagIndexSnapshot | null;
+  memoryLayers?: ContextMemoryLayerSnapshot[];
+  metadata?: Record<string, unknown>;
+};
+
 export type ChatContextSummary = {
   summary: string;
   summarizedUntilIndex: number;
   updatedAt: number;
+  engine?: ContextEngineState | null;
   historyInvalidatedAt?: number | null;
   summaryFingerprint?: ConversationSummaryFingerprint | null;
   conversationFingerprint?: string | null;
   agentSyncs?: Record<string, AgentConversationSync>;
-  // Backward compatibility for sessions saved before per-agent sync.
-  agentSync?: AgentConversationSync | null;
 };
 
 export type AgentSessionStatus = {
@@ -64,6 +92,14 @@ export type AgentSessionStatus = {
   activeMessageCount: number;
   activeToolCallCount: number;
   estimatedContextTokens: number;
+  tokenUsage: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    totalTokens: number;
+  };
+  tokenUsageMessageCount: number;
   compactionCount: number;
   latestCompaction?: {
     summary: string;
@@ -80,6 +116,23 @@ export type CleanupAgentSessionsResult = {
 export type PromptFileReference = {
   path: string;
   content: string;
+};
+
+export type PromptAgentProfile = {
+  id?: string;
+  name: string;
+  description?: string | null;
+};
+
+export type PromptWorkspaceContext = {
+  name: string;
+  path: string;
+};
+
+export type PromptSkillContext = {
+  name: string;
+  content: string;
+  description?: string | null;
 };
 
 export type PromptWorkspaceFile = {

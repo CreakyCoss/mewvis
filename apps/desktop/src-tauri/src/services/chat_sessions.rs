@@ -206,7 +206,11 @@ fn chat_dir(workspace_path: &str) -> Result<PathBuf, String> {
 }
 
 fn chat_dir_display() -> String {
-    format!("{}/{}", crate::product_config::app_data_dir_name(), CHAT_DIR_NAME)
+    format!(
+        "{}/{}",
+        crate::product_config::app_data_dir_name(),
+        CHAT_DIR_NAME
+    )
 }
 
 fn session_path(workspace_path: &str, session_id: &str) -> Result<PathBuf, String> {

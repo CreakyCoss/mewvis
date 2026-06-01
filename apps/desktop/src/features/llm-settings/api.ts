@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { LlmSettings, LlmSettingsDraft } from "./types";
+import type { LlmSettings, LlmSettingsDraft } from "@/ai/llm/types";
 
 export const getLlmSettings = () => {
   if (!isTauri()) {
