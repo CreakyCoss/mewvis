@@ -1,7 +1,15 @@
 import type { FileTreeNode } from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
 
+const VERSION_RULE_FILE_PATH = ".gitignore";
+
 const compareFileTreeNodes = (left: FileTreeNode, right: FileTreeNode) => {
+  const leftIsVersionRule = left.path === VERSION_RULE_FILE_PATH;
+  const rightIsVersionRule = right.path === VERSION_RULE_FILE_PATH;
+  if (leftIsVersionRule !== rightIsVersionRule) {
+    return leftIsVersionRule ? -1 : 1;
+  }
+
   if (left.isDirectory !== right.isDirectory) {
     return left.isDirectory ? -1 : 1;
   }

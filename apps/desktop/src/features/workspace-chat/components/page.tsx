@@ -49,15 +49,26 @@ import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
 import { buildSections } from "@/features/workspaces/utils/sections";
 import {
   cleanupOrphanAgentSessions,
+  createWorkspaceVersion,
+  createWorkspaceVersionBranch,
   deleteChatSession,
+  deleteWorkspaceFile,
+  discardWorkspaceVersionFileChanges,
   getAgentSessionStatus,
+  getWorkspaceVersionCommitFileDiff,
+  getWorkspaceVersionFileDiff,
+  getWorkspaceVersionControlStatus,
+  initializeWorkspaceVersionControl,
   listChatSessions,
+  listWorkspaceVersionFiles,
+  listWorkspaceVersions,
   listWorkspaceFiles,
   loadChatSession,
   readWorkspaceFile,
   resetAgentSessionsForChat,
   runAgentRuntimeChat,
   saveChatSession,
+  switchWorkspaceVersionBranch,
   writeWorkspaceFile,
 } from "../api";
 import type {
@@ -78,6 +89,10 @@ import type {
   ChatMessage,
   ChatSessionMeta,
   ConversationMessage,
+  WorkspaceVersion,
+  WorkspaceVersionFileDiff,
+  WorkspaceVersionFileEntry,
+  WorkspaceVersionControlStatus,
   WorkspaceFile,
   WorkspaceFileEntry,
 } from "../types";
@@ -384,6 +399,31 @@ export const WorkspaceChatPage = ({
   const [isFilesLoading, setIsFilesLoading] = useState(false);
   const [expandedFileTreePaths, setExpandedFileTreePaths] = useState<Set<string>>(() => new Set());
   const [isFileSaving, setIsFileSaving] = useState(false);
+  const [isFileDeleting, setIsFileDeleting] = useState(false);
+  const [versionStatus, setVersionStatus] = useState<WorkspaceVersionControlStatus | null>(null);
+  const [versions, setVersions] = useState<WorkspaceVersion[]>([]);
+  const [versionDiff, setVersionDiff] = useState<WorkspaceVersionFileDiff | null>(null);
+  const [selectedVersionFilePath, setSelectedVersionFilePath] = useState("");
+  const [selectedHistoryVersionId, setSelectedHistoryVersionId] = useState("");
+  const [selectedVersionHistoryBranchName, setSelectedVersionHistoryBranchName] =
+    useState("");
+  const [versionFiles, setVersionFiles] = useState<WorkspaceVersionFileEntry[]>([]);
+  const [selectedVersionSnapshotFilePath, setSelectedVersionSnapshotFilePath] = useState("");
+  const [historyVersionDiff, setHistoryVersionDiff] =
+    useState<WorkspaceVersionFileDiff | null>(null);
+  const [versionMessage, setVersionMessage] = useState("");
+  const [versionError, setVersionError] = useState("");
+  const [isVersionControlLoading, setIsVersionControlLoading] = useState(false);
+  const [isVersionControlInitializing, setIsVersionControlInitializing] = useState(false);
+  const [isVersionDiffLoading, setIsVersionDiffLoading] = useState(false);
+  const [isVersionFilesLoading, setIsVersionFilesLoading] = useState(false);
+  const [isVersionFileContentLoading, setIsVersionFileContentLoading] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+  const [isVersionHistoryLoading, setIsVersionHistoryLoading] = useState(false);
+  const [restoringVersionFilePath, setRestoringVersionFilePath] = useState("");
+  const [isCreatingVersionBranch, setIsCreatingVersionBranch] = useState(false);
+  const [switchingVersionBranchName, setSwitchingVersionBranchName] = useState("");
+  const [discardingVersionFilePath, setDiscardingVersionFilePath] = useState("");
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
@@ -1307,19 +1347,99 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const loadFiles = useCallback(async () => {
+  const clearSelectedVersionSnapshot = useCallback(() => {
+    setSelectedHistoryVersionId("");
+    setVersionFiles([]);
+    setSelectedVersionSnapshotFilePath("");
+    setHistoryVersionDiff(null);
+  }, []);
+
+  const loadVersionControl = useCallback(async (historyBranchOverride?: string) => {
+    setIsVersionControlLoading(true);
+    setVersionError("");
+
+    try {
+      const status = await getWorkspaceVersionControlStatus(workspace.path);
+      setVersionStatus(status);
+      setSelectedVersionFilePath((currentPath) => {
+        if (!currentPath || status.files.some((file) => file.path === currentPath)) {
+          return currentPath;
+        }
+        setVersionDiff(null);
+        return "";
+      });
+
+      if (!status.isEnabled) {
+        setVersions([]);
+        setVersionDiff(null);
+        setSelectedVersionHistoryBranchName("");
+        clearSelectedVersionSnapshot();
+        return;
+      }
+
+      const fallbackHistoryBranchName =
+        status.currentRef ??
+        status.branches.find((branch) => branch.isCurrent)?.name ??
+        "";
+      const availableHistoryBranchNames = new Set(
+        status.branches.map((branch) => branch.name),
+      );
+      let historyBranchName =
+        historyBranchOverride ?? selectedVersionHistoryBranchName;
+      if (!historyBranchName) {
+        historyBranchName = fallbackHistoryBranchName;
+      }
+      if (historyBranchName && !availableHistoryBranchNames.has(historyBranchName)) {
+        historyBranchName = fallbackHistoryBranchName;
+      }
+      if (historyBranchName !== selectedVersionHistoryBranchName) {
+        setSelectedVersionHistoryBranchName(historyBranchName);
+        clearSelectedVersionSnapshot();
+      }
+
+      setIsVersionHistoryLoading(true);
+      try {
+        const nextVersions = await listWorkspaceVersions(
+          workspace.path,
+          historyBranchName || undefined,
+        );
+        setVersions(nextVersions);
+        if (
+          selectedHistoryVersionId &&
+          !nextVersions.some((version) => version.id === selectedHistoryVersionId)
+        ) {
+          clearSelectedVersionSnapshot();
+        }
+      } finally {
+        setIsVersionHistoryLoading(false);
+      }
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionControlLoading(false);
+      setIsVersionHistoryLoading(false);
+    }
+  }, [
+    clearSelectedVersionSnapshot,
+    selectedHistoryVersionId,
+    selectedVersionHistoryBranchName,
+    workspace.path,
+  ]);
+
+  const loadFiles = useCallback(async (historyBranchOverride?: string) => {
     setIsFilesLoading(true);
     setFileError("");
 
     try {
       const nextFiles = await listWorkspaceFiles(workspace.path);
       setFiles(nextFiles);
+      await loadVersionControl(historyBranchOverride);
     } catch (caught) {
       setFileError(String(caught));
     } finally {
       setIsFilesLoading(false);
     }
-  }, [workspace.path]);
+  }, [loadVersionControl, workspace.path]);
 
   useEffect(() => {
     void loadFiles();
@@ -1335,6 +1455,16 @@ export const WorkspaceChatPage = ({
     setExpandedFileTreePaths(new Set());
     setWorkspaceView("chat");
     setShowAllSessions(false);
+    setVersionStatus(null);
+    setVersions([]);
+    setVersionDiff(null);
+    setSelectedVersionFilePath("");
+    setVersionMessage("");
+    setVersionError("");
+    setRestoringVersionFilePath("");
+    setIsCreatingVersionBranch(false);
+    setSwitchingVersionBranchName("");
+    setDiscardingVersionFilePath("");
   }, [workspace.id]);
 
   useEffect(() => {
@@ -2480,6 +2610,300 @@ export const WorkspaceChatPage = ({
     }
   };
 
+  const deleteFile = async () => {
+    const targetPath = activeFile?.path;
+    if (!targetPath) {
+      return;
+    }
+
+    setIsFileDeleting(true);
+    setFileError("");
+
+    try {
+      await deleteWorkspaceFile(workspace.path, targetPath);
+      setActiveFile(null);
+      setFilePath("");
+      setFileContent("");
+      setFileViewMode("source");
+      await loadFiles();
+    } catch (caught) {
+      setFileError(String(caught));
+    } finally {
+      setIsFileDeleting(false);
+    }
+  };
+
+  const initializeVersionControl = async () => {
+    setIsVersionControlInitializing(true);
+    setVersionError("");
+
+    try {
+      const status = await initializeWorkspaceVersionControl(workspace.path);
+      setVersionStatus(status);
+      if (!status.hasVersions && status.hasChanges && !versionMessage.trim()) {
+        setVersionMessage("初始化工作区版本");
+      }
+      await loadVersionControl();
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionControlInitializing(false);
+    }
+  };
+
+  const selectVersionFile = async (path: string) => {
+    setSelectedVersionFilePath(path);
+    setIsVersionDiffLoading(true);
+    setVersionError("");
+
+    try {
+      const diff = await getWorkspaceVersionFileDiff(workspace.path, path);
+      setVersionDiff(diff);
+    } catch (caught) {
+      setVersionDiff(null);
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionDiffLoading(false);
+    }
+  };
+
+  const selectHistoryVersionFile = async (versionId: string, path: string) => {
+    setSelectedVersionSnapshotFilePath(path);
+    setIsVersionFileContentLoading(true);
+    setVersionError("");
+
+    try {
+      const diff = await getWorkspaceVersionCommitFileDiff(workspace.path, versionId, path);
+      setHistoryVersionDiff(diff);
+    } catch (caught) {
+      setHistoryVersionDiff(null);
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionFileContentLoading(false);
+    }
+  };
+
+  const selectHistoryVersion = async (version: WorkspaceVersion) => {
+    setSelectedHistoryVersionId(version.id);
+    setVersionFiles([]);
+    setSelectedVersionSnapshotFilePath("");
+    setHistoryVersionDiff(null);
+    setIsVersionFilesLoading(true);
+    setVersionError("");
+
+    try {
+      const filesInVersion = await listWorkspaceVersionFiles(workspace.path, version.id);
+      setVersionFiles(filesInVersion);
+      if (filesInVersion.length > 0) {
+        await selectHistoryVersionFile(version.id, filesInVersion[0].path);
+      }
+    } catch (caught) {
+      setVersionFiles([]);
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionFilesLoading(false);
+    }
+  };
+
+  const restoreHistoryVersionFile = async (file: WorkspaceVersionFileEntry) => {
+    if (!historyVersionDiff) {
+      setVersionError("请先选择一个历史文件");
+      return;
+    }
+
+    const content =
+      file.status === "deleted"
+        ? historyVersionDiff.beforeContent
+        : historyVersionDiff.afterContent;
+
+    setRestoringVersionFilePath(file.path);
+    setVersionError("");
+
+    try {
+      const restored = await writeWorkspaceFile(workspace.path, file.path, content);
+      setActiveFile(restored);
+      setFilePath(restored.path);
+      setFileContent(restored.content);
+      setFileViewMode("source");
+      setFilePreviewMode("side");
+      setWorkspaceView("chat");
+      await loadFiles();
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setRestoringVersionFilePath("");
+    }
+  };
+
+  const selectVersionHistoryBranch = async (branchName: string) => {
+    const normalizedBranchName = branchName.trim();
+    if (!normalizedBranchName || normalizedBranchName === selectedVersionHistoryBranchName) {
+      return;
+    }
+
+    setSelectedVersionHistoryBranchName(normalizedBranchName);
+    clearSelectedVersionSnapshot();
+    setIsVersionHistoryLoading(true);
+    setVersionError("");
+
+    try {
+      const nextVersions = await listWorkspaceVersions(
+        workspace.path,
+        normalizedBranchName,
+      );
+      setVersions(nextVersions);
+    } catch (caught) {
+      setVersions([]);
+      setVersionError(String(caught));
+    } finally {
+      setIsVersionHistoryLoading(false);
+    }
+  };
+
+  const createVersion = async (relativePaths: string[]) => {
+    const message = versionMessage.trim();
+    if (!message) {
+      setVersionError("提交说明不能为空");
+      return;
+    }
+    if (relativePaths.length === 0) {
+      setVersionError("请选择至少一个要提交的文件");
+      return;
+    }
+
+    setIsCreatingVersion(true);
+    setVersionError("");
+
+    try {
+      const result = await createWorkspaceVersion(workspace.path, message, relativePaths);
+      setVersionStatus(result.status);
+      const historyBranchName = result.status.currentRef ?? "";
+      setSelectedVersionHistoryBranchName(historyBranchName);
+      setVersionMessage("");
+      setSelectedVersionFilePath("");
+      setVersionDiff(null);
+      await loadFiles(historyBranchName || undefined);
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
+
+  const discardVersionFileChanges = async (relativePath: string) => {
+    const normalizedPath = relativePath.trim();
+    if (!normalizedPath) {
+      return;
+    }
+
+    const statusFile = versionStatus?.files.find(
+      (file) =>
+        file.path === normalizedPath || file.previousPath === normalizedPath,
+    );
+    const isNewFile =
+      statusFile?.status === "added" || statusFile?.status === "untracked";
+    const confirmed = window.confirm(
+      isNewFile
+        ? `撤销 ${normalizedPath} 的未提交新增？该文件会被删除。`
+        : `撤销 ${normalizedPath} 的未提交修改？文件会恢复到当前提交。`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDiscardingVersionFilePath(normalizedPath);
+    setVersionError("");
+
+    try {
+      const status = await discardWorkspaceVersionFileChanges(
+        workspace.path,
+        normalizedPath,
+      );
+      setVersionStatus(status);
+      setSelectedVersionFilePath("");
+      setVersionDiff(null);
+
+      await loadFiles(selectedVersionHistoryBranchName || undefined);
+
+      if (
+        activeFile &&
+        (activeFile.path === normalizedPath ||
+          statusFile?.previousPath === activeFile.path)
+      ) {
+        try {
+          const refreshedFile = await readWorkspaceFile(workspace.path, activeFile.path);
+          setActiveFile(refreshedFile);
+          setFilePath(refreshedFile.path);
+          setFileContent(refreshedFile.content);
+        } catch {
+          setActiveFile(null);
+          setFilePath("");
+          setFileContent("");
+          setFileViewMode("source");
+          setFilePreviewMode("closed");
+        }
+      }
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setDiscardingVersionFilePath("");
+    }
+  };
+
+  const createVersionBranch = async (branchName: string) => {
+    const normalizedBranchName = branchName.trim();
+    if (!normalizedBranchName) {
+      setVersionError("分支名称不能为空");
+      return;
+    }
+
+    setIsCreatingVersionBranch(true);
+    setVersionError("");
+
+    try {
+      const status = await createWorkspaceVersionBranch(workspace.path, normalizedBranchName);
+      setVersionStatus(status);
+      setSelectedVersionHistoryBranchName(normalizedBranchName);
+      setSelectedVersionFilePath("");
+      setVersionDiff(null);
+      clearSelectedVersionSnapshot();
+      await loadVersionControl(normalizedBranchName);
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setIsCreatingVersionBranch(false);
+    }
+  };
+
+  const switchVersionBranch = async (branchName: string) => {
+    const normalizedBranchName = branchName.trim();
+    if (!normalizedBranchName || normalizedBranchName === versionStatus?.currentRef) {
+      return;
+    }
+
+    setSwitchingVersionBranchName(normalizedBranchName);
+    setVersionError("");
+
+    try {
+      const status = await switchWorkspaceVersionBranch(workspace.path, normalizedBranchName);
+      setVersionStatus(status);
+      setSelectedVersionHistoryBranchName(normalizedBranchName);
+      setActiveFile(null);
+      setFilePath("");
+      setFileContent("");
+      setFileError("");
+      setFilePreviewMode("closed");
+      setSelectedVersionFilePath("");
+      setVersionDiff(null);
+      clearSelectedVersionSnapshot();
+      await loadFiles(normalizedBranchName);
+    } catch (caught) {
+      setVersionError(String(caught));
+    } finally {
+      setSwitchingVersionBranchName("");
+    }
+  };
+
   const submitAgentQuestionAnswer = async (answerValue: string) => {
     const answer = answerValue.trim();
     if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
@@ -3112,6 +3536,15 @@ export const WorkspaceChatPage = ({
     });
   };
 
+  const activeFileVersionStatus =
+    versionStatus?.files.find((file) => {
+      const currentPath = activeFile?.path || filePath.trim();
+      return (
+        currentPath &&
+        (file.path === currentPath || file.previousPath === currentPath)
+      );
+    }) ?? null;
+
   const filePanel = (
     <FilePanel
       activeFile={activeFile}
@@ -3121,6 +3554,13 @@ export const WorkspaceChatPage = ({
       fileViewMode={fileViewMode}
       isMarkdownFile={isMarkdownFile}
       isFileSaving={isFileSaving}
+      isFileDeleting={isFileDeleting}
+      isFileDiscarding={
+        activeFileVersionStatus
+          ? discardingVersionFilePath === activeFileVersionStatus.path
+          : false
+      }
+      fileVersionStatus={activeFileVersionStatus}
       previewMode={filePreviewMode === "expanded" ? "expanded" : "side"}
       onFilePathChange={setFilePath}
       onFileContentChange={setFileContent}
@@ -3129,6 +3569,12 @@ export const WorkspaceChatPage = ({
       onCollapsePreview={() => setFilePreviewMode("side")}
       onClosePreview={() => setFilePreviewMode("closed")}
       onSaveFile={() => void saveFile()}
+      onDeleteFile={() => void deleteFile()}
+      onDiscardFileChanges={() => {
+        if (activeFileVersionStatus) {
+          void discardVersionFileChanges(activeFileVersionStatus.path);
+        }
+      }}
     />
   );
 
@@ -3297,7 +3743,16 @@ export const WorkspaceChatPage = ({
       <WorkbenchHeader
         isContextPanelOpen={isContextPanelOpen}
         showToggle={workspaceView !== "settings"}
+        versionStatus={versionStatus}
+        isVersionControlLoading={isVersionControlLoading}
+        isVersionControlInitializing={isVersionControlInitializing}
+        isCreatingVersionBranch={isCreatingVersionBranch}
+        switchingVersionBranchName={switchingVersionBranchName}
         onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
+        onRefreshVersionControl={() => void loadVersionControl()}
+        onInitializeVersionControl={() => void initializeVersionControl()}
+        onCreateVersionBranch={(branchName) => void createVersionBranch(branchName)}
+        onSwitchVersionBranch={(branchName) => void switchVersionBranch(branchName)}
       />
 
       <section className="flex min-w-0 flex-1 flex-col bg-background pt-12">
@@ -3328,11 +3783,38 @@ export const WorkspaceChatPage = ({
               fileTree={fileTree}
               expandedFileTreePaths={expandedFileTreePaths}
               activeFile={activeFile}
+              versionStatus={versionStatus}
+              versions={versions}
+              versionDiff={versionDiff}
+              versionFiles={versionFiles}
+              historyVersionDiff={historyVersionDiff}
+              selectedVersionFilePath={selectedVersionFilePath}
+              selectedHistoryVersionId={selectedHistoryVersionId}
+              selectedVersionHistoryBranchName={selectedVersionHistoryBranchName}
+              selectedVersionSnapshotFilePath={selectedVersionSnapshotFilePath}
+              versionMessage={versionMessage}
+              versionError={versionError}
+              isVersionControlLoading={isVersionControlLoading}
+              isVersionControlInitializing={isVersionControlInitializing}
+              isVersionDiffLoading={isVersionDiffLoading}
+              isVersionFilesLoading={isVersionFilesLoading}
+              isVersionFileContentLoading={isVersionFileContentLoading}
+              isCreatingVersion={isCreatingVersion}
+              isVersionHistoryLoading={isVersionHistoryLoading}
+              restoringVersionFilePath={restoringVersionFilePath}
               chatMode={chatMode}
               collaborationPhase={collaborationPhase}
               selectedAgent={selectedAgent}
               reviewerAgent={reviewerAgent}
               onRefreshFiles={() => void loadFiles()}
+              onRefreshVersionControl={() => void loadVersionControl()}
+              onSelectVersionFile={(path) => void selectVersionFile(path)}
+              onSelectHistoryVersion={(version) => void selectHistoryVersion(version)}
+              onSelectVersionHistoryBranch={(branchName) => void selectVersionHistoryBranch(branchName)}
+              onSelectHistoryVersionFile={(versionId, path) => void selectHistoryVersionFile(versionId, path)}
+              onVersionMessageChange={setVersionMessage}
+              onCreateVersion={(relativePaths) => void createVersion(relativePaths)}
+              onRestoreHistoryVersionFile={(file) => void restoreHistoryVersionFile(file)}
               onPrepareNewFile={prepareNewFile}
               onOpenFile={(path) => void openFile(path)}
               onToggleDirectory={toggleFileTreeDirectory}

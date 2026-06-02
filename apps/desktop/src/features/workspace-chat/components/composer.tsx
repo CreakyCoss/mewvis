@@ -260,27 +260,27 @@ export const Composer = memo(({
           {referencedFilePreviews.map((file) => (
             <span
               key={file.path}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
+              className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-primary"
             >
-              <Link className="size-3" />
-              <span className="truncate">{file.path}</span>
+              <Link className="size-3 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{file.path}</span>
             </span>
           ))}
           {unresolvedFileReferences.map((match) => (
             <span
               key={`missing-${match.token}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
+              className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive"
             >
-              未找到 @{match.token}
+              <span className="min-w-0 flex-1 truncate">未找到 @{match.token}</span>
             </span>
           ))}
           {ambiguousFileReferences.map((match) => (
             <span
               key={`ambiguous-${match.token}`}
-              className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground shadow-xs"
+              className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-md bg-muted px-2 py-1 text-muted-foreground shadow-xs"
               title={match.matches.map((file) => file.path).join("\n")}
             >
-              @{match.token} 匹配 {match.matches.length} 个文件
+              <span className="min-w-0 flex-1 truncate">@{match.token} 匹配 {match.matches.length} 个文件</span>
             </span>
           ))}
         </div>
@@ -306,7 +306,7 @@ export const Composer = memo(({
                     <button
                       key={file.path}
                       type="button"
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => insertFileReference(file)}
                     >

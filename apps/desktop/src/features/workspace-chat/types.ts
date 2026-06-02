@@ -27,6 +27,86 @@ export type WorkspaceFile = {
   updatedAt: number | null;
 };
 
+export type WorkspaceVersionFileStatusKind =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed"
+  | "typechange"
+  | "conflicted"
+  | "untracked";
+
+export type WorkspaceVersionFileStatus = {
+  path: string;
+  previousPath: string | null;
+  status: WorkspaceVersionFileStatusKind;
+  isStaged: boolean;
+  isWorktree: boolean;
+};
+
+export type WorkspaceVersionBranch = {
+  name: string;
+  shortHead: string | null;
+  isCurrent: boolean;
+};
+
+export type WorkspaceVersionControlStatusCounts = {
+  added: number;
+  modified: number;
+  deleted: number;
+  renamed: number;
+  typechange: number;
+  conflicted: number;
+  untracked: number;
+};
+
+export type WorkspaceVersionControlStatus = {
+  isEnabled: boolean;
+  provider: string | null;
+  currentRef: string | null;
+  head: string | null;
+  branches: WorkspaceVersionBranch[];
+  hasVersions: boolean;
+  hasChanges: boolean;
+  changedFileCount: number;
+  counts: WorkspaceVersionControlStatusCounts;
+  files: WorkspaceVersionFileStatus[];
+};
+
+export type WorkspaceVersionFileDiff = {
+  path: string;
+  patch: string;
+  beforeContent: string;
+  afterContent: string;
+};
+
+export type WorkspaceVersion = {
+  id: string;
+  shortId: string;
+  summary: string;
+  authorName: string;
+  timestamp: number;
+};
+
+export type WorkspaceVersionFileEntry = {
+  path: string;
+  previousPath: string | null;
+  status: WorkspaceVersionFileStatusKind;
+  name: string;
+  size: number;
+};
+
+export type WorkspaceVersionFileContent = {
+  path: string;
+  content: string;
+  size: number;
+};
+
+export type CreateWorkspaceVersionResult = {
+  version: WorkspaceVersion;
+  status: WorkspaceVersionControlStatus;
+};
+
 export type AgentMessageBlock =
   | {
     id: string;

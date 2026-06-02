@@ -113,6 +113,24 @@ pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceF
     })
 }
 
+pub fn delete_workspace_file(input: WorkspaceFilePathInput) -> Result<(), String> {
+    let root = workspace_root(&input.workspace_path)?;
+    let path = resolve_workspace_path(&root, &input.relative_path)?;
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|error| format!("无法定位文件：{error}"))?;
+    ensure_under_root(&root, &canonical_path)?;
+    let metadata = canonical_path
+        .metadata()
+        .map_err(|error| format!("无法读取文件信息：{error}"))?;
+
+    if !metadata.is_file() {
+        return Err("只能删除文件".to_string());
+    }
+
+    fs::remove_file(&canonical_path).map_err(|error| format!("无法删除文件：{error}"))
+}
+
 fn workspace_root(path: &str) -> Result<PathBuf, String> {
     PathBuf::from(path.trim())
         .canonicalize()
@@ -187,7 +205,7 @@ fn collect_entries(
 }
 
 fn should_skip(file_name: &str) -> bool {
-    file_name == "workspace.db" || file_name.starts_with('.')
+    file_name == "workspace.db" || (file_name.starts_with('.') && file_name != ".gitignore")
 }
 
 fn normalize_relative_path(path: &str) -> String {
@@ -208,4 +226,82 @@ fn updated_at_millis(metadata: &fs::Metadata) -> Option<i64> {
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_millis() as i64)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        env, fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use super::{
+        delete_workspace_file, list_workspace_files, WorkspaceFilePathInput, WorkspacePathInput,
+    };
+
+    struct TestWorkspace {
+        path: PathBuf,
+    }
+
+    impl TestWorkspace {
+        fn new(name: &str) -> Self {
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time")
+                .as_nanos();
+            let path = env::temp_dir().join(format!("novel-claw-files-{name}-{timestamp}"));
+            fs::create_dir_all(&path).expect("create test workspace");
+            Self { path }
+        }
+
+        fn path_string(&self) -> String {
+            self.path.to_string_lossy().to_string()
+        }
+    }
+
+    impl Drop for TestWorkspace {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn list_workspace_files_includes_gitignore_but_skips_other_hidden_files() {
+        let workspace = TestWorkspace::new("gitignore");
+        fs::write(workspace.path.join(".gitignore"), "*.tmp\n").expect("write gitignore");
+        fs::write(workspace.path.join(".hidden.md"), "hidden\n").expect("write hidden");
+        fs::write(workspace.path.join("draft.md"), "draft\n").expect("write draft");
+        fs::write(workspace.path.join("workspace.db"), "db\n").expect("write db");
+
+        let files = list_workspace_files(WorkspacePathInput {
+            workspace_path: workspace.path_string(),
+        })
+        .expect("list files");
+
+        assert!(files.iter().any(|file| file.path == ".gitignore"));
+        assert!(files.iter().any(|file| file.path == "draft.md"));
+        assert!(!files.iter().any(|file| file.path == ".hidden.md"));
+        assert!(!files.iter().any(|file| file.path == "workspace.db"));
+    }
+
+    #[test]
+    fn delete_workspace_file_removes_file_inside_workspace() {
+        let workspace = TestWorkspace::new("delete");
+        let draft_path = workspace.path.join("draft.md");
+        fs::write(&draft_path, "draft\n").expect("write draft");
+
+        delete_workspace_file(WorkspaceFilePathInput {
+            workspace_path: workspace.path_string(),
+            relative_path: "draft.md".to_string(),
+        })
+        .expect("delete draft");
+
+        assert!(!draft_path.exists());
+        let files = list_workspace_files(WorkspacePathInput {
+            workspace_path: workspace.path_string(),
+        })
+        .expect("list files");
+        assert!(!files.iter().any(|file| file.path == "draft.md"));
+    }
 }

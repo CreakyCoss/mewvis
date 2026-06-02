@@ -16,11 +16,16 @@ use commands::{
         delete_ai_agent, get_ai_agent_settings, get_llm_settings, save_ai_agent, save_llm_settings,
     },
     workspace::{
-        cleanup_orphan_agent_sessions, create_workspace, delete_chat_session,
-        get_agent_session_status, get_workspace_overview, get_workspace_skills, list_chat_sessions,
-        list_workspace_files, load_chat_session, read_workspace_file,
-        reset_agent_sessions_for_chat, save_chat_session, save_workspace_skills, update_workspace,
-        write_workspace_file,
+        cleanup_orphan_agent_sessions, create_workspace, create_workspace_version,
+        create_workspace_version_branch, delete_chat_session, delete_workspace_file,
+        discard_workspace_version_file_changes, get_agent_session_status, get_workspace_overview,
+        get_workspace_skills, get_workspace_version_commit_file_diff,
+        get_workspace_version_control_status, get_workspace_version_file_diff,
+        initialize_workspace_version_control, list_chat_sessions, list_workspace_files,
+        list_workspace_version_files, list_workspace_versions, load_chat_session,
+        read_workspace_file, read_workspace_version_file, reset_agent_sessions_for_chat,
+        restore_workspace_version, save_chat_session, save_workspace_skills,
+        switch_workspace_version_branch, update_workspace, write_workspace_file,
     },
 };
 
@@ -61,7 +66,20 @@ pub fn run() {
             reset_agent_sessions_for_chat,
             list_workspace_files,
             read_workspace_file,
-            write_workspace_file
+            write_workspace_file,
+            delete_workspace_file,
+            get_workspace_version_control_status,
+            initialize_workspace_version_control,
+            get_workspace_version_file_diff,
+            discard_workspace_version_file_changes,
+            get_workspace_version_commit_file_diff,
+            create_workspace_version,
+            create_workspace_version_branch,
+            switch_workspace_version_branch,
+            list_workspace_versions,
+            list_workspace_version_files,
+            read_workspace_version_file,
+            restore_workspace_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

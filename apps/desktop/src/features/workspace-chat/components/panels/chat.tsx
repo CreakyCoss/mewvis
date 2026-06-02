@@ -1043,10 +1043,10 @@ export const ChatPanel = ({
                                 {message.referencedFiles.map((file) => (
                                   <span
                                     key={file.path}
-                                    className="inline-flex max-w-full items-center gap-1 rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
+                                    className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
                                   >
-                                    <Link className="size-3" />
-                                    <span className="truncate">{file.path}</span>
+                                    <Link className="size-3 shrink-0" />
+                                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
                                   </span>
                                 ))}
                               </div>

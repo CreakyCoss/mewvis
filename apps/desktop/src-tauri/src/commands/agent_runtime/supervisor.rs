@@ -6,6 +6,8 @@ use super::{
     },
 };
 use serde_json::{json, Value};
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 use std::{
     collections::{HashMap, VecDeque},
     fs,
@@ -15,8 +17,6 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-#[cfg(unix)]
-use std::os::unix::process::ExitStatusExt;
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 

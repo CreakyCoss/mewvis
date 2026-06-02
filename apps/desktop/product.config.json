@@ -6,6 +6,10 @@
   "defaultWorkspaceDirName": "default-workspace",
   "storageKeyPrefix": "novel-claw",
   "envPrefix": "NOVEL_CLAW",
+  "versionControl": {
+    "authorName": "Novel Claw",
+    "authorEmail": "novel-claw@local"
+  },
   "agentBridgePackageName": "novel-claw-agent-bridge",
   "bundleIdentifier": "com.novel-claw.desktop",
   "description": "Novel-Claw Desktop Client"

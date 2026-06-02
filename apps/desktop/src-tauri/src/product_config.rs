@@ -11,6 +11,14 @@ pub struct ProductConfig {
     pub app_data_dir_name: String,
     pub default_workspace_dir_name: String,
     pub env_prefix: String,
+    pub version_control: VersionControlConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionControlConfig {
+    pub author_name: String,
+    pub author_email: String,
 }
 
 pub fn product_config() -> &'static ProductConfig {
@@ -31,6 +39,14 @@ pub fn bundle_name() -> &'static str {
 
 pub fn default_workspace_dir_name() -> &'static str {
     &product_config().default_workspace_dir_name
+}
+
+pub fn version_control_author_name() -> &'static str {
+    &product_config().version_control.author_name
+}
+
+pub fn version_control_author_email() -> &'static str {
+    &product_config().version_control.author_email
 }
 
 pub fn product_env_var(name: &str) -> String {

@@ -17,3 +17,8 @@ pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFil
 pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceFile, String> {
     workspace_files::write_workspace_file(input)
 }
+
+#[tauri::command]
+pub fn delete_workspace_file(input: WorkspaceFilePathInput) -> Result<(), String> {
+    workspace_files::delete_workspace_file(input)
+}
