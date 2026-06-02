@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
+  ChevronDown,
   ChevronRight,
   FileDiff,
   FileText,
@@ -14,6 +15,17 @@ import {
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -31,8 +43,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type {
   WorkspaceVersion,
@@ -87,6 +99,7 @@ type VersionControlPanelProps = {
   isCreatingVersion: boolean;
   isVersionHistoryLoading: boolean;
   restoringVersionFilePath: string;
+  discardingVersionFilePath: string;
   onRefreshVersionControl: () => void;
   onSelectVersionFile: (path: string) => void;
   onSelectHistoryVersion: (version: WorkspaceVersion) => void;
@@ -94,6 +107,10 @@ type VersionControlPanelProps = {
   onSelectHistoryVersionFile: (versionId: string, path: string) => void;
   onVersionMessageChange: (message: string) => void;
   onCreateVersion: (relativePaths: string[]) => void;
+  onDiscardVersionFileChanges: (
+    path: string,
+    options?: { skipConfirmation?: boolean },
+  ) => void;
   onRestoreHistoryVersionFile: (file: WorkspaceVersionFileEntry) => void;
 };
 
@@ -126,6 +143,20 @@ const statusClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
   conflicted: "text-destructive",
   untracked: "text-muted-foreground",
 };
+
+const getDiscardVersionFileLabel = (status: WorkspaceVersionFileStatus["status"]) =>
+  status === "added" || status === "untracked"
+    ? "撤销新增"
+    : status === "deleted"
+    ? "撤销删除"
+    : "撤销修改";
+
+const getDiscardVersionFileTitle = (status: WorkspaceVersionFileStatus["status"]) =>
+  status === "added" || status === "untracked"
+    ? "撤销新增：删除这个未提交文件"
+    : status === "deleted"
+    ? "撤销删除：恢复这个文件"
+    : "撤销修改：恢复这个文件到当前提交状态";
 
 const formatVersionTime = (timestamp: number) =>
   new Intl.DateTimeFormat(undefined, {
@@ -547,6 +578,7 @@ export const VersionControlPanel = ({
   isCreatingVersion,
   isVersionHistoryLoading,
   restoringVersionFilePath,
+  discardingVersionFilePath,
   onRefreshVersionControl,
   onSelectVersionFile,
   onSelectHistoryVersion,
@@ -554,6 +586,7 @@ export const VersionControlPanel = ({
   onSelectHistoryVersionFile,
   onVersionMessageChange,
   onCreateVersion,
+  onDiscardVersionFileChanges,
   onRestoreHistoryVersionFile,
 }: VersionControlPanelProps) => {
   const [isDiffDialogOpen, setIsDiffDialogOpen] = useState(false);
@@ -638,6 +671,9 @@ export const VersionControlPanel = ({
     "";
   const currentHistoryBranchName =
     selectedVersionHistoryBranchName || currentBranchName;
+  const versionHistoryCountLabel = isVersionHistoryLoading
+    ? "读取中"
+    : `${versions.length} 次`;
   const canCreateVersion =
     isVersionControlEnabled &&
     Boolean(versionStatus?.hasChanges) &&
@@ -939,14 +975,66 @@ export const VersionControlPanel = ({
   if (panelMode === "history") {
     return (
       <section className="min-w-0 space-y-3 overflow-hidden">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm font-medium">
             <History className="size-4 shrink-0" />
             <span className="shrink-0">提交历史</span>
-            {currentHistoryBranchName && (
-              <span className="min-w-0 truncate rounded-md bg-muted/70 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {currentHistoryBranchName}
-              </span>
+            <span
+              className="inline-flex h-5 shrink-0 items-center rounded-sm bg-muted/70 px-1.5 text-[11px] font-medium text-muted-foreground tabular-nums"
+              title="提交数"
+            >
+              {versionHistoryCountLabel}
+            </span>
+            {isVersionControlEnabled && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="h-6 max-w-[9.5rem] min-w-0 rounded-md bg-muted/70 px-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="选择历史分支"
+                    aria-label="选择历史分支"
+                    disabled={(versionStatus?.branches.length ?? 0) === 0}
+                  >
+                    <GitBranch className="size-3.5 shrink-0" />
+                    <span className="min-w-0 truncate">
+                      {currentHistoryBranchName || "HEAD"}
+                    </span>
+                    <ChevronDown className="size-3 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuLabel>历史分支</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={currentHistoryBranchName}
+                    onValueChange={(branchName) => {
+                      if (branchName !== currentHistoryBranchName) {
+                        onSelectVersionHistoryBranch(branchName);
+                      }
+                    }}
+                  >
+                    {(versionStatus?.branches ?? []).map((branch) => (
+                      <DropdownMenuRadioItem
+                        key={branch.name}
+                        value={branch.name}
+                        className="min-w-0"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+                        {branch.isCurrent ? (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            当前
+                          </span>
+                        ) : branch.shortHead ? (
+                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                            {branch.shortHead}
+                          </span>
+                        ) : null}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
           <Button
@@ -971,63 +1059,7 @@ export const VersionControlPanel = ({
           </div>
         ) : (
           <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-full min-w-0 justify-start gap-2 bg-background/60"
-                >
-                  <GitBranch className="size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate text-left">
-                    {currentHistoryBranchName || "HEAD"}
-                  </span>
-                  <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
-                <DropdownMenuLabel>历史分支</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={currentHistoryBranchName}
-                  onValueChange={(branchName) => {
-                    if (branchName !== currentHistoryBranchName) {
-                      onSelectVersionHistoryBranch(branchName);
-                    }
-                  }}
-                >
-                  {(versionStatus?.branches ?? []).map((branch) => (
-                    <DropdownMenuRadioItem
-                      key={branch.name}
-                      value={branch.name}
-                      className="min-w-0"
-                    >
-                      <span className="min-w-0 flex-1 truncate">{branch.name}</span>
-                      {branch.isCurrent ? (
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
-                          当前
-                        </span>
-                      ) : branch.shortHead ? (
-                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                          {branch.shortHead}
-                        </span>
-                      ) : null}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden rounded-md bg-muted/45 px-2.5 py-2 text-sm">
-              <span className="min-w-0 truncate text-muted-foreground">
-                提交数
-              </span>
-              <span className="shrink-0 font-medium tabular-nums">
-                {isVersionHistoryLoading ? "读取中" : versions.length}
-              </span>
-            </div>
-
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 space-y-1.5">
               {isVersionHistoryLoading ? (
                 <div className="flex items-center gap-2 px-2 py-6 text-sm text-muted-foreground">
                   <LoaderCircle className="size-4 animate-spin" />
@@ -1038,7 +1070,7 @@ export const VersionControlPanel = ({
                   <button
                     type="button"
                     key={version.id}
-                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left transition-colors hover:bg-muted/45 data-[active=true]:bg-muted/70"
+                    className="flex w-full min-w-0 items-start gap-2 overflow-hidden rounded-md border border-border/55 bg-background/60 px-2.5 py-2.5 text-left shadow-xs transition-colors hover:border-border hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-[active=true]:border-primary/35 data-[active=true]:bg-primary/10"
                     data-active={version.id === selectedHistoryVersionId}
                     onClick={() => openCommitDetails(version)}
                   >
@@ -1193,7 +1225,7 @@ export const VersionControlPanel = ({
   }
 
   return (
-    <section className="min-w-0 space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
       <div className="flex min-w-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <GitBranch className="size-4 shrink-0" />
@@ -1223,37 +1255,8 @@ export const VersionControlPanel = ({
         </div>
       ) : (
         <>
-          <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-border/50 bg-background/45 px-2.5 py-2 text-sm">
-            <span className="min-w-0 truncate text-muted-foreground">
-              当前分支
-            </span>
-            <span className="min-w-0 flex-1 truncate text-right font-medium">
-              {currentBranchName || "HEAD"}
-            </span>
-            {versionStatus?.head && (
-              <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
-                {versionStatus.head}
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
             <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden rounded-md bg-muted/45 px-2.5 py-2 text-sm">
-              <span className="min-w-0 truncate text-muted-foreground">
-                工作区
-              </span>
-              <span
-                className={cn(
-                  "shrink-0 font-medium tabular-nums",
-                  versionStatus?.hasChanges ? "text-amber-700" : "text-emerald-700",
-                )}
-              >
-                {versionStatus?.hasChanges
-                  ? `${versionStatus.changedFileCount} 项变更`
-                  : "干净"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
               <div className="flex min-w-0 items-center gap-1.5">
                 <Checkbox
                   checked={
@@ -1267,14 +1270,14 @@ export const VersionControlPanel = ({
                   disabled={!changedFilePaths.length}
                   aria-label="选择全部变更"
                 />
-                <FileDiff className="size-3.5" />
-                <span>变更文件</span>
+                <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 truncate font-medium">变更文件</span>
               </div>
-              <span className="shrink-0 tabular-nums">
+              <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
                 待提交 {selectedPathsForCommit.length}/{changedFilePaths.length}
               </span>
             </div>
-            <ScrollArea className="max-h-40 min-w-0 overflow-hidden">
+            <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-hidden">
               <div className="min-w-0 space-y-0.5 pr-2">
                 {versionStatus?.files.length ? (
                   versionStatus.files.map((file) => {
@@ -1282,11 +1285,13 @@ export const VersionControlPanel = ({
                     const fileLabel = file.previousPath
                       ? `${file.previousPath} -> ${file.path}`
                       : file.path;
+                    const discardLabel = getDiscardVersionFileLabel(file.status);
+                    const isDiscardingThisFile = discardingVersionFilePath === file.path;
 
                     return (
                       <div
                         key={file.path}
-                        className="grid h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 overflow-hidden rounded-md px-2 transition-colors hover:bg-muted/55 data-[active=true]:bg-muted/70"
+                        className="grid h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 overflow-hidden rounded-md px-2 transition-colors hover:bg-muted/55 data-[active=true]:bg-muted/70"
                         data-active={file.path === selectedVersionFilePath}
                       >
                         <Checkbox
@@ -1311,6 +1316,48 @@ export const VersionControlPanel = ({
                           </span>
                           <span className="min-w-0 flex-1 truncate">{fileLabel}</span>
                         </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              title={getDiscardVersionFileTitle(file.status)}
+                              aria-label={`${discardLabel} ${file.path}`}
+                              disabled={Boolean(discardingVersionFilePath)}
+                            >
+                              {isDiscardingThisFile ? (
+                                <LoaderCircle className="size-3 animate-spin" />
+                              ) : (
+                                <RotateCcw className="size-3" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{discardLabel}？</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {getDiscardVersionFileTitle(file.status)}。
+                                <span className="mt-2 block break-all font-medium text-foreground">
+                                  {fileLabel}
+                                </span>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>取消</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() =>
+                                  onDiscardVersionFileChanges(file.path, {
+                                    skipConfirmation: true,
+                                  })
+                                }
+                              >
+                                确认{discardLabel}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     );
                   })
@@ -1382,7 +1429,7 @@ export const VersionControlPanel = ({
             </DialogContent>
           </Dialog>
 
-          <div className="space-y-2 rounded-md border border-border/50 bg-background/45 p-2">
+          <div className="shrink-0 space-y-2 rounded-md border border-border/50 bg-background/45 p-2">
             <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
               <div className="flex min-w-0 items-center gap-1.5">
                 <GitCommitHorizontal className="size-3.5" />
@@ -1392,11 +1439,13 @@ export const VersionControlPanel = ({
                 {selectedPathsForCommit.length} 个文件
               </span>
             </div>
-            <Input
+            <Textarea
               value={versionMessage}
-              placeholder="填写提交说明"
+              placeholder="填写提交说明，例如这次改动的目的和范围"
               onChange={(event) => onVersionMessageChange(event.target.value)}
               disabled={isCreatingVersion}
+              rows={4}
+              className="max-h-36 min-h-24 resize-none text-sm leading-5"
             />
             <Button
               type="button"

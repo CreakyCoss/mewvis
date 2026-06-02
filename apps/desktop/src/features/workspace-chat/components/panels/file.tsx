@@ -87,19 +87,19 @@ export const FilePanel = ({
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 overflow-hidden bg-card/70 px-5 py-3 shadow-[0_10px_28px_-30px_rgb(15_23_42_/_0.35)]">
-        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+      <div className="flex min-w-0 flex-wrap items-start gap-3 overflow-hidden bg-card/70 px-5 py-3 shadow-[0_10px_28px_-30px_rgb(15_23_42_/_0.35)]">
+        <div className="flex min-w-48 flex-1 basis-56 items-center gap-3 overflow-hidden">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
             <FileText className="size-4" />
           </div>
           <div className="min-w-0 flex-1 overflow-hidden">
-            <h3 className="text-sm font-semibold">文件预览</h3>
-            <p className="truncate text-xs text-muted-foreground">
+            <h3 className="whitespace-nowrap text-sm font-semibold">文件预览</h3>
+            <p className="truncate text-xs text-muted-foreground" title={filePath || undefined}>
               {filePath || "选择或新建一个文件"}
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
           {isMarkdownFile && (
             <div className="flex h-9 rounded-md bg-muted/70 p-0.5 shadow-xs">
               <Button

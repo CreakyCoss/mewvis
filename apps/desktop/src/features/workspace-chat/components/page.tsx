@@ -2790,7 +2790,10 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const discardVersionFileChanges = async (relativePath: string) => {
+  const discardVersionFileChanges = async (
+    relativePath: string,
+    options?: { skipConfirmation?: boolean },
+  ) => {
     const normalizedPath = relativePath.trim();
     if (!normalizedPath) {
       return;
@@ -2802,13 +2805,15 @@ export const WorkspaceChatPage = ({
     );
     const isNewFile =
       statusFile?.status === "added" || statusFile?.status === "untracked";
-    const confirmed = window.confirm(
-      isNewFile
-        ? `撤销 ${normalizedPath} 的未提交新增？该文件会被删除。`
-        : `撤销 ${normalizedPath} 的未提交修改？文件会恢复到当前提交。`,
-    );
-    if (!confirmed) {
-      return;
+    if (!options?.skipConfirmation) {
+      const confirmed = window.confirm(
+        isNewFile
+          ? `撤销 ${normalizedPath} 的未提交新增？该文件会被删除。`
+          : `撤销 ${normalizedPath} 的未提交修改？文件会恢复到当前提交。`,
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
     setDiscardingVersionFilePath(normalizedPath);
@@ -3802,6 +3807,7 @@ export const WorkspaceChatPage = ({
               isCreatingVersion={isCreatingVersion}
               isVersionHistoryLoading={isVersionHistoryLoading}
               restoringVersionFilePath={restoringVersionFilePath}
+              discardingVersionFilePath={discardingVersionFilePath}
               chatMode={chatMode}
               collaborationPhase={collaborationPhase}
               selectedAgent={selectedAgent}
@@ -3814,6 +3820,7 @@ export const WorkspaceChatPage = ({
               onSelectHistoryVersionFile={(versionId, path) => void selectHistoryVersionFile(versionId, path)}
               onVersionMessageChange={setVersionMessage}
               onCreateVersion={(relativePaths) => void createVersion(relativePaths)}
+              onDiscardVersionFileChanges={(path, options) => void discardVersionFileChanges(path, options)}
               onRestoreHistoryVersionFile={(file) => void restoreHistoryVersionFile(file)}
               onPrepareNewFile={prepareNewFile}
               onOpenFile={(path) => void openFile(path)}

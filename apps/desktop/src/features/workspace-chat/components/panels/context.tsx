@@ -84,6 +84,7 @@ type ContextPanelProps = {
   isCreatingVersion: boolean;
   isVersionHistoryLoading: boolean;
   restoringVersionFilePath: string;
+  discardingVersionFilePath: string;
   chatMode: ChatMode;
   collaborationPhase: CollaborationPhase;
   selectedAgent: AgentProfile | null;
@@ -96,6 +97,10 @@ type ContextPanelProps = {
   onSelectHistoryVersionFile: (versionId: string, path: string) => void;
   onVersionMessageChange: (message: string) => void;
   onCreateVersion: (relativePaths: string[]) => void;
+  onDiscardVersionFileChanges: (
+    path: string,
+    options?: { skipConfirmation?: boolean },
+  ) => void;
   onRestoreHistoryVersionFile: (file: WorkspaceVersionFileEntry) => void;
   onPrepareNewFile: () => void;
   onOpenFile: (path: string) => void;
@@ -127,6 +132,7 @@ export const ContextPanel = ({
   isCreatingVersion,
   isVersionHistoryLoading,
   restoringVersionFilePath,
+  discardingVersionFilePath,
   chatMode,
   collaborationPhase,
   selectedAgent,
@@ -139,6 +145,7 @@ export const ContextPanel = ({
   onSelectHistoryVersionFile,
   onVersionMessageChange,
   onCreateVersion,
+  onDiscardVersionFileChanges,
   onRestoreHistoryVersionFile,
   onPrepareNewFile,
   onOpenFile,
@@ -305,40 +312,40 @@ export const ContextPanel = ({
   );
 
   const gitPanel = (
-    <ScrollArea className="min-h-0 min-w-0 flex-1 overflow-hidden">
-      <div className="min-w-0 overflow-hidden p-3">
-        <VersionControlPanel
-          panelMode="worktree"
-          versionStatus={versionStatus}
-          versions={versions}
-          versionDiff={versionDiff}
-          versionFiles={versionFiles}
-          historyVersionDiff={historyVersionDiff}
-          selectedVersionFilePath={selectedVersionFilePath}
-          selectedHistoryVersionId={selectedHistoryVersionId}
-          selectedVersionHistoryBranchName={selectedVersionHistoryBranchName}
-          selectedVersionSnapshotFilePath={selectedVersionSnapshotFilePath}
-          versionMessage={versionMessage}
-          versionError={versionError}
-          isVersionControlLoading={isVersionControlLoading}
-          isVersionControlInitializing={isVersionControlInitializing}
-          isVersionDiffLoading={isVersionDiffLoading}
-          isVersionFilesLoading={isVersionFilesLoading}
-          isVersionFileContentLoading={isVersionFileContentLoading}
-          isCreatingVersion={isCreatingVersion}
-          isVersionHistoryLoading={isVersionHistoryLoading}
-          restoringVersionFilePath={restoringVersionFilePath}
-          onRefreshVersionControl={onRefreshVersionControl}
-          onSelectVersionFile={onSelectVersionFile}
-          onSelectHistoryVersion={onSelectHistoryVersion}
-          onSelectVersionHistoryBranch={onSelectVersionHistoryBranch}
-          onSelectHistoryVersionFile={onSelectHistoryVersionFile}
-          onVersionMessageChange={onVersionMessageChange}
-          onCreateVersion={onCreateVersion}
-          onRestoreHistoryVersionFile={onRestoreHistoryVersionFile}
-        />
-      </div>
-    </ScrollArea>
+    <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-3">
+      <VersionControlPanel
+        panelMode="worktree"
+        versionStatus={versionStatus}
+        versions={versions}
+        versionDiff={versionDiff}
+        versionFiles={versionFiles}
+        historyVersionDiff={historyVersionDiff}
+        selectedVersionFilePath={selectedVersionFilePath}
+        selectedHistoryVersionId={selectedHistoryVersionId}
+        selectedVersionHistoryBranchName={selectedVersionHistoryBranchName}
+        selectedVersionSnapshotFilePath={selectedVersionSnapshotFilePath}
+        versionMessage={versionMessage}
+        versionError={versionError}
+        isVersionControlLoading={isVersionControlLoading}
+        isVersionControlInitializing={isVersionControlInitializing}
+        isVersionDiffLoading={isVersionDiffLoading}
+        isVersionFilesLoading={isVersionFilesLoading}
+        isVersionFileContentLoading={isVersionFileContentLoading}
+        isCreatingVersion={isCreatingVersion}
+        isVersionHistoryLoading={isVersionHistoryLoading}
+        restoringVersionFilePath={restoringVersionFilePath}
+        discardingVersionFilePath={discardingVersionFilePath}
+        onRefreshVersionControl={onRefreshVersionControl}
+        onSelectVersionFile={onSelectVersionFile}
+        onSelectHistoryVersion={onSelectHistoryVersion}
+        onSelectVersionHistoryBranch={onSelectVersionHistoryBranch}
+        onSelectHistoryVersionFile={onSelectHistoryVersionFile}
+        onVersionMessageChange={onVersionMessageChange}
+        onCreateVersion={onCreateVersion}
+        onDiscardVersionFileChanges={onDiscardVersionFileChanges}
+        onRestoreHistoryVersionFile={onRestoreHistoryVersionFile}
+      />
+    </div>
   );
 
   const historyPanel = (
@@ -365,6 +372,7 @@ export const ContextPanel = ({
           isCreatingVersion={isCreatingVersion}
           isVersionHistoryLoading={isVersionHistoryLoading}
           restoringVersionFilePath={restoringVersionFilePath}
+          discardingVersionFilePath={discardingVersionFilePath}
           onRefreshVersionControl={onRefreshVersionControl}
           onSelectVersionFile={onSelectVersionFile}
           onSelectHistoryVersion={onSelectHistoryVersion}
@@ -372,6 +380,7 @@ export const ContextPanel = ({
           onSelectHistoryVersionFile={onSelectHistoryVersionFile}
           onVersionMessageChange={onVersionMessageChange}
           onCreateVersion={onCreateVersion}
+          onDiscardVersionFileChanges={onDiscardVersionFileChanges}
           onRestoreHistoryVersionFile={onRestoreHistoryVersionFile}
         />
       </div>
