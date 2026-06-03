@@ -27,6 +27,7 @@ import {
   recordAgentMemoryEvent,
   resolveAppContextWindow,
   type AgentMemoryTrace,
+  type ContextRagMatch,
   type ConversationSummarizer,
   normalizeChatContextSummary,
   normalizeConversationMessages,
@@ -40,6 +41,9 @@ import { getLlmSettings } from "@/features/llm-settings/api";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
+import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
+import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
+import { appStorageKey } from "@/product-config";
 import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
@@ -174,6 +178,24 @@ const upsertChatSessionMeta = (
 
 const getRunningAgentSessionKey = (workspacePath: string, sessionId: string) =>
   `${workspacePath}\u0000${sessionId}`;
+
+const CONTEXT_ENGINE_STORAGE_KEY = appStorageKey("context-engine");
+
+const readPreferredContextEngineId = () => {
+  try {
+    return getContextEngine(window.localStorage.getItem(CONTEXT_ENGINE_STORAGE_KEY)).id;
+  } catch {
+    return DEFAULT_CONTEXT_ENGINE_ID;
+  }
+};
+
+const writePreferredContextEngineId = (engineId: string) => {
+  try {
+    window.localStorage.setItem(CONTEXT_ENGINE_STORAGE_KEY, engineId);
+  } catch {
+    // Ignore storage failures; the in-memory state still applies for this session.
+  }
+};
 
 const moveHistoryItem = <T extends { id: string }>(
   items: T[],
@@ -315,6 +337,17 @@ const formatDebugMessages = (messages: ConversationMessage[]) => messages.length
     .join("\n\n---\n\n")
   : "（空）";
 
+const formatKnowledgeMatches = (matches: ContextRagMatch[]) => matches.length
+  ? matches
+    .map((match, index) => [
+      `K${index + 1} score=${match.score?.toFixed(3) ?? "n/a"}`,
+      match.title ? `title: ${match.title}` : "",
+      match.path ? `path: ${match.path}` : "",
+      match.content,
+    ].filter(Boolean).join("\n"))
+    .join("\n\n---\n\n")
+  : "（空）";
+
 const formatAgentInitialPromptPreview = (
   bootstrapContext: string,
   prompt: string,
@@ -343,8 +376,10 @@ export const WorkspaceChatPage = ({
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const availableContextEngines = useMemo(() => listContextEngines(), []);
-  const [contextEngineId, setContextEngineId] = useState(DEFAULT_CONTEXT_ENGINE_ID);
+  const [contextEngineId, setContextEngineId] = useState(readPreferredContextEngineId);
   const contextEngine = useMemo(() => getContextEngine(contextEngineId), [contextEngineId]);
+  const preferredContextEngineIdRef = useRef(contextEngineId);
+  const knowledgeRagIndex = useMemo(() => createGlobalKnowledgeRagIndex(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const activeAgentSessionIdRef = useRef("");
@@ -595,6 +630,9 @@ export const WorkspaceChatPage = ({
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
+    setContextEngineId(getContextEngine(
+      task.context?.engine?.id ?? preferredContextEngineIdRef.current,
+    ).id);
     setPendingAgentQuestion(task.pendingQuestion);
     setAgentQuestionAnswer(task.questionAnswer);
     setCustomAgentQuestionAnswer(task.customQuestionAnswer);
@@ -703,8 +741,11 @@ export const WorkspaceChatPage = ({
       return;
     }
 
+    const nextEngine = getContextEngine(engineId);
     setSettingsError("");
-    setContextEngineId(getContextEngine(engineId).id);
+    preferredContextEngineIdRef.current = nextEngine.id;
+    writePreferredContextEngineId(nextEngine.id);
+    setContextEngineId(nextEngine.id);
   }, [visibleActiveAgentTaskId]);
 
   const hydrateSession = useCallback((
@@ -746,7 +787,9 @@ export const WorkspaceChatPage = ({
     setConversation(visibleConversation);
     setConversationContext(hydratedContext);
     setContextDebugSnapshot(null);
-    setContextEngineId(getContextEngine(hydratedContext?.engine?.id).id);
+    setContextEngineId(getContextEngine(
+      runningTask?.context?.engine?.id ?? preferredContextEngineIdRef.current,
+    ).id);
     const nextSessionId = session?.id ?? null;
     const nextSessionTitle = session?.title || DEFAULT_SESSION_TITLE;
     currentSessionIdRef.current = nextSessionId;
@@ -3108,10 +3151,26 @@ export const WorkspaceChatPage = ({
           ...overrides,
         });
       };
+      const knowledgeMatches = contextEngine.capabilities.includes("rag_index")
+        ? await knowledgeRagIndex.search({
+          query: text,
+          conversation: nextConversation,
+          references: referencedFiles,
+          maxResults: 8,
+          metadata: {
+            workspaceId: workspace.id,
+            workspacePath: workspace.path,
+          },
+        })
+        : [];
+      const knowledgeDebugPayload: ContextDebugPayload = {
+        label: "retrieved knowledge",
+        content: formatKnowledgeMatches(knowledgeMatches),
+      };
 
       if (chatMode === "collab" && selectedAgent && reviewerAgent) {
         setCollaborationPhase("drafting");
-        const debugPayloads: ContextDebugPayload[] = [];
+        const debugPayloads: ContextDebugPayload[] = [knowledgeDebugPayload];
         const draftSystemPrompt = buildCollaborationSystemPrompt(
           workspace,
           activeFile,
@@ -3124,6 +3183,7 @@ export const WorkspaceChatPage = ({
             conversationSummary,
             agentExecutionSummary: currentAgentExecutionSummary,
             contextQuery: text,
+            knowledgeMatches,
           },
         );
         debugPayloads.push(
@@ -3170,6 +3230,7 @@ export const WorkspaceChatPage = ({
             conversationSummary,
             agentExecutionSummary: currentAgentExecutionSummary,
             contextQuery: text,
+            knowledgeMatches,
           },
         );
         const reviewMessages = contextEngine.selectConversationMessages([
@@ -3228,6 +3289,7 @@ export const WorkspaceChatPage = ({
             conversationSummary,
             agentExecutionSummary: currentAgentExecutionSummary,
             contextQuery: text,
+            knowledgeMatches,
           },
         );
         const reviseMessages = contextEngine.selectConversationMessages([
@@ -3359,10 +3421,12 @@ export const WorkspaceChatPage = ({
           agentSessionStatus: currentAgentSessionStatus,
           text,
           references: referencedFiles,
+          knowledgeMatches,
           selectedAgent: modelSource === "agent" ? selectedAgent : null,
           limits: agentLimits,
         });
         publishContextDebugSnapshot([
+          knowledgeDebugPayload,
           {
             label: "bridge initial prompt",
             content: formatAgentInitialPromptPreview(
@@ -3451,9 +3515,11 @@ export const WorkspaceChatPage = ({
           conversationSummary,
           agentExecutionSummary: currentAgentExecutionSummary,
           contextQuery: text,
+          knowledgeMatches,
         },
       );
       publishContextDebugSnapshot([
+        knowledgeDebugPayload,
         { label: "systemPrompt", content: systemPrompt },
         { label: "messages", content: formatDebugMessages(runtimeMessages) },
       ]);
@@ -3649,11 +3715,18 @@ export const WorkspaceChatPage = ({
     <SettingsPanel
       settingsError={settingsError}
       skillsError={skillsError}
-      contextEngineId={contextEngineId}
-      contextEngines={availableContextEngines}
       onBack={() => setWorkspaceView("chat")}
       onOpenLlmSettings={() => setIsLlmSettingsOpen(true)}
       onOpenAgentSettings={() => setIsAgentSettingsOpen(true)}
+    />
+  );
+
+  const knowledgePanel = (
+    <KnowledgeBasePage
+      contextEngineId={contextEngineId}
+      contextEngines={availableContextEngines}
+      providers={providers}
+      onBack={() => setWorkspaceView("chat")}
       onContextEngineChange={changeContextEngine}
     />
   );
@@ -3732,11 +3805,18 @@ export const WorkspaceChatPage = ({
           Boolean(visibleActiveAgentTaskId)
         )}
         showAllSessions={showAllSessions}
+        isKnowledgeOpen={workspaceView === "knowledge"}
         onOpenWorkspace={openWorkspaceFromCurrentContext}
         onEditWorkspace={onEditWorkspace}
         onStartNewSession={startSidebarSession}
         onOpenContext={openContextWorkbench}
         onOpenSkills={() => setIsSkillsDialogOpen(true)}
+        onOpenKnowledge={() => {
+          setIsContextWorkbenchOpen(false);
+          setIsLlmSettingsOpen(false);
+          setIsAgentSettingsOpen(false);
+          setWorkspaceView("knowledge");
+        }}
         onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}
         onRemoveDefaultSession={(sessionId) => void removeDefaultSession(sessionId)}
         onLoadWorkspaceSession={(targetWorkspace, sessionId) => void loadWorkspaceSessionById(targetWorkspace, sessionId)}
@@ -3747,7 +3827,7 @@ export const WorkspaceChatPage = ({
 
       <WorkbenchHeader
         isContextPanelOpen={isContextPanelOpen}
-        showToggle={workspaceView !== "settings"}
+        showToggle={workspaceView === "chat"}
         versionStatus={versionStatus}
         isVersionControlLoading={isVersionControlLoading}
         isVersionControlInitializing={isVersionControlInitializing}
@@ -3765,6 +3845,8 @@ export const WorkspaceChatPage = ({
           <div className="min-w-0 flex-1 overflow-hidden bg-background/95 shadow-[inset_8px_0_24px_-28px_rgb(15_23_42_/_0.35),inset_-8px_0_24px_-28px_rgb(15_23_42_/_0.28)]">
             {workspaceView === "settings" ? (
               settingsPanel
+            ) : workspaceView === "knowledge" ? (
+              knowledgePanel
             ) : filePreviewMode === "expanded" ? (
               filePanel
             ) : filePreviewMode === "side" ? (
@@ -3781,7 +3863,7 @@ export const WorkspaceChatPage = ({
             )}
           </div>
 
-          {isContextPanelOpen && workspaceView !== "settings" && (
+          {isContextPanelOpen && workspaceView === "chat" && (
             <ContextPanel
               selectableFileCount={selectableFiles.length}
               isFilesLoading={isFilesLoading}

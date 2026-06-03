@@ -64,3 +64,55 @@ pub struct SaveAiAgentInput {
     pub provider_id: String,
     pub model_id: String,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveKnowledgeCollectionInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+    pub order: Option<i64>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveKnowledgeSourceInput {
+    pub id: Option<String>,
+    pub kind: String,
+    pub uri: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub include_patterns_json: Option<String>,
+    pub exclude_patterns_json: Option<String>,
+    pub metadata_json: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveKnowledgeSettingsInput {
+    pub storage_directory: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetKnowledgeCollectionSourcesInput {
+    pub collection_id: String,
+    pub source_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveEmbeddingProfileInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub provider_id: Option<String>,
+    pub provider_kind: String,
+    pub base_url: Option<String>,
+    pub model_id: String,
+    pub dimensions: i64,
+    pub batch_size: Option<i64>,
+    pub is_default: bool,
+}

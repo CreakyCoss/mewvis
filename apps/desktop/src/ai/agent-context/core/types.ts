@@ -140,3 +140,13 @@ export type PromptWorkspaceFile = {
   content: string;
   updatedAt: number | null;
 };
+
+export type PromptKnowledgeReference = {
+  id: string;
+  content: string;
+  path?: string | null;
+  title?: string | null;
+  score?: number | null;
+  chunkId?: string | null;
+  metadata?: Record<string, unknown>;
+};

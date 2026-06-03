@@ -2,6 +2,7 @@ import {
   Bot,
   ChevronDown,
   ChevronUp,
+  Database,
   Folder,
   LoaderCircle,
   MessageSquarePlus,
@@ -44,11 +45,13 @@ type SidebarProps = {
   isAgentSessionRunning: (workspacePath: string, sessionId: string) => boolean;
   suppressDefaultLoadingState: boolean;
   showAllSessions: boolean;
+  isKnowledgeOpen: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
   onEditWorkspace: (workspace: Workspace) => void;
   onStartNewSession: () => void;
   onOpenContext: () => void;
   onOpenSkills: () => void;
+  onOpenKnowledge: () => void;
   onLoadDefaultSession: (sessionId: string) => void;
   onRemoveDefaultSession: (sessionId: string) => void;
   onLoadWorkspaceSession: (workspace: Workspace, sessionId: string) => void;
@@ -200,11 +203,13 @@ export const Sidebar = ({
   isAgentSessionRunning,
   suppressDefaultLoadingState,
   showAllSessions,
+  isKnowledgeOpen,
   onOpenWorkspace,
   onEditWorkspace,
   onStartNewSession,
   onOpenContext,
   onOpenSkills,
+  onOpenKnowledge,
   onLoadDefaultSession,
   onRemoveDefaultSession,
   onLoadWorkspaceSession,
@@ -273,6 +278,17 @@ export const Sidebar = ({
       >
         <Wrench className="size-4" />
         <span>技能广场</span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-10 w-full justify-start rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted/55 data-[active=true]:bg-muted/55"
+        title="知识库"
+        data-active={isKnowledgeOpen}
+        onClick={onOpenKnowledge}
+      >
+        <Database className="size-4" />
+        <span>知识库</span>
       </Button>
     </div>
 

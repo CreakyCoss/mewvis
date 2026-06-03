@@ -11,6 +11,10 @@ pub fn default_workspace_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app_data_dir(app)?.join(default_workspace_dir_name()))
 }
 
+pub fn rag_index_db_path(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app_data_dir(app)?.join("rag").join("index.sqlite"))
+}
+
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let home_dir = app
         .path()

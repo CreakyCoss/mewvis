@@ -14,12 +14,99 @@ struct ConfigMigrationStep {
 
 const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
     // Bump CONFIG_SCHEMA_VERSION only with a matching target_version step.
-    // ConfigMigrationStep {
-    //     target_version: 4,
-    //     name: "add_example_config_migration",
-    //     run: add_example_config_migration,
-    // },
+    ConfigMigrationStep {
+        target_version: 4,
+        name: "add_knowledge_library",
+        run: add_knowledge_library,
+    },
+    ConfigMigrationStep {
+        target_version: 5,
+        name: "add_embedding_profile_base_url",
+        run: add_embedding_profile_base_url,
+    },
 ];
+
+fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS knowledge_collections (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            color TEXT,
+            "order" INTEGER NOT NULL DEFAULT 0,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(name)
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_sources (
+            id TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            uri TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            include_patterns_json TEXT,
+            exclude_patterns_json TEXT,
+            metadata_json TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(kind, uri)
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_collection_sources (
+            collection_id TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY(collection_id, source_id),
+            FOREIGN KEY(collection_id) REFERENCES knowledge_collections(id) ON DELETE CASCADE,
+            FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_settings (
+            key TEXT PRIMARY KEY,
+            value_json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS embedding_profiles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            provider_id TEXT,
+            provider_kind TEXT NOT NULL,
+            base_url TEXT,
+            model_id TEXT NOT NULL,
+            dimensions INTEGER NOT NULL,
+            batch_size INTEGER NOT NULL DEFAULT 64,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY(provider_id) REFERENCES llm_providers(id) ON DELETE SET NULL
+        );
+        "#,
+    )
+    .map_err(|error| format!("无法创建知识库配置表：{error}"))
+}
+
+fn add_embedding_profile_base_url(conn: &Connection) -> Result<(), String> {
+    let mut statement = conn
+        .prepare("PRAGMA table_info(embedding_profiles)")
+        .map_err(|error| format!("无法读取 Embedding 配置表结构：{error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("无法读取 Embedding 配置表字段：{error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析 Embedding 配置表字段：{error}"))?;
+
+    if columns.iter().any(|column| column == "base_url") {
+        return Ok(());
+    }
+
+    conn.execute_batch("ALTER TABLE embedding_profiles ADD COLUMN base_url TEXT;")
+        .map_err(|error| format!("无法添加 Embedding 地址配置：{error}"))
+}
 
 pub(crate) fn run_config_migrations(
     conn: &Connection,

@@ -91,3 +91,62 @@ pub struct AiAgentSettings {
 pub struct WorkspaceSkillSettings {
     pub enabled_skill_names: Vec<String>,
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeCollection {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: Option<String>,
+    pub order: i64,
+    pub enabled: bool,
+    pub source_ids: Vec<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeSource {
+    pub id: String,
+    pub kind: String,
+    pub uri: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub include_patterns_json: Option<String>,
+    pub exclude_patterns_json: Option<String>,
+    pub metadata_json: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeLibrary {
+    pub collections: Vec<KnowledgeCollection>,
+    pub sources: Vec<KnowledgeSource>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeSettings {
+    pub storage_directory: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbeddingProfile {
+    pub id: String,
+    pub name: String,
+    pub provider_id: Option<String>,
+    pub provider_kind: String,
+    pub base_url: Option<String>,
+    pub model_id: String,
+    pub dimensions: i64,
+    pub batch_size: i64,
+    pub is_default: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}

@@ -1,6 +1,7 @@
 mod agent_sessions;
 mod chat_sessions;
 mod files;
+mod knowledge;
 mod overview;
 mod skills;
 mod version_control;
@@ -14,6 +15,7 @@ pub use chat_sessions::{
 pub use files::{
     delete_workspace_file, list_workspace_files, read_workspace_file, write_workspace_file,
 };
+pub use knowledge::search_workspace_knowledge;
 pub use overview::{create_workspace, get_workspace_overview, update_workspace};
 pub use skills::{get_workspace_skills, save_workspace_skills};
 pub use version_control::{

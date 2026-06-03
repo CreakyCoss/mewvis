@@ -36,6 +36,7 @@ import type {
   ConversationMessage,
   PromptAgentProfile,
   PromptFileReference,
+  PromptKnowledgeReference,
 } from "../core/types";
 
 export const DEFAULT_CONTEXT_ENGINE_ID = "rolling-summary";
@@ -101,6 +102,7 @@ export type BuildAgentRunPromptPayloadInput = {
   agentSessionStatus?: AgentSessionStatus | null;
   text: string;
   references: PromptFileReference[];
+  knowledgeMatches?: PromptKnowledgeReference[];
   selectedAgent: PromptAgentProfile | null;
   limits: PromptContextLimits;
 };
@@ -306,6 +308,7 @@ export const buildAgentRunPromptPayload = ({
   agentSessionStatus,
   text,
   references,
+  knowledgeMatches,
   selectedAgent,
   limits,
 }: BuildAgentRunPromptPayloadInput): AgentRunPromptPayload => {
@@ -339,6 +342,7 @@ export const buildAgentRunPromptPayload = ({
         includeConversationSummary: promptHistory.syncStatus === "stale",
         includeRecentConversation: true,
         contextQuery: text,
+        knowledgeMatches,
       },
     ),
     shouldBootstrapAgentContext,
@@ -512,7 +516,7 @@ export const defaultContextEngine = registerContextEngine(createDefaultContextEn
 export const ragContextEngine = registerContextEngine(createDefaultContextEngine({
   id: RAG_CONTEXT_ENGINE_ID,
   label: "RAG 索引",
-  description: "预留工作区索引召回接口；当前仍回退到滚动摘要。",
+  description: "发送消息时从全局知识库已启用集合召回相关片段，并结合滚动摘要回答。",
   capabilities: ["rolling_summary", "agent_session_sync", "rag_index"],
   experimental: true,
   services: {
@@ -526,7 +530,7 @@ export const ragContextEngine = registerContextEngine(createDefaultContextEngine
 export const hybridMemoryContextEngine = registerContextEngine(createDefaultContextEngine({
   id: HYBRID_MEMORY_CONTEXT_ENGINE_ID,
   label: "混合记忆",
-  description: "预留 RAG 与多层 memory 接口；当前仍回退到滚动摘要。",
+  description: "结合全局知识库召回、滚动摘要和预留多层记忆快照管理上下文。",
   capabilities: ["rolling_summary", "agent_session_sync", "rag_index", "memory_layers"],
   experimental: true,
   services: {

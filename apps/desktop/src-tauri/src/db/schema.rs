@@ -152,6 +152,121 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
             );
         "#,
     },
+    DatabaseTableSchema {
+        name: "knowledge_collections",
+        columns: &[
+            "id",
+            "name",
+            "description",
+            "color",
+            "order",
+            "enabled",
+            "created_at",
+            "updated_at",
+        ],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS knowledge_collections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                color TEXT,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(name)
+            );
+        "#,
+    },
+    DatabaseTableSchema {
+        name: "knowledge_sources",
+        columns: &[
+            "id",
+            "kind",
+            "uri",
+            "title",
+            "description",
+            "enabled",
+            "include_patterns_json",
+            "exclude_patterns_json",
+            "metadata_json",
+            "created_at",
+            "updated_at",
+        ],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS knowledge_sources (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                uri TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                include_patterns_json TEXT,
+                exclude_patterns_json TEXT,
+                metadata_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(kind, uri)
+            );
+        "#,
+    },
+    DatabaseTableSchema {
+        name: "knowledge_collection_sources",
+        columns: &["collection_id", "source_id", "created_at"],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS knowledge_collection_sources (
+                collection_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(collection_id, source_id),
+                FOREIGN KEY(collection_id) REFERENCES knowledge_collections(id) ON DELETE CASCADE,
+                FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE
+            );
+        "#,
+    },
+    DatabaseTableSchema {
+        name: "knowledge_settings",
+        columns: &["key", "value_json", "updated_at"],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS knowledge_settings (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
+    DatabaseTableSchema {
+        name: "embedding_profiles",
+        columns: &[
+            "id",
+            "name",
+            "provider_id",
+            "provider_kind",
+            "base_url",
+            "model_id",
+            "dimensions",
+            "batch_size",
+            "is_default",
+            "created_at",
+            "updated_at",
+        ],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS embedding_profiles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider_id TEXT,
+                provider_kind TEXT NOT NULL,
+                base_url TEXT,
+                model_id TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                batch_size INTEGER NOT NULL DEFAULT 64,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY(provider_id) REFERENCES llm_providers(id) ON DELETE SET NULL
+            );
+        "#,
+    },
 ];
 
 const WORKSPACE_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[];

@@ -118,7 +118,7 @@ mod tests {
             .expect("read user version");
 
         assert_eq!(name, "Test Provider");
-        assert_eq!(user_version, 3);
+        assert_eq!(user_version, CONFIG_SCHEMA_VERSION);
 
         remove_temp_config_db(&db_path);
     }
@@ -147,7 +147,7 @@ mod tests {
             )
             .expect("read default group count");
 
-        assert_eq!(user_version, 3);
+        assert_eq!(user_version, CONFIG_SCHEMA_VERSION);
         assert_eq!(default_group_count, 1);
 
         remove_temp_config_db(&db_path);
