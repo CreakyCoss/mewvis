@@ -1,7 +1,6 @@
 import type { FileTreeNode } from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
-
-const VERSION_RULE_FILE_PATH = ".gitignore";
+import { VERSION_RULE_FILE_PATH } from "./version-control";
 
 const compareFileTreeNodes = (left: FileTreeNode, right: FileTreeNode) => {
   const leftIsVersionRule = left.path === VERSION_RULE_FILE_PATH;

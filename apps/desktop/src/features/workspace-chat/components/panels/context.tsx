@@ -24,40 +24,15 @@ import type {
 } from "../../types";
 import { CollaborationStatusPanel } from "../collaboration-status-panel";
 import { VersionControlPanel } from "./version-control";
-
-const VERSION_RULE_FILE_PATH = ".gitignore";
+import {
+  fileStatusBadgeClasses,
+  fileStatusLabels,
+  fileStatusTitles,
+} from "./version-control/status";
+import { VersionRuleBadge } from "./version-control/version-rule-badge";
+import { VERSION_RULE_FILE_PATH } from "../../utils/version-control";
 
 type ContextPanelTool = "files" | "git" | "history";
-
-const fileStatusLabels: Record<WorkspaceVersionFileStatus["status"], string> = {
-  added: "新增",
-  modified: "修改",
-  deleted: "删除",
-  renamed: "重命名",
-  typechange: "类型",
-  conflicted: "冲突",
-  untracked: "新增",
-};
-
-const fileStatusTitles: Record<WorkspaceVersionFileStatus["status"], string> = {
-  added: "新增文件",
-  modified: "已修改",
-  deleted: "已删除",
-  renamed: "已重命名",
-  typechange: "类型变更",
-  conflicted: "存在冲突",
-  untracked: "新增文件",
-};
-
-const fileStatusBadgeClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
-  added: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-  modified: "bg-amber-100 text-amber-700 ring-amber-200",
-  deleted: "bg-destructive/10 text-destructive ring-destructive/20",
-  renamed: "bg-sky-100 text-sky-700 ring-sky-200",
-  typechange: "bg-violet-100 text-violet-700 ring-violet-200",
-  conflicted: "bg-destructive/10 text-destructive ring-destructive/20",
-  untracked: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-};
 
 type ContextPanelProps = {
   selectableFileCount: number;
@@ -234,11 +209,7 @@ export const ContextPanel = ({
             {node.name}
           </span>
         </button>
-        {isVersionRuleFile && (
-          <span className="shrink-0 rounded-sm bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
-            版本规则
-          </span>
-        )}
+        {isVersionRuleFile && <VersionRuleBadge />}
         {fileStatus && (
           <span
             className={cn(
