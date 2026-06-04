@@ -47,10 +47,8 @@ import { appStorageKey } from "@/product-config";
 import { getWorkspaceSkills, saveWorkspaceSkills } from "@/features/workspace-skills/api";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { WorkspaceSkill } from "@/features/workspace-skills/types";
-import { getWorkspaceOverview } from "@/features/workspaces/api";
 import { isDefaultWorkspace } from "@/features/workspaces/default-workspace";
 import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
-import { buildSections } from "@/features/workspaces/utils/sections";
 import {
   cleanupOrphanAgentSessions,
   createWorkspaceVersion,
@@ -128,6 +126,9 @@ import { WorkbenchHeader } from "./workbench-header";
 
 type WorkspaceChatPageProps = {
   workspace: Workspace;
+  workspaceSections: WorkspaceSection[];
+  isWorkspaceOverviewLoading: boolean;
+  workspaceOverviewError: string;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
   onEditWorkspace: (workspace: Workspace) => void;
@@ -337,10 +338,28 @@ const formatDebugMessages = (messages: ConversationMessage[]) => messages.length
     .join("\n\n---\n\n")
   : "（空）";
 
+const debugMetadataString = (
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+) => {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+};
+
 const formatKnowledgeMatches = (matches: ContextRagMatch[]) => matches.length
   ? matches
     .map((match, index) => [
-      `K${index + 1} score=${match.score?.toFixed(3) ?? "n/a"}`,
+      `K${index + 1} origin=RAG score=${match.score?.toFixed(3) ?? "n/a"}`,
+      `backend: ${debugMetadataString(match.metadata, "backend") || "global-knowledge-library"}`,
+      `retrieval: ${debugMetadataString(match.metadata, "retrieval") || "hybrid-vector-fts"}`,
+      `scope: ${debugMetadataString(match.metadata, "scope") || "enabled_collections"}`,
+      debugMetadataString(match.metadata, "sourceType")
+        ? `sourceType: ${debugMetadataString(match.metadata, "sourceType")}`
+        : "",
+      debugMetadataString(match.metadata, "sourceId")
+        ? `sourceId: ${debugMetadataString(match.metadata, "sourceId")}`
+        : "",
+      match.chunkId ? `chunkId: ${match.chunkId}` : "",
       match.title ? `title: ${match.title}` : "",
       match.path ? `path: ${match.path}` : "",
       match.content,
@@ -370,6 +389,9 @@ const formatAgentInitialPromptPreview = (
 
 export const WorkspaceChatPage = ({
   workspace,
+  workspaceSections,
+  isWorkspaceOverviewLoading,
+  workspaceOverviewError,
   onOpenWorkspace,
   onCreateWorkspace,
   onEditWorkspace,
@@ -406,6 +428,15 @@ export const WorkspaceChatPage = ({
   const saveSessionTimerRef = useRef<number | null>(null);
   const agentBlockCollapseTimersRef = useRef<Map<string, number>>(new Map());
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const workspaceSidebarSessionsSignatureRef = useRef("");
+  const workspaceSidebarSessionsRequestIdRef = useRef(0);
+  const defaultSidebarSessionsWorkspaceIdRef = useRef("");
+  const defaultSidebarSessionsRequestIdRef = useRef(0);
+  const sessionsRequestIdRef = useRef(0);
+  const agentSessionStatusRequestIdRef = useRef(0);
+  const fileListRequestIdRef = useRef(0);
+  const versionControlRequestIdRef = useRef(0);
+  const loadVersionControlRef = useRef<((historyBranchOverride?: string) => Promise<void>) | null>(null);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
@@ -474,9 +505,6 @@ export const WorkspaceChatPage = ({
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
-  const [projectSections, setProjectSections] = useState<WorkspaceSection[]>([]);
-  const [projectsError, setProjectsError] = useState("");
-  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
   const [runningAgentSessionKeys, setRunningAgentSessionKeys] = useState<Set<string>>(() => new Set());
@@ -683,24 +711,6 @@ export const WorkspaceChatPage = ({
     setCustomAgentQuestionAnswer("");
   }, [workspace.path]);
 
-  const loadProjects = useCallback(async () => {
-    setIsProjectsLoading(true);
-    setProjectsError("");
-
-    try {
-      const overview = await getWorkspaceOverview();
-      setProjectSections(buildSections(overview));
-    } catch (caught) {
-      setProjectsError(String(caught));
-    } finally {
-      setIsProjectsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadProjects();
-  }, [loadProjects, workspace.id, workspace.updatedAt]);
-
   const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     window.requestAnimationFrame(() => {
       const viewport = chatScrollAreaRef.current?.querySelector<HTMLElement>(
@@ -821,8 +831,8 @@ export const WorkspaceChatPage = ({
   }, [detachActiveAgentTask, workspace.path]);
 
   const allSidebarWorkspaces = useMemo(
-    () => projectSections.flatMap((section) => section.workspaces),
-    [projectSections],
+    () => workspaceSections.flatMap((section) => section.workspaces),
+    [workspaceSections],
   );
   const defaultWorkspace = useMemo(
     () => allSidebarWorkspaces.find(isDefaultWorkspace) ?? (isDefaultWorkspace(workspace) ? workspace : null),
@@ -833,6 +843,10 @@ export const WorkspaceChatPage = ({
     () => allSidebarWorkspaces.filter((item) => !isDefaultWorkspace(item)),
     [allSidebarWorkspaces],
   );
+  const sidebarWorkspacesSignature = useMemo(
+    () => sidebarWorkspaces.map((item) => `${item.id}\u0000${item.path}`).join("\u0001"),
+    [sidebarWorkspaces],
+  );
   const sidebarChatSessions = isActiveDefaultWorkspace
     ? chatSessions
     : defaultChatSessions;
@@ -841,6 +855,8 @@ export const WorkspaceChatPage = ({
     : sidebarChatSessions.slice(0, 5);
 
   const loadSessions = useCallback(async () => {
+    const requestId = sessionsRequestIdRef.current + 1;
+    sessionsRequestIdRef.current = requestId;
     setIsSessionsLoading(true);
     setSessionsError("");
     const workspaceSessionIdToLoad =
@@ -860,6 +876,9 @@ export const WorkspaceChatPage = ({
           ? Promise.resolve(null)
           : loadChatSession(workspace.path, sessionIdToLoad),
       ]);
+      if (sessionsRequestIdRef.current !== requestId) {
+        return;
+      }
       setChatSessions(sortChatSessionsByFixedOrder(sessions));
       if (shouldStartEmptySession) {
         closeSettingsAndContextPanels();
@@ -895,9 +914,13 @@ export const WorkspaceChatPage = ({
         }
         : null);
     } catch (caught) {
-      setSessionsError(String(caught));
+      if (sessionsRequestIdRef.current === requestId) {
+        setSessionsError(String(caught));
+      }
     } finally {
-      setIsSessionsLoading(false);
+      if (sessionsRequestIdRef.current === requestId) {
+        setIsSessionsLoading(false);
+      }
     }
   }, [
     closeSettingsAndContextPanels,
@@ -911,11 +934,17 @@ export const WorkspaceChatPage = ({
 
   const loadWorkspaceSidebarSessions = useCallback(async () => {
     if (!sidebarWorkspaces.length) {
+      workspaceSidebarSessionsSignatureRef.current = "";
       setWorkspaceSessionsById({});
       setIsWorkspaceSessionsLoading(false);
       return;
     }
+    if (workspaceSidebarSessionsSignatureRef.current === sidebarWorkspacesSignature) {
+      return;
+    }
 
+    const requestId = workspaceSidebarSessionsRequestIdRef.current + 1;
+    workspaceSidebarSessionsRequestIdRef.current = requestId;
     setIsWorkspaceSessionsLoading(true);
     setSessionsError("");
 
@@ -926,6 +955,10 @@ export const WorkspaceChatPage = ({
           await listChatSessions(item.path),
         ] as const),
       );
+      if (workspaceSidebarSessionsRequestIdRef.current !== requestId) {
+        return;
+      }
+      workspaceSidebarSessionsSignatureRef.current = sidebarWorkspacesSignature;
       setWorkspaceSessionsById(Object.fromEntries(
         entries.map(([workspaceId, sessions]) => [
           workspaceId,
@@ -933,38 +966,56 @@ export const WorkspaceChatPage = ({
         ]),
       ));
     } catch (caught) {
-      setSessionsError(String(caught));
+      if (workspaceSidebarSessionsRequestIdRef.current === requestId) {
+        setSessionsError(String(caught));
+      }
     } finally {
-      setIsWorkspaceSessionsLoading(false);
+      if (workspaceSidebarSessionsRequestIdRef.current === requestId) {
+        setIsWorkspaceSessionsLoading(false);
+      }
     }
-  }, [sidebarWorkspaces]);
+  }, [sidebarWorkspaces, sidebarWorkspacesSignature]);
 
   const loadDefaultSidebarSessions = useCallback(async () => {
     if (!defaultWorkspace || isActiveDefaultWorkspace) {
       return;
     }
+    if (defaultSidebarSessionsWorkspaceIdRef.current === defaultWorkspace.id) {
+      return;
+    }
 
+    const requestId = defaultSidebarSessionsRequestIdRef.current + 1;
+    defaultSidebarSessionsRequestIdRef.current = requestId;
     setIsDefaultSessionsLoading(true);
     setSessionsError("");
 
     try {
       const sessions = await listChatSessions(defaultWorkspace.path);
+      if (defaultSidebarSessionsRequestIdRef.current !== requestId) {
+        return;
+      }
+      defaultSidebarSessionsWorkspaceIdRef.current = defaultWorkspace.id;
       setDefaultChatSessions(sortChatSessionsByFixedOrder(sessions));
     } catch (caught) {
-      setSessionsError(String(caught));
+      if (defaultSidebarSessionsRequestIdRef.current === requestId) {
+        setSessionsError(String(caught));
+      }
     } finally {
-      setIsDefaultSessionsLoading(false);
+      if (defaultSidebarSessionsRequestIdRef.current === requestId) {
+        setIsDefaultSessionsLoading(false);
+      }
     }
   }, [defaultWorkspace, isActiveDefaultWorkspace]);
 
   useEffect(() => {
     if (isActiveDefaultWorkspace) {
+      defaultSidebarSessionsWorkspaceIdRef.current = workspace.id;
       setDefaultChatSessions(chatSessions);
       return;
     }
 
     void loadDefaultSidebarSessions();
-  }, [chatSessions, isActiveDefaultWorkspace, loadDefaultSidebarSessions]);
+  }, [chatSessions, isActiveDefaultWorkspace, loadDefaultSidebarSessions, workspace.id]);
 
   useEffect(() => {
     void loadWorkspaceSidebarSessions();
@@ -982,21 +1033,32 @@ export const WorkspaceChatPage = ({
   }, [chatSessions, isActiveDefaultWorkspace, workspace.id]);
 
   const refreshAgentSessionStatus = useCallback(async () => {
+    const requestId = agentSessionStatusRequestIdRef.current + 1;
+    agentSessionStatusRequestIdRef.current = requestId;
     setIsAgentSessionLoading(true);
     setAgentSessionError("");
 
     try {
       if (!agentRuntimeSessionId) {
-        setAgentSessionStatus(null);
+        if (agentSessionStatusRequestIdRef.current === requestId) {
+          setAgentSessionStatus(null);
+        }
         return;
       }
 
       const status = await getAgentSessionStatus(workspace.path, agentRuntimeSessionId);
+      if (agentSessionStatusRequestIdRef.current !== requestId) {
+        return;
+      }
       setAgentSessionStatus(status);
     } catch (caught) {
-      setAgentSessionError(String(caught));
+      if (agentSessionStatusRequestIdRef.current === requestId) {
+        setAgentSessionError(String(caught));
+      }
     } finally {
-      setIsAgentSessionLoading(false);
+      if (agentSessionStatusRequestIdRef.current === requestId) {
+        setIsAgentSessionLoading(false);
+      }
     }
   }, [agentRuntimeSessionId, workspace.path]);
 
@@ -1398,11 +1460,16 @@ export const WorkspaceChatPage = ({
   }, []);
 
   const loadVersionControl = useCallback(async (historyBranchOverride?: string) => {
+    const requestId = versionControlRequestIdRef.current + 1;
+    versionControlRequestIdRef.current = requestId;
     setIsVersionControlLoading(true);
     setVersionError("");
 
     try {
       const status = await getWorkspaceVersionControlStatus(workspace.path);
+      if (versionControlRequestIdRef.current !== requestId) {
+        return;
+      }
       setVersionStatus(status);
       setSelectedVersionFilePath((currentPath) => {
         if (!currentPath || status.files.some((file) => file.path === currentPath)) {
@@ -1446,6 +1513,9 @@ export const WorkspaceChatPage = ({
           workspace.path,
           historyBranchName || undefined,
         );
+        if (versionControlRequestIdRef.current !== requestId) {
+          return;
+        }
         setVersions(nextVersions);
         if (
           selectedHistoryVersionId &&
@@ -1454,13 +1524,19 @@ export const WorkspaceChatPage = ({
           clearSelectedVersionSnapshot();
         }
       } finally {
-        setIsVersionHistoryLoading(false);
+        if (versionControlRequestIdRef.current === requestId) {
+          setIsVersionHistoryLoading(false);
+        }
       }
     } catch (caught) {
-      setVersionError(String(caught));
+      if (versionControlRequestIdRef.current === requestId) {
+        setVersionError(String(caught));
+      }
     } finally {
-      setIsVersionControlLoading(false);
-      setIsVersionHistoryLoading(false);
+      if (versionControlRequestIdRef.current === requestId) {
+        setIsVersionControlLoading(false);
+        setIsVersionHistoryLoading(false);
+      }
     }
   }, [
     clearSelectedVersionSnapshot,
@@ -1468,21 +1544,31 @@ export const WorkspaceChatPage = ({
     selectedVersionHistoryBranchName,
     workspace.path,
   ]);
+  loadVersionControlRef.current = loadVersionControl;
 
   const loadFiles = useCallback(async (historyBranchOverride?: string) => {
+    const requestId = fileListRequestIdRef.current + 1;
+    fileListRequestIdRef.current = requestId;
     setIsFilesLoading(true);
     setFileError("");
 
     try {
       const nextFiles = await listWorkspaceFiles(workspace.path);
+      if (fileListRequestIdRef.current !== requestId) {
+        return;
+      }
       setFiles(nextFiles);
-      await loadVersionControl(historyBranchOverride);
+      void loadVersionControlRef.current?.(historyBranchOverride);
     } catch (caught) {
-      setFileError(String(caught));
+      if (fileListRequestIdRef.current === requestId) {
+        setFileError(String(caught));
+      }
     } finally {
-      setIsFilesLoading(false);
+      if (fileListRequestIdRef.current === requestId) {
+        setIsFilesLoading(false);
+      }
     }
-  }, [loadVersionControl, workspace.path]);
+  }, [workspace.path]);
 
   useEffect(() => {
     void loadFiles();
@@ -3165,6 +3251,8 @@ export const WorkspaceChatPage = ({
         : [];
       const knowledgeDebugPayload: ContextDebugPayload = {
         label: "retrieved knowledge",
+        sourceLabel: "RAG",
+        sourceDescription: "全局知识库已启用集合检索",
         content: formatKnowledgeMatches(knowledgeMatches),
       };
 
@@ -3789,8 +3877,8 @@ export const WorkspaceChatPage = ({
         hasUnsavedDefaultSession={isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
         workspaceCurrentSessionTitle={!isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
         hasUnsavedWorkspaceSession={!isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
-        isProjectsLoading={isProjectsLoading}
-        projectsError={projectsError}
+        isProjectsLoading={isWorkspaceOverviewLoading}
+        projectsError={workspaceOverviewError}
         isDefaultSessionsLoading={isActiveDefaultWorkspace ? isSessionsLoading : isDefaultSessionsLoading}
         isWorkspaceSessionsLoading={(!isActiveDefaultWorkspace && isSessionsLoading) || isWorkspaceSessionsLoading}
         defaultChatSessions={sidebarChatSessions}

@@ -50,6 +50,10 @@ export const createGlobalKnowledgeRagIndex = (): ContextRagIndex => ({
       score: match.score,
       chunkId: match.chunkId,
       metadata: {
+        origin: "rag",
+        backend: "global-knowledge-library",
+        retrieval: "hybrid-vector-fts",
+        scope: "enabled_collections",
         sourceId: match.sourceId,
         sourceType: match.sourceType,
       },

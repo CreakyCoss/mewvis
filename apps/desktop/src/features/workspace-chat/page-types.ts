@@ -10,6 +10,8 @@ export type ContextWindowPreset = "auto" | 1000000;
 export type ContextDebugPayload = {
   label: string;
   content: string;
+  sourceLabel?: string;
+  sourceDescription?: string;
 };
 
 export type ContextDebugSnapshot = {

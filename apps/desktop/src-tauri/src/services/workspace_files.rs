@@ -44,6 +44,17 @@ pub struct WorkspaceFile {
     pub updated_at: Option<i64>,
 }
 
+const SKIPPED_WORKSPACE_DIRECTORY_NAMES: &[&str] = &[
+    "node_modules",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+    "out",
+    "venv",
+    "__pycache__",
+];
+
 pub fn list_workspace_files(input: WorkspacePathInput) -> Result<Vec<WorkspaceFileEntry>, String> {
     let root = workspace_root(&input.workspace_path)?;
     let mut entries = Vec::new();
@@ -174,7 +185,7 @@ fn collect_entries(
             .file_type()
             .map_err(|error| format!("无法读取文件类型：{error}"))?;
 
-        if should_skip(&file_name) || file_type.is_symlink() {
+        if should_skip(&file_name, file_type.is_dir()) || file_type.is_symlink() {
             continue;
         }
 
@@ -204,8 +215,10 @@ fn collect_entries(
     Ok(())
 }
 
-fn should_skip(file_name: &str) -> bool {
-    file_name == "workspace.db" || (file_name.starts_with('.') && file_name != ".gitignore")
+fn should_skip(file_name: &str, is_directory: bool) -> bool {
+    file_name == "workspace.db"
+        || (file_name.starts_with('.') && file_name != ".gitignore")
+        || (is_directory && SKIPPED_WORKSPACE_DIRECTORY_NAMES.contains(&file_name))
 }
 
 fn normalize_relative_path(path: &str) -> String {
@@ -283,6 +296,31 @@ mod tests {
         assert!(files.iter().any(|file| file.path == "draft.md"));
         assert!(!files.iter().any(|file| file.path == ".hidden.md"));
         assert!(!files.iter().any(|file| file.path == "workspace.db"));
+    }
+
+    #[test]
+    fn list_workspace_files_skips_dependency_and_build_directories() {
+        let workspace = TestWorkspace::new("large-dirs");
+        fs::create_dir_all(workspace.path.join("node_modules/pkg")).expect("create node_modules");
+        fs::create_dir_all(workspace.path.join("dist/assets")).expect("create dist");
+        fs::create_dir_all(workspace.path.join("target/debug")).expect("create target");
+        fs::write(workspace.path.join("node_modules/pkg/index.js"), "module\n")
+            .expect("write node module");
+        fs::write(workspace.path.join("dist/assets/app.js"), "build\n").expect("write dist");
+        fs::write(workspace.path.join("target/debug/app"), "binary\n").expect("write target");
+        fs::write(workspace.path.join("draft.md"), "draft\n").expect("write draft");
+
+        let files = list_workspace_files(WorkspacePathInput {
+            workspace_path: workspace.path_string(),
+        })
+        .expect("list files");
+
+        assert!(files.iter().any(|file| file.path == "draft.md"));
+        assert!(!files
+            .iter()
+            .any(|file| file.path.starts_with("node_modules")));
+        assert!(!files.iter().any(|file| file.path.starts_with("dist")));
+        assert!(!files.iter().any(|file| file.path.starts_with("target")));
     }
 
     #[test]

@@ -125,6 +125,9 @@ const WorkspaceApp = () => {
       <>
         <WorkspaceChatPage
           workspace={activeWorkspace}
+          workspaceSections={sections}
+          isWorkspaceOverviewLoading={isLoading}
+          workspaceOverviewError={error}
           onOpenWorkspace={setActiveWorkspace}
           onCreateWorkspace={openCreateWorkspace}
           onEditWorkspace={handleOpenEditWorkspace}

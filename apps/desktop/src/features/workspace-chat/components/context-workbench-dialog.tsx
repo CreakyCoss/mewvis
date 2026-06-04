@@ -181,9 +181,16 @@ const CompactPathItem = ({
 type DebugPayloadBlockProps = {
   label: string;
   content: string;
+  sourceLabel?: string;
+  sourceDescription?: string;
 };
 
-const DebugPayloadBlock = ({ label, content }: DebugPayloadBlockProps) => {
+const DebugPayloadBlock = ({
+  label,
+  content,
+  sourceLabel,
+  sourceDescription,
+}: DebugPayloadBlockProps) => {
   const [isCopied, setIsCopied] = useState(false);
   const preview = previewDebugText(content || "（空）");
 
@@ -200,8 +207,18 @@ const DebugPayloadBlock = ({ label, content }: DebugPayloadBlockProps) => {
   return (
     <div className="overflow-hidden rounded-2xl bg-muted/25">
       <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2">
-        <div className="min-w-0 truncate text-xs font-medium text-foreground">
-          {label}
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="min-w-0 truncate text-xs font-medium text-foreground">
+            {label}
+          </div>
+          {sourceLabel && (
+            <span
+              className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+              title={sourceDescription ?? sourceLabel}
+            >
+              {sourceLabel}
+            </span>
+          )}
         </div>
         <Button
           type="button"
@@ -568,7 +585,7 @@ export const ContextWorkbenchDialog = ({
                               )}
                               {contextDebugSnapshot.activeFilePath && (
                                 <CompactPathItem
-                                  label="活动文件"
+                                  label="活动文件（直接读取）"
                                   value={contextDebugSnapshot.activeFilePath}
                                   emptyText="无"
                                   copyLabel="活动文件"
@@ -577,6 +594,8 @@ export const ContextWorkbenchDialog = ({
                               {contextDebugSnapshot.referencedFilePaths.length > 0 && (
                                 <DebugPayloadBlock
                                   label="referenced files"
+                                  sourceLabel="直接读取"
+                                  sourceDescription="来自用户 @ 引用，读取工作区文件内容"
                                   content={contextDebugSnapshot.referencedFilePaths.join("\n")}
                                 />
                               )}
@@ -608,6 +627,8 @@ export const ContextWorkbenchDialog = ({
                               key={payload.label}
                               label={payload.label}
                               content={payload.content}
+                              sourceLabel={payload.sourceLabel}
+                              sourceDescription={payload.sourceDescription}
                             />
                           ))}
                         </>
