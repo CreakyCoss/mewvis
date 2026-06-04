@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Bot, Database, Folder, Plus, Settings } from "lucide-react";
+import { Bot, Database, Folder, GitBranch, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import { APP_DISPLAY_NAME } from "@/product-config";
@@ -16,6 +17,7 @@ type WorkspacesPageProps = {
 
 export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
+  const [isCollaborationWorkflowSettingsOpen, setIsCollaborationWorkflowSettingsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const {
     overview,
@@ -139,7 +141,16 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
             onClick={() => setIsAgentSettingsOpen(true)}
           >
             <Bot className="size-4" />
-            <span>Agent 设置</span>
+            <span>角色设置</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => setIsCollaborationWorkflowSettingsOpen(true)}
+          >
+            <GitBranch className="size-4" />
+            <span>协作流程设置</span>
           </Button>
           <Button
             type="button"
@@ -166,11 +177,21 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
               type="button"
               size="icon"
               variant="ghost"
-              title="Agent 设置"
+              title="角色设置"
               className="md:hidden"
               onClick={() => setIsAgentSettingsOpen(true)}
             >
               <Bot className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              title="协作流程设置"
+              className="md:hidden"
+              onClick={() => setIsCollaborationWorkflowSettingsOpen(true)}
+            >
+              <GitBranch className="size-4" />
             </Button>
             <Button
               type="button"
@@ -229,6 +250,11 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
       <AgentSettingsDialog
         open={isAgentSettingsOpen}
         onOpenChange={setIsAgentSettingsOpen}
+      />
+
+      <CollaborationWorkflowSettingsDialog
+        open={isCollaborationWorkflowSettingsOpen}
+        onOpenChange={setIsCollaborationWorkflowSettingsOpen}
       />
     </main>
   );

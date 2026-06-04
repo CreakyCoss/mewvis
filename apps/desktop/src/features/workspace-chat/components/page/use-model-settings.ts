@@ -4,8 +4,11 @@ import type {
   AgentRuntimeAgentDefinition,
 } from "@/ai/agent-runtime/contracts";
 import { getAiAgentSettings } from "@/features/agent-settings/api";
-import type { AiAgent } from "@/features/agent-settings/types";
-import { resolveAgentProfiles } from "@/features/agent-settings/utils";
+import type { AiAgent, CollaborationWorkflow } from "@/features/agent-settings/types";
+import {
+  resolveAgentProfiles,
+  resolveCollaborationWorkflowProfiles,
+} from "@/features/agent-settings/utils";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider } from "@/ai/llm/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
@@ -34,9 +37,10 @@ export const useModelSettings = ({
   const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
   const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
-  const [modelSource, setModelSource] = useState<ModelSource>("agent");
+  const [collaborationWorkflowSettings, setCollaborationWorkflowSettings] = useState<CollaborationWorkflow[]>([]);
+  const [modelSource, setModelSource] = useState<ModelSource>("direct");
   const [selectedAgentId, setSelectedAgentId] = useState("");
-  const [selectedReviewerAgentId, setSelectedReviewerAgentId] = useState("");
+  const [selectedCollaborationWorkflowId, setSelectedCollaborationWorkflowId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
@@ -55,6 +59,7 @@ export const useModelSettings = ({
 
       setProviders(nextProviders);
       setAgents(agentSettings.agents);
+      setCollaborationWorkflowSettings(agentSettings.collaborationWorkflows);
       setSelectedProviderId((currentProviderId) => {
         const currentProvider = nextProviders.find((provider) => provider.id === currentProviderId);
         const nextProvider = currentProvider ?? defaultProvider;
@@ -72,10 +77,14 @@ export const useModelSettings = ({
         const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
         return currentProfile?.id ?? profiles[0]?.id ?? "";
       });
-      setSelectedReviewerAgentId((currentAgentId) => {
+      setSelectedCollaborationWorkflowId((currentWorkflowId) => {
         const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
-        const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
-        return currentProfile?.id ?? profiles[1]?.id ?? profiles[0]?.id ?? "";
+        const workflowProfiles = resolveCollaborationWorkflowProfiles(
+          agentSettings.collaborationWorkflows,
+          profiles,
+        );
+        const currentWorkflow = workflowProfiles.find((workflow) => workflow.id === currentWorkflowId);
+        return currentWorkflow?.id ?? workflowProfiles[0]?.id ?? "";
       });
       setModelSource((currentSource) => {
         const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
@@ -148,18 +157,21 @@ export const useModelSettings = ({
     () => resolveAgentProfiles(agents, providers),
     [agents, providers],
   );
+  const collaborationWorkflows = useMemo(
+    () => resolveCollaborationWorkflowProfiles(collaborationWorkflowSettings, agentProfiles),
+    [agentProfiles, collaborationWorkflowSettings],
+  );
   const selectedAgent = useMemo(
     () => agentProfiles.find((agent) => agent.id === selectedAgentId)
       ?? agentProfiles[0]
       ?? null,
     [agentProfiles, selectedAgentId],
   );
-  const reviewerAgent = useMemo(
-    () => agentProfiles.find((agent) => agent.id === selectedReviewerAgentId)
-      ?? agentProfiles.find((agent) => agent.id !== selectedAgent?.id)
-      ?? selectedAgent
+  const selectedCollaborationWorkflow = useMemo(
+    () => collaborationWorkflows.find((workflow) => workflow.id === selectedCollaborationWorkflowId)
+      ?? collaborationWorkflows[0]
       ?? null,
-    [agentProfiles, selectedAgent, selectedReviewerAgentId],
+    [collaborationWorkflows, selectedCollaborationWorkflowId],
   );
   const effectiveProvider = modelSource === "agent"
     ? selectedAgent?.provider ?? null
@@ -192,15 +204,15 @@ export const useModelSettings = ({
   }, [agentProfiles.length, hasLoadedSettings, modelSource, selectedAgent]);
 
   useEffect(() => {
-    if (!reviewerAgent) {
-      setSelectedReviewerAgentId("");
+    if (!selectedCollaborationWorkflow) {
+      setSelectedCollaborationWorkflowId("");
       return;
     }
 
-    if (!agentProfiles.some((agent) => agent.id === selectedReviewerAgentId)) {
-      setSelectedReviewerAgentId(reviewerAgent.id);
+    if (!collaborationWorkflows.some((workflow) => workflow.id === selectedCollaborationWorkflowId)) {
+      setSelectedCollaborationWorkflowId(selectedCollaborationWorkflow.id);
     }
-  }, [agentProfiles, reviewerAgent, selectedReviewerAgentId]);
+  }, [collaborationWorkflows, selectedCollaborationWorkflow, selectedCollaborationWorkflowId]);
 
   return {
     providers,
@@ -212,8 +224,8 @@ export const useModelSettings = ({
     setModelSource,
     selectedAgentId,
     setSelectedAgentId,
-    selectedReviewerAgentId,
-    setSelectedReviewerAgentId,
+    selectedCollaborationWorkflowId,
+    setSelectedCollaborationWorkflowId,
     settingsError,
     setSettingsError,
     isSettingsLoading,
@@ -226,8 +238,9 @@ export const useModelSettings = ({
     runtimeAgentId,
     runtimeAgentRequiresModel,
     agentProfiles,
+    collaborationWorkflows,
+    selectedCollaborationWorkflow,
     selectedAgent,
-    reviewerAgent,
     effectiveProvider,
     effectiveModel,
     loadLlmOptions,

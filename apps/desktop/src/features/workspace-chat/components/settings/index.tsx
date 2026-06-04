@@ -1,4 +1,4 @@
-import { Bot, Settings, X } from "lucide-react";
+import { Bot, GitBranch, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -8,6 +8,7 @@ type SettingsPanelProps = {
   onBack: () => void;
   onOpenLlmSettings: () => void;
   onOpenAgentSettings: () => void;
+  onOpenCollaborationWorkflowSettings: () => void;
 };
 
 export const SettingsPanel = ({
@@ -16,6 +17,7 @@ export const SettingsPanel = ({
   onBack,
   onOpenLlmSettings,
   onOpenAgentSettings,
+  onOpenCollaborationWorkflowSettings,
 }: SettingsPanelProps) => {
   return (
   <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
@@ -23,7 +25,7 @@ export const SettingsPanel = ({
       <div className="min-w-0">
         <h2 className="text-base font-semibold">设置</h2>
         <p className="truncate text-xs text-muted-foreground">
-          配置模型 Provider、可用模型，以及可复用的 Agent。
+          配置模型 Provider、可用模型、角色和协作流程。
         </p>
       </div>
       <Button
@@ -44,11 +46,11 @@ export const SettingsPanel = ({
         <div className="mb-7 space-y-2">
           <h3 className="text-2xl font-semibold">应用设置</h3>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            设置会影响所有工作区中的模型选择和 Agent 配置。
+            设置会影响所有工作区中的模型选择、角色和协作流程。
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           <button
             type="button"
             className="rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -71,9 +73,23 @@ export const SettingsPanel = ({
             <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
               <Bot className="size-5" />
             </span>
-            <span className="block text-base font-semibold">Agent 设置</span>
+            <span className="block text-base font-semibold">角色设置</span>
             <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-              创建和维护 Agent，并绑定已配置的模型。
+              创建和维护角色，并绑定已配置的模型。
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            onClick={onOpenCollaborationWorkflowSettings}
+          >
+            <span className="mb-4 flex size-10 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+              <GitBranch className="size-5" />
+            </span>
+            <span className="block text-base font-semibold">协作流程设置</span>
+            <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+              自定义协作流程、步骤顺序和每步执行的角色。
             </span>
           </button>
         </div>

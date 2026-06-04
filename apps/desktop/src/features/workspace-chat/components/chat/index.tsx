@@ -33,7 +33,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import type { AgentProfile } from "@/features/agent-settings/types";
+import type {
+  AgentProfile,
+  CollaborationWorkflowProfile,
+} from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { isDefaultWorkspace } from "@/features/workspaces/default-workspace";
 import type { Workspace } from "@/features/workspaces/types";
@@ -86,7 +89,9 @@ export type ChatPanelViewModel = {
   providers: LlmProvider[];
   selectedProviderId: string;
   selectedModel: ProviderModel | null;
-  reviewerAgent: AgentProfile | null;
+  collaborationWorkflows: CollaborationWorkflowProfile[];
+  selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
+  selectedCollaborationWorkflowId: string;
   allowedAgentTools: AgentToolName[];
   toggleThinking: (messageId: string) => void;
   toggleAgentEvents: (messageId: string) => void;
@@ -106,7 +111,7 @@ export type ChatPanelViewModel = {
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
-  setSelectedReviewerAgentId: Dispatch<SetStateAction<string>>;
+  setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
   setSelectedProviderId: Dispatch<SetStateAction<string>>;
   setSelectedModelId: Dispatch<SetStateAction<string>>;
   toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
@@ -147,7 +152,9 @@ export const ChatPanel = () => {
     providers,
     selectedProviderId,
     selectedModel,
-    reviewerAgent,
+    collaborationWorkflows,
+    selectedCollaborationWorkflow,
+    selectedCollaborationWorkflowId,
     allowedAgentTools,
     toggleThinking,
     toggleAgentEvents,
@@ -167,7 +174,7 @@ export const ChatPanel = () => {
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
-    setSelectedReviewerAgentId,
+    setSelectedCollaborationWorkflowId,
     setSelectedProviderId,
     setSelectedModelId,
     toggleAllowedAgentTool,
@@ -397,14 +404,16 @@ export const ChatPanel = () => {
       selectedProviderId={selectedProviderId}
       selectedModel={selectedModel}
       selectedAgent={selectedAgent}
-      reviewerAgent={reviewerAgent}
+      collaborationWorkflows={collaborationWorkflows}
+      selectedCollaborationWorkflow={selectedCollaborationWorkflow}
+      selectedCollaborationWorkflowId={selectedCollaborationWorkflowId}
       allowedAgentTools={allowedAgentTools}
       onChatModeChange={setChatMode}
       onContextWindowPresetChange={setContextWindowPreset}
       onModelSourceChange={setModelSource}
       onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}
-      onReviewerAgentChange={setSelectedReviewerAgentId}
+      onCollaborationWorkflowChange={setSelectedCollaborationWorkflowId}
       onProviderChange={(providerId) => {
         const provider = providers.find((item) => item.id === providerId);
         setSelectedProviderId(providerId);

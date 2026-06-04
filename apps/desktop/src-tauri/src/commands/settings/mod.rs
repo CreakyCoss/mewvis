@@ -2,7 +2,10 @@ mod agents;
 mod knowledge;
 mod llm;
 
-pub use agents::{delete_ai_agent, get_ai_agent_settings, save_ai_agent};
+pub use agents::{
+    delete_ai_agent, delete_collaboration_workflow, get_ai_agent_settings, save_ai_agent,
+    save_collaboration_workflow,
+};
 pub use knowledge::{
     delete_knowledge_collection, delete_knowledge_source, get_knowledge_index_status,
     get_knowledge_settings, import_knowledge_files, list_embedding_profiles,

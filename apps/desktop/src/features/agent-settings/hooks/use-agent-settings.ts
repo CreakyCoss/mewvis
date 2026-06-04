@@ -1,15 +1,56 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider } from "@/ai/llm/types";
-import { deleteAiAgent, getAiAgentSettings, saveAiAgent } from "../api";
-import type { AiAgent, SaveAiAgentInput } from "../types";
-import { createAgentDraft } from "../utils";
+import {
+  deleteAiAgent,
+  deleteCollaborationWorkflow,
+  getAiAgentSettings,
+  saveAiAgent,
+  saveCollaborationWorkflow,
+} from "../api";
+import type {
+  AiAgent,
+  CollaborationWorkflow,
+  SaveAiAgentInput,
+  SaveCollaborationWorkflowInput,
+} from "../types";
+import {
+  createAgentDraft,
+  createCollaborationWorkflowDraft,
+  resolveAgentProfiles,
+} from "../utils";
+
+type AgentSettingsSelectionKind = "agent" | "workflow";
+
+const workflowToDraft = (workflow: CollaborationWorkflow): SaveCollaborationWorkflowInput => ({
+  id: workflow.id,
+  name: workflow.name,
+  description: workflow.description ?? "",
+  writerAgentId: workflow.writerAgentId,
+  reviewerAgentId: workflow.reviewerAgentId,
+  draftInstruction: workflow.draftInstruction ?? "",
+  reviewInstruction: workflow.reviewInstruction ?? "",
+  reviseInstruction: workflow.reviseInstruction ?? "",
+  steps: workflow.steps.map((step) => ({
+    id: step.id,
+    name: step.name,
+    agentId: step.agentId,
+    instruction: step.instruction ?? "",
+    phase: step.phase,
+  })),
+});
 
 export const useAgentSettings = (open: boolean) => {
   const [agents, setAgents] = useState<AiAgent[]>([]);
+  const [workflows, setWorkflows] = useState<CollaborationWorkflow[]>([]);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [draft, setDraft] = useState<SaveAiAgentInput>(() => createAgentDraft([]));
+  const [workflowDraft, setWorkflowDraft] = useState<SaveCollaborationWorkflowInput>(() =>
+    createCollaborationWorkflowDraft([]),
+  );
+  const [selectionKind, setSelectionKind] = useState<AgentSettingsSelectionKind>("agent");
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -17,6 +58,14 @@ export const useAgentSettings = (open: boolean) => {
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? null,
     [agents, selectedAgentId],
+  );
+  const agentProfiles = useMemo(
+    () => resolveAgentProfiles(agents, providers),
+    [agents, providers],
+  );
+  const selectedWorkflow = useMemo(
+    () => workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null,
+    [selectedWorkflowId, workflows],
   );
 
   const selectedProvider = useMemo(
@@ -39,19 +88,28 @@ export const useAgentSettings = (open: boolean) => {
         getLlmSettings(),
       ]);
       setAgents(agentSettings.agents);
+      setWorkflows(agentSettings.collaborationWorkflows);
       setProviders(llmSettings.providers);
-      setSelectedAgentId(agentSettings.agents[0]?.id ?? "");
+      const profiles = resolveAgentProfiles(agentSettings.agents, llmSettings.providers);
+      const nextAgent = agentSettings.agents[0];
+      const nextWorkflow = agentSettings.collaborationWorkflows[0];
+      setSelectionKind(nextAgent ? "agent" : nextWorkflow ? "workflow" : "agent");
+      setSelectedAgentId(nextAgent?.id ?? "");
+      setSelectedWorkflowId(nextWorkflow?.id ?? "");
       setDraft(
-        agentSettings.agents[0]
+        nextAgent
           ? {
-              id: agentSettings.agents[0].id,
-              name: agentSettings.agents[0].name,
-              avatar: agentSettings.agents[0].avatar,
-              description: agentSettings.agents[0].description ?? "",
-              providerId: agentSettings.agents[0].providerId,
-              modelId: agentSettings.agents[0].modelId,
+              id: nextAgent.id,
+              name: nextAgent.name,
+              avatar: nextAgent.avatar,
+              description: nextAgent.description ?? "",
+              providerId: nextAgent.providerId,
+              modelId: nextAgent.modelId,
             }
           : createAgentDraft(llmSettings.providers),
+      );
+      setWorkflowDraft(
+        nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
       );
     } catch (caught) {
       setError(String(caught));
@@ -67,6 +125,7 @@ export const useAgentSettings = (open: boolean) => {
   }, [load, open]);
 
   const selectAgent = useCallback((agentId: string) => {
+    setSelectionKind("agent");
     setSelectedAgentId(agentId);
     const agent = agents.find((item) => item.id === agentId);
     if (!agent) {
@@ -83,21 +142,44 @@ export const useAgentSettings = (open: boolean) => {
   }, [agents]);
 
   const createNew = useCallback(() => {
+    setSelectionKind("agent");
     setSelectedAgentId("");
     setDraft(createAgentDraft(providers));
   }, [providers]);
+
+  const selectWorkflow = useCallback((workflowId: string) => {
+    setSelectionKind("workflow");
+    setSelectedWorkflowId(workflowId);
+    const workflow = workflows.find((item) => item.id === workflowId);
+    if (!workflow) {
+      return;
+    }
+    setWorkflowDraft(workflowToDraft(workflow));
+  }, [workflows]);
+
+  const createNewWorkflow = useCallback(() => {
+    setSelectionKind("workflow");
+    setSelectedWorkflowId("");
+    setWorkflowDraft(createCollaborationWorkflowDraft(agentProfiles));
+  }, [agentProfiles]);
 
   const updateDraft = useCallback((updater: (current: SaveAiAgentInput) => SaveAiAgentInput) => {
     setDraft(updater);
   }, []);
 
+  const updateWorkflowDraft = useCallback((
+    updater: (current: SaveCollaborationWorkflowInput) => SaveCollaborationWorkflowInput,
+  ) => {
+    setWorkflowDraft(updater);
+  }, []);
+
   const save = useCallback(async () => {
     if (!draft.name.trim()) {
-      setError("Agent 名称不能为空");
+      setError("角色名称不能为空");
       return false;
     }
     if (!draft.providerId || !draft.modelId) {
-      setError("请选择 Agent 使用的 LLM 和模型");
+      setError("请选择角色使用的 LLM 和模型");
       return false;
     }
 
@@ -111,6 +193,7 @@ export const useAgentSettings = (open: boolean) => {
         description: draft.description?.trim() || null,
       });
       setAgents(settings.agents);
+      setWorkflows(settings.collaborationWorkflows);
       const saved = settings.agents.find((agent) => agent.id === draft.id)
         ?? settings.agents.find((agent) => agent.name === draft.name.trim())
         ?? settings.agents[settings.agents.length - 1];
@@ -134,6 +217,64 @@ export const useAgentSettings = (open: boolean) => {
     }
   }, [draft]);
 
+  const saveWorkflow = useCallback(async () => {
+    if (!workflowDraft.name.trim()) {
+      setError("协作流程名称不能为空");
+      return false;
+    }
+    const steps = workflowDraft.steps ?? [];
+    if (steps.length === 0) {
+      setError("请至少配置一个协作步骤");
+      return false;
+    }
+    const invalidStepIndex = steps.findIndex((step) => !step.name.trim() || !step.agentId);
+    if (invalidStepIndex >= 0) {
+      setError(`请完善第 ${invalidStepIndex + 1} 个协作步骤`);
+      return false;
+    }
+    const firstStep = steps[0];
+    const reviewerStep = steps.find((step) => step.agentId !== firstStep.agentId)
+      ?? steps[1]
+      ?? firstStep;
+
+    setIsSaving(true);
+    setError("");
+
+    try {
+      const settings = await saveCollaborationWorkflow({
+        ...workflowDraft,
+        name: workflowDraft.name.trim(),
+        description: workflowDraft.description?.trim() || null,
+        writerAgentId: firstStep.agentId,
+        reviewerAgentId: reviewerStep.agentId,
+        draftInstruction: workflowDraft.draftInstruction?.trim() || null,
+        reviewInstruction: workflowDraft.reviewInstruction?.trim() || null,
+        reviseInstruction: workflowDraft.reviseInstruction?.trim() || null,
+        steps: steps.map((step) => ({
+          ...step,
+          name: step.name.trim(),
+          instruction: step.instruction?.trim() || null,
+        })),
+      });
+      setAgents(settings.agents);
+      setWorkflows(settings.collaborationWorkflows);
+      const saved = settings.collaborationWorkflows.find((workflow) => workflow.id === workflowDraft.id)
+        ?? settings.collaborationWorkflows.find((workflow) => workflow.name === workflowDraft.name.trim())
+        ?? settings.collaborationWorkflows[settings.collaborationWorkflows.length - 1];
+      setSelectedWorkflowId(saved?.id ?? "");
+      setSelectionKind("workflow");
+      if (saved) {
+        setWorkflowDraft(workflowToDraft(saved));
+      }
+      return true;
+    } catch (caught) {
+      setError(String(caught));
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [workflowDraft]);
+
   const remove = useCallback(async (agentId: string) => {
     setIsSaving(true);
     setError("");
@@ -141,6 +282,7 @@ export const useAgentSettings = (open: boolean) => {
     try {
       const settings = await deleteAiAgent(agentId);
       setAgents(settings.agents);
+      setWorkflows(settings.collaborationWorkflows);
       const nextAgent = settings.agents[0];
       setSelectedAgentId(nextAgent?.id ?? "");
       setDraft(
@@ -162,12 +304,39 @@ export const useAgentSettings = (open: boolean) => {
     }
   }, [providers]);
 
+  const removeWorkflow = useCallback(async (workflowId: string) => {
+    setIsSaving(true);
+    setError("");
+
+    try {
+      const settings = await deleteCollaborationWorkflow(workflowId);
+      setAgents(settings.agents);
+      setWorkflows(settings.collaborationWorkflows);
+      const profiles = resolveAgentProfiles(settings.agents, providers);
+      const nextWorkflow = settings.collaborationWorkflows[0];
+      setSelectedWorkflowId(nextWorkflow?.id ?? "");
+      setWorkflowDraft(
+        nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
+      );
+    } catch (caught) {
+      setError(String(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [providers]);
+
   return {
     agents,
+    workflows,
     providers,
     draft,
+    workflowDraft,
+    selectionKind,
     selectedAgent,
     selectedAgentId,
+    selectedWorkflow,
+    selectedWorkflowId,
+    agentProfiles,
     selectedProvider,
     selectedModels,
     isLoading,
@@ -175,8 +344,13 @@ export const useAgentSettings = (open: boolean) => {
     error,
     createNew,
     selectAgent,
+    createNewWorkflow,
+    selectWorkflow,
     updateDraft,
+    updateWorkflowDraft,
     save,
+    saveWorkflow,
     remove,
+    removeWorkflow,
   };
 };

@@ -24,6 +24,16 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_embedding_profile_base_url",
         run: add_embedding_profile_base_url,
     },
+    ConfigMigrationStep {
+        target_version: 6,
+        name: "add_collaboration_workflows",
+        run: add_collaboration_workflows,
+    },
+    ConfigMigrationStep {
+        target_version: 7,
+        name: "add_collaboration_workflow_steps",
+        run: add_collaboration_workflow_steps,
+    },
 ];
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -106,6 +116,45 @@ fn add_embedding_profile_base_url(conn: &Connection) -> Result<(), String> {
 
     conn.execute_batch("ALTER TABLE embedding_profiles ADD COLUMN base_url TEXT;")
         .map_err(|error| format!("无法添加 Embedding 地址配置：{error}"))
+}
+
+fn add_collaboration_workflows(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS collaboration_workflows (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            writer_agent_id TEXT NOT NULL,
+            reviewer_agent_id TEXT NOT NULL,
+            draft_instruction TEXT,
+            review_instruction TEXT,
+            revise_instruction TEXT,
+            steps_json TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        "#,
+    )
+    .map_err(|error| format!("无法创建协作流程配置表：{error}"))
+}
+
+fn add_collaboration_workflow_steps(conn: &Connection) -> Result<(), String> {
+    let mut statement = conn
+        .prepare("PRAGMA table_info(collaboration_workflows)")
+        .map_err(|error| format!("无法读取协作流程配置表结构：{error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("无法读取协作流程配置表字段：{error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("无法解析协作流程配置表字段：{error}"))?;
+
+    if columns.iter().any(|column| column == "steps_json") {
+        return Ok(());
+    }
+
+    conn.execute_batch("ALTER TABLE collaboration_workflows ADD COLUMN steps_json TEXT;")
+        .map_err(|error| format!("无法添加协作流程步骤配置：{error}"))
 }
 
 pub(crate) fn run_config_migrations(

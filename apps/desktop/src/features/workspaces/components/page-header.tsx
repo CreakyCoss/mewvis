@@ -40,10 +40,10 @@ export const PageHeader = ({
           variant="outline"
           type="button"
           onClick={onOpenAgents}
-          title="Agent 设置"
+          title="角色设置"
         >
           <Bot className="size-4" />
-          <span>Agent 设置</span>
+          <span>角色设置</span>
         </Button>
         <Button
           variant="outline"

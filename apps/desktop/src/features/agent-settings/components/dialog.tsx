@@ -49,17 +49,17 @@ export const AgentSettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 border-transparent p-0 shadow-lg sm:max-w-5xl">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-transparent p-0 shadow-lg sm:max-w-5xl">
         <DialogHeader>
           <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
             <DialogTitle className="flex items-center gap-2 text-lg">
               <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
                 <Bot className="size-4" />
               </span>
-              <span>Agent 设置</span>
+              <span>角色设置</span>
             </DialogTitle>
             <DialogDescription className="mt-2">
-              创建可复用的 Agent，绑定一个已配置 LLM 和具体模型。
+              创建可复用的角色画像，并绑定一个已配置 LLM 和具体模型。
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -70,7 +70,7 @@ export const AgentSettingsDialog = ({
           </div>
         )}
 
-        <div className="grid min-h-[520px] gap-0 md:grid-cols-[260px_1fr]">
+        <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[260px_1fr]">
           <aside className="flex min-h-0 flex-col gap-3 bg-muted/35 px-4 py-4 shadow-[10px_0_30px_-30px_rgb(15_23_42_/_0.35)]">
             <Button
               type="button"
@@ -80,10 +80,10 @@ export const AgentSettingsDialog = ({
               disabled={isLoading}
             >
               <Plus className="size-4" />
-              <span>新增 Agent</span>
+              <span>新增角色</span>
             </Button>
 
-            <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {agents.map((agent) => {
                 const avatar = resolveAgentAvatar(agent.avatar);
                 return (
@@ -110,7 +110,7 @@ export const AgentSettingsDialog = ({
               })}
               {!agents.length && !isLoading && (
                 <div className="rounded-md bg-card/65 px-3 py-8 text-center text-sm text-muted-foreground">
-                  暂无自定义 Agent
+                  暂无角色，请手动创建
                 </div>
               )}
             </div>
@@ -119,17 +119,17 @@ export const AgentSettingsDialog = ({
           <section className="min-h-0 overflow-y-auto px-5 py-4">
             {isLoading ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                正在读取 Agent 设置
+                正在读取角色设置
               </div>
             ) : (
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-[1fr_220px]">
                   <div className="space-y-2">
-                    <Label htmlFor="agent-name">Agent 名称</Label>
+                    <Label htmlFor="agent-name">角色名称</Label>
                     <Input
                       id="agent-name"
                       value={draft.name}
-                      placeholder="例如：长篇策划猫"
+                      placeholder="例如：长篇策划师"
                       onChange={(event) => {
                         const value = event.currentTarget.value;
                         updateDraft((current) => ({ ...current, name: value }));
@@ -178,11 +178,11 @@ export const AgentSettingsDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="agent-description">Agent 描述</Label>
+                  <Label htmlFor="agent-description">角色描述</Label>
                   <Textarea
                     id="agent-description"
                     value={draft.description ?? ""}
-                    placeholder="描述这个 Agent 的角色、能力或适用场景"
+                    placeholder="描述这个角色的定位、能力或适用场景"
                     className="min-h-24 resize-none"
                     onChange={(event) => {
                       const value = event.currentTarget.value;
@@ -256,7 +256,7 @@ export const AgentSettingsDialog = ({
                       disabled={isSaving}
                     >
                       <Trash2 className="size-4" />
-                      <span>删除 Agent</span>
+                      <span>删除角色</span>
                     </Button>
                   </div>
                 )}
@@ -271,7 +271,7 @@ export const AgentSettingsDialog = ({
           </Button>
           <Button type="button" onClick={() => void handleSave()} disabled={isSaving || isLoading}>
             <Save className="size-4" />
-            <span>{isSaving ? "保存中" : "保存 Agent"}</span>
+            <span>{isSaving ? "保存中" : "保存角色"}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

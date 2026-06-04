@@ -67,6 +67,30 @@ pub struct SaveAiAgentInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SaveCollaborationWorkflowStepInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub agent_id: String,
+    pub instruction: Option<String>,
+    pub phase: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveCollaborationWorkflowInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
+    pub writer_agent_id: String,
+    pub reviewer_agent_id: String,
+    pub draft_instruction: Option<String>,
+    pub review_instruction: Option<String>,
+    pub revise_instruction: Option<String>,
+    pub steps: Option<Vec<SaveCollaborationWorkflowStepInput>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveKnowledgeCollectionInput {
     pub id: Option<String>,
     pub name: String,

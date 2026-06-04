@@ -153,6 +153,37 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
         "#,
     },
     DatabaseTableSchema {
+        name: "collaboration_workflows",
+        columns: &[
+            "id",
+            "name",
+            "description",
+            "writer_agent_id",
+            "reviewer_agent_id",
+            "draft_instruction",
+            "review_instruction",
+            "revise_instruction",
+            "steps_json",
+            "created_at",
+            "updated_at",
+        ],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS collaboration_workflows (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                writer_agent_id TEXT NOT NULL,
+                reviewer_agent_id TEXT NOT NULL,
+                draft_instruction TEXT,
+                review_instruction TEXT,
+                revise_instruction TEXT,
+                steps_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
+    DatabaseTableSchema {
         name: "knowledge_collections",
         columns: &[
             "id",

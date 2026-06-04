@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { CollaborationStatusPanel } from "../chat/collaboration-status-panel";
 import { FilesPanel } from "./files-panel";
 import { useContextPanelStore } from "./store";
 import { ToolNav } from "./tool-nav";
@@ -35,10 +34,6 @@ export const ContextPanel = () => {
     isVersionHistoryLoading,
     restoringVersionFilePath,
     discardingVersionFilePath,
-    chatMode,
-    collaborationPhase,
-    selectedAgent,
-    reviewerAgent,
     chatTrace,
     onRefreshFiles,
     onRefreshVersionControl,
@@ -140,13 +135,6 @@ export const ContextPanel = () => {
             />
           )}
 
-          {chatMode === "collab" && (
-            <CollaborationStatusPanel
-              writerAgent={selectedAgent}
-              reviewerAgent={reviewerAgent}
-              phase={collaborationPhase}
-            />
-          )}
         </div>
 
         <ToolNav activeTool={activeTool} onChangeTool={setActiveTool} />

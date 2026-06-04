@@ -24,7 +24,9 @@ import {
   normalizeConversationMessages,
 } from "@/ai/agent-context";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
+import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
+import type { CollaborationWorkflowStepProfile } from "@/features/agent-settings/types";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
@@ -132,6 +134,40 @@ type WorkspaceChatPageProps = {
   onEditWorkspace: (workspace: Workspace) => void;
 };
 
+type CollaborationPromptPhase = "draft" | "review" | "revise" | "custom";
+
+const promptPhaseForWorkflowStep = (
+  step: CollaborationWorkflowStepProfile,
+): CollaborationPromptPhase => (
+  step.phase === "draft" || step.phase === "review" || step.phase === "revise"
+    ? step.phase
+    : "custom"
+);
+
+const visiblePhaseForWorkflowStep = (
+  step: CollaborationWorkflowStepProfile,
+  index: number,
+  total: number,
+): CollaborationPhase => {
+  if (step.phase === "draft") {
+    return "drafting";
+  }
+  if (step.phase === "review") {
+    return "reviewing";
+  }
+  if (step.phase === "revise") {
+    return "revising";
+  }
+
+  if (index === 0) {
+    return "drafting";
+  }
+  if (index === total - 1) {
+    return "revising";
+  }
+  return "reviewing";
+};
+
 export const WorkspaceChatPage = ({
   workspace,
   workspaceSections,
@@ -192,6 +228,7 @@ export const WorkspaceChatPage = ({
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
+  const [isCollaborationWorkflowSettingsOpen, setIsCollaborationWorkflowSettingsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
   const [pendingAgentQuestion, setPendingAgentQuestion] = useState<PendingAgentQuestion | null>(null);
@@ -230,7 +267,6 @@ export const WorkspaceChatPage = ({
     modelSource,
     setModelSource,
     setSelectedAgentId,
-    setSelectedReviewerAgentId,
     settingsError,
     setSettingsError,
     isSettingsLoading,
@@ -241,8 +277,11 @@ export const WorkspaceChatPage = ({
     runtimeAgentId,
     runtimeAgentRequiresModel,
     agentProfiles,
+    collaborationWorkflows,
+    selectedCollaborationWorkflow,
+    selectedCollaborationWorkflowId,
+    setSelectedCollaborationWorkflowId,
     selectedAgent,
-    reviewerAgent,
     effectiveProvider,
     effectiveModel,
     loadLlmOptions,
@@ -392,6 +431,7 @@ export const WorkspaceChatPage = ({
     setIsContextWorkbenchOpen(false);
     setIsLlmSettingsOpen(false);
     setIsAgentSettingsOpen(false);
+    setIsCollaborationWorkflowSettingsOpen(false);
   }, []);
 
   const openSettingsPanel = useCallback(() => {
@@ -412,6 +452,7 @@ export const WorkspaceChatPage = ({
       setWorkspaceView("chat");
       setIsLlmSettingsOpen(false);
       setIsAgentSettingsOpen(false);
+      setIsCollaborationWorkflowSettingsOpen(false);
     }
   }, []);
 
@@ -1901,11 +1942,14 @@ export const WorkspaceChatPage = ({
   const rebuildConversationContextAfterHistoryChange = useCallback(async (
     nextConversation: ConversationMessage[],
   ) => {
-    const summaryProvider = chatMode === "collab" && selectedAgent
-      ? selectedAgent.provider
+    const collaborationSummaryAgent = chatMode === "collab"
+      ? selectedCollaborationWorkflow?.writerAgent ?? null
+      : null;
+    const summaryProvider = collaborationSummaryAgent
+      ? collaborationSummaryAgent.provider
       : effectiveProvider;
-    const summaryModel = chatMode === "collab" && selectedAgent
-      ? selectedAgent.model
+    const summaryModel = collaborationSummaryAgent
+      ? collaborationSummaryAgent.model
       : effectiveModel;
     const summarySummarizer = summarizerFor(summaryProvider, summaryModel);
     const contextPlan = contextEngine.createPlan({
@@ -1930,7 +1974,7 @@ export const WorkspaceChatPage = ({
     effectiveModel,
     effectiveProvider,
     runtimeAgentRequiresModel,
-    selectedAgent,
+    selectedCollaborationWorkflow,
     summarizerFor,
   ]);
 
@@ -2081,8 +2125,12 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    if (chatMode === "collab" && (!selectedAgent || !reviewerAgent)) {
-      setChatError("请选择写作 Agent 和审查 Agent");
+    const collaborationWorkflow = chatMode === "collab" ? selectedCollaborationWorkflow : null;
+    const collaborationWriterAgent = collaborationWorkflow?.writerAgent ?? null;
+    const collaborationReviewerAgent = collaborationWorkflow?.reviewerAgent ?? null;
+
+    if (chatMode === "collab" && (!collaborationWorkflow || !collaborationWriterAgent || !collaborationReviewerAgent)) {
+      setChatError("请选择协作流程");
       return;
     }
 
@@ -2151,19 +2199,21 @@ export const WorkspaceChatPage = ({
       text: "",
       status: "loading",
       createdAt: now,
-      agentAvatar: modelSource === "agent" || chatMode === "collab" ? selectedAgent?.avatar : undefined,
-      agentName: chatMode === "collab" && selectedAgent && reviewerAgent
-        ? `${selectedAgent.name} + ${reviewerAgent.name}`
+      agentAvatar: chatMode === "collab"
+        ? collaborationWriterAgent?.avatar
+        : modelSource === "agent" ? selectedAgent?.avatar : undefined,
+      agentName: chatMode === "collab" && collaborationWorkflow
+        ? collaborationWorkflow.name
         : modelSource === "agent" ? selectedAgent?.name : undefined,
       agentEvents: chatMode === "agent" ? [] : undefined,
       agentBlocks: chatMode === "agent" ? [] : undefined,
     };
     const traceTurnId = `${now}-${assistantMessageId}`;
-    const traceProviderName = chatMode === "collab" && selectedAgent && reviewerAgent
-      ? `${selectedAgent.provider.name} / ${reviewerAgent.provider.name}`
+    const traceProviderName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
+      ? `${collaborationWriterAgent.provider.name} / ${collaborationReviewerAgent.provider.name}`
       : effectiveProvider?.name ?? null;
-    const traceModelName = chatMode === "collab" && selectedAgent && reviewerAgent
-      ? `${selectedAgent.model.modelName} / ${reviewerAgent.model.modelName}`
+    const traceModelName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
+      ? `${collaborationWriterAgent.model.modelName} / ${collaborationReviewerAgent.model.modelName}`
       : effectiveModel?.modelName ?? null;
     const traceTurn: ChatTraceTurn = {
       id: traceTurnId,
@@ -2223,11 +2273,11 @@ export const WorkspaceChatPage = ({
         modelContext: contextModelFor(provider, model),
         canUseModel: false,
       }).limits;
-      const summaryProvider = chatMode === "collab" && selectedAgent
-        ? selectedAgent.provider
+      const summaryProvider = chatMode === "collab" && collaborationWriterAgent
+        ? collaborationWriterAgent.provider
         : effectiveProvider;
-      const summaryModel = chatMode === "collab" && selectedAgent
-        ? selectedAgent.model
+      const summaryModel = chatMode === "collab" && collaborationWriterAgent
+        ? collaborationWriterAgent.model
         : effectiveModel;
       const summaryModelContext = contextModelFor(summaryProvider, summaryModel);
       const summarySummarizer = summarizerFor(summaryProvider, summaryModel);
@@ -2293,8 +2343,8 @@ export const WorkspaceChatPage = ({
         contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
         runtimeAgentId,
         agentSessionId: null,
-        providerName: effectiveProvider?.name ?? null,
-        modelName: effectiveModel?.modelName ?? null,
+        providerName: traceProviderName,
+        modelName: traceModelName,
         activeFilePath: activeFile?.path ?? null,
         referencedFilePaths: referencedFiles.map((file) => file.path),
         enabledSkillNames,
@@ -2342,287 +2392,161 @@ export const WorkspaceChatPage = ({
         content: formatKnowledgeMatches(knowledgeMatches),
       };
 
-      if (chatMode === "collab" && selectedAgent && reviewerAgent) {
-        setCollaborationPhase("drafting");
+      if (chatMode === "collab" && collaborationWorkflow && collaborationWriterAgent && collaborationReviewerAgent) {
+        const workflowSteps = collaborationWorkflow.steps;
+        if (workflowSteps.length === 0) {
+          setChatError("协作流程没有可执行步骤");
+          return;
+        }
+
         const debugPayloads: ContextDebugPayload[] = [knowledgeDebugPayload];
-        const draftSystemPrompt = buildCollaborationSystemPrompt(
-          workspace,
-          activeFile,
-          referencedFiles,
-          enabledSkills,
-          selectedAgent,
-          "draft",
-          {
-            limits: limitsFor(selectedAgent.provider, selectedAgent.model),
-            conversationSummary,
-            agentExecutionSummary: currentAgentExecutionSummary,
-            contextQuery: text,
-            knowledgeMatches,
-          },
-        );
-        debugPayloads.push(
-          { label: "draft systemPrompt", content: draftSystemPrompt },
-          { label: "draft messages", content: formatDebugMessages(runtimeMessages) },
-        );
-        publishContextDebugSnapshot(debugPayloads, {
-          providerName: selectedAgent.provider.name,
-          modelName: selectedAgent.model.modelName,
-        });
-        const draftStartedAt = Date.now();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "request",
-          label: "初稿模型请求",
-          status: "done",
-          content: draftSystemPrompt,
-          metadata: {
-            phase: "draft",
-            providerName: selectedAgent.provider.name,
-            modelName: selectedAgent.model.modelName,
-            stream: false,
-          },
-          payloads: [
-            {
-              label: "messages",
-              content: formatDebugMessages(runtimeMessages),
-            },
-          ],
-        });
-        const draftResult = await runAgentRuntimeChat({
-          agentId: runtimeAgentId,
-          provider: selectedAgent.provider,
-          model: selectedAgent.model,
-          stream: false,
-          systemPrompt: draftSystemPrompt,
-          messages: runtimeMessages,
-        });
-        const draftText = draftResult.text.trim();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "response",
-          label: "初稿模型响应",
-          startedAt: draftStartedAt,
-          endedAt: Date.now(),
-          status: "done",
-          content: draftText,
-          metadata: {
-            phase: "draft",
-            thinkingLength: draftResult.thinking?.length ?? 0,
-          },
-          payloads: draftResult.thinking?.trim()
-            ? [{ label: "thinking", content: draftResult.thinking.trim() }]
-            : undefined,
-        });
-        updateMessage(assistantMessageId, (message) => ({
-          ...message,
-          text: [
-            `## ${selectedAgent.name}：初稿`,
-            draftText,
-            "",
-            `## ${reviewerAgent.name}：审查中`,
-            "",
-            "正在审查初稿...",
-          ].join("\n\n"),
-          thinking: draftResult.thinking?.trim() || undefined,
-          status: "streaming",
-        }));
+        const stepOutputs: Array<{
+          step: CollaborationWorkflowStepProfile;
+          text: string;
+          thinking?: string;
+        }> = [];
+        const renderStepOutput = (
+          step: CollaborationWorkflowStepProfile,
+          stepText: string,
+        ) => `## ${step.agent.name}：${step.name}\n\n${stepText}`;
+        const renderProgressText = (nextStep?: CollaborationWorkflowStepProfile) => [
+          ...stepOutputs.map((output) => renderStepOutput(output.step, output.text)),
+          nextStep
+            ? `## ${nextStep.agent.name}：${nextStep.name}中\n\n正在执行 ${nextStep.name}...`
+            : "",
+        ].filter(Boolean).join("\n\n");
+        const renderPriorOutputs = () => stepOutputs
+          .map((output, index) => [
+            `## 步骤 ${index + 1}：${output.step.name}`,
+            `角色：${output.step.agent.name}`,
+            output.text,
+          ].join("\n"))
+          .join("\n\n");
 
-        setCollaborationPhase("reviewing");
-        const reviewSystemPrompt = buildCollaborationSystemPrompt(
-          workspace,
-          activeFile,
-          referencedFiles,
-          enabledSkills,
-          reviewerAgent,
-          "review",
-          {
-            limits: limitsFor(reviewerAgent.provider, reviewerAgent.model),
-            conversationSummary,
-            agentExecutionSummary: currentAgentExecutionSummary,
-            contextQuery: text,
-            knowledgeMatches,
-          },
-        );
-        const reviewMessages = contextEngine.selectConversationMessages([
-          ...nextConversation,
-          {
-            id: createMessageId(),
-            role: "assistant",
-            content: draftText,
-            timestamp: Date.now(),
-          },
-        ], nextConversationContext, summaryLimits);
-        debugPayloads.push(
-          { label: "review systemPrompt", content: reviewSystemPrompt },
-          { label: "review messages", content: formatDebugMessages(reviewMessages) },
-        );
-        publishContextDebugSnapshot(debugPayloads, {
-          providerName: reviewerAgent.provider.name,
-          modelName: reviewerAgent.model.modelName,
-        });
-        const reviewStartedAt = Date.now();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "request",
-          label: "审查模型请求",
-          status: "done",
-          content: reviewSystemPrompt,
-          metadata: {
-            phase: "review",
-            providerName: reviewerAgent.provider.name,
-            modelName: reviewerAgent.model.modelName,
-            stream: false,
-          },
-          payloads: [
+        for (const [index, step] of workflowSteps.entries()) {
+          const promptPhase = promptPhaseForWorkflowStep(step);
+          setCollaborationPhase(visiblePhaseForWorkflowStep(step, index, workflowSteps.length));
+          const stepMessages = index === 0
+            ? runtimeMessages
+            : contextEngine.selectConversationMessages([
+              ...nextConversation,
+              {
+                id: createMessageId(),
+                role: "assistant",
+                content: `协作流程前序步骤输出：\n\n${renderPriorOutputs()}`,
+                timestamp: Date.now(),
+              },
+            ], nextConversationContext, summaryLimits);
+          const systemPrompt = buildCollaborationSystemPrompt(
+            workspace,
+            activeFile,
+            referencedFiles,
+            enabledSkills,
+            step.agent,
+            promptPhase,
             {
-              label: "messages",
-              content: formatDebugMessages(reviewMessages),
+              limits: limitsFor(step.agent.provider, step.agent.model),
+              conversationSummary,
+              agentExecutionSummary: currentAgentExecutionSummary,
+              contextQuery: text,
+              knowledgeMatches,
+              collaborationInstruction: step.instruction,
+              collaborationStepName: step.name,
+              collaborationStepIndex: index + 1,
+              collaborationStepCount: workflowSteps.length,
             },
-          ],
-        });
-        const reviewResult = await runAgentRuntimeChat({
-          agentId: runtimeAgentId,
-          provider: reviewerAgent.provider,
-          model: reviewerAgent.model,
-          stream: false,
-          systemPrompt: reviewSystemPrompt,
-          messages: reviewMessages,
-        });
-        const reviewText = reviewResult.text.trim();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "response",
-          label: "审查模型响应",
-          startedAt: reviewStartedAt,
-          endedAt: Date.now(),
-          status: "done",
-          content: reviewText,
-          metadata: {
-            phase: "review",
-            thinkingLength: reviewResult.thinking?.length ?? 0,
-          },
-          payloads: reviewResult.thinking?.trim()
-            ? [{ label: "thinking", content: reviewResult.thinking.trim() }]
-            : undefined,
-        });
-        updateMessage(assistantMessageId, (message) => ({
-          ...message,
-          text: [
-            `## ${selectedAgent.name}：初稿`,
-            draftText,
-            "",
-            `## ${reviewerAgent.name}：审查意见`,
-            reviewText,
-            "",
-            `## ${selectedAgent.name}：修订中`,
-            "",
-            "正在根据审查意见修订...",
-          ].join("\n\n"),
-          thinking: [message.thinking, reviewResult.thinking?.trim()].filter(Boolean).join("\n\n") || undefined,
-          status: "streaming",
-        }));
+          );
+          debugPayloads.push(
+            { label: `step ${index + 1} systemPrompt`, content: systemPrompt },
+            { label: `step ${index + 1} messages`, content: formatDebugMessages(stepMessages) },
+          );
+          publishContextDebugSnapshot(debugPayloads, {
+            providerName: step.agent.provider.name,
+            modelName: step.agent.model.modelName,
+          });
+          const stepStartedAt = Date.now();
+          appendVisibleTraceStep(traceTurnId, {
+            type: "request",
+            label: `${step.name}模型请求`,
+            status: "done",
+            content: systemPrompt,
+            metadata: {
+              phase: promptPhase,
+              stepIndex: index + 1,
+              stepName: step.name,
+              providerName: step.agent.provider.name,
+              modelName: step.agent.model.modelName,
+              stream: false,
+            },
+            payloads: [
+              {
+                label: "messages",
+                content: formatDebugMessages(stepMessages),
+              },
+            ],
+          });
+          const stepResult = await runAgentRuntimeChat({
+            agentId: runtimeAgentId,
+            provider: step.agent.provider,
+            model: step.agent.model,
+            stream: false,
+            systemPrompt,
+            messages: stepMessages,
+          });
+          const stepText = stepResult.text.trim();
+          stepOutputs.push({
+            step,
+            text: stepText,
+            thinking: stepResult.thinking?.trim() || undefined,
+          });
+          appendVisibleTraceStep(traceTurnId, {
+            type: "response",
+            label: `${step.name}模型响应`,
+            startedAt: stepStartedAt,
+            endedAt: Date.now(),
+            status: "done",
+            content: stepText,
+            metadata: {
+              phase: promptPhase,
+              stepIndex: index + 1,
+              stepName: step.name,
+              thinkingLength: stepResult.thinking?.length ?? 0,
+            },
+            payloads: stepResult.thinking?.trim()
+              ? [{ label: "thinking", content: stepResult.thinking.trim() }]
+              : undefined,
+          });
+          updateMessage(assistantMessageId, (message) => ({
+            ...message,
+            text: renderProgressText(workflowSteps[index + 1]),
+            thinking: stepOutputs.map((output) => output.thinking).filter(Boolean).join("\n\n") || undefined,
+            status: index === workflowSteps.length - 1 ? "done" : "streaming",
+          }));
+        }
 
-        setCollaborationPhase("revising");
-        const reviseSystemPrompt = buildCollaborationSystemPrompt(
-          workspace,
-          activeFile,
-          referencedFiles,
-          enabledSkills,
-          selectedAgent,
-          "revise",
-          {
-            limits: limitsFor(selectedAgent.provider, selectedAgent.model),
-            conversationSummary,
-            agentExecutionSummary: currentAgentExecutionSummary,
-            contextQuery: text,
-            knowledgeMatches,
-          },
-        );
-        const reviseMessages = contextEngine.selectConversationMessages([
-          ...nextConversation,
-          {
-            id: createMessageId(),
-            role: "assistant",
-            content: draftText,
-            timestamp: Date.now(),
-          },
-          {
-            id: createMessageId(),
-            role: "user",
-            content: `这是审查 Agent 的意见，请据此修订并输出最终版本：\n\n${reviewText}`,
-            timestamp: Date.now(),
-          },
-        ], nextConversationContext, summaryLimits);
-        debugPayloads.push(
-          { label: "revise systemPrompt", content: reviseSystemPrompt },
-          { label: "revise messages", content: formatDebugMessages(reviseMessages) },
-        );
-        publishContextDebugSnapshot(debugPayloads, {
-          providerName: selectedAgent.provider.name,
-          modelName: selectedAgent.model.modelName,
-        });
-        const reviseStartedAt = Date.now();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "request",
-          label: "修订模型请求",
-          status: "done",
-          content: reviseSystemPrompt,
-          metadata: {
-            phase: "revise",
-            providerName: selectedAgent.provider.name,
-            modelName: selectedAgent.model.modelName,
-            stream: false,
-          },
-          payloads: [
-            {
-              label: "messages",
-              content: formatDebugMessages(reviseMessages),
-            },
-          ],
-        });
-        const finalResult = await runAgentRuntimeChat({
-          agentId: runtimeAgentId,
-          provider: selectedAgent.provider,
-          model: selectedAgent.model,
-          stream: false,
-          systemPrompt: reviseSystemPrompt,
-          messages: reviseMessages,
-        });
-        const finalText = finalResult.text.trim();
-        appendVisibleTraceStep(traceTurnId, {
-          type: "response",
-          label: "修订模型响应",
-          startedAt: reviseStartedAt,
-          endedAt: Date.now(),
-          status: "done",
-          content: finalText,
-          metadata: {
-            phase: "revise",
-            thinkingLength: finalResult.thinking?.length ?? 0,
-          },
-          payloads: finalResult.thinking?.trim()
-            ? [{ label: "thinking", content: finalResult.thinking.trim() }]
-            : undefined,
-        });
+        const finalOutput = stepOutputs.at(-1);
+        if (!finalOutput) {
+          setChatError("协作流程没有生成结果");
+          return;
+        }
+        const previousOutputs = stepOutputs.slice(0, -1);
         const collaborationText = [
-          `## ${selectedAgent.name}：最终修订`,
-          finalText,
-          "",
-          "<details>",
-          `<summary>${selectedAgent.name} 初稿</summary>`,
-          "",
-          draftText,
-          "",
-          "</details>",
-          "",
-          "<details>",
-          `<summary>${reviewerAgent.name} 审查意见</summary>`,
-          "",
-          reviewText,
-          "",
-          "</details>",
+          renderStepOutput(finalOutput.step, finalOutput.text),
+          ...previousOutputs.flatMap((output, index) => [
+            "",
+            "<details>",
+            `<summary>步骤 ${index + 1}：${output.step.agent.name} ${output.step.name}</summary>`,
+            "",
+            output.text,
+            "",
+            "</details>",
+          ]),
         ].join("\n\n");
 
         updateMessage(assistantMessageId, (message) => ({
           ...message,
           text: collaborationText,
-          thinking: [message.thinking, finalResult.thinking?.trim()].filter(Boolean).join("\n\n") || undefined,
+          thinking: stepOutputs.map((output) => output.thinking).filter(Boolean).join("\n\n") || undefined,
           status: "done",
         }));
         const finalConversation: ConversationMessage[] = [
@@ -3084,7 +3008,9 @@ export const WorkspaceChatPage = ({
     providers,
     selectedProviderId,
     selectedModel,
-    reviewerAgent,
+    collaborationWorkflows,
+    selectedCollaborationWorkflow,
+    selectedCollaborationWorkflowId,
     allowedAgentTools,
     toggleThinking,
     toggleAgentEvents,
@@ -3104,7 +3030,7 @@ export const WorkspaceChatPage = ({
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
-    setSelectedReviewerAgentId,
+    setSelectedCollaborationWorkflowId,
     setSelectedProviderId,
     setSelectedModelId,
     toggleAllowedAgentTool,
@@ -3154,6 +3080,7 @@ export const WorkspaceChatPage = ({
       onBack={() => setWorkspaceView("chat")}
       onOpenLlmSettings={() => setIsLlmSettingsOpen(true)}
       onOpenAgentSettings={() => setIsAgentSettingsOpen(true)}
+      onOpenCollaborationWorkflowSettings={() => setIsCollaborationWorkflowSettingsOpen(true)}
     />
   );
 
@@ -3195,8 +3122,8 @@ export const WorkspaceChatPage = ({
     discardingVersionFilePath,
     chatMode,
     collaborationPhase,
-    selectedAgent,
-    reviewerAgent,
+    selectedAgent: chatMode === "collab" ? selectedCollaborationWorkflow?.writerAgent ?? null : selectedAgent,
+    reviewerAgent: chatMode === "collab" ? selectedCollaborationWorkflow?.reviewerAgent ?? null : null,
     chatTrace,
     onRefreshFiles: () => void loadFiles(),
     onRefreshVersionControl: () => void loadVersionControl(),
@@ -3240,6 +3167,15 @@ export const WorkspaceChatPage = ({
         open={isAgentSettingsOpen}
         onOpenChange={(open) => {
           setIsAgentSettingsOpen(open);
+          if (!open) {
+            void loadLlmOptions();
+          }
+        }}
+      />
+      <CollaborationWorkflowSettingsDialog
+        open={isCollaborationWorkflowSettingsOpen}
+        onOpenChange={(open) => {
+          setIsCollaborationWorkflowSettingsOpen(open);
           if (!open) {
             void loadLlmOptions();
           }
@@ -3298,6 +3234,7 @@ export const WorkspaceChatPage = ({
           setIsContextWorkbenchOpen(false);
           setIsLlmSettingsOpen(false);
           setIsAgentSettingsOpen(false);
+          setIsCollaborationWorkflowSettingsOpen(false);
           setWorkspaceView("knowledge");
         }}
         onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}

@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,8 +82,45 @@ pub struct AiAgent {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CollaborationWorkflowStep {
+    pub id: String,
+    pub name: String,
+    pub agent_id: String,
+    pub instruction: Option<String>,
+    pub phase: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollaborationWorkflow {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub writer_agent_id: String,
+    pub reviewer_agent_id: String,
+    pub draft_instruction: Option<String>,
+    pub review_instruction: Option<String>,
+    pub revise_instruction: Option<String>,
+    pub steps: Vec<CollaborationWorkflowStep>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct CollaborationWorkflowStepRecord {
+    pub id: String,
+    pub name: String,
+    pub agent_id: String,
+    pub instruction: Option<String>,
+    pub phase: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AiAgentSettings {
     pub agents: Vec<AiAgent>,
+    pub collaboration_workflows: Vec<CollaborationWorkflow>,
 }
 
 #[derive(Debug, Serialize)]
