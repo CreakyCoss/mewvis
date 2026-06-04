@@ -3,7 +3,7 @@ import type {
   WorkspaceVersionControlStatus,
   WorkspaceVersionFileDiff,
   WorkspaceVersionFileEntry,
-} from "../../../types";
+} from "../../types";
 
 export type VersionFileTreeNode = {
   path: string;

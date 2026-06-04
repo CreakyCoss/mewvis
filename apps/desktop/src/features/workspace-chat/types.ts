@@ -152,6 +152,59 @@ export type ChatSessionMeta = {
   messageCount: number;
 };
 
+export type ChatTracePayload = {
+  label: string;
+  content: string;
+  sourceLabel?: string;
+  sourceDescription?: string;
+};
+
+export type ChatTraceStepStatus = "pending" | "running" | "done" | "error";
+
+export type ChatTraceStep = {
+  id: string;
+  type:
+    | "input"
+    | "context"
+    | "rag"
+    | "request"
+    | "stream"
+    | "response"
+    | "agent_event"
+    | "error";
+  label: string;
+  startedAt: number;
+  endedAt?: number | null;
+  durationMs?: number | null;
+  status?: ChatTraceStepStatus;
+  content?: string;
+  metadata?: Record<string, unknown>;
+  payloads?: ChatTracePayload[];
+};
+
+export type ChatTraceTurnStatus = "running" | "done" | "error";
+
+export type ChatTraceTurn = {
+  id: string;
+  mode: "chat" | "agent" | "collab";
+  status: ChatTraceTurnStatus;
+  createdAt: number;
+  updatedAt: number;
+  userMessageId: string;
+  assistantMessageId: string;
+  userText: string;
+  referencedFilePaths: string[];
+  activeFilePath?: string | null;
+  providerName?: string | null;
+  modelName?: string | null;
+  runtimeAgentId?: string | null;
+  agentSessionId?: string | null;
+  contextEngineId?: string | null;
+  contextWindow?: number | null;
+  conversationSummary?: string;
+  steps: ChatTraceStep[];
+};
+
 export type ChatSession = {
   id: string;
   title: string;
@@ -160,4 +213,5 @@ export type ChatSession = {
   messages: ChatMessage[];
   conversation: ConversationMessage[];
   context?: ChatContextSummary | null;
+  trace?: ChatTraceTurn[];
 };

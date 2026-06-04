@@ -42,14 +42,14 @@ import type {
   ComposerSubmitInput,
   ContextWindowPreset,
   ModelSource,
-} from "../page-types";
-import type { WorkspaceFileEntry } from "../types";
+} from "../../page-types";
+import type { WorkspaceFileEntry } from "../../types";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
-} from "../utils/references";
+} from "../../utils/references";
 
 type ComposerProps = {
   files: WorkspaceFileEntry[];

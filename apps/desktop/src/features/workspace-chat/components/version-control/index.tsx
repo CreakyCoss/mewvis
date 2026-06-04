@@ -1,6 +1,6 @@
-import { VersionControlHistoryPanel } from "./version-control/history-panel";
-import type { VersionControlPanelProps } from "./version-control/types";
-import { VersionControlWorktreePanel } from "./version-control/worktree-panel";
+import { VersionControlHistoryPanel } from "./history-panel";
+import type { VersionControlPanelProps } from "./types";
+import { VersionControlWorktreePanel } from "./worktree-panel";
 
 export const VersionControlPanel = ({
   panelMode = "worktree",

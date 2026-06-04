@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceFile, WorkspaceVersionFileStatus } from "../../types";
-import { MarkdownContent } from "../markdown-content";
+import { MarkdownContent } from "../chat/markdown-content";
 
 type FilePanelProps = {
   activeFile: WorkspaceFile | null;

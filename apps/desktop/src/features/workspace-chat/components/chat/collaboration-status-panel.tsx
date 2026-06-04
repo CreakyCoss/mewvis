@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { AgentProfile } from "@/features/agent-settings/types";
-import type { CollaborationPhase } from "../page-types";
+import type { CollaborationPhase } from "../../page-types";
 
 type CollaborationStatusPanelProps = {
   writerAgent: AgentProfile | null;

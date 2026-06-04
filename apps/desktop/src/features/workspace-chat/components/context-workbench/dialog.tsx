@@ -9,9 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MewvisOffice } from "./context-workbench/office";
-import type { ContextDebugSnapshot } from "../page-types";
-import type { AgentSessionStatus, ChatContextSummary } from "../types";
+import { MewvisOffice } from "./office";
+import type { ContextDebugSnapshot } from "../../page-types";
+import type { AgentSessionStatus, ChatContextSummary } from "../../types";
 
 type ContextWorkbenchDialogProps = {
   open: boolean;

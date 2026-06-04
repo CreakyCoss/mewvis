@@ -1,4 +1,4 @@
-import type { WorkspaceVersionFileDiff } from "../../../types";
+import type { WorkspaceVersionFileDiff } from "../../types";
 import type { SideBySideDiffRow } from "./types";
 
 const parseUnifiedDiff = (patch: string): SideBySideDiffRow[] => {

@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
-import type { WorkspaceVersionControlStatus } from "../types";
+import type { WorkspaceVersionControlStatus } from "../../types";
 
 type WorkbenchHeaderProps = {
   isContextPanelOpen: boolean;

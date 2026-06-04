@@ -7,7 +7,7 @@ type StartupGateProps = {
   children: ReactNode;
 };
 
-const MIN_STARTUP_DURATION_MS = 5_000;
+const MIN_STARTUP_DURATION_MS = 2_000;
 const STARTUP_COMPLETE_SPARKLE_MS = 1_000;
 const STARTUP_PREVIEW_DURATION_MS = 10_000;
 let configDatabaseInitialization: Promise<void> | null = null;

@@ -11,6 +11,7 @@ import type {
   ChatMessage,
   ChatSession,
   ChatSessionMeta,
+  ChatTraceTurn,
   CleanupAgentSessionsResult,
   CreateWorkspaceVersionResult,
   WorkspaceVersion,
@@ -325,6 +326,7 @@ export async function saveChatSession(input: {
   messages: ChatMessage[];
   conversation: ConversationMessage[];
   context?: ChatContextSummary | null;
+  trace?: ChatTraceTurn[];
 }) {
   if (!isTauri()) {
     const now = Date.now();
@@ -336,6 +338,7 @@ export async function saveChatSession(input: {
       messages: input.messages,
       conversation: input.conversation,
       context: input.context,
+      trace: input.trace,
     } satisfies ChatSession;
   }
 

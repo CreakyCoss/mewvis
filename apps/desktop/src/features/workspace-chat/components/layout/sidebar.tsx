@@ -19,8 +19,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Workspace } from "@/features/workspaces/types";
 import { cn } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@/product-config";
-import type { ChatSessionMeta } from "../types";
-import { formatSessionTime } from "../utils/sessions";
+import type { ChatSessionMeta } from "../../types";
+import { formatSessionTime } from "../../utils/sessions";
 
 const DEFAULT_VISIBLE_SESSION_LIMIT = 5;
 const WORKSPACE_VISIBLE_SESSION_LIMIT = 4;

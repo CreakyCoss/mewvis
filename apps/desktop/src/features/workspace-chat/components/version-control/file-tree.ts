@@ -1,5 +1,5 @@
-import type { WorkspaceVersionFileEntry } from "../../../types";
-import { VERSION_RULE_FILE_PATH } from "../../../utils/version-control";
+import type { WorkspaceVersionFileEntry } from "../../types";
+import { VERSION_RULE_FILE_PATH } from "../../utils/version-control";
 import type { VersionFileTreeNode } from "./types";
 
 const compareVersionFileTreeNodes = (

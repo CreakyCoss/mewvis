@@ -36,6 +36,7 @@ pub struct SaveChatSessionInput {
     pub messages: Value,
     pub conversation: Value,
     pub context: Option<Value>,
+    pub trace: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,6 +68,8 @@ pub struct ChatSession {
     pub conversation: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace: Option<Value>,
 }
 
 pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSessionMeta>, String> {
@@ -160,6 +163,7 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
         messages: input.messages,
         conversation: input.conversation,
         context: input.context,
+        trace: input.trace,
     };
     let path = session_path(&input.workspace_path, &session.id)?;
     let content = serde_json::to_string_pretty(&session)
@@ -330,6 +334,7 @@ mod tests {
             ]),
             conversation: json!([]),
             context: None,
+            trace: None,
         })
         .expect("save chat session")
     }

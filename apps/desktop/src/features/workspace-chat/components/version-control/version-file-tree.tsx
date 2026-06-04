@@ -6,7 +6,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VERSION_RULE_FILE_PATH } from "../../../utils/version-control";
+import { VERSION_RULE_FILE_PATH } from "../../utils/version-control";
 import {
   versionStatusLabels,
   versionStatusTextClasses,
