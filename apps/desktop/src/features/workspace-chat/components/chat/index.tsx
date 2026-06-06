@@ -11,6 +11,7 @@ import type {
   ChatExecutionMode,
   ChatMode,
   ComposerSubmitInput,
+  CollaborationPlanDecisionRequest,
   ContextWindowPreset,
   ModelSource,
   PendingAgentQuestion,
@@ -37,6 +38,7 @@ export type ChatPanelViewModel = {
   skillsError: string;
   sessionsError: string;
   pendingAgentQuestion: PendingAgentQuestion | null;
+  collaborationPlanDecision: CollaborationPlanDecisionRequest | null;
   agentQuestionAnswer: string;
   customAgentQuestionAnswer: string;
   isAnsweringAgentQuestion: boolean;
@@ -72,6 +74,7 @@ export type ChatPanelViewModel = {
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
   answerAgentQuestion: (event: FormEvent<HTMLFormElement>) => void;
+  resolveCollaborationPlanDecision: (approved: boolean) => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;

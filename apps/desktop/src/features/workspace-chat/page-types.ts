@@ -59,6 +59,21 @@ export type PendingAgentQuestion = {
   input?: AgentRuntimeAgentQuestionInput;
 };
 
+export type CollaborationPlanDecisionStep = {
+  id: string;
+  name: string;
+  agentName: string;
+};
+
+export type CollaborationPlanDecisionRequest = {
+  id: string;
+  messageId: string;
+  workflowName: string;
+  reason: string;
+  configuredSteps: CollaborationPlanDecisionStep[];
+  proposedSteps: CollaborationPlanDecisionStep[];
+};
+
 export type ActiveReferenceToken = {
   start: number;
   end: number;

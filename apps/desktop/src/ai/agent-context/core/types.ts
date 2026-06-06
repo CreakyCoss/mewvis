@@ -7,6 +7,25 @@ export type ConversationMessage = {
     agentExecutionSummary?: string;
     agentRunStatus?: "done" | "error";
     agentSessionId?: string | null;
+    collaboration?: {
+      role: "supervisor" | "step";
+      runId: string;
+      workflowId: string;
+      workflowName: string;
+      stepId: string;
+      stepName: string;
+      stepIndex: number;
+      stepCount: number;
+      phase: string;
+      agentId: string;
+      agentName: string;
+      agentAvatar: string;
+      providerName?: string | null;
+      modelName?: string | null;
+      planDecision?: "not_required" | "pending" | "approved" | "rejected";
+      proposedStepIds?: string[];
+      executedStepIds?: string[];
+    } | null;
   } | null;
 };
 

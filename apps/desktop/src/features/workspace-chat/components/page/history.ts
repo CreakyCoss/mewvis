@@ -7,6 +7,7 @@ import type {
   ChatTraceTurn,
   ConversationMessage,
 } from "../../types";
+import { collaborationConversationContentFromMessage } from "../../utils/collaboration";
 
 export type HydratableChatSession = {
   id: string | null;
@@ -141,9 +142,14 @@ export const rebuildConversationFromVisibleMessages = (
     return {
       id: chatMessage.id,
       role: chatMessage.role,
-      content: chatMessage.text,
+      content: collaborationConversationContentFromMessage(chatMessage),
       timestamp: matchedMessage?.timestamp ?? chatMessage.createdAt,
-      metadata: matchedMessage?.metadata ?? null,
+      metadata: chatMessage.collaboration
+        ? {
+          ...matchedMessage?.metadata,
+          collaboration: chatMessage.collaboration,
+        }
+        : matchedMessage?.metadata ?? null,
     };
   });
 };

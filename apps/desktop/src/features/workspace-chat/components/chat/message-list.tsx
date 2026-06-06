@@ -29,6 +29,10 @@ import {
   groupAgentEvents,
   isTimelineEvent,
 } from "../../utils/agent-blocks";
+import {
+  collaborationMessageLabel,
+  collaborationMessageLoadingText,
+} from "../../utils/collaboration";
 import { AgentBlockList } from "./agent-block-list";
 import { AgentEventTimeline } from "./agent-event-timeline";
 import { SmoothMarkdownContent, SmoothPlainText } from "./smooth-stream-content";
@@ -46,10 +50,12 @@ const getMessageTextForAction = (message: ChatMessage) => {
 export const MessageList = () => {
   const {
     messages,
+    isSending,
     expandedThinkingIds,
     expandedAgentEventIds,
     modelSource,
     selectedAgent,
+    collaborationPlanDecision,
     activeAgentTaskId,
     showThinkingProcess,
     showToolCallProcess,
@@ -57,6 +63,7 @@ export const MessageList = () => {
     toggleAgentEvents,
     toggleAgentThinkingBlock,
     toggleAgentBlock,
+    resolveCollaborationPlanDecision,
     onEditHistoryMessage,
     onDeleteHistoryMessage,
     onMoveHistoryMessage,
@@ -172,6 +179,7 @@ export const MessageList = () => {
           agentBlocks.length > 0;
         const isEditingHistoryMessage = editingMessageId === message.id;
         const canChangeHistory =
+          !isSending &&
           !activeAgentTaskId &&
           message.status !== "loading" &&
           message.status !== "streaming";
@@ -183,6 +191,18 @@ export const MessageList = () => {
         const historyMenuItemClass =
           "flex size-8 items-center justify-center rounded-lg p-0 text-muted-foreground focus:bg-muted/70 focus:text-foreground";
         const messageAuthorLabel = message.agentName ?? (isAgentBackedMessage ? "Agent" : "助手");
+        const collaborationLabel = message.collaboration
+          ? collaborationMessageLabel(message.collaboration)
+          : null;
+        const planDecisionForMessage =
+          collaborationPlanDecision?.messageId === message.id
+            ? collaborationPlanDecision
+            : null;
+        const assistantLoadingLabel = message.collaboration
+          ? collaborationMessageLoadingText(message.collaboration)
+          : message.mode === "collab"
+            ? "Agent 正在协作"
+            : isAgentBackedMessage ? "Agent 正在处理" : "AI 正在思考";
         const messageTimeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
           hour: "2-digit",
           minute: "2-digit",
@@ -402,6 +422,12 @@ export const MessageList = () => {
                     <span className="truncate font-medium">{messageAuthorLabel}</span>
                     <span aria-hidden="true">·</span>
                     <span className="shrink-0 tabular-nums">{messageTimeLabel}</span>
+                    {collaborationLabel && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="min-w-0 truncate">{collaborationLabel}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -515,11 +541,7 @@ export const MessageList = () => {
                   ) : isAssistantLoading ? (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Loader2 className="size-4 animate-spin" />
-                      <span>
-                        {message.mode === "collab"
-                          ? "Agent 正在协作"
-                          : isAgentBackedMessage ? "Agent 正在处理" : "AI 正在思考"}
-                      </span>
+                      <span>{assistantLoadingLabel}</span>
                     </div>
                   ) : message.role === "assistant" ? (
                     <SmoothMarkdownContent
@@ -546,6 +568,77 @@ export const MessageList = () => {
                       </div>
                     </div>
                   )
+                )}
+                {!isEditingHistoryMessage && planDecisionForMessage && (
+                  <div className="mt-3 space-y-3 border-t border-border/70 pt-3">
+                    <div className="text-xs font-medium text-foreground">
+                      主控建议调整流程
+                    </div>
+                    {planDecisionForMessage.reason && (
+                      <div className="text-xs leading-5 text-muted-foreground">
+                        {planDecisionForMessage.reason}
+                      </div>
+                    )}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-md bg-muted/35 px-2.5 py-2">
+                        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                          原流程
+                        </div>
+                        <ol className="space-y-1 text-xs leading-5">
+                          {planDecisionForMessage.configuredSteps.map((step, index) => (
+                            <li key={step.id} className="flex gap-1.5">
+                              <span className="shrink-0 tabular-nums text-muted-foreground">
+                                {index + 1}.
+                              </span>
+                              <span className="min-w-0">
+                                <span>{step.name}</span>
+                                <span className="text-muted-foreground"> · {step.agentName}</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                      <div className="rounded-md bg-muted/35 px-2.5 py-2">
+                        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                          建议
+                        </div>
+                        <ol className="space-y-1 text-xs leading-5">
+                          {planDecisionForMessage.proposedSteps.map((step, index) => (
+                            <li key={step.id} className="flex gap-1.5">
+                              <span className="shrink-0 tabular-nums text-muted-foreground">
+                                {index + 1}.
+                              </span>
+                              <span className="min-w-0">
+                                <span>{step.name}</span>
+                                <span className="text-muted-foreground"> · {step.agentName}</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => resolveCollaborationPlanDecision(false)}
+                      >
+                        <X className="size-3.5" />
+                        <span>继续原流程</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => resolveCollaborationPlanDecision(true)}
+                      >
+                        <Check className="size-3.5" />
+                        <span>采用建议</span>
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
               {messageToolbar}

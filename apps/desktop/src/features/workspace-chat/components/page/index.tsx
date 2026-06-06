@@ -6,28 +6,17 @@ import {
   type AgentToolName,
 } from "@/ai/agent-runtime/contracts";
 import {
-  toAgentRuntimeProviderConfig,
-} from "@/ai/agent-runtime/config";
-import {
-  buildCollaborationSystemPrompt,
   buildAgentConversationContent,
   buildAgentExecutionSummary,
-  buildSystemPrompt,
   createAgentMemoryTrace,
   getContextEngine,
   listContextEngines,
   type AgentMemoryTrace,
-  type ContextRagMatch,
   type ConversationSummarizer,
-  type PromptContextLimits,
 } from "@/ai/agent-context";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import type {
-  CollaborationWorkflowProfile,
-  CollaborationWorkflowStepProfile,
-} from "@/features/agent-settings/types";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
@@ -39,13 +28,13 @@ import {
   getAgentSessionStatus,
   readWorkspaceFile,
   resetAgentSessionsForChat,
-  runAgentRuntimeChat,
   saveChatSession,
 } from "../../api";
 import type {
   ChatExecutionMode,
   ChatMode,
   CollaborationPhase,
+  CollaborationPlanDecisionRequest,
   ContextDebugPayload,
   ContextDebugSnapshot,
   ComposerSubmitInput,
@@ -80,7 +69,6 @@ import {
 import {
   contextCompressionTraceStep,
   didConversationContextCompress,
-  formatAgentInitialPromptPreview,
   formatDebugMessages,
   formatKnowledgeMatches,
 } from "./trace";
@@ -96,9 +84,24 @@ import {
   deriveSessionTitle,
 } from "../../utils/sessions";
 import {
-  filterChatAgentAllowedTools,
   isAgentTaskMode,
 } from "../../utils/chat-mode";
+import {
+  runAgentTurn,
+} from "./modes/agent-mode-runner";
+import {
+  runChatTurn,
+} from "./modes/chat-mode-runner";
+import {
+  runCollaborationTurn,
+} from "./modes/collaboration-mode-runner";
+import type {
+  FinalizeAssistantTurn,
+  LimitsForProvider,
+  PrepareChatTurnRuntimeInput,
+  PreparedChatTurnRuntime,
+  PublishContextDebugSnapshot,
+} from "./modes/types";
 import { ContextWorkbenchDialog } from "../context-workbench/dialog";
 import { ChatPanel } from "../chat";
 import { useChatPanelStoreBridge } from "../chat/store";
@@ -129,199 +132,18 @@ type WorkspaceChatPageProps = {
   onEditWorkspace: (workspace: Workspace) => void;
 };
 
-type CollaborationPromptPhase = "draft" | "review" | "revise" | "custom";
-
-type LimitsForProvider = (
-  provider?: LlmProvider | null,
-  model?: ProviderModel | null,
-) => PromptContextLimits;
-
-type PublishContextDebugSnapshot = (
-  payloads: ContextDebugPayload[],
-  overrides?: Partial<ContextDebugSnapshot>,
-) => void;
-
-type FinalizeAssistantTurn = (input: {
-  mode: "chat" | "collab";
-  assistantText: string;
-}) => Promise<void>;
-
-type CollaborationStepOutput = {
-  step: CollaborationWorkflowStepProfile;
-  text: string;
-  thinking?: string;
-};
-
 const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
   chat: false,
   agent: true,
   collab: true,
 };
 
-type RunCollaborationTurnInput = {
-  collaborationWorkflow: CollaborationWorkflowProfile;
-  traceTurnId: string;
-  assistantMessageId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  nextConversation: ConversationMessage[];
-  nextConversationContext: ChatContextSummary | null;
-  runtimeMessages: ConversationMessage[];
-  summaryLimits: PromptContextLimits;
-  conversationSummary: string;
-  currentAgentExecutionSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-  finalizeAssistantTurn: FinalizeAssistantTurn;
-};
-
-type RunAgentTurnInput = {
-  nextSessionId: string | null;
-  traceTurnId: string;
-  assistantMessageId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  baseConversation: ConversationMessage[];
-  baseConversationContext: ChatContextSummary | null;
-  nextConversation: ConversationMessage[];
-  nextConversationContext: ChatContextSummary | null;
-  nextMessages: ChatMessage[];
-  conversationSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-};
-
-type RunChatTurnInput = {
-  traceTurnId: string;
-  assistantMessageId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  runtimeMessages: ConversationMessage[];
-  conversationSummary: string;
-  currentAgentExecutionSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-  finalizeAssistantTurn: FinalizeAssistantTurn;
-};
-
-type PrepareChatTurnRuntimeInput = {
-  now: number;
-  userMessageId: string;
-  assistantMessageId: string;
-  traceTurnId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  nextConversation: ConversationMessage[];
-  baseConversationContext: ChatContextSummary | null;
-  traceProviderName: string | null;
-  traceModelName: string | null;
-  summaryProvider: LlmProvider | null;
-  summaryModel: ProviderModel | null;
-};
-
-type PreparedChatTurnRuntime = {
-  summaryLimits: PromptContextLimits;
-  nextConversationContext: ChatContextSummary | null;
-  runtimeMessages: ConversationMessage[];
-  conversationSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-  finalizeAssistantTurn: FinalizeAssistantTurn;
-};
-
 type CommitChatTurnDraftInput = Pick<
   ChatTurnDraft,
-  "nextConversation" | "userUiMessage" | "assistantUiMessage" | "traceTurn"
+  "nextConversation" | "userUiMessage" | "traceTurn"
 > & {
+  assistantUiMessage?: ChatMessage | null;
   nextSessionId: string | null;
-};
-
-const promptPhaseForWorkflowStep = (
-  step: CollaborationWorkflowStepProfile,
-): CollaborationPromptPhase => (
-  step.phase === "draft" || step.phase === "review" || step.phase === "revise"
-    ? step.phase
-    : "custom"
-);
-
-const visiblePhaseForWorkflowStep = (
-  step: CollaborationWorkflowStepProfile,
-  index: number,
-  total: number,
-): CollaborationPhase => {
-  if (step.phase === "draft") {
-    return "drafting";
-  }
-  if (step.phase === "review") {
-    return "reviewing";
-  }
-  if (step.phase === "revise") {
-    return "revising";
-  }
-
-  if (index === 0) {
-    return "drafting";
-  }
-  if (index === total - 1) {
-    return "revising";
-  }
-  return "reviewing";
-};
-
-const renderCollaborationStepOutput = (
-  step: CollaborationWorkflowStepProfile,
-  stepText: string,
-) => `## ${step.agent.name}：${step.name}\n\n${stepText}`;
-
-const renderCollaborationProgressText = (
-  stepOutputs: CollaborationStepOutput[],
-  nextStep?: CollaborationWorkflowStepProfile,
-) => [
-  ...stepOutputs.map((output) => renderCollaborationStepOutput(output.step, output.text)),
-  nextStep
-    ? `## ${nextStep.agent.name}：${nextStep.name}中\n\n正在执行 ${nextStep.name}...`
-    : "",
-].filter(Boolean).join("\n\n");
-
-const renderCollaborationPriorOutputs = (
-  stepOutputs: CollaborationStepOutput[],
-) => stepOutputs
-  .map((output, index) => [
-    `## 步骤 ${index + 1}：${output.step.name}`,
-    `角色：${output.step.agent.name}`,
-    output.text,
-  ].join("\n"))
-  .join("\n\n");
-
-const renderCollaborationFinalText = (
-  stepOutputs: CollaborationStepOutput[],
-) => {
-  const finalOutput = stepOutputs.at(-1);
-  if (!finalOutput) {
-    return null;
-  }
-
-  const previousOutputs = stepOutputs.slice(0, -1);
-  return [
-    renderCollaborationStepOutput(finalOutput.step, finalOutput.text),
-    ...previousOutputs.flatMap((output, index) => [
-      "",
-      "<details>",
-      `<summary>步骤 ${index + 1}：${output.step.agent.name} ${output.step.name}</summary>`,
-      "",
-      output.text,
-      "",
-      "</details>",
-    ]),
-  ].join("\n\n");
 };
 
 export const WorkspaceChatPage = ({
@@ -359,6 +181,7 @@ export const WorkspaceChatPage = ({
   const answeringAgentQuestionIdsRef = useRef<Set<string>>(new Set());
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
+  const collaborationPlanDecisionResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const chatScrollSnapshotRef = useRef<{
     lastMessageId: string | null;
@@ -409,6 +232,8 @@ export const WorkspaceChatPage = ({
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
   const [pendingAgentQuestion, setPendingAgentQuestion] = useState<PendingAgentQuestion | null>(null);
+  const [collaborationPlanDecision, setCollaborationPlanDecision] =
+    useState<CollaborationPlanDecisionRequest | null>(null);
   const [agentQuestionAnswer, setAgentQuestionAnswer] = useState("");
   const [customAgentQuestionAnswer, setCustomAgentQuestionAnswer] = useState("");
   const [isAnsweringAgentQuestion, setIsAnsweringAgentQuestion] = useState(false);
@@ -629,6 +454,30 @@ export const WorkspaceChatPage = ({
       messagesRef.current = next;
       return next;
     });
+  }, []);
+
+  const appendMessage = useCallback((message: ChatMessage) => {
+    setMessages((current) => {
+      const next = [...current, message];
+      messagesRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const requestCollaborationPlanDecision = useCallback((
+    request: Omit<CollaborationPlanDecisionRequest, "id">,
+  ) => new Promise<boolean>((resolve) => {
+    collaborationPlanDecisionResolverRef.current = resolve;
+    setCollaborationPlanDecision({
+      ...request,
+      id: crypto.randomUUID(),
+    });
+  }), []);
+
+  const resolveCollaborationPlanDecision = useCallback((approved: boolean) => {
+    collaborationPlanDecisionResolverRef.current?.(approved);
+    collaborationPlanDecisionResolverRef.current = null;
+    setCollaborationPlanDecision(null);
   }, []);
 
   const applyAgentQuestionDraft = useCallback((
@@ -1515,7 +1364,9 @@ export const WorkspaceChatPage = ({
       setCurrentSessionId(nextSessionId);
     }
 
-    const nextMessages = [...messagesRef.current, userUiMessage, assistantUiMessage];
+    const nextMessages = assistantUiMessage
+      ? [...messagesRef.current, userUiMessage, assistantUiMessage]
+      : [...messagesRef.current, userUiMessage];
     messagesRef.current = nextMessages;
     conversationRef.current = nextConversation;
     replaceChatTrace([...chatTraceRef.current, traceTurn]);
@@ -1525,492 +1376,6 @@ export const WorkspaceChatPage = ({
     setChatError("");
 
     return nextMessages;
-  };
-
-  const runCollaborationTurn = async ({
-    collaborationWorkflow,
-    traceTurnId,
-    assistantMessageId,
-    text,
-    referencedFiles,
-    nextConversation,
-    nextConversationContext,
-    runtimeMessages,
-    summaryLimits,
-    conversationSummary,
-    currentAgentExecutionSummary,
-    knowledgeMatches,
-    knowledgeDebugPayload,
-    limitsFor,
-    publishContextDebugSnapshot,
-    finalizeAssistantTurn,
-  }: RunCollaborationTurnInput) => {
-    const workflowSteps = collaborationWorkflow.steps;
-    if (workflowSteps.length === 0) {
-      setChatError("协作流程没有可执行步骤");
-      return;
-    }
-
-    const debugPayloads: ContextDebugPayload[] = [knowledgeDebugPayload];
-    const stepOutputs: CollaborationStepOutput[] = [];
-
-    for (const [index, step] of workflowSteps.entries()) {
-      const promptPhase = promptPhaseForWorkflowStep(step);
-      setCollaborationPhase(visiblePhaseForWorkflowStep(step, index, workflowSteps.length));
-      const stepMessages = index === 0
-        ? runtimeMessages
-        : contextEngine.selectConversationMessages([
-          ...nextConversation,
-          {
-            id: createMessageId(),
-            role: "assistant",
-            content: `协作流程前序步骤输出：\n\n${renderCollaborationPriorOutputs(stepOutputs)}`,
-            timestamp: Date.now(),
-          },
-        ], nextConversationContext, summaryLimits);
-      const systemPrompt = buildCollaborationSystemPrompt(
-        workspace,
-        activeFile,
-        referencedFiles,
-        enabledSkills,
-        step.agent,
-        promptPhase,
-        {
-          limits: limitsFor(step.agent.provider, step.agent.model),
-          conversationSummary,
-          agentExecutionSummary: currentAgentExecutionSummary,
-          contextQuery: text,
-          knowledgeMatches,
-          collaborationInstruction: step.instruction,
-          collaborationStepName: step.name,
-          collaborationStepIndex: index + 1,
-          collaborationStepCount: workflowSteps.length,
-        },
-      );
-      debugPayloads.push(
-        { label: `step ${index + 1} systemPrompt`, content: systemPrompt },
-        { label: `step ${index + 1} messages`, content: formatDebugMessages(stepMessages) },
-      );
-      publishContextDebugSnapshot(debugPayloads, {
-        providerName: step.agent.provider.name,
-        modelName: step.agent.model.modelName,
-      });
-      const stepStartedAt = Date.now();
-      appendVisibleTraceStep(traceTurnId, {
-        type: "request",
-        label: `${step.name}模型请求`,
-        status: "done",
-        content: systemPrompt,
-        metadata: {
-          phase: promptPhase,
-          stepIndex: index + 1,
-          stepName: step.name,
-          providerName: step.agent.provider.name,
-          modelName: step.agent.model.modelName,
-          stream: false,
-        },
-        payloads: [
-          {
-            label: "messages",
-            content: formatDebugMessages(stepMessages),
-          },
-        ],
-      });
-      const stepResult = await runAgentRuntimeChat({
-        agentId: runtimeAgentId,
-        provider: step.agent.provider,
-        model: step.agent.model,
-        stream: false,
-        systemPrompt,
-        messages: stepMessages,
-      });
-      const stepText = stepResult.text.trim();
-      stepOutputs.push({
-        step,
-        text: stepText,
-        thinking: stepResult.thinking?.trim() || undefined,
-      });
-      appendVisibleTraceStep(traceTurnId, {
-        type: "response",
-        label: `${step.name}模型响应`,
-        startedAt: stepStartedAt,
-        endedAt: Date.now(),
-        status: "done",
-        content: stepText,
-        metadata: {
-          phase: promptPhase,
-          stepIndex: index + 1,
-          stepName: step.name,
-          thinkingLength: stepResult.thinking?.length ?? 0,
-        },
-        payloads: stepResult.thinking?.trim()
-          ? [{ label: "thinking", content: stepResult.thinking.trim() }]
-          : undefined,
-      });
-      updateMessage(assistantMessageId, (message) => ({
-        ...message,
-        text: renderCollaborationProgressText(stepOutputs, workflowSteps[index + 1]),
-        thinking: stepOutputs.map((output) => output.thinking).filter(Boolean).join("\n\n") || undefined,
-        status: index === workflowSteps.length - 1 ? "done" : "streaming",
-      }));
-    }
-
-    const collaborationText = renderCollaborationFinalText(stepOutputs);
-    if (!collaborationText) {
-      setChatError("协作流程没有生成结果");
-      return;
-    }
-
-    updateMessage(assistantMessageId, (message) => ({
-      ...message,
-      text: collaborationText,
-      thinking: stepOutputs.map((output) => output.thinking).filter(Boolean).join("\n\n") || undefined,
-      status: "done",
-    }));
-    await finalizeAssistantTurn({
-      mode: "collab",
-      assistantText: collaborationText,
-    });
-  };
-
-  const runAgentTurn = async ({
-    nextSessionId,
-    traceTurnId,
-    assistantMessageId,
-    text,
-    referencedFiles,
-    baseConversation,
-    baseConversationContext,
-    nextConversation,
-    nextConversationContext,
-    nextMessages,
-    conversationSummary,
-    knowledgeMatches,
-    knowledgeDebugPayload,
-    limitsFor,
-    publishContextDebugSnapshot,
-  }: RunAgentTurnInput) => {
-    if (!nextSessionId) {
-      setChatError("无法创建 Agent 长期上下文，请重试");
-      return;
-    }
-
-    const agentLimits = limitsFor(effectiveProvider, effectiveModel);
-    const agentSessionPlan = contextEngine.planAgentRun({
-      chatSessionId: nextSessionId,
-      conversation: baseConversation,
-      currentContext: baseConversationContext,
-      agentId: runtimeAgentId,
-      tokenBudget: agentLimits.recentHistoryTokens,
-      isHistoryInvalidated: agentContextInvalidatedRef.current,
-    });
-    const agentSessionId = agentSessionPlan.agentSessionId;
-    patchVisibleTraceTurn(traceTurnId, {
-      agentSessionId,
-    });
-    const taskTrace = createAgentMemoryTrace();
-    prepareActiveAgentRun({
-      messageId: assistantMessageId,
-      agentSessionId,
-      agentId: runtimeAgentId,
-      trace: taskTrace,
-    });
-    if (agentSessionResetPromiseRef.current) {
-      const resetSucceeded = await agentSessionResetPromiseRef.current;
-      if (!resetSucceeded) {
-        throw new Error("无法重置旧 Agent 长期上下文，已停止本次运行以避免复用旧记忆。");
-      }
-    }
-    let currentAgentSessionStatus = agentSessionStatus;
-    try {
-      currentAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
-      setAgentSessionStatus(currentAgentSessionStatus);
-    } catch (caught) {
-      setAgentSessionError(String(caught));
-    }
-    const agentPromptPayload = contextEngine.buildAgentPromptPayload({
-      conversation: baseConversation,
-      currentContext: baseConversationContext,
-      sessionPlan: agentSessionPlan,
-      agentSessionStatus: currentAgentSessionStatus,
-      text,
-      references: referencedFiles,
-      knowledgeMatches,
-      selectedAgent: modelSource === "agent" ? selectedAgent : null,
-      limits: agentLimits,
-    });
-    const allowedToolsForRun = normalizeAllowedAgentTools(
-      chatMode === "chat" && chatExecutionMode === "agent"
-        ? filterChatAgentAllowedTools(allowedAgentTools)
-        : allowedAgentTools,
-    );
-    publishContextDebugSnapshot([
-      knowledgeDebugPayload,
-      {
-        label: "bridge initial prompt",
-        content: formatAgentInitialPromptPreview(
-          agentPromptPayload.bootstrapContext,
-          agentPromptPayload.prompt,
-          agentPromptPayload.shouldBootstrapAgentContext,
-        ),
-      },
-      {
-        label: "bootstrapContext",
-        content: agentPromptPayload.bootstrapContext || "（空）",
-      },
-      {
-        label: "prompt",
-        content: agentPromptPayload.prompt,
-      },
-      {
-        label: "prompt recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
-      },
-      {
-        label: "bootstrap recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
-      },
-    ], {
-      mode: chatMode,
-      agentSessionId,
-      providerName: effectiveProvider?.name ?? null,
-      modelName: effectiveModel?.modelName ?? null,
-      conversationSummary: agentPromptPayload.promptHistory.summary ||
-        agentPromptPayload.bootstrapHistory.summary ||
-        conversationSummary,
-      runtimeMessages: agentPromptPayload.promptHistory.recentMessages,
-    });
-    appendVisibleTraceStep(traceTurnId, {
-      type: "request",
-      label: "Agent bridge 请求",
-      status: "done",
-      content: agentPromptPayload.prompt,
-      metadata: {
-        agentSessionId,
-        agentId: runtimeAgentId,
-        providerName: effectiveProvider?.name ?? null,
-        modelName: effectiveModel?.modelName ?? null,
-        shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
-        allowedTools: allowedToolsForRun,
-        enabledSkills: enabledSkills.map((skill) => skill.name),
-      },
-      payloads: [
-        {
-          label: "bootstrapContext",
-          content: agentPromptPayload.bootstrapContext || "（空）",
-        },
-        {
-          label: "prompt recent_conversation",
-          content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
-        },
-        {
-          label: "bootstrap recent_conversation",
-          content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
-        },
-      ],
-    });
-    const agentRunStartedAt = Date.now();
-    const task = await agentRuntime.run({
-      type: "agent",
-      agentId: runtimeAgentId,
-      workspacePath: workspace.path,
-      chatSessionId: agentSessionId,
-      bootstrapContext: agentPromptPayload.bootstrapContext,
-      prompt: agentPromptPayload.prompt,
-      provider: effectiveProvider ? toAgentRuntimeProviderConfig(effectiveProvider) : undefined,
-      model: effectiveProvider && effectiveModel
-        ? runtimeModelFor(effectiveProvider, effectiveModel)
-        : undefined,
-      allowedTools: allowedToolsForRun,
-      enabledSkills: enabledSkills.map((skill) => skill.name),
-    });
-    handledAgentDoneTaskIdsRef.current.delete(task.taskId);
-    appendVisibleTraceStep(traceTurnId, {
-      type: "agent_event",
-      label: "Agent 任务创建",
-      startedAt: agentRunStartedAt,
-      endedAt: Date.now(),
-      status: "done",
-      metadata: {
-        taskId: task.taskId,
-        agentSessionId,
-        agentId: runtimeAgentId,
-      },
-    });
-    addRunningAgentTask({
-      taskId: task.taskId,
-      workspacePath: workspace.path,
-      sessionId: nextSessionId,
-      title: currentSessionTitle,
-      messageId: assistantMessageId,
-      traceTurnId,
-      chatTrace: chatTraceRef.current,
-      agentSessionId,
-      agentId: runtimeAgentId,
-      trace: taskTrace,
-      messages: nextMessages,
-      conversation: nextConversation,
-      context: nextConversationContext,
-      pendingQuestion: null,
-      questionAnswer: "",
-      customQuestionAnswer: "",
-      lastError: "",
-      lastStderr: "",
-      handledTerminal: false,
-    });
-    activateAgentTaskId(task.taskId);
-    updateMessage(assistantMessageId, (message) => ({
-      ...message,
-      status: "streaming",
-    }));
-  };
-
-  const runChatTurn = async ({
-    traceTurnId,
-    assistantMessageId,
-    text,
-    referencedFiles,
-    runtimeMessages,
-    conversationSummary,
-    currentAgentExecutionSummary,
-    knowledgeMatches,
-    knowledgeDebugPayload,
-    limitsFor,
-    publishContextDebugSnapshot,
-    finalizeAssistantTurn,
-  }: RunChatTurnInput) => {
-    const systemPrompt = buildSystemPrompt(
-      workspace,
-      activeFile,
-      referencedFiles,
-      enabledSkills,
-      modelSource === "agent" ? selectedAgent : null,
-      {
-        limits: limitsFor(effectiveProvider, effectiveModel),
-        conversationSummary,
-        agentExecutionSummary: currentAgentExecutionSummary,
-        contextQuery: text,
-        knowledgeMatches,
-      },
-    );
-    publishContextDebugSnapshot([
-      knowledgeDebugPayload,
-      { label: "systemPrompt", content: systemPrompt },
-      { label: "messages", content: formatDebugMessages(runtimeMessages) },
-    ]);
-    const chatRequestStartedAt = Date.now();
-    let hasLoggedStreamStart = false;
-    appendVisibleTraceStep(traceTurnId, {
-      type: "request",
-      label: "模型请求",
-      status: "done",
-      content: systemPrompt,
-      metadata: {
-        providerName: effectiveProvider?.name ?? null,
-        modelName: effectiveModel?.modelName ?? null,
-        stream: true,
-        runtimeMessageCount: runtimeMessages.length,
-      },
-      payloads: [
-        {
-          label: "messages",
-          content: formatDebugMessages(runtimeMessages),
-        },
-      ],
-    });
-    let pendingTextDelta = "";
-    let pendingThinkingDelta = "";
-    let streamFlushFrameId: number | null = null;
-    const flushStreamDeltas = () => {
-      streamFlushFrameId = null;
-      const textDelta = pendingTextDelta;
-      const thinkingDelta = pendingThinkingDelta;
-      pendingTextDelta = "";
-      pendingThinkingDelta = "";
-
-      if (!textDelta && !thinkingDelta) {
-        return;
-      }
-
-      updateMessage(assistantMessageId, (message) => ({
-        ...message,
-        text: textDelta ? `${message.text}${textDelta}` : message.text,
-        thinking: thinkingDelta ? `${message.thinking ?? ""}${thinkingDelta}` : message.thinking,
-        status: "streaming",
-      }));
-    };
-    const scheduleStreamFlush = () => {
-      if (streamFlushFrameId === null) {
-        streamFlushFrameId = window.requestAnimationFrame(flushStreamDeltas);
-      }
-    };
-    const flushPendingStreamDeltas = () => {
-      if (streamFlushFrameId !== null) {
-        window.cancelAnimationFrame(streamFlushFrameId);
-      }
-      flushStreamDeltas();
-    };
-    const result = await runAgentRuntimeChat({
-      agentId: runtimeAgentId,
-      provider: effectiveProvider,
-      model: effectiveModel,
-      systemPrompt,
-      messages: runtimeMessages,
-      onTextDelta: (delta) => {
-        if (!hasLoggedStreamStart) {
-          hasLoggedStreamStart = true;
-          appendVisibleTraceStep(traceTurnId, {
-            type: "stream",
-            label: "开始流式输出",
-            status: "done",
-            content: delta,
-          });
-        }
-        pendingTextDelta += delta;
-        scheduleStreamFlush();
-      },
-      onThinkingDelta: (delta) => {
-        if (!hasLoggedStreamStart) {
-          hasLoggedStreamStart = true;
-          appendVisibleTraceStep(traceTurnId, {
-            type: "stream",
-            label: "开始流式输出",
-            status: "done",
-            content: delta,
-          });
-        }
-        pendingThinkingDelta += delta;
-        scheduleStreamFlush();
-      },
-    });
-    flushPendingStreamDeltas();
-    const assistantText = result.text.trim();
-    appendVisibleTraceStep(traceTurnId, {
-      type: "response",
-      label: "模型响应",
-      startedAt: chatRequestStartedAt,
-      endedAt: Date.now(),
-      status: "done",
-      content: assistantText,
-      metadata: {
-        thinkingLength: result.thinking?.length ?? 0,
-        textLength: assistantText.length,
-      },
-      payloads: result.thinking?.trim()
-        ? [{ label: "thinking", content: result.thinking.trim() }]
-        : undefined,
-    });
-
-    updateMessage(assistantMessageId, (message) => ({
-      ...message,
-      text: assistantText,
-      thinking: result.thinking?.trim() || undefined,
-      status: "done",
-    }));
-    await finalizeAssistantTurn({
-      mode: "chat",
-      assistantText,
-    });
   };
 
   const prepareChatTurnRuntime = async ({
@@ -2151,15 +1516,18 @@ export const WorkspaceChatPage = ({
     const finalizeAssistantTurn: FinalizeAssistantTurn = async ({
       mode,
       assistantText,
+      assistantMessages,
     }) => {
       const finalConversation: ConversationMessage[] = [
         ...nextConversation,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: assistantText,
-          timestamp: Date.now(),
-        },
+        ...(assistantMessages && assistantMessages.length > 0
+          ? assistantMessages
+          : [{
+            id: assistantMessageId,
+            role: "assistant" as const,
+            content: assistantText,
+            timestamp: Date.now(),
+          }]),
       ];
       conversationRef.current = finalConversation;
       setConversation(finalConversation);
@@ -2306,7 +1674,7 @@ export const WorkspaceChatPage = ({
       nextSessionId,
       nextConversation,
       userUiMessage,
-      assistantUiMessage,
+      assistantUiMessage: chatMode === "collab" ? null : assistantUiMessage,
       traceTurn,
     });
 
@@ -2365,6 +1733,21 @@ export const WorkspaceChatPage = ({
           limitsFor,
           publishContextDebugSnapshot,
           finalizeAssistantTurn,
+        }, {
+          workspace,
+          activeFile,
+          enabledSkills,
+          runtimeAgentId,
+          agentRuntime,
+          contextEngine,
+          runtimeModelFor,
+          allowedAgentTools,
+          appendMessage,
+          requestCollaborationPlanDecision,
+          appendVisibleTraceStep,
+          updateMessage,
+          setChatError,
+          setCollaborationPhase,
         });
         return;
       }
@@ -2391,6 +1774,36 @@ export const WorkspaceChatPage = ({
           knowledgeDebugPayload,
           limitsFor,
           publishContextDebugSnapshot,
+        }, {
+          workspace,
+          activeFile,
+          enabledSkills,
+          runtimeAgentId,
+          appendVisibleTraceStep,
+          updateMessage,
+          agentRuntime,
+          contextEngine,
+          runtimeModelFor,
+          setChatError,
+          setAgentSessionStatus,
+          setAgentSessionError,
+          prepareActiveAgentRun,
+          patchVisibleTraceTurn,
+          addRunningAgentTask,
+          activateAgentTaskId,
+          agentContextInvalidatedRef,
+          agentSessionResetPromiseRef,
+          handledAgentDoneTaskIdsRef,
+          chatTraceRef,
+          agentSessionStatus,
+          effectiveProvider,
+          effectiveModel,
+          modelSource,
+          selectedAgent,
+          chatMode,
+          chatExecutionMode,
+          allowedAgentTools,
+          currentSessionTitle,
         });
         return;
       }
@@ -2408,6 +1821,17 @@ export const WorkspaceChatPage = ({
         limitsFor,
         publishContextDebugSnapshot,
         finalizeAssistantTurn,
+      }, {
+        workspace,
+        activeFile,
+        enabledSkills,
+        runtimeAgentId,
+        appendVisibleTraceStep,
+        updateMessage,
+        modelSource,
+        selectedAgent,
+        effectiveProvider,
+        effectiveModel,
       });
     } catch (caught) {
       const message = String(caught);
@@ -2438,6 +1862,8 @@ export const WorkspaceChatPage = ({
         appendAgentConversationResult(message, "error", message);
       }
     } finally {
+      collaborationPlanDecisionResolverRef.current = null;
+      setCollaborationPlanDecision(null);
       setIsSending(false);
       setCollaborationPhase("idle");
     }
@@ -2466,6 +1892,7 @@ export const WorkspaceChatPage = ({
     skillsError,
     sessionsError,
     pendingAgentQuestion,
+    collaborationPlanDecision,
     agentQuestionAnswer,
     customAgentQuestionAnswer,
     isAnsweringAgentQuestion,
@@ -2501,6 +1928,7 @@ export const WorkspaceChatPage = ({
     onOpenWorkspace: openWorkspaceFromCurrentContext,
     onCreateWorkspace,
     answerAgentQuestion,
+    resolveCollaborationPlanDecision,
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
