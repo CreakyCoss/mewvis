@@ -31,8 +31,8 @@ use commands::{
         list_workspace_version_files, list_workspace_versions, load_chat_session,
         read_workspace_file, read_workspace_version_file, reset_agent_sessions_for_chat,
         restore_workspace_version, save_chat_session, save_workspace_skills,
-        search_workspace_knowledge, switch_workspace_version_branch, update_workspace,
-        write_workspace_file,
+        search_workspace_knowledge, set_chat_session_unread, switch_workspace_version_branch,
+        update_workspace, write_workspace_file,
     },
 };
 
@@ -83,6 +83,7 @@ pub fn run() {
             list_chat_sessions,
             load_chat_session,
             save_chat_session,
+            set_chat_session_unread,
             delete_chat_session,
             get_agent_session_status,
             cleanup_orphan_agent_sessions,

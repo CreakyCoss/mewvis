@@ -11,6 +11,7 @@ pub use agent_sessions::{
 };
 pub use chat_sessions::{
     delete_chat_session, list_chat_sessions, load_chat_session, save_chat_session,
+    set_chat_session_unread,
 };
 pub use files::{
     delete_workspace_file, list_workspace_files, read_workspace_file, write_workspace_file,

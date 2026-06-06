@@ -4,6 +4,7 @@ import type {
 } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type {
+  ChatExecutionMode,
   ChatMode,
   FileReferenceMatch,
   ModelSource,
@@ -15,6 +16,7 @@ import type {
   ChatTraceTurn,
   ConversationMessage,
 } from "../../types";
+import { isAgentTaskMode } from "../../utils/chat-mode";
 import { createChatTraceStep } from "./trace";
 
 type ValidateComposerSubmitInput = {
@@ -91,6 +93,7 @@ type CreateChatTurnDraftInput = {
   now: number;
   text: string;
   chatMode: ChatMode;
+  chatExecutionMode: ChatExecutionMode;
   modelSource: ModelSource;
   referencedFiles: ResolvedFileReference[];
   baseConversation: ConversationMessage[];
@@ -121,6 +124,7 @@ export const createChatTurnDraft = ({
   now,
   text,
   chatMode,
+  chatExecutionMode,
   modelSource,
   referencedFiles,
   baseConversation,
@@ -151,6 +155,7 @@ export const createChatTurnDraft = ({
     createdAt: now,
     referencedFiles: referencedFilePaths.map((path) => ({ path })),
   };
+  const isAgentBackedTurn = isAgentTaskMode(chatMode, chatExecutionMode);
   const assistantUiMessage: ChatMessage = {
     id: assistantMessageId,
     role: "assistant",
@@ -160,8 +165,8 @@ export const createChatTurnDraft = ({
     createdAt: now,
     agentAvatar: assistantAgentAvatar,
     agentName: assistantAgentName,
-    agentEvents: chatMode === "agent" ? [] : undefined,
-    agentBlocks: chatMode === "agent" ? [] : undefined,
+    agentEvents: isAgentBackedTurn ? [] : undefined,
+    agentBlocks: isAgentBackedTurn ? [] : undefined,
   };
   const traceTurnId = `${now}-${assistantMessageId}`;
   const traceTurn: ChatTraceTurn = {
@@ -190,6 +195,7 @@ export const createChatTurnDraft = ({
         content: text,
         metadata: {
           mode: chatMode,
+          chatExecutionMode,
           modelSource,
           referencedFilePaths,
           activeFilePath,

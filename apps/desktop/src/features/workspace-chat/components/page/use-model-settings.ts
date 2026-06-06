@@ -12,7 +12,8 @@ import {
 import { getLlmSettings } from "@/features/llm-settings/api";
 import type { LlmProvider } from "@/ai/llm/types";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
-import type { ChatMode, ModelSource } from "../../page-types";
+import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
+import { isAgentTaskMode } from "../../utils/chat-mode";
 
 type RuntimeAgentSource = {
   listAgents: () => Promise<Readonly<{
@@ -24,11 +25,13 @@ type RuntimeAgentSource = {
 type UseModelSettingsInput = {
   agentRuntime: RuntimeAgentSource;
   chatMode: ChatMode;
+  chatExecutionMode: ChatExecutionMode;
 };
 
 export const useModelSettings = ({
   agentRuntime,
   chatMode,
+  chatExecutionMode,
 }: UseModelSettingsInput) => {
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
@@ -137,7 +140,8 @@ export const useModelSettings = ({
       ?? null,
     [selectedModelId, selectedModels],
   );
-  const runtimeAgentCapability: AgentRuntimeAgentCapability = chatMode === "agent" ? "agent" : "chat";
+  const runtimeAgentCapability: AgentRuntimeAgentCapability =
+    isAgentTaskMode(chatMode, chatExecutionMode) ? "agent" : "chat";
   const availableRuntimeAgents = useMemo(
     () => runtimeAgents.filter((agent) =>
       agent.capabilities.includes(runtimeAgentCapability),

@@ -1,6 +1,6 @@
 use crate::services::chat_sessions::{
     self, ChatSession, ChatSessionMeta, ChatSessionPathInput, DeleteChatSessionInput,
-    LoadChatSessionInput, SaveChatSessionInput,
+    LoadChatSessionInput, SaveChatSessionInput, SetChatSessionUnreadInput,
 };
 
 #[tauri::command]
@@ -21,4 +21,11 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
 #[tauri::command]
 pub fn delete_chat_session(input: DeleteChatSessionInput) -> Result<Vec<ChatSessionMeta>, String> {
     chat_sessions::delete_chat_session(input)
+}
+
+#[tauri::command]
+pub fn set_chat_session_unread(
+    input: SetChatSessionUnreadInput,
+) -> Result<ChatSessionMeta, String> {
+    chat_sessions::set_chat_session_unread(input)
 }

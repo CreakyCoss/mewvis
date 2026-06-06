@@ -35,6 +35,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   AgentProfile,
@@ -42,12 +43,18 @@ import type {
 } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type {
+  ChatExecutionMode,
   ChatMode,
   ComposerSubmitInput,
   ContextWindowPreset,
   ModelSource,
 } from "../../page-types";
 import type { WorkspaceFileEntry } from "../../types";
+import {
+  filterChatAgentAllowedTools,
+  isAgentTaskMode,
+  isChatAgentRestrictedTool,
+} from "../../utils/chat-mode";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
@@ -62,6 +69,9 @@ type ComposerProps = {
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
   chatMode: ChatMode;
+  chatExecutionMode: ChatExecutionMode;
+  showThinkingProcess: boolean;
+  showToolCallProcess: boolean;
   contextWindowPreset: ContextWindowPreset;
   effectiveContextWindow: number;
   modelSource: ModelSource;
@@ -78,6 +88,9 @@ type ComposerProps = {
   selectedCollaborationWorkflowId: string;
   allowedAgentTools: AgentToolName[];
   onChatModeChange: (mode: ChatMode) => void;
+  onChatExecutionModeChange: (mode: ChatExecutionMode) => void;
+  onShowThinkingProcessChange: (value: boolean) => void;
+  onShowToolCallProcessChange: (value: boolean) => void;
   onContextWindowPresetChange: (preset: ContextWindowPreset) => void;
   onModelSourceChange: (source: ModelSource) => void;
   onRuntimeAgentChange: (agentId: string) => void;
@@ -106,6 +119,9 @@ export const Composer = memo(({
   activeAgentTaskId,
   isSettingsLoading,
   chatMode,
+  chatExecutionMode,
+  showThinkingProcess,
+  showToolCallProcess,
   contextWindowPreset,
   effectiveContextWindow,
   modelSource,
@@ -122,6 +138,9 @@ export const Composer = memo(({
   selectedCollaborationWorkflowId,
   allowedAgentTools,
   onChatModeChange,
+  onChatExecutionModeChange,
+  onShowThinkingProcessChange,
+  onShowToolCallProcessChange,
   onContextWindowPresetChange,
   onModelSourceChange,
   onRuntimeAgentChange,
@@ -184,6 +203,11 @@ export const Composer = memo(({
   );
   const modeLabel =
     chatMode === "collab" ? "协作" : chatMode === "agent" ? "Agent" : "聊天";
+  const isAgentExecution = isAgentTaskMode(chatMode, chatExecutionMode);
+  const isRestrictedChatAgent = chatMode === "chat" && chatExecutionMode === "agent";
+  const visibleAllowedAgentTools = isRestrictedChatAgent
+    ? filterChatAgentAllowedTools(allowedAgentTools)
+    : allowedAgentTools;
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const selectedModelLabel = chatMode === "collab"
     ? selectedCollaborationWorkflow?.name ?? "选择协作流程"
@@ -194,6 +218,11 @@ export const Composer = memo(({
     ? "无需模型"
     : selectedModelLabel;
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
+  const enabledProcessOptionLabel = [
+    showThinkingProcess ? "思考" : "",
+    showToolCallProcess ? "工具" : "",
+    chatMode === "chat" && chatExecutionMode === "agent" ? "Agent" : "",
+  ].filter(Boolean).join("/");
   const contextWindowLabel = contextWindowPreset === "auto" ? "自动" : "1M";
   const effectiveContextWindowLabel = formatContextWindowLabel(effectiveContextWindow);
   const contextWindowTitleSuffix = contextWindowPreset === "auto"
@@ -215,6 +244,7 @@ export const Composer = memo(({
       ? "text-primary hover:bg-primary/5 hover:text-primary"
       : "text-muted-foreground/45 shadow-xs hover:bg-background",
   ].join(" ");
+  const toggleMenuItemClassName = "flex items-center justify-between gap-3 py-2";
 
   const updatePromptCursor = () => {
     setPromptCursor(promptInputRef.current?.selectionStart ?? 0);
@@ -562,6 +592,69 @@ export const Composer = memo(({
                     </DropdownMenuRadioGroup>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Wrench className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">过程</span>
+                    <span className="max-w-28 truncate text-xs text-muted-foreground">
+                      {enabledProcessOptionLabel || "无"}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-52">
+                    <DropdownMenuItem
+                      className={toggleMenuItemClassName}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onShowThinkingProcessChange(!showThinkingProcess);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">思考过程</span>
+                      <Switch
+                        size="sm"
+                        checked={showThinkingProcess}
+                        aria-label="思考过程"
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={onShowThinkingProcessChange}
+                      />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={toggleMenuItemClassName}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onShowToolCallProcessChange(!showToolCallProcess);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">工具调用过程</span>
+                      <Switch
+                        size="sm"
+                        checked={showToolCallProcess}
+                        aria-label="工具调用过程"
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={onShowToolCallProcessChange}
+                      />
+                    </DropdownMenuItem>
+                    {chatMode === "chat" && (
+                      <DropdownMenuItem
+                        className={toggleMenuItemClassName}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          onChatExecutionModeChange(chatExecutionMode === "agent" ? "direct" : "agent");
+                        }}
+                      >
+                        <span className="min-w-0 flex-1">Agent 执行</span>
+                        <Switch
+                          size="sm"
+                          checked={chatExecutionMode === "agent"}
+                          aria-label="Agent 执行"
+                          onClick={(event) => event.stopPropagation()}
+                          onCheckedChange={(checked) =>
+                            onChatExecutionModeChange(checked ? "agent" : "direct")
+                          }
+                        />
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -572,27 +665,35 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2 text-xs"
-                  disabled={chatMode !== "agent"}
+                  disabled={!isAgentExecution}
                 >
                   <Wrench className="size-3.5" />
                   <span>工具</span>
-                  <span className="text-muted-foreground">{allowedAgentTools.length}</span>
+                  <span className="text-muted-foreground">{visibleAllowedAgentTools.length}</span>
                   <ChevronDown className="size-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuLabel>工具</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {AGENT_TOOL_DEFINITIONS.map((tool) => (
-                  <DropdownMenuCheckboxItem
-                    key={tool.name}
-                    checked={allowedAgentTools.includes(tool.name)}
-                    onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                    title={tool.description}
-                  >
-                    {tool.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                {AGENT_TOOL_DEFINITIONS.map((tool) => {
+                  const isRestrictedTool = isRestrictedChatAgent && isChatAgentRestrictedTool(tool.name);
+
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={tool.name}
+                      checked={!isRestrictedTool && allowedAgentTools.includes(tool.name)}
+                      disabled={isRestrictedTool}
+                      onSelect={(event) => event.preventDefault()}
+                      onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
+                      title={isRestrictedTool
+                        ? `${tool.description}。聊天 Agent 不允许修改文件或运行命令。`
+                        : tool.description}
+                    >
+                      {tool.label}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

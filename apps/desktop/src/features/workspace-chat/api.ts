@@ -327,6 +327,7 @@ export async function saveChatSession(input: {
   conversation: ConversationMessage[];
   context?: ChatContextSummary | null;
   trace?: ChatTraceTurn[];
+  isUnread?: boolean;
 }) {
   if (!isTauri()) {
     const now = Date.now();
@@ -339,10 +340,23 @@ export async function saveChatSession(input: {
       conversation: input.conversation,
       context: input.context,
       trace: input.trace,
+      isUnread: input.isUnread ?? false,
     } satisfies ChatSession;
   }
 
   return invoke<ChatSession>("save_chat_session", { input });
+}
+
+export async function setChatSessionUnread(input: {
+  workspacePath: string;
+  sessionId: string;
+  isUnread: boolean;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<ChatSessionMeta>("set_chat_session_unread", { input });
 }
 
 export async function deleteChatSession(workspacePath: string, sessionId: string) {

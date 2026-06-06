@@ -241,6 +241,63 @@ export const useAgentRuntimeEvents = ({
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     let disposed = false;
+    let visibleStreamMessageId = "";
+    let visibleStreamEvents: AgentRuntimeAgentEvent[] = [];
+    let visibleStreamFrameId: number | null = null;
+
+    const flushVisibleStreamEvents = () => {
+      visibleStreamFrameId = null;
+      const messageId = visibleStreamMessageId;
+      const events = visibleStreamEvents;
+      visibleStreamMessageId = "";
+      visibleStreamEvents = [];
+
+      if (!messageId || events.length === 0) {
+        return;
+      }
+
+      const thinkingBlockIds: string[] = [];
+      updateMessage(messageId, (message) => {
+        let nextMessage = message;
+
+        events.forEach((streamEvent) => {
+          const appliedEvent = applyAgentEventToMessage(nextMessage, streamEvent);
+          nextMessage = appliedEvent.message;
+          if (appliedEvent.thinkingBlockId) {
+            thinkingBlockIds.push(appliedEvent.thinkingBlockId);
+          }
+        });
+
+        return nextMessage;
+      });
+
+      thinkingBlockIds.forEach((blockId) => {
+        scheduleAgentBlockCollapse(messageId, blockId);
+      });
+    };
+
+    const cancelVisibleStreamFlush = () => {
+      if (visibleStreamFrameId !== null) {
+        window.cancelAnimationFrame(visibleStreamFrameId);
+        visibleStreamFrameId = null;
+      }
+    };
+
+    const enqueueVisibleStreamEvent = (
+      messageId: string,
+      event: AgentRuntimeAgentEvent,
+    ) => {
+      if (visibleStreamMessageId && visibleStreamMessageId !== messageId) {
+        cancelVisibleStreamFlush();
+        flushVisibleStreamEvents();
+      }
+
+      visibleStreamMessageId = messageId;
+      visibleStreamEvents.push(event);
+      if (visibleStreamFrameId === null) {
+        visibleStreamFrameId = window.requestAnimationFrame(flushVisibleStreamEvents);
+      }
+    };
 
     void agentRuntime.subscribe((event) => {
       const currentTaskId = activeAgentTaskIdRef.current;
@@ -287,12 +344,11 @@ export const useAgentRuntimeEvents = ({
       };
 
       if (isAgentMessageStreamEvent(event)) {
-        const appliedEvent = applyVisibleAgentMessageEvent();
-        if (appliedEvent?.thinkingBlockId) {
-          scheduleAgentBlockCollapse(messageId, appliedEvent.thinkingBlockId);
-        }
+        enqueueVisibleStreamEvent(messageId, event);
         return;
       }
+
+      flushVisibleStreamEvents();
 
       if (isTimelineEvent(event)) {
         const appliedEvent = applyVisibleAgentMessageEvent();
@@ -403,6 +459,7 @@ export const useAgentRuntimeEvents = ({
 
     return () => {
       disposed = true;
+      cancelVisibleStreamFlush();
       cleanup?.();
     };
   }, [

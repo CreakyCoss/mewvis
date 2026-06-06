@@ -1,14 +1,16 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from "react";
 import { create } from "zustand";
-import type { ChatMode, ContextWindowPreset, ModelSource } from "../../page-types";
+import type { ChatExecutionMode, ChatMode, ContextWindowPreset, ModelSource } from "../../page-types";
 import type { ChatPanelViewModel } from "./index";
 
 const noop = () => {};
 const noopAsync = async () => {};
 const noopDispatch: Dispatch<SetStateAction<string>> = () => {};
 const noopChatModeDispatch: Dispatch<SetStateAction<ChatMode>> = () => {};
+const noopChatExecutionModeDispatch: Dispatch<SetStateAction<ChatExecutionMode>> = () => {};
 const noopContextWindowPresetDispatch: Dispatch<SetStateAction<ContextWindowPreset>> = () => {};
 const noopModelSourceDispatch: Dispatch<SetStateAction<ModelSource>> = () => {};
+const noopBooleanDispatch: Dispatch<SetStateAction<boolean>> = () => {};
 
 const emptyWorkspace = {
   id: "",
@@ -45,7 +47,10 @@ const emptyChatPanelState: ChatPanelViewModel = {
   isSending: false,
   activeAgentTaskId: "",
   isSettingsLoading: false,
-  chatMode: "agent",
+  chatMode: "chat",
+  chatExecutionMode: "agent",
+  showThinkingProcess: true,
+  showToolCallProcess: false,
   contextWindowPreset: "auto",
   effectiveContextWindow: 0,
   availableRuntimeAgents: [],
@@ -73,6 +78,9 @@ const emptyChatPanelState: ChatPanelViewModel = {
   setCustomAgentQuestionAnswer: noopDispatch,
   submitAgentQuestionAnswer: noopAsync,
   setChatMode: noopChatModeDispatch,
+  setChatExecutionMode: noopChatExecutionModeDispatch,
+  setShowThinkingProcess: noopBooleanDispatch,
+  setShowToolCallProcess: noopBooleanDispatch,
   setContextWindowPreset: noopContextWindowPresetDispatch,
   setModelSource: noopModelSourceDispatch,
   setSelectedRuntimeAgentId: noopDispatch,

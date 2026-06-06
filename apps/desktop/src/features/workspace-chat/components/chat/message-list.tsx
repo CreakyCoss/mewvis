@@ -31,7 +31,7 @@ import {
 } from "../../utils/agent-blocks";
 import { AgentBlockList } from "./agent-block-list";
 import { AgentEventTimeline } from "./agent-event-timeline";
-import { MarkdownContent } from "./markdown-content";
+import { SmoothMarkdownContent, SmoothPlainText } from "./smooth-stream-content";
 import { useChatPanelStore } from "./store";
 
 const getMessageTextForAction = (message: ChatMessage) => {
@@ -51,6 +51,8 @@ export const MessageList = () => {
     modelSource,
     selectedAgent,
     activeAgentTaskId,
+    showThinkingProcess,
+    showToolCallProcess,
     toggleThinking,
     toggleAgentEvents,
     toggleAgentThinkingBlock,
@@ -154,13 +156,19 @@ export const MessageList = () => {
           message.role === "assistant" &&
           (message.status === "loading" || message.status === "streaming") &&
           !message.text.trim();
+        const isMessageStreaming =
+          message.status === "loading" || message.status === "streaming";
         const messageAgentAvatar = resolveAgentAvatar(
           message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
         );
         const agentBlocks = message.agentBlocks ?? [];
+        const isAgentBackedMessage =
+          message.mode === "agent" ||
+          agentBlocks.length > 0 ||
+          Boolean(message.agentEvents);
         const hasAgentBlocks =
           message.role === "assistant" &&
-          message.mode === "agent" &&
+          isAgentBackedMessage &&
           agentBlocks.length > 0;
         const isEditingHistoryMessage = editingMessageId === message.id;
         const canChangeHistory =
@@ -174,7 +182,7 @@ export const MessageList = () => {
           "size-7 rounded-md bg-transparent text-muted-foreground hover:bg-muted/45 hover:text-foreground";
         const historyMenuItemClass =
           "flex size-8 items-center justify-center rounded-lg p-0 text-muted-foreground focus:bg-muted/70 focus:text-foreground";
-        const messageAuthorLabel = message.agentName ?? (message.mode === "agent" ? "Agent" : "助手");
+        const messageAuthorLabel = message.agentName ?? (isAgentBackedMessage ? "Agent" : "助手");
         const messageTimeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
           hour: "2-digit",
           minute: "2-digit",
@@ -356,7 +364,7 @@ export const MessageList = () => {
                 className="mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-accent text-primary shadow-xs"
                 title={message.agentName}
               >
-                {message.mode === "agent" || message.agentAvatar ? (
+                {isAgentBackedMessage || message.agentAvatar ? (
                   <img
                     src={messageAgentAvatar.src}
                     alt=""
@@ -454,7 +462,7 @@ export const MessageList = () => {
                   </div>
                 )}
 
-                {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && thinking && (
+                {!isEditingHistoryMessage && showThinkingProcess && message.role === "assistant" && !hasAgentBlocks && thinking && (
                   <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
                     <button
                       type="button"
@@ -474,13 +482,16 @@ export const MessageList = () => {
                     </button>
                     {!isThinkingCollapsed && (
                       <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-                        {thinking}
+                        <SmoothPlainText
+                          content={thinking}
+                          isStreaming={isMessageStreaming}
+                        />
                       </div>
                     )}
                   </div>
                 )}
 
-                {!isEditingHistoryMessage && message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
+                {!isEditingHistoryMessage && showToolCallProcess && message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
                   <AgentEventTimeline
                     messageId={message.id}
                     messageStatus={message.status}
@@ -496,6 +507,8 @@ export const MessageList = () => {
                       messageId={message.id}
                       messageStatus={message.status}
                       agentBlocks={agentBlocks}
+                      showThinkingProcess={showThinkingProcess}
+                      showToolCallProcess={showToolCallProcess}
                       onToggleThinkingBlock={toggleAgentThinkingBlock}
                       onToggleBlock={toggleAgentBlock}
                     />
@@ -505,11 +518,14 @@ export const MessageList = () => {
                       <span>
                         {message.mode === "collab"
                           ? "Agent 正在协作"
-                          : message.mode === "agent" ? "Agent 正在处理" : "AI 正在思考"}
+                          : isAgentBackedMessage ? "Agent 正在处理" : "AI 正在思考"}
                       </span>
                     </div>
                   ) : message.role === "assistant" ? (
-                    <MarkdownContent content={message.text} />
+                    <SmoothMarkdownContent
+                      content={message.text}
+                      isStreaming={isMessageStreaming}
+                    />
                   ) : (
                     <div className="space-y-2">
                       {message.referencedFiles && message.referencedFiles.length > 0 && (

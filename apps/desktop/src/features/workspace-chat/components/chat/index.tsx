@@ -8,6 +8,7 @@ import type {
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
+  ChatExecutionMode,
   ChatMode,
   ComposerSubmitInput,
   ContextWindowPreset,
@@ -45,6 +46,9 @@ export type ChatPanelViewModel = {
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
   chatMode: ChatMode;
+  chatExecutionMode: ChatExecutionMode;
+  showThinkingProcess: boolean;
+  showToolCallProcess: boolean;
   contextWindowPreset: ContextWindowPreset;
   effectiveContextWindow: number;
   availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
@@ -72,6 +76,9 @@ export type ChatPanelViewModel = {
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
   setChatMode: Dispatch<SetStateAction<ChatMode>>;
+  setChatExecutionMode: Dispatch<SetStateAction<ChatExecutionMode>>;
+  setShowThinkingProcess: Dispatch<SetStateAction<boolean>>;
+  setShowToolCallProcess: Dispatch<SetStateAction<boolean>>;
   setContextWindowPreset: Dispatch<SetStateAction<ContextWindowPreset>>;
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
@@ -106,6 +113,9 @@ export const ChatPanel = () => {
     activeAgentTaskId,
     isSettingsLoading,
     chatMode,
+    chatExecutionMode,
+    showThinkingProcess,
+    showToolCallProcess,
     contextWindowPreset,
     effectiveContextWindow,
     availableRuntimeAgents,
@@ -126,6 +136,9 @@ export const ChatPanel = () => {
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
     setChatMode,
+    setChatExecutionMode,
+    setShowThinkingProcess,
+    setShowToolCallProcess,
     setContextWindowPreset,
     setModelSource,
     setSelectedRuntimeAgentId,
@@ -162,6 +175,9 @@ export const ChatPanel = () => {
       activeAgentTaskId={activeAgentTaskId}
       isSettingsLoading={isSettingsLoading}
       chatMode={chatMode}
+      chatExecutionMode={chatExecutionMode}
+      showThinkingProcess={showThinkingProcess}
+      showToolCallProcess={showToolCallProcess}
       contextWindowPreset={contextWindowPreset}
       effectiveContextWindow={effectiveContextWindow}
       modelSource={modelSource}
@@ -178,6 +194,9 @@ export const ChatPanel = () => {
       selectedCollaborationWorkflowId={selectedCollaborationWorkflowId}
       allowedAgentTools={allowedAgentTools}
       onChatModeChange={setChatMode}
+      onChatExecutionModeChange={setChatExecutionMode}
+      onShowThinkingProcessChange={setShowThinkingProcess}
+      onShowToolCallProcessChange={setShowToolCallProcess}
       onContextWindowPresetChange={setContextWindowPreset}
       onModelSourceChange={setModelSource}
       onRuntimeAgentChange={setSelectedRuntimeAgentId}

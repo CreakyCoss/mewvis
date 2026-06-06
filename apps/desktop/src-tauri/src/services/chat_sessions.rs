@@ -37,6 +37,8 @@ pub struct SaveChatSessionInput {
     pub conversation: Value,
     pub context: Option<Value>,
     pub trace: Option<Value>,
+    #[serde(default)]
+    pub is_unread: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +46,14 @@ pub struct SaveChatSessionInput {
 pub struct DeleteChatSessionInput {
     pub workspace_path: String,
     pub session_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetChatSessionUnreadInput {
+    pub workspace_path: String,
+    pub session_id: String,
+    pub is_unread: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +65,7 @@ pub struct ChatSessionMeta {
     pub created_at: i64,
     pub updated_at: i64,
     pub message_count: usize,
+    pub is_unread: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -70,6 +81,8 @@ pub struct ChatSession {
     pub context: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace: Option<Value>,
+    #[serde(default)]
+    pub is_unread: bool,
 }
 
 pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSessionMeta>, String> {
@@ -164,6 +177,7 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
         conversation: input.conversation,
         context: input.context,
         trace: input.trace,
+        is_unread: input.is_unread.unwrap_or(false),
     };
     let path = session_path(&input.workspace_path, &session.id)?;
     let content = serde_json::to_string_pretty(&session)
@@ -183,6 +197,25 @@ pub fn delete_chat_session(input: DeleteChatSessionInput) -> Result<Vec<ChatSess
     list_chat_sessions(ChatSessionPathInput {
         workspace_path: input.workspace_path,
     })
+}
+
+pub fn set_chat_session_unread(
+    input: SetChatSessionUnreadInput,
+) -> Result<ChatSessionMeta, String> {
+    let path = session_path(&input.workspace_path, &input.session_id)?;
+    if !path.exists() {
+        return Err("未找到这条聊天记录".to_string());
+    }
+
+    let content =
+        fs::read_to_string(&path).map_err(|error| format!("无法读取聊天记录：{error}"))?;
+    let mut session = serde_json::from_str::<ChatSession>(&content)
+        .map_err(|error| format!("无法解析聊天记录：{error}"))?;
+    session.is_unread = input.is_unread;
+    let content = serde_json::to_string_pretty(&session)
+        .map_err(|error| format!("无法序列化聊天记录：{error}"))?;
+    fs::write(path, content).map_err(|error| format!("无法保存聊天记录：{error}"))?;
+    Ok(session_meta(&session))
 }
 
 fn load_existing_session(
@@ -207,6 +240,7 @@ fn session_meta(session: &ChatSession) -> ChatSessionMeta {
             .as_array()
             .map(|items| items.len())
             .unwrap_or(0),
+        is_unread: session.is_unread,
     }
 }
 
@@ -335,6 +369,7 @@ mod tests {
             conversation: json!([]),
             context: None,
             trace: None,
+            is_unread: None,
         })
         .expect("save chat session")
     }
@@ -367,5 +402,29 @@ mod tests {
         .expect("delete chat session");
 
         assert!(!agent_dir.exists());
+    }
+
+    #[test]
+    fn set_chat_session_unread_keeps_updated_at() {
+        let workspace = TestWorkspace::new("set-unread");
+        let session = save_test_session(&workspace, "chat-unread");
+        let meta = set_chat_session_unread(SetChatSessionUnreadInput {
+            workspace_path: workspace.path_string(),
+            session_id: session.id.clone(),
+            is_unread: true,
+        })
+        .expect("set unread");
+
+        assert!(meta.is_unread);
+        assert_eq!(meta.updated_at, session.updated_at);
+
+        let loaded = load_chat_session(LoadChatSessionInput {
+            workspace_path: workspace.path_string(),
+            session_id: Some(session.id),
+        })
+        .expect("load session")
+        .expect("session exists");
+        assert!(loaded.is_unread);
+        assert_eq!(loaded.updated_at, meta.updated_at);
     }
 }

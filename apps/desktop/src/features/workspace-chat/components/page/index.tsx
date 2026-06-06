@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_ALLOWED_AGENT_TOOLS,
@@ -43,6 +43,7 @@ import {
   saveChatSession,
 } from "../../api";
 import type {
+  ChatExecutionMode,
   ChatMode,
   CollaborationPhase,
   ContextDebugPayload,
@@ -94,6 +95,10 @@ import {
   DEFAULT_SESSION_TITLE,
   deriveSessionTitle,
 } from "../../utils/sessions";
+import {
+  filterChatAgentAllowedTools,
+  isAgentTaskMode,
+} from "../../utils/chat-mode";
 import { ContextWorkbenchDialog } from "../context-workbench/dialog";
 import { ChatPanel } from "../chat";
 import { useChatPanelStoreBridge } from "../chat/store";
@@ -145,6 +150,12 @@ type CollaborationStepOutput = {
   step: CollaborationWorkflowStepProfile;
   text: string;
   thinking?: string;
+};
+
+const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
+  chat: false,
+  agent: true,
+  collab: true,
 };
 
 type RunCollaborationTurnInput = {
@@ -349,11 +360,41 @@ export const WorkspaceChatPage = ({
   const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const chatScrollSnapshotRef = useRef<{
+    lastMessageId: string | null;
+    messageCount: number;
+    pendingQuestionId: string | null;
+  }>({
+    lastMessageId: null,
+    messageCount: 0,
+    pendingQuestionId: null,
+  });
   const agentSessionStatusRequestIdRef = useRef(0);
   const loadVersionControlRef = useRef<((historyBranchOverride?: string) => Promise<void>) | null>(null);
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [chatMode, setChatMode] = useState<ChatMode>("agent");
+  const [chatMode, setChatMode] = useState<ChatMode>("chat");
+  const [chatExecutionMode, setChatExecutionMode] = useState<ChatExecutionMode>("agent");
+  const [showThinkingProcess, setShowThinkingProcess] = useState(true);
+  const [toolCallProcessByMode, setToolCallProcessByMode] = useState<Record<ChatMode, boolean>>({
+    ...defaultToolCallProcessByMode,
+  });
+  const showToolCallProcess = toolCallProcessByMode[chatMode] ?? defaultToolCallProcessByMode[chatMode];
+  const setShowToolCallProcess = useCallback<Dispatch<SetStateAction<boolean>>>((value) => {
+    setToolCallProcessByMode((current) => {
+      const currentValue = current[chatMode] ?? defaultToolCallProcessByMode[chatMode];
+      const nextValue = typeof value === "function" ? value(currentValue) : value;
+
+      if (currentValue === nextValue) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [chatMode]: nextValue,
+      };
+    });
+  }, [chatMode]);
   const [contextWindowPreset, setContextWindowPreset] = useState<ContextWindowPreset>("auto");
   const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_AGENT_TOOLS,
@@ -411,6 +452,7 @@ export const WorkspaceChatPage = ({
   } = useModelSettings({
     agentRuntime,
     chatMode,
+    chatExecutionMode,
   });
   const {
     runtimeModelFor,
@@ -749,17 +791,32 @@ export const WorkspaceChatPage = ({
     resetActiveAgentTaskState({ clearTerminalState: true });
   }, [resetActiveAgentTaskState, workspace.path]);
 
+  const getChatScrollViewport = useCallback(() =>
+    chatScrollAreaRef.current?.querySelector<HTMLElement>(
+      "[data-slot='scroll-area-viewport']",
+    ) ?? null, []);
+
   const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    window.requestAnimationFrame(() => {
-      const viewport = chatScrollAreaRef.current?.querySelector<HTMLElement>(
-        "[data-slot='scroll-area-viewport']",
-      );
-      viewport?.scrollTo({
+    const scroll = () => {
+      const viewport = getChatScrollViewport();
+      if (!viewport) {
+        return;
+      }
+
+      viewport.scrollTo({
         top: viewport.scrollHeight,
         behavior,
       });
+      if (behavior === "auto") {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    };
+
+    window.requestAnimationFrame(() => {
+      scroll();
+      window.requestAnimationFrame(scroll);
     });
-  }, []);
+  }, [getChatScrollViewport]);
 
   const scrollActiveThinkingToBottom = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -772,6 +829,43 @@ export const WorkspaceChatPage = ({
       }
     });
   }, []);
+
+  useEffect(() => {
+    const viewport = getChatScrollViewport();
+    const content = viewport?.firstElementChild;
+    if (!viewport || !(content instanceof HTMLElement)) {
+      return undefined;
+    }
+
+    let frameId: number | null = null;
+    const scrollToPinnedBottom = () => {
+      frameId = null;
+      viewport.scrollTop = viewport.scrollHeight;
+      scrollActiveThinkingToBottom();
+    };
+    const schedulePinnedScroll = () => {
+      if (frameId === null) {
+        frameId = window.requestAnimationFrame(scrollToPinnedBottom);
+      }
+    };
+
+    const observer = new ResizeObserver(schedulePinnedScroll);
+    observer.observe(content);
+    observer.observe(viewport);
+    schedulePinnedScroll();
+
+    return () => {
+      observer.disconnect();
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [
+    getChatScrollViewport,
+    messages.length,
+    pendingAgentQuestion,
+    scrollActiveThinkingToBottom,
+  ]);
 
   const toggleAllowedAgentTool = useCallback((toolId: AgentToolName, enabled: boolean) => {
     setAllowedAgentTools((current) => {
@@ -963,8 +1057,23 @@ export const WorkspaceChatPage = ({
   }, [messages, restoreRunningAgentTaskView, visibleActiveAgentTaskId]);
 
   useEffect(() => {
+    const latestMessage = messages.at(-1);
+    const nextScrollSnapshot = {
+      lastMessageId: latestMessage?.id ?? null,
+      messageCount: messages.length,
+      pendingQuestionId: pendingAgentQuestion?.taskId ?? null,
+    };
+    const previousScrollSnapshot = chatScrollSnapshotRef.current;
+    const hasNewMessage =
+      nextScrollSnapshot.messageCount !== previousScrollSnapshot.messageCount ||
+      nextScrollSnapshot.lastMessageId !== previousScrollSnapshot.lastMessageId;
+    const hasNewPendingQuestion =
+      nextScrollSnapshot.pendingQuestionId !== previousScrollSnapshot.pendingQuestionId;
+    const shouldAnimateScroll = hasNewMessage || hasNewPendingQuestion;
+
+    chatScrollSnapshotRef.current = nextScrollSnapshot;
     scrollActiveThinkingToBottom();
-    scrollChatToBottom(messages.length > 2 ? "smooth" : "auto");
+    scrollChatToBottom(shouldAnimateScroll && messages.length > 2 ? "smooth" : "auto");
   }, [messages, pendingAgentQuestion, scrollActiveThinkingToBottom, scrollChatToBottom]);
 
   const appendAgentConversationResult = useCallback((
@@ -1052,6 +1161,9 @@ export const WorkspaceChatPage = ({
 
   const persistRunningAgentTask = useCallback(async (task: RunningAgentTaskContext) => {
     const title = deriveSessionTitle(task.messages);
+    const isUnread =
+      task.workspacePath !== workspace.path ||
+      task.sessionId !== currentSessionIdRef.current;
     task.title = title;
     const session = await saveChatSession({
       workspacePath: task.workspacePath,
@@ -1061,6 +1173,7 @@ export const WorkspaceChatPage = ({
       conversation: task.conversation,
       context: task.context,
       trace: task.chatTrace,
+      isUnread,
     });
 
     if (task.workspacePath === workspace.path) {
@@ -1072,6 +1185,7 @@ export const WorkspaceChatPage = ({
           createdAt: session.createdAt,
           updatedAt: session.updatedAt,
           messageCount: session.messages.length,
+          isUnread,
         };
         return upsertChatSessionMeta(current, nextMeta);
       });
@@ -1625,6 +1739,11 @@ export const WorkspaceChatPage = ({
       selectedAgent: modelSource === "agent" ? selectedAgent : null,
       limits: agentLimits,
     });
+    const allowedToolsForRun = normalizeAllowedAgentTools(
+      chatMode === "chat" && chatExecutionMode === "agent"
+        ? filterChatAgentAllowedTools(allowedAgentTools)
+        : allowedAgentTools,
+    );
     publishContextDebugSnapshot([
       knowledgeDebugPayload,
       {
@@ -1652,7 +1771,7 @@ export const WorkspaceChatPage = ({
         content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
       },
     ], {
-      mode: "agent",
+      mode: chatMode,
       agentSessionId,
       providerName: effectiveProvider?.name ?? null,
       modelName: effectiveModel?.modelName ?? null,
@@ -1672,7 +1791,7 @@ export const WorkspaceChatPage = ({
         providerName: effectiveProvider?.name ?? null,
         modelName: effectiveModel?.modelName ?? null,
         shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
-        allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
+        allowedTools: allowedToolsForRun,
         enabledSkills: enabledSkills.map((skill) => skill.name),
       },
       payloads: [
@@ -1702,7 +1821,7 @@ export const WorkspaceChatPage = ({
       model: effectiveProvider && effectiveModel
         ? runtimeModelFor(effectiveProvider, effectiveModel)
         : undefined,
-      allowedTools: normalizeAllowedAgentTools(allowedAgentTools),
+      allowedTools: allowedToolsForRun,
       enabledSkills: enabledSkills.map((skill) => skill.name),
     });
     handledAgentDoneTaskIdsRef.current.delete(task.taskId);
@@ -1799,6 +1918,38 @@ export const WorkspaceChatPage = ({
         },
       ],
     });
+    let pendingTextDelta = "";
+    let pendingThinkingDelta = "";
+    let streamFlushFrameId: number | null = null;
+    const flushStreamDeltas = () => {
+      streamFlushFrameId = null;
+      const textDelta = pendingTextDelta;
+      const thinkingDelta = pendingThinkingDelta;
+      pendingTextDelta = "";
+      pendingThinkingDelta = "";
+
+      if (!textDelta && !thinkingDelta) {
+        return;
+      }
+
+      updateMessage(assistantMessageId, (message) => ({
+        ...message,
+        text: textDelta ? `${message.text}${textDelta}` : message.text,
+        thinking: thinkingDelta ? `${message.thinking ?? ""}${thinkingDelta}` : message.thinking,
+        status: "streaming",
+      }));
+    };
+    const scheduleStreamFlush = () => {
+      if (streamFlushFrameId === null) {
+        streamFlushFrameId = window.requestAnimationFrame(flushStreamDeltas);
+      }
+    };
+    const flushPendingStreamDeltas = () => {
+      if (streamFlushFrameId !== null) {
+        window.cancelAnimationFrame(streamFlushFrameId);
+      }
+      flushStreamDeltas();
+    };
     const result = await runAgentRuntimeChat({
       agentId: runtimeAgentId,
       provider: effectiveProvider,
@@ -1815,11 +1966,8 @@ export const WorkspaceChatPage = ({
             content: delta,
           });
         }
-        updateMessage(assistantMessageId, (message) => ({
-          ...message,
-          text: `${message.text}${delta}`,
-          status: "streaming",
-        }));
+        pendingTextDelta += delta;
+        scheduleStreamFlush();
       },
       onThinkingDelta: (delta) => {
         if (!hasLoggedStreamStart) {
@@ -1831,13 +1979,11 @@ export const WorkspaceChatPage = ({
             content: delta,
           });
         }
-        updateMessage(assistantMessageId, (message) => ({
-          ...message,
-          thinking: `${message.thinking ?? ""}${delta}`,
-          status: "streaming",
-        }));
+        pendingThinkingDelta += delta;
+        scheduleStreamFlush();
       },
     });
+    flushPendingStreamDeltas();
     const assistantText = result.text.trim();
     appendVisibleTraceStep(traceTurnId, {
       type: "response",
@@ -2083,6 +2229,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
+    const shouldRunAgentTask = isAgentTaskMode(chatMode, chatExecutionMode);
     const submitValidation = validateComposerSubmit({
       chatMode,
       selectedCollaborationWorkflow,
@@ -2132,6 +2279,7 @@ export const WorkspaceChatPage = ({
       now,
       text,
       chatMode,
+      chatExecutionMode,
       modelSource,
       referencedFiles,
       baseConversation,
@@ -2151,7 +2299,7 @@ export const WorkspaceChatPage = ({
       userMessageId,
       assistantMessageId,
     });
-    const nextSessionId = chatMode === "agent" && !currentSessionId
+    const nextSessionId = shouldRunAgentTask && !currentSessionId
       ? createChatSessionId()
       : currentSessionId;
     const nextMessages = commitChatTurnDraft({
@@ -2226,7 +2374,7 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      if (chatMode === "agent") {
+      if (shouldRunAgentTask) {
         await runAgentTurn({
           nextSessionId,
           traceTurnId,
@@ -2278,15 +2426,15 @@ export const WorkspaceChatPage = ({
       setChatError(message);
       resetActiveAgentTaskState({
         clearQuestion: false,
-        clearSession: chatMode === "agent",
-        resetTrace: chatMode === "agent",
+        clearSession: shouldRunAgentTask,
+        resetTrace: shouldRunAgentTask,
       });
       updateMessage(assistantMessageId, (currentMessage) => ({
         ...currentMessage,
         text: message,
         status: "error",
       }));
-      if (chatMode === "agent") {
+      if (shouldRunAgentTask) {
         appendAgentConversationResult(message, "error", message);
       }
     } finally {
@@ -2327,6 +2475,9 @@ export const WorkspaceChatPage = ({
     activeAgentTaskId: visibleActiveAgentTaskId,
     isSettingsLoading,
     chatMode,
+    chatExecutionMode,
+    showThinkingProcess,
+    showToolCallProcess,
     contextWindowPreset,
     effectiveContextWindow: effectiveAppContextWindow,
     availableRuntimeAgents,
@@ -2354,6 +2505,9 @@ export const WorkspaceChatPage = ({
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
     setChatMode,
+    setChatExecutionMode,
+    setShowThinkingProcess,
+    setShowToolCallProcess,
     setContextWindowPreset,
     setModelSource,
     setSelectedRuntimeAgentId,

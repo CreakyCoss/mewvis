@@ -110,6 +110,10 @@ const SessionRow = ({
   onCancelRemove,
   onRemove,
 }: SessionRowProps) => {
+  const showUnreadIndicator = Boolean(session.isUnread && !isActive && !isAgentRunning);
+  const sessionStatusTitle = isAgentRunning
+    ? "\nAgent 正在执行"
+    : showUnreadIndicator ? "\n未读消息" : "";
   const deleteActionClassName = cn(
     "pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 border border-transparent text-xs opacity-0",
     "hover:bg-transparent hover:text-destructive active:!translate-y-[-50%]",
@@ -137,44 +141,57 @@ const SessionRow = ({
         type="button"
         className="flex w-0 min-w-0 flex-1 items-center overflow-hidden py-1 pr-3 pl-8 text-left focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
         onClick={onLoad}
-        title={`${session.title}\n${session.path}${isAgentRunning ? "\nAgent 正在执行" : ""}`}
+        title={`${session.title}\n${session.path}${sessionStatusTitle}`}
       >
         <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
           {session.title}
         </span>
       </button>
       <div className="relative mr-2 flex h-full w-12 shrink-0 justify-end">
-        <span className="absolute inset-y-0 right-0 flex items-center justify-end text-right text-xs tabular-nums text-muted-foreground/80 transition-opacity group-hover/session:opacity-0 group-focus-within/session:opacity-0">
+        <span
+          className={cn(
+            "absolute inset-y-0 right-0 flex items-center justify-end text-right text-xs tabular-nums text-muted-foreground/80 transition-opacity",
+            !isAgentRunning && "group-hover/session:opacity-0 group-focus-within/session:opacity-0",
+          )}
+        >
           {isAgentRunning ? (
             <LoaderCircle
               className="size-3.5 animate-spin"
               aria-label="Agent 正在执行"
             />
+          ) : showUnreadIndicator ? (
+            <span
+              className="size-2 rounded-full bg-primary"
+              aria-label="未读消息"
+              title="未读消息"
+            />
           ) : (
             formatSessionTime(session.updatedAt)
           )}
         </span>
-        <Button
-          type="button"
-          variant="ghost"
-          title={isConfirmingDelete ? "确认删除对话" : "永久删除对话"}
-          aria-label={isConfirmingDelete ? "确认删除对话" : "永久删除对话"}
-          className={deleteActionClassName}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (isConfirmingDelete) {
-              onRemove();
-              return;
-            }
-            onRequestRemove();
-          }}
-        >
-          {isConfirmingDelete ? (
-            <span className="font-medium leading-none">确认</span>
-          ) : (
-            <Trash2 className="size-3.5" />
-          )}
-        </Button>
+        {!isAgentRunning && (
+          <Button
+            type="button"
+            variant="ghost"
+            title={isConfirmingDelete ? "确认删除对话" : "永久删除对话"}
+            aria-label={isConfirmingDelete ? "确认删除对话" : "永久删除对话"}
+            className={deleteActionClassName}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (isConfirmingDelete) {
+                onRemove();
+                return;
+              }
+              onRequestRemove();
+            }}
+          >
+            {isConfirmingDelete ? (
+              <span className="font-medium leading-none">确认</span>
+            ) : (
+              <Trash2 className="size-3.5" />
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

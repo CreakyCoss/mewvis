@@ -150,6 +150,7 @@ export type ChatSessionMeta = {
   createdAt: number;
   updatedAt: number;
   messageCount: number;
+  isUnread?: boolean;
 };
 
 export type ChatTracePayload = {
@@ -214,4 +215,5 @@ export type ChatSession = {
   conversation: ConversationMessage[];
   context?: ChatContextSummary | null;
   trace?: ChatTraceTurn[];
+  isUnread?: boolean;
 };

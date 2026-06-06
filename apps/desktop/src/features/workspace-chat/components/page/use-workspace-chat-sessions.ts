@@ -17,6 +17,7 @@ import {
   listChatSessions,
   loadChatSession,
   saveChatSession,
+  setChatSessionUnread,
 } from "../../api";
 import type {
   AgentSessionStatus,
@@ -162,6 +163,53 @@ export const useWorkspaceChatSessions = ({
     defaultChatSessions,
   });
 
+  const updateSessionUnreadState = useCallback((
+    workspacePath: string,
+    sessionId: string,
+    isUnread: boolean,
+  ) => {
+    const updateSessions = (sessions: ChatSessionMeta[]) =>
+      sessions.map((session) =>
+        session.id === sessionId
+          ? { ...session, isUnread }
+          : session,
+      );
+
+    if (workspace.path === workspacePath) {
+      setChatSessions(updateSessions);
+    }
+
+    if (defaultWorkspace?.path === workspacePath) {
+      setDefaultChatSessions(updateSessions);
+    }
+
+    const targetWorkspace = allSidebarWorkspaces.find((item) => item.path === workspacePath);
+    if (targetWorkspace) {
+      setWorkspaceSessionsById((current) => {
+        const sessions = current[targetWorkspace.id];
+        if (!sessions) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [targetWorkspace.id]: updateSessions(sessions),
+        };
+      });
+    }
+  }, [allSidebarWorkspaces, defaultWorkspace?.path, workspace.path]);
+
+  const markSessionRead = useCallback((workspacePath: string, sessionId: string) => {
+    updateSessionUnreadState(workspacePath, sessionId, false);
+    void setChatSessionUnread({
+      workspacePath,
+      sessionId,
+      isUnread: false,
+    }).catch((caught) => {
+      setSessionsError(String(caught));
+    });
+  }, [updateSessionUnreadState]);
+
   const hydrateSession = useCallback((
     session: HydratableChatSession | null,
   ) => {
@@ -291,6 +339,9 @@ export const useWorkspaceChatSessions = ({
       }
 
       hydrateSession(toHydratableSession(targetSession));
+      if (targetSession?.id) {
+        markSessionRead(workspace.path, targetSession.id);
+      }
     } catch (caught) {
       if (sessionsRequestIdRef.current === requestId) {
         setSessionsError(String(caught));
@@ -305,6 +356,7 @@ export const useWorkspaceChatSessions = ({
     closeSettingsAndContextPanels,
     hydrateSession,
     isActiveDefaultWorkspace,
+    markSessionRead,
     pendingDefaultSessionId,
     pendingWorkspaceSession,
     setComposerResetKey,
@@ -426,12 +478,13 @@ export const useWorkspaceChatSessions = ({
         return;
       }
       hydrateSession(toHydratableSession(session));
+      markSessionRead(workspace.path, session.id);
     } catch (caught) {
       setSessionsError(String(caught));
     } finally {
       setIsSessionsLoading(false);
     }
-  }, [closeSettingsAndContextPanels, hydrateSession, workspace.path]);
+  }, [closeSettingsAndContextPanels, hydrateSession, markSessionRead, workspace.path]);
 
   const startNewSession = useCallback(() => {
     closeSettingsAndContextPanels();
@@ -639,6 +692,7 @@ export const useWorkspaceChatSessions = ({
         conversation,
         context: conversationContext,
         trace: chatTrace,
+        isUnread: false,
       })
         .then((session) => {
           currentSessionIdRef.current = session.id;
@@ -653,6 +707,7 @@ export const useWorkspaceChatSessions = ({
               createdAt: session.createdAt,
               updatedAt: session.updatedAt,
               messageCount: session.messages.length,
+              isUnread: false,
             };
             return upsertChatSessionMeta(current, nextMeta);
           });

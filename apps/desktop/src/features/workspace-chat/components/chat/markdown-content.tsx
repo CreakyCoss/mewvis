@@ -1,3 +1,4 @@
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -6,7 +7,7 @@ type MarkdownContentProps = {
   inverted?: boolean;
 };
 
-export const MarkdownContent = ({
+const MarkdownContentComponent = ({
   content,
   inverted = false,
 }: MarkdownContentProps) => {
@@ -116,3 +117,5 @@ export const MarkdownContent = ({
     </div>
   );
 };
+
+export const MarkdownContent = memo(MarkdownContentComponent);
