@@ -14,7 +14,6 @@ import {
   formatTavernLorebookEntries,
   formatTavernTimelineEvents,
   selectTavernLorebookEntries,
-  TAVERN_REFERENCE_PROMPT_LIMITS,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
 
@@ -45,6 +44,12 @@ const extractJsonObject = (text: string) => {
   const match = trimmed.match(/\{[\s\S]*\}/);
   return match?.[0] ?? "{}";
 };
+
+const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
+const TAVERN_DIRECTOR_REFERENCE_PROMPT_LIMITS = {
+  perFileChars: 2400,
+  totalChars: 4800,
+} as const;
 
 const limitDirectorText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
@@ -151,7 +156,7 @@ export const runTavernDirector = async ({
     "</current_user_input>",
     "",
     "<recent_conversation>",
-    formatConversationForSummary(runtimeMessages),
+    formatConversationForSummary(runtimeMessages.slice(-DIRECTOR_RECENT_MESSAGE_LIMIT)),
     "</recent_conversation>",
   ].join("\n");
   const result = await runSharedRuntimeChat({
@@ -170,7 +175,7 @@ export const runTavernDirector = async ({
       role: "user",
       content: appendReferencesToPrompt(directorPrompt, references, {
         query: currentUserText,
-        ...TAVERN_REFERENCE_PROMPT_LIMITS,
+        ...TAVERN_DIRECTOR_REFERENCE_PROMPT_LIMITS,
       }),
       timestamp: Date.now(),
       metadata: null,

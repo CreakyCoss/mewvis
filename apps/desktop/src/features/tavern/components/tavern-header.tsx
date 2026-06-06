@@ -64,9 +64,9 @@ export const TavernHeader = ({
       </div>
       <Button
         type="button"
-        size="icon"
+        size="sm"
         variant="ghost"
-        className="hidden size-8 shrink-0 xl:inline-flex"
+        className="hidden h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:bg-current/10 lg:inline-flex"
         title={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
         aria-label={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
         aria-pressed={isSidePanelOpen}
@@ -77,6 +77,9 @@ export const TavernHeader = ({
         ) : (
           <PanelRightOpen className="size-4" />
         )}
+        <span className="text-xs font-medium">
+          {isSidePanelOpen ? "收起" : "概览"}
+        </span>
       </Button>
     </div>
   </header>

@@ -42,6 +42,7 @@ import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { cleanTavernReplyText } from "../runtime/reply-cleanup";
+import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -184,6 +185,8 @@ export const TavernPage = ({
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
+  const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
+  const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [turnStatus, setTurnStatus] = useState("");
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
@@ -207,6 +210,8 @@ export const TavernPage = ({
     setIsSidePanelOpen(false);
     setIsSending(false);
     setIsExtractingAssets(false);
+    setIsGeneratingReplySuggestions(false);
+    setReplySuggestions([]);
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
@@ -252,6 +257,11 @@ export const TavernPage = ({
       ?? roomCharacters[0]
       ?? null
   ), [activeRoom?.activeCharacterId, roomCharacters]);
+
+  useEffect(() => {
+    setIsGeneratingReplySuggestions(false);
+    setReplySuggestions([]);
+  }, [activeRoom?.id]);
 
   const scrollMessagesToBottom = useCallback(() => {
     const viewport = messageViewportRef.current;
@@ -431,86 +441,6 @@ export const TavernPage = ({
       return {
         ...current,
         messagesByRoom: nextMessagesByRoom,
-      };
-    });
-  }, []);
-
-  const updateMessageContent = useCallback((messageId: string, content: string) => {
-    const nextContent = content.trim();
-    if (!nextContent) {
-      return;
-    }
-
-    setState((current) => {
-      let updatedRoomId = "";
-      const messagesByRoom = Object.fromEntries(
-        Object.entries(current.messagesByRoom).map(([roomId, messages]) => {
-          const nextMessages = messages.map((message) => {
-            if (message.id !== messageId) {
-              return message;
-            }
-
-            updatedRoomId = roomId;
-            return {
-              ...message,
-              content: nextContent,
-              status: message.status === "error" ? "done" : message.status,
-            };
-          });
-
-          return [roomId, nextMessages];
-        }),
-      );
-
-      if (!updatedRoomId) {
-        return current;
-      }
-
-      return {
-        ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === updatedRoomId ? invalidateRoomAutoMemory(room) : room,
-        ),
-        messagesByRoom,
-      };
-    });
-  }, []);
-
-  const deleteMessage = useCallback((messageId: string) => {
-    if (!confirmDangerousAction(
-      "删除这条消息？",
-      "再次确认删除这条消息？它会从酒馆记录中移除，并重算当前房间的自动记忆。",
-    )) {
-      return;
-    }
-
-    setState((current) => {
-      let updatedRoomId = "";
-      const messagesByRoom = Object.fromEntries(
-        Object.entries(current.messagesByRoom).map(([roomId, messages]) => {
-          const nextMessages = messages.filter((message) => {
-            if (message.id === messageId) {
-              updatedRoomId = roomId;
-              return false;
-            }
-
-            return true;
-          });
-
-          return [roomId, nextMessages];
-        }),
-      );
-
-      if (!updatedRoomId) {
-        return current;
-      }
-
-      return {
-        ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === updatedRoomId ? invalidateRoomAutoMemory(room) : room,
-        ),
-        messagesByRoom,
       };
     });
   }, []);
@@ -1418,9 +1348,62 @@ export const TavernPage = ({
     runtimeAgentId,
   ]);
 
-  const handleSubmit = useCallback(async (event?: FormEvent) => {
+  const handleGenerateReplySuggestions = useCallback(async () => {
+    if (isSending || isGeneratingReplySuggestions) {
+      return;
+    }
+
+    if (!provider || !model) {
+      setError("请先在设置中选择模型，再生成候选回复。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    if (!activeRoom) {
+      setError("当前房间还没有可生成回复的场景。");
+      return;
+    }
+
+    setError("");
+    setIsGeneratingReplySuggestions(true);
+    try {
+      const suggestions = await runTavernUserReplySuggestions({
+        runtimeAgentId,
+        provider,
+        model,
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: roomMessages,
+        currentDraft: draft,
+      });
+      setReplySuggestions(suggestions);
+      if (suggestions.length === 0) {
+        setError("暂时没有生成可用候选回复，请再试一次。");
+      }
+    } catch (suggestionError) {
+      setError(`生成候选回复失败：${getErrorMessage(suggestionError)}`);
+    } finally {
+      setIsGeneratingReplySuggestions(false);
+    }
+  }, [
+    activeRoom,
+    draft,
+    isGeneratingReplySuggestions,
+    isSending,
+    model,
+    provider,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+  ]);
+
+  const handleSubmit = useCallback(async (event?: FormEvent, submittedText?: string) => {
     event?.preventDefault();
-    const text = draft.trim();
+    const text = (submittedText ?? draft).trim();
     if (!text || isSending) {
       return;
     }
@@ -1465,26 +1448,30 @@ export const TavernPage = ({
     let speakers = candidateSpeakers;
     let resolvedSpeakerModels = candidateSpeakerModels.map((item) => item.resolvedModel!);
 
-    if (unresolvedFileReferences.length > 0) {
+    const shouldUseDraftReferences = submittedText === undefined;
+    const currentReferencedFilePreviews = shouldUseDraftReferences ? referencedFilePreviews : [];
+
+    if (shouldUseDraftReferences && unresolvedFileReferences.length > 0) {
       setError(`未找到引用文件：${unresolvedFileReferences.map((match) => `@${match.token}`).join("、")}`);
       return;
     }
 
-    if (ambiguousFileReferences.length > 0) {
+    if (shouldUseDraftReferences && ambiguousFileReferences.length > 0) {
       setError(`引用文件不唯一：${ambiguousFileReferences.map((match) => `@${match.token}`).join("、")}`);
       return;
     }
 
     setIsSending(true);
     setError("");
+    setReplySuggestions([]);
     setTurnStatus(replyMode === "director" ? "导演正在接收你的消息..." : "正在发送消息...");
 
     let references: TavernReferencedFile[] = [];
     try {
-      if (referencedFilePreviews.length > 0) {
+      if (currentReferencedFilePreviews.length > 0) {
         setTurnStatus("正在读取引用文件...");
+        references = await readReferencedFiles();
       }
-      references = await readReferencedFiles();
     } catch (readError) {
       setError(`读取引用文件失败：${getErrorMessage(readError)}`);
       setIsSending(false);
@@ -1492,7 +1479,7 @@ export const TavernPage = ({
       return;
     }
 
-    const referencedFiles = referencedFilePreviews.map((file) => ({ path: file.path }));
+    const referencedFiles = currentReferencedFilePreviews.map((file) => ({ path: file.path }));
     const userMessage = createTavernMessage({
       roomId: activeRoom.id,
       role: "user",
@@ -1921,7 +1908,7 @@ export const TavernPage = ({
       <div
         className={[
           "grid h-full min-h-0 w-full grid-cols-1",
-          isSidePanelOpen ? "xl:grid-cols-[minmax(0,1fr)_324px]" : "xl:grid-cols-1",
+          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_324px]" : "lg:grid-cols-1",
         ].join(" ")}
       >
         <main className="flex min-h-0 min-w-0 flex-col">
@@ -1986,8 +1973,6 @@ export const TavernPage = ({
                     character={message.characterId ? characterById.get(message.characterId) : null}
                     characters={roomCharacters}
                     isSending={isSending}
-                    onUpdateMessage={updateMessageContent}
-                    onDeleteMessage={deleteMessage}
                   />
                   {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
                     <TavernExecutionTrace
@@ -2013,6 +1998,8 @@ export const TavernPage = ({
             draft={draft}
             error={error}
             isSending={isSending}
+            isGeneratingReplySuggestions={isGeneratingReplySuggestions}
+            replySuggestions={replySuggestions}
             visualPreset={visualPreset}
             activeCharacter={activeCharacter}
             replyMode={activeRoom.replyMode ?? "active"}
@@ -2026,6 +2013,10 @@ export const TavernPage = ({
             }}
             onCursorChange={setDraftCursor}
             onInsertReference={insertReference}
+            onGenerateReplySuggestions={handleGenerateReplySuggestions}
+            onSelectReplySuggestion={(suggestion) => {
+              void handleSubmit(undefined, suggestion);
+            }}
             onSubmit={(event) => {
               void handleSubmit(event);
             }}

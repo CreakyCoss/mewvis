@@ -23,8 +23,8 @@ export const CharacterButton = forwardRef<HTMLButtonElement, CharacterButtonProp
     ref={ref}
     type="button"
     className={cn(
-      "flex w-full min-w-0 gap-2 rounded-md border bg-background/55 p-2 text-left transition-colors hover:bg-background",
-      isActive && "border-primary/40 bg-primary/10",
+      "flex w-full min-w-0 gap-2 rounded-md border border-current/10 bg-current/5 p-2 text-left text-current transition-colors hover:bg-current/10",
+      isActive && "border-primary/45 bg-primary/15",
       className,
     )}
     disabled={disabled}
@@ -41,7 +41,7 @@ export const CharacterButton = forwardRef<HTMLButtonElement, CharacterButtonProp
         <span className="truncate text-sm font-semibold">{character.name}</span>
         {isActive && <MessageCircle className="size-3.5 shrink-0 text-primary" />}
       </span>
-      <span className="mt-0.5 line-clamp-1 text-xs leading-4 text-muted-foreground">
+      <span className="mt-0.5 line-clamp-1 text-xs leading-4 opacity-65">
         {character.description}
       </span>
     </span>

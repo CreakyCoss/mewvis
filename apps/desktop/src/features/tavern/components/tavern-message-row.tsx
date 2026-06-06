@@ -1,16 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  Check,
+  CheckCheck,
+  Copy,
   FileText,
   Loader2,
-  Pencil,
-  Trash2,
   UserRound,
-  X,
 } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
 import { SmoothMarkdownContent } from "@/features/workspace-chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
@@ -28,8 +25,6 @@ type TavernMessageRowProps = {
   character?: TavernCharacter | null;
   characters: TavernCharacter[];
   isSending: boolean;
-  onUpdateMessage: (messageId: string, content: string) => void;
-  onDeleteMessage: (messageId: string) => void;
 };
 
 const formatMessageTime = (timestamp: number) =>
@@ -45,43 +40,8 @@ export const TavernMessageRow = ({
   character,
   characters,
   isSending,
-  onUpdateMessage,
-  onDeleteMessage,
 }: TavernMessageRowProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(message.content);
   const isStreaming = message.status === "streaming";
-  const canManage = !isSending && !isStreaming;
-
-  useEffect(() => {
-    if (!isEditing) {
-      setDraft(message.content);
-    }
-  }, [isEditing, message.content]);
-
-  const saveEdit = () => {
-    const content = draft.trim();
-    if (!content) {
-      return;
-    }
-
-    onUpdateMessage(message.id, content);
-    setIsEditing(false);
-  };
-
-  const controls = (
-    <MessageControls
-      canManage={canManage}
-      isEditing={isEditing}
-      onStartEdit={() => setIsEditing(true)}
-      onCancelEdit={() => {
-        setDraft(message.content);
-        setIsEditing(false);
-      }}
-      onSaveEdit={saveEdit}
-      onDelete={() => onDeleteMessage(message.id)}
-    />
-  );
 
   if (message.role === "narrator") {
     return (
@@ -92,17 +52,9 @@ export const TavernMessageRow = ({
             visualPreset.tavern.narratorBubble,
           )}
         >
-          {isEditing ? (
-            <Textarea
-              value={draft}
-              className="min-h-[72px] resize-none bg-background text-left text-sm text-foreground"
-              onChange={(event) => setDraft(event.target.value)}
-            />
-          ) : (
-            message.content
-          )}
+          {message.content}
         </div>
-        {controls}
+        <MessageControls content={message.content} disabled={isStreaming} />
       </div>
     );
   }
@@ -128,15 +80,7 @@ export const TavernMessageRow = ({
               )}
               aria-hidden
             />
-            {isEditing ? (
-              <Textarea
-                value={draft}
-                className="min-h-[84px] resize-none bg-primary-foreground text-sm text-foreground"
-                onChange={(event) => setDraft(event.target.value)}
-              />
-            ) : (
-              <div className="whitespace-pre-wrap break-words">{message.content}</div>
-            )}
+            <div className="whitespace-pre-wrap break-words">{message.content}</div>
             {message.referencedFiles && message.referencedFiles.length > 0 && (
               <div className="mt-2 flex flex-wrap justify-end gap-1">
                 {message.referencedFiles.map((file) => (
@@ -155,7 +99,7 @@ export const TavernMessageRow = ({
           <span className="text-[11px] text-current opacity-70">
             {formatMessageTime(message.createdAt)}
           </span>
-          {controls}
+          <MessageControls content={message.content} disabled={isSending || isStreaming} />
         </div>
       </div>
     );
@@ -202,20 +146,12 @@ export const TavernMessageRow = ({
                 aria-hidden
               />
             )}
-            {isEditing ? (
-              <Textarea
-                value={draft}
-                className="min-h-[96px] resize-none bg-background text-sm text-foreground"
-                onChange={(event) => setDraft(event.target.value)}
-              />
-            ) : (
-              <SmoothMarkdownContent
-                content={displayContent}
-                isStreaming={isStreaming}
-              />
-            )}
+            <SmoothMarkdownContent
+              content={displayContent}
+              isStreaming={isStreaming}
+            />
           </div>
-          {controls}
+          <MessageControls content={displayContent} disabled={isStreaming} />
         </div>
       </div>
     </div>
@@ -223,75 +159,54 @@ export const TavernMessageRow = ({
 };
 
 type MessageControlsProps = {
-  canManage: boolean;
-  isEditing: boolean;
-  onStartEdit: () => void;
-  onCancelEdit: () => void;
-  onSaveEdit: () => void;
-  onDelete: () => void;
+  content: string;
+  disabled?: boolean;
 };
 
 const MessageControls = ({
-  canManage,
-  isEditing,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onDelete,
+  content,
+  disabled,
 }: MessageControlsProps) => {
-  if (!canManage) {
+  const [didCopy, setDidCopy] = useState(false);
+  const canCopy = Boolean(content.trim()) && !disabled;
+
+  if (!content.trim()) {
     return null;
   }
 
+  const copyContent = async () => {
+    if (!canCopy) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(content);
+      setDidCopy(true);
+      window.setTimeout(() => setDidCopy(false), 1200);
+    } catch {
+      setDidCopy(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
-      {isEditing ? (
-        <>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            title="保存"
-            aria-label="保存"
-            onClick={onSaveEdit}
-          >
-            <Check className="size-3.5" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            title="取消"
-            aria-label="取消"
-            onClick={onCancelEdit}
-          >
-            <X className="size-3.5" />
-          </Button>
-        </>
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        title={didCopy ? "已复制" : "复制"}
+        aria-label={didCopy ? "已复制" : "复制"}
+        disabled={!canCopy}
+        onClick={() => {
+          void copyContent();
+        }}
+      >
+        {didCopy ? (
+          <CheckCheck className="size-3.5" />
       ) : (
-        <>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            title="编辑"
-            aria-label="编辑"
-            onClick={onStartEdit}
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            title="删除"
-            aria-label="删除"
-            onClick={onDelete}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </>
-      )}
+          <Copy className="size-3.5" />
+        )}
+      </Button>
     </div>
   );
 };

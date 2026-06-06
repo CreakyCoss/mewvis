@@ -1,5 +1,5 @@
 import type { FormEvent, KeyboardEvent, RefObject } from "react";
-import { FileText, Loader2, Send } from "lucide-react";
+import { FileText, Loader2, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
@@ -11,6 +11,8 @@ type TavernComposerProps = {
   draft: string;
   error: string;
   isSending: boolean;
+  isGeneratingReplySuggestions: boolean;
+  replySuggestions: string[];
   visualPreset: VisualPresetDefinition;
   activeCharacter: TavernCharacter | null;
   replyMode: TavernReplyMode;
@@ -21,6 +23,8 @@ type TavernComposerProps = {
   onDraftChange: (value: string, cursor: number) => void;
   onCursorChange: (cursor: number) => void;
   onInsertReference: (file: WorkspaceFileEntry) => void;
+  onGenerateReplySuggestions: () => void;
+  onSelectReplySuggestion: (suggestion: string) => void;
   onSubmit: (event?: FormEvent) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
@@ -29,6 +33,8 @@ export const TavernComposer = ({
   draft,
   error,
   isSending,
+  isGeneratingReplySuggestions,
+  replySuggestions,
   visualPreset,
   activeCharacter,
   replyMode,
@@ -39,6 +45,8 @@ export const TavernComposer = ({
   onDraftChange,
   onCursorChange,
   onInsertReference,
+  onGenerateReplySuggestions,
+  onSelectReplySuggestion,
   onSubmit,
   onKeyDown,
 }: TavernComposerProps) => {
@@ -76,6 +84,40 @@ export const TavernComposer = ({
             ))}
           </div>
         )}
+        {(replySuggestions.length > 0 || isGeneratingReplySuggestions) && (
+          <div
+            className={cn(
+              "space-y-2 rounded-md border p-2.5 text-current shadow-sm",
+              visualPreset.tavern.sceneCard,
+            )}
+            role="list"
+            aria-label="候选回复"
+          >
+            <div className="flex items-center gap-2 text-xs font-medium">
+              {isGeneratingReplySuggestions ? (
+                <Loader2 className="size-3.5 animate-spin text-primary" />
+              ) : (
+                <Sparkles className="size-3.5 text-primary" />
+              )}
+              <span>{isGeneratingReplySuggestions ? "正在生成候选回复" : "候选回复"}</span>
+            </div>
+            {replySuggestions.length > 0 && (
+              <div className="grid gap-1.5">
+                {replySuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className="min-h-10 rounded-md border border-current/10 bg-current/5 px-3 py-2 text-left text-sm leading-5 transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    disabled={isSending || isGeneratingReplySuggestions}
+                    onClick={() => onSelectReplySuggestion(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="relative">
           {referenceSuggestions.length > 0 && (
             <div className="absolute right-0 bottom-full left-0 z-10 mb-2 overflow-hidden rounded-md border bg-popover shadow-lg">
@@ -101,7 +143,7 @@ export const TavernComposer = ({
             value={draft}
             placeholder={placeholder}
             className={cn(
-              "min-h-[92px] resize-none pr-14 text-sm leading-6",
+              "min-h-[92px] resize-none pr-24 text-sm leading-6",
               visualPreset.tavern.composerInput,
             )}
             onChange={(event) => {
@@ -115,6 +157,22 @@ export const TavernComposer = ({
             onKeyDown={onKeyDown}
             onSelect={(event) => onCursorChange(event.currentTarget.selectionStart ?? draft.length)}
           />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="absolute right-14 bottom-3 size-9 border-current/20 bg-current/5 text-current hover:bg-current/10"
+            title={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
+            aria-label={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
+            disabled={isSending || isGeneratingReplySuggestions}
+            onClick={onGenerateReplySuggestions}
+          >
+            {isGeneratingReplySuggestions ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+          </Button>
           <Button
             type="submit"
             size="icon"

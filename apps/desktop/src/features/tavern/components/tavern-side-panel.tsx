@@ -71,8 +71,8 @@ const TextBlock = ({
   value: string | undefined;
 }) => (
   <div className="space-y-1.5">
-    <div className="text-xs font-medium text-muted-foreground">{label}</div>
-    <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/30 px-3 py-2 text-sm leading-6 text-muted-foreground">
+    <div className="text-xs font-medium text-current opacity-70">{label}</div>
+    <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-current/10 bg-current/5 px-3 py-2 text-sm leading-6 text-current shadow-sm">
       {compactText(value)}
     </div>
   </div>
@@ -86,8 +86,8 @@ const TooltipField = ({
   value: string | undefined;
 }) => (
   <div className="space-y-1">
-    <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
-    <div className="whitespace-pre-wrap text-xs leading-5 text-popover-foreground">
+    <div className="text-[11px] font-medium text-current opacity-65">{label}</div>
+    <div className="whitespace-pre-wrap text-xs leading-5 text-current">
       {compactText(value)}
     </div>
   </div>
@@ -136,15 +136,15 @@ const DetailEntry = ({
 }) => (
   <button
     type="button"
-    className="flex w-full min-w-0 items-center gap-2 rounded-md border bg-background/60 px-3 py-2 text-left transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="flex w-full min-w-0 items-center gap-2 rounded-md border border-current/10 bg-current/5 px-3 py-2 text-left text-current transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     onClick={onClick}
   >
     <Icon className="size-4 shrink-0 text-primary" />
     <span className="min-w-0 flex-1">
       <span className="block truncate text-sm font-medium">{title}</span>
-      <span className="mt-0.5 block truncate text-xs text-muted-foreground">{summary}</span>
+      <span className="mt-0.5 block truncate text-xs opacity-65">{summary}</span>
     </span>
-    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+    <ChevronRight className="size-4 shrink-0 opacity-60" />
   </button>
 );
 
@@ -171,12 +171,12 @@ const AssetDraftPreview = ({
   ].filter(Boolean).join(" / ");
 
   return (
-    <div className="space-y-3 rounded-md border bg-background/70 p-3">
+    <div className="space-y-3 rounded-md border border-current/10 bg-current/5 p-3 text-current">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs font-semibold">草稿 {index + 1}</div>
           {draftSummary && (
-            <div className="mt-0.5 text-xs text-muted-foreground">{draftSummary}</div>
+            <div className="mt-0.5 text-xs opacity-65">{draftSummary}</div>
           )}
         </div>
         <div className="flex shrink-0 gap-1">
@@ -206,11 +206,11 @@ const AssetDraftPreview = ({
 
       {draft.timelineEvents.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-xs font-medium text-muted-foreground">时间线</div>
+          <div className="text-xs font-medium opacity-70">时间线</div>
           {draft.timelineEvents.map((event) => (
-            <div key={event.id} className="rounded-md bg-muted/35 px-2.5 py-2">
+            <div key={event.id} className="rounded-md bg-current/5 px-2.5 py-2">
               <div className="text-xs font-medium">{event.title || emptyValueText}</div>
-              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
                 {event.summary || emptyValueText}
               </div>
             </div>
@@ -220,13 +220,13 @@ const AssetDraftPreview = ({
 
       {draft.characterMemories.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-xs font-medium text-muted-foreground">角色记忆</div>
+          <div className="text-xs font-medium opacity-70">角色记忆</div>
           {draft.characterMemories.map((memory) => (
-            <div key={memory.id} className="rounded-md bg-muted/35 px-2.5 py-2">
+            <div key={memory.id} className="rounded-md bg-current/5 px-2.5 py-2">
               <div className="text-xs font-medium">
                 {characterById.get(memory.characterId)?.name ?? "角色"}
               </div>
-              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
                 {memory.note || emptyValueText}
               </div>
             </div>
@@ -236,16 +236,16 @@ const AssetDraftPreview = ({
 
       {draft.lorebookEntries.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-xs font-medium text-muted-foreground">世界书</div>
+          <div className="text-xs font-medium opacity-70">世界书</div>
           {draft.lorebookEntries.map((entry) => (
-            <div key={entry.id} className="rounded-md bg-muted/35 px-2.5 py-2">
+            <div key={entry.id} className="rounded-md bg-current/5 px-2.5 py-2">
               <div className="text-xs font-medium">{entry.title || emptyValueText}</div>
               {entry.keywords.length > 0 && (
-                <div className="mt-1 text-[11px] text-muted-foreground">
+                <div className="mt-1 text-[11px] opacity-60">
                   {entry.keywords.join("，")}
                 </div>
               )}
-              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
                 {entry.content || emptyValueText}
               </div>
             </div>
@@ -294,7 +294,7 @@ export const TavernSidePanel = ({
   return (
     <aside
       className={cn(
-        "hidden min-h-0 flex-col border-l xl:flex",
+        "hidden min-h-0 flex-col border-l lg:flex",
         visualPreset.tavern.sidePanel,
       )}
     >
@@ -311,7 +311,7 @@ export const TavernSidePanel = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex h-6 shrink-0 items-center rounded-md bg-muted/35 px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex h-6 shrink-0 items-center rounded-md border border-current/10 bg-current/5 px-2 text-xs font-medium text-current opacity-80 transition-colors hover:bg-current/10 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       对话设置
                     </button>
@@ -362,7 +362,7 @@ export const TavernSidePanel = ({
                 </HoverCard>
               ))}
               {roomCharacters.length === 0 && (
-                <div className="rounded-md border bg-background/60 px-3 py-4 text-center text-sm text-muted-foreground">
+                <div className="rounded-md border border-current/10 bg-current/5 px-3 py-4 text-center text-sm text-current opacity-70">
                   还没有角色入席。
                 </div>
               )}
@@ -379,6 +379,7 @@ export const TavernSidePanel = ({
                 type="button"
                 size="xs"
                 variant="outline"
+                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
                 disabled={isBusy}
                 onClick={onExtractRecentAssets}
               >
