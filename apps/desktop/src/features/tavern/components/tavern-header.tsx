@@ -1,4 +1,10 @@
-import { ArrowLeft, PanelRightClose, PanelRightOpen, Wine } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Wine,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
@@ -10,7 +16,9 @@ type TavernHeaderProps = {
   activeRoom: TavernRoom;
   visualPreset: VisualPresetDefinition;
   isSidePanelOpen: boolean;
+  isGeneratingQuickSummary: boolean;
   onBack?: () => void;
+  onOpenQuickSummary: () => void;
   onToggleSidePanel: () => void;
 };
 
@@ -18,7 +26,9 @@ export const TavernHeader = ({
   activeRoom,
   visualPreset,
   isSidePanelOpen,
+  isGeneratingQuickSummary,
   onBack,
+  onOpenQuickSummary,
   onToggleSidePanel,
 }: TavernHeaderProps) => (
   <header
@@ -62,6 +72,19 @@ export const TavernHeader = ({
           </p>
         </div>
       </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:bg-current/10"
+        title={isGeneratingQuickSummary ? "正在总结" : "快速总结"}
+        aria-label={isGeneratingQuickSummary ? "正在总结" : "快速总结"}
+        disabled={isGeneratingQuickSummary}
+        onClick={onOpenQuickSummary}
+      >
+        <BookOpen className="size-4" />
+        <span className="hidden text-xs font-medium sm:inline">总结</span>
+      </Button>
       <Button
         type="button"
         size="sm"

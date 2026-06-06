@@ -1,8 +1,19 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { RefreshCcw, Sparkles } from "lucide-react";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MarkdownContent } from "@/features/workspace-chat/components/chat/markdown-content";
 import { readWorkspaceFile } from "@/features/workspace-chat/api";
 import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
 import { getVisualPreset, normalizeVisualPresetId } from "@/features/visual-presets";
@@ -42,6 +53,7 @@ import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { cleanTavernReplyText } from "../runtime/reply-cleanup";
+import { runTavernQuickSummary } from "../runtime/quick-summary";
 import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
@@ -124,10 +136,58 @@ type TavernRoomExportV1 = {
   messages: TavernMessage[];
 };
 
+type QuickSummaryCache = {
+  roomId: string;
+  signature: string;
+  content: string;
+  generatedAt: number;
+};
+
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const sanitizeFileName = (value: string) =>
   value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80) || "tavern-room";
+
+const createQuickSummarySignature = (
+  room: TavernRoom,
+  messages: TavernMessage[],
+) => JSON.stringify({
+  roomId: room.id,
+  updatedAt: room.updatedAt,
+  title: room.title,
+  scene: room.scene,
+  sceneGoal: room.sceneGoal,
+  memory: room.memory,
+  autoMemory: room.autoMemory,
+  autoMemoryUpdatedAt: room.autoMemoryUpdatedAt ?? null,
+  characterIds: room.characterIds,
+  activeCharacterId: room.activeCharacterId,
+  replyMode: room.replyMode,
+  characterMemories: room.characterMemories,
+  lorebookEntries: room.lorebookEntries.map((entry) => ({
+    id: entry.id,
+    title: entry.title,
+    content: entry.content,
+    keywords: entry.keywords,
+    enabled: entry.enabled,
+    alwaysOn: entry.alwaysOn,
+    updatedAt: entry.updatedAt,
+  })),
+  timelineEvents: room.timelineEvents.map((event) => ({
+    id: event.id,
+    title: event.title,
+    summary: event.summary,
+    updatedAt: event.updatedAt,
+  })),
+  messages: messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    characterId: message.characterId ?? "",
+    content: message.content,
+    status: message.status ?? "",
+    referencedFiles: message.referencedFiles ?? [],
+  })),
+});
 
 const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
   const numberValue = typeof value === "number" ? value : Number(value);
@@ -187,6 +247,10 @@ export const TavernPage = ({
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  const [isQuickSummaryOpen, setIsQuickSummaryOpen] = useState(false);
+  const [isGeneratingQuickSummary, setIsGeneratingQuickSummary] = useState(false);
+  const [quickSummaryError, setQuickSummaryError] = useState("");
+  const [quickSummaryCacheByRoom, setQuickSummaryCacheByRoom] = useState<Record<string, QuickSummaryCache>>({});
   const [turnStatus, setTurnStatus] = useState("");
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
@@ -212,6 +276,10 @@ export const TavernPage = ({
     setIsExtractingAssets(false);
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
+    setIsQuickSummaryOpen(false);
+    setIsGeneratingQuickSummary(false);
+    setQuickSummaryError("");
+    setQuickSummaryCacheByRoom({});
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
@@ -239,6 +307,26 @@ export const TavernPage = ({
   const roomMessages = useMemo(() => (
     activeRoom ? state.messagesByRoom[activeRoom.id] ?? [] : []
   ), [activeRoom, state.messagesByRoom]);
+  const quickSummarySignature = useMemo(() => (
+    activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""
+  ), [activeRoom, roomMessages]);
+  const activeQuickSummaryCache = useMemo(() => (
+    activeRoom ? quickSummaryCacheByRoom[activeRoom.id] ?? null : null
+  ), [activeRoom, quickSummaryCacheByRoom]);
+  const isQuickSummaryCacheFresh = Boolean(
+    activeQuickSummaryCache &&
+    activeQuickSummaryCache.signature === quickSummarySignature,
+  );
+  const quickSummaryGeneratedAtText = useMemo(() => {
+    if (!activeQuickSummaryCache) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(activeQuickSummaryCache.generatedAt);
+  }, [activeQuickSummaryCache]);
   const latestMessage = roomMessages[roomMessages.length - 1] ?? null;
   const characterById = useMemo(() => (
     new Map(state.characters.map((character) => [character.id, character]))
@@ -261,6 +349,9 @@ export const TavernPage = ({
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
+    setIsQuickSummaryOpen(false);
+    setIsGeneratingQuickSummary(false);
+    setQuickSummaryError("");
   }, [activeRoom?.id]);
 
   const scrollMessagesToBottom = useCallback(() => {
@@ -523,55 +614,18 @@ export const TavernPage = ({
     setError("");
   }, [state.characters, state.rooms]);
 
-  const addCharacterToRoom = useCallback((roomId: string, characterId: string) => {
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) => {
-        if (room.id !== roomId || room.characterIds.includes(characterId)) {
-          return room;
-        }
+  const clearRoomMessages = useCallback((roomId: string) => {
+    const targetRoom = state.rooms.find((room) => room.id === roomId);
+    if (targetRoom?.locked) {
+      return;
+    }
 
-        return {
-          ...room,
-          characterIds: [...room.characterIds, characterId],
-          activeCharacterId: room.activeCharacterId || characterId,
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-  }, []);
-
-  const removeCharacterFromRoom = useCallback((roomId: string, characterId: string) => {
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) => {
-        if (room.id !== roomId) {
-          return room;
-        }
-
-        const nextCharacterIds = room.characterIds.filter((id) => id !== characterId);
-        return {
-          ...room,
-          characterIds: nextCharacterIds,
-          activeCharacterId: room.activeCharacterId === characterId
-            ? nextCharacterIds[0] ?? ""
-            : room.activeCharacterId,
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-  }, []);
-
-  const clearActiveRoomMessages = useCallback(() => {
-    if (!activeRoom || !confirmDangerousAction(
-      `清空「${activeRoom.title}」的对话记录？`,
-      "再次确认清空对话？当前房间现有消息会被替换为一条重置提示。",
-    )) {
+    if (!targetRoom) {
       return;
     }
 
     const resetMessage = createTavernMessage({
-      roomId: activeRoom.id,
+      roomId: targetRoom.id,
       role: "narrator",
       content: "桌面被重新擦亮，旧谈话暂时收进抽屉。",
       status: "done",
@@ -579,14 +633,14 @@ export const TavernPage = ({
     setState((current) => ({
       ...current,
       rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id ? invalidateRoomAutoMemory(room) : room,
+        room.id === targetRoom.id ? invalidateRoomAutoMemory(room) : room,
       ),
       messagesByRoom: {
         ...current.messagesByRoom,
-        [activeRoom.id]: [resetMessage],
+        [targetRoom.id]: [resetMessage],
       },
     }));
-  }, [activeRoom]);
+  }, [state.rooms]);
 
   const deleteRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
@@ -866,8 +920,8 @@ export const TavernPage = ({
 
     const actionLabel = locked ? "锁定" : "解锁";
     const consequence = locked
-      ? "锁定后将不能删除该酒馆，也不能恢复系统默认。"
-      : "解锁后将重新允许删除该酒馆或恢复系统默认。";
+      ? "锁定后将不能删除该酒馆、恢复系统默认或清空对话。"
+      : "解锁后将重新允许删除该酒馆、恢复系统默认或清空对话。";
     if (!window.confirm(`再次确认${actionLabel}「${room.title}」？${consequence}`)) {
       return false;
     }
@@ -968,31 +1022,41 @@ export const TavernPage = ({
     }));
   }, [activeRoom]);
 
-  const exportActiveRoom = useCallback(() => {
-    if (!activeRoom) {
-      return;
+  const exportRoom = useCallback((roomId: string) => {
+    const targetRoom = state.rooms.find((room) => room.id === roomId);
+    if (!targetRoom) {
+      return false;
     }
 
-    const payload: TavernRoomExportV1 = {
-      schema: TAVERN_ROOM_EXPORT_SCHEMA,
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      room: activeRoom,
-      characters: roomCharacters,
-      messages: roomMessages,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${sanitizeFileName(activeRoom.title)}.tavern-room.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }, [activeRoom, roomCharacters, roomMessages]);
+    try {
+      const targetCharacters = targetRoom.characterIds
+        .map((characterId) => characterById.get(characterId))
+        .filter((character): character is TavernCharacter => Boolean(character));
+      const targetMessages = state.messagesByRoom[targetRoom.id] ?? [];
+      const payload: TavernRoomExportV1 = {
+        schema: TAVERN_ROOM_EXPORT_SCHEMA,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        room: targetRoom,
+        characters: targetCharacters,
+        messages: targetMessages,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${sanitizeFileName(targetRoom.title)}.tavern-room.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [characterById, state.messagesByRoom, state.rooms]);
 
   const importRoomExport = useCallback((raw: string) => {
     let parsed: TavernRoomExportV1;
@@ -1396,6 +1460,88 @@ export const TavernPage = ({
     isSending,
     model,
     provider,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+  ]);
+
+  const handleOpenQuickSummary = useCallback(async ({
+    force = false,
+  }: {
+    force?: boolean;
+  } = {}) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    if (isGeneratingQuickSummary) {
+      setIsQuickSummaryOpen(true);
+      return;
+    }
+
+    if (!force && activeQuickSummaryCache?.content.trim()) {
+      setQuickSummaryError("");
+      setIsQuickSummaryOpen(true);
+      return;
+    }
+
+    setIsQuickSummaryOpen(true);
+    setQuickSummaryError("");
+
+    if (isSending) {
+      setQuickSummaryError("请等待本轮回应完成后再总结当前进展。");
+      return;
+    }
+
+    if (!provider || !model) {
+      setQuickSummaryError("请先在设置中选择模型，再总结当前进展。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setQuickSummaryError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    const summaryMessages = roomMessages.filter((message) =>
+      message.status !== "streaming" && message.content.trim()
+    );
+    const roomId = activeRoom.id;
+    const signature = quickSummarySignature;
+
+    setIsGeneratingQuickSummary(true);
+    try {
+      const content = await runTavernQuickSummary({
+        runtimeAgentId,
+        provider,
+        model,
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: summaryMessages,
+      });
+      setQuickSummaryCacheByRoom((current) => ({
+        ...current,
+        [roomId]: {
+          roomId,
+          signature,
+          content,
+          generatedAt: Date.now(),
+        },
+      }));
+    } catch (summaryError) {
+      setQuickSummaryError(`总结当前进展失败：${getErrorMessage(summaryError)}`);
+    } finally {
+      setIsGeneratingQuickSummary(false);
+    }
+  }, [
+    activeQuickSummaryCache,
+    activeRoom,
+    isGeneratingQuickSummary,
+    isQuickSummaryCacheFresh,
+    isSending,
+    model,
+    provider,
+    quickSummarySignature,
     roomCharacters,
     roomMessages,
     runtimeAgentId,
@@ -1872,14 +2018,12 @@ export const TavernPage = ({
         onRestoreSystemPresetRoom={restoreSystemPresetRoom}
         onSetRoomLocked={setRoomLocked}
         onDeleteRoom={deleteRoom}
-        onClearRoomMessages={clearActiveRoomMessages}
-        onExportRoom={exportActiveRoom}
+        onClearRoomMessages={clearRoomMessages}
+        onExportRoom={exportRoom}
         onImportRoom={importRoomExport}
         onCreateCharacter={createGlobalCharacter}
         onUpdateCharacter={updateCharacter}
         onDeleteCharacter={deleteCharacter}
-        onAddRoomCharacter={addCharacterToRoom}
-        onRemoveRoomCharacter={removeCharacterFromRoom}
       />
     );
   }
@@ -1897,6 +2041,14 @@ export const TavernPage = ({
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
+  const quickSummaryContent = activeQuickSummaryCache?.content ?? "";
+  const quickSummaryDescription = activeQuickSummaryCache && quickSummaryGeneratedAtText
+    ? isQuickSummaryCacheFresh
+      ? `生成于 ${quickSummaryGeneratedAtText}`
+      : `生成于 ${quickSummaryGeneratedAtText}，内容已有变化，可手动重新生成。`
+    : isGeneratingQuickSummary
+      ? "正在生成当前进展..."
+      : "基于当前酒馆内容生成。";
 
   return (
     <div
@@ -1916,9 +2068,13 @@ export const TavernPage = ({
             activeRoom={activeRoom}
             visualPreset={visualPreset}
             isSidePanelOpen={isSidePanelOpen}
+            isGeneratingQuickSummary={isGeneratingQuickSummary}
             onBack={() => {
               setIsSidePanelOpen(false);
               setViewMode("home");
+            }}
+            onOpenQuickSummary={() => {
+              void handleOpenQuickSummary();
             }}
             onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
@@ -2039,6 +2195,90 @@ export const TavernPage = ({
           />
         )}
       </div>
+
+      <Dialog open={isQuickSummaryOpen} onOpenChange={setIsQuickSummaryOpen}>
+        <DialogContent
+          className={cn(
+            "flex max-h-[min(720px,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl",
+            visualPreset.tavern.sidePanel,
+          )}
+          overlayClassName="bg-black/35 backdrop-blur-sm"
+        >
+          <DialogHeader
+            className={cn(
+              "shrink-0 border-b px-5 py-4 pr-12",
+              visualPreset.tavern.header,
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-md border",
+                  visualPreset.tavern.headerIcon,
+                )}
+              >
+                <Sparkles className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <DialogTitle className="truncate text-base text-current">
+                  当前进展总结
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-xs text-current opacity-65">
+                  {quickSummaryDescription}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="min-h-56 flex-1 overflow-y-auto px-5 py-4 text-current">
+            {quickSummaryError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {quickSummaryError}
+              </div>
+            )}
+            {quickSummaryContent && (
+              <div
+                className={cn(
+                  "rounded-md border border-current/10 bg-current/5 px-4 py-3 text-current shadow-sm",
+                )}
+              >
+                <MarkdownContent content={quickSummaryContent} />
+              </div>
+            )}
+            {!quickSummaryError && !quickSummaryContent && (
+              <div className="flex min-h-40 items-center justify-center rounded-md border border-current/10 bg-current/5 px-4 py-6 text-sm opacity-70">
+                {isGeneratingQuickSummary ? "正在生成当前进展..." : "暂无可显示的总结。"}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter
+            className={cn(
+              "shrink-0 border-t px-5 py-4",
+              visualPreset.tavern.header,
+            )}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              className="border-current/20 bg-current/5 text-current hover:bg-current/10"
+              disabled={isGeneratingQuickSummary || isSending}
+              onClick={() => {
+                void handleOpenQuickSummary({ force: true });
+              }}
+            >
+              <RefreshCcw className="size-4" />
+              重新生成
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setIsQuickSummaryOpen(false)}
+            >
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
