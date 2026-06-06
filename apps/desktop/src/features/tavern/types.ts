@@ -1,3 +1,5 @@
+export type TavernReplyMode = "active" | "round";
+
 export type TavernCharacter = {
   id: string;
   name: string;
@@ -15,8 +17,13 @@ export type TavernRoom = {
   workspaceId: string;
   title: string;
   scene: string;
+  memory: string;
+  autoMemory: string;
+  autoMemoryUpdatedAt?: number;
+  summarizedMessageIds?: string[];
   characterIds: string[];
   activeCharacterId: string;
+  replyMode: TavernReplyMode;
   userPersonaName: string;
   createdAt: number;
   updatedAt: number;

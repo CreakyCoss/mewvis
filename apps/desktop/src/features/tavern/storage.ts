@@ -1,6 +1,7 @@
 import type {
   TavernCharacter,
   TavernMessage,
+  TavernReplyMode,
   TavernRoom,
   TavernState,
 } from "./types";
@@ -12,6 +13,9 @@ const storageKeyForWorkspace = (workspaceId: string) => `${STORAGE_PREFIX}:${wor
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const now = () => Date.now();
+
+const normalizeReplyMode = (value: unknown): TavernReplyMode =>
+  value === "round" ? "round" : "active";
 
 export const createDefaultTavernState = (workspaceId: string): TavernState => {
   const createdAt = now();
@@ -59,8 +63,13 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     workspaceId,
     title: "夜灯酒馆",
     scene: "雨停后的夜晚，吧台上还有未擦干的水痕。几位熟客围在靠窗的位置，等待有人把故事继续讲下去。",
+    memory: "",
+    autoMemory: "",
+    autoMemoryUpdatedAt: undefined,
+    summarizedMessageIds: [],
     characterIds: characters.map((character) => character.id),
     activeCharacterId: keeperId,
+    replyMode: "active",
     userPersonaName: "我",
     createdAt,
     updatedAt: createdAt,
@@ -106,7 +115,27 @@ const normalizeTavernState = (
 
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
     Boolean(room?.id && room.workspaceId === workspaceId && room.title)
-  );
+  ).map((room) => ({
+    ...room,
+    memory: typeof (room as Partial<TavernRoom>).memory === "string"
+      ? (room as Partial<TavernRoom>).memory ?? ""
+      : "",
+    autoMemory: typeof (room as Partial<TavernRoom>).autoMemory === "string"
+      ? (room as Partial<TavernRoom>).autoMemory ?? ""
+      : "",
+    autoMemoryUpdatedAt: typeof (room as Partial<TavernRoom>).autoMemoryUpdatedAt === "number"
+      ? (room as Partial<TavernRoom>).autoMemoryUpdatedAt
+      : undefined,
+    summarizedMessageIds: Array.isArray((room as Partial<TavernRoom>).summarizedMessageIds)
+      ? ((room as Partial<TavernRoom>).summarizedMessageIds ?? []).filter((item): item is string =>
+          typeof item === "string"
+        )
+      : [],
+    replyMode: normalizeReplyMode((room as Partial<TavernRoom>).replyMode),
+    userPersonaName: room.userPersonaName || "我",
+    characterIds: Array.isArray(room.characterIds) ? room.characterIds : [],
+    activeCharacterId: room.activeCharacterId || "",
+  }));
   const characters = candidate.characters.filter((character): character is TavernCharacter =>
     Boolean(character?.id && character.name)
   );
@@ -156,8 +185,13 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     workspaceId,
     title: `新酒馆 ${index}`,
     scene: "一张空桌、一盏低灯，以及等待被写下的第一句对白。",
+    memory: "",
+    autoMemory: "",
+    autoMemoryUpdatedAt: undefined,
+    summarizedMessageIds: [],
     characterIds: [],
     activeCharacterId: "",
+    replyMode: "active",
     userPersonaName: "我",
     createdAt,
     updatedAt: createdAt,
@@ -169,6 +203,8 @@ export const createTavernCharacter = (input: {
   avatar: string;
   description: string;
   speakingStyle: string;
+  goals?: string;
+  relationships?: string;
 }): TavernCharacter => {
   const createdAt = now();
   return {
@@ -177,6 +213,8 @@ export const createTavernCharacter = (input: {
     avatar: input.avatar,
     description: input.description,
     speakingStyle: input.speakingStyle,
+    goals: input.goals?.trim() || undefined,
+    relationships: input.relationships?.trim() || undefined,
     createdAt,
     updatedAt: createdAt,
   };

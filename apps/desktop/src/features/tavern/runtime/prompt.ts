@@ -1,5 +1,7 @@
-import { appendReferencesToPrompt } from "@/features/workspace-chat/utils/references";
-import type { ConversationMessage } from "@/features/workspace-chat/types";
+import {
+  appendReferencesToPrompt,
+  type ConversationMessage,
+} from "@/ai/agent-context";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -15,19 +17,34 @@ const formatCharacter = (character: TavernCharacter) => [
   character.relationships ? `relationships: ${character.relationships}` : "",
 ].filter(Boolean).join("\n");
 
+export const TAVERN_REFERENCE_PROMPT_LIMITS = {
+  perFileChars: 12000,
+  totalChars: 26000,
+} as const;
+
 export const buildTavernSystemPrompt = ({
   room,
   activeCharacter,
   characters,
   references,
   currentUserText,
+  turnInstruction,
 }: {
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  turnInstruction?: string;
 }) => {
+  const turnInstructionSection = turnInstruction
+    ? [
+        "",
+        "<turn_instruction>",
+        turnInstruction,
+        "</turn_instruction>",
+      ]
+    : [];
   const basePrompt = [
     "你正在 Novel Claw 的酒馆模式中扮演一个角色。",
     "",
@@ -43,9 +60,18 @@ export const buildTavernSystemPrompt = ({
     room.scene,
     "</room_scene>",
     "",
+    room.memory.trim() ? "<room_memory instruction=\"persistent_story_state\">" : "",
+    room.memory.trim() ? room.memory.trim() : "",
+    room.memory.trim() ? "</room_memory>" : "",
+    room.memory.trim() ? "" : "",
+    room.autoMemory.trim() ? "<auto_room_memory instruction=\"compressed_conversation_state\">" : "",
+    room.autoMemory.trim() ? room.autoMemory.trim() : "",
+    room.autoMemory.trim() ? "</auto_room_memory>" : "",
+    room.autoMemory.trim() ? "" : "",
     "<active_character>",
     formatCharacter(activeCharacter),
     "</active_character>",
+    ...turnInstructionSection,
     "",
     "<present_characters instruction=\"persona_context_only\">",
     characters.map(formatCharacter).join("\n\n---\n\n"),
@@ -54,8 +80,7 @@ export const buildTavernSystemPrompt = ({
 
   return appendReferencesToPrompt(basePrompt, references, {
     query: currentUserText,
-    perFileChars: 12000,
-    totalChars: 26000,
+    ...TAVERN_REFERENCE_PROMPT_LIMITS,
   });
 };
 
@@ -70,7 +95,7 @@ export const tavernMessagesToRuntimeMessages = ({
 }): ConversationMessage[] => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
 
-  return messages.slice(-24).map((message) => {
+  return messages.map((message) => {
     if (message.role === "user") {
       return {
         id: message.id,

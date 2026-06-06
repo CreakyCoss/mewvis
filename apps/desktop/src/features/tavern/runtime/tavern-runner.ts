@@ -21,6 +21,7 @@ export type RunTavernReplyInput = {
   messages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  turnInstruction?: string;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
@@ -35,6 +36,7 @@ export const runTavernReply = async ({
   messages,
   references,
   currentUserText,
+  turnInstruction,
   onTextDelta,
   onThinkingDelta,
 }: RunTavernReplyInput) => {
@@ -44,6 +46,7 @@ export const runTavernReply = async ({
     characters,
     references,
     currentUserText,
+    turnInstruction,
   });
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,

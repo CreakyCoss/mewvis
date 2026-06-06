@@ -3,13 +3,15 @@ import { FileText, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
-import type { TavernCharacter } from "../types";
+import type { TavernCharacter, TavernReplyMode } from "../types";
 
 type TavernComposerProps = {
   draft: string;
   error: string;
   isSending: boolean;
   activeCharacter: TavernCharacter | null;
+  replyMode: TavernReplyMode;
+  speakerCount: number;
   referencedFilePreviews: WorkspaceFileEntry[];
   referenceSuggestions: WorkspaceFileEntry[];
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -25,6 +27,8 @@ export const TavernComposer = ({
   error,
   isSending,
   activeCharacter,
+  replyMode,
+  speakerCount,
   referencedFilePreviews,
   referenceSuggestions,
   inputRef,
@@ -33,7 +37,12 @@ export const TavernComposer = ({
   onInsertReference,
   onSubmit,
   onKeyDown,
-}: TavernComposerProps) => (
+}: TavernComposerProps) => {
+  const placeholder = replyMode === "round" && speakerCount > 1
+    ? `让 ${speakerCount} 位角色依次回应...`
+    : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";
+
+  return (
   <form
     className="border-t bg-background/95 px-4 py-3 sm:px-5"
     onSubmit={(event) => onSubmit(event)}
@@ -81,7 +90,7 @@ export const TavernComposer = ({
         <Textarea
           ref={inputRef}
           value={draft}
-          placeholder={activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白..."}
+          placeholder={placeholder}
           className="min-h-[92px] resize-none pr-14 text-sm leading-6"
           onChange={(event) => {
             onDraftChange(
@@ -111,4 +120,5 @@ export const TavernComposer = ({
       </div>
     </div>
   </form>
-);
+  );
+};

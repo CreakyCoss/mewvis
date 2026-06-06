@@ -5,3 +5,4 @@ export * from "./engine";
 export * from "./memory/agent-execution-memory";
 export * from "./prompt/context-selection";
 export * from "./prompt/prompts";
+export * from "./prompt/references";

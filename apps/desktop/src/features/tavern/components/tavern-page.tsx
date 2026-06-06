@@ -12,6 +12,7 @@ import {
   summarizeReferenceMatches,
 } from "@/features/workspace-chat/utils/references";
 import type { Workspace } from "@/features/workspaces/types";
+import { parseTavernCharacterCard } from "../character-card";
 import {
   createTavernCharacter,
   createTavernMessage,
@@ -27,6 +28,7 @@ import type {
   TavernState,
 } from "../types";
 import { runTavernReply } from "../runtime/tavern-runner";
+import { prepareTavernRuntimeContext } from "../runtime/context";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import { TavernHeader } from "./tavern-header";
@@ -56,6 +58,33 @@ const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
+const orderRoundCharacters = (
+  characters: TavernCharacter[],
+  activeCharacterId?: string,
+) => {
+  if (!activeCharacterId) {
+    return characters;
+  }
+
+  const activeIndex = characters.findIndex((character) => character.id === activeCharacterId);
+  if (activeIndex <= 0) {
+    return characters;
+  }
+
+  return [
+    ...characters.slice(activeIndex),
+    ...characters.slice(0, activeIndex),
+  ];
+};
+
+const invalidateRoomAutoMemory = (room: TavernRoom): TavernRoom => ({
+  ...room,
+  autoMemory: "",
+  autoMemoryUpdatedAt: undefined,
+  summarizedMessageIds: [],
+  updatedAt: Date.now(),
+});
+
 export const TavernPage = ({
   workspace,
   files,
@@ -72,6 +101,8 @@ export const TavernPage = ({
   const [newCharacterName, setNewCharacterName] = useState("");
   const [newCharacterDescription, setNewCharacterDescription] = useState("");
   const [newCharacterStyle, setNewCharacterStyle] = useState("");
+  const [newCharacterGoals, setNewCharacterGoals] = useState("");
+  const [newCharacterRelationships, setNewCharacterRelationships] = useState("");
   const [newCharacterAvatar, setNewCharacterAvatar] = useState(
     agentAvatarOptions[1]?.id ?? agentAvatarOptions[0]?.id ?? "",
   );
@@ -238,6 +269,219 @@ export const TavernPage = ({
     });
   }, []);
 
+  const updateMessageContent = useCallback((messageId: string, content: string) => {
+    const nextContent = content.trim();
+    if (!nextContent) {
+      return;
+    }
+
+    setState((current) => {
+      let updatedRoomId = "";
+      const messagesByRoom = Object.fromEntries(
+        Object.entries(current.messagesByRoom).map(([roomId, messages]) => {
+          const nextMessages = messages.map((message) => {
+            if (message.id !== messageId) {
+              return message;
+            }
+
+            updatedRoomId = roomId;
+            return {
+              ...message,
+              content: nextContent,
+              status: message.status === "error" ? "done" : message.status,
+            };
+          });
+
+          return [roomId, nextMessages];
+        }),
+      );
+
+      if (!updatedRoomId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === updatedRoomId ? invalidateRoomAutoMemory(room) : room,
+        ),
+        messagesByRoom,
+      };
+    });
+  }, []);
+
+  const deleteMessage = useCallback((messageId: string) => {
+    if (!window.confirm("删除这条消息？")) {
+      return;
+    }
+
+    setState((current) => {
+      let updatedRoomId = "";
+      const messagesByRoom = Object.fromEntries(
+        Object.entries(current.messagesByRoom).map(([roomId, messages]) => {
+          const nextMessages = messages.filter((message) => {
+            if (message.id === messageId) {
+              updatedRoomId = roomId;
+              return false;
+            }
+
+            return true;
+          });
+
+          return [roomId, nextMessages];
+        }),
+      );
+
+      if (!updatedRoomId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === updatedRoomId ? invalidateRoomAutoMemory(room) : room,
+        ),
+        messagesByRoom,
+      };
+    });
+  }, []);
+
+  const updateCharacter = useCallback((
+    characterId: string,
+    patch: Partial<TavernCharacter>,
+  ) => {
+    setState((current) => ({
+      ...current,
+      characters: current.characters.map((character) =>
+        character.id === characterId
+          ? {
+              ...character,
+              ...patch,
+              updatedAt: Date.now(),
+            }
+          : character,
+      ),
+    }));
+    setError("");
+  }, []);
+
+  const importCharacterCard = useCallback((raw: string) => {
+    if (!activeRoom) {
+      return "当前房间不可用";
+    }
+
+    try {
+      const card = parseTavernCharacterCard(raw);
+      const character = createTavernCharacter(card);
+      setState((current) => ({
+        ...current,
+        characters: [...current.characters, character],
+        rooms: current.rooms.map((room) =>
+          room.id === activeRoom.id
+            ? {
+                ...room,
+                characterIds: [...room.characterIds, character.id],
+                activeCharacterId: character.id,
+                updatedAt: Date.now(),
+              }
+            : room,
+        ),
+      }));
+      setError("");
+      return null;
+    } catch (caught) {
+      return getErrorMessage(caught);
+    }
+  }, [activeRoom]);
+
+  const removeCharacterFromActiveRoom = useCallback((characterId: string) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) => {
+        if (room.id !== activeRoom.id) {
+          return room;
+        }
+
+        const nextCharacterIds = room.characterIds.filter((id) => id !== characterId);
+        return {
+          ...room,
+          characterIds: nextCharacterIds,
+          activeCharacterId: room.activeCharacterId === characterId
+            ? nextCharacterIds[0] ?? ""
+            : room.activeCharacterId,
+          updatedAt: Date.now(),
+        };
+      }),
+    }));
+  }, [activeRoom]);
+
+  const clearActiveRoomMessages = useCallback(() => {
+    if (!activeRoom || !window.confirm("清空当前房间的对话记录？")) {
+      return;
+    }
+
+    const resetMessage = createTavernMessage({
+      roomId: activeRoom.id,
+      role: "narrator",
+      content: "桌面被重新擦亮，旧谈话暂时收进抽屉。",
+      status: "done",
+    });
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id ? invalidateRoomAutoMemory(room) : room,
+      ),
+      messagesByRoom: {
+        ...current.messagesByRoom,
+        [activeRoom.id]: [resetMessage],
+      },
+    }));
+  }, [activeRoom]);
+
+  const deleteActiveRoom = useCallback(() => {
+    if (!activeRoom || state.rooms.length <= 1 || !window.confirm("删除当前酒馆房间？")) {
+      return;
+    }
+
+    setState((current) => {
+      const nextRooms = current.rooms.filter((room) => room.id !== activeRoom.id);
+      const nextMessagesByRoom = { ...current.messagesByRoom };
+      delete nextMessagesByRoom[activeRoom.id];
+
+      return {
+        ...current,
+        activeRoomId: nextRooms[0]?.id ?? current.activeRoomId,
+        rooms: nextRooms,
+        messagesByRoom: nextMessagesByRoom,
+      };
+    });
+  }, [activeRoom, state.rooms.length]);
+
+  const clearActiveRoomAutoMemory = useCallback(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              autoMemory: "",
+              autoMemoryUpdatedAt: undefined,
+              summarizedMessageIds: [],
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
   const handleCreateRoom = useCallback(() => {
     setState((current) => {
       const room = createTavernRoom(workspace.id, current.rooms.length + 1);
@@ -309,6 +553,8 @@ export const TavernPage = ({
       avatar: newCharacterAvatar,
       description,
       speakingStyle,
+      goals: newCharacterGoals,
+      relationships: newCharacterRelationships,
     });
     setState((current) => ({
       ...current,
@@ -327,12 +573,16 @@ export const TavernPage = ({
     setNewCharacterName("");
     setNewCharacterDescription("");
     setNewCharacterStyle("");
+    setNewCharacterGoals("");
+    setNewCharacterRelationships("");
     setIsAddingCharacter(false);
     setError("");
   }, [
     activeRoom,
     newCharacterAvatar,
     newCharacterDescription,
+    newCharacterGoals,
+    newCharacterRelationships,
     newCharacterName,
     newCharacterStyle,
   ]);
@@ -380,7 +630,16 @@ export const TavernPage = ({
       return;
     }
 
-    if (!activeRoom || !activeCharacter) {
+    if (!activeRoom) {
+      setError("当前房间还没有可回应的角色。");
+      return;
+    }
+
+    const replyMode = activeRoom.replyMode ?? "active";
+    const speakers = replyMode === "round"
+      ? orderRoundCharacters(roomCharacters, activeCharacter?.id)
+      : activeCharacter ? [activeCharacter] : [];
+    if (speakers.length === 0) {
       setError("当前房间还没有可回应的角色。");
       return;
     }
@@ -415,50 +674,124 @@ export const TavernPage = ({
       status: "done",
       referencedFiles,
     });
-    const replyMessage = createTavernMessage({
-      roomId: activeRoom.id,
-      role: "character",
-      characterId: activeCharacter.id,
-      content: "",
-      status: "streaming",
-    });
-    const runtimeMessages = [...roomMessages, userMessage];
+    let runtimeRoom = activeRoom;
+    let runtimeMessages = [...roomMessages, userMessage];
+    let activeReplyMessage: TavernMessage | null = null;
+    let activeReplyText = "";
 
-    setDraft("");
-    setDraftCursor(0);
-    appendMessagesToRoom(activeRoom.id, [userMessage, replyMessage]);
-
-    let streamedText = "";
     try {
-      const result = await runTavernReply({
+      const preparedContext = await prepareTavernRuntimeContext({
         runtimeAgentId,
         provider,
         model,
         room: activeRoom,
-        activeCharacter,
-        characters: roomCharacters,
         messages: runtimeMessages,
+        characters: roomCharacters,
         references,
         currentUserText: text,
-        onTextDelta: (delta) => {
-          streamedText += delta;
-          patchMessage(replyMessage.id, {
-            content: streamedText,
-            status: "streaming",
-          });
-        },
       });
-      const finalText = (result.text.trim() || streamedText.trim() || "（对方短暂沉默，杯沿映着灯光。）");
-      patchMessage(replyMessage.id, {
-        content: finalText,
-        status: "done",
-      });
+      runtimeRoom = preparedContext.room;
+      runtimeMessages = preparedContext.messages;
+      if (preparedContext.didCompress) {
+        setState((current) => ({
+          ...current,
+          rooms: current.rooms.map((room) =>
+            room.id === runtimeRoom.id
+              ? {
+                  ...room,
+                  autoMemory: runtimeRoom.autoMemory,
+                  autoMemoryUpdatedAt: runtimeRoom.autoMemoryUpdatedAt,
+                  summarizedMessageIds: runtimeRoom.summarizedMessageIds,
+                  updatedAt: runtimeRoom.updatedAt,
+                }
+              : room,
+          ),
+        }));
+      }
+      if (preparedContext.warning) {
+        setError(`自动记忆压缩失败，已使用最近上下文继续：${preparedContext.warning}`);
+      }
+
+      setDraft("");
+      setDraftCursor(0);
+      appendMessagesToRoom(activeRoom.id, [userMessage]);
+
+      for (const [speakerIndex, speaker] of speakers.entries()) {
+        const replyMessage = createTavernMessage({
+          roomId: activeRoom.id,
+          role: "character",
+          characterId: speaker.id,
+          content: "",
+          status: "streaming",
+        });
+        activeReplyMessage = replyMessage;
+        activeReplyText = "";
+        appendMessagesToRoom(activeRoom.id, [replyMessage]);
+
+        let streamedText = "";
+        const turnInstruction = replyMode === "round"
+          ? [
+              `这是全员轮流回应的第 ${speakerIndex + 1}/${speakers.length} 位。`,
+              speakerIndex === 0
+                ? "你先回应用户，给后续角色留下可承接的信息。"
+                : "前面角色已经回应，请承接他们的信息，不要重复复述。",
+              "只输出你自己的回应，不要替其他角色总结。",
+            ].join("\n")
+          : undefined;
+
+        const result = await runTavernReply({
+          runtimeAgentId,
+          provider,
+          model,
+          room: runtimeRoom,
+          activeCharacter: speaker,
+          characters: roomCharacters,
+          messages: runtimeMessages,
+          references,
+          currentUserText: text,
+          turnInstruction,
+          onTextDelta: (delta) => {
+            streamedText += delta;
+            activeReplyText = streamedText;
+            patchMessage(replyMessage.id, {
+              content: streamedText,
+              status: "streaming",
+            });
+          },
+        });
+        const finalText = (result.text.trim() || streamedText.trim() || "（对方短暂沉默，杯沿映着灯光。）");
+        const finalizedMessage: TavernMessage = {
+          ...replyMessage,
+          content: finalText,
+          status: "done",
+        };
+        patchMessage(replyMessage.id, {
+          content: finalText,
+          status: "done",
+        });
+        runtimeMessages = [...runtimeMessages, finalizedMessage];
+        activeReplyMessage = null;
+        activeReplyText = "";
+      }
     } catch (runError) {
       const message = getErrorMessage(runError);
-      patchMessage(replyMessage.id, {
-        content: `酒馆回应失败：${message}`,
-        status: "error",
-      });
+      if (activeReplyMessage) {
+        patchMessage(activeReplyMessage.id, {
+          content: activeReplyText.trim()
+            ? `${activeReplyText}\n\n酒馆回应失败：${message}`
+            : `酒馆回应失败：${message}`,
+          status: "error",
+        });
+      } else {
+        appendMessagesToRoom(activeRoom.id, [
+          createTavernMessage({
+            roomId: activeRoom.id,
+            role: "narrator",
+            content: `酒馆回应失败：${message}`,
+            status: "error",
+          }),
+        ]);
+      }
       setError(message);
     } finally {
       setIsSending(false);
@@ -531,6 +864,9 @@ export const TavernPage = ({
                   message={message}
                   room={activeRoom}
                   character={message.characterId ? characterById.get(message.characterId) : null}
+                  isSending={isSending}
+                  onUpdateMessage={updateMessageContent}
+                  onDeleteMessage={deleteMessage}
                 />
               ))}
               <div ref={messageEndRef} />
@@ -542,6 +878,8 @@ export const TavernPage = ({
             error={error}
             isSending={isSending}
             activeCharacter={activeCharacter}
+            replyMode={activeRoom.replyMode ?? "active"}
+            speakerCount={roomCharacters.length}
             referencedFilePreviews={referencedFilePreviews}
             referenceSuggestions={referenceSuggestions}
             inputRef={draftInputRef}
@@ -564,9 +902,13 @@ export const TavernPage = ({
           roomCharacters={roomCharacters}
           availableCharacters={availableCharacters}
           isAddingCharacter={isAddingCharacter}
+          isSending={isSending}
+          canDeleteRoom={state.rooms.length > 1}
           newCharacterName={newCharacterName}
           newCharacterDescription={newCharacterDescription}
           newCharacterStyle={newCharacterStyle}
+          newCharacterGoals={newCharacterGoals}
+          newCharacterRelationships={newCharacterRelationships}
           newCharacterAvatar={newCharacterAvatar}
           onPatchRoom={patchRoom}
           onToggleAddingCharacter={() => setIsAddingCharacter((current) => !current)}
@@ -574,8 +916,16 @@ export const TavernPage = ({
           onNewCharacterNameChange={setNewCharacterName}
           onNewCharacterDescriptionChange={setNewCharacterDescription}
           onNewCharacterStyleChange={setNewCharacterStyle}
+          onNewCharacterGoalsChange={setNewCharacterGoals}
+          onNewCharacterRelationshipsChange={setNewCharacterRelationships}
           onNewCharacterAvatarChange={setNewCharacterAvatar}
           onInviteCharacter={handleInviteCharacter}
+          onUpdateCharacter={updateCharacter}
+          onImportCharacterCard={importCharacterCard}
+          onRemoveCharacterFromRoom={removeCharacterFromActiveRoom}
+          onClearRoomMessages={clearActiveRoomMessages}
+          onClearAutoMemory={clearActiveRoomAutoMemory}
+          onDeleteRoom={deleteActiveRoom}
         />
       </div>
     </div>

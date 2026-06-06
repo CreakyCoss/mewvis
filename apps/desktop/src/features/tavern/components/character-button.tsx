@@ -6,12 +6,14 @@ import type { TavernCharacter } from "../types";
 type CharacterButtonProps = {
   character: TavernCharacter;
   isActive: boolean;
+  disabled?: boolean;
   onClick: () => void;
 };
 
 export const CharacterButton = ({
   character,
   isActive,
+  disabled,
   onClick,
 }: CharacterButtonProps) => (
   <button
@@ -20,6 +22,7 @@ export const CharacterButton = ({
       "flex w-full min-w-0 gap-3 rounded-md border bg-background/55 p-3 text-left transition-colors hover:bg-background",
       isActive && "border-primary/40 bg-primary/10",
     )}
+    disabled={disabled}
     onClick={onClick}
   >
     <img
