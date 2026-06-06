@@ -1,3 +1,7 @@
+import {
+  DEFAULT_VISUAL_PRESET_ID,
+  normalizeVisualPresetId,
+} from "@/features/visual-presets";
 import type {
   TavernAssetDraft,
   TavernCharacter,
@@ -70,6 +74,16 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
       6,
     ),
   };
+};
+
+const normalizeRoomScenePresetId = (room: Partial<TavernRoom>) => {
+  if (room.scenePresetId) {
+    return normalizeVisualPresetId(room.scenePresetId);
+  }
+
+  return typeof room.title === "string" && room.title.includes("酒馆")
+    ? "tavern"
+    : DEFAULT_VISUAL_PRESET_ID;
 };
 
 const normalizeCharacterModelConfig = (
@@ -325,6 +339,7 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     id: roomId,
     workspaceId,
     title: "夜灯酒馆",
+    scenePresetId: "tavern",
     scene: "雨停后的夜晚，吧台上还有未擦干的水痕。几位熟客围在靠窗的位置，等待有人把故事继续讲下去。",
     sceneGoal: "找到下一条值得追问的线索，让谈话自然进入行动。",
     memory: "",
@@ -386,6 +401,7 @@ const normalizeTavernState = (
     Boolean(room?.id && room.workspaceId === workspaceId && room.title)
   ).map((room) => ({
     ...room,
+    scenePresetId: normalizeRoomScenePresetId(room),
     memory: typeof (room as Partial<TavernRoom>).memory === "string"
       ? (room as Partial<TavernRoom>).memory ?? ""
       : "",
@@ -476,6 +492,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     id: createId("room"),
     workspaceId,
     title: `新酒馆 ${index}`,
+    scenePresetId: DEFAULT_VISUAL_PRESET_ID,
     scene: "一张空桌、一盏低灯，以及等待被写下的第一句对白。",
     sceneGoal: "",
     memory: "",

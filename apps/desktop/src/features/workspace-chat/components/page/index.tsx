@@ -225,6 +225,7 @@ export const WorkspaceChatPage = ({
   ]);
   const [, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
+  const [isTavernRoomImmersive, setIsTavernRoomImmersive] = useState(false);
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
   const [isContextWorkbenchOpen, setIsContextWorkbenchOpen] = useState(false);
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
@@ -2013,6 +2014,7 @@ export const WorkspaceChatPage = ({
       provider={effectiveProvider}
       model={effectiveModel}
       runtimeAgentId={runtimeAgentId}
+      onRoomImmersiveChange={setIsTavernRoomImmersive}
     />
   );
 
@@ -2057,6 +2059,14 @@ export const WorkspaceChatPage = ({
     onToggleDirectory: toggleFileTreeDirectory,
     onClearChatTrace: clearChatTrace,
   });
+
+  useEffect(() => {
+    if (workspaceView !== "tavern" && isTavernRoomImmersive) {
+      setIsTavernRoomImmersive(false);
+    }
+  }, [isTavernRoomImmersive, workspaceView]);
+
+  const isTavernImmersive = workspaceView === "tavern" && isTavernRoomImmersive;
 
   return (
     <main className="flex h-screen min-h-screen overflow-hidden bg-background text-foreground">
@@ -2116,75 +2126,96 @@ export const WorkspaceChatPage = ({
         onCleanupAgentSessions={() => void cleanupAgentSessions()}
         onCompressConversationContext={() => void compressConversationContext()}
       />
-      <Sidebar
-        workspace={workspace}
-        workspaces={sidebarWorkspaces}
-        activeSessionId={currentSessionId}
-        defaultCurrentSessionId={isActiveDefaultWorkspace ? currentSessionId : null}
-        defaultCurrentSessionTitle={isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
-        hasUnsavedDefaultSession={isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
-        workspaceCurrentSessionTitle={!isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
-        hasUnsavedWorkspaceSession={!isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
-        isProjectsLoading={isWorkspaceOverviewLoading}
-        projectsError={workspaceOverviewError}
-        isDefaultSessionsLoading={isActiveDefaultWorkspace ? isSessionsLoading : isDefaultSessionsLoading}
-        isWorkspaceSessionsLoading={(!isActiveDefaultWorkspace && isSessionsLoading) || isWorkspaceSessionsLoading}
-        defaultChatSessions={sidebarChatSessions}
-        defaultWorkspacePath={defaultWorkspace?.path ?? workspace.path}
-        workspaceSessionsById={workspaceSessionsById}
-        isAgentSessionRunning={isAgentTaskRunningForSession}
-        suppressDefaultLoadingState={!isActiveDefaultWorkspace && (
-          isSending ||
-          messages.length > 0 ||
-          Boolean(currentSessionId) ||
-          Boolean(visibleActiveAgentTaskId)
-        )}
-        isKnowledgeOpen={workspaceView === "knowledge"}
-        isTavernOpen={workspaceView === "tavern"}
-        onOpenWorkspace={openWorkspaceFromCurrentContext}
-        onEditWorkspace={onEditWorkspace}
-        onStartNewSession={startSidebarSession}
-        onOpenContext={openContextWorkbench}
-        onOpenSkills={() => setIsSkillsDialogOpen(true)}
-        onOpenKnowledge={() => {
-          setIsContextWorkbenchOpen(false);
-          setIsLlmSettingsOpen(false);
-          setIsAgentSettingsOpen(false);
-          setIsCollaborationWorkflowSettingsOpen(false);
-          setWorkspaceView("knowledge");
-        }}
-        onOpenTavern={() => {
-          setIsContextWorkbenchOpen(false);
-          setIsLlmSettingsOpen(false);
-          setIsAgentSettingsOpen(false);
-          setIsCollaborationWorkflowSettingsOpen(false);
-          setWorkspaceView("tavern");
-        }}
-        onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}
-        onRemoveDefaultSession={(sessionId) => void removeDefaultSession(sessionId)}
-        onLoadWorkspaceSession={(targetWorkspace, sessionId) => void loadWorkspaceSessionById(targetWorkspace, sessionId)}
-        onRemoveWorkspaceSession={(targetWorkspace, sessionId) => void removeWorkspaceSession(targetWorkspace, sessionId)}
-        onOpenSettings={openSettingsPanel}
-      />
+      {!isTavernImmersive && (
+        <Sidebar
+          workspace={workspace}
+          workspaces={sidebarWorkspaces}
+          activeSessionId={currentSessionId}
+          defaultCurrentSessionId={isActiveDefaultWorkspace ? currentSessionId : null}
+          defaultCurrentSessionTitle={isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
+          hasUnsavedDefaultSession={isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
+          workspaceCurrentSessionTitle={!isActiveDefaultWorkspace ? currentSessionTitle : DEFAULT_SESSION_TITLE}
+          hasUnsavedWorkspaceSession={!isActiveDefaultWorkspace && messages.length > 0 && !currentSessionId}
+          isProjectsLoading={isWorkspaceOverviewLoading}
+          projectsError={workspaceOverviewError}
+          isDefaultSessionsLoading={isActiveDefaultWorkspace ? isSessionsLoading : isDefaultSessionsLoading}
+          isWorkspaceSessionsLoading={(!isActiveDefaultWorkspace && isSessionsLoading) || isWorkspaceSessionsLoading}
+          defaultChatSessions={sidebarChatSessions}
+          defaultWorkspacePath={defaultWorkspace?.path ?? workspace.path}
+          workspaceSessionsById={workspaceSessionsById}
+          isAgentSessionRunning={isAgentTaskRunningForSession}
+          suppressDefaultLoadingState={!isActiveDefaultWorkspace && (
+            isSending ||
+            messages.length > 0 ||
+            Boolean(currentSessionId) ||
+            Boolean(visibleActiveAgentTaskId)
+          )}
+          isKnowledgeOpen={workspaceView === "knowledge"}
+          isTavernOpen={workspaceView === "tavern"}
+          onOpenWorkspace={openWorkspaceFromCurrentContext}
+          onEditWorkspace={onEditWorkspace}
+          onStartNewSession={startSidebarSession}
+          onOpenContext={openContextWorkbench}
+          onOpenSkills={() => setIsSkillsDialogOpen(true)}
+          onOpenKnowledge={() => {
+            setIsContextWorkbenchOpen(false);
+            setIsLlmSettingsOpen(false);
+            setIsAgentSettingsOpen(false);
+            setIsCollaborationWorkflowSettingsOpen(false);
+            setWorkspaceView("knowledge");
+          }}
+          onOpenTavern={() => {
+            setIsContextWorkbenchOpen(false);
+            setIsLlmSettingsOpen(false);
+            setIsAgentSettingsOpen(false);
+            setIsCollaborationWorkflowSettingsOpen(false);
+            setWorkspaceView("tavern");
+          }}
+          onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}
+          onRemoveDefaultSession={(sessionId) => void removeDefaultSession(sessionId)}
+          onLoadWorkspaceSession={(targetWorkspace, sessionId) => void loadWorkspaceSessionById(targetWorkspace, sessionId)}
+          onRemoveWorkspaceSession={(targetWorkspace, sessionId) => void removeWorkspaceSession(targetWorkspace, sessionId)}
+          onOpenSettings={openSettingsPanel}
+        />
+      )}
 
-      <WorkbenchHeader
-        isContextPanelOpen={isContextPanelOpen}
-        showToggle={workspaceView === "chat"}
-        versionStatus={versionStatus}
-        isVersionControlLoading={isVersionControlLoading}
-        isVersionControlInitializing={isVersionControlInitializing}
-        isCreatingVersionBranch={isCreatingVersionBranch}
-        switchingVersionBranchName={switchingVersionBranchName}
-        onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
-        onRefreshVersionControl={() => void loadVersionControl()}
-        onInitializeVersionControl={() => void initializeVersionControl()}
-        onCreateVersionBranch={(branchName) => void createVersionBranch(branchName)}
-        onSwitchVersionBranch={(branchName) => void switchVersionBranch(branchName)}
-      />
+      {!isTavernImmersive && (
+        <WorkbenchHeader
+          isContextPanelOpen={isContextPanelOpen}
+          showToggle={workspaceView === "chat"}
+          versionStatus={versionStatus}
+          isVersionControlLoading={isVersionControlLoading}
+          isVersionControlInitializing={isVersionControlInitializing}
+          isCreatingVersionBranch={isCreatingVersionBranch}
+          switchingVersionBranchName={switchingVersionBranchName}
+          onToggleContextPanel={() => setIsContextPanelOpen((current) => !current)}
+          onRefreshVersionControl={() => void loadVersionControl()}
+          onInitializeVersionControl={() => void initializeVersionControl()}
+          onCreateVersionBranch={(branchName) => void createVersionBranch(branchName)}
+          onSwitchVersionBranch={(branchName) => void switchVersionBranch(branchName)}
+        />
+      )}
 
-      <section className="flex min-w-0 flex-1 flex-col bg-background pt-12">
-        <div className="flex min-h-0 flex-1 overflow-hidden bg-muted/20">
-          <div className="min-w-0 flex-1 overflow-hidden bg-background/95 shadow-[inset_8px_0_24px_-28px_rgb(15_23_42_/_0.35),inset_-8px_0_24px_-28px_rgb(15_23_42_/_0.28)]">
+      <section
+        className={[
+          "flex min-w-0 flex-1 flex-col bg-background",
+          isTavernImmersive ? "pt-0" : "pt-12",
+        ].join(" ")}
+      >
+        <div
+          className={[
+            "flex min-h-0 flex-1 overflow-hidden",
+            isTavernImmersive ? "bg-background" : "bg-muted/20",
+          ].join(" ")}
+        >
+          <div
+            className={[
+              "min-w-0 flex-1 overflow-hidden",
+              isTavernImmersive
+                ? "bg-background"
+                : "bg-background/95 shadow-[inset_8px_0_24px_-28px_rgb(15_23_42_/_0.35),inset_-8px_0_24px_-28px_rgb(15_23_42_/_0.28)]",
+            ].join(" ")}
+          >
             {workspaceView === "settings" ? (
               settingsPanel
             ) : workspaceView === "knowledge" ? (

@@ -30,6 +30,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { VisualPresetDefinition } from "@/features/visual-presets";
+import { cn } from "@/lib/utils";
 import type {
   TavernAssetDraft,
   TavernCharacter,
@@ -40,6 +42,7 @@ import { CharacterButton } from "./character-button";
 
 type TavernSidePanelProps = {
   activeRoom: TavernRoom;
+  visualPreset: VisualPresetDefinition;
   activeCharacter: TavernCharacter | null;
   roomCharacters: TavernCharacter[];
   isSending: boolean;
@@ -255,6 +258,7 @@ const AssetDraftPreview = ({
 
 export const TavernSidePanel = ({
   activeRoom,
+  visualPreset,
   activeCharacter,
   roomCharacters,
   isSending,
@@ -288,7 +292,12 @@ export const TavernSidePanel = ({
   }[detailPanel ?? "tips"];
 
   return (
-    <aside className="hidden min-h-0 flex-col border-l bg-muted/10 xl:flex">
+    <aside
+      className={cn(
+        "hidden min-h-0 flex-col border-l xl:flex",
+        visualPreset.tavern.sidePanel,
+      )}
+    >
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
           <section className="space-y-3">

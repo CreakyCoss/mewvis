@@ -11,6 +11,7 @@ import {
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { VisualPresetDefinition } from "@/features/visual-presets";
 import { SmoothMarkdownContent } from "@/features/workspace-chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
 import type {
@@ -22,6 +23,7 @@ import type {
 type TavernMessageRowProps = {
   message: TavernMessage;
   room: TavernRoom;
+  visualPreset: VisualPresetDefinition;
   character?: TavernCharacter | null;
   isSending: boolean;
   onUpdateMessage: (messageId: string, content: string) => void;
@@ -37,6 +39,7 @@ const formatMessageTime = (timestamp: number) =>
 export const TavernMessageRow = ({
   message,
   room,
+  visualPreset,
   character,
   isSending,
   onUpdateMessage,
@@ -80,7 +83,12 @@ export const TavernMessageRow = ({
   if (message.role === "narrator") {
     return (
       <div className="group/message mx-auto flex max-w-xl flex-col items-center gap-1">
-        <div className="rounded-md border bg-background/70 px-3 py-2 text-center text-sm leading-6 text-muted-foreground shadow-sm">
+        <div
+          className={cn(
+            "rounded-md border px-3 py-2 text-center text-sm leading-6 text-muted-foreground shadow-sm",
+            visualPreset.tavern.narratorBubble,
+          )}
+        >
           {isEditing ? (
             <Textarea
               value={draft}
@@ -104,7 +112,19 @@ export const TavernMessageRow = ({
             <span>{room.userPersonaName || "我"}</span>
             <UserRound className="size-3.5" />
           </div>
-          <div className="rounded-md bg-primary px-3.5 py-2.5 text-sm leading-6 text-primary-foreground shadow-sm">
+          <div
+            className={cn(
+              "relative overflow-visible rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-sm",
+              visualPreset.tavern.userBubble,
+            )}
+          >
+            <span
+              className={cn(
+                "pointer-events-none absolute top-4 -right-1 size-2.5 rotate-45 border-t border-r",
+                visualPreset.tavern.userBubbleTail,
+              )}
+              aria-hidden
+            />
             {isEditing ? (
               <Textarea
                 value={draft}
@@ -143,7 +163,7 @@ export const TavernMessageRow = ({
 
   return (
     <div className="group/message flex justify-start">
-      <div className="flex max-w-[min(84%,720px)] gap-3">
+      <div className="flex w-full max-w-[min(84%,720px)] gap-3">
         <img
           src={avatar.src}
           alt=""
@@ -157,10 +177,20 @@ export const TavernMessageRow = ({
           </div>
           <div
             className={cn(
-              "rounded-md border bg-background/85 px-3.5 py-2.5 text-sm leading-6 shadow-sm",
+              "relative overflow-visible rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-sm",
+              visualPreset.tavern.characterBubble,
               isError && "border-destructive/30 bg-destructive/10 text-destructive",
             )}
           >
+            {!isError && (
+              <span
+                className={cn(
+                  "pointer-events-none absolute top-4 -left-1 size-2.5 rotate-45 border-b border-l",
+                  visualPreset.tavern.characterBubbleTail,
+                )}
+                aria-hidden
+              />
+            )}
             {isEditing ? (
               <Textarea
                 value={draft}

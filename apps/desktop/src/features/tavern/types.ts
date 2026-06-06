@@ -1,3 +1,5 @@
+import type { VisualPresetId } from "@/features/visual-presets";
+
 export type TavernReplyMode = "active" | "round" | "director";
 
 export type TavernCharacterModelConfig = {
@@ -79,6 +81,7 @@ export type TavernRoom = {
   id: string;
   workspaceId: string;
   title: string;
+  scenePresetId: VisualPresetId;
   scene: string;
   sceneGoal: string;
   memory: string;

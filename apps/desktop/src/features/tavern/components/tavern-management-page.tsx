@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/visual-presets";
 import { cn } from "@/lib/utils";
 import {
   parseTavernCharacterCard,
@@ -764,6 +765,28 @@ export const TavernManagementPage = ({
                       title: event.target.value,
                     })}
                   />
+                </label>
+
+                <label className="block space-y-1.5" htmlFor="tavern-edit-scene-preset">
+                  <span className="text-xs font-medium text-muted-foreground">场景设置</span>
+                  <NativeSelect
+                    id="tavern-edit-scene-preset"
+                    value={editingRoom.scenePresetId}
+                    onChange={(event) => onPatchRoom(editingRoom.id, {
+                      scenePresetId: event.target.value as TavernRoom["scenePresetId"],
+                    })}
+                  >
+                    {TAVERN_SCENE_PRESET_OPTIONS.map((preset) => (
+                      <NativeSelectOption key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <span className="text-xs text-muted-foreground">
+                    {TAVERN_SCENE_PRESET_OPTIONS.find((preset) =>
+                      preset.id === editingRoom.scenePresetId
+                    )?.description ?? "选择酒馆内部聊天页的显示风格。"}
+                  </span>
                 </label>
 
                 <label className="block space-y-1.5" htmlFor="tavern-edit-scene">

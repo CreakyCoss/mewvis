@@ -1,10 +1,11 @@
-import type { FormEvent, KeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { agentAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { readWorkspaceFile } from "@/features/workspace-chat/api";
 import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
+import { getVisualPreset, normalizeVisualPresetId } from "@/features/visual-presets";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
@@ -12,6 +13,7 @@ import {
   summarizeReferenceMatches,
 } from "@/features/workspace-chat/utils/references";
 import type { Workspace } from "@/features/workspaces/types";
+import { cn } from "@/lib/utils";
 import {
   createTavernAssetDraft,
   createTavernCharacter,
@@ -59,6 +61,7 @@ type TavernPageProps = {
   provider: LlmProvider | null;
   model: ProviderModel | null;
   runtimeAgentId: string;
+  onRoomImmersiveChange?: (isImmersive: boolean) => void;
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -165,6 +168,7 @@ export const TavernPage = ({
   provider,
   model,
   runtimeAgentId,
+  onRoomImmersiveChange,
 }: TavernPageProps) => {
   const [state, setState] = useState<TavernState>(() => loadTavernState(workspace.id));
   const [draft, setDraft] = useState("");
@@ -175,6 +179,7 @@ export const TavernPage = ({
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
+  const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -194,6 +199,7 @@ export const TavernPage = ({
     setIsSending(false);
     setIsExtractingAssets(false);
     setExecutionSteps([]);
+    setExecutionTraceAnchorMessageId("");
   }, [workspace.id]);
 
   useEffect(() => {
@@ -202,9 +208,19 @@ export const TavernPage = ({
     }
   }, [state, workspace.id]);
 
+  useEffect(() => {
+    onRoomImmersiveChange?.(viewMode === "room");
+
+    return () => onRoomImmersiveChange?.(false);
+  }, [onRoomImmersiveChange, viewMode]);
+
   const activeRoom = useMemo(() => (
     state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null
   ), [state.activeRoomId, state.rooms]);
+  const visualPreset = useMemo(
+    () => getVisualPreset(activeRoom?.scenePresetId),
+    [activeRoom?.scenePresetId],
+  );
   const roomMessages = useMemo(() => (
     activeRoom ? state.messagesByRoom[activeRoom.id] ?? [] : []
   ), [activeRoom, state.messagesByRoom]);
@@ -813,6 +829,7 @@ export const TavernPage = ({
       id: roomId,
       workspaceId: workspace.id,
       title: `${title}（导入）`,
+      scenePresetId: normalizeVisualPresetId(parsed.room.scenePresetId),
       scene: parsed.room.scene?.trim() || "一间刚被导入的酒馆房间。",
       sceneGoal: parsed.room.sceneGoal?.trim() || "",
       memory: parsed.room.memory?.trim() || "",
@@ -987,6 +1004,7 @@ export const TavernPage = ({
     setIsExtractingAssets(true);
     setError("");
     if (activeRoom.settings.showExecutionTrace) {
+      setExecutionTraceAnchorMessageId(roomMessages.at(-1)?.id ?? "");
       resetExecutionTrace([{
         id: "manual-asset-extraction",
         label: "整理最近对话",
@@ -1140,6 +1158,7 @@ export const TavernPage = ({
 
     try {
       if (activeRoom.settings.showExecutionTrace) {
+        setExecutionTraceAnchorMessageId(userMessage.id);
         resetExecutionTrace([
           {
             id: "context",
@@ -1149,8 +1168,13 @@ export const TavernPage = ({
           },
         ]);
       } else {
+        setExecutionTraceAnchorMessageId("");
         resetExecutionTrace([]);
       }
+      setDraft("");
+      setDraftCursor(0);
+      appendMessagesToRoom(activeRoom.id, [userMessage]);
+
       const preparedContext = await prepareTavernRuntimeContext({
         runtimeAgentId,
         provider,
@@ -1192,10 +1216,6 @@ export const TavernPage = ({
       if (preparedContext.warning) {
         setError(`自动记忆压缩失败，已使用最近上下文继续：${preparedContext.warning}`);
       }
-
-      setDraft("");
-      setDraftCursor(0);
-      appendMessagesToRoom(activeRoom.id, [userMessage]);
 
       let directorReason = "";
       if (replyMode === "director") {
@@ -1499,8 +1519,24 @@ export const TavernPage = ({
     );
   }
 
+  const shouldShowExecutionTrace = activeRoom.settings.showExecutionTrace && executionSteps.length > 0;
+  const hasExecutionTraceAnchor = shouldShowExecutionTrace && roomMessages.some((message) =>
+    message.id === executionTraceAnchorMessageId
+  );
+  const backgroundStyle = {
+    backgroundImage: `${visualPreset.tavern.backgroundOverlay}, url(${visualPreset.tavern.backgroundImage})`,
+    backgroundPosition: visualPreset.tavern.backgroundPosition,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: visualPreset.tavern.backgroundSize,
+  } satisfies CSSProperties;
+
   return (
-    <div className="flex h-full min-h-0 flex-1 bg-background text-foreground">
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-1 text-foreground",
+        visualPreset.tavern.page,
+      )}
+    >
       <div
         className={[
           "grid h-full min-h-0 w-full grid-cols-1",
@@ -1510,6 +1546,7 @@ export const TavernPage = ({
         <main className="flex min-h-0 min-w-0 flex-col">
           <TavernHeader
             activeRoom={activeRoom}
+            visualPreset={visualPreset}
             isSidePanelOpen={isSidePanelOpen}
             onBack={() => {
               setIsSidePanelOpen(false);
@@ -1518,20 +1555,62 @@ export const TavernPage = ({
             onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
 
-          <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,rgba(248,250,252,0.75),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.25),transparent_32%)]">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:px-5">
+          <ScrollArea
+            className={cn(
+              "min-h-0 flex-1",
+              visualPreset.tavern.scrollArea,
+            )}
+            style={backgroundStyle}
+          >
+            <div
+              className={cn(
+                "mx-auto flex w-full flex-col gap-4 px-4 py-6 sm:px-5",
+                visualPreset.tavern.messageList,
+              )}
+            >
+              <section
+                className={cn(
+                  "rounded-md border px-4 py-3 sm:px-5",
+                  visualPreset.tavern.sceneCard,
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                  <span
+                    className={cn(
+                      "rounded-md px-2 py-1 text-xs",
+                      visualPreset.tavern.sceneBadge,
+                    )}
+                  >
+                    {visualPreset.label}
+                  </span>
+                  <span>{activeRoom.title}</span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 opacity-80">
+                  {activeRoom.scene.trim() || "这个房间还没有场景描述。"}
+                </p>
+                {activeRoom.sceneGoal.trim() && (
+                  <p className="mt-2 text-xs leading-5 opacity-65">
+                    {activeRoom.sceneGoal}
+                  </p>
+                )}
+              </section>
               {roomMessages.map((message) => (
-                <TavernMessageRow
-                  key={message.id}
-                  message={message}
-                  room={activeRoom}
-                  character={message.characterId ? characterById.get(message.characterId) : null}
-                  isSending={isSending}
-                  onUpdateMessage={updateMessageContent}
-                  onDeleteMessage={deleteMessage}
-                />
+                <Fragment key={message.id}>
+                  <TavernMessageRow
+                    message={message}
+                    room={activeRoom}
+                    visualPreset={visualPreset}
+                    character={message.characterId ? characterById.get(message.characterId) : null}
+                    isSending={isSending}
+                    onUpdateMessage={updateMessageContent}
+                    onDeleteMessage={deleteMessage}
+                  />
+                  {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
+                    <TavernExecutionTrace steps={executionSteps} />
+                  )}
+                </Fragment>
               ))}
-              {activeRoom.settings.showExecutionTrace && executionSteps.length > 0 && (
+              {shouldShowExecutionTrace && !hasExecutionTraceAnchor && (
                 <TavernExecutionTrace steps={executionSteps} />
               )}
               <div ref={messageEndRef} />
@@ -1542,6 +1621,7 @@ export const TavernPage = ({
             draft={draft}
             error={error}
             isSending={isSending}
+            visualPreset={visualPreset}
             activeCharacter={activeCharacter}
             replyMode={activeRoom.replyMode ?? "active"}
             speakerCount={roomCharacters.length}
@@ -1564,6 +1644,7 @@ export const TavernPage = ({
         {isSidePanelOpen && (
           <TavernSidePanel
             activeRoom={activeRoom}
+            visualPreset={visualPreset}
             activeCharacter={activeCharacter}
             roomCharacters={roomCharacters}
             isSending={isSending}
