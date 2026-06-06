@@ -147,7 +147,7 @@ export const TavernMessageRow = ({
         <img
           src={avatar.src}
           alt=""
-          className="mt-6 size-10 shrink-0 rounded-md"
+          className="size-10 shrink-0 rounded-md"
         />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">

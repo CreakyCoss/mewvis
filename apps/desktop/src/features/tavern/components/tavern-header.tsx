@@ -1,49 +1,63 @@
-import { Wine } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import type { TavernCharacter, TavernRoom } from "../types";
+import { ArrowLeft, PanelRightClose, PanelRightOpen, Wine } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { TavernRoom } from "../types";
 import { compactScene } from "../utils";
 
 type TavernHeaderProps = {
   activeRoom: TavernRoom;
-  activeCharacter: TavernCharacter | null;
-  modelName?: string | null;
+  isSidePanelOpen: boolean;
+  onBack?: () => void;
+  onToggleSidePanel: () => void;
 };
 
 export const TavernHeader = ({
   activeRoom,
-  activeCharacter,
-  modelName,
+  isSidePanelOpen,
+  onBack,
+  onToggleSidePanel,
 }: TavernHeaderProps) => (
-  <header className="flex min-h-[73px] flex-wrap items-center justify-between gap-3 border-b bg-background px-4 py-3 sm:px-5">
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
-        <Wine className="size-5 text-primary" />
-      </div>
+  <header className="flex min-h-[58px] items-center gap-3 border-b bg-background/95 px-3 py-2 sm:px-4">
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      {onBack && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="size-8 shrink-0"
+          title="返回管理"
+          aria-label="返回管理"
+          onClick={onBack}
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+      )}
       <div className="min-w-0">
-        <h2 className="truncate text-lg font-semibold leading-6">
-          {activeRoom.title}
-        </h2>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Wine className="size-4 shrink-0 text-primary" />
+          <h2 className="truncate text-base font-semibold leading-5">
+            {activeRoom.title}
+          </h2>
+        </div>
         <p className="line-clamp-1 text-sm text-muted-foreground">
           {compactScene(activeRoom.scene)}
         </p>
       </div>
     </div>
-    {activeCharacter && (
-      <div className="flex min-w-0 items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5">
-        <img
-          src={resolveAgentAvatar(activeCharacter.avatar).src}
-          alt=""
-          className="size-8 shrink-0 rounded-md"
-        />
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">
-            {activeCharacter.name}
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {modelName ?? "未选择模型"}
-          </div>
-        </div>
-      </div>
-    )}
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      className="hidden size-8 shrink-0 xl:inline-flex"
+      title={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
+      aria-label={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
+      aria-pressed={isSidePanelOpen}
+      onClick={onToggleSidePanel}
+    >
+      {isSidePanelOpen ? (
+        <PanelRightClose className="size-4" />
+      ) : (
+        <PanelRightOpen className="size-4" />
+      )}
+    </Button>
   </header>
 );

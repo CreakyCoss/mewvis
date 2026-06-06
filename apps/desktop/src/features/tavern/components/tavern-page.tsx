@@ -12,7 +12,6 @@ import {
   summarizeReferenceMatches,
 } from "@/features/workspace-chat/utils/references";
 import type { Workspace } from "@/features/workspaces/types";
-import { parseTavernCharacterCard } from "../character-card";
 import {
   createTavernAssetDraft,
   createTavernCharacter,
@@ -27,22 +26,17 @@ import {
 import type {
   TavernAssetDraft,
   TavernCharacter,
-  TavernLorebookEntry,
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
   TavernRoomSettings,
   TavernState,
-  TavernTimelineEvent,
 } from "../types";
 import { runTavernReply } from "../runtime/tavern-runner";
 import { runTavernDirector } from "../runtime/director";
 import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
-import {
-  formatTavernResolvedModelLabel,
-  resolveTavernCharacterModel,
-} from "../runtime/model-selection";
+import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -50,8 +44,9 @@ import {
   type TavernExecutionStep,
 } from "./tavern-execution-trace";
 import { TavernHeader } from "./tavern-header";
+import { TavernManagementPage } from "./tavern-management-page";
+import type { TavernCharacterFormValue } from "./tavern-character-form-dialog";
 import { TavernMessageRow } from "./tavern-message-row";
-import { TavernRoomSidebar } from "./tavern-room-sidebar";
 import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
@@ -175,18 +170,11 @@ export const TavernPage = ({
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState<"home" | "room">("home");
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
-  const [isAddingCharacter, setIsAddingCharacter] = useState(false);
-  const [newCharacterName, setNewCharacterName] = useState("");
-  const [newCharacterDescription, setNewCharacterDescription] = useState("");
-  const [newCharacterStyle, setNewCharacterStyle] = useState("");
-  const [newCharacterGoals, setNewCharacterGoals] = useState("");
-  const [newCharacterRelationships, setNewCharacterRelationships] = useState("");
-  const [newCharacterAvatar, setNewCharacterAvatar] = useState(
-    agentAvatarOptions[1]?.id ?? agentAvatarOptions[0]?.id ?? "",
-  );
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -201,6 +189,8 @@ export const TavernPage = ({
     setDraft("");
     setDraftCursor(0);
     setError("");
+    setViewMode("home");
+    setIsSidePanelOpen(false);
     setIsSending(false);
     setIsExtractingAssets(false);
     setExecutionSteps([]);
@@ -234,28 +224,8 @@ export const TavernPage = ({
   const activeCharacter = useMemo(() => (
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId)
       ?? roomCharacters[0]
-      ?? state.characters[0]
       ?? null
-  ), [activeRoom?.activeCharacterId, roomCharacters, state.characters]);
-  const availableCharacters = useMemo(() => {
-    if (!activeRoom) {
-      return [];
-    }
-
-    const roomCharacterIds = new Set(activeRoom.characterIds);
-    return state.characters.filter((character) => !roomCharacterIds.has(character.id));
-  }, [activeRoom, state.characters]);
-  const activeCharacterModel = useMemo(
-    () => activeCharacter
-      ? resolveTavernCharacterModel({
-          character: activeCharacter,
-          providers,
-          fallbackProvider: provider,
-          fallbackModel: model,
-        })
-      : null,
-    [activeCharacter, model, provider, providers],
-  );
+  ), [activeRoom?.activeCharacterId, roomCharacters]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ block: "end" });
@@ -493,44 +463,83 @@ export const TavernPage = ({
     setError("");
   }, []);
 
-  const importCharacterCard = useCallback((raw: string) => {
-    if (!activeRoom) {
-      return "当前房间不可用";
+  const createGlobalCharacter = useCallback((value: TavernCharacterFormValue) => {
+    const character = createTavernCharacter(value);
+
+    setState((current) => ({
+      ...current,
+      characters: [...current.characters, character],
+    }));
+    setError("");
+  }, []);
+
+  const deleteCharacter = useCallback((characterId: string) => {
+    const character = state.characters.find((item) => item.id === characterId);
+    if (!character || state.characters.length <= 1) {
+      return;
     }
 
-    try {
-      const card = parseTavernCharacterCard(raw);
-      const character = createTavernCharacter(card);
-      setState((current) => ({
-        ...current,
-        characters: [...current.characters, character],
-        rooms: current.rooms.map((room) =>
-          room.id === activeRoom.id
-            ? {
-                ...room,
-                characterIds: [...room.characterIds, character.id],
-                activeCharacterId: character.id,
-                updatedAt: Date.now(),
-              }
-            : room,
-        ),
-      }));
-      setError("");
-      return null;
-    } catch (caught) {
-      return getErrorMessage(caught);
-    }
-  }, [activeRoom]);
-
-  const removeCharacterFromActiveRoom = useCallback((characterId: string) => {
-    if (!activeRoom) {
+    const usedRoomCount = state.rooms.filter((room) => room.characterIds.includes(characterId)).length;
+    const confirmMessage = usedRoomCount > 0
+      ? `删除角色「${character.name}」？它会同时从 ${usedRoomCount} 个酒馆的入席角色中移除。`
+      : `删除角色「${character.name}」？`;
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     setState((current) => ({
       ...current,
+      characters: current.characters.filter((item) => item.id !== characterId),
       rooms: current.rooms.map((room) => {
-        if (room.id !== activeRoom.id) {
+        if (
+          !room.characterIds.includes(characterId) &&
+          room.activeCharacterId !== characterId &&
+          !(characterId in room.characterMemories)
+        ) {
+          return room;
+        }
+
+        const nextCharacterIds = room.characterIds.filter((id) => id !== characterId);
+        const nextCharacterMemories = { ...room.characterMemories };
+        delete nextCharacterMemories[characterId];
+
+        return {
+          ...room,
+          characterIds: nextCharacterIds,
+          activeCharacterId: room.activeCharacterId === characterId
+            ? nextCharacterIds[0] ?? ""
+            : room.activeCharacterId,
+          characterMemories: nextCharacterMemories,
+          updatedAt: Date.now(),
+        };
+      }),
+    }));
+    setError("");
+  }, [state.characters, state.rooms]);
+
+  const addCharacterToRoom = useCallback((roomId: string, characterId: string) => {
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) => {
+        if (room.id !== roomId || room.characterIds.includes(characterId)) {
+          return room;
+        }
+
+        return {
+          ...room,
+          characterIds: [...room.characterIds, characterId],
+          activeCharacterId: room.activeCharacterId || characterId,
+          updatedAt: Date.now(),
+        };
+      }),
+    }));
+  }, []);
+
+  const removeCharacterFromRoom = useCallback((roomId: string, characterId: string) => {
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) => {
+        if (room.id !== roomId) {
           return room;
         }
 
@@ -545,7 +554,7 @@ export const TavernPage = ({
         };
       }),
     }));
-  }, [activeRoom]);
+  }, []);
 
   const clearActiveRoomMessages = useCallback(() => {
     if (!activeRoom || !window.confirm("清空当前房间的对话记录？")) {
@@ -570,252 +579,31 @@ export const TavernPage = ({
     }));
   }, [activeRoom]);
 
-  const deleteActiveRoom = useCallback(() => {
-    if (!activeRoom || state.rooms.length <= 1 || !window.confirm("删除当前酒馆房间？")) {
+  const deleteRoom = useCallback((roomId: string) => {
+    if (state.rooms.length <= 1) {
       return;
     }
 
     setState((current) => {
-      const nextRooms = current.rooms.filter((room) => room.id !== activeRoom.id);
+      const nextRooms = current.rooms.filter((room) => room.id !== roomId);
       const nextMessagesByRoom = { ...current.messagesByRoom };
-      delete nextMessagesByRoom[activeRoom.id];
+      delete nextMessagesByRoom[roomId];
+      const activeRoomId = current.activeRoomId === roomId
+        ? nextRooms[0]?.id ?? current.activeRoomId
+        : current.activeRoomId;
 
       return {
         ...current,
-        activeRoomId: nextRooms[0]?.id ?? current.activeRoomId,
+        activeRoomId,
         rooms: nextRooms,
         messagesByRoom: nextMessagesByRoom,
       };
     });
-  }, [activeRoom, state.rooms.length]);
-
-  const clearActiveRoomAutoMemory = useCallback(() => {
-    if (!activeRoom) {
-      return;
+    if (activeRoom?.id === roomId) {
+      setIsSidePanelOpen(false);
+      setViewMode("home");
     }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              autoMemory: "",
-              autoMemoryUpdatedAt: undefined,
-              summarizedMessageIds: [],
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const updateCharacterMemory = useCallback((characterId: string, memory: string) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              characterMemories: {
-                ...room.characterMemories,
-                [characterId]: memory,
-              },
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const addTimelineEvent = useCallback((input: {
-    title: string;
-    summary: string;
-  }) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    const event = createTavernTimelineEvent(input);
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              timelineEvents: [...room.timelineEvents, event],
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const updateTimelineEvent = useCallback((
-    eventId: string,
-    patch: Partial<TavernTimelineEvent>,
-  ) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              timelineEvents: room.timelineEvents.map((event) =>
-                event.id === eventId
-                  ? {
-                      ...event,
-                      ...patch,
-                      updatedAt: Date.now(),
-                    }
-                  : event,
-              ),
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const deleteTimelineEvent = useCallback((eventId: string) => {
-    if (!activeRoom || !window.confirm("删除这条剧情事件？")) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              timelineEvents: room.timelineEvents.filter((event) => event.id !== eventId),
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const addLorebookEntry = useCallback((input: {
-    title: string;
-    content: string;
-    keywords: string[];
-    alwaysOn: boolean;
-  }) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    const entry = createTavernLorebookEntry(input);
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              lorebookEntries: [...room.lorebookEntries, entry],
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const updateLorebookEntry = useCallback((
-    entryId: string,
-    patch: Partial<TavernLorebookEntry>,
-  ) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              lorebookEntries: room.lorebookEntries.map((entry) =>
-                entry.id === entryId
-                  ? {
-                      ...entry,
-                      ...patch,
-                      updatedAt: Date.now(),
-                    }
-                  : entry,
-              ),
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const deleteLorebookEntry = useCallback((entryId: string) => {
-    if (!activeRoom || !window.confirm("删除这条世界书？")) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              lorebookEntries: room.lorebookEntries.filter((entry) => entry.id !== entryId),
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-  }, [activeRoom]);
-
-  const updateAssetDraft = useCallback((
-    draftId: string,
-    patch: Partial<Pick<
-      TavernAssetDraft,
-      "timelineEvents" | "characterMemories" | "lorebookEntries"
-    >>,
-  ) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) => {
-        if (room.id !== activeRoom.id) {
-          return room;
-        }
-
-        return {
-          ...room,
-          assetDrafts: room.assetDrafts.flatMap((draft) => {
-            if (draft.id !== draftId) {
-              return [draft];
-            }
-
-            const nextDraft = {
-              ...draft,
-              ...patch,
-              updatedAt: Date.now(),
-            };
-
-            return hasAssetDraftItems(nextDraft) ? [nextDraft] : [];
-          }),
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-  }, [activeRoom]);
+  }, [activeRoom?.id, state.rooms.length]);
 
   const applyAssetDraft = useCallback((draftId: string) => {
     if (!activeRoom) {
@@ -1134,81 +922,6 @@ export const TavernPage = ({
       };
     });
   }, [workspace.id]);
-
-  const handleInviteCharacter = useCallback((characterId: string) => {
-    if (!activeRoom) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) => {
-        if (room.id !== activeRoom.id || room.characterIds.includes(characterId)) {
-          return room;
-        }
-
-        return {
-          ...room,
-          characterIds: [...room.characterIds, characterId],
-          activeCharacterId: room.activeCharacterId || characterId,
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-  }, [activeRoom]);
-
-  const handleAddCharacter = useCallback((event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!activeRoom) {
-      return;
-    }
-
-    const name = newCharacterName.trim();
-    const description = newCharacterDescription.trim();
-    const speakingStyle = newCharacterStyle.trim();
-    if (!name || !description || !speakingStyle) {
-      setError("请补全角色名称、设定和说话方式。");
-      return;
-    }
-
-    const character = createTavernCharacter({
-      name,
-      avatar: newCharacterAvatar,
-      description,
-      speakingStyle,
-      goals: newCharacterGoals,
-      relationships: newCharacterRelationships,
-    });
-    setState((current) => ({
-      ...current,
-      characters: [...current.characters, character],
-      rooms: current.rooms.map((room) =>
-        room.id === activeRoom.id
-          ? {
-              ...room,
-              characterIds: [...room.characterIds, character.id],
-              activeCharacterId: character.id,
-              updatedAt: Date.now(),
-            }
-          : room,
-      ),
-    }));
-    setNewCharacterName("");
-    setNewCharacterDescription("");
-    setNewCharacterStyle("");
-    setNewCharacterGoals("");
-    setNewCharacterRelationships("");
-    setIsAddingCharacter(false);
-    setError("");
-  }, [
-    activeRoom,
-    newCharacterAvatar,
-    newCharacterDescription,
-    newCharacterGoals,
-    newCharacterRelationships,
-    newCharacterName,
-    newCharacterStyle,
-  ]);
 
   const insertReference = useCallback((file: WorkspaceFileEntry) => {
     const reference = `${quoteReferencePath(file.path)} `;
@@ -1747,25 +1460,62 @@ export const TavernPage = ({
     );
   }
 
-  return (
-    <div className="flex h-full min-h-0 flex-1 bg-background text-foreground">
-      <div className="grid h-full min-h-0 w-full grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)] xl:grid-cols-[228px_minmax(0,1fr)_324px]">
-        <TavernRoomSidebar
-          rooms={state.rooms}
-          activeRoom={activeRoom}
-          characterById={characterById}
-          onCreateRoom={handleCreateRoom}
-          onSelectRoom={(roomId) => setState((current) => ({
+  if (viewMode === "home") {
+    return (
+      <TavernManagementPage
+        rooms={state.rooms}
+        characters={state.characters}
+        activeRoom={activeRoom}
+        characterById={characterById}
+        messagesByRoom={state.messagesByRoom}
+        providers={providers}
+        globalProvider={provider}
+        globalModel={model}
+        canDeleteRoom={state.rooms.length > 1}
+        onCreateRoom={handleCreateRoom}
+        onSelectRoom={(roomId) => setState((current) => ({
+          ...current,
+          activeRoomId: roomId,
+        }))}
+        onOpenRoom={(roomId) => {
+          setState((current) => ({
             ...current,
             activeRoomId: roomId,
-          }))}
-        />
+          }));
+          setIsSidePanelOpen(false);
+          setViewMode("room");
+        }}
+        onPatchRoom={patchRoom}
+        onDeleteRoom={deleteRoom}
+        onClearRoomMessages={clearActiveRoomMessages}
+        onExportRoom={exportActiveRoom}
+        onImportRoom={importRoomExport}
+        onCreateCharacter={createGlobalCharacter}
+        onUpdateCharacter={updateCharacter}
+        onDeleteCharacter={deleteCharacter}
+        onAddRoomCharacter={addCharacterToRoom}
+        onRemoveRoomCharacter={removeCharacterFromRoom}
+      />
+    );
+  }
 
+  return (
+    <div className="flex h-full min-h-0 flex-1 bg-background text-foreground">
+      <div
+        className={[
+          "grid h-full min-h-0 w-full grid-cols-1",
+          isSidePanelOpen ? "xl:grid-cols-[minmax(0,1fr)_324px]" : "xl:grid-cols-1",
+        ].join(" ")}
+      >
         <main className="flex min-h-0 min-w-0 flex-col">
           <TavernHeader
             activeRoom={activeRoom}
-            activeCharacter={activeCharacter}
-            modelName={formatTavernResolvedModelLabel(activeCharacterModel)}
+            isSidePanelOpen={isSidePanelOpen}
+            onBack={() => {
+              setIsSidePanelOpen(false);
+              setViewMode("home");
+            }}
+            onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
 
           <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,rgba(248,250,252,0.75),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.25),transparent_32%)]">
@@ -1811,54 +1561,19 @@ export const TavernPage = ({
           />
         </main>
 
-        <TavernSidePanel
-          activeRoom={activeRoom}
-          activeCharacter={activeCharacter}
-          roomCharacters={roomCharacters}
-          availableCharacters={availableCharacters}
-          providers={providers}
-          globalProvider={provider}
-          globalModel={model}
-          isAddingCharacter={isAddingCharacter}
-          isSending={isSending}
-          isExtractingAssets={isExtractingAssets}
-          canDeleteRoom={state.rooms.length > 1}
-          newCharacterName={newCharacterName}
-          newCharacterDescription={newCharacterDescription}
-          newCharacterStyle={newCharacterStyle}
-          newCharacterGoals={newCharacterGoals}
-          newCharacterRelationships={newCharacterRelationships}
-          newCharacterAvatar={newCharacterAvatar}
-          onPatchRoom={patchRoom}
-          onToggleAddingCharacter={() => setIsAddingCharacter((current) => !current)}
-          onAddCharacter={handleAddCharacter}
-          onNewCharacterNameChange={setNewCharacterName}
-          onNewCharacterDescriptionChange={setNewCharacterDescription}
-          onNewCharacterStyleChange={setNewCharacterStyle}
-          onNewCharacterGoalsChange={setNewCharacterGoals}
-          onNewCharacterRelationshipsChange={setNewCharacterRelationships}
-          onNewCharacterAvatarChange={setNewCharacterAvatar}
-          onInviteCharacter={handleInviteCharacter}
-          onUpdateCharacter={updateCharacter}
-          onUpdateCharacterMemory={updateCharacterMemory}
-          onImportCharacterCard={importCharacterCard}
-          onAddTimelineEvent={addTimelineEvent}
-          onUpdateTimelineEvent={updateTimelineEvent}
-          onDeleteTimelineEvent={deleteTimelineEvent}
-          onAddLorebookEntry={addLorebookEntry}
-          onUpdateLorebookEntry={updateLorebookEntry}
-          onDeleteLorebookEntry={deleteLorebookEntry}
-          onUpdateAssetDraft={updateAssetDraft}
-          onApplyAssetDraft={applyAssetDraft}
-          onDeleteAssetDraft={deleteAssetDraft}
-          onExtractRecentAssets={extractRecentAssets}
-          onExportRoom={exportActiveRoom}
-          onImportRoom={importRoomExport}
-          onRemoveCharacterFromRoom={removeCharacterFromActiveRoom}
-          onClearRoomMessages={clearActiveRoomMessages}
-          onClearAutoMemory={clearActiveRoomAutoMemory}
-          onDeleteRoom={deleteActiveRoom}
-        />
+        {isSidePanelOpen && (
+          <TavernSidePanel
+            activeRoom={activeRoom}
+            activeCharacter={activeCharacter}
+            roomCharacters={roomCharacters}
+            isSending={isSending}
+            isExtractingAssets={isExtractingAssets}
+            onPatchRoom={patchRoom}
+            onApplyAssetDraft={applyAssetDraft}
+            onDeleteAssetDraft={deleteAssetDraft}
+            onExtractRecentAssets={extractRecentAssets}
+          />
+        )}
       </div>
     </div>
   );
