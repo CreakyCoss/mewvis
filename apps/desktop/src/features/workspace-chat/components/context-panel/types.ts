@@ -1,5 +1,4 @@
-import type { AgentProfile } from "@/features/agent-settings/types";
-import type { ChatMode, CollaborationPhase, FileTreeNode } from "../../page-types";
+import type { FileTreeNode } from "../../page-types";
 import type {
   ChatTraceTurn,
   WorkspaceFile,
@@ -13,7 +12,6 @@ import type {
 export type ContextPanelTool = "files" | "git" | "history" | "trace";
 
 export type ContextPanelViewModel = {
-  selectableFileCount: number;
   isFilesLoading: boolean;
   fileTree: FileTreeNode[];
   expandedFileTreePaths: Set<string>;
@@ -38,10 +36,6 @@ export type ContextPanelViewModel = {
   isVersionHistoryLoading: boolean;
   restoringVersionFilePath: string;
   discardingVersionFilePath: string;
-  chatMode: ChatMode;
-  collaborationPhase: CollaborationPhase;
-  selectedAgent: AgentProfile | null;
-  reviewerAgent: AgentProfile | null;
   chatTrace: ChatTraceTurn[];
   onRefreshFiles: () => void;
   onRefreshVersionControl: () => void;

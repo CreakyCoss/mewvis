@@ -4,12 +4,19 @@ import { useContextPanelStore } from "./store";
 import { ToolNav } from "./tool-nav";
 import { TraceDetailPanel } from "./trace-detail-panel";
 import { TraceListPanel } from "./trace-list-panel";
+import type { FileTreeNode } from "../../page-types";
 import type { ContextPanelTool, VersionFileStatusByPath } from "./types";
 import { VersionHistoryToolView, VersionWorktreeToolView } from "./version-tool-views";
 
+const countSelectableFileTreeNodes = (nodes: FileTreeNode[]): number =>
+  nodes.reduce((count, node) => (
+    node.isDirectory
+      ? count + countSelectableFileTreeNodes(node.children)
+      : count + 1
+  ), 0);
+
 export const ContextPanel = () => {
   const {
-    selectableFileCount,
     isFilesLoading,
     fileTree,
     expandedFileTreePaths,
@@ -52,6 +59,10 @@ export const ContextPanel = () => {
   } = useContextPanelStore();
   const [activeTool, setActiveTool] = useState<ContextPanelTool>("files");
   const [selectedTraceTurnId, setSelectedTraceTurnId] = useState<string | null>(null);
+  const selectableFileCount = useMemo(
+    () => countSelectableFileTreeNodes(fileTree),
+    [fileTree],
+  );
   const orderedTrace = useMemo(() => [...chatTrace].reverse(), [chatTrace]);
   const selectedTraceTurn = useMemo(
     () => selectedTraceTurnId

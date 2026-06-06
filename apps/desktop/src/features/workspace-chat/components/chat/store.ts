@@ -90,9 +90,19 @@ type ChatPanelStore = ChatPanelViewModel & {
   resetChatPanelState: () => void;
 };
 
+const isSameChatPanelState = (
+  current: ChatPanelViewModel,
+  next: ChatPanelViewModel,
+) => {
+  const keys = Object.keys(next) as Array<keyof ChatPanelViewModel>;
+  return keys.every((key) => Object.is(current[key], next[key]));
+};
+
 export const useChatPanelStore = create<ChatPanelStore>((set) => ({
   ...emptyChatPanelState,
-  setChatPanelState: (state) => set(state),
+  setChatPanelState: (state) => set((current) =>
+    isSameChatPanelState(current, state) ? current : state,
+  ),
   resetChatPanelState: () => set(emptyChatPanelState),
 }));
 

@@ -333,3 +333,125 @@ export const isTimelineEvent = (event: AgentRuntimeAgentEvent) =>
   event.type !== "thinking_end" &&
   event.type !== "replace_text" &&
   event.type !== "done";
+
+export type AppliedAgentMessageEvent = {
+  message: ChatMessage;
+  thinkingBlockId: string | null;
+  completedToolBlockId: string | null;
+};
+
+type AgentMessageStreamEvent = Extract<
+  AgentRuntimeAgentEvent,
+  { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
+>;
+
+type AgentToolEvent = Extract<
+  AgentRuntimeAgentEvent,
+  { type: "tool_start" | "tool_update" | "tool_end" }
+>;
+
+export const isAgentMessageStreamEvent = (
+  event: AgentRuntimeAgentEvent,
+): event is AgentMessageStreamEvent =>
+  event.type === "text_delta" ||
+  event.type === "thinking_delta" ||
+  event.type === "thinking_end" ||
+  event.type === "replace_text";
+
+const isAgentToolEvent = (event: AgentRuntimeAgentEvent): event is AgentToolEvent =>
+  event.type === "tool_start" ||
+  event.type === "tool_update" ||
+  event.type === "tool_end";
+
+const appliedAgentMessageEvent = (
+  message: ChatMessage,
+  thinkingBlockId: string | null = null,
+  completedToolBlockId: string | null = null,
+): AppliedAgentMessageEvent => ({
+  message,
+  thinkingBlockId,
+  completedToolBlockId,
+});
+
+export const applyAgentEventToMessage = (
+  message: ChatMessage,
+  event: AgentRuntimeAgentEvent,
+): AppliedAgentMessageEvent => {
+  if (event.type === "text_delta") {
+    const text = `${message.text}${event.delta}`;
+    return appliedAgentMessageEvent({
+      ...message,
+      text,
+      agentBlocks: updateLastAgentTextBlock(message, (content) => `${content}${event.delta}`),
+      status: "streaming",
+    });
+  }
+
+  if (event.type === "thinking_delta") {
+    const agentBlocks = updateLastAgentThinkingBlock(
+      message,
+      (content) => `${content}${event.delta}`,
+    );
+    return appliedAgentMessageEvent({
+      ...message,
+      thinking: mergeAgentThinking(agentBlocks),
+      agentBlocks,
+      status: "streaming",
+    });
+  }
+
+  if (event.type === "thinking_end") {
+    const result = finalizeLastAgentThinkingBlock(message, event.content);
+    return appliedAgentMessageEvent({
+      ...message,
+      thinking: mergeAgentThinking(result.blocks),
+      agentBlocks: result.blocks,
+      status: "streaming",
+    }, result.blockId);
+  }
+
+  if (event.type === "replace_text") {
+    return appliedAgentMessageEvent({
+      ...message,
+      text: event.text,
+      agentBlocks: updateLastAgentTextBlock(message, () => event.text),
+      status: "streaming",
+    });
+  }
+
+  if (event.type === "done") {
+    const assistantText = event.text.trim();
+    const text = assistantText || message.text || "Agent 任务已完成。";
+    const hasTextBlock = message.agentBlocks?.some((block) => block.type === "text");
+    const agentBlocks = removeEmptyAgentThinkingBlocks(message.agentBlocks);
+    return appliedAgentMessageEvent({
+      ...message,
+      text,
+      agentBlocks: hasTextBlock ? agentBlocks : updateLastAgentTextBlock({
+        ...message,
+        agentBlocks,
+      }, () => text),
+      status: "done",
+    });
+  }
+
+  if (isTimelineEvent(event)) {
+    let agentBlocks = message.agentBlocks;
+    let completedToolBlockId: string | null = null;
+
+    if (isAgentToolEvent(event)) {
+      const result = appendAgentToolEventBlock(message, event);
+      agentBlocks = result.blocks;
+      completedToolBlockId = event.type === "tool_end" ? result.blockId : null;
+    }
+
+    return appliedAgentMessageEvent({
+      ...message,
+      agentBlocks,
+      agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
+      status: event.type === "error" ? "error" : message.status,
+    }, null, completedToolBlockId);
+  }
+
+  return appliedAgentMessageEvent(message);
+};

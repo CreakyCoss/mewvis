@@ -12,7 +12,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,12 +39,10 @@ type SidebarProps = {
   isDefaultSessionsLoading: boolean;
   isWorkspaceSessionsLoading: boolean;
   defaultChatSessions: ChatSessionMeta[];
-  visibleDefaultSessions: ChatSessionMeta[];
   defaultWorkspacePath: string;
   workspaceSessionsById: Record<string, ChatSessionMeta[]>;
   isAgentSessionRunning: (workspacePath: string, sessionId: string) => boolean;
   suppressDefaultLoadingState: boolean;
-  showAllSessions: boolean;
   isKnowledgeOpen: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
   onEditWorkspace: (workspace: Workspace) => void;
@@ -56,7 +54,6 @@ type SidebarProps = {
   onRemoveDefaultSession: (sessionId: string) => void;
   onLoadWorkspaceSession: (workspace: Workspace, sessionId: string) => void;
   onRemoveWorkspaceSession: (workspace: Workspace, sessionId: string) => void;
-  onToggleShowAllSessions: () => void;
   onOpenSettings: () => void;
 };
 
@@ -197,12 +194,10 @@ export const Sidebar = ({
   isDefaultSessionsLoading,
   isWorkspaceSessionsLoading,
   defaultChatSessions,
-  visibleDefaultSessions,
   defaultWorkspacePath,
   workspaceSessionsById,
   isAgentSessionRunning,
   suppressDefaultLoadingState,
-  showAllSessions,
   isKnowledgeOpen,
   onOpenWorkspace,
   onEditWorkspace,
@@ -214,11 +209,14 @@ export const Sidebar = ({
   onRemoveDefaultSession,
   onLoadWorkspaceSession,
   onRemoveWorkspaceSession,
-  onToggleShowAllSessions,
   onOpenSettings,
 }: SidebarProps) => {
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [confirmingDeleteSessionId, setConfirmingDeleteSessionId] = useState<string | null>(null);
+  const [showAllDefaultSessions, setShowAllDefaultSessions] = useState(false);
+  const visibleDefaultSessions = showAllDefaultSessions
+    ? defaultChatSessions
+    : defaultChatSessions.slice(0, DEFAULT_VISIBLE_SESSION_LIMIT);
   const hiddenSessionCount = Math.max(defaultChatSessions.length - visibleDefaultSessions.length, 0);
   const hasPendingDefaultSession = defaultCurrentSessionId
     ? !defaultChatSessions.some((session) => session.id === defaultCurrentSessionId)
@@ -229,6 +227,10 @@ export const Sidebar = ({
     defaultChatSessions.length === 0 &&
     !hasDraftDefaultSession &&
     !suppressDefaultLoadingState;
+
+  useEffect(() => {
+    setShowAllDefaultSessions(false);
+  }, [workspace.id]);
 
   const toggleWorkspaceSessions = (workspaceId: string) => {
     setExpandedWorkspaceIds((current) => {
@@ -447,14 +449,14 @@ export const Sidebar = ({
                     <button
                       type="button"
                       className="group flex h-8 w-full items-center gap-1.5 rounded-md px-3 py-1 text-left text-xs font-medium text-muted-foreground/70 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
-                      onClick={onToggleShowAllSessions}
+                      onClick={() => setShowAllDefaultSessions((current) => !current)}
                     >
                       <span className="min-w-0 truncate">
-                        {showAllSessions
+                        {showAllDefaultSessions
                           ? "收起较早对话"
                           : `展开更多 ${hiddenSessionCount} 条`}
                       </span>
-                      {showAllSessions ? (
+                      {showAllDefaultSessions ? (
                         <ChevronUp className="size-3.5 shrink-0 text-muted-foreground/55 group-hover:text-foreground" />
                       ) : (
                         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground/55 group-hover:text-foreground" />

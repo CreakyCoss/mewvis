@@ -1,5 +1,21 @@
 import { extractAgentExecutionSummary } from "@/ai/agent-context";
-import type { ChatMessage, ChatSessionMeta, ConversationMessage } from "../../types";
+import type {
+  ChatContextSummary,
+  ChatMessage,
+  ChatSession,
+  ChatSessionMeta,
+  ChatTraceTurn,
+  ConversationMessage,
+} from "../../types";
+
+export type HydratableChatSession = {
+  id: string | null;
+  title: string;
+  messages: ChatMessage[];
+  conversation: ConversationMessage[];
+  context?: ChatContextSummary | null;
+  trace?: ChatTraceTurn[];
+};
 
 export const sortChatSessionsByFixedOrder = (sessions: ChatSessionMeta[]) =>
   [...sessions].sort((left, right) =>
@@ -13,6 +29,19 @@ export const upsertChatSessionMeta = (
   session,
   ...sessions.filter((item) => item.id !== session.id),
 ]);
+
+export const toHydratableSession = (
+  session: ChatSession | null | undefined,
+): HydratableChatSession | null => session
+  ? {
+    id: session.id,
+    title: session.title,
+    messages: session.messages,
+    conversation: session.conversation,
+    context: session.context,
+    trace: session.trace,
+  }
+  : null;
 
 export const moveHistoryItem = <T extends { id: string }>(
   items: T[],

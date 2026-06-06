@@ -5,7 +5,6 @@ import type { ContextPanelViewModel } from "./types";
 const noop = () => {};
 
 const emptyContextPanelState: ContextPanelViewModel = {
-  selectableFileCount: 0,
   isFilesLoading: false,
   fileTree: [],
   expandedFileTreePaths: new Set(),
@@ -30,10 +29,6 @@ const emptyContextPanelState: ContextPanelViewModel = {
   isVersionHistoryLoading: false,
   restoringVersionFilePath: "",
   discardingVersionFilePath: "",
-  chatMode: "agent",
-  collaborationPhase: "idle",
-  selectedAgent: null,
-  reviewerAgent: null,
   chatTrace: [],
   onRefreshFiles: noop,
   onRefreshVersionControl: noop,
@@ -56,9 +51,19 @@ type ContextPanelStore = ContextPanelViewModel & {
   resetContextPanelState: () => void;
 };
 
+const isSameContextPanelState = (
+  current: ContextPanelViewModel,
+  next: ContextPanelViewModel,
+) => {
+  const keys = Object.keys(next) as Array<keyof ContextPanelViewModel>;
+  return keys.every((key) => Object.is(current[key], next[key]));
+};
+
 export const useContextPanelStore = create<ContextPanelStore>((set) => ({
   ...emptyContextPanelState,
-  setContextPanelState: (state) => set(state),
+  setContextPanelState: (state) => set((current) =>
+    isSameContextPanelState(current, state) ? current : state,
+  ),
   resetContextPanelState: () => set(emptyContextPanelState),
 }));
 

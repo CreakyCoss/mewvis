@@ -8,7 +8,6 @@ type UseSidebarSessionsInput = {
   workspaceSections: WorkspaceSection[];
   chatSessions: ChatSessionMeta[];
   defaultChatSessions: ChatSessionMeta[];
-  showAllSessions: boolean;
 };
 
 export const useSidebarSessions = ({
@@ -16,7 +15,6 @@ export const useSidebarSessions = ({
   workspaceSections,
   chatSessions,
   defaultChatSessions,
-  showAllSessions,
 }: UseSidebarSessionsInput) => {
   const allSidebarWorkspaces = useMemo(
     () => workspaceSections.flatMap((section) => section.workspaces),
@@ -38,9 +36,6 @@ export const useSidebarSessions = ({
   const sidebarChatSessions = isActiveDefaultWorkspace
     ? chatSessions
     : defaultChatSessions;
-  const visibleSidebarSessions = showAllSessions
-    ? sidebarChatSessions
-    : sidebarChatSessions.slice(0, 5);
 
   return {
     allSidebarWorkspaces,
@@ -49,6 +44,5 @@ export const useSidebarSessions = ({
     sidebarWorkspaces,
     sidebarWorkspacesSignature,
     sidebarChatSessions,
-    visibleSidebarSessions,
   };
 };
