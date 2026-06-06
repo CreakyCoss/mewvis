@@ -9,7 +9,7 @@ import {
   type ConversationSummarizer,
 } from "@/ai/agent-context";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
-import { runAgentRuntimeChat } from "../../api";
+import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type { ContextWindowPreset } from "../../page-types";
 import { createMessageId } from "../../utils/sessions";
 
@@ -61,7 +61,7 @@ export const useContextModeling = ({
         return previousSummary;
       }
 
-      const result = await runAgentRuntimeChat({
+      const result = await runSharedRuntimeChat({
         provider,
         model,
         stream: false,

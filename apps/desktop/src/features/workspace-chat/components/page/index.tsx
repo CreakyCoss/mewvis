@@ -21,6 +21,7 @@ import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
+import { TavernPage } from "@/features/tavern/components/tavern-page";
 import { SkillsDialog } from "@/features/workspace-skills/components/skills-dialog";
 import type { Workspace, WorkspaceSection } from "@/features/workspaces/types";
 import {
@@ -2004,6 +2005,16 @@ export const WorkspaceChatPage = ({
     />
   );
 
+  const tavernPanel = (
+    <TavernPage
+      workspace={workspace}
+      files={files}
+      provider={effectiveProvider}
+      model={effectiveModel}
+      runtimeAgentId={runtimeAgentId}
+    />
+  );
+
   useContextPanelStoreBridge({
     isFilesLoading,
     fileTree,
@@ -2128,6 +2139,7 @@ export const WorkspaceChatPage = ({
           Boolean(visibleActiveAgentTaskId)
         )}
         isKnowledgeOpen={workspaceView === "knowledge"}
+        isTavernOpen={workspaceView === "tavern"}
         onOpenWorkspace={openWorkspaceFromCurrentContext}
         onEditWorkspace={onEditWorkspace}
         onStartNewSession={startSidebarSession}
@@ -2139,6 +2151,13 @@ export const WorkspaceChatPage = ({
           setIsAgentSettingsOpen(false);
           setIsCollaborationWorkflowSettingsOpen(false);
           setWorkspaceView("knowledge");
+        }}
+        onOpenTavern={() => {
+          setIsContextWorkbenchOpen(false);
+          setIsLlmSettingsOpen(false);
+          setIsAgentSettingsOpen(false);
+          setIsCollaborationWorkflowSettingsOpen(false);
+          setWorkspaceView("tavern");
         }}
         onLoadDefaultSession={(sessionId) => void loadDefaultSessionById(sessionId)}
         onRemoveDefaultSession={(sessionId) => void removeDefaultSession(sessionId)}
@@ -2169,6 +2188,8 @@ export const WorkspaceChatPage = ({
               settingsPanel
             ) : workspaceView === "knowledge" ? (
               knowledgePanel
+            ) : workspaceView === "tavern" ? (
+              tavernPanel
             ) : filePreviewMode === "expanded" ? (
               filePanel
             ) : filePreviewMode === "side" ? (

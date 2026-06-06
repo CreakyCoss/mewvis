@@ -1,10 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
-  toAgentRuntimeModelConfig,
-  toAgentRuntimeProviderConfig,
-} from "@/ai/agent-runtime/config";
-import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+  runSharedRuntimeChat,
+  type RunSharedRuntimeChatInput,
+  type RunSharedRuntimeChatOutput,
+} from "@/features/shared-chat-runtime";
 import type {
   AgentSessionStatus,
   ChatContextSummary,
@@ -24,23 +23,8 @@ import type {
 } from "./types";
 import type { ConversationMessage } from "./types";
 
-const agentRuntime = createAgentRuntime();
-
-export type RunAgentRuntimeChatInput = {
-  agentId?: string;
-  provider?: LlmProvider | null;
-  model?: ProviderModel | null;
-  systemPrompt: string;
-  messages: ConversationMessage[];
-  stream?: boolean;
-  onTextDelta?: (delta: string) => void;
-  onThinkingDelta?: (delta: string) => void;
-};
-
-export type RunAgentRuntimeChatOutput = {
-  text: string;
-  thinking?: string | null;
-};
+export type RunAgentRuntimeChatInput = RunSharedRuntimeChatInput;
+export type RunAgentRuntimeChatOutput = RunSharedRuntimeChatOutput;
 
 export async function listWorkspaceFiles(workspacePath: string) {
   if (!isTauri()) {
@@ -281,19 +265,7 @@ export async function restoreWorkspaceVersion(
 export async function runAgentRuntimeChat(
   input: RunAgentRuntimeChatInput,
 ): Promise<RunAgentRuntimeChatOutput> {
-  return agentRuntime.run({
-    type: "chat",
-    agentId: input.agentId,
-    provider: input.provider ? toAgentRuntimeProviderConfig(input.provider) : undefined,
-    model: input.provider && input.model
-      ? toAgentRuntimeModelConfig(input.provider, input.model)
-      : undefined,
-    systemPrompt: input.systemPrompt,
-    messages: input.messages,
-    stream: input.stream ?? true,
-    onTextDelta: input.onTextDelta,
-    onThinkingDelta: input.onThinkingDelta,
-  });
+  return runSharedRuntimeChat(input);
 }
 
 export async function listChatSessions(workspacePath: string) {

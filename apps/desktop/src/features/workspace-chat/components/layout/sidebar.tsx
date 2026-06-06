@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
   Trash2,
+  Wine,
   Wrench,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -44,12 +45,14 @@ type SidebarProps = {
   isAgentSessionRunning: (workspacePath: string, sessionId: string) => boolean;
   suppressDefaultLoadingState: boolean;
   isKnowledgeOpen: boolean;
+  isTavernOpen: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
   onEditWorkspace: (workspace: Workspace) => void;
   onStartNewSession: () => void;
   onOpenContext: () => void;
   onOpenSkills: () => void;
   onOpenKnowledge: () => void;
+  onOpenTavern: () => void;
   onLoadDefaultSession: (sessionId: string) => void;
   onRemoveDefaultSession: (sessionId: string) => void;
   onLoadWorkspaceSession: (workspace: Workspace, sessionId: string) => void;
@@ -216,12 +219,14 @@ export const Sidebar = ({
   isAgentSessionRunning,
   suppressDefaultLoadingState,
   isKnowledgeOpen,
+  isTavernOpen,
   onOpenWorkspace,
   onEditWorkspace,
   onStartNewSession,
   onOpenContext,
   onOpenSkills,
   onOpenKnowledge,
+  onOpenTavern,
   onLoadDefaultSession,
   onRemoveDefaultSession,
   onLoadWorkspaceSession,
@@ -308,6 +313,17 @@ export const Sidebar = ({
       >
         <Database className="size-4" />
         <span>知识库</span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-10 w-full justify-start rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted/55 data-[active=true]:bg-muted/55"
+        title="酒馆"
+        data-active={isTavernOpen}
+        onClick={onOpenTavern}
+      >
+        <Wine className="size-4" />
+        <span>酒馆</span>
       </Button>
     </div>
 

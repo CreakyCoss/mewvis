@@ -1,7 +1,7 @@
 import {
   buildSystemPrompt,
 } from "@/ai/agent-context";
-import { runAgentRuntimeChat } from "../../../api";
+import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import {
   formatDebugMessages,
 } from "../trace";
@@ -83,7 +83,7 @@ export const runChatTurn = async (
     messageId: assistantMessageId,
     updateMessage,
   });
-  const result = await runAgentRuntimeChat({
+  const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
     provider: effectiveProvider,
     model: effectiveModel,

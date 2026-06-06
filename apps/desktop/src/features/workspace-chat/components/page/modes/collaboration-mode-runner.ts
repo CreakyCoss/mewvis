@@ -7,7 +7,10 @@ import {
   type AgentRuntimeModelConfig,
   type AgentToolName,
 } from "@/ai/agent-runtime/contracts";
-import { toAgentRuntimeProviderConfig } from "@/ai/agent-runtime/config";
+import {
+  runSharedAgentTask,
+  type SharedAgentTaskResult,
+} from "@/features/shared-chat-runtime";
 import type {
   AgentProfile,
   CollaborationWorkflowProfile,
@@ -44,12 +47,6 @@ import type {
   RunCollaborationTurnInput,
   UpdateMessage,
 } from "./types";
-
-type CollaborationAgentTaskResult = {
-  taskId: string;
-  text: string;
-  thinking?: string;
-};
 
 type RunCollaborationAgentTaskInput = {
   agentRuntime: RunCollaborationTurnDeps["agentRuntime"];
@@ -315,138 +312,62 @@ const runCollaborationAgentTask = async ({
   traceMetadata,
   appendVisibleTraceStep,
   updateMessage,
-}: RunCollaborationAgentTaskInput): Promise<CollaborationAgentTaskResult> => {
-  let taskId = "";
-  let latestText = "";
-  let latestThinking = "";
-  let isSettled = false;
-  let resolveTask!: (result: CollaborationAgentTaskResult) => void;
-  let rejectTask!: (error: Error) => void;
-
-  const completion = new Promise<CollaborationAgentTaskResult>((resolve, reject) => {
-    resolveTask = (result) => {
-      if (isSettled) {
-        return;
+}: RunCollaborationAgentTaskInput): Promise<SharedAgentTaskResult> => (
+  runSharedAgentTask({
+    agentRuntime,
+    runtimeAgentId,
+    workspacePath,
+    prompt,
+    provider: agent.provider,
+    model,
+    allowedTools,
+    enabledSkillNames,
+    errorMessageForEvent: collaborationTaskErrorMessage,
+    onEvent: (event) => {
+      const traceStep = agentEventTraceStep(event);
+      if (traceStep) {
+        appendVisibleTraceStep(traceTurnId, {
+          ...traceStep,
+          metadata: {
+            ...(traceStep.metadata ?? {}),
+            ...traceMetadata,
+            messageId,
+          },
+        });
       }
-      isSettled = true;
-      resolve(result);
-    };
-    rejectTask = (error) => {
-      if (isSettled) {
-        return;
+
+      updateMessage(messageId, (message) =>
+        applyAgentEventToMessage(message, event).message
+      );
+
+      if (event.type === "exit" && event.success) {
+        updateMessage(messageId, (message) => ({
+          ...message,
+          status: "done",
+        }));
       }
-      isSettled = true;
-      reject(error);
-    };
-  });
-
-  const unlisten = await agentRuntime.subscribe((event) => {
-    if (!taskId || event.taskId !== taskId) {
-      return;
-    }
-
-    const traceStep = agentEventTraceStep(event);
-    if (traceStep) {
+    },
+    onTaskCreated: ({ taskId, startedAt, endedAt }) => {
       appendVisibleTraceStep(traceTurnId, {
-        ...traceStep,
+        type: "agent_event",
+        label: `${traceLabel}任务创建`,
+        startedAt,
+        endedAt,
+        status: "done",
         metadata: {
-          ...(traceStep.metadata ?? {}),
           ...traceMetadata,
+          taskId,
           messageId,
+          runtimeAgentId,
+          agentId: agent.id,
+          agentName: agent.name,
+          allowedTools,
+          enabledSkills: enabledSkillNames,
         },
       });
-    }
-
-    updateMessage(messageId, (message) =>
-      applyAgentEventToMessage(message, event).message
-    );
-
-    if (event.type === "text_delta") {
-      latestText += event.delta;
-      return;
-    }
-    if (event.type === "replace_text") {
-      latestText = event.text;
-      return;
-    }
-    if (event.type === "thinking_delta") {
-      latestThinking += event.delta;
-      return;
-    }
-    if (event.type === "thinking_end") {
-      latestThinking = event.content || latestThinking;
-      return;
-    }
-    if (event.type === "done") {
-      latestText = event.text || latestText;
-      resolveTask({
-        taskId,
-        text: latestText.trim(),
-        thinking: latestThinking.trim() || undefined,
-      });
-      return;
-    }
-    if (event.type === "exit" && event.success) {
-      updateMessage(messageId, (message) => ({
-        ...message,
-        status: "done",
-      }));
-      resolveTask({
-        taskId,
-        text: latestText.trim(),
-        thinking: latestThinking.trim() || undefined,
-      });
-      return;
-    }
-    if (
-      event.type === "error" ||
-      event.type === "question" ||
-      (event.type === "exit" && !event.success)
-    ) {
-      if (event.type === "question") {
-        void agentRuntime.abortTask(taskId).catch(() => undefined);
-      }
-      rejectTask(new Error(collaborationTaskErrorMessage(event)));
-    }
-  });
-
-  try {
-    const agentRunStartedAt = Date.now();
-    const task = await agentRuntime.run({
-      type: "agent",
-      agentId: runtimeAgentId,
-      workspacePath,
-      chatSessionId: null,
-      bootstrapContext: null,
-      prompt,
-      provider: toAgentRuntimeProviderConfig(agent.provider),
-      model,
-      allowedTools,
-      enabledSkills: enabledSkillNames,
-    });
-    taskId = task.taskId;
-    appendVisibleTraceStep(traceTurnId, {
-      type: "agent_event",
-      label: `${traceLabel}任务创建`,
-      startedAt: agentRunStartedAt,
-      endedAt: Date.now(),
-      status: "done",
-      metadata: {
-        ...traceMetadata,
-        taskId,
-        messageId,
-        runtimeAgentId,
-        agentId: agent.id,
-        agentName: agent.name,
-        allowedTools,
-        enabledSkills: enabledSkillNames,
-      },
-    });
-    return await completion;
-  } finally {
-    unlisten();
-  }
-};
+    },
+  })
+);
 
 export const runCollaborationTurn = async (
   {
@@ -821,7 +742,7 @@ export const runCollaborationTurn = async (
       ],
     });
 
-    let stepResult: CollaborationAgentTaskResult;
+    let stepResult: SharedAgentTaskResult;
     try {
       stepResult = await runCollaborationAgentTask({
         agentRuntime,
