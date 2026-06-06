@@ -1,4 +1,12 @@
-export type VisualPresetId = "general" | "wuxia" | "tavern";
+export type VisualPresetId =
+  | "general"
+  | "wuxia"
+  | "tavern"
+  | "modern"
+  | "mystery"
+  | "scifi"
+  | "fantasy"
+  | "oracle";
 
 export type VisualPresetScope = "system" | "tavern";
 

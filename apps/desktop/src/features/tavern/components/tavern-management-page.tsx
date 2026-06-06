@@ -6,6 +6,7 @@ import {
   Clock,
   Copy,
   FileUp,
+  LockKeyhole,
   MessageCircle,
   Pencil,
   Plus,
@@ -13,6 +14,7 @@ import {
   Settings2,
   Trash2,
   TriangleAlertIcon,
+  UnlockKeyhole,
   UserPlus,
   UsersRound,
   Wine,
@@ -21,6 +23,7 @@ import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -67,6 +70,9 @@ type TavernManagementPageProps = {
   onSelectRoom: (roomId: string) => void;
   onOpenRoom: (roomId: string) => void;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
+  onCopyRoom: (roomId: string) => void;
+  onRestoreSystemPresetRoom: (roomId: string) => void;
+  onSetRoomLocked: (roomId: string, locked: boolean) => boolean;
   onDeleteRoom: (roomId: string) => void;
   onClearRoomMessages: () => void;
   onExportRoom: () => void;
@@ -96,6 +102,9 @@ const parseKeywords = (value: string) =>
     .map((keyword) => keyword.trim())
     .filter(Boolean);
 
+const confirmDangerousAction = (message: string, secondMessage: string) =>
+  window.confirm(message) && window.confirm(secondMessage);
+
 export const TavernManagementPage = ({
   rooms,
   characters,
@@ -110,6 +119,9 @@ export const TavernManagementPage = ({
   onSelectRoom,
   onOpenRoom,
   onPatchRoom,
+  onCopyRoom,
+  onRestoreSystemPresetRoom,
+  onSetRoomLocked,
   onDeleteRoom,
   onClearRoomMessages,
   onExportRoom,
@@ -123,6 +135,11 @@ export const TavernManagementPage = ({
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
+  const [lockingRoomRequest, setLockingRoomRequest] = useState<{
+    roomId: string;
+    locked: boolean;
+  } | null>(null);
   const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
   const [isCharacterLibraryOpen, setIsCharacterLibraryOpen] = useState(false);
   const [isImportingCharacterCard, setIsImportingCharacterCard] = useState(false);
@@ -145,6 +162,13 @@ export const TavernManagementPage = ({
   const deletingRoom = deletingRoomId
     ? rooms.find((room) => room.id === deletingRoomId) ?? null
     : null;
+  const restoringRoom = restoringRoomId
+    ? rooms.find((room) => room.id === restoringRoomId) ?? null
+    : null;
+  const lockingRoom = lockingRoomRequest
+    ? rooms.find((room) => room.id === lockingRoomRequest.roomId) ?? null
+    : null;
+  const isLockingRoom = lockingRoomRequest?.locked ?? false;
   const editingCharacter = editingCharacterId
     ? characters.find((character) => character.id === editingCharacterId) ?? null
     : null;
@@ -155,12 +179,6 @@ export const TavernManagementPage = ({
       characterUsageById.set(characterId, (characterUsageById.get(characterId) ?? 0) + 1);
     }
   }
-  const usedCharacterCount = Array.from(characterUsageById.values()).filter((value) => value > 0).length;
-  const characterReferenceCount = Array.from(characterUsageById.values()).reduce(
-    (sum, value) => sum + value,
-    0,
-  );
-  const previewCharacters = characters.slice(0, 5);
   const editingRoomCharacterIds = new Set(editingRoom?.characterIds ?? []);
   const editingRoomCharacters = editingRoom
     ? editingRoom.characterIds
@@ -178,15 +196,60 @@ export const TavernManagementPage = ({
   };
 
   const requestDeleteRoom = (roomId: string) => {
-    if (!canDeleteRoom) {
+    const room = rooms.find((item) => item.id === roomId);
+    if (!canDeleteRoom || room?.locked) {
       return;
     }
 
     setDeletingRoomId(roomId);
   };
 
+  const requestRestoreSystemPresetRoom = (roomId: string) => {
+    const room = rooms.find((item) => item.id === roomId);
+    if (!room?.systemPresetId || room.locked) {
+      return;
+    }
+
+    setRestoringRoomId(roomId);
+  };
+
+  const requestRoomLockChange = (roomId: string, locked: boolean) => {
+    const room = rooms.find((item) => item.id === roomId);
+    if (!room || room.locked === locked) {
+      return;
+    }
+
+    setLockingRoomRequest({ roomId, locked });
+  };
+
+  const confirmRestoreSystemPresetRoom = () => {
+    if (!restoringRoom) {
+      return;
+    }
+
+    onRestoreSystemPresetRoom(restoringRoom.id);
+    setRestoringRoomId(null);
+  };
+
+  const confirmRoomLockChange = () => {
+    if (!lockingRoom || !lockingRoomRequest) {
+      return;
+    }
+
+    const applied = onSetRoomLocked(lockingRoom.id, lockingRoomRequest.locked);
+    if (applied) {
+      setLockingRoomRequest(null);
+    }
+  };
+
   const confirmDeleteRoom = () => {
-    if (!deletingRoom) {
+    if (!deletingRoom || deletingRoom.locked) {
+      return;
+    }
+
+    if (!window.confirm(
+      `再次确认删除酒馆「${deletingRoom.title}」？房间、对话记录和剧情资产都会被永久移除。`,
+    )) {
       return;
     }
 
@@ -324,98 +387,24 @@ export const TavernManagementPage = ({
                 </div>
               </div>
             </div>
-            <Button type="button" onClick={onCreateRoom}>
-              <Plus className="size-4" />
-              新建酒馆
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button type="button" onClick={onCreateRoom}>
+                <Plus className="size-4" />
+                新建酒馆
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-9"
+                title="角色库"
+                aria-label="打开角色库"
+                onClick={() => setIsCharacterLibraryOpen(true)}
+              >
+                <UsersRound className="size-4" />
+              </Button>
+            </div>
           </header>
-
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <section className="rounded-md border bg-muted/10 p-4 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Wine className="size-4 text-primary" />
-                    酒馆总览
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    管理房间、场景和入席角色，点击卡片进入实际酒馆。
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="rounded-md bg-background/70 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">房间</div>
-                  <div className="mt-1 text-lg font-semibold leading-6">{rooms.length}</div>
-                </div>
-                <div className="rounded-md bg-background/70 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">角色</div>
-                  <div className="mt-1 text-lg font-semibold leading-6">{characters.length}</div>
-                </div>
-                <div className="rounded-md bg-background/70 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">消息</div>
-                  <div className="mt-1 text-lg font-semibold leading-6">{activeRoomMessages.length}</div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-md border bg-muted/10 p-4 shadow-sm">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-background">
-                  <UsersRound className="size-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold leading-6">角色库</h2>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {formatCount(characters.length, "角色")}
-                    {"，"}
-                    {formatCount(usedCharacterCount, "已入席")}
-                    {"，"}
-                    {formatCount(characterReferenceCount, "次引用")}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {previewCharacters.map((character) => (
-                  <div
-                    key={character.id}
-                    className="flex min-w-0 items-center gap-2 rounded-md bg-background/70 px-2 py-1.5"
-                  >
-                    <img
-                      src={resolveAgentAvatar(character.avatar).src}
-                      alt=""
-                      className="size-7 rounded-md border bg-muted/20"
-                    />
-                    <span className="max-w-24 truncate text-sm font-medium">{character.name}</span>
-                  </div>
-                ))}
-                {characters.length > previewCharacters.length && (
-                  <span className="rounded-md bg-background/70 px-2 py-1.5 text-sm text-muted-foreground">
-                    +{characters.length - previewCharacters.length}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  onClick={() => setIsCharacterLibraryOpen(true)}
-                >
-                  <UsersRound className="size-4" />
-                  管理角色库
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreatingCharacter(true)}
-                >
-                  <Plus className="size-4" />
-                  新建角色
-                </Button>
-              </div>
-            </section>
-          </div>
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -427,7 +416,7 @@ export const TavernManagementPage = ({
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
               {rooms.map((room) => {
                 const isActive = room.id === activeRoom.id;
                 const roomCharacters = room.characterIds
@@ -440,7 +429,7 @@ export const TavernManagementPage = ({
                   <article
                     key={room.id}
                     className={cn(
-                      "flex min-h-[212px] flex-col rounded-md border bg-background p-3 shadow-sm transition-colors",
+                      "flex min-h-[132px] flex-col rounded-md border bg-background p-2 shadow-sm transition-colors",
                       isActive && "border-primary/50 bg-primary/[0.03]",
                     )}
                   >
@@ -449,10 +438,27 @@ export const TavernManagementPage = ({
                       className="min-w-0 flex-1 text-left"
                       onClick={() => onSelectRoom(room.id)}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-semibold">{room.title}</h3>
-                          <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{room.title}</h3>
+                            {room.systemPresetId && (
+                              <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[11px]">
+                                系统预设
+                              </Badge>
+                            )}
+                            {room.locked && (
+                              <Badge
+                                variant="outline"
+                                className="h-5 w-5 shrink-0 justify-center p-0"
+                                title="已锁定"
+                                aria-label="已锁定"
+                              >
+                                <LockKeyhole className="size-3" />
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">
                             {compactScene(room.scene)}
                           </p>
                         </div>
@@ -462,19 +468,19 @@ export const TavernManagementPage = ({
                               key={character.id}
                               src={resolveAgentAvatar(character.avatar).src}
                               alt=""
-                              className="size-7 rounded-md border bg-background"
+                              className="size-6 rounded-md border bg-background"
                             />
                           ))}
                         </div>
                       </div>
                       {room.sceneGoal.trim() && (
-                        <div className="mt-3 rounded-md bg-muted/35 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+                        <div className="mt-1.5 line-clamp-1 rounded-md bg-muted/35 px-2 py-1 text-xs leading-5 text-muted-foreground">
                           {room.sceneGoal}
                         </div>
                       )}
                     </button>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <UsersRound className="size-3.5" />
                         {roomCharacters.length}
@@ -486,36 +492,82 @@ export const TavernManagementPage = ({
                       {draftCount > 0 && <span>{draftCount} 草稿</span>}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => onOpenRoom(room.id)}
-                      >
-                        <ArrowRight className="size-4" />
-                        进入
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openRoomEditor(room.id)}
-                      >
-                        <Pencil className="size-4" />
-                        编辑
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="size-9"
-                        title="删除酒馆"
-                        aria-label="删除酒馆"
-                        disabled={!canDeleteRoom}
-                        onClick={() => requestDeleteRoom(room.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <div className="grid min-w-[156px] flex-1 grid-cols-2 gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 min-w-[74px] whitespace-nowrap"
+                          onClick={() => onOpenRoom(room.id)}
+                        >
+                          <ArrowRight className="size-3.5 shrink-0" />
+                          <span className="truncate">进入</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 min-w-[74px] whitespace-nowrap"
+                          onClick={() => openRoomEditor(room.id)}
+                        >
+                          <Pencil className="size-3.5 shrink-0" />
+                          <span className="truncate">编辑</span>
+                        </Button>
+                      </div>
+                      <div className="ml-auto flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          title="复制酒馆"
+                          aria-label="复制酒馆"
+                          onClick={() => onCopyRoom(room.id)}
+                        >
+                          <Copy className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className={cn("size-8", room.locked && "text-primary")}
+                          title={room.locked ? "解锁酒馆" : "锁定酒馆"}
+                          aria-label={room.locked ? "解锁酒馆" : "锁定酒馆"}
+                          onClick={() => requestRoomLockChange(room.id, !room.locked)}
+                        >
+                          {room.locked ? (
+                            <LockKeyhole className="size-3.5" />
+                          ) : (
+                            <UnlockKeyhole className="size-3.5" />
+                          )}
+                        </Button>
+                        {room.systemPresetId && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-8"
+                            title={room.locked ? "已锁定，不能恢复默认" : "恢复默认"}
+                            aria-label={room.locked ? "已锁定，不能恢复默认" : "恢复默认"}
+                            disabled={room.locked}
+                            onClick={() => requestRestoreSystemPresetRoom(room.id)}
+                          >
+                            <RotateCcw className="size-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          title={room.locked ? "已锁定，不能删除酒馆" : "删除酒馆"}
+                          aria-label={room.locked ? "已锁定，不能删除酒馆" : "删除酒馆"}
+                          disabled={!canDeleteRoom || room.locked}
+                          onClick={() => requestDeleteRoom(room.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -570,6 +622,125 @@ export const TavernManagementPage = ({
               >
                 <Trash2 className="size-4" />
                 删除酒馆
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(restoringRoom)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRestoringRoomId(null);
+          }
+        }}
+      >
+        {restoringRoom && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <DialogTitle>确认恢复默认</DialogTitle>
+              </div>
+              <DialogDescription>
+                「{restoringRoom.title}」将被系统预设内容覆盖，当前场景、角色、记忆、剧情资产和对话记录都会重置。
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              {formatCount(messagesByRoom[restoringRoom.id]?.length ?? 0, "消息")}
+              {" / "}
+              {formatCount(restoringRoom.timelineEvents.length, "剧情事件")}
+              {" / "}
+              {formatCount(restoringRoom.lorebookEntries.length, "世界书")}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRestoringRoomId(null)}
+              >
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmRestoreSystemPresetRoom}
+              >
+                <RotateCcw className="size-4" />
+                继续恢复
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(lockingRoom)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLockingRoomRequest(null);
+          }
+        }}
+      >
+        {lockingRoom && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-md",
+                  isLockingRoom
+                    ? "bg-primary/10 text-primary"
+                    : "bg-destructive/10 text-destructive",
+                )}>
+                  {isLockingRoom ? (
+                    <LockKeyhole className="size-4" />
+                  ) : (
+                    <UnlockKeyhole className="size-4" />
+                  )}
+                </span>
+                <DialogTitle>
+                  {isLockingRoom ? "确认锁定酒馆" : "确认解锁酒馆"}
+                </DialogTitle>
+              </div>
+              <DialogDescription>
+                {isLockingRoom
+                  ? `锁定「${lockingRoom.title}」后，将不能删除该酒馆，也不能恢复系统默认。`
+                  : `解锁「${lockingRoom.title}」后，将重新允许删除该酒馆或恢复系统默认。`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              {formatCount(messagesByRoom[lockingRoom.id]?.length ?? 0, "消息")}
+              {" / "}
+              {formatCount(lockingRoom.timelineEvents.length, "剧情事件")}
+              {" / "}
+              {formatCount(lockingRoom.lorebookEntries.length, "世界书")}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLockingRoomRequest(null)}
+              >
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant={isLockingRoom ? "default" : "destructive"}
+                onClick={confirmRoomLockChange}
+              >
+                {isLockingRoom ? (
+                  <LockKeyhole className="size-4" />
+                ) : (
+                  <UnlockKeyhole className="size-4" />
+                )}
+                {isLockingRoom ? "继续锁定" : "继续解锁"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -648,7 +819,7 @@ export const TavernManagementPage = ({
               )}
 
               {characters.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {characters.map((character) => {
                     const avatar = resolveAgentAvatar(character.avatar);
                     const usageCount = characterUsageById.get(character.id) ?? 0;
@@ -656,32 +827,42 @@ export const TavernManagementPage = ({
                     return (
                       <article
                         key={character.id}
-                        className="flex min-h-[172px] flex-col rounded-md border bg-background p-3 shadow-sm"
+                        className="flex min-h-[132px] flex-col rounded-md border bg-background p-2.5 shadow-sm"
                       >
-                        <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex min-w-0 items-start gap-2.5">
                           <img
                             src={avatar.src}
                             alt=""
-                            className="size-10 rounded-md border bg-muted/20"
+                            className="size-8 rounded-md border bg-muted/20"
                           />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold">{character.name}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
+                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                              <div className="min-w-0 truncate text-sm font-semibold">
+                                {character.name}
+                              </div>
+                              {character.systemPresetId && (
+                                <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[11px]">
+                                  系统预设
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">
                               {formatCount(usageCount, "个酒馆")}
                             </div>
                           </div>
                         </div>
-                        <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
                           {character.description}
                         </p>
-                        <div className="mt-auto grid grid-cols-[1fr_auto_auto] gap-2 pt-3">
+                        <div className="mt-auto grid grid-cols-[1fr_auto_auto] gap-1.5 pt-2.5">
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
+                            className="h-8"
                             onClick={() => setEditingCharacterId(character.id)}
                           >
-                            <Pencil className="size-4" />
+                            <Pencil className="size-3.5" />
                             编辑
                           </Button>
                           <Button
@@ -693,16 +874,16 @@ export const TavernManagementPage = ({
                             aria-label="复制角色卡"
                             onClick={() => void copyCharacterCard(character)}
                           >
-                            <Copy className="size-4" />
+                            <Copy className="size-3.5" />
                           </Button>
                           <Button
                             type="button"
                             size="icon"
                             variant="ghost"
                             className="size-8"
-                            title="删除角色"
-                            aria-label="删除角色"
-                            disabled={characters.length <= 1}
+                            title={character.systemPresetId ? "系统预设角色不可删除" : "删除角色"}
+                            aria-label={character.systemPresetId ? "系统预设角色不可删除" : "删除角色"}
+                            disabled={characters.length <= 1 || Boolean(character.systemPresetId)}
                             onClick={() => {
                               if (editingCharacterId === character.id) {
                                 setEditingCharacterId(null);
@@ -710,7 +891,7 @@ export const TavernManagementPage = ({
                               onDeleteCharacter(character.id);
                             }}
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </Button>
                         </div>
                       </article>
@@ -748,7 +929,20 @@ export const TavernManagementPage = ({
         {editingRoom && (
           <DialogContent className="flex h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
             <DialogHeader className="border-b px-5 py-4 pr-12">
-              <DialogTitle>编辑酒馆</DialogTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogTitle>编辑酒馆</DialogTitle>
+                {editingRoom.systemPresetId && (
+                  <Badge variant="secondary">
+                    系统预设
+                  </Badge>
+                )}
+                {editingRoom.locked && (
+                  <Badge variant="outline" className="gap-1">
+                    <LockKeyhole className="size-3" />
+                    已锁定
+                  </Badge>
+                )}
+              </div>
               <DialogDescription className="truncate">
                 {editingRoom.title || emptyValueText}
               </DialogDescription>
@@ -1142,9 +1336,19 @@ export const TavernManagementPage = ({
                             className="size-8"
                             title="删除剧情事件"
                             aria-label="删除剧情事件"
-                            onClick={() => onPatchRoom(editingRoom.id, {
-                              timelineEvents: editingRoom.timelineEvents.filter((item) => item.id !== event.id),
-                            })}
+                            onClick={() => {
+                              const eventLabel = event.title.trim() || `剧情事件 ${index + 1}`;
+                              if (!confirmDangerousAction(
+                                `删除剧情事件「${eventLabel}」？`,
+                                "再次确认删除剧情事件？它会从当前酒馆的剧情时间线中移除。",
+                              )) {
+                                return;
+                              }
+
+                              onPatchRoom(editingRoom.id, {
+                                timelineEvents: editingRoom.timelineEvents.filter((item) => item.id !== event.id),
+                              });
+                            }}
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -1249,9 +1453,19 @@ export const TavernManagementPage = ({
                             className="size-8"
                             title="删除世界书"
                             aria-label="删除世界书"
-                            onClick={() => onPatchRoom(editingRoom.id, {
-                              lorebookEntries: editingRoom.lorebookEntries.filter((item) => item.id !== entry.id),
-                            })}
+                            onClick={() => {
+                              const entryLabel = entry.title.trim() || "未命名世界书";
+                              if (!confirmDangerousAction(
+                                `删除世界书「${entryLabel}」？`,
+                                "再次确认删除世界书？它会从当前酒馆的设定资料中移除。",
+                              )) {
+                                return;
+                              }
+
+                              onPatchRoom(editingRoom.id, {
+                                lorebookEntries: editingRoom.lorebookEntries.filter((item) => item.id !== entry.id),
+                              });
+                            }}
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -1345,6 +1559,43 @@ export const TavernManagementPage = ({
                     onChange={handleImportRoomFile}
                   />
                   <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        onCopyRoom(editingRoom.id);
+                        setEditingRoomId(null);
+                      }}
+                    >
+                      <Copy className="size-4" />
+                      复制酒馆
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => requestRoomLockChange(editingRoom.id, !editingRoom.locked)}
+                    >
+                      {editingRoom.locked ? (
+                        <LockKeyhole className="size-4" />
+                      ) : (
+                        <UnlockKeyhole className="size-4" />
+                      )}
+                      {editingRoom.locked ? "解锁酒馆" : "锁定酒馆"}
+                    </Button>
+                    {editingRoom.systemPresetId && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={editingRoom.locked}
+                        onClick={() => requestRestoreSystemPresetRoom(editingRoom.id)}
+                      >
+                        <RotateCcw className="size-4" />
+                        恢复默认
+                      </Button>
+                    )}
                     <Button type="button" size="sm" variant="outline" onClick={onExportRoom}>
                       <Copy className="size-4" />
                       导出
@@ -1369,7 +1620,7 @@ export const TavernManagementPage = ({
                       type="button"
                       size="sm"
                       variant="destructive"
-                      disabled={!canDeleteRoom}
+                      disabled={!canDeleteRoom || editingRoom.locked}
                       onClick={() => requestDeleteRoom(editingRoom.id)}
                     >
                       <Trash2 className="size-4" />

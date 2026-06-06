@@ -1,5 +1,5 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,9 +19,11 @@ import {
   createTavernCharacter,
   createTavernLorebookEntry,
   createTavernMessage,
+  createTavernRoomFromSystemPreset,
   createTavernRoom,
   createTavernTimelineEvent,
   DEFAULT_TAVERN_ROOM_SETTINGS,
+  getTavernSystemPreset,
   loadTavernState,
   saveTavernState,
 } from "../storage";
@@ -108,6 +110,9 @@ const hasAssetDraftItems = (draft: TavernAssetDraft) =>
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
+const confirmDangerousAction = (message: string, secondMessage: string) =>
+  window.confirm(message) && window.confirm(secondMessage);
+
 type TavernRoomExportV1 = {
   schema: typeof TAVERN_ROOM_EXPORT_SCHEMA;
   version: 1;
@@ -182,6 +187,8 @@ export const TavernPage = ({
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageViewportRef = useRef<HTMLDivElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -243,9 +250,51 @@ export const TavernPage = ({
       ?? null
   ), [activeRoom?.activeCharacterId, roomCharacters]);
 
+  const scrollMessagesToBottom = useCallback(() => {
+    const viewport = messageViewportRef.current;
+    if (!viewport) {
+      messageEndRef.current?.scrollIntoView({ block: "end" });
+      return;
+    }
+
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: "auto",
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollMessagesToBottom();
+
+    const firstFrame = window.requestAnimationFrame(() => {
+      scrollMessagesToBottom();
+      window.requestAnimationFrame(scrollMessagesToBottom);
+    });
+
+    return () => window.cancelAnimationFrame(firstFrame);
+  }, [
+    activeRoom?.id,
+    executionSteps.length,
+    latestMessage?.content,
+    latestMessage?.id,
+    roomMessages.length,
+    scrollMessagesToBottom,
+    viewMode,
+  ]);
+
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ block: "end" });
-  }, [activeRoom?.id, latestMessage?.content, roomMessages.length]);
+    const messageList = messageListRef.current;
+    if (!messageList || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      scrollMessagesToBottom();
+    });
+    resizeObserver.observe(messageList);
+
+    return () => resizeObserver.disconnect();
+  }, [activeRoom?.id, scrollMessagesToBottom, viewMode]);
 
   const selectableFiles = useMemo(() => files.filter((file) => !file.isDirectory), [files]);
   const activeReferenceToken = useMemo(
@@ -425,7 +474,10 @@ export const TavernPage = ({
   }, []);
 
   const deleteMessage = useCallback((messageId: string) => {
-    if (!window.confirm("删除这条消息？")) {
+    if (!confirmDangerousAction(
+      "删除这条消息？",
+      "再次确认删除这条消息？它会从酒馆记录中移除，并重算当前房间的自动记忆。",
+    )) {
       return;
     }
 
@@ -491,7 +543,7 @@ export const TavernPage = ({
 
   const deleteCharacter = useCallback((characterId: string) => {
     const character = state.characters.find((item) => item.id === characterId);
-    if (!character || state.characters.length <= 1) {
+    if (!character || character.systemPresetId || state.characters.length <= 1) {
       return;
     }
 
@@ -499,7 +551,12 @@ export const TavernPage = ({
     const confirmMessage = usedRoomCount > 0
       ? `删除角色「${character.name}」？它会同时从 ${usedRoomCount} 个酒馆的入席角色中移除。`
       : `删除角色「${character.name}」？`;
-    if (!window.confirm(confirmMessage)) {
+    if (!confirmDangerousAction(
+      confirmMessage,
+      usedRoomCount > 0
+        ? `再次确认删除角色「${character.name}」？相关酒馆引用和角色记忆都会被移除。`
+        : `再次确认删除角色「${character.name}」？该角色资料会被永久移除。`,
+    )) {
       return;
     }
 
@@ -573,7 +630,10 @@ export const TavernPage = ({
   }, []);
 
   const clearActiveRoomMessages = useCallback(() => {
-    if (!activeRoom || !window.confirm("清空当前房间的对话记录？")) {
+    if (!activeRoom || !confirmDangerousAction(
+      `清空「${activeRoom.title}」的对话记录？`,
+      "再次确认清空对话？当前房间现有消息会被替换为一条重置提示。",
+    )) {
       return;
     }
 
@@ -596,11 +656,17 @@ export const TavernPage = ({
   }, [activeRoom]);
 
   const deleteRoom = useCallback((roomId: string) => {
-    if (state.rooms.length <= 1) {
+    const targetRoom = state.rooms.find((room) => room.id === roomId);
+    if (!targetRoom || targetRoom.locked || state.rooms.length <= 1) {
       return;
     }
 
     setState((current) => {
+      const currentTargetRoom = current.rooms.find((room) => room.id === roomId);
+      if (!currentTargetRoom || currentTargetRoom.locked || current.rooms.length <= 1) {
+        return current;
+      }
+
       const nextRooms = current.rooms.filter((room) => room.id !== roomId);
       const nextMessagesByRoom = { ...current.messagesByRoom };
       delete nextMessagesByRoom[roomId];
@@ -619,7 +685,275 @@ export const TavernPage = ({
       setIsSidePanelOpen(false);
       setViewMode("home");
     }
-  }, [activeRoom?.id, state.rooms.length]);
+  }, [activeRoom?.id, state.rooms]);
+
+  const copyRoom = useCallback((roomId: string) => {
+    setState((current) => {
+      const sourceRoom = current.rooms.find((room) => room.id === roomId);
+      if (!sourceRoom) {
+        return current;
+      }
+
+      const createdAt = Date.now();
+      const copiedRoomId = createLocalId("room");
+      const sourceCharacterById = new Map(
+        current.characters.map((character) => [character.id, character]),
+      );
+      const characterIdMap = new Map<string, string>();
+      const copiedCharacters = sourceRoom.characterIds.flatMap((characterId) => {
+        const character = sourceCharacterById.get(characterId);
+        if (!character) {
+          return [];
+        }
+
+        const copiedCharacterId = createLocalId("character");
+        characterIdMap.set(character.id, copiedCharacterId);
+        return [{
+          ...character,
+          id: copiedCharacterId,
+          systemPresetId: undefined,
+          systemPresetCharacterId: undefined,
+          systemPresetVersion: undefined,
+          createdAt,
+          updatedAt: createdAt,
+        }];
+      });
+      const copiedCharacterIds = sourceRoom.characterIds.flatMap((characterId) => {
+        const copiedCharacterId = characterIdMap.get(characterId);
+        return copiedCharacterId ? [copiedCharacterId] : [];
+      });
+      const characterMemories = Object.fromEntries(
+        Object.entries(sourceRoom.characterMemories).flatMap(([characterId, memory]) => {
+          const copiedCharacterId = characterIdMap.get(characterId);
+          return copiedCharacterId && memory.trim() ? [[copiedCharacterId, memory]] : [];
+        }),
+      );
+      const messageIdMap = new Map<string, string>();
+      const copiedMessages = (current.messagesByRoom[sourceRoom.id] ?? []).flatMap((message) => {
+        const copiedMessageId = createLocalId("message");
+        messageIdMap.set(message.id, copiedMessageId);
+
+        if (message.role === "character") {
+          const copiedCharacterId = message.characterId
+            ? characterIdMap.get(message.characterId)
+            : undefined;
+          if (!copiedCharacterId) {
+            return [];
+          }
+
+          return [{
+            ...message,
+            id: copiedMessageId,
+            roomId: copiedRoomId,
+            characterId: copiedCharacterId,
+            createdAt,
+            status: message.status === "streaming" ? "done" as const : message.status,
+            referencedFiles: message.referencedFiles?.map((file) => ({ ...file })),
+          }];
+        }
+
+        return [{
+          ...message,
+          id: copiedMessageId,
+          roomId: copiedRoomId,
+          createdAt,
+          status: message.status === "streaming" ? "done" as const : message.status,
+          referencedFiles: message.referencedFiles?.map((file) => ({ ...file })),
+        }];
+      });
+      const messages = copiedMessages.length > 0
+        ? copiedMessages
+        : [
+            createTavernMessage({
+              roomId: copiedRoomId,
+              role: "narrator",
+              content: "这个酒馆从另一个房间复制而来，灯光重新亮起。",
+              status: "done",
+            }),
+          ];
+      const copiedRoom: TavernRoom = {
+        ...sourceRoom,
+        id: copiedRoomId,
+        workspaceId: workspace.id,
+        systemPresetId: undefined,
+        systemPresetVersion: undefined,
+        locked: false,
+        title: `${sourceRoom.title}（副本）`,
+        autoMemory: "",
+        autoMemoryUpdatedAt: undefined,
+        summarizedMessageIds: [],
+        characterMemories,
+        lorebookEntries: sourceRoom.lorebookEntries.map((entry) => ({
+          ...entry,
+          id: createLocalId("lore"),
+          createdAt,
+          updatedAt: createdAt,
+        })),
+        timelineEvents: sourceRoom.timelineEvents.map((event) => ({
+          ...event,
+          id: createLocalId("event"),
+          createdAt,
+          updatedAt: createdAt,
+        })),
+        assetDrafts: sourceRoom.assetDrafts.map((draft) => ({
+          ...draft,
+          id: createLocalId("draft"),
+          sourceMessageIds: draft.sourceMessageIds.flatMap((messageId) => {
+            const copiedMessageId = messageIdMap.get(messageId);
+            return copiedMessageId ? [copiedMessageId] : [];
+          }),
+          timelineEvents: draft.timelineEvents.map((event) => ({
+            ...event,
+            id: createLocalId("timeline-draft"),
+          })),
+          characterMemories: draft.characterMemories.flatMap((memory) => {
+            const copiedCharacterId = characterIdMap.get(memory.characterId);
+            return copiedCharacterId
+              ? [{
+                  ...memory,
+                  id: createLocalId("memory-draft"),
+                  characterId: copiedCharacterId,
+                }]
+              : [];
+          }),
+          lorebookEntries: draft.lorebookEntries.map((entry) => ({
+            ...entry,
+            id: createLocalId("lore-draft"),
+          })),
+          createdAt,
+          updatedAt: createdAt,
+        })),
+        characterIds: copiedCharacterIds,
+        activeCharacterId: characterIdMap.get(sourceRoom.activeCharacterId)
+          ?? copiedCharacterIds[0]
+          ?? "",
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      return {
+        ...current,
+        activeRoomId: copiedRoomId,
+        rooms: [...current.rooms, copiedRoom],
+        characters: [...current.characters, ...copiedCharacters],
+        messagesByRoom: {
+          ...current.messagesByRoom,
+          [copiedRoomId]: messages,
+        },
+      };
+    });
+    setError("");
+  }, [workspace.id]);
+
+  const restoreSystemPresetRoom = useCallback((roomId: string) => {
+    const room = state.rooms.find((item) => item.id === roomId);
+    const preset = getTavernSystemPreset(room?.systemPresetId);
+    if (!room || room.locked || !preset) {
+      return;
+    }
+
+    if (!window.confirm(
+      `再次确认恢复「${preset.label}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
+    )) {
+      return;
+    }
+
+    setState((current) => {
+      const sourceRoom = current.rooms.find((item) => item.id === roomId);
+      const sourcePreset = getTavernSystemPreset(sourceRoom?.systemPresetId);
+      if (!sourceRoom || sourceRoom.locked || !sourcePreset) {
+        return current;
+      }
+
+      const characterIdByPresetId = new Map<string, string>();
+      sourcePreset.characters.forEach((presetCharacter) => {
+        const existingSystemCharacter = current.characters.find((character) =>
+          character.systemPresetId === sourcePreset.id &&
+          character.systemPresetCharacterId === presetCharacter.id
+        );
+        if (existingSystemCharacter) {
+          characterIdByPresetId.set(presetCharacter.id, existingSystemCharacter.id);
+          return;
+        }
+
+        const presetCharacterIndex = sourcePreset.room.characterIds.indexOf(presetCharacter.id);
+        const existingCharacterId = presetCharacterIndex >= 0
+          ? sourceRoom.characterIds[presetCharacterIndex]
+          : undefined;
+        const existingCharacter = current.characters.find((character) =>
+          character.id === existingCharacterId
+        );
+        if (
+          existingCharacter &&
+          !existingCharacter.systemPresetId &&
+          (
+            existingCharacter.name === presetCharacter.name ||
+            existingCharacter.avatar === presetCharacter.avatar
+          )
+        ) {
+          characterIdByPresetId.set(presetCharacter.id, existingCharacter.id);
+        }
+      });
+      const restored = createTavernRoomFromSystemPreset(workspace.id, sourcePreset.id, {
+        roomId: sourceRoom.id,
+        roomCreatedAt: sourceRoom.createdAt,
+        characterIdByPresetId,
+      });
+      const restoredCharacterById = new Map(
+        restored.characters.map((character) => [character.id, character]),
+      );
+      const existingCharacterIds = new Set(current.characters.map((character) => character.id));
+
+      return {
+        ...current,
+        activeRoomId: sourceRoom.id,
+        rooms: current.rooms.map((item) =>
+          item.id === sourceRoom.id ? restored.room : item
+        ),
+        characters: [
+          ...current.characters.map((character) =>
+            restoredCharacterById.get(character.id) ?? character
+          ),
+          ...restored.characters.filter((character) => !existingCharacterIds.has(character.id)),
+        ],
+        messagesByRoom: {
+          ...current.messagesByRoom,
+          [sourceRoom.id]: restored.messages,
+        },
+      };
+    });
+    setError("");
+  }, [state.rooms, workspace.id]);
+
+  const setRoomLocked = useCallback((roomId: string, locked: boolean) => {
+    const room = state.rooms.find((item) => item.id === roomId);
+    if (!room || room.locked === locked) {
+      return false;
+    }
+
+    const actionLabel = locked ? "锁定" : "解锁";
+    const consequence = locked
+      ? "锁定后将不能删除该酒馆，也不能恢复系统默认。"
+      : "解锁后将重新允许删除该酒馆或恢复系统默认。";
+    if (!window.confirm(`再次确认${actionLabel}「${room.title}」？${consequence}`)) {
+      return false;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((item) =>
+        item.id === roomId
+          ? {
+              ...item,
+              locked,
+              updatedAt: Date.now(),
+            }
+          : item,
+      ),
+    }));
+    setError("");
+    return true;
+  }, [state.rooms]);
 
   const applyAssetDraft = useCallback((draftId: string) => {
     if (!activeRoom) {
@@ -676,6 +1010,14 @@ export const TavernPage = ({
 
   const deleteAssetDraft = useCallback((draftId: string) => {
     if (!activeRoom) {
+      return;
+    }
+
+    const draft = activeRoom.assetDrafts.find((item) => item.id === draftId);
+    if (!draft || !confirmDangerousAction(
+      "忽略这份待确认草稿？",
+      "再次确认忽略草稿？草稿中的时间线、记忆和世界书建议都会被删除。",
+    )) {
       return;
     }
 
@@ -832,6 +1174,7 @@ export const TavernPage = ({
       scenePresetId: normalizeVisualPresetId(parsed.room.scenePresetId),
       scene: parsed.room.scene?.trim() || "一间刚被导入的酒馆房间。",
       sceneGoal: parsed.room.sceneGoal?.trim() || "",
+      locked: false,
       memory: parsed.room.memory?.trim() || "",
       autoMemory: parsed.room.autoMemory?.trim() || "",
       autoMemoryUpdatedAt: typeof parsed.room.autoMemoryUpdatedAt === "number"
@@ -1506,6 +1849,9 @@ export const TavernPage = ({
           setViewMode("room");
         }}
         onPatchRoom={patchRoom}
+        onCopyRoom={copyRoom}
+        onRestoreSystemPresetRoom={restoreSystemPresetRoom}
+        onSetRoomLocked={setRoomLocked}
         onDeleteRoom={deleteRoom}
         onClearRoomMessages={clearActiveRoomMessages}
         onExportRoom={exportActiveRoom}
@@ -1556,6 +1902,7 @@ export const TavernPage = ({
           />
 
           <ScrollArea
+            viewportRef={messageViewportRef}
             className={cn(
               "min-h-0 flex-1",
               visualPreset.tavern.scrollArea,
@@ -1563,6 +1910,7 @@ export const TavernPage = ({
             style={backgroundStyle}
           >
             <div
+              ref={messageListRef}
               className={cn(
                 "mx-auto flex w-full flex-col gap-4 px-4 py-6 sm:px-5",
                 visualPreset.tavern.messageList,

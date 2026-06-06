@@ -9,6 +9,9 @@ export type TavernCharacterModelConfig = {
 
 export type TavernCharacter = {
   id: string;
+  systemPresetId?: string;
+  systemPresetCharacterId?: string;
+  systemPresetVersion?: number;
   name: string;
   avatar: string;
   description: string;
@@ -80,6 +83,9 @@ export type TavernRoomSettings = {
 export type TavernRoom = {
   id: string;
   workspaceId: string;
+  systemPresetId?: string;
+  systemPresetVersion?: number;
+  locked: boolean;
   title: string;
   scenePresetId: VisualPresetId;
   scene: string;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Save } from "lucide-react";
+import { Check, Save } from "lucide-react";
 import {
+  defaultTavernAvatar,
   normalizeTavernAvatarId,
   tavernAvatarGroups,
   tavernAvatarOptions,
@@ -69,6 +70,7 @@ export const TavernCharacterFormDialog = ({
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
   const [formError, setFormError] = useState("");
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   const modelProviders = useMemo(
     () => providers.filter((provider) => provider.models.some((model) => model.isEnabled)),
@@ -87,6 +89,10 @@ export const TavernCharacterFormDialog = ({
   const globalModelLabel = globalProvider && globalModel
     ? `${globalProvider.name} / ${globalModel.modelName}`
     : "未选择";
+  const selectedAvatar = useMemo(
+    () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
+    [avatar],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -117,6 +123,12 @@ export const TavernCharacterFormDialog = ({
     setModelId(configuredModel?.id ?? nextProvider?.models.find((model) => model.isEnabled)?.id ?? "");
     setFormError("");
   }, [character, globalProvider, modelProviders, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setIsAvatarPickerOpen(false);
+    }
+  }, [open]);
 
   const handleProviderChange = (nextProviderId: string) => {
     const nextProvider = modelProviders.find((provider) => provider.id === nextProviderId) ?? null;
@@ -174,14 +186,31 @@ export const TavernCharacterFormDialog = ({
               </div>
             )}
 
-            <label className="block space-y-1.5" htmlFor="tavern-character-name">
-              <span className="text-xs font-medium text-muted-foreground">角色名称</span>
-              <Input
-                id="tavern-character-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
+            <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 sm:grid-cols-[88px_minmax(0,1fr)]">
+              <button
+                type="button"
+                className="flex aspect-square w-full items-center justify-center self-end rounded-md border bg-background p-1.5 shadow-xs transition-all hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-label={`更换头像：${selectedAvatar.label}`}
+                aria-haspopup="dialog"
+                aria-expanded={isAvatarPickerOpen}
+                onClick={() => setIsAvatarPickerOpen(true)}
+              >
+                <img
+                  src={selectedAvatar.src}
+                  alt=""
+                  className="size-full rounded-[5px] object-cover"
+                />
+              </button>
+
+              <label className="min-w-0 space-y-1.5 self-end" htmlFor="tavern-character-name">
+                <span className="text-xs font-medium text-muted-foreground">角色名称</span>
+                <Input
+                  id="tavern-character-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </label>
+            </div>
 
             <label className="block space-y-1.5" htmlFor="tavern-character-description">
               <span className="text-xs font-medium text-muted-foreground">角色设定</span>
@@ -271,43 +300,6 @@ export const TavernCharacterFormDialog = ({
                 </div>
               )}
             </div>
-
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">头像</div>
-              <div className="space-y-3">
-                {tavernAvatarGroups.map((group) => (
-                  <section key={group.id} className="space-y-1.5">
-                    <div className="flex items-baseline gap-2">
-                      <div className="text-xs font-medium text-foreground">{group.label}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {group.options.length} 个头像
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10">
-                      {group.options.map((avatarOption) => (
-                        <button
-                          key={avatarOption.id}
-                          type="button"
-                          className={cn(
-                            "flex aspect-square items-center justify-center rounded-md border bg-muted/20 p-1 transition-colors hover:bg-muted/45",
-                            avatar === avatarOption.id && "border-primary bg-primary/10",
-                          )}
-                          title={avatarOption.label}
-                          aria-label={avatarOption.label}
-                          onClick={() => setAvatar(avatarOption.id)}
-                        >
-                          <img
-                            src={avatarOption.src}
-                            alt=""
-                            className="size-full rounded-[5px] object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
           </div>
         </ScrollArea>
 
@@ -321,6 +313,81 @@ export const TavernCharacterFormDialog = ({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={isAvatarPickerOpen} onOpenChange={setIsAvatarPickerOpen}>
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b px-5 py-4 pr-12">
+            <DialogTitle>选择头像</DialogTitle>
+            <DialogDescription>
+              {name.trim() ? `为「${name.trim()}」选择角色头像。` : "为角色选择头像。"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="max-h-[min(70vh,640px)] space-y-5 px-5 py-4">
+              {tavernAvatarGroups.map((group) => (
+                <section key={group.id} className="space-y-2">
+                  <div>
+                    <div className="text-xs font-medium text-foreground">{group.label}</div>
+                    <div className="text-[11px] leading-4 text-muted-foreground">
+                      {group.description}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                    {group.options.map((avatarOption) => {
+                      const isSelected = avatar === avatarOption.id;
+
+                      return (
+                        <button
+                          key={avatarOption.id}
+                          type="button"
+                          className={cn(
+                            "group relative rounded-md border bg-card p-1.5 text-left shadow-xs transition-all hover:bg-accent/35 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                            isSelected
+                              ? "border-primary/50 ring-1 ring-primary/20"
+                              : "border-transparent",
+                          )}
+                          title={avatarOption.label}
+                          aria-label={`选择头像：${avatarOption.label}`}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setAvatar(avatarOption.id);
+                            setIsAvatarPickerOpen(false);
+                          }}
+                        >
+                          <img
+                            src={avatarOption.src}
+                            alt=""
+                            className="aspect-square w-full rounded-md object-cover"
+                          />
+                          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                            {avatarOption.label}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                              <Check className="size-3.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="border-t px-5 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAvatarPickerOpen(false)}
+            >
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
