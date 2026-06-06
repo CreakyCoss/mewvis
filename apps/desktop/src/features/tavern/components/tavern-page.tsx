@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { agentAvatarOptions } from "@/assets/agent-avatars";
+import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { readWorkspaceFile } from "@/features/workspace-chat/api";
@@ -753,7 +753,7 @@ export const TavernPage = ({
         return [{
           id: nextId,
           name,
-          avatar: character.avatar || agentAvatarOptions[0]?.id || "",
+          avatar: character.avatar || tavernAvatarOptions[0]?.id || "",
           description,
           speakingStyle,
           goals: character.goals?.trim() || undefined,

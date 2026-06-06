@@ -72,7 +72,7 @@ export const parseTavernCharacterCard = (raw: string): TavernCharacterCardInput 
 
   return {
     name,
-    avatar: textValue(parsed.avatar) || "cat-sun",
+    avatar: textValue(parsed.avatar) || "tavern-01",
     description,
     speakingStyle,
     goals: textValue(parsed.goals) || undefined,

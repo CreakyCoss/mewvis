@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Save } from "lucide-react";
-import { agentAvatarOptions } from "@/assets/agent-avatars";
+import {
+  normalizeTavernAvatarId,
+  tavernAvatarGroups,
+  tavernAvatarOptions,
+} from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,7 +62,7 @@ export const TavernCharacterFormDialog = ({
   const [speakingStyle, setSpeakingStyle] = useState("");
   const [goals, setGoals] = useState("");
   const [relationships, setRelationships] = useState("");
-  const [avatar, setAvatar] = useState(agentAvatarOptions[0]?.id ?? "");
+  const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
   const [modelMode, setModelMode] = useState<typeof MODEL_MODE_INHERIT | typeof MODEL_MODE_CUSTOM>(
     MODEL_MODE_INHERIT,
   );
@@ -107,7 +111,7 @@ export const TavernCharacterFormDialog = ({
     setSpeakingStyle(character?.speakingStyle ?? "");
     setGoals(character?.goals ?? "");
     setRelationships(character?.relationships ?? "");
-    setAvatar(character?.avatar ?? agentAvatarOptions[0]?.id ?? "");
+    setAvatar(normalizeTavernAvatarId(character?.avatar ?? tavernAvatarOptions[0]?.id));
     setModelMode(character?.modelConfig ? MODEL_MODE_CUSTOM : MODEL_MODE_INHERIT);
     setProviderId(nextProvider?.id ?? "");
     setModelId(configuredModel?.id ?? nextProvider?.models.find((model) => model.isEnabled)?.id ?? "");
@@ -270,21 +274,37 @@ export const TavernCharacterFormDialog = ({
 
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">头像</div>
-              <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10">
-                {agentAvatarOptions.map((avatarOption) => (
-                  <button
-                    key={avatarOption.id}
-                    type="button"
-                    className={cn(
-                      "flex aspect-square items-center justify-center rounded-md border bg-muted/20 p-1 transition-colors hover:bg-muted/45",
-                      avatar === avatarOption.id && "border-primary bg-primary/10",
-                    )}
-                    title={avatarOption.label}
-                    aria-label={avatarOption.label}
-                    onClick={() => setAvatar(avatarOption.id)}
-                  >
-                    <img src={avatarOption.src} alt="" className="size-full rounded-[5px]" />
-                  </button>
+              <div className="space-y-3">
+                {tavernAvatarGroups.map((group) => (
+                  <section key={group.id} className="space-y-1.5">
+                    <div className="flex items-baseline gap-2">
+                      <div className="text-xs font-medium text-foreground">{group.label}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {group.options.length} 个头像
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10">
+                      {group.options.map((avatarOption) => (
+                        <button
+                          key={avatarOption.id}
+                          type="button"
+                          className={cn(
+                            "flex aspect-square items-center justify-center rounded-md border bg-muted/20 p-1 transition-colors hover:bg-muted/45",
+                            avatar === avatarOption.id && "border-primary bg-primary/10",
+                          )}
+                          title={avatarOption.label}
+                          aria-label={avatarOption.label}
+                          onClick={() => setAvatar(avatarOption.id)}
+                        >
+                          <img
+                            src={avatarOption.src}
+                            alt=""
+                            className="size-full rounded-[5px] object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </div>

@@ -1,5 +1,9 @@
 import { Bot, Plus, Save, Trash2 } from "lucide-react";
-import { agentAvatarOptions, resolveAgentAvatar } from "@/assets/agent-avatars";
+import {
+  agentAvatarGroups,
+  normalizeAgentAvatarId,
+  resolveAgentAvatar,
+} from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +43,7 @@ export const AgentSettingsDialog = ({
     save,
     remove,
   } = useAgentSettings(open);
+  const draftAvatar = resolveAgentAvatar(normalizeAgentAvatarId(draft.avatar));
 
   const handleSave = async () => {
     const didSave = await save();
@@ -85,7 +90,7 @@ export const AgentSettingsDialog = ({
 
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {agents.map((agent) => {
-                const avatar = resolveAgentAvatar(agent.avatar);
+                const avatar = resolveAgentAvatar(normalizeAgentAvatarId(agent.avatar));
                 return (
                   <button
                     key={agent.id}
@@ -143,12 +148,12 @@ export const AgentSettingsDialog = ({
                       className="flex h-9 items-center gap-2 rounded-md bg-background px-2 shadow-xs"
                     >
                       <img
-                        src={resolveAgentAvatar(draft.avatar).src}
+                        src={draftAvatar.src}
                         alt=""
                         className="size-7 rounded-md"
                       />
                       <span className="truncate text-sm">
-                        {resolveAgentAvatar(draft.avatar).label}
+                        {draftAvatar.label}
                       </span>
                     </div>
                   </div>
@@ -156,23 +161,41 @@ export const AgentSettingsDialog = ({
 
                 <div className="space-y-2">
                   <Label>选择头像</Label>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                    {agentAvatarOptions.map((avatar) => (
-                      <button
-                        key={avatar.id}
-                        type="button"
-                        className={[
-                          "rounded-md border bg-card p-1.5 text-center shadow-xs transition-all hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                          draft.avatar === avatar.id ? "border-primary/40 ring-1 ring-primary/15" : "border-transparent",
-                        ].join(" ")}
-                        title={avatar.label}
-                        onClick={() => updateDraft((current) => ({ ...current, avatar: avatar.id }))}
-                      >
-                        <img src={avatar.src} alt={avatar.label} className="aspect-square w-full rounded-md" />
-                        <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-                          {avatar.label}
-                        </span>
-                      </button>
+                  <div className="max-h-[360px] space-y-4 overflow-y-auto pr-1">
+                    {agentAvatarGroups.map((group) => (
+                      <section key={group.id} className="space-y-2">
+                        <div>
+                          <div className="text-xs font-medium text-foreground">{group.label}</div>
+                          <div className="text-[11px] leading-4 text-muted-foreground">
+                            {group.description}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                          {group.options.map((avatar) => (
+                            <button
+                              key={avatar.id}
+                              type="button"
+                              className={[
+                                "rounded-md border bg-card p-1 text-center shadow-xs transition-all hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                                normalizeAgentAvatarId(draft.avatar) === avatar.id
+                                  ? "border-primary/50 ring-1 ring-primary/20"
+                                  : "border-transparent",
+                              ].join(" ")}
+                              title={avatar.label}
+                              onClick={() => updateDraft((current) => ({ ...current, avatar: avatar.id }))}
+                            >
+                              <img
+                                src={avatar.src}
+                                alt={avatar.label}
+                                className="aspect-square w-full rounded-md object-cover"
+                              />
+                              <span className="mt-1 block truncate text-[10px] text-muted-foreground">
+                                {avatar.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
                     ))}
                   </div>
                 </div>

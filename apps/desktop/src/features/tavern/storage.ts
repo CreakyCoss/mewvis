@@ -304,7 +304,7 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     {
       id: keeperId,
       name: "柜台记录员",
-      avatar: "cat-sun",
+      avatar: "tavern-01",
       description: "熟悉本地传闻与人物关系，擅长把混乱信息整理成可继续推进的线索。",
       speakingStyle: "温和、简洁，像在吧台边低声递来一张便签。",
       goals: "帮助用户把场景推进到下一处可写的行动。",
@@ -315,7 +315,7 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     {
       id: scoutId,
       name: "夜巡旅人",
-      avatar: "cat-sky",
+      avatar: "tavern-06",
       description: "见过很多地方，擅长补充环境、路线、风险和现场气氛。",
       speakingStyle: "直接、画面感强，常用短句描述他看到的东西。",
       goals: "让场景更有行动感和空间感。",
@@ -326,7 +326,7 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     {
       id: editorId,
       name: "炉边评注者",
-      avatar: "cat-graphite",
+      avatar: "tavern-08",
       description: "善于从叙事节奏、人物动机和冲突张力上提出补充。",
       speakingStyle: "冷静、克制，偶尔带一点尖锐的判断。",
       goals: "让每段对话都有更清晰的戏剧目的。",

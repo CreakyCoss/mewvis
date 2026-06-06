@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getLlmSettings } from "@/features/llm-settings/api";
+import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import type { LlmProvider } from "@/ai/llm/types";
+import { getLlmSettings } from "@/features/llm-settings/api";
 import {
   deleteAiAgent,
   deleteCollaborationWorkflow,
@@ -101,7 +102,7 @@ export const useAgentSettings = (open: boolean) => {
           ? {
               id: nextAgent.id,
               name: nextAgent.name,
-              avatar: nextAgent.avatar,
+              avatar: normalizeAgentAvatarId(nextAgent.avatar),
               description: nextAgent.description ?? "",
               providerId: nextAgent.providerId,
               modelId: nextAgent.modelId,
@@ -134,7 +135,7 @@ export const useAgentSettings = (open: boolean) => {
     setDraft({
       id: agent.id,
       name: agent.name,
-      avatar: agent.avatar,
+      avatar: normalizeAgentAvatarId(agent.avatar),
       description: agent.description ?? "",
       providerId: agent.providerId,
       modelId: agent.modelId,
@@ -190,6 +191,7 @@ export const useAgentSettings = (open: boolean) => {
       const settings = await saveAiAgent({
         ...draft,
         name: draft.name.trim(),
+        avatar: normalizeAgentAvatarId(draft.avatar),
         description: draft.description?.trim() || null,
       });
       setAgents(settings.agents);
@@ -202,7 +204,7 @@ export const useAgentSettings = (open: boolean) => {
         setDraft({
           id: saved.id,
           name: saved.name,
-          avatar: saved.avatar,
+          avatar: normalizeAgentAvatarId(saved.avatar),
           description: saved.description ?? "",
           providerId: saved.providerId,
           modelId: saved.modelId,
@@ -290,7 +292,7 @@ export const useAgentSettings = (open: boolean) => {
           ? {
               id: nextAgent.id,
               name: nextAgent.name,
-              avatar: nextAgent.avatar,
+              avatar: normalizeAgentAvatarId(nextAgent.avatar),
               description: nextAgent.description ?? "",
               providerId: nextAgent.providerId,
               modelId: nextAgent.modelId,
