@@ -1,0 +1,321 @@
+import {
+  appendReferencesToPrompt,
+  formatConversationForSummary,
+} from "@/ai/agent-context";
+import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
+import type {
+  TavernCharacter,
+  TavernMessage,
+  TavernReferencedFile,
+  TavernRoom,
+} from "../types";
+import {
+  formatTavernLorebookEntries,
+  formatTavernTimelineEvents,
+  TAVERN_REFERENCE_PROMPT_LIMITS,
+  tavernMessagesToRuntimeMessages,
+} from "./prompt";
+
+export type TavernExtractedAssetDraft = {
+  sourceMessageIds: string[];
+  timelineEvents: Array<{
+    title: string;
+    summary: string;
+  }>;
+  characterMemories: Array<{
+    characterId: string;
+    note: string;
+  }>;
+  lorebookEntries: Array<{
+    title: string;
+    content: string;
+    keywords: string[];
+    alwaysOn: boolean;
+  }>;
+};
+
+export type RunTavernAssetExtractionInput = {
+  runtimeAgentId: string;
+  provider: LlmProvider;
+  model: ProviderModel;
+  room: TavernRoom;
+  characters: TavernCharacter[];
+  messages: TavernMessage[];
+  sourceMessages: TavernMessage[];
+  references: TavernReferencedFile[];
+  currentUserText: string;
+};
+
+const MAX_TIMELINE_DRAFTS = 3;
+const MAX_CHARACTER_MEMORY_DRAFTS = 4;
+const MAX_LOREBOOK_DRAFTS = 3;
+
+const extractJsonObject = (text: string) => {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  const match = trimmed.match(/\{[\s\S]*\}/);
+  return match?.[0] ?? "{}";
+};
+
+const limitText = (text: string, maxChars: number) => {
+  const trimmed = text.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}...`;
+};
+
+const normalizeKeywords = (value: unknown) => Array.isArray(value)
+  ? [...new Set(value.flatMap((item) => (
+      typeof item === "string" && item.trim() ? [item.trim()] : []
+    )))]
+  : [];
+
+const normalizeKey = (value: string) => value.trim().toLowerCase();
+
+const characterBrief = (characters: TavernCharacter[]) =>
+  characters.map((character) => [
+    `id: ${character.id}`,
+    `name: ${character.name}`,
+    `description: ${character.description}`,
+    character.goals ? `goals: ${character.goals}` : "",
+    character.relationships ? `relationships: ${character.relationships}` : "",
+  ].filter(Boolean).join("\n")).join("\n\n---\n\n");
+
+const parseAssetDraft = ({
+  text,
+  room,
+  characters,
+  sourceMessages,
+}: {
+  text: string;
+  room: TavernRoom;
+  characters: TavernCharacter[];
+  sourceMessages: TavernMessage[];
+}): TavernExtractedAssetDraft => {
+  const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
+  const characterIds = new Set(characters.map((character) => character.id));
+  const existingTimelineTitles = new Set([
+    ...room.timelineEvents.map((event) => normalizeKey(event.title)),
+    ...room.assetDrafts.flatMap((draft) =>
+      draft.timelineEvents.map((event) => normalizeKey(event.title))
+    ),
+  ]);
+  const existingLoreTitles = new Set([
+    ...room.lorebookEntries.map((entry) => normalizeKey(entry.title)),
+    ...room.assetDrafts.flatMap((draft) =>
+      draft.lorebookEntries.map((entry) => normalizeKey(entry.title))
+    ),
+  ]);
+
+  const timelineEvents = Array.isArray(parsed.timelineEvents)
+    ? parsed.timelineEvents.flatMap((value) => {
+        if (!value || typeof value !== "object") {
+          return [];
+        }
+
+        const candidate = value as Record<string, unknown>;
+        const title = typeof candidate.title === "string" ? limitText(candidate.title, 80) : "";
+        const summary = typeof candidate.summary === "string" ? limitText(candidate.summary, 360) : "";
+        const normalizedTitle = normalizeKey(title);
+        if (!title || !summary || existingTimelineTitles.has(normalizedTitle)) {
+          return [];
+        }
+
+        existingTimelineTitles.add(normalizedTitle);
+        return [{ title, summary }];
+      }).slice(0, MAX_TIMELINE_DRAFTS)
+    : [];
+  const characterMemories = Array.isArray(parsed.characterMemories)
+    ? parsed.characterMemories.flatMap((value) => {
+        if (!value || typeof value !== "object") {
+          return [];
+        }
+
+        const candidate = value as Record<string, unknown>;
+        const characterId = typeof candidate.characterId === "string" ? candidate.characterId.trim() : "";
+        const note = typeof candidate.note === "string" ? limitText(candidate.note, 280) : "";
+        const currentMemory = room.characterMemories[characterId] ?? "";
+        if (!characterIds.has(characterId) || !note || currentMemory.includes(note)) {
+          return [];
+        }
+
+        return [{ characterId, note }];
+      }).slice(0, MAX_CHARACTER_MEMORY_DRAFTS)
+    : [];
+  const lorebookEntries = Array.isArray(parsed.lorebookEntries)
+    ? parsed.lorebookEntries.flatMap((value) => {
+        if (!value || typeof value !== "object") {
+          return [];
+        }
+
+        const candidate = value as Record<string, unknown>;
+        const title = typeof candidate.title === "string" ? limitText(candidate.title, 80) : "";
+        const content = typeof candidate.content === "string" ? limitText(candidate.content, 520) : "";
+        const normalizedTitle = normalizeKey(title);
+        if (!title || !content || existingLoreTitles.has(normalizedTitle)) {
+          return [];
+        }
+
+        existingLoreTitles.add(normalizedTitle);
+        return [{
+          title,
+          content,
+          keywords: normalizeKeywords(candidate.keywords).slice(0, 8),
+          alwaysOn: Boolean(candidate.alwaysOn),
+        }];
+      }).slice(0, MAX_LOREBOOK_DRAFTS)
+    : [];
+
+  return {
+    sourceMessageIds: sourceMessages.map((message) => message.id),
+    timelineEvents,
+    characterMemories,
+    lorebookEntries,
+  };
+};
+
+export const runTavernAssetExtraction = async ({
+  runtimeAgentId,
+  provider,
+  model,
+  room,
+  characters,
+  messages,
+  sourceMessages,
+  references,
+  currentUserText,
+}: RunTavernAssetExtractionInput): Promise<TavernExtractedAssetDraft> => {
+  const runtimeMessages = tavernMessagesToRuntimeMessages({
+    messages,
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
+  const sourceRuntimeMessages = tavernMessagesToRuntimeMessages({
+    messages: sourceMessages,
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
+  const pendingDraftsText = room.assetDrafts.map((draft, index) => [
+    `# draft ${index + 1}`,
+    draft.timelineEvents.map((event) => `timeline: ${event.title}\n${event.summary}`).join("\n"),
+    draft.characterMemories.map((memory) => {
+      const characterName = characters.find((character) => character.id === memory.characterId)?.name
+        ?? memory.characterId;
+      return `memory: ${characterName}\n${memory.note}`;
+    }).join("\n"),
+    draft.lorebookEntries.map((entry) => `lore: ${entry.title}\n${entry.content}`).join("\n"),
+  ].filter(Boolean).join("\n")).join("\n\n");
+  const prompt = [
+    "<output_schema>",
+    [
+      "{",
+      "\"timelineEvents\":[{\"title\":\"事件标题\",\"summary\":\"发生了什么以及影响\"}],",
+      "\"characterMemories\":[{\"characterId\":\"角色 id\",\"note\":\"这个角色需要长期记住的事实\"}],",
+      "\"lorebookEntries\":[{\"title\":\"设定名\",\"content\":\"稳定世界设定\",\"keywords\":[\"关键词\"],\"alwaysOn\":false}]",
+      "}",
+    ].join(""),
+    "</output_schema>",
+    "",
+    "<rules>",
+    "只提取已经在本轮对话中明确发生、达成、暴露或被用户确认的稳定信息。",
+    "不要把气氛描写、一次性寒暄、推测、模型自我解释写入资产。",
+    "不要重复已有时间线、已有世界书、待确认草稿或角色记忆中已经包含的信息。",
+    "characterId 必须来自角色列表。",
+    "如果没有值得沉淀的信息，三个数组都输出空数组。",
+    "只输出 JSON，不要输出 Markdown。",
+    "</rules>",
+    "",
+    `<room title="${room.title}">`,
+    room.scene,
+    "</room>",
+    "",
+    room.sceneGoal.trim()
+      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+      : "<scene_goal>（无）</scene_goal>",
+    "",
+    room.memory.trim()
+      ? `<manual_room_memory>\n${room.memory.trim()}\n</manual_room_memory>`
+      : "<manual_room_memory>（无）</manual_room_memory>",
+    "",
+    room.autoMemory.trim()
+      ? `<auto_room_memory>\n${room.autoMemory.trim()}\n</auto_room_memory>`
+      : "<auto_room_memory>（无）</auto_room_memory>",
+    "",
+    "<story_timeline>",
+    formatTavernTimelineEvents(room) || "（无）",
+    "</story_timeline>",
+    "",
+    "<character_memories>",
+    Object.entries(room.characterMemories)
+      .map(([characterId, memory]) => {
+        const characterName = characters.find((character) => character.id === characterId)?.name ?? characterId;
+        return memory.trim() ? `## ${characterName}\n${memory.trim()}` : "";
+      })
+      .filter(Boolean)
+      .join("\n\n") || "（无）",
+    "</character_memories>",
+    "",
+    "<lorebook>",
+    formatTavernLorebookEntries(room.lorebookEntries) || "（无）",
+    "</lorebook>",
+    "",
+    "<pending_asset_drafts>",
+    pendingDraftsText || "（无）",
+    "</pending_asset_drafts>",
+    "",
+    "<characters>",
+    characterBrief(characters),
+    "</characters>",
+    "",
+    "<current_user_input>",
+    currentUserText,
+    "</current_user_input>",
+    "",
+    "<new_turn_to_extract>",
+    formatConversationForSummary(sourceRuntimeMessages),
+    "</new_turn_to_extract>",
+    "",
+    "<recent_conversation_context>",
+    formatConversationForSummary(runtimeMessages),
+    "</recent_conversation_context>",
+  ].join("\n");
+  const result = await runSharedRuntimeChat({
+    agentId: runtimeAgentId,
+    provider,
+    model,
+    stream: false,
+    systemPrompt: [
+      "你是酒馆模式的剧情资产整理员。",
+      "你的任务是把新一轮对话中值得长期保存的信息整理成待确认草稿。",
+      "你只输出符合 schema 的 JSON。",
+    ].join("\n"),
+    messages: [{
+      id: `tavern-asset-extractor-${Date.now()}`,
+      role: "user",
+      content: appendReferencesToPrompt(prompt, references, {
+        query: currentUserText,
+        ...TAVERN_REFERENCE_PROMPT_LIMITS,
+      }),
+      timestamp: Date.now(),
+      metadata: null,
+    }],
+  });
+
+  try {
+    return parseAssetDraft({
+      text: result.text,
+      room,
+      characters,
+      sourceMessages,
+    });
+  } catch {
+    return {
+      sourceMessageIds: sourceMessages.map((message) => message.id),
+      timelineEvents: [],
+      characterMemories: [],
+      lorebookEntries: [],
+    };
+  }
+};

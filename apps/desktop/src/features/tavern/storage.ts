@@ -1,9 +1,17 @@
 import type {
+  TavernAssetDraft,
   TavernCharacter,
+  TavernCharacterModelConfig,
+  TavernCharacterMemoryDraft,
+  TavernLorebookEntry,
+  TavernLorebookDraft,
   TavernMessage,
   TavernReplyMode,
   TavernRoom,
+  TavernRoomSettings,
   TavernState,
+  TavernTimelineDraft,
+  TavernTimelineEvent,
 } from "./types";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
@@ -14,8 +22,263 @@ const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const now = () => Date.now();
 
+export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
+  showExecutionTrace: false,
+  autoAssetExtractionEnabled: false,
+  assetExtractionIntervalTurns: 3,
+  maxAssetDrafts: 5,
+  directorMaxSpeakers: 3,
+};
+
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
-  value === "round" ? "round" : "active";
+  value === "round" || value === "director" ? value : "active";
+
+const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.round(numberValue)));
+};
+
+const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_TAVERN_ROOM_SETTINGS };
+  }
+
+  const candidate = value as Partial<TavernRoomSettings>;
+  return {
+    showExecutionTrace: Boolean(candidate.showExecutionTrace),
+    autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
+    assetExtractionIntervalTurns: clampInteger(
+      candidate.assetExtractionIntervalTurns,
+      DEFAULT_TAVERN_ROOM_SETTINGS.assetExtractionIntervalTurns,
+      1,
+      10,
+    ),
+    maxAssetDrafts: clampInteger(
+      candidate.maxAssetDrafts,
+      DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts,
+      1,
+      20,
+    ),
+    directorMaxSpeakers: clampInteger(
+      candidate.directorMaxSpeakers,
+      DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
+      1,
+      6,
+    ),
+  };
+};
+
+const normalizeCharacterModelConfig = (
+  value: unknown,
+): TavernCharacterModelConfig | undefined => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as Partial<TavernCharacterModelConfig>;
+  const providerId = typeof candidate.providerId === "string" ? candidate.providerId.trim() : "";
+  const modelId = typeof candidate.modelId === "string" ? candidate.modelId.trim() : "";
+
+  return providerId && modelId
+    ? {
+        providerId,
+        modelId,
+      }
+    : undefined;
+};
+
+const normalizeStringRecord = (value: unknown): Record<string, string> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .flatMap(([key, item]) => {
+        const valueText = typeof item === "string" ? item : "";
+        return key && valueText ? [[key, valueText]] : [];
+      }),
+  );
+};
+
+const normalizeLorebookKeywords = (value: unknown) => Array.isArray(value)
+  ? value
+      .flatMap((item) => typeof item === "string" ? [item.trim()] : [])
+      .filter(Boolean)
+  : [];
+
+const normalizeLorebookEntry = (
+  value: unknown,
+): TavernLorebookEntry | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernLorebookEntry>;
+  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+  const content = typeof candidate.content === "string" ? candidate.content.trim() : "";
+  if (!candidate.id || !title || !content) {
+    return null;
+  }
+
+  const updatedAt = typeof candidate.updatedAt === "number" ? candidate.updatedAt : now();
+
+  return {
+    id: candidate.id,
+    title,
+    content,
+    keywords: normalizeLorebookKeywords(candidate.keywords),
+    enabled: candidate.enabled !== false,
+    alwaysOn: Boolean(candidate.alwaysOn),
+    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : updatedAt,
+    updatedAt,
+  };
+};
+
+const normalizeTimelineEvent = (
+  value: unknown,
+): TavernTimelineEvent | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernTimelineEvent>;
+  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+  const summary = typeof candidate.summary === "string" ? candidate.summary.trim() : "";
+  if (!candidate.id || !title || !summary) {
+    return null;
+  }
+
+  const updatedAt = typeof candidate.updatedAt === "number" ? candidate.updatedAt : now();
+
+  return {
+    id: candidate.id,
+    title,
+    summary,
+    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : updatedAt,
+    updatedAt,
+  };
+};
+
+const normalizeTimelineDraft = (
+  value: unknown,
+): TavernTimelineDraft | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernTimelineDraft>;
+  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+  const summary = typeof candidate.summary === "string" ? candidate.summary.trim() : "";
+  if (!candidate.id || !title || !summary) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    title,
+    summary,
+  };
+};
+
+const normalizeCharacterMemoryDraft = (
+  value: unknown,
+): TavernCharacterMemoryDraft | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernCharacterMemoryDraft>;
+  const characterId = typeof candidate.characterId === "string" ? candidate.characterId.trim() : "";
+  const note = typeof candidate.note === "string" ? candidate.note.trim() : "";
+  if (!candidate.id || !characterId || !note) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    characterId,
+    note,
+  };
+};
+
+const normalizeLorebookDraft = (
+  value: unknown,
+): TavernLorebookDraft | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernLorebookDraft>;
+  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+  const content = typeof candidate.content === "string" ? candidate.content.trim() : "";
+  if (!candidate.id || !title || !content) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    title,
+    content,
+    keywords: normalizeLorebookKeywords(candidate.keywords),
+    alwaysOn: Boolean(candidate.alwaysOn),
+  };
+};
+
+const normalizeAssetDraft = (
+  value: unknown,
+): TavernAssetDraft | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernAssetDraft>;
+  if (!candidate.id) {
+    return null;
+  }
+
+  const updatedAt = typeof candidate.updatedAt === "number" ? candidate.updatedAt : now();
+  const sourceMessageIds = Array.isArray(candidate.sourceMessageIds)
+    ? candidate.sourceMessageIds.filter((item): item is string => typeof item === "string")
+    : [];
+  const timelineEvents = Array.isArray(candidate.timelineEvents)
+    ? candidate.timelineEvents
+        .map(normalizeTimelineDraft)
+        .filter((draft): draft is TavernTimelineDraft => Boolean(draft))
+    : [];
+  const characterMemories = Array.isArray(candidate.characterMemories)
+    ? candidate.characterMemories
+        .map(normalizeCharacterMemoryDraft)
+        .filter((draft): draft is TavernCharacterMemoryDraft => Boolean(draft))
+    : [];
+  const lorebookEntries = Array.isArray(candidate.lorebookEntries)
+    ? candidate.lorebookEntries
+        .map(normalizeLorebookDraft)
+        .filter((draft): draft is TavernLorebookDraft => Boolean(draft))
+    : [];
+
+  if (
+    timelineEvents.length === 0 &&
+    characterMemories.length === 0 &&
+    lorebookEntries.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    sourceMessageIds,
+    timelineEvents,
+    characterMemories,
+    lorebookEntries,
+    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : updatedAt,
+    updatedAt,
+  };
+};
 
 export const createDefaultTavernState = (workspaceId: string): TavernState => {
   const createdAt = now();
@@ -63,14 +326,20 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     workspaceId,
     title: "夜灯酒馆",
     scene: "雨停后的夜晚，吧台上还有未擦干的水痕。几位熟客围在靠窗的位置，等待有人把故事继续讲下去。",
+    sceneGoal: "找到下一条值得追问的线索，让谈话自然进入行动。",
     memory: "",
     autoMemory: "",
     autoMemoryUpdatedAt: undefined,
     summarizedMessageIds: [],
+    characterMemories: {},
+    lorebookEntries: [],
+    timelineEvents: [],
+    assetDrafts: [],
     characterIds: characters.map((character) => character.id),
     activeCharacterId: keeperId,
     replyMode: "active",
     userPersonaName: "我",
+    settings: { ...DEFAULT_TAVERN_ROOM_SETTINGS },
     createdAt,
     updatedAt: createdAt,
   };
@@ -120,6 +389,9 @@ const normalizeTavernState = (
     memory: typeof (room as Partial<TavernRoom>).memory === "string"
       ? (room as Partial<TavernRoom>).memory ?? ""
       : "",
+    sceneGoal: typeof (room as Partial<TavernRoom>).sceneGoal === "string"
+      ? (room as Partial<TavernRoom>).sceneGoal ?? ""
+      : "",
     autoMemory: typeof (room as Partial<TavernRoom>).autoMemory === "string"
       ? (room as Partial<TavernRoom>).autoMemory ?? ""
       : "",
@@ -131,14 +403,34 @@ const normalizeTavernState = (
           typeof item === "string"
         )
       : [],
+    characterMemories: normalizeStringRecord((room as Partial<TavernRoom>).characterMemories),
+    lorebookEntries: Array.isArray((room as Partial<TavernRoom>).lorebookEntries)
+      ? ((room as Partial<TavernRoom>).lorebookEntries ?? [])
+          .map(normalizeLorebookEntry)
+          .filter((entry): entry is TavernLorebookEntry => Boolean(entry))
+      : [],
+    timelineEvents: Array.isArray((room as Partial<TavernRoom>).timelineEvents)
+      ? ((room as Partial<TavernRoom>).timelineEvents ?? [])
+          .map(normalizeTimelineEvent)
+          .filter((event): event is TavernTimelineEvent => Boolean(event))
+      : [],
+    assetDrafts: Array.isArray((room as Partial<TavernRoom>).assetDrafts)
+      ? ((room as Partial<TavernRoom>).assetDrafts ?? [])
+          .map(normalizeAssetDraft)
+          .filter((draft): draft is TavernAssetDraft => Boolean(draft))
+      : [],
     replyMode: normalizeReplyMode((room as Partial<TavernRoom>).replyMode),
     userPersonaName: room.userPersonaName || "我",
+    settings: normalizeRoomSettings((room as Partial<TavernRoom>).settings),
     characterIds: Array.isArray(room.characterIds) ? room.characterIds : [],
     activeCharacterId: room.activeCharacterId || "",
   }));
   const characters = candidate.characters.filter((character): character is TavernCharacter =>
     Boolean(character?.id && character.name)
-  );
+  ).map((character) => ({
+    ...character,
+    modelConfig: normalizeCharacterModelConfig((character as Partial<TavernCharacter>).modelConfig),
+  }));
   if (rooms.length === 0 || characters.length === 0) {
     return null;
   }
@@ -185,14 +477,96 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     workspaceId,
     title: `新酒馆 ${index}`,
     scene: "一张空桌、一盏低灯，以及等待被写下的第一句对白。",
+    sceneGoal: "",
     memory: "",
     autoMemory: "",
     autoMemoryUpdatedAt: undefined,
     summarizedMessageIds: [],
+    characterMemories: {},
+    lorebookEntries: [],
+    timelineEvents: [],
+    assetDrafts: [],
     characterIds: [],
     activeCharacterId: "",
     replyMode: "active",
     userPersonaName: "我",
+    settings: { ...DEFAULT_TAVERN_ROOM_SETTINGS },
+    createdAt,
+    updatedAt: createdAt,
+  };
+};
+
+export const createTavernTimelineEvent = (input: {
+  title: string;
+  summary: string;
+}): TavernTimelineEvent => {
+  const createdAt = now();
+  return {
+    id: createId("event"),
+    title: input.title.trim(),
+    summary: input.summary.trim(),
+    createdAt,
+    updatedAt: createdAt,
+  };
+};
+
+export const createTavernLorebookEntry = (input: {
+  title: string;
+  content: string;
+  keywords?: string[];
+  alwaysOn?: boolean;
+}): TavernLorebookEntry => {
+  const createdAt = now();
+  return {
+    id: createId("lore"),
+    title: input.title.trim(),
+    content: input.content.trim(),
+    keywords: input.keywords?.map((keyword) => keyword.trim()).filter(Boolean) ?? [],
+    enabled: true,
+    alwaysOn: Boolean(input.alwaysOn),
+    createdAt,
+    updatedAt: createdAt,
+  };
+};
+
+export const createTavernAssetDraft = (input: {
+  sourceMessageIds: string[];
+  timelineEvents?: Array<{
+    title: string;
+    summary: string;
+  }>;
+  characterMemories?: Array<{
+    characterId: string;
+    note: string;
+  }>;
+  lorebookEntries?: Array<{
+    title: string;
+    content: string;
+    keywords?: string[];
+    alwaysOn?: boolean;
+  }>;
+}): TavernAssetDraft => {
+  const createdAt = now();
+  return {
+    id: createId("draft"),
+    sourceMessageIds: input.sourceMessageIds,
+    timelineEvents: input.timelineEvents?.map((event) => ({
+      id: createId("timeline-draft"),
+      title: event.title.trim(),
+      summary: event.summary.trim(),
+    })).filter((event) => event.title && event.summary) ?? [],
+    characterMemories: input.characterMemories?.map((memory) => ({
+      id: createId("memory-draft"),
+      characterId: memory.characterId.trim(),
+      note: memory.note.trim(),
+    })).filter((memory) => memory.characterId && memory.note) ?? [],
+    lorebookEntries: input.lorebookEntries?.map((entry) => ({
+      id: createId("lore-draft"),
+      title: entry.title.trim(),
+      content: entry.content.trim(),
+      keywords: entry.keywords?.map((keyword) => keyword.trim()).filter(Boolean) ?? [],
+      alwaysOn: Boolean(entry.alwaysOn),
+    })).filter((entry) => entry.title && entry.content) ?? [],
     createdAt,
     updatedAt: createdAt,
   };
@@ -205,6 +579,7 @@ export const createTavernCharacter = (input: {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
+  modelConfig?: TavernCharacterModelConfig;
 }): TavernCharacter => {
   const createdAt = now();
   return {
@@ -215,6 +590,7 @@ export const createTavernCharacter = (input: {
     speakingStyle: input.speakingStyle,
     goals: input.goals?.trim() || undefined,
     relationships: input.relationships?.trim() || undefined,
+    modelConfig: input.modelConfig,
     createdAt,
     updatedAt: createdAt,
   };

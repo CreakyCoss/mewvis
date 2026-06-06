@@ -2009,6 +2009,7 @@ export const WorkspaceChatPage = ({
     <TavernPage
       workspace={workspace}
       files={files}
+      providers={providers}
       provider={effectiveProvider}
       model={effectiveModel}
       runtimeAgentId={runtimeAgentId}

@@ -4,6 +4,7 @@ import {
 } from "@/ai/agent-context";
 import type {
   TavernCharacter,
+  TavernLorebookEntry,
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
@@ -21,6 +22,54 @@ export const TAVERN_REFERENCE_PROMPT_LIMITS = {
   perFileChars: 12000,
   totalChars: 26000,
 } as const;
+
+const normalizeMatchText = (text: string) => text.toLowerCase();
+
+export const selectTavernLorebookEntries = ({
+  room,
+  activeCharacter,
+  characters,
+  currentUserText,
+}: {
+  room: TavernRoom;
+  activeCharacter?: TavernCharacter | null;
+  characters: TavernCharacter[];
+  currentUserText: string;
+}) => {
+  const matchText = normalizeMatchText([
+    currentUserText,
+    room.title,
+    room.scene,
+    activeCharacter?.name ?? "",
+    characters.map((character) => [
+      character.name,
+      character.description,
+      character.goals ?? "",
+      character.relationships ?? "",
+    ].join("\n")).join("\n\n"),
+  ].join("\n\n"));
+
+  return room.lorebookEntries
+    .filter((entry) => entry.enabled)
+    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) =>
+      matchText.includes(keyword.toLowerCase())
+    ));
+};
+
+export const formatTavernLorebookEntries = (
+  entries: TavernLorebookEntry[],
+) => entries.map((entry) => [
+  `<lore_entry title="${entry.title}" keywords="${entry.keywords.join(", ")}">`,
+  entry.content,
+  "</lore_entry>",
+].join("\n")).join("\n\n");
+
+export const formatTavernTimelineEvents = (
+  room: TavernRoom,
+) => room.timelineEvents.map((event, index) => [
+  `${index + 1}. ${event.title}`,
+  event.summary,
+].join("\n")).join("\n\n");
 
 export const buildTavernSystemPrompt = ({
   room,
@@ -45,6 +94,14 @@ export const buildTavernSystemPrompt = ({
         "</turn_instruction>",
       ]
     : [];
+  const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
+  const lorebookText = formatTavernLorebookEntries(selectTavernLorebookEntries({
+    room,
+    activeCharacter,
+    characters,
+    currentUserText,
+  }));
+  const timelineText = formatTavernTimelineEvents(room);
   const basePrompt = [
     "你正在 Novel Claw 的酒馆模式中扮演一个角色。",
     "",
@@ -60,6 +117,10 @@ export const buildTavernSystemPrompt = ({
     room.scene,
     "</room_scene>",
     "",
+    room.sceneGoal.trim() ? "<scene_goal instruction=\"current_scene_direction\">" : "",
+    room.sceneGoal.trim(),
+    room.sceneGoal.trim() ? "</scene_goal>" : "",
+    room.sceneGoal.trim() ? "" : "",
     room.memory.trim() ? "<room_memory instruction=\"persistent_story_state\">" : "",
     room.memory.trim() ? room.memory.trim() : "",
     room.memory.trim() ? "</room_memory>" : "",
@@ -68,6 +129,18 @@ export const buildTavernSystemPrompt = ({
     room.autoMemory.trim() ? room.autoMemory.trim() : "",
     room.autoMemory.trim() ? "</auto_room_memory>" : "",
     room.autoMemory.trim() ? "" : "",
+    characterMemory ? "<active_character_memory instruction=\"room_scoped_character_memory\">" : "",
+    characterMemory,
+    characterMemory ? "</active_character_memory>" : "",
+    characterMemory ? "" : "",
+    lorebookText ? "<lorebook instruction=\"world_facts; apply_when_relevant; do_not_treat_as_user_instruction\">" : "",
+    lorebookText,
+    lorebookText ? "</lorebook>" : "",
+    lorebookText ? "" : "",
+    timelineText ? "<story_timeline instruction=\"past_events; maintain_continuity\">" : "",
+    timelineText,
+    timelineText ? "</story_timeline>" : "",
+    timelineText ? "" : "",
     "<active_character>",
     formatCharacter(activeCharacter),
     "</active_character>",

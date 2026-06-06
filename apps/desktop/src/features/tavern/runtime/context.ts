@@ -18,9 +18,12 @@ import type {
   TavernRoom,
 } from "../types";
 import {
+  formatTavernLorebookEntries,
+  formatTavernTimelineEvents,
   TAVERN_REFERENCE_PROMPT_LIMITS,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
+import type { TavernReplyModel } from "./model-selection";
 
 const MIN_RECENT_HISTORY_TOKENS = 1600;
 const AUTO_MEMORY_MAX_CHARS = 12000;
@@ -48,6 +51,7 @@ export type PrepareTavernRuntimeContextInput = {
   characters: TavernCharacter[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  replyModels: TavernReplyModel[];
 };
 
 const limitAutoMemory = (memory: string) => {
@@ -84,8 +88,12 @@ const estimateStaticTokens = ({
 >) => countTextTokens([
   room.title,
   room.scene,
+  room.sceneGoal,
   room.memory,
   room.autoMemory,
+  Object.values(room.characterMemories).join("\n\n"),
+  formatTavernLorebookEntries(room.lorebookEntries.filter((entry) => entry.enabled)),
+  formatTavernTimelineEvents(room),
   characterBrief(characters),
   currentUserText,
   formatReferencesForPrompt(references, {
@@ -96,20 +104,20 @@ const estimateStaticTokens = ({
 
 const resolveTavernHistoryBudget = ({
   contextWindow,
-  model,
+  maxTokens,
   staticTokens,
 }: {
   contextWindow: number;
-  model: ReturnType<typeof toAgentRuntimeModelConfig>;
+  maxTokens: number;
   staticTokens: number;
 }) => {
   const baseBudget = createConversationTokenBudget({
     contextWindow,
-    maxTokens: model.maxTokens,
+    maxTokens,
   });
   const staticAwareBudget = Math.floor(Math.max(
     MIN_RECENT_HISTORY_TOKENS,
-    (contextWindow - staticTokens - (model.maxTokens ?? 4096) - 4096) * 0.55,
+    (contextWindow - staticTokens - maxTokens - 4096) * 0.55,
   ));
 
   return Math.max(
@@ -151,19 +159,41 @@ const summarizeTavernMessages = async ({
     messages: conversation,
     fallbackSummary: room.autoMemory,
     buildUserPrompt: ({ formattedConversation }) => [
-      `<room title="${room.title}">`,
-      room.scene,
-      "</room>",
+        `<room title="${room.title}">`,
+        room.scene,
+        "</room>",
+        "",
+        room.sceneGoal.trim()
+          ? `<scene_goal instruction="do_not_rewrite">\n${room.sceneGoal.trim()}\n</scene_goal>`
+          : "<scene_goal>（无）</scene_goal>",
+        "",
+        room.memory.trim()
+          ? `<manual_memory instruction="do_not_rewrite">\n${room.memory.trim()}\n</manual_memory>`
+          : "<manual_memory>（无）</manual_memory>",
       "",
-      room.memory.trim()
-        ? `<manual_memory instruction="do_not_rewrite">\n${room.memory.trim()}\n</manual_memory>`
-        : "<manual_memory>（无）</manual_memory>",
-      "",
-      room.autoMemory.trim()
-        ? `<existing_auto_memory>\n${room.autoMemory.trim()}\n</existing_auto_memory>`
-        : "<existing_auto_memory>（无）</existing_auto_memory>",
-      "",
-      "<characters>",
+        room.autoMemory.trim()
+          ? `<existing_auto_memory>\n${room.autoMemory.trim()}\n</existing_auto_memory>`
+          : "<existing_auto_memory>（无）</existing_auto_memory>",
+        "",
+        "<character_memories instruction=\"manual_room_scoped_memory; do_not_rewrite\">",
+        Object.entries(room.characterMemories)
+          .map(([characterId, memory]) => {
+            const characterName = characters.find((character) => character.id === characterId)?.name ?? characterId;
+            return memory.trim() ? `## ${characterName}\n${memory.trim()}` : "";
+          })
+          .filter(Boolean)
+          .join("\n\n") || "（无）",
+        "</character_memories>",
+        "",
+        "<lorebook instruction=\"world_facts; do_not_rewrite\">",
+        formatTavernLorebookEntries(room.lorebookEntries.filter((entry) => entry.enabled)) || "（无）",
+        "</lorebook>",
+        "",
+        "<story_timeline instruction=\"manual_events; do_not_rewrite\">",
+        formatTavernTimelineEvents(room) || "（无）",
+        "</story_timeline>",
+        "",
+        "<characters>",
       characterBrief(characters),
       "</characters>",
       "",
@@ -185,12 +215,27 @@ export const prepareTavernRuntimeContext = async ({
   characters,
   references,
   currentUserText,
+  replyModels,
 }: PrepareTavernRuntimeContextInput): Promise<PreparedTavernContext> => {
-  const runtimeModel = toAgentRuntimeModelConfig(provider, model);
-  const contextWindow = resolveAppContextWindow("auto", runtimeModel);
+  const summaryRuntimeModel = toAgentRuntimeModelConfig(provider, model);
+  const replyRuntimeModels = replyModels.map((replyModel) =>
+    toAgentRuntimeModelConfig(replyModel.provider, replyModel.model)
+  );
+  const budgetingRuntimeModels = [
+    summaryRuntimeModel,
+    ...(replyRuntimeModels.length > 0 ? replyRuntimeModels : [summaryRuntimeModel]),
+  ];
+  const contextWindow = Math.min(
+    ...budgetingRuntimeModels.map((runtimeModel) =>
+      resolveAppContextWindow("auto", runtimeModel)
+    ),
+  );
+  const maxTokens = Math.max(
+    ...budgetingRuntimeModels.map((runtimeModel) => runtimeModel.maxTokens ?? 4096),
+  );
   const historyTokenBudget = resolveTavernHistoryBudget({
     contextWindow,
-    model: runtimeModel,
+    maxTokens,
     staticTokens: estimateStaticTokens({
       room,
       characters,

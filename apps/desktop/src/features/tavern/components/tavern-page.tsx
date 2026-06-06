@@ -14,33 +14,53 @@ import {
 import type { Workspace } from "@/features/workspaces/types";
 import { parseTavernCharacterCard } from "../character-card";
 import {
+  createTavernAssetDraft,
   createTavernCharacter,
+  createTavernLorebookEntry,
   createTavernMessage,
   createTavernRoom,
+  createTavernTimelineEvent,
+  DEFAULT_TAVERN_ROOM_SETTINGS,
   loadTavernState,
   saveTavernState,
 } from "../storage";
 import type {
+  TavernAssetDraft,
   TavernCharacter,
+  TavernLorebookEntry,
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
+  TavernRoomSettings,
   TavernState,
+  TavernTimelineEvent,
 } from "../types";
 import { runTavernReply } from "../runtime/tavern-runner";
+import { runTavernDirector } from "../runtime/director";
+import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
+import {
+  formatTavernResolvedModelLabel,
+  resolveTavernCharacterModel,
+} from "../runtime/model-selection";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
+import {
+  TavernExecutionTrace,
+  type TavernExecutionStep,
+} from "./tavern-execution-trace";
 import { TavernHeader } from "./tavern-header";
 import { TavernMessageRow } from "./tavern-message-row";
 import { TavernRoomSidebar } from "./tavern-room-sidebar";
 import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
+const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
 
 type TavernPageProps = {
   workspace: Workspace;
   files: WorkspaceFileEntry[];
+  providers: LlmProvider[];
   provider: LlmProvider | null;
   model: ProviderModel | null;
   runtimeAgentId: string;
@@ -85,9 +105,68 @@ const invalidateRoomAutoMemory = (room: TavernRoom): TavernRoom => ({
   updatedAt: Date.now(),
 });
 
+const hasAssetDraftItems = (draft: TavernAssetDraft) =>
+  draft.timelineEvents.some((event) => event.title.trim() && event.summary.trim()) ||
+  draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
+  draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
+
+type TavernRoomExportV1 = {
+  schema: typeof TAVERN_ROOM_EXPORT_SCHEMA;
+  version: 1;
+  exportedAt: string;
+  room: TavernRoom;
+  characters: TavernCharacter[];
+  messages: TavernMessage[];
+};
+
+const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+
+const sanitizeFileName = (value: string) =>
+  value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80) || "tavern-room";
+
+const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.round(numberValue)));
+};
+
+const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_TAVERN_ROOM_SETTINGS };
+  }
+
+  const candidate = value as Partial<TavernRoomSettings>;
+  return {
+    showExecutionTrace: Boolean(candidate.showExecutionTrace),
+    autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
+    assetExtractionIntervalTurns: clampInteger(
+      candidate.assetExtractionIntervalTurns,
+      DEFAULT_TAVERN_ROOM_SETTINGS.assetExtractionIntervalTurns,
+      1,
+      10,
+    ),
+    maxAssetDrafts: clampInteger(
+      candidate.maxAssetDrafts,
+      DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts,
+      1,
+      20,
+    ),
+    directorMaxSpeakers: clampInteger(
+      candidate.directorMaxSpeakers,
+      DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
+      1,
+      6,
+    ),
+  };
+};
+
 export const TavernPage = ({
   workspace,
   files,
+  providers,
   provider,
   model,
   runtimeAgentId,
@@ -97,6 +176,8 @@ export const TavernPage = ({
   const [draftCursor, setDraftCursor] = useState(0);
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isExtractingAssets, setIsExtractingAssets] = useState(false);
+  const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [isAddingCharacter, setIsAddingCharacter] = useState(false);
   const [newCharacterName, setNewCharacterName] = useState("");
   const [newCharacterDescription, setNewCharacterDescription] = useState("");
@@ -121,6 +202,8 @@ export const TavernPage = ({
     setDraftCursor(0);
     setError("");
     setIsSending(false);
+    setIsExtractingAssets(false);
+    setExecutionSteps([]);
   }, [workspace.id]);
 
   useEffect(() => {
@@ -162,6 +245,17 @@ export const TavernPage = ({
     const roomCharacterIds = new Set(activeRoom.characterIds);
     return state.characters.filter((character) => !roomCharacterIds.has(character.id));
   }, [activeRoom, state.characters]);
+  const activeCharacterModel = useMemo(
+    () => activeCharacter
+      ? resolveTavernCharacterModel({
+          character: activeCharacter,
+          providers,
+          fallbackProvider: provider,
+          fallbackModel: model,
+        })
+      : null,
+    [activeCharacter, model, provider, providers],
+  );
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ block: "end" });
@@ -206,6 +300,40 @@ export const TavernPage = ({
     () => fileReferenceMatches.filter((match) => match.matches.length > 1),
     [fileReferenceMatches],
   );
+
+  const resetExecutionTrace = useCallback((steps: TavernExecutionStep[]) => {
+    setExecutionSteps(steps);
+  }, []);
+
+  const patchExecutionStep = useCallback((
+    stepId: string,
+    patch: Partial<Omit<TavernExecutionStep, "id">>,
+  ) => {
+    setExecutionSteps((current) => current.map((step) =>
+      step.id === stepId ? { ...step, ...patch } : step
+    ));
+  }, []);
+
+  const appendExecutionStep = useCallback((step: TavernExecutionStep) => {
+    setExecutionSteps((current) => [...current, step]);
+  }, []);
+
+  const shouldAutoExtractAssets = useCallback((
+    room: TavernRoom,
+    messagesAfterUser: TavernMessage[],
+  ) => {
+    if (!room.settings.autoAssetExtractionEnabled) {
+      return false;
+    }
+
+    if (room.assetDrafts.length >= room.settings.maxAssetDrafts) {
+      return false;
+    }
+
+    const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
+    return userTurnCount > 0 &&
+      userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
+  }, []);
 
   const patchRoom = useCallback((roomId: string, patch: Partial<TavernRoom>) => {
     setState((current) => ({
@@ -482,6 +610,501 @@ export const TavernPage = ({
     }));
   }, [activeRoom]);
 
+  const updateCharacterMemory = useCallback((characterId: string, memory: string) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              characterMemories: {
+                ...room.characterMemories,
+                [characterId]: memory,
+              },
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const addTimelineEvent = useCallback((input: {
+    title: string;
+    summary: string;
+  }) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const event = createTavernTimelineEvent(input);
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              timelineEvents: [...room.timelineEvents, event],
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const updateTimelineEvent = useCallback((
+    eventId: string,
+    patch: Partial<TavernTimelineEvent>,
+  ) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              timelineEvents: room.timelineEvents.map((event) =>
+                event.id === eventId
+                  ? {
+                      ...event,
+                      ...patch,
+                      updatedAt: Date.now(),
+                    }
+                  : event,
+              ),
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const deleteTimelineEvent = useCallback((eventId: string) => {
+    if (!activeRoom || !window.confirm("删除这条剧情事件？")) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              timelineEvents: room.timelineEvents.filter((event) => event.id !== eventId),
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const addLorebookEntry = useCallback((input: {
+    title: string;
+    content: string;
+    keywords: string[];
+    alwaysOn: boolean;
+  }) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const entry = createTavernLorebookEntry(input);
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              lorebookEntries: [...room.lorebookEntries, entry],
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const updateLorebookEntry = useCallback((
+    entryId: string,
+    patch: Partial<TavernLorebookEntry>,
+  ) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              lorebookEntries: room.lorebookEntries.map((entry) =>
+                entry.id === entryId
+                  ? {
+                      ...entry,
+                      ...patch,
+                      updatedAt: Date.now(),
+                    }
+                  : entry,
+              ),
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const deleteLorebookEntry = useCallback((entryId: string) => {
+    if (!activeRoom || !window.confirm("删除这条世界书？")) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              lorebookEntries: room.lorebookEntries.filter((entry) => entry.id !== entryId),
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const updateAssetDraft = useCallback((
+    draftId: string,
+    patch: Partial<Pick<
+      TavernAssetDraft,
+      "timelineEvents" | "characterMemories" | "lorebookEntries"
+    >>,
+  ) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) => {
+        if (room.id !== activeRoom.id) {
+          return room;
+        }
+
+        return {
+          ...room,
+          assetDrafts: room.assetDrafts.flatMap((draft) => {
+            if (draft.id !== draftId) {
+              return [draft];
+            }
+
+            const nextDraft = {
+              ...draft,
+              ...patch,
+              updatedAt: Date.now(),
+            };
+
+            return hasAssetDraftItems(nextDraft) ? [nextDraft] : [];
+          }),
+          updatedAt: Date.now(),
+        };
+      }),
+    }));
+  }, [activeRoom]);
+
+  const applyAssetDraft = useCallback((draftId: string) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) => {
+        if (room.id !== activeRoom.id) {
+          return room;
+        }
+
+        const draft = room.assetDrafts.find((item) => item.id === draftId);
+        if (!draft) {
+          return room;
+        }
+
+        const timelineEvents = draft.timelineEvents.filter((event) =>
+          event.title.trim() && event.summary.trim()
+        );
+        const memoryDrafts = draft.characterMemories.filter((memory) =>
+          memory.characterId.trim() && memory.note.trim()
+        );
+        const lorebookEntries = draft.lorebookEntries.filter((entry) =>
+          entry.title.trim() && entry.content.trim()
+        );
+        const characterMemories = { ...room.characterMemories };
+        for (const memory of memoryDrafts) {
+          const existing = characterMemories[memory.characterId]?.trim() ?? "";
+          const nextNote = memory.note.trim();
+          characterMemories[memory.characterId] = existing
+            ? [existing, nextNote].join("\n")
+            : nextNote;
+        }
+
+        return {
+          ...room,
+          characterMemories,
+          timelineEvents: [
+            ...room.timelineEvents,
+            ...timelineEvents.map((event) => createTavernTimelineEvent(event)),
+          ],
+          lorebookEntries: [
+            ...room.lorebookEntries,
+            ...lorebookEntries.map((entry) => createTavernLorebookEntry(entry)),
+          ],
+          assetDrafts: room.assetDrafts.filter((item) => item.id !== draftId),
+          updatedAt: Date.now(),
+        };
+      }),
+    }));
+  }, [activeRoom]);
+
+  const deleteAssetDraft = useCallback((draftId: string) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      rooms: current.rooms.map((room) =>
+        room.id === activeRoom.id
+          ? {
+              ...room,
+              assetDrafts: room.assetDrafts.filter((draft) => draft.id !== draftId),
+              updatedAt: Date.now(),
+            }
+          : room,
+      ),
+    }));
+  }, [activeRoom]);
+
+  const exportActiveRoom = useCallback(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const payload: TavernRoomExportV1 = {
+      schema: TAVERN_ROOM_EXPORT_SCHEMA,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      room: activeRoom,
+      characters: roomCharacters,
+      messages: roomMessages,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sanitizeFileName(activeRoom.title)}.tavern-room.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, [activeRoom, roomCharacters, roomMessages]);
+
+  const importRoomExport = useCallback((raw: string) => {
+    let parsed: TavernRoomExportV1;
+    try {
+      parsed = JSON.parse(raw) as TavernRoomExportV1;
+    } catch {
+      return "房间文件不是有效 JSON。";
+    }
+
+    if (
+      parsed.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
+      parsed.version !== 1 ||
+      !parsed.room ||
+      !Array.isArray(parsed.characters)
+    ) {
+      return "房间文件格式不受支持。";
+    }
+
+    const createdAt = Date.now();
+    const roomId = createLocalId("room");
+    const characterIdMap = new Map<string, string>();
+    const importedCharacters = parsed.characters
+      .flatMap((character) => {
+        const name = typeof character.name === "string" ? character.name.trim() : "";
+        const description = typeof character.description === "string" ? character.description.trim() : "";
+        const speakingStyle = typeof character.speakingStyle === "string" ? character.speakingStyle.trim() : "";
+        if (!character.id || !name || !description || !speakingStyle) {
+          return [];
+        }
+
+        const nextId = createLocalId("character");
+        characterIdMap.set(character.id, nextId);
+        return [{
+          id: nextId,
+          name,
+          avatar: character.avatar || agentAvatarOptions[0]?.id || "",
+          description,
+          speakingStyle,
+          goals: character.goals?.trim() || undefined,
+          relationships: character.relationships?.trim() || undefined,
+          modelConfig: character.modelConfig,
+          createdAt,
+          updatedAt: createdAt,
+        } satisfies TavernCharacter];
+      });
+
+    if (importedCharacters.length === 0) {
+      return "房间文件里没有可导入的角色。";
+    }
+
+    const importedCharacterIds = parsed.room.characterIds
+      .flatMap((characterId) => {
+        const mappedId = characterIdMap.get(characterId);
+        return mappedId ? [mappedId] : [];
+      });
+    const characterIds = importedCharacterIds.length > 0
+      ? importedCharacterIds
+      : importedCharacters.map((character) => character.id);
+    const activeCharacterId = characterIdMap.get(parsed.room.activeCharacterId) ?? characterIds[0] ?? "";
+    const characterMemories = Object.fromEntries(
+      Object.entries(parsed.room.characterMemories ?? {})
+        .flatMap(([characterId, memory]) => {
+          const mappedId = characterIdMap.get(characterId);
+          return mappedId && typeof memory === "string" && memory.trim()
+            ? [[mappedId, memory.trim()]]
+            : [];
+        }),
+    );
+    const importedTimelineEvents = (parsed.room.timelineEvents ?? [])
+      .flatMap((event) => (
+        event.title?.trim() && event.summary?.trim()
+          ? [createTavernTimelineEvent({
+              title: event.title,
+              summary: event.summary,
+            })]
+          : []
+      ));
+    const importedLorebookEntries = (parsed.room.lorebookEntries ?? [])
+      .flatMap((entry) => (
+        entry.title?.trim() && entry.content?.trim()
+          ? [createTavernLorebookEntry({
+              title: entry.title,
+              content: entry.content,
+              keywords: Array.isArray(entry.keywords) ? entry.keywords : [],
+              alwaysOn: Boolean(entry.alwaysOn),
+            })]
+          : []
+      ));
+    const importedAssetDrafts = (parsed.room.assetDrafts ?? [])
+      .flatMap((draft) => {
+        const assetDraft = createTavernAssetDraft({
+          sourceMessageIds: [],
+          timelineEvents: draft.timelineEvents,
+          characterMemories: draft.characterMemories.flatMap((memory) => {
+            const mappedId = characterIdMap.get(memory.characterId);
+            return mappedId
+              ? [{
+                  characterId: mappedId,
+                  note: memory.note,
+                }]
+              : [];
+          }),
+          lorebookEntries: draft.lorebookEntries,
+        });
+        return hasAssetDraftItems(assetDraft) ? [assetDraft] : [];
+      });
+    const title = parsed.room.title?.trim() || "导入酒馆";
+    const importedRoom: TavernRoom = {
+      id: roomId,
+      workspaceId: workspace.id,
+      title: `${title}（导入）`,
+      scene: parsed.room.scene?.trim() || "一间刚被导入的酒馆房间。",
+      sceneGoal: parsed.room.sceneGoal?.trim() || "",
+      memory: parsed.room.memory?.trim() || "",
+      autoMemory: parsed.room.autoMemory?.trim() || "",
+      autoMemoryUpdatedAt: typeof parsed.room.autoMemoryUpdatedAt === "number"
+        ? parsed.room.autoMemoryUpdatedAt
+        : undefined,
+      summarizedMessageIds: [],
+      characterMemories,
+      lorebookEntries: importedLorebookEntries,
+      timelineEvents: importedTimelineEvents,
+      assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
+      characterIds,
+      activeCharacterId,
+      replyMode: parsed.room.replyMode === "round" || parsed.room.replyMode === "director"
+        ? parsed.room.replyMode
+        : "active",
+      userPersonaName: parsed.room.userPersonaName?.trim() || "我",
+      settings: normalizeImportedRoomSettings(parsed.room.settings),
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const importedMessages = Array.isArray(parsed.messages)
+      ? parsed.messages.flatMap((message) => {
+          if (!message.content?.trim()) {
+            return [];
+          }
+
+          if (message.role === "character") {
+            const mappedCharacterId = message.characterId
+              ? characterIdMap.get(message.characterId)
+              : undefined;
+            if (!mappedCharacterId) {
+              return [];
+            }
+
+            return [createTavernMessage({
+              roomId,
+              role: "character",
+              characterId: mappedCharacterId,
+              content: message.content,
+              status: "done",
+              referencedFiles: message.referencedFiles,
+            })];
+          }
+
+          return [createTavernMessage({
+            roomId,
+            role: message.role === "user" ? "user" : "narrator",
+            content: message.content,
+            status: "done",
+            referencedFiles: message.referencedFiles,
+          })];
+        })
+      : [];
+    const messages = importedMessages.length > 0
+      ? importedMessages
+      : [
+          createTavernMessage({
+            roomId,
+            role: "narrator",
+            content: "这个房间从外部文件导入，灯光重新亮起。",
+            status: "done",
+          }),
+        ];
+
+    setState((current) => ({
+      ...current,
+      activeRoomId: roomId,
+      rooms: [...current.rooms, importedRoom],
+      characters: [...current.characters, ...importedCharacters],
+      messagesByRoom: {
+        ...current.messagesByRoom,
+        [roomId]: messages,
+      },
+    }));
+    setError("");
+    return null;
+  }, [workspace.id]);
+
   const handleCreateRoom = useCallback(() => {
     setState((current) => {
       const room = createTavernRoom(workspace.id, current.rooms.length + 1);
@@ -613,6 +1236,111 @@ export const TavernPage = ({
     );
   }, [referencedFilePreviews, workspace.path]);
 
+  const extractRecentAssets = useCallback(async () => {
+    if (isSending || isExtractingAssets) {
+      return;
+    }
+
+    if (!provider || !model) {
+      setError("请先在设置中选择模型，再整理剧情资产。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    if (!activeRoom || roomCharacters.length === 0) {
+      setError("当前房间还没有可整理的角色。");
+      return;
+    }
+
+    if (activeRoom.assetDrafts.length >= activeRoom.settings.maxAssetDrafts) {
+      setError("待确认草稿已达上限，请先应用或忽略一部分草稿。");
+      return;
+    }
+
+    const availableMessages = roomMessages.filter((message) =>
+      message.status !== "streaming" && message.status !== "error"
+    );
+    const contextMessages = availableMessages.slice(-30);
+    const sourceMessages = availableMessages.slice(-12);
+    if (sourceMessages.length === 0) {
+      setError("当前房间还没有可整理的对话。");
+      return;
+    }
+
+    setIsExtractingAssets(true);
+    setError("");
+    if (activeRoom.settings.showExecutionTrace) {
+      resetExecutionTrace([{
+        id: "manual-asset-extraction",
+        label: "整理最近对话",
+        detail: "从最近对话中提取待确认剧情资产。",
+        status: "running",
+      }]);
+    }
+    try {
+      const extractedDraft = await runTavernAssetExtraction({
+        runtimeAgentId,
+        provider,
+        model,
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: contextMessages,
+        sourceMessages,
+        references: [],
+        currentUserText: "手动整理最近对话中值得沉淀的剧情资产。",
+      });
+      const assetDraft = createTavernAssetDraft(extractedDraft);
+      if (!hasAssetDraftItems(assetDraft)) {
+        patchExecutionStep("manual-asset-extraction", {
+          status: "done",
+          detail: "没有发现新的稳定剧情资产。",
+        });
+        setError("最近对话没有整理出新的剧情资产。");
+        return;
+      }
+
+      setState((current) => ({
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === activeRoom.id
+            ? {
+                ...room,
+                assetDrafts: [...room.assetDrafts, assetDraft].slice(-room.settings.maxAssetDrafts),
+                updatedAt: Date.now(),
+              }
+          : room,
+        ),
+      }));
+      patchExecutionStep("manual-asset-extraction", {
+        status: "done",
+        detail: "已生成待确认草稿。",
+      });
+    } catch (assetError) {
+      patchExecutionStep("manual-asset-extraction", {
+        status: "error",
+        detail: getErrorMessage(assetError),
+      });
+      setError(`剧情资产整理失败：${getErrorMessage(assetError)}`);
+    } finally {
+      setIsExtractingAssets(false);
+    }
+  }, [
+    activeRoom,
+    isExtractingAssets,
+    isSending,
+    model,
+    patchExecutionStep,
+    provider,
+    resetExecutionTrace,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+  ]);
+
   const handleSubmit = useCallback(async (event?: FormEvent) => {
     event?.preventDefault();
     const text = draft.trim();
@@ -636,13 +1364,29 @@ export const TavernPage = ({
     }
 
     const replyMode = activeRoom.replyMode ?? "active";
-    const speakers = replyMode === "round"
+    const candidateSpeakers = replyMode === "round" || replyMode === "director"
       ? orderRoundCharacters(roomCharacters, activeCharacter?.id)
       : activeCharacter ? [activeCharacter] : [];
-    if (speakers.length === 0) {
+    if (candidateSpeakers.length === 0) {
       setError("当前房间还没有可回应的角色。");
       return;
     }
+    const candidateSpeakerModels = candidateSpeakers.map((speaker) => ({
+      speaker,
+      resolvedModel: resolveTavernCharacterModel({
+        character: speaker,
+        providers,
+        fallbackProvider: provider,
+        fallbackModel: model,
+      }),
+    }));
+    const missingModelSpeaker = candidateSpeakerModels.find((item) => !item.resolvedModel);
+    if (missingModelSpeaker) {
+      setError(`角色 ${missingModelSpeaker.speaker.name} 还没有可用模型。`);
+      return;
+    }
+    let speakers = candidateSpeakers;
+    let resolvedSpeakerModels = candidateSpeakerModels.map((item) => item.resolvedModel!);
 
     if (unresolvedFileReferences.length > 0) {
       setError(`未找到引用文件：${unresolvedFileReferences.map((match) => `@${match.token}`).join("、")}`);
@@ -676,10 +1420,24 @@ export const TavernPage = ({
     });
     let runtimeRoom = activeRoom;
     let runtimeMessages = [...roomMessages, userMessage];
+    const turnMessages: TavernMessage[] = [userMessage];
+    const shouldRunAssetExtraction = shouldAutoExtractAssets(activeRoom, runtimeMessages);
     let activeReplyMessage: TavernMessage | null = null;
     let activeReplyText = "";
 
     try {
+      if (activeRoom.settings.showExecutionTrace) {
+        resetExecutionTrace([
+          {
+            id: "context",
+            label: "整理上下文",
+            detail: "检查上下文窗口、必要时压缩自动记忆。",
+            status: "running",
+          },
+        ]);
+      } else {
+        resetExecutionTrace([]);
+      }
       const preparedContext = await prepareTavernRuntimeContext({
         runtimeAgentId,
         provider,
@@ -689,9 +1447,19 @@ export const TavernPage = ({
         characters: roomCharacters,
         references,
         currentUserText: text,
+        replyModels: resolvedSpeakerModels.map((resolvedModel) => ({
+          provider: resolvedModel.provider,
+          model: resolvedModel.model,
+        })),
       });
       runtimeRoom = preparedContext.room;
       runtimeMessages = preparedContext.messages;
+      patchExecutionStep("context", {
+        status: "done",
+        detail: preparedContext.didCompress
+          ? `已压缩 ${preparedContext.stats.summarizedMessageCount} 条旧消息。`
+          : "最近上下文在预算内。",
+      });
       if (preparedContext.didCompress) {
         setState((current) => ({
           ...current,
@@ -716,7 +1484,77 @@ export const TavernPage = ({
       setDraftCursor(0);
       appendMessagesToRoom(activeRoom.id, [userMessage]);
 
+      let directorReason = "";
+      if (replyMode === "director") {
+        appendExecutionStep({
+          id: "director",
+          label: "导演调度",
+          detail: "根据场景、记忆、时间线决定本轮发言顺序。",
+          status: "running",
+        });
+        const directorDecision = await runTavernDirector({
+          runtimeAgentId,
+          provider,
+          model,
+          room: runtimeRoom,
+          characters: roomCharacters,
+          messages: runtimeMessages,
+          references,
+          currentUserText: text,
+          maxSpeakers: Math.min(
+            activeRoom.settings.directorMaxSpeakers,
+            Math.max(1, roomCharacters.length),
+          ),
+        });
+        const characterById = new Map(roomCharacters.map((character) => [character.id, character]));
+        const directedSpeakers = directorDecision.speakerIds
+          .map((characterId) => characterById.get(characterId))
+          .filter((character): character is TavernCharacter => Boolean(character));
+        speakers = directedSpeakers.length > 0
+          ? directedSpeakers
+          : activeCharacter ? [activeCharacter] : roomCharacters.slice(0, 1);
+        const directedSpeakerModels = speakers.map((speaker) => ({
+          speaker,
+          resolvedModel: resolveTavernCharacterModel({
+            character: speaker,
+            providers,
+            fallbackProvider: provider,
+            fallbackModel: model,
+          }),
+        }));
+        const missingDirectedModel = directedSpeakerModels.find((item) => !item.resolvedModel);
+        if (missingDirectedModel) {
+          throw new Error(`角色 ${missingDirectedModel.speaker.name} 还没有可用模型。`);
+        }
+        resolvedSpeakerModels = directedSpeakerModels.map((item) => item.resolvedModel!);
+        directorReason = directorDecision.reason ?? "";
+        patchExecutionStep("director", {
+          status: "done",
+          detail: speakers.map((speaker) => speaker.name).join(" -> "),
+        });
+
+        const narratorText = directorDecision.narrator?.trim();
+        if (narratorText) {
+          const narratorMessage = createTavernMessage({
+            roomId: activeRoom.id,
+            role: "narrator",
+            content: narratorText,
+            status: "done",
+          });
+          appendMessagesToRoom(activeRoom.id, [narratorMessage]);
+          runtimeMessages = [...runtimeMessages, narratorMessage];
+          turnMessages.push(narratorMessage);
+        }
+      }
+
       for (const [speakerIndex, speaker] of speakers.entries()) {
+        const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
+        appendExecutionStep({
+          id: speakerStepId,
+          label: `${speaker.name} 回复`,
+          detail: `${speakerIndex + 1}/${speakers.length}`,
+          status: "running",
+        });
         const replyMessage = createTavernMessage({
           roomId: activeRoom.id,
           role: "character",
@@ -737,12 +1575,21 @@ export const TavernPage = ({
                 : "前面角色已经回应，请承接他们的信息，不要重复复述。",
               "只输出你自己的回应，不要替其他角色总结。",
             ].join("\n")
-          : undefined;
+          : replyMode === "director"
+            ? [
+                `导演调度选择你作为第 ${speakerIndex + 1}/${speakers.length} 位发言者。`,
+                directorReason ? `导演意图：${directorReason}` : "",
+                speakerIndex === 0
+                  ? "回应用户输入，并顺着当前场景目标推进。"
+                  : "前面角色已经回应，请承接他们的信息，不要重复复述。",
+                "只输出你自己的回应，不要替其他角色总结。",
+              ].filter(Boolean).join("\n")
+            : undefined;
 
         const result = await runTavernReply({
           runtimeAgentId,
-          provider,
-          model,
+          provider: resolvedSpeakerModels[speakerIndex].provider,
+          model: resolvedSpeakerModels[speakerIndex].model,
           room: runtimeRoom,
           activeCharacter: speaker,
           characters: roomCharacters,
@@ -770,11 +1617,71 @@ export const TavernPage = ({
           status: "done",
         });
         runtimeMessages = [...runtimeMessages, finalizedMessage];
+        turnMessages.push(finalizedMessage);
+        patchExecutionStep(speakerStepId, {
+          status: "done",
+          detail: finalText.slice(0, 120),
+        });
         activeReplyMessage = null;
         activeReplyText = "";
       }
+
+      if (shouldRunAssetExtraction) {
+        appendExecutionStep({
+          id: "asset-extraction",
+          label: "整理剧情资产",
+          detail: "从本轮对话提取待确认草稿。",
+          status: "running",
+        });
+        try {
+          const extractedDraft = await runTavernAssetExtraction({
+            runtimeAgentId,
+            provider,
+            model,
+            room: runtimeRoom,
+            characters: roomCharacters,
+            messages: runtimeMessages,
+            sourceMessages: turnMessages,
+            references,
+            currentUserText: text,
+          });
+          const assetDraft = createTavernAssetDraft(extractedDraft);
+          if (hasAssetDraftItems(assetDraft)) {
+            setState((current) => ({
+              ...current,
+              rooms: current.rooms.map((room) =>
+                room.id === activeRoom.id
+                  ? {
+                      ...room,
+                      assetDrafts: [...room.assetDrafts, assetDraft].slice(-room.settings.maxAssetDrafts),
+                      updatedAt: Date.now(),
+                    }
+                  : room,
+              ),
+            }));
+            patchExecutionStep("asset-extraction", {
+              status: "done",
+              detail: "已生成待确认草稿。",
+            });
+          } else {
+            patchExecutionStep("asset-extraction", {
+              status: "done",
+              detail: "没有发现新的稳定剧情资产。",
+            });
+          }
+        } catch (assetError) {
+          patchExecutionStep("asset-extraction", {
+            status: "error",
+            detail: getErrorMessage(assetError),
+          });
+          setError(`剧情资产整理失败：${getErrorMessage(assetError)}`);
+        }
+      }
     } catch (runError) {
       const message = getErrorMessage(runError);
+      setExecutionSteps((current) => current.map((step) =>
+        step.status === "running" ? { ...step, status: "error", detail: message } : step
+      ));
       if (activeReplyMessage) {
         patchMessage(activeReplyMessage.id, {
           content: activeReplyText.trim()
@@ -806,11 +1713,16 @@ export const TavernPage = ({
     model,
     patchMessage,
     provider,
+    providers,
+    resetExecutionTrace,
+    patchExecutionStep,
+    appendExecutionStep,
     readReferencedFiles,
     referencedFilePreviews,
     roomCharacters,
     roomMessages,
     runtimeAgentId,
+    shouldAutoExtractAssets,
     unresolvedFileReferences,
   ]);
 
@@ -853,7 +1765,7 @@ export const TavernPage = ({
           <TavernHeader
             activeRoom={activeRoom}
             activeCharacter={activeCharacter}
-            modelName={model?.modelName}
+            modelName={formatTavernResolvedModelLabel(activeCharacterModel)}
           />
 
           <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,rgba(248,250,252,0.75),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.25),transparent_32%)]">
@@ -869,6 +1781,9 @@ export const TavernPage = ({
                   onDeleteMessage={deleteMessage}
                 />
               ))}
+              {activeRoom.settings.showExecutionTrace && executionSteps.length > 0 && (
+                <TavernExecutionTrace steps={executionSteps} />
+              )}
               <div ref={messageEndRef} />
             </div>
           </ScrollArea>
@@ -901,8 +1816,12 @@ export const TavernPage = ({
           activeCharacter={activeCharacter}
           roomCharacters={roomCharacters}
           availableCharacters={availableCharacters}
+          providers={providers}
+          globalProvider={provider}
+          globalModel={model}
           isAddingCharacter={isAddingCharacter}
           isSending={isSending}
+          isExtractingAssets={isExtractingAssets}
           canDeleteRoom={state.rooms.length > 1}
           newCharacterName={newCharacterName}
           newCharacterDescription={newCharacterDescription}
@@ -921,7 +1840,20 @@ export const TavernPage = ({
           onNewCharacterAvatarChange={setNewCharacterAvatar}
           onInviteCharacter={handleInviteCharacter}
           onUpdateCharacter={updateCharacter}
+          onUpdateCharacterMemory={updateCharacterMemory}
           onImportCharacterCard={importCharacterCard}
+          onAddTimelineEvent={addTimelineEvent}
+          onUpdateTimelineEvent={updateTimelineEvent}
+          onDeleteTimelineEvent={deleteTimelineEvent}
+          onAddLorebookEntry={addLorebookEntry}
+          onUpdateLorebookEntry={updateLorebookEntry}
+          onDeleteLorebookEntry={deleteLorebookEntry}
+          onUpdateAssetDraft={updateAssetDraft}
+          onApplyAssetDraft={applyAssetDraft}
+          onDeleteAssetDraft={deleteAssetDraft}
+          onExtractRecentAssets={extractRecentAssets}
+          onExportRoom={exportActiveRoom}
+          onImportRoom={importRoomExport}
           onRemoveCharacterFromRoom={removeCharacterFromActiveRoom}
           onClearRoomMessages={clearActiveRoomMessages}
           onClearAutoMemory={clearActiveRoomAutoMemory}

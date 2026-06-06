@@ -38,9 +38,11 @@ export const TavernComposer = ({
   onSubmit,
   onKeyDown,
 }: TavernComposerProps) => {
-  const placeholder = replyMode === "round" && speakerCount > 1
-    ? `让 ${speakerCount} 位角色依次回应...`
-    : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";
+  const placeholder = replyMode === "director"
+    ? "让导演决定谁来回应..."
+    : replyMode === "round" && speakerCount > 1
+      ? `让 ${speakerCount} 位角色依次回应...`
+      : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";
 
   return (
   <form
