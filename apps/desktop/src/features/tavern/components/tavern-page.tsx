@@ -41,6 +41,7 @@ import { runTavernDirector } from "../runtime/director";
 import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
+import { cleanTavernReplyText } from "../runtime/reply-cleanup";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -1664,6 +1665,7 @@ export const TavernPage = ({
                 ? "你先回应用户，给后续角色留下可承接的信息。"
                 : "前面角色已经回应，请承接他们的信息，不要重复复述。",
               "只输出你自己的回应，不要替其他角色总结。",
+              "不要输出任何角色名加冒号的发言人标签。",
             ].join("\n")
           : replyMode === "director"
             ? [
@@ -1673,6 +1675,7 @@ export const TavernPage = ({
                   ? "回应用户输入，并顺着当前场景目标推进。"
                   : "前面角色已经回应，请承接他们的信息，不要重复复述。",
                 "只输出你自己的回应，不要替其他角色总结。",
+                "不要输出任何角色名加冒号的发言人标签。",
               ].filter(Boolean).join("\n")
             : undefined;
 
@@ -1689,14 +1692,27 @@ export const TavernPage = ({
           turnInstruction,
           onTextDelta: (delta) => {
             streamedText += delta;
-            activeReplyText = streamedText;
+            const cleanedStreamedText = cleanTavernReplyText({
+              text: streamedText,
+              activeCharacter: speaker,
+              characters: roomCharacters,
+              userPersonaName: runtimeRoom.userPersonaName,
+            });
+            activeReplyText = cleanedStreamedText;
             patchMessage(replyMessage.id, {
-              content: streamedText,
+              content: cleanedStreamedText,
               status: "streaming",
             });
           },
         });
-        const finalText = (result.text.trim() || streamedText.trim() || "（对方短暂沉默，杯沿映着灯光。）");
+        const finalText = (
+          cleanTavernReplyText({
+            text: result.text || streamedText,
+            activeCharacter: speaker,
+            characters: roomCharacters,
+            userPersonaName: runtimeRoom.userPersonaName,
+          }) || "（对方短暂沉默，杯沿映着灯光。）"
+        );
         const finalizedMessage: TavernMessage = {
           ...replyMessage,
           content: finalText,
@@ -1968,6 +1984,7 @@ export const TavernPage = ({
                     room={activeRoom}
                     visualPreset={visualPreset}
                     character={message.characterId ? characterById.get(message.characterId) : null}
+                    characters={roomCharacters}
                     isSending={isSending}
                     onUpdateMessage={updateMessageContent}
                     onDeleteMessage={deleteMessage}

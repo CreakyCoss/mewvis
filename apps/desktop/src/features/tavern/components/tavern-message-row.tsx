@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
 import { SmoothMarkdownContent } from "@/features/workspace-chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
+import { cleanTavernReplyText } from "../runtime/reply-cleanup";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -25,6 +26,7 @@ type TavernMessageRowProps = {
   room: TavernRoom;
   visualPreset: VisualPresetDefinition;
   character?: TavernCharacter | null;
+  characters: TavernCharacter[];
   isSending: boolean;
   onUpdateMessage: (messageId: string, content: string) => void;
   onDeleteMessage: (messageId: string) => void;
@@ -41,6 +43,7 @@ export const TavernMessageRow = ({
   room,
   visualPreset,
   character,
+  characters,
   isSending,
   onUpdateMessage,
   onDeleteMessage,
@@ -160,6 +163,14 @@ export const TavernMessageRow = ({
 
   const avatar = resolveAgentAvatar(character?.avatar);
   const isError = message.status === "error";
+  const displayContent = character
+    ? cleanTavernReplyText({
+        text: message.content,
+        activeCharacter: character,
+        characters,
+        userPersonaName: room.userPersonaName,
+      }) || message.content
+    : message.content;
 
   return (
     <div className="group/message flex justify-start">
@@ -199,7 +210,7 @@ export const TavernMessageRow = ({
               />
             ) : (
               <SmoothMarkdownContent
-                content={message.content}
+                content={displayContent}
                 isStreaming={isStreaming}
               />
             )}

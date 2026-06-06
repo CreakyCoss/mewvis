@@ -9,6 +9,7 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../types";
+import { cleanTavernReplyText } from "./reply-cleanup";
 
 const formatCharacter = (character: TavernCharacter) => [
   `name: ${character.name}`,
@@ -107,8 +108,11 @@ export const buildTavernSystemPrompt = ({
     "",
     "硬性规则：",
     `- 这轮只允许以「${activeCharacter.name}」的身份发言。`,
-    "- 不要代替用户说话，不要替其他角色完整发言。",
+    `- 直接输出「${activeCharacter.name}」的回复正文，不要加「${activeCharacter.name}:」「${activeCharacter.name}：」或任何发言人标签。`,
+    "- 近期对话里的“姓名:”只是历史发言人标记，不是你的输出格式。",
+    "- 不要代替用户说话，不要替其他角色完整发言，也不要用“其他角色名：...”替其他角色接话。",
     "- 可以用简短动作描写，但主体必须是角色回应。",
+    "- 不要用剧本格式、多人对话列表或旁白标签；本次只写当前角色的一段回应。",
     "- 如果引用文件或设定信息不足，基于已有场景合理推进，不要询问用户补充。",
     "- 输出中文，保持沉浸感，避免解释你是模型或系统。",
     "",
@@ -190,10 +194,19 @@ export const tavernMessagesToRuntimeMessages = ({
     }
 
     const character = message.characterId ? characterById.get(message.characterId) : null;
+    const content = character
+      ? cleanTavernReplyText({
+          text: message.content,
+          activeCharacter: character,
+          characters,
+          userPersonaName,
+        })
+      : message.content.trim();
+
     return {
       id: message.id,
       role: "assistant",
-      content: `${character?.name ?? "角色"}: ${message.content}`,
+      content: `${character?.name ?? "角色"}: ${content}`,
       timestamp: message.createdAt,
       metadata: null,
     };
