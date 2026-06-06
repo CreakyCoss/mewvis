@@ -183,6 +183,7 @@ export const TavernPage = ({
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
+  const [turnStatus, setTurnStatus] = useState("");
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
@@ -205,6 +206,7 @@ export const TavernPage = ({
     setIsSidePanelOpen(false);
     setIsSending(false);
     setIsExtractingAssets(false);
+    setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
   }, [workspace.id]);
@@ -1474,13 +1476,18 @@ export const TavernPage = ({
 
     setIsSending(true);
     setError("");
+    setTurnStatus(replyMode === "director" ? "导演正在接收你的消息..." : "正在发送消息...");
 
     let references: TavernReferencedFile[] = [];
     try {
+      if (referencedFilePreviews.length > 0) {
+        setTurnStatus("正在读取引用文件...");
+      }
       references = await readReferencedFiles();
     } catch (readError) {
       setError(`读取引用文件失败：${getErrorMessage(readError)}`);
       setIsSending(false);
+      setTurnStatus("");
       return;
     }
 
@@ -1496,11 +1503,13 @@ export const TavernPage = ({
     let runtimeMessages = [...roomMessages, userMessage];
     const turnMessages: TavernMessage[] = [userMessage];
     const shouldRunAssetExtraction = shouldAutoExtractAssets(activeRoom, runtimeMessages);
+    const shouldShowProgressTrace = activeRoom.settings.showExecutionTrace || replyMode === "director";
     let activeReplyMessage: TavernMessage | null = null;
     let activeReplyText = "";
 
     try {
-      if (activeRoom.settings.showExecutionTrace) {
+      setTurnStatus(replyMode === "director" ? "导演正在整理上下文与角色状态..." : "正在整理上下文...");
+      if (shouldShowProgressTrace) {
         setExecutionTraceAnchorMessageId(userMessage.id);
         resetExecutionTrace([
           {
@@ -1562,10 +1571,11 @@ export const TavernPage = ({
 
       let directorReason = "";
       if (replyMode === "director") {
+        setTurnStatus("导演正在判断本轮发言顺序...");
         appendExecutionStep({
           id: "director",
           label: "导演调度",
-          detail: "根据场景、记忆、时间线决定本轮发言顺序。",
+          detail: "导演正在判断本轮发言顺序...",
           status: "running",
         });
         const directorDecision = await runTavernDirector({
@@ -1604,6 +1614,7 @@ export const TavernPage = ({
         }
         resolvedSpeakerModels = directedSpeakerModels.map((item) => item.resolvedModel!);
         directorReason = directorDecision.reason ?? "";
+        setTurnStatus(`导演安排 ${speakers.map((speaker) => speaker.name).join("、")} 发言。`);
         patchExecutionStep("director", {
           status: "done",
           detail: speakers.map((speaker) => speaker.name).join(" -> "),
@@ -1625,6 +1636,9 @@ export const TavernPage = ({
 
       for (const [speakerIndex, speaker] of speakers.entries()) {
         const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
+        setTurnStatus(replyMode === "director"
+          ? `${speaker.name} 正在按导演调度回应...`
+          : `${speaker.name} 正在回应...`);
         appendExecutionStep({
           id: speakerStepId,
           label: `${speaker.name} 回复`,
@@ -1703,6 +1717,7 @@ export const TavernPage = ({
       }
 
       if (shouldRunAssetExtraction) {
+        setTurnStatus("正在整理本轮剧情资产...");
         appendExecutionStep({
           id: "asset-extraction",
           label: "整理剧情资产",
@@ -1778,6 +1793,7 @@ export const TavernPage = ({
       setError(message);
     } finally {
       setIsSending(false);
+      setTurnStatus("");
     }
   }, [
     activeCharacter,
@@ -1865,7 +1881,10 @@ export const TavernPage = ({
     );
   }
 
-  const shouldShowExecutionTrace = activeRoom.settings.showExecutionTrace && executionSteps.length > 0;
+  const shouldShowExecutionTrace = (
+    activeRoom.settings.showExecutionTrace ||
+    (activeRoom.replyMode === "director" && isSending)
+  ) && executionSteps.length > 0;
   const hasExecutionTraceAnchor = shouldShowExecutionTrace && roomMessages.some((message) =>
     message.id === executionTraceAnchorMessageId
   );
@@ -1954,12 +1973,20 @@ export const TavernPage = ({
                     onDeleteMessage={deleteMessage}
                   />
                   {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
-                    <TavernExecutionTrace steps={executionSteps} />
+                    <TavernExecutionTrace
+                      steps={executionSteps}
+                      visualPreset={visualPreset}
+                      statusText={turnStatus}
+                    />
                   )}
                 </Fragment>
               ))}
               {shouldShowExecutionTrace && !hasExecutionTraceAnchor && (
-                <TavernExecutionTrace steps={executionSteps} />
+                <TavernExecutionTrace
+                  steps={executionSteps}
+                  visualPreset={visualPreset}
+                  statusText={turnStatus}
+                />
               )}
               <div ref={messageEndRef} />
             </div>

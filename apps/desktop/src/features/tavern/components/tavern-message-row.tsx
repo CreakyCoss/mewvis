@@ -108,7 +108,7 @@ export const TavernMessageRow = ({
     return (
       <div className="group/message flex justify-end">
         <div className="flex max-w-[min(80%,680px)] flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-current opacity-75">
             <span>{room.userPersonaName || "我"}</span>
             <UserRound className="size-3.5" />
           </div>
@@ -149,7 +149,7 @@ export const TavernMessageRow = ({
               </div>
             )}
           </div>
-          <span className="text-[11px] text-muted-foreground/70">
+          <span className="text-[11px] text-current opacity-70">
             {formatMessageTime(message.createdAt)}
           </span>
           {controls}
@@ -170,9 +170,9 @@ export const TavernMessageRow = ({
           className="size-10 shrink-0 rounded-md"
         />
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{character?.name ?? "角色"}</span>
-            <span>{formatMessageTime(message.createdAt)}</span>
+          <div className="mb-1 flex items-center gap-2 text-xs text-current">
+            <span className="font-medium">{character?.name ?? "角色"}</span>
+            <span className="opacity-70">{formatMessageTime(message.createdAt)}</span>
             {isStreaming && <Loader2 className="size-3 animate-spin" />}
           </div>
           <div
