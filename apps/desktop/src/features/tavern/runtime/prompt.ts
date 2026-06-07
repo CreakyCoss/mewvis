@@ -8,6 +8,7 @@ import type {
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
+  TavernTimelineEvent,
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
 
@@ -74,9 +75,37 @@ export const formatTavernLorebookEntries = (
   "</lore_entry>",
 ].join("\n")).join("\n\n");
 
+export const resolveTavernTimelineEvents = (
+  room: TavernRoom,
+): TavernTimelineEvent[] => {
+  const events = room.timelineEvents;
+  const activeScene = room.scenes?.find((scene) => scene.id === room.activeSceneId);
+  const scope = activeScene?.timelineScope;
+  if (!scope || scope.mode === "auto") {
+    return events;
+  }
+
+  if (scope.mode === "selected") {
+    const selectedIds = new Set(scope.eventIds ?? []);
+    return events.filter((event) => selectedIds.has(event.id));
+  }
+
+  const startIndex = scope.startEventId
+    ? events.findIndex((event) => event.id === scope.startEventId)
+    : 0;
+  const endIndex = scope.endEventId
+    ? events.findIndex((event) => event.id === scope.endEventId)
+    : events.length - 1;
+  const normalizedStartIndex = startIndex >= 0 ? startIndex : 0;
+  const normalizedEndIndex = endIndex >= 0 ? endIndex : events.length - 1;
+  const from = Math.min(normalizedStartIndex, normalizedEndIndex);
+  const to = Math.max(normalizedStartIndex, normalizedEndIndex);
+  return events.slice(from, to + 1);
+};
+
 export const formatTavernTimelineEvents = (
   room: TavernRoom,
-) => room.timelineEvents.map((event, index) => [
+) => resolveTavernTimelineEvents(room).map((event, index) => [
   `${index + 1}. ${event.title}`,
   event.summary,
 ].join("\n")).join("\n\n");
@@ -170,15 +199,32 @@ export const buildTavernSystemPrompt = ({
     "- 如果引用文件或设定信息不足，不要编造引用内容；可以基于已知场景推进或在角色语气中承认未知，但不要要求用户补充系统上下文。",
     "- 输出中文，保持角色语气和现场连续性，避免解释你是模型或系统。",
     "",
+    room.storyOutline.trim() || room.storyGoal.trim() ? "<story_arc instruction=\"overall_story_continuity\">" : "",
+    room.storyOutline.trim() ? room.storyOutline.trim() : "",
+    room.storyGoal.trim() ? `<final_goal>${room.storyGoal.trim()}</final_goal>` : "",
+    room.storyOutline.trim() || room.storyGoal.trim() ? "</story_arc>" : "",
+    room.storyOutline.trim() || room.storyGoal.trim() ? "" : "",
     "<room_scene>",
     `room: ${room.title}`,
     room.scene,
     "</room_scene>",
     "",
+    room.scenePlot.trim() ? "<scene_plot instruction=\"current_story_stage_plot\">" : "",
+    room.scenePlot.trim(),
+    room.scenePlot.trim() ? "</scene_plot>" : "",
+    room.scenePlot.trim() ? "" : "",
     room.sceneGoal.trim() ? "<scene_goal instruction=\"current_scene_direction\">" : "",
     room.sceneGoal.trim(),
     room.sceneGoal.trim() ? "</scene_goal>" : "",
     room.sceneGoal.trim() ? "" : "",
+    room.sceneDirection.trim() ? "<scene_direction instruction=\"intended_development; do_not_jump_to_resolution\">" : "",
+    room.sceneDirection.trim(),
+    room.sceneDirection.trim() ? "</scene_direction>" : "",
+    room.sceneDirection.trim() ? "" : "",
+    room.sceneTransition.trim() ? "<scene_transition instruction=\"continuity_to_adjacent_stages\">" : "",
+    room.sceneTransition.trim(),
+    room.sceneTransition.trim() ? "</scene_transition>" : "",
+    room.sceneTransition.trim() ? "" : "",
     room.memory.trim() ? "<room_memory instruction=\"persistent_story_state\">" : "",
     room.memory.trim() ? room.memory.trim() : "",
     room.memory.trim() ? "</room_memory>" : "",

@@ -130,7 +130,7 @@ export const TavernCharacterFormDialog = ({
     }
 
     if (modelMode === "custom" && !selectedModelConfig) {
-      setFormError("请选择角色席位模型，或改为跟随酒馆。");
+      setFormError("请选择模型，或改为跟随酒馆。");
       return;
     }
 
@@ -146,13 +146,84 @@ export const TavernCharacterFormDialog = ({
     onOpenChange(false);
   };
 
+  const renderModelControls = () => (
+    <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+      <label className="block space-y-1.5" htmlFor="tavern-character-model-mode">
+        <span className="text-xs font-medium text-muted-foreground">模型策略</span>
+        <NativeSelect
+          id="tavern-character-model-mode"
+          value={modelMode}
+          onChange={(event) => {
+            const nextMode = event.target.value === "custom" ? "custom" : "room";
+            setModelMode(nextMode);
+            setSelectedModelConfig(
+              nextMode === "custom"
+                ? selectedModelConfig ??
+                  firstEnabledModelConfigForProvider(modelProviders[0]?.id ?? "")
+                : undefined,
+            );
+          }}
+        >
+          <NativeSelectOption value="room">跟随酒馆</NativeSelectOption>
+          <NativeSelectOption value="custom" disabled={modelProviders.length === 0}>
+            自定义
+          </NativeSelectOption>
+        </NativeSelect>
+        <span className="block text-xs leading-5 text-muted-foreground">
+          跟随酒馆时使用：{roomModelLabel}
+        </span>
+      </label>
+      {modelMode === "custom" && selectedModelConfig && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1.5" htmlFor="tavern-character-provider">
+            <span className="text-xs font-medium text-muted-foreground">供应商</span>
+            <NativeSelect
+              id="tavern-character-provider"
+              value={selectedModelConfig.providerId}
+              onChange={(event) => {
+                setSelectedModelConfig(
+                  firstEnabledModelConfigForProvider(event.target.value),
+                );
+              }}
+            >
+              {modelProviders.map((provider) => (
+                <NativeSelectOption key={provider.id} value={provider.id}>
+                  {provider.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </label>
+          <label className="block space-y-1.5" htmlFor="tavern-character-model">
+            <span className="text-xs font-medium text-muted-foreground">模型</span>
+            <NativeSelect
+              id="tavern-character-model"
+              value={selectedModelConfig.modelId}
+              onChange={(event) => {
+                setSelectedModelConfig({
+                  ...selectedModelConfig,
+                  modelId: event.target.value,
+                });
+              }}
+            >
+              {selectedModels.map((model) => (
+                <NativeSelectOption key={model.id} value={model.id}>
+                  {model.modelName}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </label>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-b px-5 py-4 pr-12">
           <DialogTitle>{character ? "编辑角色" : "新建角色"}</DialogTitle>
           <DialogDescription>
-            编辑角色基础设定，并配置该角色在当前酒馆中的席位模型。
+            编辑角色基础定义，并配置该角色使用的模型策略。
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +238,7 @@ export const TavernCharacterFormDialog = ({
             <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 sm:grid-cols-[88px_minmax(0,1fr)]">
               <button
                 type="button"
-                className="flex aspect-square w-full items-center justify-center self-end rounded-md border bg-background p-1.5 shadow-xs transition-all hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1.5 shadow-xs transition-all hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 aria-label={`更换头像：${selectedAvatar.label}`}
                 aria-haspopup="dialog"
                 aria-expanded={isAvatarPickerOpen}
@@ -180,14 +251,17 @@ export const TavernCharacterFormDialog = ({
                 />
               </button>
 
-              <label className="min-w-0 space-y-1.5 self-end" htmlFor="tavern-character-name">
-                <span className="text-xs font-medium text-muted-foreground">角色名称</span>
-                <Input
-                  id="tavern-character-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </label>
+              <div className="min-w-0 space-y-3">
+                <label className="block space-y-1.5" htmlFor="tavern-character-name">
+                  <span className="text-xs font-medium text-muted-foreground">角色名称</span>
+                  <Input
+                    id="tavern-character-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </label>
+                {renderModelControls()}
+              </div>
             </div>
 
             <label className="block space-y-1.5" htmlFor="tavern-character-description">
@@ -231,77 +305,6 @@ export const TavernCharacterFormDialog = ({
               </label>
             </div>
 
-            <div className="space-y-3 rounded-md border bg-muted/20 p-3">
-              <div>
-                <div className="text-sm font-medium leading-5">席位模型</div>
-                <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  跟随酒馆时使用：{roomModelLabel}
-                </div>
-              </div>
-              <label className="block space-y-1.5" htmlFor="tavern-character-model-mode">
-                <span className="text-xs font-medium text-muted-foreground">模型策略</span>
-                <NativeSelect
-                  id="tavern-character-model-mode"
-                  value={modelMode}
-                  onChange={(event) => {
-                    const nextMode = event.target.value === "custom" ? "custom" : "room";
-                    setModelMode(nextMode);
-                    setSelectedModelConfig(
-                      nextMode === "custom"
-                        ? selectedModelConfig ??
-                          firstEnabledModelConfigForProvider(modelProviders[0]?.id ?? "")
-                        : undefined,
-                    );
-                  }}
-                >
-                  <NativeSelectOption value="room">跟随酒馆</NativeSelectOption>
-                  <NativeSelectOption value="custom" disabled={modelProviders.length === 0}>
-                    自定义
-                  </NativeSelectOption>
-                </NativeSelect>
-              </label>
-              {modelMode === "custom" && selectedModelConfig && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block space-y-1.5" htmlFor="tavern-character-provider">
-                    <span className="text-xs font-medium text-muted-foreground">供应商</span>
-                    <NativeSelect
-                      id="tavern-character-provider"
-                      value={selectedModelConfig.providerId}
-                      onChange={(event) => {
-                        setSelectedModelConfig(
-                          firstEnabledModelConfigForProvider(event.target.value),
-                        );
-                      }}
-                    >
-                      {modelProviders.map((provider) => (
-                        <NativeSelectOption key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </label>
-                  <label className="block space-y-1.5" htmlFor="tavern-character-model">
-                    <span className="text-xs font-medium text-muted-foreground">模型</span>
-                    <NativeSelect
-                      id="tavern-character-model"
-                      value={selectedModelConfig.modelId}
-                      onChange={(event) => {
-                        setSelectedModelConfig({
-                          ...selectedModelConfig,
-                          modelId: event.target.value,
-                        });
-                      }}
-                    >
-                      {selectedModels.map((model) => (
-                        <NativeSelectOption key={model.id} value={model.id}>
-                          {model.modelName}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </label>
-                </div>
-              )}
-            </div>
           </div>
         </ScrollArea>
 

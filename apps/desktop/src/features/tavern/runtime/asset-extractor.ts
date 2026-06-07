@@ -228,13 +228,32 @@ export const runTavernAssetExtraction = async ({
     "只输出严格合法 JSON 对象，不要输出 Markdown、代码块或解释。",
     "</rules>",
     "",
+    room.storyOutline.trim() || room.storyGoal.trim()
+      ? `<story_arc>\n${[
+          room.storyOutline.trim(),
+          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+      : "<story_arc>（无）</story_arc>",
+    "",
     `<room title="${room.title}">`,
     room.scene,
     "</room>",
     "",
+    room.scenePlot.trim()
+      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+      : "<scene_plot>（无）</scene_plot>",
+    "",
     room.sceneGoal.trim()
       ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
+    "",
+    room.sceneDirection.trim()
+      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+      : "<scene_direction>（无）</scene_direction>",
+    "",
+    room.sceneTransition.trim()
+      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+      : "<scene_transition>（无）</scene_transition>",
     "",
     room.memory.trim()
       ? `<manual_room_memory>\n${room.memory.trim()}\n</manual_room_memory>`

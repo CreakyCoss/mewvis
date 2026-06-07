@@ -560,7 +560,7 @@ export const TavernSidePanel = ({
                     更多配置都在首页编辑，内页只保留对话现场需要查看的信息。
                   </div>
                   <div className="rounded-md border bg-background/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                    入席角色、场景设定、剧情时间线、世界书和记忆整理策略，都可以回到酒馆首页的编辑弹窗中统一维护。
+                    剧情时间线和世界书是酒馆共享资产；入席角色、场景设定和阶段记忆在对应故事场景中维护。
                   </div>
                 </div>
               )}

@@ -24,7 +24,7 @@ export type TavernCharacter = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  /** @deprecated 模型配置只在酒馆/入席角色维度生效，保留用于旧数据迁移。 */
+  /** 该角色在所属酒馆角色库中的模型配置；未设置时跟随酒馆模型。 */
   modelConfig?: TavernCharacterModelConfig;
   createdAt: number;
   updatedAt: number;
@@ -88,6 +88,41 @@ export type TavernRoomSettings = {
   directorMaxSpeakers: number;
 };
 
+export type TavernTimelineScope = {
+  mode: "auto" | "range" | "selected";
+  startEventId?: string;
+  endEventId?: string;
+  eventIds?: string[];
+};
+
+export type TavernScene = {
+  id: string;
+  order: number;
+  title: string;
+  scenePresetId: VisualPresetId;
+  scene: string;
+  sceneGoal: string;
+  plot: string;
+  storyDirection: string;
+  transition: string;
+  timelineScope: TavernTimelineScope;
+  memory: string;
+  autoMemory: string;
+  autoMemoryUpdatedAt?: number;
+  summarizedMessageIds?: string[];
+  characterConfigs?: Record<string, TavernRoomCharacterConfig>;
+  characterMemories: Record<string, string>;
+  /** @deprecated 世界书是酒馆/大故事级共享数据，保留仅用于旧数据迁移。 */
+  lorebookEntries: TavernLorebookEntry[];
+  /** @deprecated 时间线是酒馆/大故事级共享数据，保留仅用于旧数据迁移。 */
+  timelineEvents: TavernTimelineEvent[];
+  assetDrafts: TavernAssetDraft[];
+  characterIds: string[];
+  activeCharacterId: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type TavernRoom = {
   id: string;
   workspaceId: string;
@@ -95,9 +130,16 @@ export type TavernRoom = {
   systemPresetVersion?: number;
   locked: boolean;
   title: string;
+  storyOutline: string;
+  storyGoal: string;
+  activeSceneId?: string;
+  scenes?: TavernScene[];
   scenePresetId: VisualPresetId;
   scene: string;
   sceneGoal: string;
+  scenePlot: string;
+  sceneDirection: string;
+  sceneTransition: string;
   memory: string;
   modelConfig?: TavernCharacterModelConfig;
   autoMemory: string;
@@ -136,6 +178,7 @@ export type TavernState = {
   rooms: TavernRoom[];
   characters: TavernCharacter[];
   messagesByRoom: Record<string, TavernMessage[]>;
+  messagesByScene?: Record<string, TavernMessage[]>;
 };
 
 export type TavernReferencedFile = {

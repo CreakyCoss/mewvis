@@ -130,13 +130,32 @@ export const runTavernDirector = async ({
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",
     "",
+    room.storyOutline.trim() || room.storyGoal.trim()
+      ? `<story_arc>\n${[
+          room.storyOutline.trim(),
+          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+      : "<story_arc>（无）</story_arc>",
+    "",
     `<room title="${room.title}">`,
     room.scene,
     "</room>",
     "",
+    room.scenePlot.trim()
+      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+      : "<scene_plot>（无）</scene_plot>",
+    "",
     room.sceneGoal.trim()
       ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
+    "",
+    room.sceneDirection.trim()
+      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+      : "<scene_direction>（无）</scene_direction>",
+    "",
+    room.sceneTransition.trim()
+      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+      : "<scene_transition>（无）</scene_transition>",
     "",
     room.autoMemory.trim()
       ? `<auto_memory>\n${room.autoMemory.trim()}\n</auto_memory>`
