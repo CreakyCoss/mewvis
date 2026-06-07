@@ -103,16 +103,31 @@ export const buildTavernSystemPrompt = ({
     currentUserText,
   }));
   const timelineText = formatTavernTimelineEvents(room);
+  const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
+  const replyBodyRule = immersiveDescriptionEnabled
+    ? `- 直接输出「${activeCharacter.name}」的沉浸式回复正文，不要加「${activeCharacter.name}:」「${activeCharacter.name}：」或任何发言人标签。`
+    : `- 直接输出「${activeCharacter.name}」的回复正文，不要加「${activeCharacter.name}:」「${activeCharacter.name}：」或任何发言人标签。`;
+  const styleRules = immersiveDescriptionEnabled
+    ? [
+        "- 每次回复默认包含贴合当下场景的简短动作、神态、感官或环境互动；这些描写必须围绕当前角色，不要替用户或其他角色行动。",
+        "- 将动作、神态、感官或环境互动片段用 Markdown 单星号斜体包住，例如：*他把杯沿轻轻转向灯下。*；正常对白不要加斜体。",
+        "- 不要只输出一句纯对白或直接结论，除非用户明确要求极短回答。",
+        "- 不要用剧本格式、多人对话列表或“旁白：”标签；把动作和环境描写自然融入当前角色的一段回应中。",
+      ]
+    : [
+        "- 优先直接回应用户或上一位角色；动作、神态、感官或环境互动仅在有助于语气、承接或剧情推进时简短使用。",
+        "- 不要为了样式刻意使用 Markdown 斜体描写。",
+        "- 不要用剧本格式、多人对话列表或“旁白：”标签；本次只写当前角色的一段回应。",
+      ];
   const basePrompt = [
     "你正在 Novel Claw 的酒馆模式中扮演一个角色。",
     "",
     "硬性规则：",
     `- 这轮只允许以「${activeCharacter.name}」的身份发言。`,
-    `- 直接输出「${activeCharacter.name}」的回复正文，不要加「${activeCharacter.name}:」「${activeCharacter.name}：」或任何发言人标签。`,
+    replyBodyRule,
     "- 近期对话里的“姓名:”只是历史发言人标记，不是你的输出格式。",
     "- 不要代替用户说话，不要替其他角色完整发言，也不要用“其他角色名：...”替其他角色接话。",
-    "- 可以用简短动作描写，但主体必须是角色回应。",
-    "- 不要用剧本格式、多人对话列表或旁白标签；本次只写当前角色的一段回应。",
+    ...styleRules,
     "- 如果引用文件或设定信息不足，基于已有场景合理推进，不要询问用户补充。",
     "- 输出中文，保持沉浸感，避免解释你是模型或系统。",
     "",

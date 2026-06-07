@@ -3,16 +3,20 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type MarkdownContentProps = {
+  className?: string;
   content: string;
+  emClassName?: string;
   inverted?: boolean;
 };
 
 const MarkdownContentComponent = ({
+  className,
   content,
+  emClassName,
   inverted = false,
 }: MarkdownContentProps) => {
   return (
-    <div className="min-w-0 text-sm leading-6">
+    <div className={`min-w-0 text-sm leading-6 ${className ?? ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -37,6 +41,9 @@ const MarkdownContentComponent = ({
           ),
           li: ({ children }) => (
             <li className="pl-1">{children}</li>
+          ),
+          em: ({ children }) => (
+            <em className={emClassName}>{children}</em>
           ),
           blockquote: ({ children }) => (
             <blockquote

@@ -22,6 +22,9 @@ type TavernHeaderProps = {
   onToggleSidePanel: () => void;
 };
 
+const tavernHeaderActionButtonClassName =
+  "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
+
 export const TavernHeader = ({
   activeRoom,
   visualPreset,
@@ -76,7 +79,7 @@ export const TavernHeader = ({
         type="button"
         size="sm"
         variant="ghost"
-        className="h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:bg-current/10"
+        className={tavernHeaderActionButtonClassName}
         title={isGeneratingQuickSummary ? "正在总结" : "快速总结"}
         aria-label={isGeneratingQuickSummary ? "正在总结" : "快速总结"}
         disabled={isGeneratingQuickSummary}
@@ -89,7 +92,10 @@ export const TavernHeader = ({
         type="button"
         size="sm"
         variant="ghost"
-        className="hidden h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:bg-current/10 lg:inline-flex"
+        className={cn(
+          "hidden lg:inline-flex",
+          tavernHeaderActionButtonClassName,
+        )}
         title={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
         aria-label={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
         aria-pressed={isSidePanelOpen}

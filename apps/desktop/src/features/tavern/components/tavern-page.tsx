@@ -205,6 +205,7 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
 
   const candidate = value as Partial<TavernRoomSettings>;
   return {
+    immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
     assetExtractionIntervalTurns: clampInteger(
@@ -1791,13 +1792,16 @@ export const TavernPage = ({
         appendMessagesToRoom(activeRoom.id, [replyMessage]);
 
         let streamedText = "";
+        const ownReplyInstruction = activeRoom.settings.immersiveDescriptionEnabled !== false
+          ? "只输出你自己的沉浸式回应，动作、神态和场景互动请用 Markdown 单星号斜体包住；不要替其他角色总结或行动。"
+          : "只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。";
         const turnInstruction = replyMode === "round"
           ? [
               `这是全员轮流回应的第 ${speakerIndex + 1}/${speakers.length} 位。`,
               speakerIndex === 0
                 ? "你先回应用户，给后续角色留下可承接的信息。"
                 : "前面角色已经回应，请承接他们的信息，不要重复复述。",
-              "只输出你自己的回应，不要替其他角色总结。",
+              ownReplyInstruction,
               "不要输出任何角色名加冒号的发言人标签。",
             ].join("\n")
           : replyMode === "director"
@@ -1807,7 +1811,7 @@ export const TavernPage = ({
                 speakerIndex === 0
                   ? "回应用户输入，并顺着当前场景目标推进。"
                   : "前面角色已经回应，请承接他们的信息，不要重复复述。",
-                "只输出你自己的回应，不要替其他角色总结。",
+                ownReplyInstruction,
                 "不要输出任何角色名加冒号的发言人标签。",
               ].filter(Boolean).join("\n")
             : undefined;
@@ -2261,7 +2265,7 @@ export const TavernPage = ({
             <Button
               type="button"
               variant="outline"
-              className="border-current/20 bg-current/5 text-current hover:bg-current/10"
+              className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
               disabled={isGeneratingQuickSummary || isSending}
               onClick={() => {
                 void handleOpenQuickSummary({ force: true });

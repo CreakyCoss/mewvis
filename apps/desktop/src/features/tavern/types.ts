@@ -73,6 +73,7 @@ export type TavernAssetDraft = {
 };
 
 export type TavernRoomSettings = {
+  immersiveDescriptionEnabled: boolean;
   showExecutionTrace: boolean;
   autoAssetExtractionEnabled: boolean;
   assetExtractionIntervalTurns: number;

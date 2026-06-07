@@ -115,6 +115,10 @@ export const TavernMessageRow = ({
         userPersonaName: room.userPersonaName,
       }) || message.content
     : message.content;
+  const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
+  const immersiveDescriptionClassName = immersiveDescriptionEnabled
+    ? "tavern-immersive-em"
+    : undefined;
 
   return (
     <div className="group/message flex justify-start">
@@ -147,7 +151,9 @@ export const TavernMessageRow = ({
               />
             )}
             <SmoothMarkdownContent
+              className={immersiveDescriptionEnabled ? "tavern-immersive-markdown" : undefined}
               content={displayContent}
+              emClassName={immersiveDescriptionClassName}
               isStreaming={isStreaming}
             />
           </div>

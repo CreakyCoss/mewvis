@@ -138,3 +138,24 @@
     font: inherit;
   }
 }
+
+@layer components {
+  .tavern-immersive-markdown .tavern-immersive-em {
+    color: color-mix(in oklab, currentColor 86%, transparent);
+    font-family: ui-serif, "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+    font-size: 0.99em;
+    font-style: italic;
+    font-weight: 430;
+    line-height: 1.8;
+  }
+
+  .tavern-immersive-markdown p:has(> .tavern-immersive-em:only-child) {
+    margin: 0.22rem 0 0.58rem;
+    border-left: 2px solid color-mix(in oklab, currentColor 20%, transparent);
+    padding-left: 0.72rem;
+  }
+
+  .tavern-immersive-markdown p:has(> .tavern-immersive-em:only-child) .tavern-immersive-em {
+    color: color-mix(in oklab, currentColor 84%, transparent);
+  }
+}

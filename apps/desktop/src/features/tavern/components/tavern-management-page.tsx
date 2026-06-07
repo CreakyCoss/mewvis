@@ -114,6 +114,12 @@ const parseKeywords = (value: string) =>
     .filter(Boolean);
 
 const editorControlClassName = "w-full bg-background/80 shadow-none";
+const settingsFlagGridClassName =
+  "grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-2";
+const settingsMetricGridClassName =
+  "grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2";
+const settingsEditorMetricGridClassName =
+  "grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3";
 
 const getReplyModeLabel = (replyMode: TavernReplyMode) =>
   replyModeOptions.find((option) => option.value === replyMode)?.label ?? "当前角色";
@@ -190,9 +196,9 @@ const TavernReadonlyFlag = ({
   label: string;
   enabled: boolean;
 }) => (
-  <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2.5 text-sm shadow-xs">
-    <span>{label}</span>
-    <Badge variant={enabled ? "secondary" : "outline"}>
+  <div className="flex min-h-[3.25rem] min-w-0 items-center justify-between gap-2.5 rounded-md border bg-background/80 px-3 py-2.5 text-sm shadow-xs">
+    <span className="min-w-0 leading-5 [word-break:keep-all]">{label}</span>
+    <Badge variant={enabled ? "secondary" : "outline"} className="shrink-0">
       {enabled ? "开启" : "关闭"}
     </Badge>
   </div>
@@ -701,6 +707,7 @@ export const TavernManagementPage = ({
     if (roomContentEditDraft.type === "settings") {
       patchEditingRoomDraft({
         settings: {
+          immersiveDescriptionEnabled: roomContentEditDraft.immersiveDescriptionEnabled,
           showExecutionTrace: roomContentEditDraft.showExecutionTrace,
           autoAssetExtractionEnabled: roomContentEditDraft.autoAssetExtractionEnabled,
           assetExtractionIntervalTurns: Math.min(
@@ -994,7 +1001,19 @@ export const TavernManagementPage = ({
       case "settings":
         return (
           <>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className={settingsFlagGridClassName}>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.immersiveDescriptionEnabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    immersiveDescriptionEnabled: event.target.checked,
+                  })}
+                />
+                沉浸描写
+              </label>
               <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
                 <input
                   type="checkbox"
@@ -1020,7 +1039,7 @@ export const TavernManagementPage = ({
                 自动整理剧情资产
               </label>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className={settingsEditorMetricGridClassName}>
               <TavernEditorField label="整理间隔" htmlFor="tavern-content-asset-interval">
                 <Input
                   id="tavern-content-asset-interval"
@@ -2030,51 +2049,55 @@ export const TavernManagementPage = ({
                 </div>
 
                 <div className="space-y-4">
-	                  <TavernEditorSection
-	                    icon={Settings2}
-	                    title="运行设置"
-	                    description="控制执行过程、剧情资产整理频率和导演调度人数。"
-	                    action={(
-	                      <Button
-	                        type="button"
-	                        size="xs"
-	                        variant="outline"
-	                        onClick={openSettingsContentEditor}
-	                      >
-	                        <Pencil className="size-3.5" />
-	                        编辑
-	                      </Button>
-		                    )}
-		                    contentClassName="space-y-3"
-		                  >
-		                    <div className="grid grid-cols-2 gap-2">
-		                      <TavernReadonlyFlag
-		                        label="显示执行过程"
-		                        enabled={editingRoom.settings.showExecutionTrace}
-	                      />
-	                      <TavernReadonlyFlag
-	                        label="自动整理剧情资产"
-		                        enabled={editingRoom.settings.autoAssetExtractionEnabled}
-		                      />
-		                    </div>
-		                    <div className="grid grid-cols-3 gap-2">
-		                      <TavernReadonlyMetric
-		                        label="整理间隔"
-		                        value={`${editingRoom.settings.assetExtractionIntervalTurns} 轮`}
-		                        description="触发整理"
-		                      />
-		                      <TavernReadonlyMetric
-		                        label="草稿上限"
-		                        value={`${editingRoom.settings.maxAssetDrafts} 条`}
-		                        description="保留草稿"
-		                      />
-		                      <TavernReadonlyMetric
-		                        label="导演人数"
-		                        value={`${editingRoom.settings.directorMaxSpeakers} 人`}
-		                        description="本轮上限"
-		                      />
-		                    </div>
-		                  </TavernEditorSection>
+                  <TavernEditorSection
+                    icon={Settings2}
+                    title="运行设置"
+                    description="控制执行过程、剧情资产整理频率和导演调度人数。"
+                    action={(
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={openSettingsContentEditor}
+                      >
+                        <Pencil className="size-3.5" />
+                        编辑
+                      </Button>
+                    )}
+                    contentClassName="space-y-3"
+                  >
+                    <div className={settingsFlagGridClassName}>
+                      <TavernReadonlyFlag
+                        label="沉浸描写"
+                        enabled={editingRoom.settings.immersiveDescriptionEnabled}
+                      />
+                      <TavernReadonlyFlag
+                        label="显示执行过程"
+                        enabled={editingRoom.settings.showExecutionTrace}
+                      />
+                      <TavernReadonlyFlag
+                        label="自动整理剧情资产"
+                        enabled={editingRoom.settings.autoAssetExtractionEnabled}
+                      />
+                    </div>
+                    <div className={settingsMetricGridClassName}>
+                      <TavernReadonlyMetric
+                        label="整理间隔"
+                        value={`${editingRoom.settings.assetExtractionIntervalTurns} 轮`}
+                        description="触发整理"
+                      />
+                      <TavernReadonlyMetric
+                        label="草稿上限"
+                        value={`${editingRoom.settings.maxAssetDrafts} 条`}
+                        description="保留草稿"
+                      />
+                      <TavernReadonlyMetric
+                        label="导演人数"
+                        value={`${editingRoom.settings.directorMaxSpeakers} 人`}
+                        description="本轮上限"
+                      />
+                    </div>
+                  </TavernEditorSection>
 
                   <TavernEditorSection
                     icon={UsersRound}

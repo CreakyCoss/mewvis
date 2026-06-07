@@ -107,13 +107,17 @@ const useSmoothedStreamText = (content: string, isStreaming: boolean) => {
 };
 
 type SmoothMarkdownContentProps = {
+  className?: string;
   content: string;
+  emClassName?: string;
   inverted?: boolean;
   isStreaming: boolean;
 };
 
 const SmoothMarkdownContentComponent = ({
+  className,
   content,
+  emClassName,
   inverted,
   isStreaming,
 }: SmoothMarkdownContentProps) => {
@@ -121,7 +125,9 @@ const SmoothMarkdownContentComponent = ({
 
   return (
     <MarkdownContent
+      className={className}
       content={visibleContent}
+      emClassName={emClassName}
       inverted={inverted}
     />
   );

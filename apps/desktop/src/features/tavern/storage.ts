@@ -215,6 +215,7 @@ const isLegacyNightLampCharacter = (character: Partial<TavernCharacter>) =>
   legacyNightLampCharacters.has(`${character.name ?? ""}|${character.avatar ?? ""}`);
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
+  immersiveDescriptionEnabled: true,
   showExecutionTrace: false,
   autoAssetExtractionEnabled: false,
   assetExtractionIntervalTurns: 3,
@@ -241,6 +242,7 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
 
   const candidate = value as Partial<TavernRoomSettings>;
   return {
+    immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
     assetExtractionIntervalTurns: clampInteger(

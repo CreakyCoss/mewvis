@@ -24,6 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -274,6 +275,7 @@ export const TavernSidePanel = ({
   const sceneStatusItems = [
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
+    `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
     `自动整理记忆：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
@@ -330,6 +332,26 @@ export const TavernSidePanel = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-md border border-current/10 bg-current/5 px-3 py-2.5 text-current">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">沉浸描写</div>
+                <div className="mt-0.5 text-xs leading-5 opacity-65">
+                  动作、神态、感官与环境互动
+                </div>
+              </div>
+              <Switch
+                size="sm"
+                checked={activeRoom.settings.immersiveDescriptionEnabled}
+                disabled={isSending}
+                aria-label="切换沉浸描写"
+                onCheckedChange={(checked) => onPatchRoom(activeRoom.id, {
+                  settings: {
+                    ...activeRoom.settings,
+                    immersiveDescriptionEnabled: checked,
+                  },
+                })}
+              />
             </div>
             <TextBlock label="场景描述" value={activeRoom.scene} />
             <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
