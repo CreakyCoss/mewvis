@@ -1,6 +1,7 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Clapperboard, RefreshCcw, Sparkles } from "lucide-react";
+import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { Button } from "@/components/ui/button";
@@ -268,6 +269,8 @@ type QuickSummaryCacheState = {
   entries: Record<string, QuickSummaryCache>;
 };
 
+type QuickNovelExportFormat = "txt" | "md";
+
 const QUICK_SUMMARY_CACHE_STORAGE_PREFIX = "novel-claw:tavern:quick-summary";
 
 const quickSummaryCacheStorageKey = (workspaceId: string) =>
@@ -354,6 +357,50 @@ const getSceneMessages = (
 
 const sanitizeFileName = (value: string) =>
   value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80) || "tavern-room";
+
+const createQuickNovelExportContent = ({
+  format,
+  roomTitle,
+  sceneTitle,
+  generatedAt,
+  content,
+}: {
+  format: QuickNovelExportFormat;
+  roomTitle: string;
+  sceneTitle: string;
+  generatedAt: number | undefined;
+  content: string;
+}) => {
+  const trimmedContent = content.trim();
+  if (format === "txt") {
+    return `${trimmedContent}\n`;
+  }
+
+  const generatedAtText = generatedAt
+    ? new Intl.DateTimeFormat("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(generatedAt)
+    : "";
+  const metadataLines = [
+    sceneTitle ? `场景：${sceneTitle}` : "",
+    generatedAtText ? `生成时间：${generatedAtText}` : "",
+  ].filter(Boolean);
+
+  return [
+    `# ${roomTitle}`,
+    "",
+    ...metadataLines,
+    "",
+    "---",
+    "",
+    trimmedContent,
+    "",
+  ].join("\n");
+};
 
 const createQuickSummarySignature = (
   room: TavernRoom,
@@ -467,6 +514,7 @@ export const TavernPage = ({
   const [quickSummaryTab, setQuickSummaryTab] = useState<"summary" | "novel">("summary");
   const [isGeneratingQuickSummary, setIsGeneratingQuickSummary] = useState(false);
   const [isGeneratingQuickNovel, setIsGeneratingQuickNovel] = useState(false);
+  const [quickNovelExportFormat, setQuickNovelExportFormat] = useState<QuickNovelExportFormat>("md");
   const [quickSummaryError, setQuickSummaryError] = useState("");
   const [quickSummaryCacheState, setQuickSummaryCacheState] = useState<QuickSummaryCacheState>(
     () => ({
@@ -504,6 +552,7 @@ export const TavernPage = ({
     setQuickSummaryTab("summary");
     setIsGeneratingQuickSummary(false);
     setIsGeneratingQuickNovel(false);
+    setQuickNovelExportFormat("md");
     setQuickSummaryError("");
     setQuickSummaryCacheState({
       workspaceId: workspace.id,
@@ -2089,6 +2138,54 @@ export const TavernPage = ({
     runtimeAgentId,
   ]);
 
+  const handleExportQuickNovel = useCallback(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const novelContent = activeQuickSummaryCache?.novelContent?.trim() ?? "";
+    if (!novelContent) {
+      setQuickSummaryError("暂无小说正文可导出。");
+      return;
+    }
+
+    try {
+      const activeSceneTitle = activeRoom.scenes?.find((scene) =>
+        scene.id === activeRoom.activeSceneId
+      )?.title ?? "当前场景";
+      const exportContent = createQuickNovelExportContent({
+        format: quickNovelExportFormat,
+        roomTitle: activeRoom.title,
+        sceneTitle: activeSceneTitle,
+        generatedAt: activeQuickSummaryCache?.novelGeneratedAt,
+        content: novelContent,
+      });
+      const blob = new Blob([exportContent], {
+        type: quickNovelExportFormat === "md"
+          ? "text/markdown;charset=utf-8"
+          : "text/plain;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+      link.href = url;
+      link.download = `${sanitizeFileName(`${activeRoom.title}-${activeSceneTitle}-小说-${timestamp}`)}.${quickNovelExportFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setQuickSummaryError("");
+      toast.success(`已导出小说为 ${quickNovelExportFormat.toUpperCase()} 文件`);
+    } catch (exportError) {
+      setQuickSummaryError(`导出小说失败：${getErrorMessage(exportError)}`);
+    }
+  }, [
+    activeQuickSummaryCache?.novelContent,
+    activeQuickSummaryCache?.novelGeneratedAt,
+    activeRoom,
+    quickNovelExportFormat,
+  ]);
+
   const handleSubmit = useCallback(async (event?: FormEvent, submittedText?: string) => {
     event?.preventDefault();
     const draftText = (submittedText ?? draft).trim();
@@ -2953,6 +3050,32 @@ export const TavernPage = ({
               </TabsContent>
 
               <TabsContent value="novel" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+                  <NativeSelect
+                    size="sm"
+                    value={quickNovelExportFormat}
+                    className="w-24 bg-current/5 text-xs text-current"
+                    aria-label="小说导出格式"
+                    disabled={!quickNovelContent.trim()}
+                    onChange={(event) => {
+                      setQuickNovelExportFormat(event.target.value === "txt" ? "txt" : "md");
+                    }}
+                  >
+                    <NativeSelectOption value="md">MD</NativeSelectOption>
+                    <NativeSelectOption value="txt">TXT</NativeSelectOption>
+                  </NativeSelect>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-current/20 bg-current/5 text-xs text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
+                    disabled={!quickNovelContent.trim()}
+                    onClick={handleExportQuickNovel}
+                  >
+                    <Download className="size-3.5" />
+                    导出小说
+                  </Button>
+                </div>
                 {quickNovelContent ? (
                   <section
                     className={cn(

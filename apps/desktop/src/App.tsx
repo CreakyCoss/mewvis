@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
 import { ConfigDatabaseDialog } from "@/features/app-recovery/components/config-database-dialog";
 import { StartupGate } from "@/features/app-startup/components/startup-gate";
 import { WorkspaceChatPage } from "@/features/workspace-chat/components/page";
@@ -134,6 +135,7 @@ const WorkspaceApp = () => {
         />
         {workspaceDialog}
         <ConfigDatabaseDialog onRecovered={loadOverview} />
+        <Toaster position="top-center" />
       </>
     );
   }
@@ -157,6 +159,7 @@ const WorkspaceApp = () => {
         </div>
       </main>
       <ConfigDatabaseDialog onRecovered={loadOverview} />
+      <Toaster position="top-center" />
     </>
   );
 };
