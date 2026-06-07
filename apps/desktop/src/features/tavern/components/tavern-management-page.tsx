@@ -2793,10 +2793,10 @@ export const TavernManagementPage = ({
                                       <TooltipTrigger asChild>
                                         <div
                                           tabIndex={0}
-                                          className="flex shrink-0 cursor-default items-center gap-1.5 rounded-md bg-muted/35 px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                          className="flex max-w-[14rem] shrink-0 cursor-default items-center gap-1.5 rounded-md bg-muted/35 px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:max-w-xs"
                                         >
                                           <div className="flex -space-x-1.5">
-                                            {sceneCharacters.slice(0, 2).map((character) => (
+                                            {sceneCharacters.map((character) => (
                                               <img
                                                 key={character.id}
                                                 src={resolveAgentAvatar(character.avatar).src}
