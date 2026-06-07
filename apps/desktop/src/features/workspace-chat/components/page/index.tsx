@@ -134,6 +134,11 @@ type WorkspaceChatPageProps = {
   onEditWorkspace: (workspace: Workspace) => void;
 };
 
+const resolveStringStateAction = (
+  action: SetStateAction<string>,
+  previous: string,
+) => typeof action === "function" ? action(previous) : action;
+
 const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
   chat: false,
   agent: true,
@@ -509,6 +514,36 @@ export const WorkspaceChatPage = ({
     setAgentQuestionAnswer(answer);
     setCustomAgentQuestionAnswer(customAnswer);
   }, []);
+
+  const updateCurrentAgentQuestionTaskDraft = useCallback((
+    patch: Partial<Pick<RunningAgentTaskContext, "questionAnswer" | "customQuestionAnswer">>,
+  ) => {
+    const question = pendingAgentQuestionRef.current;
+    if (!question) {
+      return;
+    }
+
+    const task = runningAgentTasksRef.current.get(question.taskId);
+    if (task?.pendingQuestion?.questionId !== question.questionId) {
+      return;
+    }
+
+    Object.assign(task, patch);
+  }, []);
+
+  const setAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>((action) => {
+    const nextAnswer = resolveStringStateAction(action, agentQuestionAnswerRef.current);
+    agentQuestionAnswerRef.current = nextAnswer;
+    setAgentQuestionAnswer(nextAnswer);
+    updateCurrentAgentQuestionTaskDraft({ questionAnswer: nextAnswer });
+  }, [updateCurrentAgentQuestionTaskDraft]);
+
+  const setCustomAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>((action) => {
+    const nextAnswer = resolveStringStateAction(action, customAgentQuestionAnswerRef.current);
+    customAgentQuestionAnswerRef.current = nextAnswer;
+    setCustomAgentQuestionAnswer(nextAnswer);
+    updateCurrentAgentQuestionTaskDraft({ customQuestionAnswer: nextAnswer });
+  }, [updateCurrentAgentQuestionTaskDraft]);
 
   const clearAgentQuestionDraft = useCallback(() => {
     applyAgentQuestionDraft(null);
@@ -1339,8 +1374,8 @@ export const WorkspaceChatPage = ({
         answer,
       );
       clearPendingAgentQuestion(answeredQuestionId);
-      setAgentQuestionAnswer("");
-      setCustomAgentQuestionAnswer("");
+      setAgentQuestionAnswerDraft("");
+      setCustomAgentQuestionAnswerDraft("");
     } catch (caught) {
       setChatError(String(caught));
     } finally {
@@ -1946,8 +1981,8 @@ export const WorkspaceChatPage = ({
     onCreateWorkspace,
     answerAgentQuestion,
     resolveCollaborationPlanDecision,
-    setAgentQuestionAnswer,
-    setCustomAgentQuestionAnswer,
+    setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
+    setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
     submitAgentQuestionAnswer,
     setChatMode,
     setChatExecutionMode,
