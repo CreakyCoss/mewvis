@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
 import { SmoothMarkdownContent } from "@/features/workspace-chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
-import { cleanTavernReplyText } from "../runtime/reply-cleanup";
+import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -107,14 +107,19 @@ export const TavernMessageRow = ({
 
   const avatar = resolveAgentAvatar(character?.avatar);
   const isError = message.status === "error";
-  const displayContent = character
-    ? cleanTavernReplyText({
+  const parsedReply = character
+    ? parseTavernReplyText({
         text: message.content,
         activeCharacter: character,
         characters,
         userPersonaName: room.userPersonaName,
-      }) || message.content
-    : message.content;
+      })
+    : null;
+  const displayContent = parsedReply?.content || message.content;
+  const displayThought = message.thought?.trim() || parsedReply?.thought?.trim() || "";
+  const copyContent = displayThought
+    ? `心想：${displayThought}\n\n${displayContent}`
+    : displayContent;
   const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
   const immersiveDescriptionClassName = immersiveDescriptionEnabled
     ? "tavern-immersive-em"
@@ -150,6 +155,16 @@ export const TavernMessageRow = ({
                 aria-hidden
               />
             )}
+            {displayThought && !isError && (
+              <div
+                className="mb-3 ml-1 w-fit max-w-[94%] rounded-[9px] rounded-tl-[3px] border border-dashed border-current/28 bg-current/[0.085] px-3.5 py-2 text-current shadow-[inset_0_1px_12px_rgba(255,255,255,0.09)] opacity-90"
+                aria-label="角色内心想法"
+              >
+                <p className="whitespace-pre-wrap break-words font-serif text-[12.5px] leading-6 italic opacity-95">
+                  （{displayThought}）
+                </p>
+              </div>
+            )}
             <SmoothMarkdownContent
               className={immersiveDescriptionEnabled ? "tavern-immersive-markdown" : undefined}
               content={displayContent}
@@ -158,7 +173,7 @@ export const TavernMessageRow = ({
               separateEmphasisBlocks={immersiveDescriptionEnabled}
             />
           </div>
-          <MessageControls content={displayContent} disabled={isStreaming} />
+          <MessageControls content={copyContent} disabled={isStreaming} />
         </div>
       </div>
     </div>

@@ -46,12 +46,12 @@ import type {
   TavernRoomSettings,
   TavernState,
 } from "../types";
-import { runTavernReply } from "../runtime/tavern-runner";
+import { runTavernInnerThought, runTavernReply } from "../runtime/tavern-runner";
 import { runTavernDirector } from "../runtime/director";
 import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
-import { cleanTavernReplyText } from "../runtime/reply-cleanup";
+import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import { runTavernQuickSummary } from "../runtime/quick-summary";
 import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
 import { uniqueFilesByPath } from "../utils";
@@ -1887,9 +1887,13 @@ export const TavernPage = ({
         appendMessagesToRoom(activeRoom.id, [replyMessage]);
 
         let streamedText = "";
+        const replyFormatInstruction =
+          "必须按 <inner_thought>心理想法</inner_thought> 和 <reply>公开回复正文</reply> 输出，两个标签都不能省略；心理想法只写当前角色没有说出口的短句，不要替用户或其他角色写心理；公开回复必须符合当前角色口吻。";
+        const replyPerspectiveInstruction =
+          `公开回复必须以${speaker.name}直接说出口的话为主，不要写第三人称小说正文；对白不要包在引号里，也不要写“他说/声音很轻/似乎后悔”等作者叙述。动作标注最多 1 段，必须用 Markdown 单星号独立成段，且只能写可观察小动作。`;
         const ownReplyInstruction = activeRoom.settings.immersiveDescriptionEnabled !== false
-          ? "只输出你自己的沉浸式回应；如使用动作、神态和场景互动，请用 Markdown 单星号斜体包住，并让斜体描写独立成段或独立成行；不要复述旁白或环境转场，不要替其他角色总结或行动。"
-          : "只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。";
+          ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
+          : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
         const turnInstruction = replyMode === "round"
           ? [
               `这是全员轮流回应的第 ${speakerIndex + 1}/${speakers.length} 位。`,
@@ -1924,27 +1928,27 @@ export const TavernPage = ({
           turnInstruction,
           onTextDelta: (delta) => {
             streamedText += delta;
-            const cleanedStreamedText = cleanTavernReplyText({
+            const streamedReply = parseTavernReplyText({
               text: streamedText,
               activeCharacter: speaker,
               characters: roomCharacters,
               userPersonaName: runtimeRoom.userPersonaName,
             });
-            activeReplyText = cleanedStreamedText;
+            activeReplyText = streamedReply.content;
             patchMessage(replyMessage.id, {
-              content: cleanedStreamedText,
+              content: streamedReply.content,
+              thought: streamedReply.thought,
               status: "streaming",
             });
           },
         });
-        const finalText = (
-          cleanTavernReplyText({
-            text: result.text || streamedText,
-            activeCharacter: speaker,
-            characters: roomCharacters,
-            userPersonaName: runtimeRoom.userPersonaName,
-          }) || "（对方短暂沉默，杯沿映着灯光。）"
-        );
+        const finalReply = parseTavernReplyText({
+          text: result.text || streamedText,
+          activeCharacter: speaker,
+          characters: roomCharacters,
+          userPersonaName: runtimeRoom.userPersonaName,
+        });
+        const finalText = finalReply.content || "（对方短暂沉默，杯沿映着灯光。）";
         if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
           removeMessage(replyMessage.id);
           patchExecutionStep(speakerStepId, {
@@ -1955,14 +1959,34 @@ export const TavernPage = ({
           activeReplyText = "";
           continue;
         }
+        let finalThought = finalReply.thought;
+        if (!finalThought && finalText.trim()) {
+          try {
+            finalThought = await runTavernInnerThought({
+              runtimeAgentId,
+              provider: resolvedSpeakerModels[speakerIndex].provider,
+              model: resolvedSpeakerModels[speakerIndex].model,
+              room: runtimeRoom,
+              activeCharacter: speaker,
+              characters: roomCharacters,
+              messages: runtimeMessages,
+              currentUserText: text,
+              replyContent: finalText,
+            });
+          } catch {
+            finalThought = undefined;
+          }
+        }
 
         const finalizedMessage: TavernMessage = {
           ...replyMessage,
           content: finalText,
+          thought: finalThought,
           status: "done",
         };
         patchMessage(replyMessage.id, {
           content: finalText,
+          thought: finalThought,
           status: "done",
         });
         runtimeMessages = [...runtimeMessages, finalizedMessage];

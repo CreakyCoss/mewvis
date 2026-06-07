@@ -124,6 +124,7 @@ export type TavernMessage = {
   role: "user" | "character" | "narrator";
   characterId?: string;
   content: string;
+  thought?: string;
   createdAt: number;
   status?: "streaming" | "done" | "error";
   referencedFiles?: Array<{ path: string }>;
