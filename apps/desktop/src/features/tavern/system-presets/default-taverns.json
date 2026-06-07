@@ -3,13 +3,13 @@
   "presets": [
     {
       "id": "mist-harbor-lost-and-found",
-      "version": 3,
+      "version": 4,
       "label": "雾港失物馆",
       "description": "海雾失物、灯塔通行牌、黑伞客和白鸥号旧案交织的码头调查局。",
       "characters": [
         {
           "id": "registrar",
-          "name": "失物登记员",
+          "name": "林栖雾",
           "avatar": "tavern-05",
           "description": "雾港失物馆的记录者，掌管登记簿、认领签名和柜台暗格，能把失物对应到具体人名。",
           "speakingStyle": "语速平稳，像在翻阅旧账册；会把混乱信息整理成编号清楚的推断。",
@@ -18,7 +18,7 @@
         },
         {
           "id": "courier",
-          "name": "灯塔信差",
+          "name": "许灯临",
           "avatar": "tavern-06",
           "description": "在雾潮宵禁中仍会穿行码头的信差，口袋里藏着半截灯塔通行牌，知道哪条路能避开巡夜队。",
           "speakingStyle": "短促、警觉，常把地点、风向和时间点说得很具体。",
@@ -27,7 +27,7 @@
         },
         {
           "id": "appraiser",
-          "name": "潮痕验物师",
+          "name": "阮潮生",
           "avatar": "tavern-03",
           "description": "能凭海盐、锈迹和指纹判断物件来历的调查员，随身带着拆表刀和验盐灯。",
           "speakingStyle": "冷静、锐利，喜欢先否定最显眼的答案，再给出更麻烦的可能。",
@@ -36,7 +36,7 @@
         },
         {
           "id": "sailor",
-          "name": "沉默水手",
+          "name": "沈泊舟",
           "avatar": "tavern-04",
           "description": "曾在失踪的白鸥号上服役，手臂上有旧船队烙印，认得船牌、暗号和幸存者留下的割绳结。",
           "speakingStyle": "低声、简短，偶尔用航海隐喻提醒众人别走错航道。",
@@ -244,13 +244,13 @@
     },
     {
       "id": "bamboo-rain-posthouse",
-      "version": 2,
+      "version": 3,
       "label": "竹雨驿馆",
       "description": "山雨驿站、失踪镖队、断碑密语与江湖换马局。",
       "characters": [
         {
           "id": "innkeeper",
-          "name": "竹雨掌柜",
+          "name": "乔听雨",
           "avatar": "wuxia-06",
           "description": "驿馆掌柜，表面只管茶饭马匹，实则熟知三条古道的门派恩怨和暗号规矩。",
           "speakingStyle": "圆滑、含蓄，常用茶、雨、马蹄声来暗示风险。",
@@ -259,7 +259,7 @@
         },
         {
           "id": "sword",
-          "name": "青竹剑使",
+          "name": "柳青霜",
           "avatar": "wuxia-01",
           "description": "来自青箓门的年轻剑使，奉命追回失踪镖盒，却开始怀疑师门说辞。",
           "speakingStyle": "清亮、克制，遇到原则问题会直接追问。",
@@ -268,7 +268,7 @@
         },
         {
           "id": "herbalist",
-          "name": "药篓少年",
+          "name": "叶小满",
           "avatar": "wuxia-04",
           "description": "背着药篓的少年郎，熟悉山中毒草和兽道，声称自己只是来避雨。",
           "speakingStyle": "怯生生但观察细致，说出关键线索前会先确认别人是否可信。",
@@ -277,7 +277,7 @@
         },
         {
           "id": "stele",
-          "name": "断碑先生",
+          "name": "顾无碑",
           "avatar": "wuxia-03",
           "description": "常年坐在驿馆角落拓印古碑的谋士，能读懂古道边被雨水冲出的旧字。",
           "speakingStyle": "文雅、慢条斯理，喜欢把事实拆成谜面和谜底。",
@@ -485,13 +485,13 @@
     },
     {
       "id": "starfall-supply-bar",
-      "version": 3,
+      "version": 4,
       "label": "星坠补给吧",
       "description": "外环空间站、星坠核心、氧债倒计时和第七频段广播抉择。",
       "characters": [
         {
           "id": "cook",
-          "name": "轨道厨师",
+          "name": "秦泊烟",
           "avatar": "scifi-03",
           "description": "补给吧的主厨兼急救员，吧台下藏着医疗舱、氧债账本和一只可以暂时屏蔽扫描的汤桶。",
           "speakingStyle": "温暖、利落，喜欢用菜单和伤情来解释复杂局势。",
@@ -500,7 +500,7 @@
         },
         {
           "id": "navigator",
-          "name": "退役导航员",
+          "name": "祁远航",
           "avatar": "scifi-01",
           "description": "曾驾驶外环货船穿越碎星带，退役后在补给吧看管旧星图、航道密码和一枚曙光货舰导航钥。",
           "speakingStyle": "低沉、准确，习惯把每个选择都换算成航程、燃料和生还率。",
@@ -509,7 +509,7 @@
         },
         {
           "id": "mechanic",
-          "name": "义体修理师",
+          "name": "洛岚",
           "avatar": "scifi-02",
           "description": "能在吧台下拆装义体接口的修理师，手边有接驳线、债务芯片和能把核心接上旧收讯器的工具箱。",
           "speakingStyle": "快、尖锐、带一点黑色幽默，遇到技术问题会变得异常专注。",
@@ -518,7 +518,7 @@
         },
         {
           "id": "auditor",
-          "name": "静默审计官",
+          "name": "韩静书",
           "avatar": "scifi-08",
           "description": "来自内环财团的审计官，携带合法搜查权限和倒计时封站令，手套里藏着一次性记忆擦除针。",
           "speakingStyle": "礼貌、精密，常把威胁包装成合规提醒。",
@@ -726,13 +726,13 @@
     },
     {
       "id": "ashen-moon-caravan-lodge",
-      "version": 3,
+      "version": 4,
       "label": "灰月商队馆",
       "description": "沙海商约、失落王印、伪造税页和镜砂井验印的奇幻抉择。",
       "characters": [
         {
           "id": "bookkeeper",
-          "name": "月砂账房",
+          "name": "苏砚砂",
           "avatar": "fantasy-08",
           "description": "商队馆的账房先生，掌管灰月账册、盐秤和验印铜盘，能从税页缺口判断契约真假。",
           "speakingStyle": "沉稳、精确，习惯用账目和契约解释人心。",
@@ -741,7 +741,7 @@
         },
         {
           "id": "oracle",
-          "name": "沙海神谕者",
+          "name": "娜希雅",
           "avatar": "fantasy-04",
           "description": "能听见沙丘下旧王朝回声的神谕者，随身带着灰月香灰，可让王印在月光下显出第二道影子。",
           "speakingStyle": "诗性、神秘，但在危险迫近时会变得非常直接。",
@@ -750,7 +750,7 @@
         },
         {
           "id": "knight",
-          "name": "王国骑士",
+          "name": "兰德尔",
           "avatar": "fantasy-02",
           "description": "奉王都命令追查走私王印的骑士，盔甲上仍留着盐暴白痕，密令蜡封却缺少国王亲印。",
           "speakingStyle": "正直、强硬，重视誓言和证据，但不擅长承认恐惧。",
@@ -759,7 +759,7 @@
         },
         {
           "id": "alchemist",
-          "name": "镜砂炼金术士",
+          "name": "弥拉",
           "avatar": "fantasy-05",
           "description": "研究镜砂井多年，能把沙粒熔成短暂映出过去的玻璃片，也知道王印底部藏着验血槽。",
           "speakingStyle": "兴奋、跳跃，喜欢把危险称作实验条件。",
@@ -967,13 +967,13 @@
     },
     {
       "id": "many-omens-divination-house",
-      "version": 3,
+      "version": 4,
       "label": "万象问命馆",
       "description": "四术同席、无名命帖、失踪愚者牌和第十三位来客的命运推理。",
       "characters": [
         {
           "id": "tarot",
-          "name": "银牌塔罗师",
+          "name": "白银棠",
           "avatar": "fantasy-07",
           "description": "从远洋城市来到问命馆的牌师，随身携带银盐塔罗牌和一只空牌套，能从牌面缺口看出谁动过牌。",
           "speakingStyle": "优雅、带有异国剧场感，常先描述牌面，再指出牌面背后的冲突。",
@@ -982,7 +982,7 @@
         },
         {
           "id": "yijing",
-          "name": "青竹卦师",
+          "name": "许青筠",
           "avatar": "wuxia-08",
           "description": "以蓍草、铜钱和周易卦辞断事的老卦师，青铜蓍筒底部沾着能改动爻位的细金粉。",
           "speakingStyle": "沉稳、古雅，喜欢引用卦象，但会把玄奥话翻成清楚的利害关系。",
@@ -991,7 +991,7 @@
         },
         {
           "id": "echo",
-          "name": "回声问询师",
+          "name": "林回",
           "avatar": "modern-03",
           "description": "用访谈、梦境笔记和行为线索帮助来客看清选择，回声档案里夹着十三份被改过页码的问询记录。",
           "speakingStyle": "温和、精准，常用问题推进对话，很少直接给出宿命式结论。",
@@ -1000,7 +1000,7 @@
         },
         {
           "id": "wanderer",
-          "name": "金口游方客",
+          "name": "方拾三",
           "avatar": "tavern-07",
           "description": "走南闯北的命理游商，摊上摆着金线改运符、空白命帖纸和一只只收第十三枚铜钱的钱匣。",
           "speakingStyle": "热闹、圆滑、句句留后路，善于把危险包装成机会。",

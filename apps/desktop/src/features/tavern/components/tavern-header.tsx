@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   BookOpen,
+  Bot,
   Clapperboard,
   PanelRightClose,
   PanelRightOpen,
@@ -20,9 +21,11 @@ type TavernHeaderProps = {
   visualPreset: VisualPresetDefinition;
   isSidePanelOpen: boolean;
   isGeneratingQuickSummary: boolean;
+  isManagedModeEnabled: boolean;
   onBack?: () => void;
   onSelectScene: (sceneId: string) => void;
   onOpenQuickSummary: () => void;
+  onToggleManagedMode: () => void;
   onToggleSidePanel: () => void;
 };
 
@@ -35,9 +38,11 @@ export const TavernHeader = ({
   visualPreset,
   isSidePanelOpen,
   isGeneratingQuickSummary,
+  isManagedModeEnabled,
   onBack,
   onSelectScene,
   onOpenQuickSummary,
+  onToggleManagedMode,
   onToggleSidePanel,
 }: TavernHeaderProps) => (
   <header
@@ -96,6 +101,24 @@ export const TavernHeader = ({
           ))}
         </NativeSelect>
       </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className={cn(
+          tavernHeaderActionButtonClassName,
+          isManagedModeEnabled && "border-current/30 bg-current/15 text-current",
+        )}
+        title={isManagedModeEnabled ? "关闭全托管" : "开启全托管"}
+        aria-label={isManagedModeEnabled ? "关闭全托管" : "开启全托管"}
+        aria-pressed={isManagedModeEnabled}
+        onClick={onToggleManagedMode}
+      >
+        <Bot className="size-4" />
+        <span className="hidden text-xs font-medium sm:inline">
+          {isManagedModeEnabled ? "托管中" : "托管"}
+        </span>
+      </Button>
       <Button
         type="button"
         size="sm"

@@ -60,7 +60,10 @@ import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import { runTavernQuickNovel, runTavernQuickSummary } from "../runtime/quick-summary";
-import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
+import {
+  runTavernManagedUserReply,
+  runTavernUserReplySuggestions,
+} from "../runtime/user-reply-suggestions";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -455,6 +458,7 @@ export const TavernPage = ({
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState<"home" | "room">("home");
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [isManagedModeEnabled, setIsManagedModeEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
@@ -491,6 +495,7 @@ export const TavernPage = ({
     setError("");
     setViewMode("home");
     setIsSidePanelOpen(false);
+    setIsManagedModeEnabled(false);
     setIsSending(false);
     setIsExtractingAssets(false);
     setIsGeneratingReplySuggestions(false);
@@ -2086,8 +2091,8 @@ export const TavernPage = ({
 
   const handleSubmit = useCallback(async (event?: FormEvent, submittedText?: string) => {
     event?.preventDefault();
-    const text = (submittedText ?? draft).trim();
-    if (!text || isSending) {
+    const draftText = (submittedText ?? draft).trim();
+    if (isSending) {
       return;
     }
 
@@ -2107,7 +2112,13 @@ export const TavernPage = ({
     }
 
     const replyMode = activeRoom.replyMode ?? "active";
-    const candidateSpeakers = replyMode === "round" || replyMode === "director"
+    const isManagedMode = isManagedModeEnabled;
+    const isDirectorLikeMode = replyMode === "director" || isManagedMode;
+    if (!draftText && !isManagedMode) {
+      return;
+    }
+
+    const candidateSpeakers = replyMode === "round" || isDirectorLikeMode
       ? orderRoundCharacters(roomCharacters, activeCharacter?.id)
       : activeCharacter ? [activeCharacter] : [];
     if (candidateSpeakers.length === 0) {
@@ -2148,7 +2159,11 @@ export const TavernPage = ({
     setIsSending(true);
     setError("");
     setReplySuggestions([]);
-    setTurnStatus(replyMode === "director" ? "导演正在接收你的消息..." : "正在发送消息...");
+    setTurnStatus(isManagedMode
+      ? "导演正在调度你的回复..."
+      : isDirectorLikeMode
+      ? "导演正在接收你的消息..."
+      : "正在发送消息...");
 
     let references: TavernReferencedFile[] = [];
     try {
@@ -2164,6 +2179,33 @@ export const TavernPage = ({
     }
 
     const referencedFiles = currentReferencedFilePreviews.map((file) => ({ path: file.path }));
+    let text = draftText;
+    if (isManagedMode) {
+      try {
+        setTurnStatus("导演正在代你生成本轮回复...");
+        text = await runTavernManagedUserReply({
+          runtimeAgentId,
+          provider,
+          model,
+          room: activeRoom,
+          characters: roomCharacters,
+          messages: roomMessages,
+          currentDraft: draftText,
+        });
+      } catch (managedError) {
+        setError(`全托管生成回复失败：${getErrorMessage(managedError)}`);
+        setIsSending(false);
+        setTurnStatus("");
+        return;
+      }
+
+      if (!text.trim()) {
+        setError("全托管没有生成可发送的回复，请重试或输入方向提示。");
+        setIsSending(false);
+        setTurnStatus("");
+        return;
+      }
+    }
     const userMessage = createTavernMessage({
       roomId: activeRoom.id,
       role: "user",
@@ -2175,12 +2217,12 @@ export const TavernPage = ({
     let runtimeMessages = [...roomMessages, userMessage];
     const turnMessages: TavernMessage[] = [userMessage];
     const shouldRunAssetExtraction = shouldAutoExtractAssets(activeRoom, runtimeMessages);
-    const shouldShowProgressTrace = activeRoom.settings.showExecutionTrace || replyMode === "director";
+    const shouldShowProgressTrace = activeRoom.settings.showExecutionTrace || isDirectorLikeMode;
     let activeReplyMessage: TavernMessage | null = null;
     let activeReplyText = "";
 
     try {
-      setTurnStatus(replyMode === "director" ? "导演正在整理上下文与角色状态..." : "正在整理上下文...");
+      setTurnStatus(isDirectorLikeMode ? "导演正在整理上下文与角色状态..." : "正在整理上下文...");
       if (shouldShowProgressTrace) {
         setExecutionTraceAnchorMessageId(userMessage.id);
         resetExecutionTrace([
@@ -2224,8 +2266,8 @@ export const TavernPage = ({
       if (preparedContext.didCompress) {
         setState((current) => ({
           ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === runtimeRoom.id
+          rooms: current.rooms.map((room) =>
+            room.id === runtimeRoom.id
               ? syncTavernRoomActiveScene({
                   ...projectTavernSceneOntoRoom(room),
                   autoMemory: runtimeRoom.autoMemory,
@@ -2243,7 +2285,7 @@ export const TavernPage = ({
 
       let directorReason = "";
       const turnNarratorTexts: string[] = [];
-      if (replyMode === "director") {
+      if (isDirectorLikeMode) {
         setTurnStatus("导演正在判断本轮发言顺序...");
         appendExecutionStep({
           id: "director",
@@ -2311,7 +2353,7 @@ export const TavernPage = ({
 
       for (const [speakerIndex, speaker] of speakers.entries()) {
         const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
-        setTurnStatus(replyMode === "director"
+        setTurnStatus(isDirectorLikeMode
           ? `${speaker.name} 正在按导演调度回应...`
           : `${speaker.name} 正在回应...`);
         appendExecutionStep({
@@ -2348,9 +2390,9 @@ export const TavernPage = ({
               ownReplyInstruction,
               "不要输出任何角色名加冒号的发言人标签。",
             ].join("\n")
-          : replyMode === "director"
+          : isDirectorLikeMode
             ? [
-                `导演调度选择你作为第 ${speakerIndex + 1}/${speakers.length} 位发言者。`,
+                `${isManagedMode ? "全托管导演" : "导演调度"}选择你作为第 ${speakerIndex + 1}/${speakers.length} 位发言者。`,
                 directorReason ? `导演意图：${directorReason}` : "",
                 speakerIndex === 0
                   ? "回应用户输入，并顺着当前场景目标推进。"
@@ -2468,8 +2510,8 @@ export const TavernPage = ({
           if (hasAssetDraftItems(assetDraft)) {
             setState((current) => ({
               ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === activeRoom.id
+              rooms: current.rooms.map((room) =>
+                room.id === activeRoom.id
                   ? syncTavernRoomActiveScene({
                       ...projectTavernSceneOntoRoom(room),
                       assetDrafts: [...projectTavernSceneOntoRoom(room).assetDrafts, assetDraft]
@@ -2530,6 +2572,7 @@ export const TavernPage = ({
     ambiguousFileReferences,
     appendMessagesToRoom,
     draft,
+    isManagedModeEnabled,
     isSending,
     model,
     patchMessage,
@@ -2607,7 +2650,7 @@ export const TavernPage = ({
 
   const shouldShowExecutionTrace = (
     activeRoom.settings.showExecutionTrace ||
-    (activeRoom.replyMode === "director" && isSending)
+    ((activeRoom.replyMode === "director" || isManagedModeEnabled) && isSending)
   ) && executionSteps.length > 0;
   const hasExecutionTraceAnchor = shouldShowExecutionTrace && roomMessages.some((message) =>
     message.id === executionTraceAnchorMessageId
@@ -2657,6 +2700,7 @@ export const TavernPage = ({
             visualPreset={visualPreset}
             isSidePanelOpen={isSidePanelOpen}
             isGeneratingQuickSummary={isGeneratingQuickSummary}
+            isManagedModeEnabled={isManagedModeEnabled}
             onBack={() => {
               setIsSidePanelOpen(false);
               setViewMode("home");
@@ -2665,6 +2709,7 @@ export const TavernPage = ({
               void handleOpenQuickSummary();
             }}
             onSelectScene={(sceneId) => selectRoomScene(activeRoom.id, sceneId)}
+            onToggleManagedMode={() => setIsManagedModeEnabled((current) => !current)}
             onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
 
@@ -2798,6 +2843,7 @@ export const TavernPage = ({
             visualPreset={visualPreset}
             activeCharacter={activeCharacter}
             replyMode={activeRoom.replyMode ?? "active"}
+            isManagedModeEnabled={isManagedModeEnabled}
             speakerCount={roomCharacters.length}
             referencedFilePreviews={referencedFilePreviews}
             referenceSuggestions={referenceSuggestions}

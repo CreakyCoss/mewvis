@@ -170,6 +170,123 @@ export const runTavernUserReplySuggestions = async ({
     ...new Set(parseSuggestions(result.text)
       .map((item) => stripUserLabel(item, room.userPersonaName))
       .map((item) => item.replace(/^["“”]+|["“”]+$/g, "").trim())
-      .filter(Boolean)),
+    .filter(Boolean)),
   ].slice(0, SUGGESTION_COUNT);
+};
+
+export const runTavernManagedUserReply = async ({
+  runtimeAgentId,
+  provider,
+  model,
+  room,
+  characters,
+  messages,
+  currentDraft,
+}: TavernUserReplySuggestionInput) => {
+  const runtimeMessages = tavernMessagesToRuntimeMessages({
+    messages,
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
+  const recentConversation = formatConversationForSummary(
+    runtimeMessages.slice(-RECENT_MESSAGE_LIMIT),
+  );
+  const characterList = characters.map((character) =>
+    `${character.name}: ${character.description}`
+  ).join("\n");
+  const prompt = [
+    "<task>",
+    `以导演身份，为酒馆用户「${room.userPersonaName || "我"}」调度并生成本轮要发送的回复。`,
+    "</task>",
+    "",
+    "<rules>",
+    "reply 必须是用户可以直接发送的一句话或一小段话。",
+    "只替用户说话，不要替酒馆角色说话，不要写角色动作，不要输出角色名加冒号。",
+    "回复需要承接当前对话和场景目标，能自然推动下一轮角色回应。",
+    "可以包含用户的行动决定、追问、试探或态度，但不要越过当前剧情直接解决核心谜题。",
+    "建议 20 到 120 个中文字符；内容不要自带引号、编号或列表符号。",
+    currentDraft?.trim()
+      ? "用户输入框里的文字是托管方向提示，请吸收其意图，但不要机械照抄。"
+      : "没有方向提示时，根据当前剧情自动选择最合理、最有戏剧张力的一句回复。",
+    "只输出严格合法 JSON 对象，不要 Markdown、代码块或解释。",
+    "</rules>",
+    "",
+    "<output_schema>",
+    `{"reply":"用户本轮要发送的回复","reason":"可选简短调度原因"}`,
+    "</output_schema>",
+    "",
+    room.storyOutline.trim() || room.storyGoal.trim()
+      ? `<story_arc>\n${[
+          room.storyOutline.trim(),
+          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+      : "<story_arc>（无）</story_arc>",
+    "",
+    `<room title="${room.title}">`,
+    room.scene,
+    "</room>",
+    "",
+    room.scenePlot.trim()
+      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+      : "<scene_plot>（无）</scene_plot>",
+    "",
+    room.sceneGoal.trim()
+      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+      : "<scene_goal>（无）</scene_goal>",
+    "",
+    room.sceneDirection.trim()
+      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+      : "<scene_direction>（无）</scene_direction>",
+    "",
+    room.sceneTransition.trim()
+      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+      : "<scene_transition>（无）</scene_transition>",
+    "",
+    room.autoMemory.trim()
+      ? `<auto_memory>\n${room.autoMemory.trim()}\n</auto_memory>`
+      : "",
+    "",
+    "<characters>",
+    characterList,
+    "</characters>",
+    "",
+    currentDraft?.trim()
+      ? `<managed_direction_hint>\n${currentDraft.trim()}\n</managed_direction_hint>`
+      : "",
+    "",
+    "<recent_conversation>",
+    recentConversation || "（无）",
+    "</recent_conversation>",
+  ].filter(Boolean).join("\n");
+
+  const result = await runSharedRuntimeChat({
+    agentId: runtimeAgentId,
+    provider,
+    model,
+    stream: false,
+    systemPrompt: [
+      "你是酒馆模式的全托管导演。",
+      "你负责代用户生成下一句可发送回复，让剧情自然继续。",
+      "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
+    ].join("\n"),
+    messages: [{
+      id: `tavern-managed-user-reply-${Date.now()}`,
+      role: "user",
+      content: prompt,
+      timestamp: Date.now(),
+      metadata: null,
+    }],
+  });
+
+  try {
+    const parsed = JSON.parse(extractJsonObject(result.text)) as Record<string, unknown>;
+    const reply = typeof parsed.reply === "string" ? parsed.reply : "";
+    return stripUserLabel(reply, room.userPersonaName)
+      .replace(/^["“”]+|["“”]+$/g, "")
+      .trim();
+  } catch {
+    return stripUserLabel(result.text, room.userPersonaName)
+      .replace(/^["“”]+|["“”]+$/g, "")
+      .trim();
+  }
 };
