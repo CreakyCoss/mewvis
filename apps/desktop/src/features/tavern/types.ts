@@ -7,6 +7,12 @@ export type TavernCharacterModelConfig = {
   modelId: string;
 };
 
+export type TavernRoomCharacterConfig = {
+  characterId: string;
+  memory?: string;
+  modelConfig?: TavernCharacterModelConfig;
+};
+
 export type TavernCharacter = {
   id: string;
   systemPresetId?: string;
@@ -18,6 +24,7 @@ export type TavernCharacter = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
+  /** @deprecated 模型配置只在酒馆/入席角色维度生效，保留用于旧数据迁移。 */
   modelConfig?: TavernCharacterModelConfig;
   createdAt: number;
   updatedAt: number;
@@ -92,10 +99,13 @@ export type TavernRoom = {
   scene: string;
   sceneGoal: string;
   memory: string;
+  modelConfig?: TavernCharacterModelConfig;
   autoMemory: string;
   autoMemoryUpdatedAt?: number;
   summarizedMessageIds?: string[];
+  characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
+  localCharacters?: TavernCharacter[];
   lorebookEntries: TavernLorebookEntry[];
   timelineEvents: TavernTimelineEvent[];
   assetDrafts: TavernAssetDraft[];

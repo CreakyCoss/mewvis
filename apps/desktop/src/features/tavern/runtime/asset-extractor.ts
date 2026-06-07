@@ -220,11 +220,12 @@ export const runTavernAssetExtraction = async ({
     "",
     "<rules>",
     "只提取已经在本轮对话中明确发生、达成、暴露或被用户确认的稳定信息。",
+    "引用文件只作为背景核对；除非本轮对话明确采用或确认，不要把引用文件内容单独沉淀为资产。",
     "不要把气氛描写、一次性寒暄、推测、模型自我解释写入资产。",
     "不要重复已有时间线、已有世界书、待确认草稿或角色记忆中已经包含的信息。",
     "characterId 必须来自角色列表。",
     "如果没有值得沉淀的信息，三个数组都输出空数组。",
-    "只输出 JSON，不要输出 Markdown。",
+    "只输出严格合法 JSON 对象，不要输出 Markdown、代码块或解释。",
     "</rules>",
     "",
     `<room title="${room.title}">`,
@@ -289,7 +290,7 @@ export const runTavernAssetExtraction = async ({
     systemPrompt: [
       "你是酒馆模式的剧情资产整理员。",
       "你的任务是把新一轮对话中值得长期保存的信息整理成待确认草稿。",
-      "你只输出符合 schema 的 JSON。",
+      "你只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
     ].join("\n"),
     messages: [{
       id: `tavern-asset-extractor-${Date.now()}`,

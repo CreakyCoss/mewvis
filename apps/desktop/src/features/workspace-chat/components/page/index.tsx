@@ -18,6 +18,7 @@ import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
+import { findDefaultProvider } from "@/features/llm-settings/utils";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
@@ -281,6 +282,20 @@ export const WorkspaceChatPage = ({
     chatMode,
     chatExecutionMode,
   });
+  const tavernDefaultProvider = useMemo(() => {
+    const defaultProvider = findDefaultProvider(providers);
+    if (defaultProvider?.models.some((providerModel) => providerModel.isEnabled)) {
+      return defaultProvider;
+    }
+
+    return providers.find((candidateProvider) =>
+      candidateProvider.models.some((providerModel) => providerModel.isEnabled),
+    ) ?? null;
+  }, [providers]);
+  const tavernDefaultModel = useMemo(
+    () => tavernDefaultProvider?.models.find((providerModel) => providerModel.isEnabled) ?? null,
+    [tavernDefaultProvider],
+  );
   const {
     runtimeModelFor,
     contextModelFor,
@@ -2011,8 +2026,8 @@ export const WorkspaceChatPage = ({
       workspace={workspace}
       files={files}
       providers={providers}
-      provider={effectiveProvider}
-      model={effectiveModel}
+      provider={tavernDefaultProvider}
+      model={tavernDefaultModel}
       runtimeAgentId={runtimeAgentId}
       onRoomImmersiveChange={setIsTavernRoomImmersive}
     />

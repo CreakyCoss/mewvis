@@ -27,7 +27,6 @@ import type { Workspace } from "@/features/workspaces/types";
 import { cn } from "@/lib/utils";
 import {
   createTavernAssetDraft,
-  createTavernCharacter,
   createTavernLorebookEntry,
   createTavernMessage,
   createTavernRoomFromSystemPreset,
@@ -63,12 +62,117 @@ import {
 } from "./tavern-execution-trace";
 import { TavernHeader } from "./tavern-header";
 import { TavernManagementPage } from "./tavern-management-page";
-import type { TavernCharacterFormValue } from "./tavern-character-form-dialog";
 import { TavernMessageRow } from "./tavern-message-row";
 import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
+
+const normalizeNarratorEchoText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
+
+const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
+  const normalizedReply = normalizeNarratorEchoText(replyText);
+
+  return normalizedReply.length > 0 && narratorTexts.some((narratorText) =>
+    normalizeNarratorEchoText(narratorText) === normalizedReply
+  );
+};
+
+const narratorEnvironmentSubjectPattern =
+  /^(?:热汤机|噪声|灯(?:光)?|门|舱门|舷窗|屏幕|频道|频段|补给站|酒馆|吧台|圆桌|空气|风|雨|雾|雪|火(?:盆)?|钟|影子|光线|冷藏柜|地板|墙面|舰桥|船舱|走廊|大厅|房间|窗外|门外|夜色|沉默|广播|警报|引擎|电流|蒸汽|纸页|档案|木匣|牌面|杯沿|灯火|炉火|水汽|寒意|潮气|金属|机器|系统|环境)/;
+const narratorEnvironmentMotionPattern =
+  /(?:压低|沉下|低沉|回荡|响起|停住|晃动|闪烁|亮起|暗下|落下|浮出|渗出|掠过|侧耳|屏息|等待|安静|静了|静下来)/;
+const characterIntentPattern =
+  /(?:我|你|您|咱|需要|知道|认为|确定|确认|决定|可以|不能|不会|必须|别|请|问|答|说|记得|退场|授权|失踪|航线|结局|核心|流程)/;
+const characterBodyActionPattern =
+  /(?:指下|手|掌|袖口|胸口|眼|嘴角|肩|背|脚|步|抬|放|抽出|摸|推|拿|递|看|笑|皱眉|点头|摇头)/;
+
+const isLikelyNarratorOnlyCharacterMessage = (
+  message: TavernMessage,
+  characters: TavernCharacter[],
+  userPersonaName: string,
+) => {
+  if (
+    message.role !== "character" ||
+    message.status === "streaming" ||
+    message.status === "error"
+  ) {
+    return false;
+  }
+
+  const content = message.content.trim();
+  if (
+    content.length < 8 ||
+    content.length > 90 ||
+    content.includes("\n") ||
+    /[?？]/.test(content) ||
+    /[*_`]/.test(content)
+  ) {
+    return false;
+  }
+
+  const labels = [
+    userPersonaName,
+    ...characters.map((character) => character.name),
+  ].map((label) => label.trim()).filter(Boolean);
+  if (labels.some((label) => content.includes(label))) {
+    return false;
+  }
+
+  if (
+    characterIntentPattern.test(content) ||
+    characterBodyActionPattern.test(content)
+  ) {
+    return false;
+  }
+
+  return narratorEnvironmentSubjectPattern.test(content) &&
+    narratorEnvironmentMotionPattern.test(content);
+};
+
+const toNarratorMessage = (message: TavernMessage): TavernMessage => {
+  const { characterId: _characterId, ...messageWithoutCharacter } = message;
+
+  return {
+    ...messageWithoutCharacter,
+    role: "narrator",
+  };
+};
+
+const normalizeTavernMessagesForDisplay = (
+  messages: TavernMessage[],
+  characters: TavernCharacter[],
+  userPersonaName: string,
+) => {
+  const turnNarratorTexts: string[] = [];
+
+  return messages.flatMap((message) => {
+    if (message.role === "user") {
+      turnNarratorTexts.length = 0;
+      return [message];
+    }
+
+    if (message.role === "narrator") {
+      turnNarratorTexts.push(message.content);
+      return [message];
+    }
+
+    if (isNarratorEchoReply(message.content, turnNarratorTexts)) {
+      return [];
+    }
+
+    if (isLikelyNarratorOnlyCharacterMessage(message, characters, userPersonaName)) {
+      const narratorMessage = toNarratorMessage(message);
+      turnNarratorTexts.push(narratorMessage.content);
+      return [narratorMessage];
+    }
+
+    return [message];
+  });
+};
 
 type TavernPageProps = {
   workspace: Workspace;
@@ -305,9 +409,31 @@ export const TavernPage = ({
     () => getVisualPreset(activeRoom?.scenePresetId),
     [activeRoom?.scenePresetId],
   );
+  const characterById = useMemo(() => (
+    new Map([
+      ...state.rooms.flatMap((room) =>
+        (room.localCharacters ?? []).map((character) => [character.id, character] as const)
+      ),
+    ])
+  ), [state.rooms]);
+  const roomCharacters = useMemo(() => {
+    if (!activeRoom) {
+      return [];
+    }
+
+    return activeRoom.characterIds
+      .map((characterId) => characterById.get(characterId))
+      .filter((character): character is TavernCharacter => Boolean(character));
+  }, [activeRoom, characterById]);
   const roomMessages = useMemo(() => (
-    activeRoom ? state.messagesByRoom[activeRoom.id] ?? [] : []
-  ), [activeRoom, state.messagesByRoom]);
+    activeRoom
+      ? normalizeTavernMessagesForDisplay(
+          state.messagesByRoom[activeRoom.id] ?? [],
+          roomCharacters,
+          activeRoom.userPersonaName,
+        )
+      : []
+  ), [activeRoom, roomCharacters, state.messagesByRoom]);
   const quickSummarySignature = useMemo(() => (
     activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""
   ), [activeRoom, roomMessages]);
@@ -329,18 +455,6 @@ export const TavernPage = ({
     }).format(activeQuickSummaryCache.generatedAt);
   }, [activeQuickSummaryCache]);
   const latestMessage = roomMessages[roomMessages.length - 1] ?? null;
-  const characterById = useMemo(() => (
-    new Map(state.characters.map((character) => [character.id, character]))
-  ), [state.characters]);
-  const roomCharacters = useMemo(() => {
-    if (!activeRoom) {
-      return [];
-    }
-
-    return activeRoom.characterIds
-      .map((characterId) => characterById.get(characterId))
-      .filter((character): character is TavernCharacter => Boolean(character));
-  }, [activeRoom, characterById]);
   const activeCharacter = useMemo(() => (
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId)
       ?? roomCharacters[0]
@@ -537,83 +651,37 @@ export const TavernPage = ({
     });
   }, []);
 
-  const updateCharacter = useCallback((
-    characterId: string,
-    patch: Partial<TavernCharacter>,
-  ) => {
-    setState((current) => ({
-      ...current,
-      characters: current.characters.map((character) =>
-        character.id === characterId
-          ? {
-              ...character,
-              ...patch,
-              updatedAt: Date.now(),
+  const removeMessage = useCallback((messageId: string) => {
+    setState((current) => {
+      let removedRoomId = "";
+      const nextMessagesByRoom = Object.fromEntries(
+        Object.entries(current.messagesByRoom).map(([roomId, messages]) => {
+          const nextMessages = messages.filter((message) => {
+            const shouldKeep = message.id !== messageId;
+
+            if (!shouldKeep) {
+              removedRoomId = roomId;
             }
-          : character,
-      ),
-    }));
-    setError("");
+
+            return shouldKeep;
+          });
+          return [roomId, nextMessages];
+        }),
+      );
+
+      if (!removedRoomId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === removedRoomId ? { ...room, updatedAt: Date.now() } : room
+        ),
+        messagesByRoom: nextMessagesByRoom,
+      };
+    });
   }, []);
-
-  const createGlobalCharacter = useCallback((value: TavernCharacterFormValue) => {
-    const character = createTavernCharacter(value);
-
-    setState((current) => ({
-      ...current,
-      characters: [...current.characters, character],
-    }));
-    setError("");
-  }, []);
-
-  const deleteCharacter = useCallback((characterId: string) => {
-    const character = state.characters.find((item) => item.id === characterId);
-    if (!character || character.systemPresetId || state.characters.length <= 1) {
-      return;
-    }
-
-    const usedRoomCount = state.rooms.filter((room) => room.characterIds.includes(characterId)).length;
-    const confirmMessage = usedRoomCount > 0
-      ? `删除角色「${character.name}」？它会同时从 ${usedRoomCount} 个酒馆的入席角色中移除。`
-      : `删除角色「${character.name}」？`;
-    if (!confirmDangerousAction(
-      confirmMessage,
-      usedRoomCount > 0
-        ? `再次确认删除角色「${character.name}」？相关酒馆引用和角色记忆都会被移除。`
-        : `再次确认删除角色「${character.name}」？该角色资料会被永久移除。`,
-    )) {
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      characters: current.characters.filter((item) => item.id !== characterId),
-      rooms: current.rooms.map((room) => {
-        if (
-          !room.characterIds.includes(characterId) &&
-          room.activeCharacterId !== characterId &&
-          !(characterId in room.characterMemories)
-        ) {
-          return room;
-        }
-
-        const nextCharacterIds = room.characterIds.filter((id) => id !== characterId);
-        const nextCharacterMemories = { ...room.characterMemories };
-        delete nextCharacterMemories[characterId];
-
-        return {
-          ...room,
-          characterIds: nextCharacterIds,
-          activeCharacterId: room.activeCharacterId === characterId
-            ? nextCharacterIds[0] ?? ""
-            : room.activeCharacterId,
-          characterMemories: nextCharacterMemories,
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-    setError("");
-  }, [state.characters, state.rooms]);
 
   const clearRoomMessages = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
@@ -684,9 +752,11 @@ export const TavernPage = ({
 
       const createdAt = Date.now();
       const copiedRoomId = createLocalId("room");
-      const sourceCharacterById = new Map(
-        current.characters.map((character) => [character.id, character]),
-      );
+      const sourceCharacterById = new Map([
+        ...current.rooms.flatMap((room) =>
+          (room.localCharacters ?? []).map((character) => [character.id, character] as const)
+        ),
+      ]);
       const characterIdMap = new Map<string, string>();
       const copiedCharacters = sourceRoom.characterIds.flatMap((characterId) => {
         const character = sourceCharacterById.get(characterId);
@@ -696,8 +766,9 @@ export const TavernPage = ({
 
         const copiedCharacterId = createLocalId("character");
         characterIdMap.set(character.id, copiedCharacterId);
+        const { modelConfig: _modelConfig, ...characterWithoutModel } = character;
         return [{
-          ...character,
+          ...characterWithoutModel,
           id: copiedCharacterId,
           systemPresetId: undefined,
           systemPresetCharacterId: undefined,
@@ -714,6 +785,26 @@ export const TavernPage = ({
         Object.entries(sourceRoom.characterMemories).flatMap(([characterId, memory]) => {
           const copiedCharacterId = characterIdMap.get(characterId);
           return copiedCharacterId && memory.trim() ? [[copiedCharacterId, memory]] : [];
+        }),
+      );
+      const characterConfigs = Object.fromEntries(
+        sourceRoom.characterIds.flatMap((sourceCharacterId) => {
+          const copiedCharacterId = characterIdMap.get(sourceCharacterId);
+          if (!copiedCharacterId) {
+            return [];
+          }
+
+          const sourceConfig = sourceRoom.characterConfigs?.[sourceCharacterId];
+          return [[
+            copiedCharacterId,
+            {
+              characterId: copiedCharacterId,
+              memory: characterMemories[copiedCharacterId],
+              modelConfig: sourceConfig?.modelConfig
+                ? { ...sourceConfig.modelConfig }
+                : undefined,
+            },
+          ]];
         }),
       );
       const messageIdMap = new Map<string, string>();
@@ -770,7 +861,10 @@ export const TavernPage = ({
         autoMemory: "",
         autoMemoryUpdatedAt: undefined,
         summarizedMessageIds: [],
+        modelConfig: sourceRoom.modelConfig ? { ...sourceRoom.modelConfig } : undefined,
+        characterConfigs,
         characterMemories,
+        localCharacters: copiedCharacters,
         lorebookEntries: sourceRoom.lorebookEntries.map((entry) => ({
           ...entry,
           id: createLocalId("lore"),
@@ -823,7 +917,6 @@ export const TavernPage = ({
         ...current,
         activeRoomId: copiedRoomId,
         rooms: [...current.rooms, copiedRoom],
-        characters: [...current.characters, ...copiedCharacters],
         messagesByRoom: {
           ...current.messagesByRoom,
           [copiedRoomId]: messages,
@@ -853,44 +946,10 @@ export const TavernPage = ({
         return current;
       }
 
-      const characterIdByPresetId = new Map<string, string>();
-      sourcePreset.characters.forEach((presetCharacter) => {
-        const existingSystemCharacter = current.characters.find((character) =>
-          character.systemPresetId === sourcePreset.id &&
-          character.systemPresetCharacterId === presetCharacter.id
-        );
-        if (existingSystemCharacter) {
-          characterIdByPresetId.set(presetCharacter.id, existingSystemCharacter.id);
-          return;
-        }
-
-        const presetCharacterIndex = sourcePreset.room.characterIds.indexOf(presetCharacter.id);
-        const existingCharacterId = presetCharacterIndex >= 0
-          ? sourceRoom.characterIds[presetCharacterIndex]
-          : undefined;
-        const existingCharacter = current.characters.find((character) =>
-          character.id === existingCharacterId
-        );
-        if (
-          existingCharacter &&
-          !existingCharacter.systemPresetId &&
-          (
-            existingCharacter.name === presetCharacter.name ||
-            existingCharacter.avatar === presetCharacter.avatar
-          )
-        ) {
-          characterIdByPresetId.set(presetCharacter.id, existingCharacter.id);
-        }
-      });
       const restored = createTavernRoomFromSystemPreset(workspace.id, sourcePreset.id, {
         roomId: sourceRoom.id,
         roomCreatedAt: sourceRoom.createdAt,
-        characterIdByPresetId,
       });
-      const restoredCharacterById = new Map(
-        restored.characters.map((character) => [character.id, character]),
-      );
-      const existingCharacterIds = new Set(current.characters.map((character) => character.id));
 
       return {
         ...current,
@@ -898,12 +957,7 @@ export const TavernPage = ({
         rooms: current.rooms.map((item) =>
           item.id === sourceRoom.id ? restored.room : item
         ),
-        characters: [
-          ...current.characters.map((character) =>
-            restoredCharacterById.get(character.id) ?? character
-          ),
-          ...restored.characters.filter((character) => !existingCharacterIds.has(character.id)),
-        ],
+        characters: [],
         messagesByRoom: {
           ...current.messagesByRoom,
           [sourceRoom.id]: restored.messages,
@@ -970,16 +1024,22 @@ export const TavernPage = ({
           entry.title.trim() && entry.content.trim()
         );
         const characterMemories = { ...room.characterMemories };
+        const characterConfigs = { ...(room.characterConfigs ?? {}) };
         for (const memory of memoryDrafts) {
           const existing = characterMemories[memory.characterId]?.trim() ?? "";
           const nextNote = memory.note.trim();
           characterMemories[memory.characterId] = existing
             ? [existing, nextNote].join("\n")
             : nextNote;
+          characterConfigs[memory.characterId] = {
+            ...(characterConfigs[memory.characterId] ?? { characterId: memory.characterId }),
+            memory: characterMemories[memory.characterId],
+          };
         }
 
         return {
           ...room,
+          characterConfigs,
           characterMemories,
           timelineEvents: [
             ...room.timelineEvents,
@@ -1098,7 +1158,6 @@ export const TavernPage = ({
           speakingStyle,
           goals: character.goals?.trim() || undefined,
           relationships: character.relationships?.trim() || undefined,
-          modelConfig: character.modelConfig,
           createdAt,
           updatedAt: createdAt,
         } satisfies TavernCharacter];
@@ -1125,6 +1184,26 @@ export const TavernPage = ({
             ? [[mappedId, memory.trim()]]
             : [];
         }),
+    );
+    const characterConfigs = Object.fromEntries(
+      parsed.room.characterIds.flatMap((sourceCharacterId) => {
+        const mappedId = characterIdMap.get(sourceCharacterId);
+        if (!mappedId) {
+          return [];
+        }
+
+        const sourceConfig = parsed.room.characterConfigs?.[sourceCharacterId];
+        return [[
+          mappedId,
+          {
+            characterId: mappedId,
+            memory: characterMemories[mappedId],
+            modelConfig: sourceConfig?.modelConfig ?? parsed.characters.find((character) =>
+              character.id === sourceCharacterId
+            )?.modelConfig,
+          },
+        ]];
+      }),
     );
     const importedTimelineEvents = (parsed.room.timelineEvents ?? [])
       .flatMap((event) => (
@@ -1174,12 +1253,15 @@ export const TavernPage = ({
       sceneGoal: parsed.room.sceneGoal?.trim() || "",
       locked: false,
       memory: parsed.room.memory?.trim() || "",
+      modelConfig: parsed.room.modelConfig,
       autoMemory: parsed.room.autoMemory?.trim() || "",
       autoMemoryUpdatedAt: typeof parsed.room.autoMemoryUpdatedAt === "number"
         ? parsed.room.autoMemoryUpdatedAt
         : undefined,
       summarizedMessageIds: [],
+      characterConfigs,
       characterMemories,
+      localCharacters: importedCharacters,
       lorebookEntries: importedLorebookEntries,
       timelineEvents: importedTimelineEvents,
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
@@ -1241,7 +1323,6 @@ export const TavernPage = ({
       ...current,
       activeRoomId: roomId,
       rooms: [...current.rooms, importedRoom],
-      characters: [...current.characters, ...importedCharacters],
       messagesByRoom: {
         ...current.messagesByRoom,
         [roomId]: messages,
@@ -1254,13 +1335,8 @@ export const TavernPage = ({
   const handleCreateRoom = useCallback(() => {
     setState((current) => {
       const room = createTavernRoom(workspace.id, current.rooms.length + 1);
-      const characterIds = current.characters
-        .slice(0, Math.min(current.characters.length, 3))
-        .map((character) => character.id);
       const nextRoom = {
         ...room,
-        characterIds,
-        activeCharacterId: characterIds[0] ?? "",
       };
       const openingMessage = createTavernMessage({
         roomId: nextRoom.id,
@@ -1466,6 +1542,21 @@ export const TavernPage = ({
     runtimeAgentId,
   ]);
 
+  const handleFillReplySuggestion = useCallback((suggestion: string) => {
+    const nextDraft = suggestion.trim();
+    if (!nextDraft) {
+      return;
+    }
+
+    setDraft(nextDraft);
+    setDraftCursor(nextDraft.length);
+    setReplySuggestions([]);
+    window.setTimeout(() => {
+      draftInputRef.current?.focus();
+      draftInputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
+    }, 0);
+  }, []);
+
   const handleOpenQuickSummary = useCallback(async ({
     force = false,
   }: {
@@ -1582,6 +1673,7 @@ export const TavernPage = ({
       speaker,
       resolvedModel: resolveTavernCharacterModel({
         character: speaker,
+        room: activeRoom,
         providers,
         fallbackProvider: provider,
         fallbackModel: model,
@@ -1705,6 +1797,7 @@ export const TavernPage = ({
       }
 
       let directorReason = "";
+      const turnNarratorTexts: string[] = [];
       if (replyMode === "director") {
         setTurnStatus("导演正在判断本轮发言顺序...");
         appendExecutionStep({
@@ -1738,6 +1831,7 @@ export const TavernPage = ({
           speaker,
           resolvedModel: resolveTavernCharacterModel({
             character: speaker,
+            room: activeRoom,
             providers,
             fallbackProvider: provider,
             fallbackModel: model,
@@ -1766,6 +1860,7 @@ export const TavernPage = ({
           appendMessagesToRoom(activeRoom.id, [narratorMessage]);
           runtimeMessages = [...runtimeMessages, narratorMessage];
           turnMessages.push(narratorMessage);
+          turnNarratorTexts.push(narratorText);
         }
       }
 
@@ -1793,7 +1888,7 @@ export const TavernPage = ({
 
         let streamedText = "";
         const ownReplyInstruction = activeRoom.settings.immersiveDescriptionEnabled !== false
-          ? "只输出你自己的沉浸式回应，动作、神态和场景互动请用 Markdown 单星号斜体包住，并让斜体描写独立成段或独立成行；不要替其他角色总结或行动。"
+          ? "只输出你自己的沉浸式回应；如使用动作、神态和场景互动，请用 Markdown 单星号斜体包住，并让斜体描写独立成段或独立成行；不要复述旁白或环境转场，不要替其他角色总结或行动。"
           : "只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。";
         const turnInstruction = replyMode === "round"
           ? [
@@ -1850,6 +1945,17 @@ export const TavernPage = ({
             userPersonaName: runtimeRoom.userPersonaName,
           }) || "（对方短暂沉默，杯沿映着灯光。）"
         );
+        if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
+          removeMessage(replyMessage.id);
+          patchExecutionStep(speakerStepId, {
+            status: "done",
+            detail: "已跳过重复旁白。",
+          });
+          activeReplyMessage = null;
+          activeReplyText = "";
+          continue;
+        }
+
         const finalizedMessage: TavernMessage = {
           ...replyMessage,
           content: finalText,
@@ -1959,6 +2065,7 @@ export const TavernPage = ({
     patchMessage,
     provider,
     providers,
+    removeMessage,
     resetExecutionTrace,
     patchExecutionStep,
     appendExecutionStep,
@@ -1996,7 +2103,6 @@ export const TavernPage = ({
     return (
       <TavernManagementPage
         rooms={state.rooms}
-        characters={state.characters}
         activeRoom={activeRoom}
         characterById={characterById}
         messagesByRoom={state.messagesByRoom}
@@ -2025,9 +2131,6 @@ export const TavernPage = ({
         onClearRoomMessages={clearRoomMessages}
         onExportRoom={exportRoom}
         onImportRoom={importRoomExport}
-        onCreateCharacter={createGlobalCharacter}
-        onUpdateCharacter={updateCharacter}
-        onDeleteCharacter={deleteCharacter}
       />
     );
   }
@@ -2177,6 +2280,7 @@ export const TavernPage = ({
             onSelectReplySuggestion={(suggestion) => {
               void handleSubmit(undefined, suggestion);
             }}
+            onFillReplySuggestion={handleFillReplySuggestion}
             onSubmit={(event) => {
               void handleSubmit(event);
             }}

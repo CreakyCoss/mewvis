@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   BookOpen,
-  Brain,
   Check,
   Clock,
   Copy,
@@ -17,12 +16,11 @@ import {
   Trash2,
   TriangleAlertIcon,
   UnlockKeyhole,
-  UserPlus,
   UsersRound,
   Wine,
 } from "lucide-react";
 import type { ComponentType, FormEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { Badge } from "@/components/ui/badge";
@@ -49,13 +47,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/visual-presets";
 import { cn } from "@/lib/utils";
-import {
-  parseTavernCharacterCard,
-  stringifyTavernCharacterCard,
-} from "../character-card";
-import { createTavernLorebookEntry, createTavernTimelineEvent } from "../storage";
+import { createTavernCharacter, createTavernLorebookEntry, createTavernTimelineEvent } from "../storage";
 import type {
   TavernCharacter,
+  TavernCharacterModelConfig,
   TavernLorebookEntry,
   TavernReplyMode,
   TavernMessage,
@@ -71,7 +66,6 @@ import {
 
 type TavernManagementPageProps = {
   rooms: TavernRoom[];
-  characters: TavernCharacter[];
   activeRoom: TavernRoom;
   characterById: Map<string, TavernCharacter>;
   messagesByRoom: Record<string, TavernMessage[]>;
@@ -90,9 +84,6 @@ type TavernManagementPageProps = {
   onClearRoomMessages: (roomId: string) => void;
   onExportRoom: (roomId: string) => boolean;
   onImportRoom: (raw: string) => string | null;
-  onCreateCharacter: (value: TavernCharacterFormValue) => void;
-  onUpdateCharacter: (characterId: string, patch: Partial<TavernCharacter>) => void;
-  onDeleteCharacter: (characterId: string) => void;
 };
 
 const replyModeOptions: Array<{
@@ -116,8 +107,6 @@ const parseKeywords = (value: string) =>
 const editorControlClassName = "w-full bg-background/80 shadow-none";
 const settingsFlagGridClassName =
   "grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-2";
-const settingsMetricGridClassName =
-  "grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2";
 const settingsEditorMetricGridClassName =
   "grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3";
 
@@ -168,7 +157,7 @@ const TavernReadonlyField = ({
   const normalizedValue = value.trim();
 
   return (
-    <div className={cn("rounded-md border bg-background/80 px-3 py-2.5 shadow-xs", className)}>
+    <div className={cn("rounded-md border border-border/70 bg-muted/15 px-3 py-2.5", className)}>
       <div className="text-[11px] font-medium uppercase text-muted-foreground">{label}</div>
       <div
         className={cn(
@@ -189,34 +178,29 @@ const TavernReadonlyField = ({
   );
 };
 
-const TavernReadonlyFlag = ({
-  label,
-  enabled,
-}: {
-  label: string;
-  enabled: boolean;
-}) => (
-  <div className="flex min-h-[3.25rem] min-w-0 items-center justify-between gap-2.5 rounded-md border bg-background/80 px-3 py-2.5 text-sm shadow-xs">
-    <span className="min-w-0 leading-5 [word-break:keep-all]">{label}</span>
-    <Badge variant={enabled ? "secondary" : "outline"} className="shrink-0">
-      {enabled ? "开启" : "关闭"}
-    </Badge>
-  </div>
-);
-
-const TavernReadonlyMetric = ({
+const TavernCompactSummaryItem = ({
   label,
   value,
   description,
+  className,
+  valueClassName,
 }: {
   label: string;
-  value: string;
-  description: string;
+  value: ReactNode;
+  description?: ReactNode;
+  className?: string;
+  valueClassName?: string;
 }) => (
-  <div className="rounded-md border bg-background/80 px-3 py-2.5 shadow-xs">
-    <div className="text-[11px] font-medium uppercase text-muted-foreground">{label}</div>
-    <div className="mt-1 text-lg font-semibold leading-7 tabular-nums">{value}</div>
-    <div className="text-xs leading-5 text-muted-foreground">{description}</div>
+  <div className={cn("min-w-0 rounded-md bg-background/45 px-2.5 py-2", className)}>
+    <div className="truncate text-[11px] font-medium uppercase text-muted-foreground">{label}</div>
+    <div className={cn("mt-0.5 min-w-0 truncate text-sm font-medium leading-5", valueClassName)}>
+      {value}
+    </div>
+    {description && (
+      <div className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
+        {description}
+      </div>
+    )}
   </div>
 );
 
@@ -241,13 +225,13 @@ const TavernEditorSection = ({
 }) => (
   <section
     className={cn(
-      "overflow-hidden rounded-lg border bg-card/55 shadow-sm",
+      "border-b border-border/70 last:border-b-0",
       className,
     )}
   >
-    <div className="flex items-start justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+    <div className="flex items-start justify-between gap-3 px-1 py-4">
       <div className="flex min-w-0 gap-2.5">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-primary">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <Icon className="size-3.5" />
         </span>
         <div className="min-w-0">
@@ -268,7 +252,7 @@ const TavernEditorSection = ({
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className={cn("space-y-3 p-4", contentClassName)}>
+    <div className={cn("space-y-3 px-1 pb-5", contentClassName)}>
       {children}
     </div>
   </section>
@@ -299,6 +283,7 @@ type RoomContentEditDraft =
     }
   | ({
       type: "settings";
+      modelConfig?: TavernCharacterModelConfig;
     } & TavernRoomSettings)
   | {
       type: "characterMemory";
@@ -327,7 +312,18 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   summarizedMessageIds: room.summarizedMessageIds
     ? [...room.summarizedMessageIds]
     : undefined,
+  modelConfig: room.modelConfig ? { ...room.modelConfig } : undefined,
+  characterConfigs: Object.fromEntries(
+    Object.entries(room.characterConfigs ?? {}).map(([characterId, config]) => [
+      characterId,
+      {
+        ...config,
+        modelConfig: config.modelConfig ? { ...config.modelConfig } : undefined,
+      },
+    ]),
+  ),
   characterMemories: { ...room.characterMemories },
+  localCharacters: room.localCharacters?.map((character) => ({ ...character })) ?? [],
   characterIds: [...room.characterIds],
   timelineEvents: room.timelineEvents.map((event) => ({ ...event })),
   lorebookEntries: room.lorebookEntries.map((entry) => ({
@@ -346,9 +342,49 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   })),
 });
 
+const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
+  const characterConfigs = { ...(room.characterConfigs ?? {}) };
+
+  for (const characterId of room.characterIds) {
+    if (!characterConfigs[characterId]) {
+      characterConfigs[characterId] = {
+        characterId,
+        memory: room.characterMemories[characterId]?.trim() || undefined,
+      };
+    }
+  }
+
+  const characterMemories = Object.fromEntries(
+    Object.entries(characterConfigs).flatMap(([characterId, config]) => {
+      const memory = config.memory?.trim() ?? "";
+      return memory ? [[characterId, memory]] : [];
+    }),
+  );
+
+  return {
+    ...room,
+    characterConfigs,
+    characterMemories,
+    localCharacters: room.localCharacters ?? [],
+  };
+};
+
+const findConfiguredModel = (
+  providers: LlmProvider[],
+  config: TavernCharacterModelConfig | undefined,
+) => {
+  const provider = config?.providerId
+    ? providers.find((item) => item.id === config.providerId)
+    : null;
+  const model = provider && config?.modelId
+    ? provider.models.find((item) => item.id === config.modelId && item.isEnabled)
+    : null;
+
+  return provider && model ? { provider, model } : null;
+};
+
 export const TavernManagementPage = ({
   rooms,
-  characters,
   activeRoom,
   characterById,
   messagesByRoom,
@@ -367,9 +403,6 @@ export const TavernManagementPage = ({
   onClearRoomMessages,
   onExportRoom,
   onImportRoom,
-  onCreateCharacter,
-  onUpdateCharacter,
-  onDeleteCharacter,
 }: TavernManagementPageProps) => {
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingRoomDraft, setEditingRoomDraft] = useState<TavernRoom | null>(null);
@@ -379,18 +412,13 @@ export const TavernManagementPage = ({
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
-  const [invitingRoomId, setInvitingRoomId] = useState<string | null>(null);
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
   const [dangerConfirmStep, setDangerConfirmStep] = useState<1 | 2>(1);
   const [lockingRoomRequest, setLockingRoomRequest] = useState<{
     roomId: string;
     locked: boolean;
   } | null>(null);
-  const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
-  const [isCharacterLibraryOpen, setIsCharacterLibraryOpen] = useState(false);
-  const [isImportingCharacterCard, setIsImportingCharacterCard] = useState(false);
-  const [characterCardText, setCharacterCardText] = useState("");
-  const [characterCardStatus, setCharacterCardStatus] = useState("");
+  const [isCreatingRoomCharacter, setIsCreatingRoomCharacter] = useState(false);
   const [roomOperationStatus, setRoomOperationStatus] = useState("");
   const roomImportInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -401,33 +429,32 @@ export const TavernManagementPage = ({
   const restoringRoom = restoringRoomId
     ? rooms.find((room) => room.id === restoringRoomId) ?? null
     : null;
-  const invitingRoom = invitingRoomId === editingRoom?.id
-    ? editingRoom
-    : invitingRoomId
-      ? rooms.find((room) => room.id === invitingRoomId) ?? null
-      : null;
   const lockingRoom = lockingRoomRequest
     ? rooms.find((room) => room.id === lockingRoomRequest.roomId) ?? null
     : null;
   const isLockingRoom = lockingRoomRequest?.locked ?? false;
-  const editingCharacter = editingCharacterId
-    ? characters.find((character) => character.id === editingCharacterId) ?? null
+  const editingCharacter = editingRoom && editingCharacterId
+    ? editingRoom.localCharacters?.find((character) => character.id === editingCharacterId) ?? null
     : null;
+  const editingCharacterModelConfig = editingCharacter
+    ? editingRoom?.characterConfigs?.[editingCharacter.id]?.modelConfig
+    : undefined;
   const activeRoomMessages = messagesByRoom[activeRoom.id] ?? [];
-  const characterUsageById = new Map<string, number>();
-  for (const room of rooms) {
-    for (const characterId of new Set(room.characterIds)) {
-      characterUsageById.set(characterId, (characterUsageById.get(characterId) ?? 0) + 1);
-    }
-  }
-  const editingRoomCharacterIds = new Set(editingRoom?.characterIds ?? []);
+  const totalRoomCharacterCount = rooms.reduce(
+    (sum, room) => sum + (room.localCharacters?.length ?? 0),
+    0,
+  );
+  const editingRoomLocalCharacterIds = new Set(
+    editingRoom?.localCharacters?.map((character) => character.id) ?? [],
+  );
+  const editingRoomCharacterById = new Map([
+    ...characterById.entries(),
+    ...(editingRoom?.localCharacters ?? []).map((character) => [character.id, character] as const),
+  ]);
   const editingRoomCharacters = editingRoom
     ? editingRoom.characterIds
-        .map((characterId) => characterById.get(characterId))
+        .map((characterId) => editingRoomCharacterById.get(characterId))
         .filter((character): character is TavernCharacter => Boolean(character))
-    : [];
-  const editingRoomAvailableCharacters = editingRoom
-    ? characters.filter((character) => !editingRoomCharacterIds.has(character.id))
     : [];
   const editingRoomScenePreset = editingRoom
     ? TAVERN_SCENE_PRESET_OPTIONS.find((preset) => preset.id === editingRoom.scenePresetId)
@@ -435,10 +462,19 @@ export const TavernManagementPage = ({
   const editingRoomMessageCount = editingRoom
     ? messagesByRoom[editingRoom.id]?.length ?? 0
     : 0;
-  const invitingRoomCharacterIds = new Set(invitingRoom?.characterIds ?? []);
-  const invitingRoomAvailableCharacters = invitingRoom
-    ? characters.filter((character) => !invitingRoomCharacterIds.has(character.id))
-    : [];
+  const modelProviders = useMemo(
+    () => providers.filter((provider) => provider.models.some((model) => model.isEnabled)),
+    [providers],
+  );
+  const systemDefaultModelLabel = globalProvider && globalModel
+    ? `${globalProvider.name} / ${globalModel.modelName}`
+    : "未选择";
+  const editingRoomModel = editingRoom
+    ? findConfiguredModel(providers, editingRoom.modelConfig)
+    : null;
+  const editingRoomModelLabel = editingRoomModel
+    ? `${editingRoomModel.provider.name} / ${editingRoomModel.model.modelName}`
+    : `系统默认：${systemDefaultModelLabel}`;
 
   const openRoomEditor = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
@@ -451,7 +487,7 @@ export const TavernManagementPage = ({
     setEditingRoomDraft(cloneTavernRoom(room));
     setRoomContentEditDraft(null);
     setRoomContentEditError("");
-    setInvitingRoomId(null);
+    setEditingCharacterId(null);
     setRoomOperationStatus("");
   };
 
@@ -460,25 +496,12 @@ export const TavernManagementPage = ({
     setEditingRoomDraft(null);
     setRoomContentEditDraft(null);
     setRoomContentEditError("");
-    setInvitingRoomId(null);
+    setEditingCharacterId(null);
+    setIsCreatingRoomCharacter(false);
   };
 
   const patchEditingRoomDraft = (patch: Partial<TavernRoom>) => {
     setEditingRoomDraft((current) => current ? { ...current, ...patch } : current);
-  };
-
-  const addCharacterToEditingRoomDraft = (characterId: string) => {
-    setEditingRoomDraft((current) => {
-      if (!current || current.characterIds.includes(characterId)) {
-        return current;
-      }
-
-      return {
-        ...current,
-        characterIds: [...current.characterIds, characterId],
-        activeCharacterId: current.activeCharacterId || characterId,
-      };
-    });
   };
 
   const removeCharacterFromEditingRoomDraft = (characterId: string) => {
@@ -488,14 +511,97 @@ export const TavernManagementPage = ({
       }
 
       const nextCharacterIds = current.characterIds.filter((id) => id !== characterId);
+      const nextCharacterConfigs = { ...(current.characterConfigs ?? {}) };
+      delete nextCharacterConfigs[characterId];
+      const nextCharacterMemories = { ...current.characterMemories };
+      delete nextCharacterMemories[characterId];
       return {
         ...current,
         characterIds: nextCharacterIds,
         activeCharacterId: current.activeCharacterId === characterId
           ? nextCharacterIds[0] ?? ""
           : current.activeCharacterId,
+        characterConfigs: nextCharacterConfigs,
+        characterMemories: nextCharacterMemories,
+        localCharacters: current.localCharacters?.filter((character) =>
+          character.id !== characterId
+        ) ?? [],
       };
     });
+  };
+
+  const firstEnabledModelConfigForProvider = (
+    providerId: string,
+  ): TavernCharacterModelConfig | undefined => {
+    const provider = modelProviders.find((item) => item.id === providerId);
+    const model = provider?.models.find((item) => item.isEnabled);
+    return provider && model
+      ? {
+          providerId: provider.id,
+          modelId: model.id,
+        }
+      : undefined;
+  };
+
+  const createRoomLocalCharacter = (value: TavernCharacterFormValue) => {
+    if (!editingRoom) {
+      return;
+    }
+
+    const character = createTavernCharacter(value);
+    const { modelConfig: _modelConfig, ...localCharacter } = character;
+    patchEditingRoomDraft({
+      localCharacters: [...(editingRoom.localCharacters ?? []), localCharacter],
+      characterIds: [...editingRoom.characterIds, localCharacter.id],
+      activeCharacterId: editingRoom.activeCharacterId || localCharacter.id,
+      characterConfigs: {
+        ...(editingRoom.characterConfigs ?? {}),
+        [localCharacter.id]: {
+          characterId: localCharacter.id,
+          modelConfig: value.modelConfig,
+        },
+      },
+    });
+    setIsCreatingRoomCharacter(false);
+  };
+
+  const updateRoomLocalCharacter = (
+    characterId: string,
+    value: TavernCharacterFormValue,
+  ) => {
+    if (!editingRoom) {
+      return;
+    }
+
+    const currentConfig = editingRoom.characterConfigs?.[characterId] ?? {
+      characterId,
+      memory: editingRoom.characterMemories[characterId]?.trim() || undefined,
+    };
+
+    patchEditingRoomDraft({
+      localCharacters: (editingRoom.localCharacters ?? []).map((character) =>
+        character.id === characterId
+          ? {
+              ...character,
+              name: value.name,
+              avatar: value.avatar,
+              description: value.description,
+              speakingStyle: value.speakingStyle,
+              goals: value.goals?.trim() || undefined,
+              relationships: value.relationships?.trim() || undefined,
+              updatedAt: Date.now(),
+            }
+          : character
+      ),
+      characterConfigs: {
+        ...(editingRoom.characterConfigs ?? {}),
+        [characterId]: {
+          ...currentConfig,
+          modelConfig: value.modelConfig,
+        },
+      },
+    });
+    setEditingCharacterId(null);
   };
 
   const saveRoomEditor = () => {
@@ -503,7 +609,7 @@ export const TavernManagementPage = ({
       return;
     }
 
-    onPatchRoom(editingRoom.id, editingRoom);
+    onPatchRoom(editingRoom.id, prepareTavernRoomForSave(editingRoom));
     closeRoomEditor();
   };
 
@@ -638,6 +744,7 @@ export const TavernManagementPage = ({
     setRoomContentEditError("");
     setRoomContentEditDraft({
       type: "settings",
+      modelConfig: editingRoom.modelConfig,
       ...editingRoom.settings,
     });
   };
@@ -651,7 +758,9 @@ export const TavernManagementPage = ({
     setRoomContentEditDraft({
       type: "characterMemory",
       characterId,
-      note: editingRoom.characterMemories[characterId] ?? "",
+      note: editingRoom.characterConfigs?.[characterId]?.memory
+        ?? editingRoom.characterMemories[characterId]
+        ?? "",
     });
   };
 
@@ -706,6 +815,7 @@ export const TavernManagementPage = ({
 
     if (roomContentEditDraft.type === "settings") {
       patchEditingRoomDraft({
+        modelConfig: roomContentEditDraft.modelConfig,
         settings: {
           immersiveDescriptionEnabled: roomContentEditDraft.immersiveDescriptionEnabled,
           showExecutionTrace: roomContentEditDraft.showExecutionTrace,
@@ -729,10 +839,21 @@ export const TavernManagementPage = ({
     }
 
     if (roomContentEditDraft.type === "characterMemory") {
+      const note = roomContentEditDraft.note.trim();
+      const currentConfig = editingRoom.characterConfigs?.[roomContentEditDraft.characterId] ?? {
+        characterId: roomContentEditDraft.characterId,
+      };
       patchEditingRoomDraft({
+        characterConfigs: {
+          ...(editingRoom.characterConfigs ?? {}),
+          [roomContentEditDraft.characterId]: {
+            ...currentConfig,
+            memory: note || undefined,
+          },
+        },
         characterMemories: {
           ...editingRoom.characterMemories,
-          [roomContentEditDraft.characterId]: roomContentEditDraft.note,
+          [roomContentEditDraft.characterId]: note,
         },
       });
       closeRoomContentEditor();
@@ -818,32 +939,6 @@ export const TavernManagementPage = ({
       setRoomOperationStatus(error ?? "房间已导入");
     } catch {
       setRoomOperationStatus("读取房间文件失败");
-    }
-  };
-
-  const copyCharacterCard = async (character: TavernCharacter) => {
-    try {
-      await navigator.clipboard.writeText(stringifyTavernCharacterCard(character));
-      setCharacterCardStatus(`已复制 ${character.name}`);
-    } catch {
-      setCharacterCardStatus("复制角色卡失败");
-    }
-  };
-
-  const importCharacterCard = () => {
-    const raw = characterCardText.trim();
-    if (!raw) {
-      setCharacterCardStatus("请粘贴角色卡 JSON");
-      return;
-    }
-
-    try {
-      onCreateCharacter(parseTavernCharacterCard(raw));
-      setCharacterCardText("");
-      setIsImportingCharacterCard(false);
-      setCharacterCardStatus("角色卡已导入角色库");
-    } catch (caught) {
-      setCharacterCardStatus(caught instanceof Error ? caught.message : "角色卡导入失败");
     }
   };
 
@@ -1001,6 +1096,84 @@ export const TavernManagementPage = ({
       case "settings":
         return (
           <>
+            <div className="space-y-3 rounded-md border border-border/70 bg-muted/15 p-3">
+              <div>
+                <div className="text-sm font-medium leading-5">酒馆模型</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  角色选择“跟随酒馆”时会使用这里的模型。
+                </div>
+              </div>
+              <TavernEditorField label="模型策略" htmlFor="tavern-content-room-model-mode">
+                <NativeSelect
+                  id="tavern-content-room-model-mode"
+                  value={roomContentEditDraft.modelConfig ? "custom" : "system"}
+                  className={editorControlClassName}
+                  onChange={(event) => {
+                    setRoomContentEditDraft({
+                      ...roomContentEditDraft,
+                      modelConfig: event.target.value === "custom"
+                        ? roomContentEditDraft.modelConfig ??
+                          firstEnabledModelConfigForProvider(modelProviders[0]?.id ?? "")
+                        : undefined,
+                    });
+                  }}
+                >
+                  <NativeSelectOption value="system">跟随系统默认</NativeSelectOption>
+                  <NativeSelectOption value="custom" disabled={modelProviders.length === 0}>
+                    自定义
+                  </NativeSelectOption>
+                </NativeSelect>
+              </TavernEditorField>
+              {roomContentEditDraft.modelConfig && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TavernEditorField label="供应商" htmlFor="tavern-content-room-provider">
+                    <NativeSelect
+                      id="tavern-content-room-provider"
+                      value={roomContentEditDraft.modelConfig.providerId}
+                      className={editorControlClassName}
+                      onChange={(event) => {
+                        setRoomContentEditDraft({
+                          ...roomContentEditDraft,
+                          modelConfig: firstEnabledModelConfigForProvider(event.target.value),
+                        });
+                      }}
+                    >
+                      {modelProviders.map((provider) => (
+                        <NativeSelectOption key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </TavernEditorField>
+                  <TavernEditorField label="模型" htmlFor="tavern-content-room-model">
+                    <NativeSelect
+                      id="tavern-content-room-model"
+                      value={roomContentEditDraft.modelConfig.modelId}
+                      className={editorControlClassName}
+                      onChange={(event) => {
+                        setRoomContentEditDraft({
+                          ...roomContentEditDraft,
+                          modelConfig: roomContentEditDraft.modelConfig
+                            ? {
+                                ...roomContentEditDraft.modelConfig,
+                                modelId: event.target.value,
+                              }
+                            : undefined,
+                        });
+                      }}
+                    >
+                      {(modelProviders.find((provider) =>
+                        provider.id === roomContentEditDraft.modelConfig?.providerId
+                      )?.models.filter((model) => model.isEnabled) ?? []).map((model) => (
+                        <NativeSelectOption key={model.id} value={model.id}>
+                          {model.modelName}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </TavernEditorField>
+                </div>
+              )}
+            </div>
             <div className={settingsFlagGridClassName}>
               <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
                 <input
@@ -1219,7 +1392,7 @@ export const TavernManagementPage = ({
                 <h1 className="truncate text-xl font-semibold leading-7">酒馆管理</h1>
                 <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span>{formatCount(rooms.length, "房间")}</span>
-                  <span>{formatCount(characters.length, "角色")}</span>
+                  <span>{formatCount(totalRoomCharacterCount, "角色")}</span>
                   <span>{formatCount(activeRoomMessages.length, "消息")}</span>
                 </div>
               </div>
@@ -1235,17 +1408,6 @@ export const TavernManagementPage = ({
               <Button type="button" onClick={onCreateRoom}>
                 <Plus className="size-4" />
                 新建酒馆
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="size-9"
-                title="角色库"
-                aria-label="打开角色库"
-                onClick={() => setIsCharacterLibraryOpen(true)}
-              >
-                <UsersRound className="size-4" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1697,177 +1859,6 @@ export const TavernManagementPage = ({
         )}
       </Dialog>
 
-      <Dialog open={isCharacterLibraryOpen} onOpenChange={setIsCharacterLibraryOpen}>
-        <DialogContent className="flex h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-          <DialogHeader className="border-b px-5 py-4 pr-12">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <DialogTitle>角色库</DialogTitle>
-                <DialogDescription>
-                  全局角色配置会影响所有引用它的酒馆。
-                </DialogDescription>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setIsImportingCharacterCard((current) => !current);
-                    setCharacterCardStatus("");
-                  }}
-                >
-                  <FileUp className="size-4" />
-                  导入角色卡
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setIsCreatingCharacter(true)}
-                >
-                  <Plus className="size-4" />
-                  新建角色
-                </Button>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-3 px-5 py-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>{formatCount(characters.length, "角色")}</span>
-                <span>{formatCount(rooms.length, "酒馆")}</span>
-                {characterCardStatus && <span>{characterCardStatus}</span>}
-              </div>
-
-              {isImportingCharacterCard && (
-                <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-                  <Textarea
-                    value={characterCardText}
-                    placeholder="粘贴角色卡 JSON"
-                    className="min-h-[132px] resize-none bg-background font-mono text-xs leading-5"
-                    onChange={(event) => setCharacterCardText(event.target.value)}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setCharacterCardText("");
-                        setIsImportingCharacterCard(false);
-                      }}
-                    >
-                      取消
-                    </Button>
-                    <Button type="button" size="sm" onClick={importCharacterCard}>
-                      <FileUp className="size-4" />
-                      导入
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {characters.length > 0 ? (
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {characters.map((character) => {
-                    const avatar = resolveAgentAvatar(character.avatar);
-                    const usageCount = characterUsageById.get(character.id) ?? 0;
-
-                    return (
-                      <article
-                        key={character.id}
-                        className="flex min-h-[132px] flex-col rounded-md border bg-background p-2.5 shadow-sm"
-                      >
-                        <div className="flex min-w-0 items-start gap-2.5">
-                          <img
-                            src={avatar.src}
-                            alt=""
-                            className="size-8 rounded-md border bg-muted/20"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                              <div className="min-w-0 truncate text-sm font-semibold">
-                                {character.name}
-                              </div>
-                              {character.systemPresetId && (
-                                <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[11px]">
-                                  系统预设
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              {formatCount(usageCount, "个酒馆")}
-                            </div>
-                          </div>
-                        </div>
-                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                          {character.description}
-                        </p>
-                        <div className="mt-auto grid grid-cols-[1fr_auto_auto] gap-1.5 pt-2.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
-                            onClick={() => setEditingCharacterId(character.id)}
-                          >
-                            <Pencil className="size-3.5" />
-                            编辑
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            title="复制角色卡"
-                            aria-label="复制角色卡"
-                            onClick={() => void copyCharacterCard(character)}
-                          >
-                            <Copy className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            title={character.systemPresetId ? "系统预设角色不可删除" : "删除角色"}
-                            aria-label={character.systemPresetId ? "系统预设角色不可删除" : "删除角色"}
-                            disabled={characters.length <= 1 || Boolean(character.systemPresetId)}
-                            onClick={() => {
-                              if (editingCharacterId === character.id) {
-                                setEditingCharacterId(null);
-                              }
-                              onDeleteCharacter(character.id);
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex min-h-32 items-center justify-center rounded-md border bg-background/60 text-sm text-muted-foreground">
-                  还没有全局角色。
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          <DialogFooter className="shrink-0 border-t bg-popover px-5 py-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsCharacterLibraryOpen(false)}
-            >
-              关闭
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog
         open={Boolean(editingRoom)}
         onOpenChange={(open) => {
@@ -1920,135 +1911,48 @@ export const TavernManagementPage = ({
               </div>
             </DialogHeader>
 
-            <ScrollArea className="min-h-0 flex-1 bg-muted/5">
-              <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
-                <div className="space-y-4">
-	                  <TavernEditorSection
-	                    icon={Wine}
-	                    title="基础信息"
-	                    description="设置房间识别信息、聊天风格和发言方式。"
-	                    meta={editingRoomScenePreset?.label ?? "通用"}
-		                    action={(
-		                      <Button
-		                        type="button"
-		                        size="xs"
-	                        variant="outline"
-	                        onClick={openBasicContentEditor}
-	                      >
-	                        <Pencil className="size-3.5" />
-		                        编辑
-		                      </Button>
-		                    )}
-		                    contentClassName="space-y-3"
-		                  >
-		                    <TavernReadonlyField
-		                      label="房间名称"
-		                      value={editingRoom.title}
-		                      className="border-primary/20 bg-primary/[0.04]"
-		                      valueClassName="text-base font-semibold leading-7"
-		                    />
+            <ScrollArea className="min-h-0 flex-1 bg-background">
+              <div className="mx-auto flex w-full max-w-5xl flex-col px-5 py-2 lg:px-6">
+                <TavernEditorSection
+                  icon={Wine}
+                  title="基础信息"
+                  description="设置房间识别信息、聊天风格和发言方式。"
+                  meta={editingRoomScenePreset?.label ?? "通用"}
+                  action={(
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={openBasicContentEditor}
+                    >
+                      <Pencil className="size-3.5" />
+                      编辑
+                    </Button>
+                  )}
+                  contentClassName="space-y-0 pb-4"
+                >
+                  <div className="grid gap-2 rounded-md border border-border/70 bg-muted/15 p-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                    <TavernCompactSummaryItem
+                      label="房间名称"
+                      value={editingRoom.title.trim() || emptyValueText}
+                      className="border border-primary/15 bg-primary/[0.04]"
+                      valueClassName="text-base font-semibold leading-6"
+                    />
+                    <TavernCompactSummaryItem
+                      label="场景设置"
+                      value={editingRoomScenePreset?.label ?? "通用"}
+                    />
+                    <TavernCompactSummaryItem
+                      label="发言模式"
+                      value={getReplyModeLabel(editingRoom.replyMode ?? "active")}
+                    />
+                    <TavernCompactSummaryItem
+                      label="你的称呼"
+                      value={editingRoom.userPersonaName.trim() || emptyValueText}
+                    />
+                  </div>
+                </TavernEditorSection>
 
-		                    <div className="grid gap-3 sm:grid-cols-3">
-		                      <TavernReadonlyField
-		                        label="场景设置"
-		                        value={editingRoomScenePreset?.label ?? "通用"}
-		                        description={editingRoomScenePreset?.description ?? "选择酒馆内部聊天页的显示风格。"}
-		                        className="sm:col-span-1"
-		                        valueClassName="font-medium"
-		                        descriptionClassName="line-clamp-2"
-		                      />
-		                      <TavernReadonlyField
-		                        label="发言模式"
-		                        value={getReplyModeLabel(editingRoom.replyMode ?? "active")}
-		                        valueClassName="font-medium"
-		                      />
-		                      <TavernReadonlyField
-		                        label="你的称呼"
-		                        value={editingRoom.userPersonaName}
-		                        valueClassName="font-medium"
-		                      />
-		                    </div>
-		                  </TavernEditorSection>
-
-	                  <TavernEditorSection
-	                    icon={MessageCircle}
-	                    title="叙事内容"
-	                    description="这些内容会影响酒馆开场、角色回应和长期上下文。"
-	                    action={(
-	                      <Button
-	                        type="button"
-	                        size="xs"
-	                        variant="outline"
-	                        onClick={openNarrativeContentEditor}
-	                      >
-	                        <Pencil className="size-3.5" />
-		                        编辑
-		                      </Button>
-		                    )}
-		                    contentClassName="space-y-3"
-		                  >
-		                    <TavernReadonlyField
-		                      label="场景描述"
-		                      value={editingRoom.scene}
-		                      multiline
-		                      className="bg-muted/15"
-		                      valueClassName="leading-7 text-foreground/90"
-		                    />
-
-		                    <TavernReadonlyField
-		                      label="场景目标"
-		                      value={editingRoom.sceneGoal}
-		                      multiline
-		                      className="border-primary/15 bg-primary/[0.035]"
-		                      valueClassName="font-medium leading-7"
-		                    />
-
-		                    <TavernReadonlyField
-		                      label="房间记忆"
-		                      value={editingRoom.memory}
-		                      multiline
-		                      className="bg-muted/15"
-		                      valueClassName="leading-7 text-foreground/90"
-		                    />
-
-                    {editingRoom.autoMemory.trim() && (
-                      <div className="overflow-hidden rounded-md border bg-background/70">
-                        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Brain className="size-3.5" />
-                            自动记忆
-                          </div>
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => {
-                              const roomLabel = editingRoom.title.trim() || "当前酒馆";
-                              requestDangerAction({
-                                title: "清除自动记忆",
-                                description: `清除「${roomLabel}」的自动记忆？`,
-                                secondDescription: "再次确认清除自动记忆？后续对话将不再引用这段整理结果。",
-                                confirmLabel: "清除记忆",
-                                onConfirm: () => patchEditingRoomDraft({
-                                  autoMemory: "",
-                                  autoMemoryUpdatedAt: undefined,
-                                  summarizedMessageIds: [],
-                                }),
-                              });
-                            }}
-                          >
-                            清除
-                          </Button>
-                        </div>
-                        <div className="max-h-36 overflow-y-auto whitespace-pre-wrap px-3 py-2 text-sm leading-6 text-muted-foreground">
-                          {editingRoom.autoMemory}
-                        </div>
-                      </div>
-                    )}
-                  </TavernEditorSection>
-                </div>
-
-                <div className="space-y-4">
                   <TavernEditorSection
                     icon={Settings2}
                     title="运行设置"
@@ -2061,40 +1965,94 @@ export const TavernManagementPage = ({
                         onClick={openSettingsContentEditor}
                       >
                         <Pencil className="size-3.5" />
+                      编辑
+                    </Button>
+                  )}
+                    contentClassName="space-y-0 pb-4"
+                  >
+                    <div className="grid gap-2 rounded-md border border-border/70 bg-muted/15 p-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(6,minmax(6.25rem,1fr))]">
+                      <TavernCompactSummaryItem
+                        label="酒馆模型"
+                        value={editingRoomModelLabel}
+                        className="sm:col-span-2 lg:col-span-1"
+                      />
+                      <TavernCompactSummaryItem
+                        label="沉浸描写"
+                        value={(
+                          <Badge variant={editingRoom.settings.immersiveDescriptionEnabled ? "secondary" : "outline"}>
+                            {editingRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="显示执行过程"
+                        value={(
+                          <Badge variant={editingRoom.settings.showExecutionTrace ? "secondary" : "outline"}>
+                            {editingRoom.settings.showExecutionTrace ? "开启" : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="自动整理剧情资产"
+                        value={(
+                          <Badge variant={editingRoom.settings.autoAssetExtractionEnabled ? "secondary" : "outline"}>
+                            {editingRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="整理间隔"
+                        value={`${editingRoom.settings.assetExtractionIntervalTurns} 轮`}
+                      />
+                      <TavernCompactSummaryItem
+                        label="草稿上限"
+                        value={`${editingRoom.settings.maxAssetDrafts} 条`}
+                      />
+                      <TavernCompactSummaryItem
+                        label="导演人数"
+                        value={`${editingRoom.settings.directorMaxSpeakers} 人`}
+                      />
+                    </div>
+                  </TavernEditorSection>
+
+                  <TavernEditorSection
+                    icon={MessageCircle}
+                    title="叙事内容"
+                    description="管理场景描述、当前目标和长期房间记忆。"
+                    action={(
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={openNarrativeContentEditor}
+                      >
+                        <Pencil className="size-3.5" />
                         编辑
                       </Button>
                     )}
                     contentClassName="space-y-3"
                   >
-                    <div className={settingsFlagGridClassName}>
-                      <TavernReadonlyFlag
-                        label="沉浸描写"
-                        enabled={editingRoom.settings.immersiveDescriptionEnabled}
+                    <TavernReadonlyField
+                      label="场景描述"
+                      value={editingRoom.scene}
+                      multiline
+                      valueClassName="line-clamp-4"
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <TavernReadonlyField
+                        label="场景目标"
+                        value={editingRoom.sceneGoal}
+                        multiline
+                        valueClassName="line-clamp-4"
                       />
-                      <TavernReadonlyFlag
-                        label="显示执行过程"
-                        enabled={editingRoom.settings.showExecutionTrace}
-                      />
-                      <TavernReadonlyFlag
-                        label="自动整理剧情资产"
-                        enabled={editingRoom.settings.autoAssetExtractionEnabled}
-                      />
-                    </div>
-                    <div className={settingsMetricGridClassName}>
-                      <TavernReadonlyMetric
-                        label="整理间隔"
-                        value={`${editingRoom.settings.assetExtractionIntervalTurns} 轮`}
-                        description="触发整理"
-                      />
-                      <TavernReadonlyMetric
-                        label="草稿上限"
-                        value={`${editingRoom.settings.maxAssetDrafts} 条`}
-                        description="保留草稿"
-                      />
-                      <TavernReadonlyMetric
-                        label="导演人数"
-                        value={`${editingRoom.settings.directorMaxSpeakers} 人`}
-                        description="本轮上限"
+                      <TavernReadonlyField
+                        label="房间记忆"
+                        value={editingRoom.memory}
+                        multiline
+                        valueClassName="line-clamp-4"
                       />
                     </div>
                   </TavernEditorSection>
@@ -2102,145 +2060,146 @@ export const TavernManagementPage = ({
                   <TavernEditorSection
                     icon={UsersRound}
                     title="入席角色"
-                    description="这里只管理当前酒馆使用哪些全局角色。"
+                    description="维护当前酒馆的入席角色和角色记忆。"
                     meta={formatCount(editingRoomCharacters.length, "角色")}
                     action={(
                       <Button
                         type="button"
                         size="xs"
                         variant="outline"
-                        disabled={editingRoomAvailableCharacters.length === 0}
-                        title={editingRoomAvailableCharacters.length === 0 ? "没有可邀请角色" : "邀请角色"}
-                        onClick={() => setInvitingRoomId(editingRoom.id)}
+                        onClick={() => setIsCreatingRoomCharacter(true)}
                       >
-                        <UserPlus className="size-3.5" />
-                        邀请
+                        <Plus className="size-3.5" />
+                        新建
                       </Button>
 	                    )}
 	                    contentClassName="space-y-0"
 	                  >
-	                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-3 md:grid-cols-2">
                     {editingRoomCharacters.map((character) => {
                       const isActiveCharacter = editingRoom.activeCharacterId === character.id;
+                      const isLocalCharacter = editingRoomLocalCharacterIds.has(character.id);
+                      const characterConfig = editingRoom.characterConfigs?.[character.id] ?? {
+                        characterId: character.id,
+                        memory: editingRoom.characterMemories[character.id]?.trim() || undefined,
+                      };
 
                       return (
                         <div
                           key={character.id}
                           className={cn(
-                            "flex min-w-0 items-center gap-2 rounded-md border bg-background/80 px-2.5 py-2",
+                            "space-y-3 rounded-md border bg-background/80 p-3.5",
                             isActiveCharacter && "border-primary/45 bg-primary/[0.06] ring-1 ring-primary/10",
                           )}
                         >
-                          <img
-                            src={resolveAgentAvatar(character.avatar).src}
-                            alt=""
-                            className="size-8 rounded-md border bg-muted/20"
-                          />
-                          <div className="min-w-0 flex-1 text-xs">
-                            <div className="truncate font-medium leading-5">{character.name}</div>
-                            {isActiveCharacter && (
-                              <div className="text-[11px] leading-4 text-primary">默认</div>
-                            )}
+                          <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2.5">
+                            <img
+                              src={resolveAgentAvatar(character.avatar).src}
+                              alt=""
+                              className="size-10 rounded-md border bg-muted/20"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 items-start justify-between gap-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                  <div className="min-w-0 truncate text-sm font-medium leading-5">
+                                    {character.name}
+                                  </div>
+                                  {!isLocalCharacter && <Badge variant="secondary">系统角色</Badge>}
+                                  {isActiveCharacter && <Badge variant="outline">默认</Badge>}
+                                </div>
+                                <div className="flex shrink-0 items-center gap-1">
+                                  <Button
+                                    type="button"
+                                    size="icon-xs"
+                                    variant="ghost"
+                                    title="编辑角色资料"
+                                    aria-label={`编辑${character.name}的角色资料`}
+                                    disabled={!isLocalCharacter}
+                                    onClick={() => setEditingCharacterId(character.id)}
+                                  >
+                                    <Pencil className="size-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="icon-xs"
+                                    variant={isActiveCharacter ? "secondary" : "outline"}
+                                    title={isActiveCharacter ? "已是默认角色" : "设为默认角色"}
+                                    aria-label={isActiveCharacter ? `${character.name} 已是默认角色` : `设 ${character.name} 为默认角色`}
+                                    disabled={isActiveCharacter}
+                                    onClick={() => patchEditingRoomDraft({
+                                      activeCharacterId: character.id,
+                                    })}
+                                  >
+                                    <Check className="size-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="icon-xs"
+                                    variant="ghost"
+                                    title="移出酒馆"
+                                    aria-label="移出酒馆"
+                                    disabled={editingRoomCharacters.length <= 1}
+                                    onClick={() => {
+                                      const characterLabel = character.name.trim() || "未命名角色";
+                                      const roomLabel = editingRoom.title.trim() || "当前酒馆";
+                                      requestDangerAction({
+                                        title: "移出角色",
+                                        description: `将「${characterLabel}」移出「${roomLabel}」？`,
+                                        secondDescription: "再次确认移出角色？保存后该角色会离开当前酒馆的入席列表。",
+                                        confirmLabel: "移出角色",
+                                        onConfirm: () => removeCharacterFromEditingRoomDraft(character.id),
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="mt-1 truncate text-xs text-muted-foreground">
+                                {character.speakingStyle}
+                              </div>
+                            </div>
                           </div>
-                          <Button
-                            type="button"
-                            size="icon-xs"
-                            variant={isActiveCharacter ? "secondary" : "outline"}
-                            title={isActiveCharacter ? "已是默认角色" : "设为默认角色"}
-                            aria-label={isActiveCharacter ? `${character.name} 已是默认角色` : `设 ${character.name} 为默认角色`}
-                            disabled={isActiveCharacter}
-                            onClick={() => patchEditingRoomDraft({
-                              activeCharacterId: character.id,
-                            })}
-                          >
-                            <Check className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon-xs"
-                            variant="ghost"
-                            title="移出酒馆"
-                            aria-label="移出酒馆"
-                            disabled={editingRoomCharacters.length <= 1}
-                            onClick={() => {
-                              const characterLabel = character.name.trim() || "未命名角色";
-                              const roomLabel = editingRoom.title.trim() || "当前酒馆";
-                              requestDangerAction({
-                                title: "移出角色",
-                                description: `将「${characterLabel}」移出「${roomLabel}」？`,
-                                secondDescription: "再次确认移出角色？保存后该角色会离开当前酒馆的入席列表。",
-                                confirmLabel: "移出角色",
-                                onConfirm: () => removeCharacterFromEditingRoomDraft(character.id),
-                              });
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+
+                          <div className="rounded-md border bg-muted/20 px-3 py-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium text-muted-foreground">
+                                  角色房间记忆
+                                </div>
+                                <div
+                                  className={cn(
+                                    "mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-6",
+                                    !characterConfig.memory?.trim() && "text-muted-foreground",
+                                  )}
+                                >
+                                  {characterConfig.memory?.trim() || emptyValueText}
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="ghost"
+                                title="编辑角色记忆"
+                                aria-label={`编辑${character.name}的角色记忆`}
+                                onClick={() => openCharacterMemoryContentEditor(character.id)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       );
 	                    })}
 	                    {editingRoomCharacters.length === 0 && (
-	                      <div className="col-span-2 rounded-md border bg-background px-3 py-4 text-center text-sm text-muted-foreground">
+	                      <div className="rounded-md border bg-background px-3 py-4 text-center text-sm text-muted-foreground md:col-span-2">
 	                        这个酒馆还没有角色入席。
 	                      </div>
 	                    )}
                   </div>
                   </TavernEditorSection>
-                </div>
-
-                {editingRoomCharacters.length > 0 && (
-                  <TavernEditorSection
-                    className="lg:col-span-2"
-                    icon={Brain}
-                    title="角色房间记忆"
-                    description="记录角色在当前酒馆中的局部关系、承诺和状态。"
-                    meta={formatCount(editingRoomCharacters.length, "角色")}
-	                  >
-	                    <div className="grid gap-3 md:grid-cols-2">
-	                      {editingRoomCharacters.map((character) => (
-	                        <div
-	                          key={character.id}
-	                          className="rounded-md border bg-background/80 p-3"
-	                        >
-	                          <div className="flex items-start gap-2">
-	                            <img
-	                              src={resolveAgentAvatar(character.avatar).src}
-	                              alt=""
-	                              className="size-8 rounded-md border bg-muted/20"
-	                            />
-	                            <div className="min-w-0 flex-1">
-	                              <div className="truncate text-sm font-medium leading-5">
-	                                {character.name}
-	                              </div>
-	                              <div
-	                                className={cn(
-	                                  "mt-1 whitespace-pre-wrap text-sm leading-6",
-	                                  !(editingRoom.characterMemories[character.id] ?? "").trim() &&
-	                                    "text-muted-foreground",
-	                                )}
-	                              >
-	                                {(editingRoom.characterMemories[character.id] ?? "").trim() || emptyValueText}
-	                              </div>
-	                            </div>
-	                            <Button
-	                              type="button"
-	                              size="icon-sm"
-	                              variant="ghost"
-	                              title="编辑角色记忆"
-	                              aria-label={`编辑${character.name}的角色记忆`}
-	                              onClick={() => openCharacterMemoryContentEditor(character.id)}
-	                            >
-	                              <Pencil className="size-4" />
-	                            </Button>
-	                          </div>
-	                        </div>
-	                      ))}
-	                    </div>
-	                  </TavernEditorSection>
-                )}
 
                   <TavernEditorSection
-                    className="lg:col-span-2"
                     icon={Clock}
                     title="剧情时间线"
                     description="沉淀已经确定发生过的关键事件。"
@@ -2316,7 +2275,6 @@ export const TavernManagementPage = ({
                   </TavernEditorSection>
 
                   <TavernEditorSection
-                    className="lg:col-span-2"
                     icon={BookOpen}
                     title="世界书"
 	                    description="维护可被关键词触发或常驻生效的设定资料。"
@@ -2482,87 +2440,26 @@ export const TavernManagementPage = ({
 	        )}
 	      </Dialog>
 
-	      <Dialog
-	        open={Boolean(invitingRoom)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setInvitingRoomId(null);
-          }
-        }}
-      >
-        {invitingRoom && (
-          <DialogContent className="flex max-h-[min(680px,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-            <DialogHeader className="border-b px-5 py-4 pr-12">
-              <DialogTitle>邀请角色</DialogTitle>
-              <DialogDescription>
-                选择要加入「{invitingRoom.title}」的全局角色。
-              </DialogDescription>
-            </DialogHeader>
-
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="grid gap-2 px-5 py-4 sm:grid-cols-2">
-                {invitingRoomAvailableCharacters.map((character) => (
-                  <button
-                    key={character.id}
-                    type="button"
-                    className="flex min-w-0 items-center gap-2 rounded-md border bg-background px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => {
-                      addCharacterToEditingRoomDraft(character.id);
-                      setInvitingRoomId(null);
-                    }}
-                  >
-                    <img
-                      src={resolveAgentAvatar(character.avatar).src}
-                      alt=""
-                      className="size-8 rounded-md border bg-muted/20"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{character.name}</div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {character.speakingStyle}
-                      </div>
-                    </div>
-                    <UserPlus className="size-4 text-muted-foreground" />
-                  </button>
-                ))}
-                {invitingRoomAvailableCharacters.length === 0 && (
-                  <div className="rounded-md border bg-muted/20 px-3 py-8 text-center text-sm text-muted-foreground sm:col-span-2">
-                    所有角色都已入席。
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            <DialogFooter className="shrink-0 border-t bg-popover px-5 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setInvitingRoomId(null)}
-              >
-                关闭
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        )}
-      </Dialog>
-
       <TavernCharacterFormDialog
-        open={isCreatingCharacter || Boolean(editingCharacter)}
+        open={isCreatingRoomCharacter || Boolean(editingCharacter)}
         character={editingCharacter}
+        modelConfig={editingCharacterModelConfig}
         providers={providers}
-        globalProvider={globalProvider}
-        globalModel={globalModel}
+        roomModelLabel={editingRoomModelLabel}
         onOpenChange={(open) => {
           if (!open) {
-            setIsCreatingCharacter(false);
+            setIsCreatingRoomCharacter(false);
             setEditingCharacterId(null);
           }
         }}
         onSubmit={(value) => {
+          if (isCreatingRoomCharacter) {
+            createRoomLocalCharacter(value);
+            return;
+          }
+
           if (editingCharacter) {
-            onUpdateCharacter(editingCharacter.id, value);
-          } else {
-            onCreateCharacter(value);
+            updateRoomLocalCharacter(editingCharacter.id, value);
           }
         }}
       />

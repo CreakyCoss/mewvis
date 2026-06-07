@@ -11,34 +11,14 @@ export type TavernCharacterCard = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  modelConfig?: {
-    providerId: string;
-    modelId: string;
-  };
 };
 
 export type TavernCharacterCardInput = Pick<
   TavernCharacter,
-  "name" | "avatar" | "description" | "speakingStyle" | "goals" | "relationships" | "modelConfig"
+  "name" | "avatar" | "description" | "speakingStyle" | "goals" | "relationships"
 >;
 
 const textValue = (value: unknown) => typeof value === "string" ? value.trim() : "";
-
-const modelConfigValue = (value: unknown) => {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-
-  const providerId = textValue((value as Record<string, unknown>).providerId);
-  const modelId = textValue((value as Record<string, unknown>).modelId);
-
-  return providerId && modelId
-    ? {
-        providerId,
-        modelId,
-      }
-    : undefined;
-};
 
 export const tavernCharacterToCard = (
   character: TavernCharacter,
@@ -51,7 +31,6 @@ export const tavernCharacterToCard = (
   speakingStyle: character.speakingStyle,
   goals: character.goals,
   relationships: character.relationships,
-  modelConfig: character.modelConfig,
 });
 
 export const stringifyTavernCharacterCard = (character: TavernCharacter) =>
@@ -77,6 +56,5 @@ export const parseTavernCharacterCard = (raw: string): TavernCharacterCardInput 
     speakingStyle,
     goals: textValue(parsed.goals) || undefined,
     relationships: textValue(parsed.relationships) || undefined,
-    modelConfig: modelConfigValue(parsed.modelConfig),
   };
 };

@@ -1,5 +1,5 @@
 import type { FormEvent, KeyboardEvent, RefObject } from "react";
-import { FileText, Loader2, Send, Sparkles } from "lucide-react";
+import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
@@ -25,6 +25,7 @@ type TavernComposerProps = {
   onInsertReference: (file: WorkspaceFileEntry) => void;
   onGenerateReplySuggestions: () => void;
   onSelectReplySuggestion: (suggestion: string) => void;
+  onFillReplySuggestion: (suggestion: string) => void;
   onSubmit: (event?: FormEvent) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
@@ -47,6 +48,7 @@ export const TavernComposer = ({
   onInsertReference,
   onGenerateReplySuggestions,
   onSelectReplySuggestion,
+  onFillReplySuggestion,
   onSubmit,
   onKeyDown,
 }: TavernComposerProps) => {
@@ -104,15 +106,33 @@ export const TavernComposer = ({
             {replySuggestions.length > 0 && (
               <div className="grid gap-1.5">
                 {replySuggestions.map((suggestion) => (
-                  <button
+                  <div
                     key={suggestion}
-                    type="button"
-                    className="min-h-10 rounded-md border border-current/10 bg-current/5 px-3 py-2 text-left text-sm leading-5 transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    disabled={isSending || isGeneratingReplySuggestions}
-                    onClick={() => onSelectReplySuggestion(suggestion)}
+                    className="flex min-h-10 overflow-hidden rounded-md border border-current/10 bg-current/5 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-ring"
                   >
-                    {suggestion}
-                  </button>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
+                      title="直接发送"
+                      aria-label={`直接发送候选回复：${suggestion}`}
+                      disabled={isSending || isGeneratingReplySuggestions}
+                      onClick={() => onSelectReplySuggestion(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
+                      title="填入输入框后编辑"
+                      aria-label={`填入输入框编辑候选回复：${suggestion}`}
+                      disabled={isSending || isGeneratingReplySuggestions}
+                      onClick={() => onFillReplySuggestion(suggestion)}
+                    >
+                      <PencilLine className="size-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}

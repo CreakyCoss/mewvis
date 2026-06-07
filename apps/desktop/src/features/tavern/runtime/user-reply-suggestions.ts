@@ -92,7 +92,11 @@ export const runTavernUserReplySuggestions = async ({
     "候选必须是用户可以直接发送的一句话或一小段话。",
     "不要替角色说话，不要写角色动作，不要输出角色名加冒号。",
     "每个候选都要能推动当前场景，但风格可以不同：追问、试探、行动决定。",
-    "只输出 JSON，不要 Markdown，不要解释。",
+    "每条候选建议 12 到 60 个中文字符；字符串内容不要自带引号、编号或列表符号。",
+    currentDraft?.trim()
+      ? "已有用户草稿时，以补全、改写或延展草稿意图为主，不要完全偏离草稿。"
+      : "",
+    "只输出严格合法 JSON 对象，不要 Markdown、代码块或解释。",
     "</rules>",
     "",
     "<output_schema>",
@@ -132,7 +136,7 @@ export const runTavernUserReplySuggestions = async ({
     systemPrompt: [
       "你是酒馆模式的用户回复建议助手。",
       "你只为用户生成可点击发送的中文回复候选。",
-      "只输出符合 schema 的 JSON。",
+      "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
     ].join("\n"),
     messages: [{
       id: `tavern-user-reply-suggestions-${Date.now()}`,
