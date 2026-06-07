@@ -506,6 +506,7 @@ export const TavernPage = ({
   const [viewMode, setViewMode] = useState<"home" | "room">("home");
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isManagedModeEnabled, setIsManagedModeEnabled] = useState(false);
+  const [isManagedAutoRunStarted, setIsManagedAutoRunStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
@@ -527,6 +528,7 @@ export const TavernPage = ({
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const managedAutoRunTimerRef = useRef<number | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -544,6 +546,7 @@ export const TavernPage = ({
     setViewMode("home");
     setIsSidePanelOpen(false);
     setIsManagedModeEnabled(false);
+    setIsManagedAutoRunStarted(false);
     setIsSending(false);
     setIsExtractingAssets(false);
     setIsGeneratingReplySuggestions(false);
@@ -562,6 +565,15 @@ export const TavernPage = ({
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
   }, [workspace.id]);
+
+  useEffect(() => {
+    return () => {
+      if (managedAutoRunTimerRef.current !== null) {
+        window.clearTimeout(managedAutoRunTimerRef.current);
+        managedAutoRunTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (state.rooms.some((room) => room.workspaceId === workspace.id)) {
@@ -659,6 +671,11 @@ export const TavernPage = ({
     setIsQuickSummaryOpen(false);
     setIsGeneratingQuickSummary(false);
     setQuickSummaryError("");
+    setIsManagedAutoRunStarted(false);
+    if (managedAutoRunTimerRef.current !== null) {
+      window.clearTimeout(managedAutoRunTimerRef.current);
+      managedAutoRunTimerRef.current = null;
+    }
   }, [activeRoom?.id, activeRoom?.activeSceneId]);
 
   const scrollMessagesToBottom = useCallback(() => {
@@ -1739,6 +1756,11 @@ export const TavernPage = ({
     setReplySuggestions([]);
     setIsQuickSummaryOpen(false);
     setQuickSummaryError("");
+    setIsManagedAutoRunStarted(false);
+    if (managedAutoRunTimerRef.current !== null) {
+      window.clearTimeout(managedAutoRunTimerRef.current);
+      managedAutoRunTimerRef.current = null;
+    }
   }, []);
 
   const insertReference = useCallback((file: WorkspaceFileEntry) => {
@@ -2253,6 +2275,9 @@ export const TavernPage = ({
       return;
     }
 
+    if (isManagedMode) {
+      setIsManagedAutoRunStarted(true);
+    }
     setIsSending(true);
     setError("");
     setReplySuggestions([]);
@@ -2270,6 +2295,9 @@ export const TavernPage = ({
       }
     } catch (readError) {
       setError(`读取引用文件失败：${getErrorMessage(readError)}`);
+      if (isManagedMode) {
+        setIsManagedAutoRunStarted(false);
+      }
       setIsSending(false);
       setTurnStatus("");
       return;
@@ -2291,6 +2319,7 @@ export const TavernPage = ({
         });
       } catch (managedError) {
         setError(`全托管生成回复失败：${getErrorMessage(managedError)}`);
+        setIsManagedAutoRunStarted(false);
         setIsSending(false);
         setTurnStatus("");
         return;
@@ -2298,6 +2327,7 @@ export const TavernPage = ({
 
       if (!text.trim()) {
         setError("全托管没有生成可发送的回复，请重试或输入方向提示。");
+        setIsManagedAutoRunStarted(false);
         setIsSending(false);
         setTurnStatus("");
         return;
@@ -2634,6 +2664,9 @@ export const TavernPage = ({
             detail: getErrorMessage(assetError),
           });
           setError(`剧情资产整理失败：${getErrorMessage(assetError)}`);
+          if (isManagedMode) {
+            setIsManagedAutoRunStarted(false);
+          }
         }
       }
     } catch (runError) {
@@ -2659,6 +2692,9 @@ export const TavernPage = ({
         ]);
       }
       setError(message);
+      if (isManagedMode) {
+        setIsManagedAutoRunStarted(false);
+      }
     } finally {
       setIsSending(false);
       setTurnStatus("");
@@ -2698,6 +2734,68 @@ export const TavernPage = ({
       void handleSubmit();
     }
   }, [handleSubmit]);
+
+  const handleToggleManagedMode = useCallback(() => {
+    setIsManagedModeEnabled((current) => {
+      const next = !current;
+      if (!next) {
+        setIsManagedAutoRunStarted(false);
+        if (managedAutoRunTimerRef.current !== null) {
+          window.clearTimeout(managedAutoRunTimerRef.current);
+          managedAutoRunTimerRef.current = null;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (
+      !isManagedModeEnabled ||
+      !isManagedAutoRunStarted ||
+      isSending ||
+      viewMode !== "room" ||
+      !activeRoom ||
+      error
+    ) {
+      if (managedAutoRunTimerRef.current !== null) {
+        window.clearTimeout(managedAutoRunTimerRef.current);
+        managedAutoRunTimerRef.current = null;
+      }
+      return;
+    }
+
+    const lastMessage = roomMessages[roomMessages.length - 1] ?? null;
+    if (
+      !lastMessage ||
+      lastMessage.role === "user" ||
+      lastMessage.status === "streaming" ||
+      lastMessage.status === "error"
+    ) {
+      return;
+    }
+
+    managedAutoRunTimerRef.current = window.setTimeout(() => {
+      managedAutoRunTimerRef.current = null;
+      void handleSubmit();
+    }, 800);
+
+    return () => {
+      if (managedAutoRunTimerRef.current !== null) {
+        window.clearTimeout(managedAutoRunTimerRef.current);
+        managedAutoRunTimerRef.current = null;
+      }
+    };
+  }, [
+    activeRoom,
+    error,
+    handleSubmit,
+    isManagedAutoRunStarted,
+    isManagedModeEnabled,
+    isSending,
+    roomMessages,
+    viewMode,
+  ]);
 
   if (!activeRoom) {
     return (
@@ -2800,13 +2898,18 @@ export const TavernPage = ({
             isManagedModeEnabled={isManagedModeEnabled}
             onBack={() => {
               setIsSidePanelOpen(false);
+              setIsManagedAutoRunStarted(false);
+              if (managedAutoRunTimerRef.current !== null) {
+                window.clearTimeout(managedAutoRunTimerRef.current);
+                managedAutoRunTimerRef.current = null;
+              }
               setViewMode("home");
             }}
             onOpenQuickSummary={() => {
               void handleOpenQuickSummary();
             }}
             onSelectScene={(sceneId) => selectRoomScene(activeRoom.id, sceneId)}
-            onToggleManagedMode={() => setIsManagedModeEnabled((current) => !current)}
+            onToggleManagedMode={handleToggleManagedMode}
             onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
 
@@ -2941,6 +3044,7 @@ export const TavernPage = ({
             activeCharacter={activeCharacter}
             replyMode={activeRoom.replyMode ?? "active"}
             isManagedModeEnabled={isManagedModeEnabled}
+            isManagedAutoRunStarted={isManagedAutoRunStarted}
             speakerCount={roomCharacters.length}
             referencedFilePreviews={referencedFilePreviews}
             referenceSuggestions={referenceSuggestions}

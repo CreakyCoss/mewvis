@@ -17,6 +17,7 @@ type TavernComposerProps = {
   activeCharacter: TavernCharacter | null;
   replyMode: TavernReplyMode;
   isManagedModeEnabled: boolean;
+  isManagedAutoRunStarted: boolean;
   speakerCount: number;
   referencedFilePreviews: WorkspaceFileEntry[];
   referenceSuggestions: WorkspaceFileEntry[];
@@ -41,6 +42,7 @@ export const TavernComposer = ({
   activeCharacter,
   replyMode,
   isManagedModeEnabled,
+  isManagedAutoRunStarted,
   speakerCount,
   referencedFilePreviews,
   referenceSuggestions,
@@ -54,14 +56,17 @@ export const TavernComposer = ({
   onSubmit,
   onKeyDown,
 }: TavernComposerProps) => {
-  const placeholder = isManagedModeEnabled
-    ? "全托管：留空发送，让导演代你回应并调度角色..."
+  const isManagedAutoRunning = isManagedModeEnabled && isManagedAutoRunStarted;
+  const placeholder = isManagedAutoRunning
+    ? "全托管运行中，关闭托管可重新手动发言..."
+    : isManagedModeEnabled
+    ? "全托管：首次留空发送启动，后续自动运行..."
     : replyMode === "director"
     ? "让导演决定谁来回应..."
     : replyMode === "round" && speakerCount > 1
       ? `让 ${speakerCount} 位角色依次回应...`
       : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";
-  const canSubmit = isManagedModeEnabled || Boolean(draft.trim());
+  const canSubmit = (isManagedModeEnabled && !isManagedAutoRunning) || Boolean(draft.trim());
 
   return (
     <form
@@ -202,9 +207,9 @@ export const TavernComposer = ({
             type="submit"
             size="icon"
             className="absolute right-3 bottom-3 size-9"
-            title={isSending ? "正在回应" : isManagedModeEnabled ? "全托管发送" : "发送"}
-            aria-label={isSending ? "正在回应" : isManagedModeEnabled ? "全托管发送" : "发送"}
-            disabled={isSending || !canSubmit}
+            title={isSending ? "正在回应" : isManagedAutoRunning ? "全托管运行中" : isManagedModeEnabled ? "启动全托管" : "发送"}
+            aria-label={isSending ? "正在回应" : isManagedAutoRunning ? "全托管运行中" : isManagedModeEnabled ? "启动全托管" : "发送"}
+            disabled={isSending || isManagedAutoRunning || !canSubmit}
           >
             {isSending ? (
               <Loader2 className="size-4 animate-spin" />

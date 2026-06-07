@@ -63,6 +63,75 @@ const parseSuggestions = (text: string) => {
     .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""));
 };
 
+const toolCallArtifactPattern =
+  /<\/?(?:function_calls?|tool_calls?|invoke|tool|arguments?|antml:function_calls?)[^>]*>/i;
+
+const cleanManagedReply = (text: string, userPersonaName: string) => {
+  const cleaned = stripUserLabel(text, userPersonaName)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .replace(/^["“”]+|["“”]+$/g, "")
+    .trim();
+
+  if (
+    toolCallArtifactPattern.test(cleaned) ||
+    /^<[^>]+>\s*$/i.test(cleaned) ||
+    /^(?:function_calls?|tool_calls?)\b/i.test(cleaned)
+  ) {
+    return "";
+  }
+
+  return cleaned;
+};
+
+const parseManagedReply = (text: string, userPersonaName: string) => {
+  try {
+    const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
+    const candidates = [
+      parsed.reply,
+      parsed.userReply,
+      parsed.user_reply,
+      parsed.content,
+      parsed.message,
+      parsed.text,
+    ];
+    const reply = candidates.find((candidate) =>
+      typeof candidate === "string" && candidate.trim()
+    );
+    if (typeof reply === "string") {
+      return cleanManagedReply(reply, userPersonaName);
+    }
+
+    if (Array.isArray(parsed.replies)) {
+      const firstReply = parsed.replies.find((candidate) =>
+        typeof candidate === "string" && candidate.trim()
+      );
+      if (typeof firstReply === "string") {
+        return cleanManagedReply(firstReply, userPersonaName);
+      }
+    }
+  } catch {
+    // Fall through to plain-text parsing for models that ignored the JSON schema.
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+    return "";
+  }
+
+  return cleanManagedReply(
+    trimmed.split(/\n+/)
+      .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""))
+      .find((line) => line.trim()) ?? "",
+    userPersonaName,
+  );
+};
+
+const createManagedReplyFallback = (room: TavernRoom) =>
+  room.sceneGoal.trim()
+    ? `我先顺着当前目标继续推进：${room.sceneGoal.trim().slice(0, 80)}`
+    : "我先顺着眼前的线索继续追问，看看还有没有被忽略的细节。";
+
 export const runTavernUserReplySuggestions = async ({
   runtimeAgentId,
   provider,
@@ -201,6 +270,8 @@ export const runTavernManagedUserReply = async ({
     "",
     "<rules>",
     "reply 必须是用户可以直接发送的一句话或一小段话。",
+    "reply 不可为空，也不可只输出 reason；即使信息不足，也要生成一句谨慎的追问或推进决定。",
+    "reply 绝对不能包含 <function_calls>、<tool_calls>、XML/HTML 标签、工具调用、JSON 代码块或系统标记。",
     "只替用户说话，不要替酒馆角色说话，不要写角色动作，不要输出角色名加冒号。",
     "回复需要承接当前对话和场景目标，能自然推动下一轮角色回应。",
     "可以包含用户的行动决定、追问、试探或态度，但不要越过当前剧情直接解决核心谜题。",
@@ -259,34 +330,47 @@ export const runTavernManagedUserReply = async ({
     "</recent_conversation>",
   ].filter(Boolean).join("\n");
 
-  const result = await runSharedRuntimeChat({
-    agentId: runtimeAgentId,
-    provider,
-    model,
-    stream: false,
-    systemPrompt: [
-      "你是酒馆模式的全托管导演。",
-      "你负责代用户生成下一句可发送回复，让剧情自然继续。",
-      "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
-    ].join("\n"),
-    messages: [{
-      id: `tavern-managed-user-reply-${Date.now()}`,
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      metadata: null,
-    }],
-  });
+  const systemPrompt = [
+    "你是酒馆模式的全托管导演。",
+    "你负责代用户生成下一句可发送回复，让剧情自然继续。",
+    "reply 字段必须非空，且不得包含工具调用、函数调用、XML/HTML 标签或系统标记。",
+    "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
+  ].join("\n");
 
-  try {
-    const parsed = JSON.parse(extractJsonObject(result.text)) as Record<string, unknown>;
-    const reply = typeof parsed.reply === "string" ? parsed.reply : "";
-    return stripUserLabel(reply, room.userPersonaName)
-      .replace(/^["“”]+|["“”]+$/g, "")
-      .trim();
-  } catch {
-    return stripUserLabel(result.text, room.userPersonaName)
-      .replace(/^["“”]+|["“”]+$/g, "")
-      .trim();
+  const runManagedReplyRequest = async (content: string) => {
+    const result = await runSharedRuntimeChat({
+      agentId: runtimeAgentId,
+      provider,
+      model,
+      stream: false,
+      systemPrompt,
+      messages: [{
+        id: `tavern-managed-user-reply-${Date.now()}`,
+        role: "user",
+        content,
+        timestamp: Date.now(),
+        metadata: null,
+      }],
+    });
+
+    return parseManagedReply(result.text, room.userPersonaName);
+  };
+
+  const firstReply = await runManagedReplyRequest(prompt);
+  if (firstReply) {
+    return firstReply;
   }
+
+  const retryReply = await runManagedReplyRequest([
+    prompt,
+    "",
+    "<retry_instruction>",
+    "上一次输出没有可发送的 reply。现在必须生成一个非空 reply 字符串；只输出 JSON，不要解释。",
+    "</retry_instruction>",
+  ].join("\n"));
+  if (retryReply) {
+    return retryReply;
+  }
+
+  return createManagedReplyFallback(room);
 };
