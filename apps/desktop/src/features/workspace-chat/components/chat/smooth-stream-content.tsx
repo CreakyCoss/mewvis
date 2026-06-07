@@ -112,6 +112,7 @@ type SmoothMarkdownContentProps = {
   emClassName?: string;
   inverted?: boolean;
   isStreaming: boolean;
+  separateEmphasisBlocks?: boolean;
 };
 
 const SmoothMarkdownContentComponent = ({
@@ -120,6 +121,7 @@ const SmoothMarkdownContentComponent = ({
   emClassName,
   inverted,
   isStreaming,
+  separateEmphasisBlocks,
 }: SmoothMarkdownContentProps) => {
   const visibleContent = useSmoothedStreamText(content, isStreaming);
 
@@ -129,6 +131,7 @@ const SmoothMarkdownContentComponent = ({
       content={visibleContent}
       emClassName={emClassName}
       inverted={inverted}
+      separateEmphasisBlocks={separateEmphasisBlocks}
     />
   );
 };

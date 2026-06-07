@@ -155,6 +155,7 @@ export const TavernMessageRow = ({
               content={displayContent}
               emClassName={immersiveDescriptionClassName}
               isStreaming={isStreaming}
+              separateEmphasisBlocks={immersiveDescriptionEnabled}
             />
           </div>
           <MessageControls content={displayContent} disabled={isStreaming} />

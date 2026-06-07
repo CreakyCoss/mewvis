@@ -7,21 +7,71 @@ type MarkdownContentProps = {
   content: string;
   emClassName?: string;
   inverted?: boolean;
+  separateEmphasisBlocks?: boolean;
 };
+
+const paragraphClassName = "mb-2 last:mb-0";
+
+type MarkdownAstNode = {
+  children?: MarkdownAstNode[];
+  tagName?: string;
+  type?: string;
+  value?: string;
+};
+
+const normalizeSeparatedEmphasisBlocks = (content: string) =>
+  content
+    .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1\n\n*$2*\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+const isMeaningfulAstNode = (node: MarkdownAstNode) =>
+  node.type !== "text" || Boolean(node.value?.trim());
+
+const isEmphasisAstNode = (node: MarkdownAstNode) =>
+  node.type === "element" && node.tagName === "em";
+
+const isEmphasisOnlyParagraph = (node: MarkdownAstNode | undefined) => {
+  const meaningfulChildren = node?.children?.filter(isMeaningfulAstNode) ?? [];
+
+  return (
+    meaningfulChildren.length === 1 &&
+    isEmphasisAstNode(meaningfulChildren[0])
+  );
+};
+
+const getParagraphClassName = (isDescriptionBlock: boolean) =>
+  isDescriptionBlock
+    ? `${paragraphClassName} tavern-immersive-description-block`
+    : paragraphClassName;
 
 const MarkdownContentComponent = ({
   className,
   content,
   emClassName,
   inverted = false,
+  separateEmphasisBlocks = false,
 }: MarkdownContentProps) => {
+  const renderedContent = separateEmphasisBlocks
+    ? normalizeSeparatedEmphasisBlocks(content)
+    : content;
+
   return (
     <div className={`min-w-0 text-sm leading-6 ${className ?? ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ children }) => (
-            <p className="mb-2 last:mb-0">{children}</p>
+          p: ({ children, node }) => (
+            <p
+              className={getParagraphClassName(
+                separateEmphasisBlocks &&
+                isEmphasisOnlyParagraph(node as MarkdownAstNode | undefined),
+              )}
+            >
+              {children}
+            </p>
           ),
           a: ({ children, href }) => (
             <a
@@ -119,7 +169,7 @@ const MarkdownContentComponent = ({
           ),
         }}
       >
-        {content}
+        {renderedContent}
       </ReactMarkdown>
     </div>
   );

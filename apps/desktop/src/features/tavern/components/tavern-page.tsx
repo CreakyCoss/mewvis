@@ -1793,7 +1793,7 @@ export const TavernPage = ({
 
         let streamedText = "";
         const ownReplyInstruction = activeRoom.settings.immersiveDescriptionEnabled !== false
-          ? "只输出你自己的沉浸式回应，动作、神态和场景互动请用 Markdown 单星号斜体包住；不要替其他角色总结或行动。"
+          ? "只输出你自己的沉浸式回应，动作、神态和场景互动请用 Markdown 单星号斜体包住，并让斜体描写独立成段或独立成行；不要替其他角色总结或行动。"
           : "只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。";
         const turnInstruction = replyMode === "round"
           ? [
