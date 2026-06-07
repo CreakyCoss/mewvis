@@ -1,6 +1,6 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard, RefreshCcw, Sparkles } from "lucide-react";
+import { BookOpen, Clapperboard, RefreshCcw, Sparkles } from "lucide-react";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownContent } from "@/features/workspace-chat/components/chat/markdown-content";
 import { readWorkspaceFile } from "@/features/workspace-chat/api";
 import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
@@ -58,7 +59,7 @@ import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { parseTavernReplyText } from "../runtime/reply-cleanup";
-import { runTavernQuickSummary } from "../runtime/quick-summary";
+import { runTavernQuickNovel, runTavernQuickSummary } from "../runtime/quick-summary";
 import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
@@ -254,6 +255,85 @@ type QuickSummaryCache = {
   signature: string;
   content: string;
   generatedAt: number;
+  novelContent?: string;
+  novelGeneratedAt?: number;
+  novelSignature?: string;
+};
+
+type QuickSummaryCacheState = {
+  workspaceId: string;
+  entries: Record<string, QuickSummaryCache>;
+};
+
+const QUICK_SUMMARY_CACHE_STORAGE_PREFIX = "novel-claw:tavern:quick-summary";
+
+const quickSummaryCacheStorageKey = (workspaceId: string) =>
+  `${QUICK_SUMMARY_CACHE_STORAGE_PREFIX}:${workspaceId}`;
+
+const normalizeQuickSummaryCacheItem = (value: unknown): QuickSummaryCache | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<QuickSummaryCache>;
+  if (
+    typeof candidate.sceneId !== "string" ||
+    typeof candidate.signature !== "string" ||
+    typeof candidate.generatedAt !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    sceneId: candidate.sceneId,
+    signature: candidate.signature,
+    content: typeof candidate.content === "string" ? candidate.content : "",
+    generatedAt: candidate.generatedAt,
+    novelContent: typeof candidate.novelContent === "string" ? candidate.novelContent : undefined,
+    novelGeneratedAt: typeof candidate.novelGeneratedAt === "number" ? candidate.novelGeneratedAt : undefined,
+    novelSignature: typeof candidate.novelSignature === "string" ? candidate.novelSignature : undefined,
+  };
+};
+
+const loadQuickSummaryCache = (workspaceId: string): Record<string, QuickSummaryCache> => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(quickSummaryCacheStorageKey(workspaceId));
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).flatMap(([sceneId, value]) => {
+        const item = normalizeQuickSummaryCacheItem(value);
+        return item ? [[sceneId, item]] : [];
+      }),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const saveQuickSummaryCache = (
+  workspaceId: string,
+  cache: Record<string, QuickSummaryCache>,
+) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      quickSummaryCacheStorageKey(workspaceId),
+      JSON.stringify(cache),
+    );
+  } catch {
+    // Ignore quota and private-mode storage failures; the in-memory cache still works.
+  }
 };
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
@@ -380,9 +460,16 @@ export const TavernPage = ({
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [isQuickSummaryOpen, setIsQuickSummaryOpen] = useState(false);
+  const [quickSummaryTab, setQuickSummaryTab] = useState<"summary" | "novel">("summary");
   const [isGeneratingQuickSummary, setIsGeneratingQuickSummary] = useState(false);
+  const [isGeneratingQuickNovel, setIsGeneratingQuickNovel] = useState(false);
   const [quickSummaryError, setQuickSummaryError] = useState("");
-  const [quickSummaryCacheByRoom, setQuickSummaryCacheByRoom] = useState<Record<string, QuickSummaryCache>>({});
+  const [quickSummaryCacheState, setQuickSummaryCacheState] = useState<QuickSummaryCacheState>(
+    () => ({
+      workspaceId: workspace.id,
+      entries: loadQuickSummaryCache(workspace.id),
+    }),
+  );
   const [turnStatus, setTurnStatus] = useState("");
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
@@ -409,9 +496,14 @@ export const TavernPage = ({
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
     setIsQuickSummaryOpen(false);
+    setQuickSummaryTab("summary");
     setIsGeneratingQuickSummary(false);
+    setIsGeneratingQuickNovel(false);
     setQuickSummaryError("");
-    setQuickSummaryCacheByRoom({});
+    setQuickSummaryCacheState({
+      workspaceId: workspace.id,
+      entries: loadQuickSummaryCache(workspace.id),
+    });
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
@@ -422,6 +514,14 @@ export const TavernPage = ({
       saveTavernState(workspace.id, state);
     }
   }, [state, workspace.id]);
+
+  useEffect(() => {
+    if (quickSummaryCacheState.workspaceId !== workspace.id) {
+      return;
+    }
+
+    saveQuickSummaryCache(workspace.id, quickSummaryCacheState.entries);
+  }, [quickSummaryCacheState, workspace.id]);
 
   useEffect(() => {
     onRoomImmersiveChange?.(viewMode === "room");
@@ -466,14 +566,14 @@ export const TavernPage = ({
     activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""
   ), [activeRoom, roomMessages]);
   const activeQuickSummaryCache = useMemo(() => (
-    activeRoom ? quickSummaryCacheByRoom[getRoomActiveSceneId(activeRoom)] ?? null : null
-  ), [activeRoom, quickSummaryCacheByRoom]);
+    activeRoom ? quickSummaryCacheState.entries[getRoomActiveSceneId(activeRoom)] ?? null : null
+  ), [activeRoom, quickSummaryCacheState.entries]);
   const isQuickSummaryCacheFresh = Boolean(
     activeQuickSummaryCache &&
     activeQuickSummaryCache.signature === quickSummarySignature,
   );
   const quickSummaryGeneratedAtText = useMemo(() => {
-    if (!activeQuickSummaryCache) {
+    if (!activeQuickSummaryCache?.content.trim()) {
       return "";
     }
 
@@ -481,6 +581,16 @@ export const TavernPage = ({
       hour: "2-digit",
       minute: "2-digit",
     }).format(activeQuickSummaryCache.generatedAt);
+  }, [activeQuickSummaryCache]);
+  const quickNovelGeneratedAtText = useMemo(() => {
+    if (!activeQuickSummaryCache?.novelContent?.trim() || !activeQuickSummaryCache.novelGeneratedAt) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(activeQuickSummaryCache.novelGeneratedAt);
   }, [activeQuickSummaryCache]);
   const latestMessage = roomMessages[roomMessages.length - 1] ?? null;
   const activeCharacter = useMemo(() => (
@@ -1708,6 +1818,7 @@ export const TavernPage = ({
     roomCharacters,
     roomMessages,
     runtimeAgentId,
+    workspace.id,
   ]);
 
   const handleGenerateReplySuggestions = useCallback(async () => {
@@ -1761,6 +1872,7 @@ export const TavernPage = ({
     roomCharacters,
     roomMessages,
     runtimeAgentId,
+    workspace.id,
   ]);
 
   const handleFillReplySuggestion = useCallback((suggestion: string) => {
@@ -1786,6 +1898,8 @@ export const TavernPage = ({
     if (!activeRoom) {
       return;
     }
+
+    setQuickSummaryTab("summary");
 
     if (isGeneratingQuickSummary) {
       setIsQuickSummaryOpen(true);
@@ -1832,14 +1946,35 @@ export const TavernPage = ({
         characters: roomCharacters,
         messages: summaryMessages,
       });
-      setQuickSummaryCacheByRoom((current) => ({
-        ...current,
-        [sceneId]: {
-          sceneId,
-          signature,
-          content,
-          generatedAt: Date.now(),
-        },
+      setQuickSummaryCacheState((current) => ({
+        workspaceId: workspace.id,
+        entries: (() => {
+          const currentEntries = current.workspaceId === workspace.id
+            ? current.entries
+            : loadQuickSummaryCache(workspace.id);
+
+          return {
+            ...currentEntries,
+            [sceneId]: (() => {
+              const previous = currentEntries[sceneId];
+              const shouldKeepNovel = previous?.novelSignature === signature;
+
+              return {
+                sceneId,
+                signature,
+                content,
+                generatedAt: Date.now(),
+                ...(shouldKeepNovel
+                  ? {
+                      novelContent: previous.novelContent,
+                      novelGeneratedAt: previous.novelGeneratedAt,
+                      novelSignature: previous.novelSignature,
+                    }
+                  : {}),
+              };
+            })(),
+          };
+        })(),
       }));
     } catch (summaryError) {
       setQuickSummaryError(`总结当前进展失败：${getErrorMessage(summaryError)}`);
@@ -1851,6 +1986,95 @@ export const TavernPage = ({
     activeRoom,
     isGeneratingQuickSummary,
     isQuickSummaryCacheFresh,
+    isSending,
+    model,
+    provider,
+    quickSummarySignature,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+  ]);
+
+  const handleGenerateQuickNovel = useCallback(async () => {
+    if (!activeRoom) {
+      return;
+    }
+
+    setQuickSummaryTab("novel");
+
+    if (isGeneratingQuickNovel) {
+      setIsQuickSummaryOpen(true);
+      return;
+    }
+
+    setIsQuickSummaryOpen(true);
+    setQuickSummaryError("");
+
+    if (isSending) {
+      setQuickSummaryError("请等待本轮回应完成后再生成小说。");
+      return;
+    }
+
+    if (!provider || !model) {
+      setQuickSummaryError("请先在设置中选择模型，再生成小说。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setQuickSummaryError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    const novelMessages = roomMessages.filter((message) =>
+      message.status !== "streaming" && message.content.trim()
+    );
+    const sceneId = getRoomActiveSceneId(activeRoom);
+    const signature = quickSummarySignature;
+
+    setIsGeneratingQuickNovel(true);
+    try {
+      const novelContent = await runTavernQuickNovel({
+        runtimeAgentId,
+        provider,
+        model,
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: novelMessages,
+      });
+      setQuickSummaryCacheState((current) => ({
+        workspaceId: workspace.id,
+        entries: (() => {
+          const currentEntries = current.workspaceId === workspace.id
+            ? current.entries
+            : loadQuickSummaryCache(workspace.id);
+
+          return {
+            ...currentEntries,
+            [sceneId]: (() => {
+              const previous = currentEntries[sceneId];
+              const shouldKeepSummary = previous?.signature === signature;
+
+              return {
+                sceneId,
+                signature,
+                content: shouldKeepSummary ? previous.content : "",
+                generatedAt: shouldKeepSummary ? previous.generatedAt : Date.now(),
+                novelContent,
+                novelGeneratedAt: Date.now(),
+                novelSignature: signature,
+              };
+            })(),
+          };
+        })(),
+      }));
+    } catch (novelError) {
+      setQuickSummaryError(`生成小说失败：${getErrorMessage(novelError)}`);
+    } finally {
+      setIsGeneratingQuickNovel(false);
+    }
+  }, [
+    activeRoom,
+    isGeneratingQuickNovel,
     isSending,
     model,
     provider,
@@ -2395,6 +2619,11 @@ export const TavernPage = ({
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
   const quickSummaryContent = activeQuickSummaryCache?.content ?? "";
+  const quickNovelContent = activeQuickSummaryCache?.novelContent ?? "";
+  const isQuickNovelFresh = Boolean(
+    activeQuickSummaryCache?.novelContent?.trim() &&
+    activeQuickSummaryCache.novelSignature === quickSummarySignature,
+  );
   const quickSummaryDescription = activeQuickSummaryCache && quickSummaryGeneratedAtText
     ? isQuickSummaryCacheFresh
       ? `生成于 ${quickSummaryGeneratedAtText}`
@@ -2402,6 +2631,11 @@ export const TavernPage = ({
     : isGeneratingQuickSummary
       ? "正在生成当前进展..."
       : "基于当前酒馆内容生成。";
+  const quickNovelDescription = quickNovelGeneratedAtText
+    ? isQuickNovelFresh
+      ? `生成于 ${quickNovelGeneratedAtText}`
+      : `生成于 ${quickNovelGeneratedAtText}，内容已有变化，可重新生成。`
+    : "";
 
   return (
     <div
@@ -2605,7 +2839,7 @@ export const TavernPage = ({
       <Dialog open={isQuickSummaryOpen} onOpenChange={setIsQuickSummaryOpen}>
         <DialogContent
           className={cn(
-            "flex max-h-[min(720px,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl",
+            "flex max-h-[min(780px,calc(100vh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl",
             visualPreset.tavern.sidePanel,
           )}
           overlayClassName="bg-black/35 backdrop-blur-sm"
@@ -2636,26 +2870,62 @@ export const TavernPage = ({
             </div>
           </DialogHeader>
 
-          <div className="min-h-56 flex-1 overflow-y-auto px-5 py-4 text-current">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 text-current">
             {quickSummaryError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="mb-3 shrink-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {quickSummaryError}
               </div>
             )}
-            {quickSummaryContent && (
-              <div
-                className={cn(
-                  "rounded-md border border-current/10 bg-current/5 px-4 py-3 text-current shadow-sm",
+            <Tabs
+              value={quickSummaryTab}
+              onValueChange={(value) => setQuickSummaryTab(value === "novel" ? "novel" : "summary")}
+              className="min-h-0 flex-1 overflow-hidden"
+            >
+              <TabsList className="grid w-full grid-cols-2 bg-current/10 text-current/65">
+                <TabsTrigger value="summary">总结</TabsTrigger>
+                <TabsTrigger value="novel">写作</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="summary" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                {quickSummaryContent ? (
+                  <section
+                    className={cn(
+                      "rounded-md border border-current/10 bg-current/5 px-4 py-3 text-current shadow-sm",
+                    )}
+                  >
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium opacity-70">
+                      <span>当前进展总结</span>
+                      {quickSummaryGeneratedAtText && <span>{quickSummaryDescription}</span>}
+                    </div>
+                    <MarkdownContent content={quickSummaryContent} />
+                  </section>
+                ) : (
+                  <div className="flex min-h-56 items-center justify-center rounded-md border border-current/10 bg-current/5 px-4 py-6 text-sm opacity-70">
+                    {isGeneratingQuickSummary ? "正在生成当前进展..." : "暂无可显示的总结。"}
+                  </div>
                 )}
-              >
-                <MarkdownContent content={quickSummaryContent} />
-              </div>
-            )}
-            {!quickSummaryError && !quickSummaryContent && (
-              <div className="flex min-h-40 items-center justify-center rounded-md border border-current/10 bg-current/5 px-4 py-6 text-sm opacity-70">
-                {isGeneratingQuickSummary ? "正在生成当前进展..." : "暂无可显示的总结。"}
-              </div>
-            )}
+              </TabsContent>
+
+              <TabsContent value="novel" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                {quickNovelContent ? (
+                  <section
+                    className={cn(
+                      "rounded-md border border-current/10 bg-current/5 px-4 py-3 text-current shadow-sm",
+                    )}
+                  >
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium opacity-70">
+                      <span>小说正文</span>
+                      {quickNovelDescription && <span>{quickNovelDescription}</span>}
+                    </div>
+                    <MarkdownContent content={quickNovelContent} />
+                  </section>
+                ) : (
+                  <div className="flex min-h-56 items-center justify-center rounded-md border border-current/10 bg-current/5 px-4 py-6 text-sm opacity-70">
+                    {isGeneratingQuickNovel ? "正在按小说口吻写作..." : "暂无小说正文。"}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           <DialogFooter
@@ -2668,13 +2938,25 @@ export const TavernPage = ({
               type="button"
               variant="outline"
               className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
-              disabled={isGeneratingQuickSummary || isSending}
+              disabled={isGeneratingQuickSummary || isGeneratingQuickNovel || isSending}
               onClick={() => {
                 void handleOpenQuickSummary({ force: true });
               }}
             >
               <RefreshCcw className="size-4" />
               重新生成
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
+              disabled={isGeneratingQuickSummary || isGeneratingQuickNovel || isSending}
+              onClick={() => {
+                void handleGenerateQuickNovel();
+              }}
+            >
+              <BookOpen className="size-4" />
+              {isGeneratingQuickNovel ? "写作中" : quickNovelContent ? "重新写作" : "生成小说"}
             </Button>
             <Button
               type="button"
