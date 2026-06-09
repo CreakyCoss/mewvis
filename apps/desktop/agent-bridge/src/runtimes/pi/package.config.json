@@ -1,0 +1,5 @@
+{
+  "piConfig": {
+    "configDir": "{appDataDirName}/agents/{runtimeId}"
+  }
+}
