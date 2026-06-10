@@ -1,28 +1,15 @@
-import { MODEL_CATALOG } from "./models.generated";
+export {
+  MODEL_CATALOG,
+  modelCatalog,
+  getCatalogProviders,
+  getCatalogModels,
+  getCatalogModel,
+  type ModelCatalogConfig,
+  type ModelCatalog,
+} from "@agent-bridge/llm/model-catalog";
+
+import { getCatalogModel } from "@agent-bridge/llm/model-catalog";
 import type { LlmProvider, ProviderModel } from "./types";
-
-export type ModelCatalogConfig = {
-  id: string;
-  name: string;
-  api: string;
-  provider: string;
-  baseUrl: string;
-  reasoning: boolean;
-  thinkingLevelMap?: Record<string, string | null>;
-  input: Array<"text" | "image">;
-  cost: {
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-  };
-  contextWindow: number;
-  maxTokens: number;
-  headers?: Record<string, string>;
-  compat?: unknown;
-};
-
-export type ModelCatalog = Record<string, Record<string, ModelCatalogConfig>>;
 
 export type RuntimeModelConfig = {
   id: string;
@@ -42,21 +29,6 @@ export type RuntimeModelConfig = {
   maxTokens?: number;
   headers?: Record<string, string>;
   compat?: unknown;
-};
-
-export const modelCatalog = MODEL_CATALOG as ModelCatalog;
-
-export const getCatalogProviders = () => Object.keys(modelCatalog);
-
-export const getCatalogModels = (vendor: string) => {
-  return Object.values(modelCatalog[vendor] ?? {});
-};
-
-export const getCatalogModel = (
-  vendor: string,
-  modelId: string,
-): ModelCatalogConfig | undefined => {
-  return modelCatalog[vendor]?.[modelId];
 };
 
 export const createRuntimeModelConfig = (

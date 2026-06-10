@@ -331,6 +331,7 @@ export class PiAgent implements AgentRuntime {
   private createSessionManager(command: StartTaskCommand) {
     const sessionPath = this.normalizeAgentSessionPath(command.chatSessionId);
     if (sessionPath.length === 0) {
+      // TODO pi目录，而非内存
       return SessionManager.inMemory(command.workspacePath);
     }
 

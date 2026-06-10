@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,17 +61,37 @@ const readRuntimePackageConfig = async (runtimeId) => {
   }
 };
 
+const getRuntimeId = async (runtimeDir) => {
+  const indexPath = join(runtimesRoot, runtimeDir, "index.ts");
+  try {
+    const content = await readFile(indexPath, "utf8");
+    const match = content.match(/id:\s*["']([^"']+)["']/);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const getRegisteredRuntimeDirs = async () => {
+  const registryPath = join(runtimesRoot, "registry.ts");
+  const content = await readFile(registryPath, "utf8");
+  const importRegex = /import\s+\{[^}]+\}\s+from\s+"\.\/([^/]+)\/index\.js"/g;
+  const dirs = [];
+  let match;
+  while ((match = importRegex.exec(content)) !== null) {
+    dirs.push(match[1]);
+  }
+  return dirs;
+};
+
 const readRuntimePackageConfigs = async (productConfig) => {
-  const runtimeEntries = await readdir(runtimesRoot, { withFileTypes: true });
+  const registeredDirs = await getRegisteredRuntimeDirs();
   let packageConfig = {};
 
-  for (const entry of runtimeEntries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
-    const runtimeId = entry.name;
-    const runtimePackageConfig = await readRuntimePackageConfig(runtimeId);
+  for (const runtimeDir of registeredDirs) {
+    const runtimeId = await getRuntimeId(runtimeDir);
+    if (!runtimeId) continue;
+    const runtimePackageConfig = await readRuntimePackageConfig(runtimeDir);
     packageConfig = mergePackageConfig(
       packageConfig,
       replaceConfigTokens(runtimePackageConfig, runtimeId, productConfig),
