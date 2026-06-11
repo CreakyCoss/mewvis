@@ -1,14 +1,11 @@
 export {
-  MODEL_CATALOG,
-  modelCatalog,
   getCatalogProviders,
   getCatalogModels,
-  getCatalogModel,
-  type ModelCatalogConfig,
-  type ModelCatalog,
-} from "@agent-bridge/llm/model-catalog";
+  type RuntimeModelCatalogEntry,
+} from "@agent-bridge/llm";
 
-import { getCatalogModel } from "@agent-bridge/llm/model-catalog";
+import { getCatalogModel } from "@agent-bridge/llm";
+import type { ApiFormat } from "@agent-bridge/llm";
 import type { LlmProvider, ProviderModel } from "./types";
 
 export type RuntimeModelConfig = {
@@ -31,11 +28,27 @@ export type RuntimeModelConfig = {
   compat?: unknown;
 };
 
+const runtimeApiFormatForProvider = (provider: string): ApiFormat => {
+  if (provider === "anthropic") {
+    return "anthropic-messages";
+  }
+
+  if (provider === "google") {
+    return "google-generative-ai";
+  }
+
+  return "openai-completions";
+};
+
 export const createRuntimeModelConfig = (
   provider: Pick<LlmProvider, "vendor" | "provider" | "baseUrl">,
   model: ProviderModel,
 ): RuntimeModelConfig => {
-  const configuredModel = getCatalogModel(provider.vendor, model.modelId);
+  const configuredModel = getCatalogModel(
+    provider.vendor,
+    model.modelId,
+    runtimeApiFormatForProvider(provider.provider),
+  );
 
   if (!configuredModel) {
     return {
@@ -50,7 +63,7 @@ export const createRuntimeModelConfig = (
     id: model.id,
     modelId: model.modelId,
     modelName: model.modelName || configuredModel.name,
-    baseUrl: provider.baseUrl ?? configuredModel.baseUrl,
+    baseUrl: provider.baseUrl ?? configuredModel.apiEndpoint,
     reasoning: configuredModel.reasoning,
     thinkingLevelMap: configuredModel.thinkingLevelMap,
     input: configuredModel.input,

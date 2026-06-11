@@ -222,9 +222,9 @@ export const SettingsDialog = ({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="llm-base-url">Base URL</Label>
+                    <Label htmlFor="llm-api-endpoint">API Endpoint</Label>
                     <Input
-                      id="llm-base-url"
+                      id="llm-api-endpoint"
                       value={selectedProvider.baseUrl}
                       onChange={(event) => {
                         const value = event.currentTarget.value;

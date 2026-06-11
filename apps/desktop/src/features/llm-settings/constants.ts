@@ -1,7 +1,7 @@
 import {
   getCatalogModels,
   getCatalogProviders,
-  type ModelCatalogConfig,
+  type RuntimeModelCatalogEntry,
 } from "@/ai/llm/model-catalog";
 
 export type ProviderType = "anthropic" | "openai" | "google" | "openrouter";
@@ -46,25 +46,25 @@ export const getProviderTypeLabel = (providerType: string) => {
 
 export const getModelProviderType = (
   vendor: string,
-  model: ModelCatalogConfig,
+  model: RuntimeModelCatalogEntry,
 ): ProviderType | null => {
   if (vendor === "openrouter") {
     return "openrouter";
   }
 
-  if (model.api === "anthropic-messages") {
+  if (model.apiFormat === "anthropic-messages") {
     return "anthropic";
   }
 
-  if (model.api === "google-generative-ai") {
+  if (model.apiFormat === "google-generative-ai") {
     return "google";
   }
 
   if (
-    model.api === "openai-completions" ||
-    model.api === "openai-responses" ||
-    model.api === "azure-openai-responses" ||
-    model.api === "openai-codex-responses"
+    model.apiFormat === "openai-completions" ||
+    model.apiFormat === "openai-responses" ||
+    model.apiFormat === "azure-openai-responses" ||
+    model.apiFormat === "openai-codex-responses"
   ) {
     return "openai";
   }
@@ -132,10 +132,10 @@ export const inferBaseUrl = (vendor: string, providerType: string) => {
   );
 
   if (exactModel) {
-    return exactModel.baseUrl;
+    return exactModel.apiEndpoint;
   }
 
-  const fallbackBaseUrl = getVendorModels(vendor)[0]?.baseUrl ?? "";
+  const fallbackBaseUrl = getVendorModels(vendor)[0]?.apiEndpoint ?? "";
 
   if (providerType === "openai") {
     if (fallbackBaseUrl.endsWith("/anthropic")) {
