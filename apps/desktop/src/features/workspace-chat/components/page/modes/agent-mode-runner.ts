@@ -1,10 +1,10 @@
 import {
   createAgentMemoryTrace,
 } from "@/ai/agent-context";
+import { formatProviderModelName } from "@/ai/llm/display";
 import {
   normalizeAllowedAgentTools,
 } from "@/ai/agent-runtime/contracts";
-import { toAgentRuntimeProviderConfig } from "@/ai/agent-runtime/config";
 import { getAgentSessionStatus } from "../../../api";
 import {
   filterChatAgentAllowedTools,
@@ -44,7 +44,7 @@ export const runAgentTurn = async (
     updateMessage,
     agentRuntime,
     contextEngine,
-    runtimeModelFor,
+    modelInputFor,
     setChatError,
     setAgentSessionStatus,
     setAgentSessionError,
@@ -151,7 +151,7 @@ export const runAgentTurn = async (
     mode: chatMode,
     agentSessionId,
     providerName: effectiveProvider?.name ?? null,
-    modelName: effectiveModel?.modelName ?? null,
+    modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
     conversationSummary: agentPromptPayload.promptHistory.summary ||
       agentPromptPayload.bootstrapHistory.summary ||
       conversationSummary,
@@ -166,7 +166,7 @@ export const runAgentTurn = async (
       agentSessionId,
       agentId: runtimeAgentId,
       providerName: effectiveProvider?.name ?? null,
-      modelName: effectiveModel?.modelName ?? null,
+      modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
       shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
       allowedTools: allowedToolsForRun,
       enabledSkills: enabledSkills.map((skill) => skill.name),
@@ -194,9 +194,8 @@ export const runAgentTurn = async (
     chatSessionId: agentSessionId,
     bootstrapContext: agentPromptPayload.bootstrapContext,
     prompt: agentPromptPayload.prompt,
-    provider: effectiveProvider ? toAgentRuntimeProviderConfig(effectiveProvider) : undefined,
-    model: effectiveProvider && effectiveModel
-      ? runtimeModelFor(effectiveProvider, effectiveModel)
+    runtimeModel: effectiveProvider && effectiveModel
+      ? modelInputFor(effectiveProvider, effectiveModel)
       : undefined,
     allowedTools: allowedToolsForRun,
     enabledSkills: enabledSkills.map((skill) => skill.name),

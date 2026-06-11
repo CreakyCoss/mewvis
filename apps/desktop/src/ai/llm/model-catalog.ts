@@ -8,11 +8,13 @@ import { getCatalogModel } from "@agent-bridge/llm";
 import type { ApiFormat } from "@agent-bridge/llm";
 import type { LlmProvider, ProviderModel } from "./types";
 
-export type RuntimeModelConfig = {
-  id: string;
+export type RuntimeModelInputConfig = {
+  provider: string;
+  apiFormat: string;
+  apiKey?: string | null;
+  catalogModelId: string;
   modelId: string;
-  modelName: string;
-  baseUrl?: string;
+  apiEndpoint?: string;
   reasoning?: boolean;
   thinkingLevelMap?: Record<string, string | null>;
   input?: Array<"text" | "image">;
@@ -28,42 +30,72 @@ export type RuntimeModelConfig = {
   compat?: unknown;
 };
 
-const runtimeApiFormatForProvider = (provider: string): ApiFormat => {
-  if (provider === "anthropic") {
+const apiFormats = new Set<ApiFormat>([
+  "anthropic-messages",
+  "openai-completions",
+  "openai-responses",
+  "google-generative-ai",
+  "azure-openai-responses",
+  "openai-codex-responses",
+]);
+
+const catalogApiFormatForProvider = (apiFormat: string): ApiFormat => {
+  if (apiFormats.has(apiFormat as ApiFormat)) {
+    return apiFormat as ApiFormat;
+  }
+
+  if (apiFormat === "anthropic" || apiFormat === "anthropic-messages") {
     return "anthropic-messages";
   }
 
-  if (provider === "google") {
+  if (apiFormat === "google" || apiFormat === "google-generative-ai") {
     return "google-generative-ai";
   }
 
   return "openai-completions";
 };
 
-export const createRuntimeModelConfig = (
-  provider: Pick<LlmProvider, "vendor" | "provider" | "baseUrl">,
+const oneMillionContextSuffix = "[1m]";
+
+const resolveRuntimeModelId = (model: ProviderModel) => {
+  const modelId = model.modelId;
+
+  if (!model.isOneMillionContext || modelId.endsWith(oneMillionContextSuffix)) {
+    return modelId;
+  }
+
+  return `${modelId}${oneMillionContextSuffix}`;
+};
+
+export const createRuntimeModelInputConfig = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat" | "apiKey" | "apiEndpoint">,
   model: ProviderModel,
-): RuntimeModelConfig => {
+): RuntimeModelInputConfig => {
+  const apiFormat = catalogApiFormatForProvider(provider.apiFormat);
   const configuredModel = getCatalogModel(
-    provider.vendor,
+    provider.provider,
     model.modelId,
-    runtimeApiFormatForProvider(provider.provider),
+    apiFormat,
   );
 
   if (!configuredModel) {
     return {
-      id: model.id,
-      modelId: model.modelId,
-      modelName: model.modelName,
-      baseUrl: provider.baseUrl ?? undefined,
+      provider: provider.provider,
+      apiFormat: provider.apiFormat,
+      apiKey: provider.apiKey,
+      catalogModelId: model.modelId,
+      modelId: resolveRuntimeModelId(model),
+      apiEndpoint: provider.apiEndpoint ?? undefined,
     };
   }
 
   return {
-    id: model.id,
-    modelId: model.modelId,
-    modelName: model.modelName || configuredModel.name,
-    baseUrl: provider.baseUrl ?? configuredModel.apiEndpoint,
+    provider: provider.provider,
+    apiFormat: provider.apiFormat,
+    apiKey: provider.apiKey,
+    catalogModelId: model.modelId,
+    modelId: resolveRuntimeModelId(model),
+    apiEndpoint: provider.apiEndpoint ?? configuredModel.apiEndpoint,
     reasoning: configuredModel.reasoning,
     thinkingLevelMap: configuredModel.thinkingLevelMap,
     input: configuredModel.input,

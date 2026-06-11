@@ -11,7 +11,7 @@ import type {
   PromptWorkspaceFile,
 } from "@/ai/agent-context";
 import type {
-  AgentRuntimeModelConfig,
+  AgentRuntimeModelInput,
   AgentToolName,
 } from "@/ai/agent-runtime/contracts";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
@@ -131,7 +131,7 @@ export type RunCollaborationTurnInput = {
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
   contextEngine: ContextEngine;
-  runtimeModelFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelConfig;
+  modelInputFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelInput;
   allowedAgentTools: AgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -160,7 +160,7 @@ export type RunAgentTurnInput = {
 export type RunAgentTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
   contextEngine: ContextEngine;
-  runtimeModelFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelConfig;
+  modelInputFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelInput;
   setChatError: (message: string) => void;
   setAgentSessionStatus: (status: AgentSessionStatus | null) => void;
   setAgentSessionError: (message: string) => void;

@@ -117,10 +117,10 @@ export const EmbeddingConfigDialog = ({
                 setEmbeddingDraft((current) => ({
                   ...current,
                   providerId: value,
-                  providerKind: provider?.provider ?? "openai-compatible",
+                  providerKind: provider?.apiFormat ?? "openai-compatible",
                   baseUrl: current.providerKind === "ollama"
-                    ? provider?.baseUrl ?? ""
-                    : current.baseUrl || (provider?.baseUrl ?? ""),
+                    ? provider?.apiEndpoint ?? ""
+                    : current.baseUrl || (provider?.apiEndpoint ?? ""),
                   modelId: model?.modelId ?? current.modelId,
                   dimensions: current.providerKind === "ollama" ? 1536 : current.dimensions,
                   batchSize: current.providerKind === "ollama" ? 32 : current.batchSize,
@@ -172,7 +172,7 @@ export const EmbeddingConfigDialog = ({
             value={embeddingDraft.baseUrl}
             placeholder={isLocalOllamaEmbedding
               ? localOllamaBaseUrl
-              : selectedEmbeddingProvider?.baseUrl ?? "https://api.openai.com/v1"}
+              : selectedEmbeddingProvider?.apiEndpoint ?? "https://api.openai.com/v1"}
             onChange={(event) => {
               const value = event.target.value;
               setEmbeddingDraft((current) => ({

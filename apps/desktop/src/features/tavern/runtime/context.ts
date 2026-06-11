@@ -8,7 +8,7 @@ import {
   SUMMARY_TARGET_RATIO,
   SUMMARY_TRIGGER_RATIO,
 } from "@/ai/agent-context";
-import { toAgentRuntimeModelConfig } from "@/ai/agent-runtime/config";
+import { toAgentRuntimeModelInput } from "@/ai/agent-runtime/config";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { runSharedConversationSummary } from "@/features/shared-chat-runtime";
 import type {
@@ -237,21 +237,21 @@ export const prepareTavernRuntimeContext = async ({
   currentUserText,
   replyModels,
 }: PrepareTavernRuntimeContextInput): Promise<PreparedTavernContext> => {
-  const summaryRuntimeModel = toAgentRuntimeModelConfig(provider, model);
-  const replyRuntimeModels = replyModels.map((replyModel) =>
-    toAgentRuntimeModelConfig(replyModel.provider, replyModel.model)
+  const summaryModelInput = toAgentRuntimeModelInput(provider, model);
+  const replyModelInputs = replyModels.map((replyModel) =>
+    toAgentRuntimeModelInput(replyModel.provider, replyModel.model)
   );
-  const budgetingRuntimeModels = [
-    summaryRuntimeModel,
-    ...(replyRuntimeModels.length > 0 ? replyRuntimeModels : [summaryRuntimeModel]),
+  const budgetingModelInputs = [
+    summaryModelInput,
+    ...(replyModelInputs.length > 0 ? replyModelInputs : [summaryModelInput]),
   ];
   const contextWindow = Math.min(
-    ...budgetingRuntimeModels.map((runtimeModel) =>
-      resolveAppContextWindow("auto", runtimeModel)
+    ...budgetingModelInputs.map((modelInput) =>
+      resolveAppContextWindow(modelInput)
     ),
   );
   const maxTokens = Math.max(
-    ...budgetingRuntimeModels.map((runtimeModel) => runtimeModel.maxTokens ?? 4096),
+    ...budgetingModelInputs.map((modelInput) => modelInput.maxTokens ?? 4096),
   );
   const historyTokenBudget = resolveTavernHistoryBudget({
     contextWindow,

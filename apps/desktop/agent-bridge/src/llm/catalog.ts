@@ -78,16 +78,16 @@ export const modelCatalog = buildModelCatalog();
 
 export const getCatalogProviders = () => Object.keys(modelCatalog);
 
-export const getCatalogModels = (vendor: string) => {
-  return modelCatalog[vendor] ?? [];
+export const getCatalogModels = (provider: string) => {
+  return modelCatalog[provider] ?? [];
 };
 
 export const getCatalogModel = (
-  vendor: string,
+  provider: string,
   modelId: string,
   apiFormat?: ApiFormat,
 ): RuntimeModelCatalogEntry | undefined => {
-  return modelCatalog[vendor]?.find((model) =>
+  return modelCatalog[provider]?.find((model) =>
     model.id === modelId && (!apiFormat || model.apiFormat === apiFormat),
   );
 };

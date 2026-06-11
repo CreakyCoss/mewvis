@@ -6,7 +6,6 @@ export type ModelSource = "direct" | "agent";
 export type ChatMode = "chat" | "agent" | "collab";
 export type ChatExecutionMode = "direct" | "agent";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
-export type ContextWindowPreset = "auto" | 1000000;
 
 export type ContextDebugPayload = {
   label: string;

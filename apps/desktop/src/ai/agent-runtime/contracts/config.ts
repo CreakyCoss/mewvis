@@ -1,17 +1,10 @@
-export type AgentRuntimeProviderConfig = {
-  id: string;
-  name: string;
-  vendor: string;
+export type AgentRuntimeModelInput = {
   provider: string;
+  apiFormat: string;
   apiKey?: string | null;
-  baseUrl?: string | null;
-};
-
-export type AgentRuntimeModelConfig = {
-  id: string;
+  catalogModelId: string;
   modelId: string;
-  modelName: string;
-  baseUrl?: string;
+  apiEndpoint?: string | null;
   reasoning?: boolean;
   thinkingLevelMap?: Record<string, string | null>;
   input?: Array<"text" | "image">;

@@ -74,7 +74,7 @@ impl OpenAiCompatibleEmbeddingProvider {
                 .profile
                 .base_url
                 .as_deref()
-                .or(provider.base_url.as_deref()),
+                .or(provider.api_endpoint.as_deref()),
         );
         let api_key = profile
             .provider
@@ -126,7 +126,7 @@ impl OpenAiCompatibleEmbeddingProvider {
                 profile
                     .provider
                     .as_ref()
-                    .and_then(|provider| provider.base_url.as_deref())
+                    .and_then(|provider| provider.api_endpoint.as_deref())
             }));
         let mut send_errors = Vec::new();
         for endpoint in endpoints {

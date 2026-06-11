@@ -8,6 +8,10 @@ import type {
 } from "./protocol.js";
 import type { BridgeAgentDefinition } from "./agents.js";
 
+export type RuntimeStartTaskCommand = StartTaskCommand;
+
+export type RuntimeChatCommand = ChatCommand;
+
 export type AskUser = (
   taskId: string,
   question: string,
@@ -32,7 +36,7 @@ export type RuntimeMode = "agent" | "chat";
 export type AgentRuntime = {
   readonly id: string;
   run(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     context: AgentRuntimeContext,
   ): Promise<AgentRunResult>;
 };
@@ -40,7 +44,7 @@ export type AgentRuntime = {
 export type ChatRuntime = {
   readonly id: string;
   chat(
-    command: ChatCommand,
+    command: RuntimeChatCommand,
     context: ChatRuntimeContext,
   ): Promise<ChatResult>;
 };

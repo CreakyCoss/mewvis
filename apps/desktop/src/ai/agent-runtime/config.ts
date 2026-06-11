@@ -1,22 +1,8 @@
-import { createRuntimeModelConfig } from "@/ai/llm/model-catalog";
+import { createRuntimeModelInputConfig } from "@/ai/llm/model-catalog";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
-import type {
-  AgentRuntimeModelConfig,
-  AgentRuntimeProviderConfig,
-} from "@/ai/agent-runtime/contracts";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 
-export const toAgentRuntimeProviderConfig = (
-  provider: LlmProvider,
-): AgentRuntimeProviderConfig => ({
-  id: provider.id,
-  name: provider.name,
-  vendor: provider.vendor,
-  provider: provider.provider,
-  apiKey: provider.apiKey,
-  baseUrl: provider.baseUrl,
-});
-
-export const toAgentRuntimeModelConfig = (
-  provider: Pick<LlmProvider, "vendor" | "provider" | "baseUrl">,
+export const toAgentRuntimeModelInput = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat" | "apiKey" | "apiEndpoint">,
   model: ProviderModel,
-): AgentRuntimeModelConfig => createRuntimeModelConfig(provider, model);
+): AgentRuntimeModelInput => createRuntimeModelInputConfig(provider, model);

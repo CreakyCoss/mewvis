@@ -4,6 +4,7 @@ export type ProviderModel = {
   modelId: string;
   modelName: string;
   isEnabled: boolean;
+  isOneMillionContext: boolean;
   createdAt: number;
   updatedAt: number;
 };
@@ -11,10 +12,10 @@ export type ProviderModel = {
 export type LlmProvider = {
   id: string;
   name: string;
-  vendor: string;
   provider: string;
+  apiFormat: string;
   apiKey?: string | null;
-  baseUrl?: string | null;
+  apiEndpoint?: string | null;
   isDefault: boolean;
   createdAt: number;
   updatedAt: number;
@@ -30,15 +31,16 @@ export type ProviderModelDraft = {
   modelId: string;
   modelName: string;
   isEnabled: boolean;
+  isOneMillionContext: boolean;
 };
 
 export type LlmProviderDraft = {
   id: string;
   name: string;
-  vendor: string;
   provider: string;
+  apiFormat: string;
   apiKey: string;
-  baseUrl: string;
+  apiEndpoint: string;
   isDefault: boolean;
   models: ProviderModelDraft[];
 };

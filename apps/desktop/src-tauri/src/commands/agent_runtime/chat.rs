@@ -1,6 +1,6 @@
 use super::{
     rpc::call_agent_bridge_rpc,
-    types::{AgentRuntimeChatMessageInput, AgentRuntimeModelInput, AgentRuntimeProviderInput},
+    types::{AgentRuntimeChatMessageInput, AgentRuntimeModelInput},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -14,8 +14,7 @@ pub struct RunAgentRuntimeChatInput {
     agent_id: Option<String>,
     stream_id: Option<String>,
     stream: Option<bool>,
-    provider: Option<AgentRuntimeProviderInput>,
-    model: Option<AgentRuntimeModelInput>,
+    runtime_model: Option<AgentRuntimeModelInput>,
     system_prompt: String,
     messages: Vec<AgentRuntimeChatMessageInput>,
 }
@@ -55,8 +54,7 @@ fn chat_with_agent_bridge_blocking(
         "agentId": input.agent_id,
         "streamId": stream_id,
         "stream": input.stream.unwrap_or(true),
-        "provider": input.provider,
-        "model": input.model,
+        "runtimeModel": input.runtime_model,
         "systemPrompt": input.system_prompt,
         "messages": input.messages,
     });

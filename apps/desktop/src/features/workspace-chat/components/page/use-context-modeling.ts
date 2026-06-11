@@ -1,45 +1,42 @@
 import { useCallback, useMemo } from "react";
 import {
-  toAgentRuntimeModelConfig,
+  toAgentRuntimeModelInput,
 } from "@/ai/agent-runtime/config";
-import type { AgentRuntimeModelConfig } from "@/ai/agent-runtime/contracts";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import {
   resolveAppContextWindow,
   type ConversationSummarizer,
 } from "@/ai/agent-context";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { createSharedConversationSummarizer } from "@/features/shared-chat-runtime";
-import type { ContextWindowPreset } from "../../page-types";
 
 type UseContextModelingInput = {
-  contextWindowPreset: ContextWindowPreset;
   runtimeAgentRequiresModel: boolean;
   effectiveProvider?: LlmProvider | null;
   effectiveModel?: ProviderModel | null;
 };
 
 export const useContextModeling = ({
-  contextWindowPreset,
   runtimeAgentRequiresModel,
   effectiveProvider,
   effectiveModel,
 }: UseContextModelingInput) => {
-  const runtimeModelFor = useCallback((
+  const modelInputFor = useCallback((
     provider: LlmProvider,
     model: ProviderModel,
-  ): AgentRuntimeModelConfig => toAgentRuntimeModelConfig(provider, model), []);
+  ): AgentRuntimeModelInput => toAgentRuntimeModelInput(provider, model), []);
 
   const contextModelFor = useCallback((
     provider?: LlmProvider | null,
     model?: ProviderModel | null,
   ) => {
-    const runtimeModel = provider && model ? runtimeModelFor(provider, model) : null;
-    const contextWindow = resolveAppContextWindow(contextWindowPreset, runtimeModel);
+    const modelInput = provider && model ? modelInputFor(provider, model) : null;
+    const contextWindow = resolveAppContextWindow(modelInput);
 
-    return runtimeModel
-      ? { ...runtimeModel, contextWindow }
+    return modelInput
+      ? { ...modelInput, contextWindow }
       : { contextWindow };
-  }, [contextWindowPreset, runtimeModelFor]);
+  }, [modelInputFor]);
 
   const effectiveAppContextWindow = useMemo(
     () => contextModelFor(effectiveProvider, effectiveModel).contextWindow,
@@ -67,7 +64,7 @@ export const useContextModeling = ({
   }, [runtimeAgentRequiresModel]);
 
   return {
-    runtimeModelFor,
+    modelInputFor,
     contextModelFor,
     effectiveAppContextWindow,
     summarizerFor,

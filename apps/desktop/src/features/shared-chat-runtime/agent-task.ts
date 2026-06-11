@@ -1,11 +1,9 @@
-import { toAgentRuntimeProviderConfig } from "@/ai/agent-runtime/config";
 import type {
   AgentRuntimeAgentEvent,
-  AgentRuntimeModelConfig,
+  AgentRuntimeModelInput,
   AgentToolName,
 } from "@/ai/agent-runtime/contracts";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { LlmProvider } from "@/ai/llm/types";
 
 export type SharedAgentTaskResult = {
   taskId: string;
@@ -24,8 +22,7 @@ export type RunSharedAgentTaskInput = {
   runtimeAgentId: string;
   workspacePath: string;
   prompt: string;
-  provider: LlmProvider;
-  model: AgentRuntimeModelConfig;
+  runtimeModel: AgentRuntimeModelInput;
   allowedTools: AgentToolName[];
   enabledSkillNames: string[];
   chatSessionId?: string | null;
@@ -54,8 +51,7 @@ export const runSharedAgentTask = async ({
   runtimeAgentId,
   workspacePath,
   prompt,
-  provider,
-  model,
+  runtimeModel,
   allowedTools,
   enabledSkillNames,
   chatSessionId = null,
@@ -150,8 +146,7 @@ export const runSharedAgentTask = async ({
       chatSessionId,
       bootstrapContext,
       prompt,
-      provider: toAgentRuntimeProviderConfig(provider),
-      model,
+      runtimeModel,
       allowedTools,
       enabledSkills: enabledSkillNames,
     });

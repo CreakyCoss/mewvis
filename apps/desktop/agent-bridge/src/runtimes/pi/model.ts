@@ -4,115 +4,75 @@ import {
   type Model,
 } from "@earendil-works/pi-ai";
 import type {
-  ChatCommand,
-  ModelInput,
-  ProviderInput,
-  StartTaskCommand,
+  RuntimeModelInput,
 } from "../../contracts/protocol.js";
+import type {
+  RuntimeChatCommand,
+  RuntimeStartTaskCommand,
+} from "../../contracts/runtime.js";
 
-export type PiModelSource = "input" | "catalog";
-
-type CreatePiRuntimeModelOptions = {
-  modelSource?: PiModelSource;
-};
-
-export const requirePiApiKey = (provider: ProviderInput) => {
-  const apiKey = provider.apiKey?.trim();
+export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
+  const apiKey = runtimeModel.apiKey?.trim();
   if (!apiKey) {
-    throw new Error(`${provider.name} 未配置 API Key`);
+    throw new Error(`${runtimeModel.provider} 未配置 API Key`);
   }
 
   return apiKey;
 };
 
 export const requirePiRuntimeConfig = (
-  command: Pick<StartTaskCommand | ChatCommand, "provider" | "model">,
-): { provider: ProviderInput; model: ModelInput } => {
-  if (!command.provider || !command.model) {
+  command: Pick<RuntimeStartTaskCommand | RuntimeChatCommand, "runtimeModel">,
+): RuntimeModelInput => {
+  if (!command.runtimeModel) {
     throw new Error("Pi runtime 需要配置 LLM provider 和模型");
   }
 
-  return {
-    provider: command.provider,
-    model: command.model,
-  };
+  return command.runtimeModel;
 };
 
-export const piApiForProvider = (provider: string): Api => {
-  if (provider === "anthropic") {
+const piApiForFormat = (apiFormat: string): Api => {
+  if (apiFormat === "anthropic" || apiFormat === "anthropic-messages") {
     return "anthropic-messages";
   }
 
-  if (provider === "google") {
+  if (apiFormat === "google" || apiFormat === "google-generative-ai") {
     return "google-generative-ai";
   }
 
   return "openai-completions";
 };
 
-const resolveInputPiModel = (
-  provider: ProviderInput,
-  selectedModel: ModelInput,
-): Model<Api> => ({
-  id: selectedModel.modelId,
-  name: selectedModel.modelId,
-  api: piApiForProvider(provider.provider),
-  provider: provider.vendor,
-  baseUrl: "",
-  reasoning: false,
-  thinkingLevelMap: undefined,
-  input: ["text"],
-  cost: {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-  },
-  contextWindow: 128000,
-  maxTokens: 16384,
-  headers: undefined,
-  compat: undefined,
-});
-
-const resolveCatalogPiModel = (
-  provider: ProviderInput,
-  selectedModel: ModelInput,
+const readCatalogPiModel = (
+  runtimeModel: RuntimeModelInput,
 ): Model<Api> | undefined =>
   (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
-    provider.vendor,
-    selectedModel.modelId,
+    runtimeModel.provider,
+    runtimeModel.catalogModelId,
   );
 
-const applySelectedModelConfig = (
-  baseModel: Model<Api>,
-  provider: ProviderInput,
-  selectedModel: ModelInput,
-): Model<Api> => {
-  return {
-    ...baseModel,
-    api: piApiForProvider(provider.provider),
-    provider: provider.vendor,
-    name: selectedModel.modelName || baseModel.name,
-    baseUrl: provider.baseUrl ?? selectedModel.baseUrl ?? baseModel.baseUrl,
-    reasoning: selectedModel.reasoning ?? baseModel.reasoning,
-    thinkingLevelMap: selectedModel.thinkingLevelMap ?? baseModel.thinkingLevelMap,
-    input: selectedModel.input ?? baseModel.input,
-    cost: selectedModel.cost ?? baseModel.cost,
-    contextWindow: selectedModel.contextWindow ?? baseModel.contextWindow,
-    maxTokens: selectedModel.maxTokens ?? baseModel.maxTokens,
-    headers: selectedModel.headers ?? baseModel.headers,
-    compat: (selectedModel.compat ?? baseModel.compat) as Model<Api>["compat"],
-  };
-};
-
 export const createPiRuntimeModel = (
-  provider: ProviderInput,
-  selectedModel: ModelInput,
-  options: CreatePiRuntimeModelOptions = {},
+  runtimeModel: RuntimeModelInput,
 ): Model<Api> => {
-  const baseModel = options.modelSource === "catalog"
-    ? resolveCatalogPiModel(provider, selectedModel) ?? resolveInputPiModel(provider, selectedModel)
-    : resolveInputPiModel(provider, selectedModel);
+  const catalogModel = readCatalogPiModel(runtimeModel);
 
-  return applySelectedModelConfig(baseModel, provider, selectedModel);
+  return {
+    id: runtimeModel.modelId,
+    name: runtimeModel.modelId,
+    api: piApiForFormat(runtimeModel.apiFormat),
+    provider: runtimeModel.provider,
+    baseUrl: runtimeModel.apiEndpoint ?? catalogModel?.baseUrl ?? "",
+    reasoning: runtimeModel.reasoning ?? catalogModel?.reasoning ?? false,
+    thinkingLevelMap: runtimeModel.thinkingLevelMap ?? catalogModel?.thinkingLevelMap,
+    input: runtimeModel.input ?? catalogModel?.input ?? ["text"],
+    cost: runtimeModel.cost ?? catalogModel?.cost ?? {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: runtimeModel.contextWindow ?? catalogModel?.contextWindow ?? 128000,
+    maxTokens: runtimeModel.maxTokens ?? catalogModel?.maxTokens ?? 16384,
+    headers: runtimeModel.headers ?? catalogModel?.headers,
+    compat: (runtimeModel.compat ?? catalogModel?.compat) as Model<Api>["compat"],
+  };
 };

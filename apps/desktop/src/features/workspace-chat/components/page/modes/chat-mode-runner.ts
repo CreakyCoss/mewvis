@@ -1,6 +1,7 @@
 import {
   buildSystemPrompt,
 } from "@/ai/agent-context";
+import { formatProviderModelName } from "@/ai/llm/display";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import {
   formatDebugMessages,
@@ -67,7 +68,7 @@ export const runChatTurn = async (
     content: systemPrompt,
     metadata: {
       providerName: effectiveProvider?.name ?? null,
-      modelName: effectiveModel?.modelName ?? null,
+      modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
       stream: true,
       runtimeMessageCount: runtimeMessages.length,
     },

@@ -20,6 +20,7 @@ import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
 import { findDefaultProvider } from "@/features/llm-settings/utils";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import { formatProviderModelName } from "@/ai/llm/display";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
@@ -40,7 +41,6 @@ import type {
   ContextDebugPayload,
   ContextDebugSnapshot,
   ComposerSubmitInput,
-  ContextWindowPreset,
   PendingAgentQuestion,
   ResolvedFileReference,
   WorkspaceView,
@@ -225,7 +225,6 @@ export const WorkspaceChatPage = ({
       };
     });
   }, [chatMode]);
-  const [contextWindowPreset, setContextWindowPreset] = useState<ContextWindowPreset>("auto");
   const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_AGENT_TOOLS,
   ]);
@@ -302,12 +301,11 @@ export const WorkspaceChatPage = ({
     [tavernDefaultProvider],
   );
   const {
-    runtimeModelFor,
+    modelInputFor,
     contextModelFor,
     effectiveAppContextWindow,
     summarizerFor,
   } = useContextModeling({
-    contextWindowPreset,
     runtimeAgentRequiresModel,
     effectiveProvider,
     effectiveModel,
@@ -1179,7 +1177,7 @@ export const WorkspaceChatPage = ({
           phase: "manual",
           engineId: contextEngine.id,
           providerName: effectiveProvider?.name ?? null,
-          modelName: effectiveModel?.modelName ?? null,
+          modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
           canUseModel: runtimeAgentRequiresModel,
         }));
       }
@@ -1504,7 +1502,7 @@ export const WorkspaceChatPage = ({
         phase: "prepare",
         engineId: contextEngine.id,
         providerName: summaryProvider?.name ?? null,
-        modelName: summaryModel?.modelName ?? null,
+        modelName: summaryModel ? formatProviderModelName(summaryModel) : null,
         canUseModel: runtimeAgentRequiresModel,
       }));
     }
@@ -1606,7 +1604,7 @@ export const WorkspaceChatPage = ({
           phase: "finalize",
           engineId: contextEngine.id,
           providerName: summaryProvider?.name ?? null,
-          modelName: summaryModel?.modelName ?? null,
+          modelName: summaryModel ? formatProviderModelName(summaryModel) : null,
           canUseModel: runtimeAgentRequiresModel,
         }));
       }
@@ -1687,8 +1685,8 @@ export const WorkspaceChatPage = ({
       ? `${collaborationWriterAgent.provider.name} / ${collaborationReviewerAgent.provider.name}`
       : effectiveProvider?.name ?? null;
     const traceModelName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
-      ? `${collaborationWriterAgent.model.modelName} / ${collaborationReviewerAgent.model.modelName}`
-      : effectiveModel?.modelName ?? null;
+      ? `${formatProviderModelName(collaborationWriterAgent.model)} / ${formatProviderModelName(collaborationReviewerAgent.model)}`
+      : effectiveModel ? formatProviderModelName(effectiveModel) : null;
     const {
       nextConversation,
       userUiMessage,
@@ -1792,7 +1790,7 @@ export const WorkspaceChatPage = ({
           runtimeAgentId,
           agentRuntime,
           contextEngine,
-          runtimeModelFor,
+          modelInputFor,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,
@@ -1835,7 +1833,7 @@ export const WorkspaceChatPage = ({
           updateMessage,
           agentRuntime,
           contextEngine,
-          runtimeModelFor,
+          modelInputFor,
           setChatError,
           setAgentSessionStatus,
           setAgentSessionError,
@@ -1957,7 +1955,6 @@ export const WorkspaceChatPage = ({
     chatExecutionMode,
     showThinkingProcess,
     showToolCallProcess,
-    contextWindowPreset,
     effectiveContextWindow: effectiveAppContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
@@ -1988,7 +1985,6 @@ export const WorkspaceChatPage = ({
     setChatExecutionMode,
     setShowThinkingProcess,
     setShowToolCallProcess,
-    setContextWindowPreset,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,

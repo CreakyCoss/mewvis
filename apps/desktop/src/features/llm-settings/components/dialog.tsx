@@ -12,17 +12,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  getProviderTypeLabel,
-  getVendorModelOptions,
-  getVendorOption,
-  getVendorOptions,
-  providerTypeOptions,
+  getApiFormatLabel,
+  getProviderApiFormatOptions,
+  getProviderModelOptions,
+  getProviderOption,
+  getProviderOptions,
 } from "../constants";
 import { useSettings } from "../hooks/use-settings";
 import {
+  applyApiFormatDefaults,
   applyModelDefaults,
   applyProviderDefaults,
-  applyProviderTypeDefaults,
 } from "../utils";
 
 type SettingsDialogProps = {
@@ -51,10 +51,13 @@ export const SettingsDialog = ({
     save,
   } = useSettings(open);
   const selectedProviderOption = selectedProvider
-    ? getVendorOption(selectedProvider.vendor)
+    ? getProviderOption(selectedProvider.provider)
     : undefined;
+  const selectedApiFormatOptions = selectedProvider
+    ? getProviderApiFormatOptions(selectedProvider.provider)
+    : [];
   const selectedModelOptions = selectedProvider
-    ? getVendorModelOptions(selectedProvider.vendor, selectedProvider.provider)
+    ? getProviderModelOptions(selectedProvider.provider, selectedProvider.apiFormat)
     : [];
 
   const handleSave = async () => {
@@ -77,7 +80,7 @@ export const SettingsDialog = ({
               <span>LLM 设置</span>
             </DialogTitle>
             <DialogDescription className="mt-2">
-              管理 Provider、API Key、Base URL 和可用模型。
+              管理 Provider、API Key、API Endpoint 和可用模型。
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -117,13 +120,14 @@ export const SettingsDialog = ({
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
                       {provider.name ||
-                        getVendorOption(provider.vendor)?.label ||
+                        getProviderOption(provider.provider)?.label ||
                         "未命名 Provider"}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {[
-                        getVendorOption(provider.vendor)?.label || provider.vendor,
-                        getProviderTypeLabel(provider.provider),
+                        getProviderOption(provider.provider)?.label ||
+                          provider.provider,
+                        getApiFormatLabel(provider.apiFormat),
                       ]
                         .filter(Boolean)
                         .join(" / ") || "未选择供应商"}
@@ -164,11 +168,11 @@ export const SettingsDialog = ({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="llm-vendor">供应商</Label>
+                    <Label htmlFor="llm-provider">供应商</Label>
                     <select
-                      id="llm-vendor"
+                      id="llm-provider"
                       className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={selectedProvider.vendor}
+                      value={selectedProvider.provider}
                       onChange={(event) => {
                         const value = event.currentTarget.value;
                         updateProvider(selectedProvider.id, (provider) =>
@@ -176,7 +180,7 @@ export const SettingsDialog = ({
                         );
                       }}
                     >
-                      {getVendorOptions().map((provider) => (
+                      {getProviderOptions().map((provider) => (
                         <option key={provider.value} value={provider.value}>
                           {provider.label}
                         </option>
@@ -185,21 +189,21 @@ export const SettingsDialog = ({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="llm-provider-type">Provider 类型</Label>
+                    <Label htmlFor="llm-api-format">API Format</Label>
                     <select
-                      id="llm-provider-type"
+                      id="llm-api-format"
                       className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={selectedProvider.provider}
+                      value={selectedProvider.apiFormat}
                       onChange={(event) => {
                         const value = event.currentTarget.value;
                         updateProvider(selectedProvider.id, (provider) =>
-                          applyProviderTypeDefaults(provider, value),
+                          applyApiFormatDefaults(provider, value),
                         );
                       }}
                     >
-                      {providerTypeOptions.map((providerType) => (
-                        <option key={providerType.value} value={providerType.value}>
-                          {providerType.label}
+                      {selectedApiFormatOptions.map((apiFormat) => (
+                        <option key={apiFormat.value} value={apiFormat.value}>
+                          {apiFormat.label}
                         </option>
                       ))}
                     </select>
@@ -225,15 +229,15 @@ export const SettingsDialog = ({
                     <Label htmlFor="llm-api-endpoint">API Endpoint</Label>
                     <Input
                       id="llm-api-endpoint"
-                      value={selectedProvider.baseUrl}
+                      value={selectedProvider.apiEndpoint}
                       onChange={(event) => {
                         const value = event.currentTarget.value;
                         updateProvider(selectedProvider.id, (provider) => ({
                           ...provider,
-                          baseUrl: value,
+                          apiEndpoint: value,
                         }));
                       }}
-                      placeholder="自动匹配供应商和 Provider 类型"
+                      placeholder="自动匹配供应商和 API Format"
                     />
                   </div>
                 </div>
@@ -288,7 +292,7 @@ export const SettingsDialog = ({
                     {selectedProvider.models.map((model) => (
                       <div
                         key={model.id}
-                        className="grid gap-3 rounded-md bg-card p-3 shadow-xs md:grid-cols-[1fr_1fr_auto_auto]"
+                        className="grid gap-3 rounded-md bg-card p-3 shadow-xs md:grid-cols-[1fr_1fr_auto_auto_auto]"
                       >
                         <div className="space-y-2">
                           <Label htmlFor={`${model.id}-model-id`}>模型 ID</Label>
@@ -304,8 +308,8 @@ export const SettingsDialog = ({
                                   item.id === model.id
                                     ? applyModelDefaults(
                                         item,
-                                        selectedProvider.vendor,
                                         selectedProvider.provider,
+                                        selectedProvider.apiFormat,
                                         value,
                                       )
                                     : item,
@@ -339,6 +343,23 @@ export const SettingsDialog = ({
                               )?.name ?? "自定义显示名称"
                             }
                           />
+                        </div>
+
+                        <div className="flex items-end gap-2 pb-2">
+                          <Switch
+                            checked={model.isOneMillionContext}
+                            onCheckedChange={(checked) => {
+                              updateProvider(selectedProvider.id, (provider) => ({
+                                ...provider,
+                                models: provider.models.map((item) =>
+                                  item.id === model.id
+                                    ? { ...item, isOneMillionContext: checked }
+                                    : item,
+                                ),
+                              }));
+                            }}
+                          />
+                          <span className="text-sm text-muted-foreground">1M</span>
                         </div>
 
                         <div className="flex items-end gap-2 pb-2">

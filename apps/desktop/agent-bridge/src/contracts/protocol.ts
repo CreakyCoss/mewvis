@@ -39,20 +39,13 @@ export enum AskUserInputType {
   Select = "select",
 }
 
-export type ProviderInput = {
-  id: string;
-  name: string;
-  vendor: string;
+export type RuntimeModelInput = {
   provider: string;
+  apiFormat: string;
   apiKey?: string | null;
-  baseUrl?: string | null;
-};
-
-export type ModelInput = {
-  id: string;
+  catalogModelId: string;
   modelId: string;
-  modelName: string;
-  baseUrl?: string;
+  apiEndpoint?: string | null;
   reasoning?: boolean;
   thinkingLevelMap?: Record<string, string | null>;
   input?: Array<"text" | "image">;
@@ -77,8 +70,7 @@ export type StartTaskCommand = {
   chatSessionId?: string | null;
   prompt: string;
   bootstrapContext?: string | null;
-  provider?: ProviderInput | null;
-  model?: ModelInput | null;
+  runtimeModel?: RuntimeModelInput | null;
   allowedTools?: AgentToolName[];
   bundledSkillsPath?: string | string[] | null;
   skillPaths?: string[];
@@ -109,8 +101,7 @@ export type ChatCommand = {
   agentId?: string | null;
   streamId?: string | null;
   stream?: boolean;
-  provider?: ProviderInput | null;
-  model?: ModelInput | null;
+  runtimeModel?: RuntimeModelInput | null;
   systemPrompt: string;
   messages: ChatMessageInput[];
 };

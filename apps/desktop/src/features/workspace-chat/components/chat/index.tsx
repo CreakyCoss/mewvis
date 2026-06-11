@@ -12,7 +12,6 @@ import type {
   ChatMode,
   ComposerSubmitInput,
   CollaborationPlanDecisionRequest,
-  ContextWindowPreset,
   ModelSource,
   PendingAgentQuestion,
 } from "../../page-types";
@@ -51,7 +50,6 @@ export type ChatPanelViewModel = {
   chatExecutionMode: ChatExecutionMode;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  contextWindowPreset: ContextWindowPreset;
   effectiveContextWindow: number;
   availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
@@ -82,7 +80,6 @@ export type ChatPanelViewModel = {
   setChatExecutionMode: Dispatch<SetStateAction<ChatExecutionMode>>;
   setShowThinkingProcess: Dispatch<SetStateAction<boolean>>;
   setShowToolCallProcess: Dispatch<SetStateAction<boolean>>;
-  setContextWindowPreset: Dispatch<SetStateAction<ContextWindowPreset>>;
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
@@ -119,7 +116,6 @@ export const ChatPanel = () => {
     chatExecutionMode,
     showThinkingProcess,
     showToolCallProcess,
-    contextWindowPreset,
     effectiveContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
@@ -142,7 +138,6 @@ export const ChatPanel = () => {
     setChatExecutionMode,
     setShowThinkingProcess,
     setShowToolCallProcess,
-    setContextWindowPreset,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
@@ -181,7 +176,6 @@ export const ChatPanel = () => {
       chatExecutionMode={chatExecutionMode}
       showThinkingProcess={showThinkingProcess}
       showToolCallProcess={showToolCallProcess}
-      contextWindowPreset={contextWindowPreset}
       effectiveContextWindow={effectiveContextWindow}
       modelSource={modelSource}
       runtimeAgents={availableRuntimeAgents}
@@ -200,7 +194,6 @@ export const ChatPanel = () => {
       onChatExecutionModeChange={setChatExecutionMode}
       onShowThinkingProcessChange={setShowThinkingProcess}
       onShowToolCallProcessChange={setShowToolCallProcess}
-      onContextWindowPresetChange={setContextWindowPreset}
       onModelSourceChange={setModelSource}
       onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}

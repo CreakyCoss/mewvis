@@ -2,7 +2,7 @@ use super::{
     bridge::append_agent_diagnostic,
     skills::{bundled_skills_path_for_bridge, workspace_skill_paths_for_bridge},
     supervisor::{AgentRuntimeSupervisor, AgentTaskSubmission},
-    types::{AgentRuntimeModelInput, AgentRuntimeProviderInput},
+    types::AgentRuntimeModelInput,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -17,8 +17,7 @@ pub struct RunAgentRuntimeAgentInput {
     chat_session_id: Option<String>,
     prompt: String,
     bootstrap_context: Option<String>,
-    provider: Option<AgentRuntimeProviderInput>,
-    model: Option<AgentRuntimeModelInput>,
+    runtime_model: Option<AgentRuntimeModelInput>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
 }
@@ -74,8 +73,7 @@ pub fn run_agent_runtime_agent(
         "chatSessionId": input.chat_session_id,
         "prompt": input.prompt,
         "bootstrapContext": input.bootstrap_context,
-        "provider": input.provider,
-        "model": input.model,
+        "runtimeModel": input.runtime_model,
         "bundledSkillsPath": bundled_skills_path,
         "skillPaths": skill_paths,
         "enabledSkills": input.enabled_skills.unwrap_or_default(),

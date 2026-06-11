@@ -1,4 +1,5 @@
 import type { CollaborationWorkflowProfile, CollaborationWorkflowStepProfile } from "@/features/agent-settings/types";
+import { formatProviderModelName } from "@/ai/llm/display";
 import type {
   ChatMessage,
   ChatMessageCollaboration,
@@ -81,7 +82,7 @@ export const createCollaborationStepMetadata = ({
   agentName: step.agent.name,
   agentAvatar: step.agent.avatar,
   providerName: step.agent.provider.name,
-  modelName: step.agent.model.modelName,
+  modelName: formatProviderModelName(step.agent.model),
 });
 
 export const createCollaborationSupervisorMetadata = ({
@@ -104,7 +105,7 @@ export const createCollaborationSupervisorMetadata = ({
   agentName: workflow.writerAgent.name,
   agentAvatar: workflow.writerAgent.avatar,
   providerName: workflow.writerAgent.provider.name,
-  modelName: workflow.writerAgent.model.modelName,
+  modelName: formatProviderModelName(workflow.writerAgent.model),
   planDecision: "not_required",
 });
 

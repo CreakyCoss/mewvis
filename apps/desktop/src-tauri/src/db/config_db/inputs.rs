@@ -26,6 +26,7 @@ pub struct SaveProviderModelInput {
     pub model_id: String,
     pub model_name: String,
     pub is_enabled: bool,
+    pub is_one_million_context: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,10 +34,10 @@ pub struct SaveProviderModelInput {
 pub struct SaveLlmProviderInput {
     pub id: Option<String>,
     pub name: String,
-    pub vendor: String,
     pub provider: String,
+    pub api_format: String,
     pub api_key: Option<String>,
-    pub base_url: Option<String>,
+    pub api_endpoint: Option<String>,
     pub is_default: bool,
     pub models: Vec<SaveProviderModelInput>,
 }

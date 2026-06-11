@@ -6,11 +6,11 @@ import type {
   ProviderModelDraft,
 } from "@/ai/llm/types";
 import {
-  getDefaultProviderType,
-  getVendorModelOptions,
-  getVendorOption,
-  getVendorOptions,
-  inferBaseUrl,
+  getDefaultApiFormat,
+  getProviderModelOptions,
+  getProviderOption,
+  getProviderOptions,
+  inferApiEndpoint,
 } from "./constants";
 
 const createId = (prefix: string) => {
@@ -26,43 +26,59 @@ export const createModelDraft = (): ProviderModelDraft => ({
   modelId: "",
   modelName: "",
   isEnabled: true,
+  isOneMillionContext: false,
 });
 
-export const createProviderDraft = (): LlmProviderDraft => ({
-  id: createId("provider"),
-  name: getVendorOption("openai")?.label ?? "Openai",
-  vendor: "openai",
-  provider: getDefaultProviderType("openai"),
-  apiKey: "",
-  baseUrl: inferBaseUrl("openai", getDefaultProviderType("openai")),
-  isDefault: true,
-  models: [
-    {
-      ...createModelDraft(),
-      modelId: getVendorModelOptions("openai", getDefaultProviderType("openai"))[0]?.id ?? "",
-      modelName: getVendorModelOptions("openai", getDefaultProviderType("openai"))[0]?.name ?? "",
-    },
-  ],
-});
+export const createProviderDraft = (): LlmProviderDraft => {
+  const providerOption = getProviderOption("openai") ?? getProviderOptions()[0] ?? {
+    value: "openai",
+    label: "OpenAI",
+  };
+  const provider = providerOption.value;
+  const apiFormat = getDefaultApiFormat(provider);
+  const defaultModel = getProviderModelOptions(provider, apiFormat)[0];
+
+  return {
+    id: createId("provider"),
+    name: providerOption.label,
+    provider,
+    apiFormat,
+    apiKey: "",
+    apiEndpoint: inferApiEndpoint(provider, apiFormat),
+    isDefault: true,
+    models: [
+      {
+        ...createModelDraft(),
+        modelId: defaultModel?.id ?? "",
+        modelName: defaultModel?.name ?? "",
+      },
+    ],
+  };
+};
 
 export const toDraft = (settings: LlmSettings): LlmSettingsDraft => {
   const providers = settings.providers.map((provider) => {
-    const vendor = getVendorOption(provider.vendor)?.value ?? "openai";
-    const adapterProvider = provider.provider || getDefaultProviderType(vendor);
+    const providerId =
+      getProviderOption(provider.provider)?.value ??
+      getProviderOptions()[0]?.value ??
+      "openai";
+    const apiFormat = provider.apiFormat || getDefaultApiFormat(providerId);
 
     return {
       id: provider.id,
       name: provider.name,
-      vendor,
-      provider: adapterProvider,
+      provider: providerId,
+      apiFormat,
       apiKey: provider.apiKey ?? "",
-      baseUrl: provider.baseUrl ?? inferBaseUrl(vendor, adapterProvider),
+      apiEndpoint:
+        provider.apiEndpoint ?? inferApiEndpoint(providerId, apiFormat),
       isDefault: provider.isDefault,
       models: provider.models.map((model) => ({
         id: model.id,
         modelId: model.modelId,
         modelName: model.modelName,
         isEnabled: model.isEnabled,
+        isOneMillionContext: model.isOneMillionContext,
       })),
     };
   });
@@ -75,16 +91,20 @@ export const toDraft = (settings: LlmSettings): LlmSettingsDraft => {
 export const normalizeDraft = (draft: LlmSettingsDraft): LlmSettingsDraft => {
   const providers = draft.providers.map((provider, index) => ({
     ...provider,
-    name: provider.name.trim() || getVendorOption(provider.vendor)?.label || provider.vendor,
-    vendor: provider.vendor.trim(),
+    name:
+      provider.name.trim() ||
+      getProviderOption(provider.provider)?.label ||
+      provider.provider,
     provider: provider.provider.trim(),
+    apiFormat: provider.apiFormat.trim(),
     apiKey: provider.apiKey.trim(),
-    baseUrl: provider.baseUrl.trim(),
+    apiEndpoint: provider.apiEndpoint.trim(),
     isDefault: index === draft.providers.findIndex((item) => item.isDefault),
     models: provider.models.map((model) => ({
       ...model,
       modelId: model.modelId.trim(),
       modelName: model.modelName.trim(),
+      isOneMillionContext: model.isOneMillionContext,
     })),
   }));
 
@@ -105,16 +125,16 @@ export const validateDraft = (draft: LlmSettingsDraft) => {
       return "Provider 名称不能为空";
     }
 
-    if (!provider.vendor.trim()) {
+    if (!provider.provider.trim()) {
       return "供应商不能为空";
     }
 
-    if (!getVendorOption(provider.vendor)) {
+    if (!getProviderOption(provider.provider)) {
       return "请选择支持的供应商";
     }
 
-    if (!provider.provider.trim()) {
-      return "Provider 类型不能为空";
+    if (!provider.apiFormat.trim()) {
+      return "API Format 不能为空";
     }
 
     if (provider.models.length === 0) {
@@ -141,23 +161,23 @@ export const validateDraft = (draft: LlmSettingsDraft) => {
 
 export const applyProviderDefaults = (
   provider: LlmProviderDraft,
-  vendor: string,
+  providerId: string,
 ): LlmProviderDraft => {
-  const currentOption = getVendorOption(provider.vendor);
-  const nextOption = getVendorOption(vendor);
-  const adapterProvider = getDefaultProviderType(vendor);
-  const defaultModel = getVendorModelOptions(vendor, adapterProvider)[0];
+  const currentOption = getProviderOption(provider.provider);
+  const nextOption = getProviderOption(providerId);
+  const apiFormat = getDefaultApiFormat(providerId);
+  const defaultModel = getProviderModelOptions(providerId, apiFormat)[0];
   const shouldFollowName =
     !provider.name.trim() ||
     provider.name === currentOption?.label ||
-    provider.name === provider.vendor;
+    provider.name === provider.provider;
 
   return {
     ...provider,
-    vendor,
-    provider: adapterProvider,
-    name: shouldFollowName ? nextOption?.label ?? vendor : provider.name,
-    baseUrl: inferBaseUrl(vendor, adapterProvider),
+    provider: providerId,
+    apiFormat,
+    name: shouldFollowName ? nextOption?.label ?? providerId : provider.name,
+    apiEndpoint: inferApiEndpoint(providerId, apiFormat),
     models: defaultModel
       ? [
           {
@@ -170,16 +190,16 @@ export const applyProviderDefaults = (
   };
 };
 
-export const applyProviderTypeDefaults = (
+export const applyApiFormatDefaults = (
   provider: LlmProviderDraft,
-  adapterProvider: string,
+  apiFormat: string,
 ): LlmProviderDraft => {
-  const defaultModel = getVendorModelOptions(provider.vendor, adapterProvider)[0];
+  const defaultModel = getProviderModelOptions(provider.provider, apiFormat)[0];
 
   return {
     ...provider,
-    provider: adapterProvider,
-    baseUrl: inferBaseUrl(provider.vendor, adapterProvider),
+    apiFormat,
+    apiEndpoint: inferApiEndpoint(provider.provider, apiFormat),
     models: defaultModel
       ? [
           {
@@ -194,11 +214,11 @@ export const applyProviderTypeDefaults = (
 
 export const applyModelDefaults = (
   model: ProviderModelDraft,
-  vendor: string,
-  adapterProvider: string,
+  provider: string,
+  apiFormat: string,
   modelId: string,
 ): ProviderModelDraft => {
-  const options = getVendorModelOptions(vendor, adapterProvider);
+  const options = getProviderModelOptions(provider, apiFormat);
   const currentOption = options.find((item) => item.id === model.modelId);
   const option = options.find((item) => item.id === modelId);
   const shouldFollowName =
@@ -217,6 +237,6 @@ export const findDefaultProvider = (
   return providers.find((provider) => provider.isDefault) ?? providers[0];
 };
 
-export const hasVendorOptions = () => {
-  return getVendorOptions().length > 0;
+export const hasProviderOptions = () => {
+  return getProviderOptions().length > 0;
 };

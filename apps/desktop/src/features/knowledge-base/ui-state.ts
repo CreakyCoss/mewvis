@@ -123,7 +123,7 @@ export const isEmbeddingProviderSupported = (provider: LlmProvider) =>
     "openai-compatible",
     "openai-responses",
     "openai-completions",
-  ].includes(provider.provider);
+  ].includes(provider.apiFormat);
 
 export const formatTime = (timestamp: number | null) =>
   timestamp

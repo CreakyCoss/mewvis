@@ -20,18 +20,10 @@ const normalizeContextWindow = (value: number | null | undefined) =>
     : null;
 
 export const resolveAppContextWindow = (
-  selectedContextWindow: number | "auto",
   model?: TokenBudgetModel,
 ) => {
   const modelContextWindow = normalizeContextWindow(model?.contextWindow);
-  if (selectedContextWindow === "auto") {
-    return modelContextWindow ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
-  }
-
-  return Math.max(
-    normalizeContextWindow(selectedContextWindow) ?? DEFAULT_CONTEXT_WINDOW_TOKENS,
-    modelContextWindow ?? 0,
-  );
+  return modelContextWindow ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
 };
 
 export const countTextTokens = (text: string) => encoder.encode(text).length;

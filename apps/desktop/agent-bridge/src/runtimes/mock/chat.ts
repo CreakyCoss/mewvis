@@ -1,16 +1,19 @@
 import {
   BridgeEventType,
   BridgeResultType,
-  type ChatCommand,
   type ChatResult,
 } from "../../contracts/protocol.js";
-import type { ChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
+import type {
+  ChatRuntime,
+  ChatRuntimeContext,
+  RuntimeChatCommand,
+} from "../../contracts/runtime.js";
 import { chunkText, createMockChatText, sleep } from "./response.js";
 
 export class MockChatRuntime implements ChatRuntime {
   readonly id = "mock";
 
-  async chat(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     const text = createMockChatText(command);
     const thinking = "Mock chat runtime 跳过真实模型调用，直接生成固定格式回复。";
 

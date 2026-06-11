@@ -1,7 +1,4 @@
-import {
-  toAgentRuntimeModelConfig,
-  toAgentRuntimeProviderConfig,
-} from "@/ai/agent-runtime/config";
+import { toAgentRuntimeModelInput } from "@/ai/agent-runtime/config";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { ConversationMessage } from "@/ai/agent-context";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
@@ -30,9 +27,8 @@ export async function runSharedRuntimeChat(
   return sharedAgentRuntime.run({
     type: "chat",
     agentId: input.agentId,
-    provider: input.provider ? toAgentRuntimeProviderConfig(input.provider) : undefined,
-    model: input.provider && input.model
-      ? toAgentRuntimeModelConfig(input.provider, input.model)
+    runtimeModel: input.provider && input.model
+      ? toAgentRuntimeModelInput(input.provider, input.model)
       : undefined,
     systemPrompt: input.systemPrompt,
     messages: input.messages,

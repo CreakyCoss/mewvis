@@ -16,18 +16,20 @@ import { normalizeAllowedAgentTools } from "../../contracts/tools.js";
 import {
   BridgeEventType,
   type AgentRunResult,
-  type StartTaskCommand,
 } from "../../contracts/protocol.js";
-import type { AgentRuntime, AgentRuntimeContext, AskUser } from "../../contracts/runtime.js";
+import type {
+  AgentRuntime,
+  AgentRuntimeContext,
+  AskUser,
+  RuntimeStartTaskCommand,
+} from "../../contracts/runtime.js";
 import { parsePiAskUserFunctionCall, registerPiAskUserTool } from "./tools/ask-user.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
-  type PiModelSource,
 } from "./model.js";
 
-const PI_AGENT_MODEL_SOURCE = "input" satisfies PiModelSource;
 const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
 
 type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
@@ -47,7 +49,7 @@ type PiAgentSessionCreateResult = {
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
-  async run(command: StartTaskCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(command: RuntimeStartTaskCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
     const state = this.createRunState();
     let session: PiAgentSession | null = null;
     let unsubscribe: (() => void) | null = null;
@@ -73,12 +75,10 @@ export class PiAgent implements AgentRuntime {
     }
   }
 
-  private async createSession(command: StartTaskCommand, askUser: AskUser): Promise<PiAgentSessionCreateResult> {
-    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
-    const apiKey = requirePiApiKey(provider);
-    const model = createPiRuntimeModel(provider, modelInput, {
-      modelSource: PI_AGENT_MODEL_SOURCE,
-    });
+  private async createSession(command: RuntimeStartTaskCommand, askUser: AskUser): Promise<PiAgentSessionCreateResult> {
+    const runtimeModel = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(runtimeModel);
+    const model = createPiRuntimeModel(runtimeModel);
     const authStorage = AuthStorage.inMemory();
     authStorage.setRuntimeApiKey(model.provider, apiKey);
     const resourceLoader = await this.createResourceLoader(command, askUser);
@@ -110,7 +110,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private subscribeToSession(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     session: PiAgentSession,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
@@ -121,7 +121,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private handleSessionEvent(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
     event: AgentSessionEvent,
@@ -185,7 +185,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private handleMessageUpdate(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
     event: Extract<AgentSessionEvent, { type: "message_update" }>,
@@ -232,7 +232,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private handleMessageEnd(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
     event: Extract<AgentSessionEvent, { type: "message_end" }>,
@@ -256,7 +256,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private async driveSession(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     session: PiAgentSession,
     askUser: AskUser,
     emit: AgentRuntimeContext["emit"],
@@ -280,7 +280,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private async nextPromptFromAskUser(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     askUser: AskUser,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
@@ -312,7 +312,7 @@ export class PiAgent implements AgentRuntime {
     );
   }
 
-  private createInitialPrompt(command: StartTaskCommand, shouldBootstrap: boolean) {
+  private createInitialPrompt(command: RuntimeStartTaskCommand, shouldBootstrap: boolean) {
     const bootstrapContext = command.bootstrapContext?.trim();
     if (!shouldBootstrap || !bootstrapContext) {
       return command.prompt;
@@ -328,7 +328,7 @@ export class PiAgent implements AgentRuntime {
     ].join("\n");
   }
 
-  private createSessionManager(command: StartTaskCommand) {
+  private createSessionManager(command: RuntimeStartTaskCommand) {
     const sessionPath = this.normalizeAgentSessionPath(command.chatSessionId);
     if (sessionPath.length === 0) {
       // TODO pi目录，而非内存
@@ -367,7 +367,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private async createResourceLoader(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     askUser: AskUser,
   ) {
     const enabledSkills = this.loadEnabledSkills(command);
@@ -391,7 +391,7 @@ export class PiAgent implements AgentRuntime {
     return loader;
   }
 
-  private loadEnabledSkills(command: StartTaskCommand): Skill[] {
+  private loadEnabledSkills(command: RuntimeStartTaskCommand): Skill[] {
     const enabledNames = new Set(command.enabledSkills ?? []);
     const paths = this.skillSourcePaths(command);
     if (paths.length === 0 || enabledNames.size === 0) {
@@ -408,7 +408,7 @@ export class PiAgent implements AgentRuntime {
     return skills.filter((skill) => enabledNames.has(skill.name));
   }
 
-  private skillSourcePaths(command: StartTaskCommand) {
+  private skillSourcePaths(command: RuntimeStartTaskCommand) {
     const paths = [
       ...(Array.isArray(command.bundledSkillsPath)
         ? command.bundledSkillsPath
@@ -461,7 +461,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private setSessionError(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     emit: AgentRuntimeContext["emit"],
     state: PiAgentRunState,
     message: string,
@@ -477,7 +477,7 @@ export class PiAgent implements AgentRuntime {
   }
 
   private reportRunError(
-    command: StartTaskCommand,
+    command: RuntimeStartTaskCommand,
     emit: AgentRuntimeContext["emit"],
     error: unknown,
     state: PiAgentRunState,

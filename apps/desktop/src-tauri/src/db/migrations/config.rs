@@ -4,7 +4,7 @@ use super::version::{
     database_user_version, set_database_user_version, CONFIG_INITIAL_SCHEMA_VERSION,
     CONFIG_SCHEMA_VERSION,
 };
-use crate::db::schema::validate_config_schema;
+use crate::db::{schema::validate_config_schema, sqlite::table_columns};
 
 struct ConfigMigrationStep {
     target_version: i64,
@@ -33,6 +33,16 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         target_version: 7,
         name: "add_collaboration_workflow_steps",
         run: add_collaboration_workflow_steps,
+    },
+    ConfigMigrationStep {
+        target_version: 8,
+        name: "rename_llm_provider_runtime_columns",
+        run: rename_llm_provider_runtime_columns,
+    },
+    ConfigMigrationStep {
+        target_version: 9,
+        name: "add_provider_model_one_million_context",
+        run: add_provider_model_one_million_context,
     },
 ];
 
@@ -157,6 +167,72 @@ fn add_collaboration_workflow_steps(conn: &Connection) -> Result<(), String> {
         .map_err(|error| format!("无法添加协作流程步骤配置：{error}"))
 }
 
+fn rename_llm_provider_runtime_columns(conn: &Connection) -> Result<(), String> {
+    let mut columns = table_columns(conn, "llm_providers")?;
+
+    if columns.iter().any(|column| column == "provider")
+        && columns.iter().any(|column| column == "api_format")
+        && columns.iter().any(|column| column == "api_endpoint")
+    {
+        return Ok(());
+    }
+
+    if columns.iter().any(|column| column == "provider")
+        && !columns.iter().any(|column| column == "api_format")
+    {
+        conn.execute_batch("ALTER TABLE llm_providers RENAME COLUMN provider TO api_format;")
+            .map_err(|error| format!("无法迁移 LLM API Format 字段：{error}"))?;
+        columns = table_columns(conn, "llm_providers")?;
+    }
+
+    if columns.iter().any(|column| column == "vendor")
+        && !columns.iter().any(|column| column == "provider")
+    {
+        conn.execute_batch("ALTER TABLE llm_providers RENAME COLUMN vendor TO provider;")
+            .map_err(|error| format!("无法迁移 LLM Provider 字段：{error}"))?;
+        columns = table_columns(conn, "llm_providers")?;
+    }
+
+    if !columns.iter().any(|column| column == "provider") {
+        conn.execute_batch(
+            "ALTER TABLE llm_providers ADD COLUMN provider TEXT NOT NULL DEFAULT '';",
+        )
+        .map_err(|error| format!("无法添加 LLM Provider 字段：{error}"))?;
+        columns = table_columns(conn, "llm_providers")?;
+    }
+
+    if columns.iter().any(|column| column == "base_url")
+        && !columns.iter().any(|column| column == "api_endpoint")
+    {
+        conn.execute_batch("ALTER TABLE llm_providers RENAME COLUMN base_url TO api_endpoint;")
+            .map_err(|error| format!("无法迁移 LLM API Endpoint 字段：{error}"))?;
+        columns = table_columns(conn, "llm_providers")?;
+    }
+
+    if !columns.iter().any(|column| column == "api_endpoint") {
+        conn.execute_batch("ALTER TABLE llm_providers ADD COLUMN api_endpoint TEXT;")
+            .map_err(|error| format!("无法添加 LLM API Endpoint 字段：{error}"))?;
+    }
+
+    Ok(())
+}
+
+fn add_provider_model_one_million_context(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "provider_models")?;
+
+    if columns
+        .iter()
+        .any(|column| column == "is_one_million_context")
+    {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        "ALTER TABLE provider_models ADD COLUMN is_one_million_context INTEGER DEFAULT 0;",
+    )
+    .map_err(|error| format!("无法添加 LLM 模型 1M 标记字段：{error}"))
+}
+
 pub(crate) fn run_config_migrations(
     conn: &Connection,
     is_new_database: bool,
@@ -249,4 +325,98 @@ fn run_config_migration_step(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::params;
+
+    #[test]
+    fn rename_llm_provider_runtime_columns_preserves_existing_values() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE llm_providers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                vendor TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL,
+                api_key TEXT,
+                base_url TEXT,
+                is_default INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            "#,
+        )
+        .expect("create old provider table");
+        conn.execute(
+            r#"
+            INSERT INTO llm_providers (
+                id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
+            ) VALUES (?1, 'DeepSeek', 'deepseek', 'openai-completions', 'key', 'https://api.deepseek.com', 1, 1, 1)
+            "#,
+            params!["provider-1"],
+        )
+        .expect("insert old provider");
+
+        rename_llm_provider_runtime_columns(&conn).expect("rename provider columns");
+
+        let columns = table_columns(&conn, "llm_providers").expect("read columns");
+        assert!(columns.iter().any(|column| column == "provider"));
+        assert!(columns.iter().any(|column| column == "api_format"));
+        assert!(columns.iter().any(|column| column == "api_endpoint"));
+        assert!(!columns.iter().any(|column| column == "vendor"));
+        assert!(!columns.iter().any(|column| column == "base_url"));
+
+        let (provider, api_format, api_endpoint): (String, String, Option<String>) = conn
+            .query_row(
+                "SELECT provider, api_format, api_endpoint FROM llm_providers WHERE id = ?1",
+                params!["provider-1"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read migrated provider");
+
+        assert_eq!(provider, "deepseek");
+        assert_eq!(api_format, "openai-completions");
+        assert_eq!(api_endpoint.as_deref(), Some("https://api.deepseek.com"));
+    }
+
+    #[test]
+    fn add_provider_model_one_million_context_defaults_to_false() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE provider_models (
+                id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                is_enabled INTEGER DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            INSERT INTO provider_models (
+                id, provider_id, model_id, model_name, is_enabled, created_at, updated_at
+            ) VALUES (
+                'model-1', 'provider-1', 'gpt-4.1', 'GPT 4.1', 1, 1, 1
+            );
+            "#,
+        )
+        .expect("create old model table");
+
+        add_provider_model_one_million_context(&conn).expect("add 1m column");
+
+        let value: i64 = conn
+            .query_row(
+                "SELECT is_one_million_context FROM provider_models WHERE id = ?1",
+                params!["model-1"],
+                |row| row.get(0),
+            )
+            .expect("read 1m flag");
+
+        assert_eq!(value, 0);
+    }
 }

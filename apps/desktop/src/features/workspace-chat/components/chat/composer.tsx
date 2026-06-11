@@ -4,7 +4,6 @@ import {
   Bot,
   ChevronDown,
   FileText,
-  Gauge,
   GitBranch,
   Link,
   Loader2,
@@ -42,11 +41,11 @@ import type {
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
 import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import { formatProviderModelName } from "@/ai/llm/display";
 import type {
   ChatExecutionMode,
   ChatMode,
   ComposerSubmitInput,
-  ContextWindowPreset,
   ModelSource,
 } from "../../page-types";
 import type { WorkspaceFileEntry } from "../../types";
@@ -72,7 +71,6 @@ type ComposerProps = {
   chatExecutionMode: ChatExecutionMode;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  contextWindowPreset: ContextWindowPreset;
   effectiveContextWindow: number;
   modelSource: ModelSource;
   runtimeAgents: readonly AgentRuntimeAgentDefinition[];
@@ -91,7 +89,6 @@ type ComposerProps = {
   onChatExecutionModeChange: (mode: ChatExecutionMode) => void;
   onShowThinkingProcessChange: (value: boolean) => void;
   onShowToolCallProcessChange: (value: boolean) => void;
-  onContextWindowPresetChange: (preset: ContextWindowPreset) => void;
   onModelSourceChange: (source: ModelSource) => void;
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
@@ -122,7 +119,6 @@ export const Composer = memo(({
   chatExecutionMode,
   showThinkingProcess,
   showToolCallProcess,
-  contextWindowPreset,
   effectiveContextWindow,
   modelSource,
   runtimeAgents,
@@ -141,7 +137,6 @@ export const Composer = memo(({
   onChatExecutionModeChange,
   onShowThinkingProcessChange,
   onShowToolCallProcessChange,
-  onContextWindowPresetChange,
   onModelSourceChange,
   onRuntimeAgentChange,
   onSelectedAgentChange,
@@ -213,7 +208,9 @@ export const Composer = memo(({
     ? selectedCollaborationWorkflow?.name ?? "选择协作流程"
     : modelSource === "agent"
       ? selectedAgent?.name ?? "选择角色"
-      : selectedModel?.modelName || selectedModel?.modelId || "选择模型";
+      : selectedModel
+        ? formatProviderModelName(selectedModel)
+        : "选择模型";
   const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
     ? "无需模型"
     : selectedModelLabel;
@@ -223,13 +220,7 @@ export const Composer = memo(({
     showToolCallProcess ? "工具" : "",
     chatMode === "chat" && chatExecutionMode === "agent" ? "Agent" : "",
   ].filter(Boolean).join("/");
-  const contextWindowLabel = contextWindowPreset === "auto" ? "自动" : "1M";
   const effectiveContextWindowLabel = formatContextWindowLabel(effectiveContextWindow);
-  const contextWindowTitleSuffix = contextWindowPreset === "auto"
-    ? "（自动）"
-    : effectiveContextWindow !== contextWindowPreset
-      ? `（选择 ${contextWindowLabel}）`
-      : "";
   const isAgentRunning = Boolean(activeAgentTaskId);
   const submitButtonLabel = isAgentRunning
     ? "停止"
@@ -416,7 +407,7 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`${chatMode === "collab" ? "协作流程" : "模型"}：${modelLabel} / 应用窗口：${effectiveContextWindowLabel}${contextWindowTitleSuffix}`}
+                  title={`${chatMode === "collab" ? "协作流程" : "模型"}：${modelLabel} / 上下文：${effectiveContextWindowLabel}`}
                 >
                   <Orbit className="size-3.5 shrink-0" />
                   <span className="min-w-0 truncate">{modelLabel}</span>
@@ -508,7 +499,7 @@ export const Composer = memo(({
                                       >
                                         {enabledModels.map((model) => (
                                           <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                            <span className="truncate">{model.modelName || model.modelId}</span>
+                                            <span className="truncate">{formatProviderModelName(model)}</span>
                                           </DropdownMenuRadioItem>
                                         ))}
                                       </DropdownMenuRadioGroup>
@@ -563,32 +554,6 @@ export const Composer = memo(({
                           <span className="truncate">{agent.label}</span>
                         </DropdownMenuRadioItem>
                       ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Gauge className="size-3.5" />
-                    <span className="min-w-0 flex-1 truncate">窗口</span>
-                    <span className="text-xs text-muted-foreground">{contextWindowLabel}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-44">
-                    {(contextWindowPreset === "auto" || effectiveContextWindow !== contextWindowPreset) && (
-                      <>
-                        <DropdownMenuLabel>
-                          生效 {effectiveContextWindowLabel}
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuRadioGroup
-                      value={String(contextWindowPreset)}
-                      onValueChange={(value) => {
-                        onContextWindowPresetChange(value === "1000000" ? 1000000 : "auto");
-                      }}
-                    >
-                      <DropdownMenuRadioItem value="auto">自动</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="1000000">1M tokens</DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>

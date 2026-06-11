@@ -39,25 +39,25 @@ pub fn save_llm_settings(
     for (provider_index, provider) in input.providers.iter().enumerate() {
         let provider_id = normalize_record_id(provider.id.as_deref());
         let name = provider.name.trim();
-        let vendor = provider.vendor.trim();
         let provider_name = provider.provider.trim();
+        let api_format = provider.api_format.trim();
         let api_key = normalize_optional_text(provider.api_key.as_deref());
-        let base_url = normalize_optional_text(provider.base_url.as_deref());
+        let api_endpoint = normalize_optional_text(provider.api_endpoint.as_deref());
         let is_default = provider_index == default_index;
 
         tx.execute(
             r#"
             INSERT INTO llm_providers (
-                id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
+                id, name, provider, api_format, api_key, api_endpoint, is_default, created_at, updated_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
             "#,
             params![
                 provider_id,
                 name,
-                vendor,
                 provider_name,
+                api_format,
                 api_key,
-                base_url,
+                api_endpoint,
                 is_default as i64,
                 now,
                 now
@@ -70,8 +70,8 @@ pub fn save_llm_settings(
             tx.execute(
                 r#"
                 INSERT INTO provider_models (
-                    id, provider_id, model_id, model_name, is_enabled, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                    id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                 "#,
                 params![
                     model_id,
@@ -79,6 +79,7 @@ pub fn save_llm_settings(
                     model.model_id.trim(),
                     model.model_name.trim(),
                     model.is_enabled as i64,
+                    model.is_one_million_context as i64,
                     now,
                     now
                 ],
@@ -124,7 +125,7 @@ fn load_llm_providers(conn: &Connection) -> Result<Vec<LlmProvider>, String> {
     let mut statement = conn
         .prepare(
             r#"
-            SELECT id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
+            SELECT id, name, provider, api_format, api_key, api_endpoint, is_default, created_at, updated_at
             FROM llm_providers
             ORDER BY is_default DESC, created_at ASC
             "#,
@@ -136,10 +137,10 @@ fn load_llm_providers(conn: &Connection) -> Result<Vec<LlmProvider>, String> {
             Ok(LlmProvider {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                vendor: row.get(2)?,
-                provider: row.get(3)?,
+                provider: row.get(2)?,
+                api_format: row.get(3)?,
                 api_key: row.get(4)?,
-                base_url: row.get(5)?,
+                api_endpoint: row.get(5)?,
                 is_default: row.get::<_, i64>(6)? == 1,
                 created_at: row.get(7)?,
                 updated_at: row.get(8)?,
@@ -166,7 +167,7 @@ fn load_provider_models(
     let mut statement = conn
         .prepare(
             r#"
-            SELECT id, provider_id, model_id, model_name, is_enabled, created_at, updated_at
+            SELECT id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at
             FROM provider_models
             WHERE provider_id = ?1
             ORDER BY created_at ASC
@@ -182,8 +183,9 @@ fn load_provider_models(
                 model_id: row.get(2)?,
                 model_name: row.get(3)?,
                 is_enabled: row.get::<_, i64>(4)? == 1,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                is_one_million_context: row.get::<_, i64>(5)? == 1,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|error| format!("无法读取 LLM 模型：{error}"))?;
@@ -198,12 +200,12 @@ fn validate_llm_settings(input: &SaveLlmSettingsInput) -> Result<(), String> {
             return Err("Provider 名称不能为空".to_string());
         }
 
-        if provider.vendor.trim().is_empty() {
+        if provider.provider.trim().is_empty() {
             return Err("供应商不能为空".to_string());
         }
 
-        if provider.provider.trim().is_empty() {
-            return Err("Provider 类型不能为空".to_string());
+        if provider.api_format.trim().is_empty() {
+            return Err("API Format 不能为空".to_string());
         }
 
         for model in &provider.models {

@@ -11,35 +11,33 @@ import {
 import {
   BridgeEventType,
   BridgeResultType,
-  type ChatCommand,
   type ChatMessageInput,
   type ChatResult,
 } from "../../contracts/protocol.js";
-import type { ChatRuntime, ChatRuntimeContext } from "../../contracts/runtime.js";
+import type {
+  ChatRuntime,
+  ChatRuntimeContext,
+  RuntimeChatCommand,
+} from "../../contracts/runtime.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
-  type PiModelSource,
 } from "./model.js";
-
-const PI_CHAT_MODEL_SOURCE = "input" satisfies PiModelSource;
 
 export class PiChatRuntime implements ChatRuntime {
   readonly id = "pi-ai";
 
-  async chat(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     return command.stream === false
       ? this.complete(command)
       : this.stream(command, context);
   }
 
-  private async complete(command: ChatCommand): Promise<ChatResult> {
-    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
-    const apiKey = requirePiApiKey(provider);
-    const model = createPiRuntimeModel(provider, modelInput, {
-      modelSource: PI_CHAT_MODEL_SOURCE,
-    });
+  private async complete(command: RuntimeChatCommand): Promise<ChatResult> {
+    const runtimeModel = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(runtimeModel);
+    const model = createPiRuntimeModel(runtimeModel);
     const message = await completeSimple(
       model,
       this.createContext(command, model),
@@ -49,12 +47,10 @@ export class PiChatRuntime implements ChatRuntime {
     return this.createChatResult(message);
   }
 
-  private async stream(command: ChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
-    const { provider, model: modelInput } = requirePiRuntimeConfig(command);
-    const apiKey = requirePiApiKey(provider);
-    const model = createPiRuntimeModel(provider, modelInput, {
-      modelSource: PI_CHAT_MODEL_SOURCE,
-    });
+  private async stream(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+    const runtimeModel = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(runtimeModel);
+    const model = createPiRuntimeModel(runtimeModel);
     const stream = streamSimple(
       model,
       this.createContext(command, model),
@@ -98,7 +94,7 @@ export class PiChatRuntime implements ChatRuntime {
     };
   }
 
-  private createContext(command: ChatCommand, model: Model<Api>): Context {
+  private createContext(command: RuntimeChatCommand, model: Model<Api>): Context {
     return {
       systemPrompt: command.systemPrompt,
       messages: command.messages.map((message) => this.toPiMessage(message, model)),

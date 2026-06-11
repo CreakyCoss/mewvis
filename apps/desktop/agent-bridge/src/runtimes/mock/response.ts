@@ -1,4 +1,7 @@
-import type { ChatCommand, StartTaskCommand } from "../../contracts/protocol.js";
+import type {
+  RuntimeChatCommand,
+  RuntimeStartTaskCommand,
+} from "../../contracts/runtime.js";
 
 const compact = (value: string, maxLength = 180) => {
   const normalized = value.replace(/\s+/g, " ").trim();
@@ -20,7 +23,7 @@ export const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-export const createMockChatText = (command: ChatCommand) => {
+export const createMockChatText = (command: RuntimeChatCommand) => {
   const latestUserMessage = [...command.messages]
     .reverse()
     .find((message) => message.role === "user");
@@ -37,7 +40,7 @@ export const createMockChatText = (command: ChatCommand) => {
   ].join("\n");
 };
 
-export const createMockAgentText = (command: StartTaskCommand) => {
+export const createMockAgentText = (command: RuntimeStartTaskCommand) => {
   const enabledTools = command.allowedTools?.length
     ? command.allowedTools.join(", ")
     : "未传入工具列表";

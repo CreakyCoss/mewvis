@@ -174,7 +174,7 @@ export const KnowledgeBasePage = ({
     : defaultEmbeddingProvider?.name ?? "OpenAI-compatible";
   const defaultEmbeddingBaseUrl = defaultEmbeddingProfile?.providerKind === "ollama"
     ? defaultEmbeddingProfile.baseUrl || localOllamaBaseUrl
-    : defaultEmbeddingProfile?.baseUrl || defaultEmbeddingProvider?.baseUrl || "";
+    : defaultEmbeddingProfile?.baseUrl || defaultEmbeddingProvider?.apiEndpoint || "";
   const embeddingSummary = defaultEmbeddingProfile
     ? `${defaultEmbeddingProviderLabel} · ${defaultEmbeddingProfile.modelId} · ${defaultEmbeddingProfile.dimensions} 维`
     : "未配置 Embedding";
@@ -266,7 +266,7 @@ export const KnowledgeBasePage = ({
     setEmbeddingDraft((current) => ({
       ...current,
       providerId: provider.id,
-      providerKind: provider.provider,
+      providerKind: provider.apiFormat,
       modelId: model?.modelId ?? "",
     }));
   }, [embeddingDraft.providerId, supportedEmbeddingProviders]);
@@ -439,7 +439,9 @@ export const KnowledgeBasePage = ({
         id: embeddingDraft.id,
         name: embeddingDraft.name,
         providerId: isLocalOllamaEmbedding ? null : selectedEmbeddingProvider?.id,
-        providerKind: isLocalOllamaEmbedding ? "ollama" : selectedEmbeddingProvider?.provider ?? "openai-compatible",
+        providerKind: isLocalOllamaEmbedding
+          ? "ollama"
+          : selectedEmbeddingProvider?.apiFormat ?? "openai-compatible",
         baseUrl: embeddingDraft.baseUrl.trim() || null,
         modelId: embeddingDraft.modelId,
         dimensions: Math.floor(embeddingDraft.dimensions),

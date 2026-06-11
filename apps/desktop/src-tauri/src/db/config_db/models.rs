@@ -39,10 +39,10 @@ pub struct WorkspaceOverview {
 pub struct LlmProvider {
     pub id: String,
     pub name: String,
-    pub vendor: String,
     pub provider: String,
+    pub api_format: String,
     pub api_key: Option<String>,
-    pub base_url: Option<String>,
+    pub api_endpoint: Option<String>,
     pub is_default: bool,
     pub created_at: i64,
     pub updated_at: i64,
@@ -57,6 +57,7 @@ pub struct ProviderModel {
     pub model_id: String,
     pub model_name: String,
     pub is_enabled: bool,
+    pub is_one_million_context: bool,
     pub created_at: i64,
     pub updated_at: i64,
 }

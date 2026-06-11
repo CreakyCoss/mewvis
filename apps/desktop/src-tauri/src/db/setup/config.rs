@@ -91,8 +91,8 @@ mod tests {
         conn.execute(
             r#"
             INSERT INTO llm_providers (
-                id, name, vendor, provider, api_key, base_url, is_default, created_at, updated_at
-            ) VALUES (?1, 'Test Provider', 'openai', 'openai-compatible', NULL, NULL, 1, 1, 1)
+                id, name, provider, api_format, api_key, api_endpoint, is_default, created_at, updated_at
+            ) VALUES (?1, 'Test Provider', 'openai', 'openai-completions', NULL, NULL, 1, 1, 1)
             "#,
             params!["provider-1"],
         )
@@ -162,9 +162,8 @@ mod tests {
             CREATE TABLE llm_providers (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                provider TEXT NOT NULL,
+                api_format TEXT NOT NULL,
                 api_key TEXT,
-                base_url TEXT,
                 is_default INTEGER DEFAULT 0,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
@@ -175,8 +174,8 @@ mod tests {
         conn.execute(
             r#"
             INSERT INTO llm_providers (
-                id, name, provider, api_key, base_url, is_default, created_at, updated_at
-            ) VALUES (?1, 'Old Provider', 'openai-compatible', NULL, NULL, 1, 1, 1)
+                id, name, api_format, api_key, is_default, created_at, updated_at
+            ) VALUES (?1, 'Old Provider', 'openai-completions', NULL, 1, 1, 1)
             "#,
             params!["provider-with-default-column"],
         )
@@ -190,19 +189,21 @@ mod tests {
         assert!(report
             .warnings
             .iter()
-            .any(|warning| warning.contains("vendor")));
+            .any(|warning| warning.contains("provider")));
 
         let conn = Connection::open(&db_path).expect("open rebuilt config database");
-        let (name, vendor): (String, String) = conn
-            .query_row(
-                "SELECT name, vendor FROM llm_providers WHERE id = ?1",
+        let (name, provider, api_format, api_endpoint): (String, String, String, Option<String>) =
+            conn.query_row(
+                "SELECT name, provider, api_format, api_endpoint FROM llm_providers WHERE id = ?1",
                 params!["provider-with-default-column"],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .expect("read restored provider");
 
         assert_eq!(name, "Old Provider");
-        assert_eq!(vendor, "");
+        assert_eq!(provider, "");
+        assert_eq!(api_format, "openai-completions");
+        assert_eq!(api_endpoint, None);
 
         remove_temp_config_db(&db_path);
     }

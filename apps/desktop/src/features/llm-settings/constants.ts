@@ -4,14 +4,14 @@ import {
   type RuntimeModelCatalogEntry,
 } from "@/ai/llm/model-catalog";
 
-export type ProviderType = "anthropic" | "openai" | "google" | "openrouter";
+export type ApiFormatValue = RuntimeModelCatalogEntry["apiFormat"] | "openrouter";
 
-export type ProviderTypeOption = {
-  value: ProviderType;
+export type ApiFormatOption = {
+  value: ApiFormatValue;
   label: string;
 };
 
-export type VendorOption = {
+export type ProviderOption = {
   value: string;
   label: string;
 };
@@ -21,104 +21,116 @@ export type ModelOption = {
   name: string;
 };
 
+const apiFormatLabelEntries: Array<[ApiFormatValue, string]> = [
+  ["openai-completions", "OpenAI Compatible"],
+  ["openai-responses", "OpenAI Responses"],
+  ["anthropic-messages", "Anthropic Messages"],
+  ["google-generative-ai", "Google Generative AI"],
+  ["azure-openai-responses", "Azure OpenAI Responses"],
+  ["openai-codex-responses", "OpenAI Codex Responses"],
+  ["openrouter", "OpenRouter"],
+];
+
+const apiFormatLabels = new Map<ApiFormatValue, string>(apiFormatLabelEntries);
+
 const readModels = (provider: string) => {
   return getCatalogModels(provider);
 };
 
-export const providerTypeOptions: ProviderTypeOption[] = [
-  { value: "anthropic", label: "Anthropic" },
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google Gemini" },
-  { value: "openrouter", label: "OpenRouter" },
-];
-
-const providerTypeLabels = new Map(
-  providerTypeOptions.map((option) => [option.value, option.label]),
-);
-
-const displayVendor = (vendor: string) => {
-  return vendor;
+const isOpenAiApiFormat = (apiFormat: string) => {
+  return (
+    apiFormat === "openai" ||
+    apiFormat === "openai-completions" ||
+    apiFormat === "openai-responses" ||
+    apiFormat === "azure-openai-responses" ||
+    apiFormat === "openai-codex-responses"
+  );
 };
 
-export const getProviderTypeLabel = (providerType: string) => {
-  return providerTypeLabels.get(providerType as ProviderType) ?? providerType;
+const isAnthropicApiFormat = (apiFormat: string) => {
+  return apiFormat === "anthropic" || apiFormat === "anthropic-messages";
 };
 
-export const getModelProviderType = (
-  vendor: string,
+const displayProvider = (provider: string) => {
+  return provider;
+};
+
+export const getApiFormatLabel = (apiFormat: string) => {
+  return apiFormatLabels.get(apiFormat as ApiFormatValue) ?? apiFormat;
+};
+
+export const getModelApiFormat = (
+  provider: string,
   model: RuntimeModelCatalogEntry,
-): ProviderType | null => {
-  if (vendor === "openrouter") {
+): ApiFormatValue | null => {
+  if (provider === "openrouter") {
     return "openrouter";
   }
 
-  if (model.apiFormat === "anthropic-messages") {
-    return "anthropic";
-  }
-
-  if (model.apiFormat === "google-generative-ai") {
-    return "google";
-  }
-
-  if (
-    model.apiFormat === "openai-completions" ||
-    model.apiFormat === "openai-responses" ||
-    model.apiFormat === "azure-openai-responses" ||
-    model.apiFormat === "openai-codex-responses"
-  ) {
-    return "openai";
-  }
-
-  return null;
+  return model.apiFormat;
 };
 
-export const getVendorOptions = (): VendorOption[] => {
+export const getProviderOptions = (): ProviderOption[] => {
   return getCatalogProviders()
-    .filter((vendor) =>
-      readModels(vendor).some((model) => getModelProviderType(vendor, model)),
+    .filter((provider) =>
+      readModels(provider).some((model) => getModelApiFormat(provider, model)),
     )
-    .map((vendor) => ({
-      value: vendor,
-      label: displayVendor(vendor),
+    .map((provider) => ({
+      value: provider,
+      label: displayProvider(provider),
     }));
 };
 
-export const getVendorOption = (vendor: string) => {
-  return getVendorOptions().find((option) => option.value === vendor);
+export const getProviderOption = (provider: string) => {
+  return getProviderOptions().find((option) => option.value === provider);
 };
 
-export const getVendorModels = (vendor: string) => {
-  return readModels(vendor);
+export const getProviderModels = (provider: string) => {
+  return readModels(provider);
 };
 
-export const getVendorProviderTypes = (vendor: string): ProviderType[] => {
-  const types = new Set<ProviderType>();
+export const getProviderApiFormats = (provider: string): ApiFormatValue[] => {
+  const formats = new Set<ApiFormatValue>();
 
-  for (const model of getVendorModels(vendor)) {
-    const type = getModelProviderType(vendor, model);
+  for (const model of getProviderModels(provider)) {
+    const apiFormat = getModelApiFormat(provider, model);
 
-    if (type) {
-      types.add(type);
+    if (apiFormat) {
+      formats.add(apiFormat);
     }
   }
 
-  return providerTypeOptions
-    .map((option) => option.value)
-    .filter((type) => types.has(type));
-};
-
-export const getDefaultProviderType = (vendor: string): ProviderType => {
-  return getVendorProviderTypes(vendor)[0] ?? "openai";
-};
-
-export const getVendorModelOptions = (
-  vendor: string,
-  providerType: string,
-): ModelOption[] => {
-  const exactModels = getVendorModels(vendor).filter(
-    (model) => getModelProviderType(vendor, model) === providerType,
+  const orderedFormats = apiFormatLabelEntries
+    .map(([apiFormat]) => apiFormat)
+    .filter((apiFormat) => formats.has(apiFormat));
+  const unknownFormats = [...formats].filter(
+    (apiFormat) => !orderedFormats.includes(apiFormat),
   );
-  const models = exactModels.length ? exactModels : getVendorModels(vendor);
+
+  return [...orderedFormats, ...unknownFormats];
+};
+
+export const getProviderApiFormatOptions = (
+  provider: string,
+): ApiFormatOption[] => {
+  return getProviderApiFormats(provider).map((apiFormat) => ({
+    value: apiFormat,
+    label: getApiFormatLabel(apiFormat),
+  }));
+};
+
+export const getDefaultApiFormat = (provider: string): ApiFormatValue => {
+  return getProviderApiFormats(provider)[0] ?? "openai-completions";
+};
+
+export const getProviderModelOptions = (
+  provider: string,
+  apiFormat: string,
+): ModelOption[] => {
+  const exactModels = getProviderModels(provider).filter(
+    (model) => getModelApiFormat(provider, model) === apiFormat,
+  );
+  const models = exactModels.length ? exactModels : getProviderModels(provider);
 
   return models.map((model) => ({
     id: model.id,
@@ -126,34 +138,34 @@ export const getVendorModelOptions = (
   }));
 };
 
-export const inferBaseUrl = (vendor: string, providerType: string) => {
-  const exactModel = getVendorModels(vendor).find(
-    (model) => getModelProviderType(vendor, model) === providerType,
+export const inferApiEndpoint = (provider: string, apiFormat: string) => {
+  const exactModel = getProviderModels(provider).find(
+    (model) => getModelApiFormat(provider, model) === apiFormat,
   );
 
   if (exactModel) {
     return exactModel.apiEndpoint;
   }
 
-  const fallbackBaseUrl = getVendorModels(vendor)[0]?.apiEndpoint ?? "";
+  const fallbackApiEndpoint = getProviderModels(provider)[0]?.apiEndpoint ?? "";
 
-  if (providerType === "openai") {
-    if (fallbackBaseUrl.endsWith("/anthropic")) {
-      return fallbackBaseUrl.replace(/\/anthropic$/, "/v1");
+  if (isOpenAiApiFormat(apiFormat)) {
+    if (fallbackApiEndpoint.endsWith("/anthropic")) {
+      return fallbackApiEndpoint.replace(/\/anthropic$/, "/v1");
     }
 
-    if (fallbackBaseUrl.includes("/anthropic")) {
-      return fallbackBaseUrl.replace("/anthropic", "/v1");
+    if (fallbackApiEndpoint.includes("/anthropic")) {
+      return fallbackApiEndpoint.replace("/anthropic", "/v1");
     }
   }
 
-  if (providerType === "anthropic" && fallbackBaseUrl.endsWith("/v1")) {
-    return fallbackBaseUrl.replace(/\/v1$/, "/anthropic");
+  if (isAnthropicApiFormat(apiFormat) && fallbackApiEndpoint.endsWith("/v1")) {
+    return fallbackApiEndpoint.replace(/\/v1$/, "/anthropic");
   }
 
-  if (providerType === "openrouter") {
+  if (apiFormat === "openrouter") {
     return "https://openrouter.ai/api/v1";
   }
 
-  return fallbackBaseUrl;
+  return fallbackApiEndpoint;
 };
