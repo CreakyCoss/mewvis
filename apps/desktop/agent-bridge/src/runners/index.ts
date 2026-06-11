@@ -8,7 +8,11 @@ import type {
   ChatBridgeRunnerResolution,
   RunnableBridgeCommand,
 } from "./types.js";
-import { BridgeCommandType, type ChatCommand, type StartTaskCommand } from "../contracts/protocol.js";
+import {
+  BridgeCommandType,
+  type ChatCommand,
+  type StartTaskCommand,
+} from "../contracts/protocol.js";
 
 const toAgentRunner = (runtime: AgentRuntime): AgentBridgeRunner => async (command, context) => {
   return runtime.run(command, context);

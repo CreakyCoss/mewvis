@@ -1,10 +1,8 @@
-import {
-  BridgeCommandType,
-  type AgentRunResult,
-  type BridgeCommand,
-  type ChatCommand,
-  type ChatResult,
-  type StartTaskCommand,
+import type {
+  AgentRunResult,
+  ChatCommand,
+  ChatResult,
+  StartTaskCommand,
 } from "../contracts/protocol.js";
 import type { AgentRuntimeContext, ChatRuntimeContext } from "../contracts/runtime.js";
 
@@ -31,6 +29,3 @@ export type ChatBridgeRunnerResolution = {
 };
 
 export type BridgeRunnerResolution = AgentBridgeRunnerResolution | ChatBridgeRunnerResolution;
-
-export const isRunnableBridgeCommand = (command: BridgeCommand): command is RunnableBridgeCommand =>
-  command.type === BridgeCommandType.StartTask || command.type === BridgeCommandType.Chat;
