@@ -27,18 +27,22 @@ export class PiChatRuntime implements ChatRuntime {
 
   async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     return command.stream === false
-      ? this.complete(command)
+      ? this.complete(command, context)
       : this.stream(command, context);
   }
 
-  private async complete(command: RuntimeChatCommand): Promise<ChatResult> {
+  private async complete(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
     const runtimeModel = requirePiRuntimeConfig(command);
     const apiKey = requirePiApiKey(runtimeModel);
     const model = createPiRuntimeModel(runtimeModel);
     const message = await completeSimple(
       model,
       createPiChatContext(command, model),
-      { apiKey },
+      {
+        apiKey,
+        signal: context.signal,
+        maxRetries: context.maxRetries,
+      },
     );
 
     return createPiChatResult(message);
@@ -51,7 +55,11 @@ export class PiChatRuntime implements ChatRuntime {
     const stream = streamSimple(
       model,
       createPiChatContext(command, model),
-      { apiKey },
+      {
+        apiKey,
+        signal: context.signal,
+        maxRetries: context.maxRetries,
+      },
     );
     let message: AssistantMessage | null = null;
 

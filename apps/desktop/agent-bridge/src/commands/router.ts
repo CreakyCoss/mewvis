@@ -1,14 +1,17 @@
-import { resolveBridgeRunner } from "./runners/index.js";
 import {
   BridgeCommandType,
   type BridgeCommand,
   type ChatCommand,
   type ChatResult,
   type StartTaskCommand,
-} from "./contracts/protocol.js";
-import type { AskUser, EmitBridgeEvent } from "./runtimes/types.js";
-import type { BridgeQuestionManager } from "./session/questions.js";
-import { messageFromError } from "./utils/error.js";
+} from "../contracts/protocol.js";
+import {
+  executeChatCommand,
+  executeStartTaskCommand,
+} from "./execution.js";
+import type { AskUser, EmitBridgeEvent } from "../runtimes/types.js";
+import { createBridgeQuestionManager } from "../session/questions.js";
+import { messageFromError } from "../utils/error.js";
 import {
   createAgentDefinitionsResult,
   createPongResult,
@@ -21,7 +24,6 @@ import {
 type BridgeCommandHandlerDeps = {
   close: () => void;
   emit: EmitBridgeEvent;
-  questions: BridgeQuestionManager;
   writeJsonLine: WriteBridgeJsonLine;
 };
 
@@ -32,8 +34,7 @@ const handleChatCommand = async (
   command: ChatCommand,
   emit: EmitBridgeEvent,
 ): Promise<ChatResult> => {
-  const runner = resolveBridgeRunner(command);
-  const result = await runner(command, { emit });
+  const result = await executeChatCommand(command, { emit });
   return {
     ...result,
     requestId: command.requestId ?? null,
@@ -45,19 +46,31 @@ const handleStartTaskCommand = async (
   emit: EmitBridgeEvent,
   askUser: AskUser,
 ) => {
-  const runner = resolveBridgeRunner(command);
-  await runner(command, {
+  await executeStartTaskCommand(command, {
     askUser,
     emit,
   });
 };
 
-const runStartTask = async (
-  command: StartTaskCommand,
-  deps: Pick<BridgeCommandHandlerDeps, "emit" | "questions" | "writeJsonLine">,
+const runChat = async (
+  command: ChatCommand,
+  deps: Pick<BridgeCommandHandlerDeps, "emit" | "writeJsonLine">,
 ) => {
   try {
-    await handleStartTaskCommand(command, deps.emit, deps.questions.askUser);
+    deps.writeJsonLine(await handleChatCommand(command, deps.emit));
+  } catch (error: unknown) {
+    emitCommandError(command, deps.emit, messageFromError(error));
+  }
+};
+
+const runStartTask = async (
+  command: StartTaskCommand,
+  deps: Pick<BridgeCommandHandlerDeps, "emit" | "writeJsonLine"> & {
+    askUser: AskUser;
+  },
+) => {
+  try {
+    await handleStartTaskCommand(command, deps.emit, deps.askUser);
     writeTaskResult(command, deps.writeJsonLine, { success: true });
   } catch (error: unknown) {
     const message = messageFromError(error);
@@ -68,11 +81,12 @@ const runStartTask = async (
 
 export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
   let runningTask: Promise<void> | null = null;
+  const questions = createBridgeQuestionManager(deps.emit);
 
   const handle = async (command: BridgeCommand): Promise<boolean> => {
     switch (command.type) {
       case BridgeCommandType.AnswerQuestion:
-        deps.questions.handleAnswer(command);
+        questions.handleAnswer(command);
         return true;
 
       case BridgeCommandType.Ping:
@@ -94,7 +108,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
           return true;
         }
 
-        deps.writeJsonLine(await handleChatCommand(command, deps.emit));
+        await runChat(command, deps);
         return true;
 
       case BridgeCommandType.StartTask:
@@ -107,7 +121,10 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
           return true;
         }
 
-        runningTask = runStartTask(command, deps).finally(() => {
+        runningTask = runStartTask(command, {
+          ...deps,
+          askUser: questions.askUser,
+        }).finally(() => {
           runningTask = null;
         });
         return true;

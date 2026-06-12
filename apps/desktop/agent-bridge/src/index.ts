@@ -1,9 +1,8 @@
-import { createBridgeCommandRouter } from "./router.js";
+import { createBridgeCommandRouter } from "./commands/index.js";
 import {
   BridgeEventType,
   type BridgeCommand,
 } from "./contracts/protocol.js";
-import { createBridgeQuestionManager } from "./session/questions.js";
 import {
   createStdioBridgeReader,
   parseBridgeCommand,
@@ -14,11 +13,9 @@ import { messageFromError } from "./utils/error.js";
 
 const main = async () => {
   const reader = createStdioBridgeReader();
-  const questions = createBridgeQuestionManager(writeBridgeEvent);
   const router = createBridgeCommandRouter({
     close: () => reader.close(),
     emit: writeBridgeEvent,
-    questions,
     writeJsonLine,
   });
 

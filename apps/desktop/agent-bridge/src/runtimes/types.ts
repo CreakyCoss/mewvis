@@ -32,7 +32,10 @@ export type AgentRuntimeContext = BridgeEmitContext & {
   askUser: AskUser;
 };
 
-export type ChatRuntimeContext = BridgeEmitContext;
+export type ChatRuntimeContext = BridgeEmitContext & {
+  signal?: AbortSignal;
+  maxRetries?: number;
+};
 
 export type RuntimeMode = "agent" | "chat";
 

@@ -9,11 +9,11 @@ import {
   type ShutdownCommand,
   type StartTaskCommand,
   type TaskResult,
-} from "./contracts/protocol.js";
-import type { EmitBridgeEvent } from "./runtimes/types.js";
+} from "../contracts/protocol.js";
+import type { EmitBridgeEvent } from "../runtimes/types.js";
 import {
   bridgeAgentManifest,
-} from "./runtimes/index.js";
+} from "../runtimes/index.js";
 
 export type WriteBridgeJsonLine = (value: unknown) => void;
 
