@@ -1,27 +1,23 @@
 import {
   AuthStorage,
   createAgentSession,
-  DefaultResourceLoader,
-  getAgentDir,
-  loadSkillsFromDir,
   ModelRegistry,
   SessionManager,
-  type Skill,
 } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import productConfig from "../../../../product.config.json" with { type: "json" };
-import { normalizeAllowedAgentTools } from "../../tools/definitions.js";
+import productConfig from "../../../../../product.config.json" with { type: "json" };
+import { normalizeAllowedAgentTools } from "../../../tools/definitions.js";
 import type {
   AskUser,
   RuntimeStartTaskCommand,
-} from "../types.js";
+} from "../../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
-} from "./model.js";
-import { registerPiAskUserTool } from "./tools/ask-user.js";
+} from "../model/index.js";
+import { createPiResourceLoader } from "./resources.js";
 
 export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 
@@ -61,7 +57,6 @@ export const createPiAgentSession = async (
 const createPiSessionManager = (command: RuntimeStartTaskCommand) => {
   const sessionPath = normalizePiAgentSessionPath(command.chatSessionId);
   if (sessionPath.length === 0) {
-    // TODO pi目录，而非内存
     return SessionManager.inMemory(command.workspacePath);
   }
 
@@ -93,60 +88,6 @@ const normalizePiAgentSessionPath = (chatSessionId: string | null | undefined) =
   ) {
     throw new Error("聊天记录 ID 不合法，无法创建长期 Agent session");
   }
+
   return segments;
-};
-
-const createPiResourceLoader = async (
-  command: RuntimeStartTaskCommand,
-  askUser: AskUser,
-) => {
-  const enabledSkills = loadEnabledPiSkills(command);
-  const loader = new DefaultResourceLoader({
-    cwd: command.workspacePath,
-    agentDir: getAgentDir(),
-    noExtensions: true,
-    noSkills: true,
-    extensionFactories: [
-      (pi) => {
-        registerPiAskUserTool(pi, command.taskId, askUser);
-      },
-    ],
-    skillsOverride: () => ({
-      skills: enabledSkills,
-      diagnostics: [],
-    }),
-  });
-
-  await loader.reload();
-  return loader;
-};
-
-const loadEnabledPiSkills = (command: RuntimeStartTaskCommand): Skill[] => {
-  const enabledNames = new Set(command.enabledSkills ?? []);
-  const paths = piSkillSourcePaths(command);
-  if (paths.length === 0 || enabledNames.size === 0) {
-    return [];
-  }
-
-  const skills = paths.flatMap((dir) =>
-    loadSkillsFromDir({
-      dir,
-      source: "bridge",
-    }).skills,
-  );
-
-  return skills.filter((skill) => enabledNames.has(skill.name));
-};
-
-const piSkillSourcePaths = (command: RuntimeStartTaskCommand) => {
-  const paths = [
-    ...(Array.isArray(command.bundledSkillsPath)
-      ? command.bundledSkillsPath
-      : command.bundledSkillsPath
-        ? [command.bundledSkillsPath]
-        : []),
-    ...(command.skillPaths ?? []),
-  ];
-
-  return [...new Set(paths.filter(Boolean))];
 };

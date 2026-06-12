@@ -6,17 +6,17 @@ import {
 import {
   BridgeEventType,
   type ChatResult,
-} from "../../contracts/protocol.js";
+} from "../../../contracts/protocol.js";
 import type {
   ChatRuntime,
   ChatRuntimeContext,
   RuntimeChatCommand,
-} from "../types.js";
+} from "../../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
-} from "./model.js";
+} from "../model/index.js";
 import {
   createPiChatContext,
   createPiChatResult,
@@ -32,34 +32,22 @@ export class PiChatRuntime implements ChatRuntime {
   }
 
   private async complete(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
-    const runtimeModel = requirePiRuntimeConfig(command);
-    const apiKey = requirePiApiKey(runtimeModel);
-    const model = createPiRuntimeModel(runtimeModel);
+    const request = this.createRequest(command, context);
     const message = await completeSimple(
-      model,
-      createPiChatContext(command, model),
-      {
-        apiKey,
-        signal: context.signal,
-        maxRetries: context.maxRetries,
-      },
+      request.model,
+      request.chatContext,
+      request.options,
     );
 
     return createPiChatResult(message);
   }
 
   private async stream(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
-    const runtimeModel = requirePiRuntimeConfig(command);
-    const apiKey = requirePiApiKey(runtimeModel);
-    const model = createPiRuntimeModel(runtimeModel);
+    const request = this.createRequest(command, context);
     const stream = streamSimple(
-      model,
-      createPiChatContext(command, model),
-      {
-        apiKey,
-        signal: context.signal,
-        maxRetries: context.maxRetries,
-      },
+      request.model,
+      request.chatContext,
+      request.options,
     );
     let message: AssistantMessage | null = null;
 
@@ -89,5 +77,21 @@ export class PiChatRuntime implements ChatRuntime {
     message ??= await stream.result();
 
     return createPiChatResult(message);
+  }
+
+  private createRequest(command: RuntimeChatCommand, context: ChatRuntimeContext) {
+    const runtimeModel = requirePiRuntimeConfig(command);
+    const apiKey = requirePiApiKey(runtimeModel);
+    const model = createPiRuntimeModel(runtimeModel);
+
+    return {
+      model,
+      chatContext: createPiChatContext(command, model),
+      options: {
+        apiKey,
+        signal: context.signal,
+        maxRetries: context.maxRetries,
+      },
+    };
   }
 }

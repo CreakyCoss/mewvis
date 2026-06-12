@@ -1,12 +1,12 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
   BridgeEventType,
-} from "../../contracts/protocol.js";
+} from "../../../contracts/protocol.js";
 import type {
   EmitBridgeEvent,
   RuntimeStartTaskCommand,
-} from "../types.js";
-import { messageFromError } from "../../utils/error.js";
+} from "../../types.js";
+import { messageFromError } from "../../../utils/error.js";
 import type { PiAgentSession } from "./session.js";
 
 export type PiAgentRunState = {

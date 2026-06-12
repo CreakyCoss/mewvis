@@ -1,18 +1,18 @@
 import {
   BridgeEventType,
-} from "../../contracts/protocol.js";
+} from "../../../contracts/protocol.js";
 import type {
   AgentRunResult,
   AskUser,
   EmitBridgeEvent,
   RuntimeStartTaskCommand,
-} from "../types.js";
+} from "../../types.js";
 import {
   throwPiSessionError,
   type PiAgentRunState,
 } from "./events.js";
 import type { PiAgentSession } from "./session.js";
-import { parsePiAskUserFunctionCall } from "./tools/ask-user.js";
+import { parsePiAskUserFunctionCall } from "../tools/ask-user-parser.js";
 
 const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
 

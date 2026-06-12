@@ -1,16 +1,16 @@
-import { BridgeEventType } from "../../contracts/protocol.js";
+import { BridgeEventType } from "../../../contracts/protocol.js";
 import type {
   AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
   RuntimeStartTaskCommand,
-} from "../types.js";
+} from "../../types.js";
 import {
   createPiAgentRunState,
   reportPiAgentRunError,
   subscribeToPiAgentSession,
 } from "./events.js";
-import { drivePiAgentSession } from "./prompts.js";
+import { drivePiAgentSession } from "./driver.js";
 import {
   createPiAgentSession,
   type PiAgentSession,

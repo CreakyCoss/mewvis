@@ -1,5 +1,5 @@
-import { PiAgent } from "./agent.js";
-import { PiChatRuntime } from "./chat.js";
+import { PiAgent } from "./agent/index.js";
+import { PiChatRuntime } from "./chat/index.js";
 import type { BridgeAgent } from "../types.js";
 
 export const piBridgeAgent = {
