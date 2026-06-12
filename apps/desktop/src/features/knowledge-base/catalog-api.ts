@@ -53,9 +53,9 @@ export const saveEmbeddingProfile = (input: SaveEmbeddingProfileInput) => {
       {
         id: input.id ?? "local-preview",
         name: input.name,
-        providerId: input.providerId ?? null,
         providerKind: input.providerKind,
         baseUrl: input.baseUrl ?? null,
+        apiKey: input.apiKey ?? null,
         modelId: input.modelId,
         dimensions: input.dimensions,
         batchSize: input.batchSize ?? 32,

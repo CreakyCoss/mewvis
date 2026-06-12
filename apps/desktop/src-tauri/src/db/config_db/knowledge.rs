@@ -70,6 +70,11 @@ pub fn save_embedding_profile(
     let id = normalize_record_id(input.id.as_deref());
     let now = now_millis()?;
     let batch_size = input.batch_size.unwrap_or(32).clamp(1, 256);
+    let api_key = if provider_kind == "ollama" {
+        None
+    } else {
+        normalize_optional_text(input.api_key.as_deref())
+    };
 
     if input.is_default {
         conn.execute("UPDATE embedding_profiles SET is_default = 0", [])
@@ -79,14 +84,14 @@ pub fn save_embedding_profile(
     conn.execute(
         r#"
         INSERT INTO embedding_profiles (
-            id, name, provider_id, provider_kind, base_url, model_id,
+            id, name, provider_kind, base_url, api_key, model_id,
             dimensions, batch_size, is_default, created_at, updated_at
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
-            provider_id = excluded.provider_id,
             provider_kind = excluded.provider_kind,
             base_url = excluded.base_url,
+            api_key = excluded.api_key,
             model_id = excluded.model_id,
             dimensions = excluded.dimensions,
             batch_size = excluded.batch_size,
@@ -96,9 +101,9 @@ pub fn save_embedding_profile(
         params![
             id,
             name,
-            normalize_optional_text(input.provider_id.as_deref()),
             provider_kind,
             normalize_optional_text(input.base_url.as_deref()),
+            api_key,
             model_id,
             input.dimensions,
             batch_size,
@@ -354,8 +359,8 @@ fn load_embedding_profiles(conn: &Connection) -> Result<Vec<EmbeddingProfile>, S
         .prepare(
             r#"
             SELECT
-                id, name, provider_id, provider_kind, base_url, model_id, dimensions,
-                batch_size, is_default, created_at, updated_at
+                id, name, provider_kind, base_url, api_key, model_id,
+                dimensions, batch_size, is_default, created_at, updated_at
             FROM embedding_profiles
             ORDER BY is_default DESC, created_at ASC
             "#,
@@ -367,9 +372,9 @@ fn load_embedding_profiles(conn: &Connection) -> Result<Vec<EmbeddingProfile>, S
             Ok(EmbeddingProfile {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                provider_id: row.get(2)?,
-                provider_kind: row.get(3)?,
-                base_url: row.get(4)?,
+                provider_kind: row.get(2)?,
+                base_url: row.get(3)?,
+                api_key: row.get(4)?,
                 model_id: row.get(5)?,
                 dimensions: row.get(6)?,
                 batch_size: row.get(7)?,

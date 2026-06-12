@@ -1,16 +1,17 @@
 import type {
-  LlmProviderDraft,
+  LlmProviderConfig,
   LlmSettings,
-  LlmSettingsDraft,
-  ProviderModelDraft,
-} from "@/features/llm-settings/types";
+  LlmSettingsConfig,
+  ProviderModelConfig,
+} from "./types";
 import {
   getDefaultApiFormat,
+  getProviderApiFormats,
   getProviderModelOptions,
   getProviderOption,
   getProviderOptions,
   inferApiEndpoint,
-} from "./constants";
+} from "./options";
 
 const createId = (prefix: string) => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -20,7 +21,7 @@ const createId = (prefix: string) => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-export const createModelDraft = (): ProviderModelDraft => ({
+export const createModelConfig = (): ProviderModelConfig => ({
   id: createId("model"),
   modelId: "",
   modelName: "",
@@ -28,14 +29,17 @@ export const createModelDraft = (): ProviderModelDraft => ({
   isOneMillionContext: false,
 });
 
-export const createProviderDraft = (): LlmProviderDraft => {
-  const providerOption = getProviderOption("openai") ?? getProviderOptions()[0] ?? {
-    value: "openai",
-    label: "OpenAI",
-  };
+export const createProviderConfig = (): LlmProviderConfig => {
+  const providerOption =
+    getProviderOption("openai") ??
+    getProviderOptions()[0] ??
+    {
+      value: "openai",
+      label: "OpenAI",
+    };
   const provider = providerOption.value;
   const apiFormat = getDefaultApiFormat(provider);
-  const defaultModel = getProviderModelOptions(provider, apiFormat)[0];
+  const defaultModel = getProviderModelOptions(provider)[0];
 
   return {
     id: createId("provider"),
@@ -47,7 +51,7 @@ export const createProviderDraft = (): LlmProviderDraft => {
     isDefault: true,
     models: [
       {
-        ...createModelDraft(),
+        ...createModelConfig(),
         modelId: defaultModel?.id ?? "",
         modelName: defaultModel?.name ?? "",
       },
@@ -55,7 +59,9 @@ export const createProviderDraft = (): LlmProviderDraft => {
   };
 };
 
-export const toDraft = (settings: LlmSettings): LlmSettingsDraft => {
+export const toLlmSettingsConfig = (
+  settings: LlmSettings,
+): LlmSettingsConfig => {
   const providers = settings.providers.map((provider) => {
     const providerId =
       getProviderOption(provider.provider)?.value ??
@@ -83,11 +89,13 @@ export const toDraft = (settings: LlmSettings): LlmSettingsDraft => {
   });
 
   return {
-    providers: providers.length ? providers : [createProviderDraft()],
+    providers: providers.length ? providers : [createProviderConfig()],
   };
 };
 
-export const normalizeDraft = (draft: LlmSettingsDraft): LlmSettingsDraft => {
+export const normalizeLlmSettingsConfig = (
+  draft: LlmSettingsConfig,
+): LlmSettingsConfig => {
   const providers = draft.providers.map((provider, index) => ({
     ...provider,
     name:
@@ -114,7 +122,7 @@ export const normalizeDraft = (draft: LlmSettingsDraft): LlmSettingsDraft => {
   return { providers };
 };
 
-export const validateDraft = (draft: LlmSettingsDraft) => {
+export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
   if (draft.providers.length === 0) {
     return "至少添加一个 Provider";
   }
@@ -136,6 +144,14 @@ export const validateDraft = (draft: LlmSettingsDraft) => {
       return "API Format 不能为空";
     }
 
+    if (
+      !getProviderApiFormats(provider.provider).some(
+        (apiFormat) => apiFormat === provider.apiFormat,
+      )
+    ) {
+      return "请选择支持的 API Format";
+    }
+
     if (provider.models.length === 0) {
       return "每个 Provider 至少需要一个模型";
     }
@@ -151,7 +167,11 @@ export const validateDraft = (draft: LlmSettingsDraft) => {
     }
   }
 
-  if (!draft.providers.some((provider) => provider.models.some((model) => model.isEnabled))) {
+  if (
+    !draft.providers.some((provider) =>
+      provider.models.some((model) => model.isEnabled),
+    )
+  ) {
     return "至少启用一个模型";
   }
 
@@ -159,13 +179,13 @@ export const validateDraft = (draft: LlmSettingsDraft) => {
 };
 
 export const applyProviderDefaults = (
-  provider: LlmProviderDraft,
+  provider: LlmProviderConfig,
   providerId: string,
-): LlmProviderDraft => {
+): LlmProviderConfig => {
   const currentOption = getProviderOption(provider.provider);
   const nextOption = getProviderOption(providerId);
   const apiFormat = getDefaultApiFormat(providerId);
-  const defaultModel = getProviderModelOptions(providerId, apiFormat)[0];
+  const defaultModel = getProviderModelOptions(providerId)[0];
   const shouldFollowName =
     !provider.name.trim() ||
     provider.name === currentOption?.label ||
@@ -180,7 +200,7 @@ export const applyProviderDefaults = (
     models: defaultModel
       ? [
           {
-            ...createModelDraft(),
+            ...createModelConfig(),
             modelId: defaultModel.id,
             modelName: defaultModel.name,
           },
@@ -190,34 +210,22 @@ export const applyProviderDefaults = (
 };
 
 export const applyApiFormatDefaults = (
-  provider: LlmProviderDraft,
+  provider: LlmProviderConfig,
   apiFormat: string,
-): LlmProviderDraft => {
-  const defaultModel = getProviderModelOptions(provider.provider, apiFormat)[0];
-
+): LlmProviderConfig => {
   return {
     ...provider,
     apiFormat,
     apiEndpoint: inferApiEndpoint(provider.provider, apiFormat),
-    models: defaultModel
-      ? [
-          {
-            ...createModelDraft(),
-            modelId: defaultModel.id,
-            modelName: defaultModel.name,
-          },
-        ]
-      : provider.models,
   };
 };
 
 export const applyModelDefaults = (
-  model: ProviderModelDraft,
+  model: ProviderModelConfig,
   provider: string,
-  apiFormat: string,
   modelId: string,
-): ProviderModelDraft => {
-  const options = getProviderModelOptions(provider, apiFormat);
+): ProviderModelConfig => {
+  const options = getProviderModelOptions(provider);
   const currentOption = options.find((item) => item.id === model.modelId);
   const option = options.find((item) => item.id === modelId);
   const shouldFollowName =
@@ -228,8 +236,4 @@ export const applyModelDefaults = (
     modelId,
     modelName: option?.name ?? (shouldFollowName ? modelId : model.modelName),
   };
-};
-
-export const hasProviderOptions = () => {
-  return getProviderOptions().length > 0;
 };

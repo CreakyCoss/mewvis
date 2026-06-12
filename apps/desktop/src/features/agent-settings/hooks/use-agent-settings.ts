@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import {
-  findRuntimeModelByLegacyIds,
+  findRuntimeModelById,
   groupRuntimeModelsByProvider,
-} from "@/features/llm-settings/runtime-models";
-import { useLlmRuntimeModelStore } from "@/features/llm-settings/store";
+  useLlmRuntimeModelStore,
+} from "@/features/llm-settings";
 import {
   deleteAiAgent,
   deleteCollaborationWorkflow,
@@ -19,6 +19,7 @@ import type {
   SaveCollaborationWorkflowInput,
 } from "../types";
 import {
+  agentToDraft,
   createAgentDraft,
   createCollaborationWorkflowDraft,
   resolveAgentProfiles,
@@ -84,7 +85,11 @@ export const useAgentSettings = (open: boolean) => {
   );
 
   const selectedRuntimeModel = useMemo(
-    () => findRuntimeModelByLegacyIds(runtimeModels, draft.providerId, draft.modelId),
+    () => {
+      const runtimeModel = findRuntimeModelById(runtimeModels, draft.modelId);
+
+      return runtimeModel?.provider.id === draft.providerId ? runtimeModel : null;
+    },
     [draft.modelId, draft.providerId, runtimeModels],
   );
 
@@ -109,12 +114,8 @@ export const useAgentSettings = (open: boolean) => {
       setDraft(
         nextAgent
           ? {
-              id: nextAgent.id,
-              name: nextAgent.name,
+              ...agentToDraft(nextAgent, nextRuntimeModels),
               avatar: normalizeAgentAvatarId(nextAgent.avatar),
-              description: nextAgent.description ?? "",
-              providerId: nextAgent.providerId,
-              modelId: nextAgent.modelId,
             }
           : createAgentDraft(nextRuntimeModels),
       );
@@ -142,14 +143,10 @@ export const useAgentSettings = (open: boolean) => {
       return;
     }
     setDraft({
-      id: agent.id,
-      name: agent.name,
+      ...agentToDraft(agent, runtimeModels),
       avatar: normalizeAgentAvatarId(agent.avatar),
-      description: agent.description ?? "",
-      providerId: agent.providerId,
-      modelId: agent.modelId,
     });
-  }, [agents]);
+  }, [agents, runtimeModels]);
 
   const createNew = useCallback(() => {
     setSelectionKind("agent");
@@ -192,6 +189,10 @@ export const useAgentSettings = (open: boolean) => {
       setError("请选择角色使用的 LLM 和模型");
       return false;
     }
+    if (!selectedRuntimeModel) {
+      setError("请选择有效且已启用的模型");
+      return false;
+    }
 
     setIsSaving(true);
     setError("");
@@ -211,12 +212,8 @@ export const useAgentSettings = (open: boolean) => {
       setSelectedAgentId(saved?.id ?? "");
       if (saved) {
         setDraft({
-          id: saved.id,
-          name: saved.name,
+          ...agentToDraft(saved, runtimeModels),
           avatar: normalizeAgentAvatarId(saved.avatar),
-          description: saved.description ?? "",
-          providerId: saved.providerId,
-          modelId: saved.modelId,
         });
       }
       return true;
@@ -226,7 +223,7 @@ export const useAgentSettings = (open: boolean) => {
     } finally {
       setIsSaving(false);
     }
-  }, [draft]);
+  }, [draft, runtimeModels, selectedRuntimeModel]);
 
   const saveWorkflow = useCallback(async () => {
     if (!workflowDraft.name.trim()) {
@@ -299,12 +296,8 @@ export const useAgentSettings = (open: boolean) => {
       setDraft(
         nextAgent
           ? {
-              id: nextAgent.id,
-              name: nextAgent.name,
+              ...agentToDraft(nextAgent, runtimeModels),
               avatar: normalizeAgentAvatarId(nextAgent.avatar),
-              description: nextAgent.description ?? "",
-              providerId: nextAgent.providerId,
-              modelId: nextAgent.modelId,
             }
           : createAgentDraft(runtimeModels),
       );

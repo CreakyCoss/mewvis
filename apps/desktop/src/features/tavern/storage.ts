@@ -6,7 +6,6 @@ import systemPresetData from "./system-presets/default-taverns.json";
 import type {
   TavernAssetDraft,
   TavernCharacter,
-  TavernCharacterModelConfig,
   TavernCharacterMemoryDraft,
   TavernLorebookEntry,
   TavernLorebookDraft,
@@ -38,7 +37,6 @@ type TavernSystemPresetCharacter = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  modelConfig?: TavernCharacterModelConfig;
 };
 
 type TavernSystemPresetMessage = {
@@ -208,50 +206,7 @@ const createTavernCharacterFromSystemPresetCharacter = (
   };
 };
 
-const inferLegacySystemPresetId = (room: Partial<TavernRoom>) =>
-  tavernSystemPresets.find((preset) =>
-    room.title === preset.room.title &&
-    normalizeRoomScenePresetId(room) === normalizeVisualPresetId(preset.room.scenePresetId)
-  )?.id;
-
-const removedSystemPresetIds = new Set(["night-lamp-tavern"]);
-
-const legacyNightLampRoom = {
-  title: "夜灯酒馆",
-  scene: "雨停后的夜晚，吧台上还有未擦干的水痕。几位熟客围在靠窗的位置，等待有人把故事继续讲下去。",
-  sceneGoal: "找到下一条值得追问的线索，让谈话自然进入行动。",
-  openingMessage: "门铃轻响。房间里的谈话暂时停住，所有目光都落向新来的叙事者。",
-};
-
 const defaultSceneTitle = "默认场景";
-
-const isRemovedSystemPresetId = (presetId: unknown) =>
-  typeof presetId === "string" && removedSystemPresetIds.has(presetId);
-
-const isLegacyNightLampRoom = (
-  room: Partial<TavernRoom>,
-  messagesByRoom: Record<string, unknown>,
-) => {
-  if (isRemovedSystemPresetId((room as Partial<TavernRoom>).systemPresetId)) {
-    return true;
-  }
-
-  if (
-    room.title !== legacyNightLampRoom.title ||
-    room.scene !== legacyNightLampRoom.scene ||
-    room.sceneGoal !== legacyNightLampRoom.sceneGoal
-  ) {
-    return false;
-  }
-
-  const messages = Array.isArray(messagesByRoom[room.id ?? ""])
-    ? messagesByRoom[room.id ?? ""] as Array<Partial<TavernMessage>>
-    : [];
-
-  return messages.some((message) =>
-    message.role === "narrator" && message.content === legacyNightLampRoom.openingMessage
-  );
-};
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   immersiveDescriptionEnabled: true,
@@ -315,25 +270,6 @@ const normalizeRoomScenePresetId = (room: Partial<TavernRoom>) => {
     : DEFAULT_VISUAL_PRESET_ID;
 };
 
-const normalizeCharacterModelConfig = (
-  value: unknown,
-): TavernCharacterModelConfig | undefined => {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-
-  const candidate = value as Partial<TavernCharacterModelConfig>;
-  const providerId = typeof candidate.providerId === "string" ? candidate.providerId.trim() : "";
-  const modelId = typeof candidate.modelId === "string" ? candidate.modelId.trim() : "";
-
-  return providerId && modelId
-    ? {
-        providerId,
-        modelId,
-      }
-    : undefined;
-};
-
 const normalizeStringRecord = (value: unknown): Record<string, string> => {
   if (!value || typeof value !== "object") {
     return {};
@@ -388,7 +324,6 @@ const normalizeRoomCharacterConfigs = (
     configs[characterId] = {
       characterId,
       memory: memory || undefined,
-      modelConfig: normalizeCharacterModelConfig(candidate.modelConfig),
     };
   }
 
@@ -404,34 +339,12 @@ const roomCharacterMemoriesFromConfigs = (
   }),
 );
 
-const collectRoomMessageCharacterIds = (
-  roomId: string,
-  messagesByRoom: Record<string, unknown> = {},
-) => {
-  const characterIds = new Set<string>();
-  const messages = messagesByRoom[roomId];
-
-  if (!Array.isArray(messages)) {
-    return characterIds;
-  }
-
-  for (const message of messages as Array<Partial<TavernMessage>>) {
-    if (message.role === "character" && typeof message.characterId === "string") {
-      characterIds.add(message.characterId);
-    }
-  }
-
-  return characterIds;
-};
-
 const normalizeTavernCharacter = (
   character: TavernCharacter,
   {
     allowSystemPreset = true,
-    allowLegacyModelConfig = true,
   }: {
     allowSystemPreset?: boolean;
-    allowLegacyModelConfig?: boolean;
   } = {},
 ): TavernCharacter => {
   const systemPresetId = allowSystemPreset
@@ -453,140 +366,7 @@ const normalizeTavernCharacter = (
         ? (character as Partial<TavernCharacter>).systemPresetVersion
         : systemPreset.version
       : undefined,
-    modelConfig: allowLegacyModelConfig
-      ? normalizeCharacterModelConfig((character as Partial<TavernCharacter>).modelConfig)
-      : undefined,
   };
-};
-
-const applyLegacyCharacterModelsToRooms = (
-  rooms: TavernRoom[],
-  characters: TavernCharacter[],
-) => {
-  const characterModelConfigs = new Map(
-    characters.flatMap((character) =>
-      character.modelConfig ? [[character.id, character.modelConfig] as const] : []
-    ),
-  );
-
-  return rooms.map((room) => {
-    let didChange = false;
-    const applyCharacterModels = (
-      characterIds: string[],
-      configs: Record<string, TavernRoomCharacterConfig> | undefined,
-      memories: Record<string, string>,
-    ) => {
-      let configDidChange = false;
-      const nextConfigs = { ...(configs ?? {}) };
-
-      for (const characterId of characterIds) {
-        const existingConfig = nextConfigs[characterId];
-        const legacyModelConfig = characterModelConfigs.get(characterId);
-        if (!existingConfig) {
-          nextConfigs[characterId] = {
-            characterId,
-            memory: memories[characterId]?.trim() || undefined,
-            modelConfig: legacyModelConfig,
-          };
-          configDidChange = true;
-          continue;
-        }
-
-        if (legacyModelConfig && !existingConfig.modelConfig) {
-          nextConfigs[characterId] = {
-            ...existingConfig,
-            modelConfig: legacyModelConfig,
-          };
-          configDidChange = true;
-        }
-      }
-
-      didChange = didChange || configDidChange;
-      return nextConfigs;
-    };
-    const characterConfigs = applyCharacterModels(
-      room.characterIds,
-      room.characterConfigs,
-      room.characterMemories,
-    );
-    const scenes = room.scenes?.map((scene) => {
-      const sceneCharacterConfigs = applyCharacterModels(
-        scene.characterIds,
-        scene.characterConfigs,
-        scene.characterMemories,
-      );
-      return {
-        ...scene,
-        characterConfigs: sceneCharacterConfigs,
-        characterMemories: roomCharacterMemoriesFromConfigs(sceneCharacterConfigs),
-      };
-    });
-
-    if (!didChange) {
-      return {
-        ...room,
-        characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
-        scenes,
-      };
-    }
-
-    return {
-      ...room,
-      characterConfigs,
-      characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
-      scenes,
-    };
-  });
-};
-
-const materializeRoomLocalCharacters = (
-  rooms: TavernRoom[],
-  legacyCharacters: TavernCharacter[],
-  messagesByRoom: Record<string, unknown> = {},
-) => {
-  const legacyCharacterById = new Map(
-    legacyCharacters.map((character) => [character.id, character]),
-  );
-
-  return rooms.map((room) => {
-    const localCharacterById = new Map(
-      (room.localCharacters ?? []).map((character) => [
-        character.id,
-        normalizeTavernCharacter(character, {
-          allowSystemPreset: false,
-          allowLegacyModelConfig: true,
-        }),
-      ]),
-    );
-    const referencedCharacterIds = new Set([
-      ...room.characterIds,
-      ...collectRoomMessageCharacterIds(room.id, messagesByRoom),
-    ]);
-
-    for (const characterId of referencedCharacterIds) {
-      if (localCharacterById.has(characterId)) {
-        continue;
-      }
-
-      const legacyCharacter = legacyCharacterById.get(characterId);
-      if (!legacyCharacter) {
-        continue;
-      }
-
-      localCharacterById.set(
-        characterId,
-        normalizeTavernCharacter(legacyCharacter, {
-          allowSystemPreset: false,
-          allowLegacyModelConfig: true,
-        }),
-      );
-    }
-
-    return {
-      ...room,
-      localCharacters: Array.from(localCharacterById.values()),
-    };
-  });
 };
 
 const normalizeLorebookKeywords = (value: unknown) => Array.isArray(value)
@@ -1012,16 +792,6 @@ const buildTavernScene = (
       : [],
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
-    lorebookEntries: Array.isArray(input.lorebookEntries)
-      ? input.lorebookEntries
-          .map(normalizeLorebookEntry)
-          .filter((entry): entry is TavernLorebookEntry => Boolean(entry))
-      : [],
-    timelineEvents: Array.isArray(input.timelineEvents)
-      ? input.timelineEvents
-          .map(normalizeTimelineEvent)
-          .filter((event): event is TavernTimelineEvent => Boolean(event))
-      : [],
     assetDrafts: Array.isArray(input.assetDrafts)
       ? input.assetDrafts
           .map(normalizeAssetDraft)
@@ -1232,8 +1002,6 @@ export const createTavernRoomFromSystemPreset = (
       summarizedMessageIds: [],
       characterConfigs: sceneCharacterConfigs,
       characterMemories: sceneCharacterMemories,
-      lorebookEntries: [],
-      timelineEvents: [],
       assetDrafts: (presetScene.assetDrafts ?? preset.room.assetDrafts ?? [])
         .map((draft) => createPresetAssetDraft(draft, characterIdByPresetId, createdAt))
         .filter((draft): draft is TavernAssetDraft => Boolean(draft)),
@@ -1275,7 +1043,6 @@ export const createTavernRoomFromSystemPreset = (
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
-    modelConfig: undefined,
     autoMemory: "",
     autoMemoryUpdatedAt: undefined,
     summarizedMessageIds: [],
@@ -1354,7 +1121,6 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     version: 1,
     activeRoomId: firstRoom?.id ?? "",
     rooms: materializedPresets.map((preset) => preset.room),
-    characters: [],
     messagesByRoom: Object.fromEntries(
       materializedPresets.map((preset) => [preset.room.id, preset.messages]),
     ),
@@ -1403,7 +1169,6 @@ const ensureSystemPresetRooms = (
       ? state.activeRoomId
       : nextRooms[0]?.id ?? "",
     rooms: nextRooms,
-    characters: [],
     messagesByRoom: nextMessagesByRoom,
     messagesByScene: nextMessagesByScene,
   };
@@ -1421,7 +1186,6 @@ const normalizeTavernState = (
   if (
     candidate.version !== 1 ||
     !Array.isArray(candidate.rooms) ||
-    !Array.isArray(candidate.characters) ||
     !candidate.messagesByRoom ||
     typeof candidate.messagesByRoom !== "object"
   ) {
@@ -1434,9 +1198,8 @@ const normalizeTavernState = (
     : {};
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
     Boolean(room?.id && room.workspaceId === workspaceId && room.title)
-  ).filter((room) => !isLegacyNightLampRoom(room, sourceMessagesByRoom)).map((room) => {
-    const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId)
-      ?? inferLegacySystemPresetId(room);
+  ).map((room) => {
+    const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId);
     const systemPreset = getTavernSystemPreset(systemPresetId);
     const characterMemories = normalizeStringRecord((room as Partial<TavernRoom>).characterMemories);
     const characterConfigs = normalizeRoomCharacterConfigs(
@@ -1450,7 +1213,6 @@ const normalizeTavernState = (
           )
           .map((character) => normalizeTavernCharacter(character, {
             allowSystemPreset: false,
-            allowLegacyModelConfig: true,
           }))
       : [];
 
@@ -1485,7 +1247,6 @@ const normalizeTavernState = (
       sceneTransition: typeof (room as Partial<TavernRoom>).sceneTransition === "string"
         ? (room as Partial<TavernRoom>).sceneTransition ?? ""
         : "",
-      modelConfig: normalizeCharacterModelConfig((room as Partial<TavernRoom>).modelConfig),
       autoMemory: typeof (room as Partial<TavernRoom>).autoMemory === "string"
         ? (room as Partial<TavernRoom>).autoMemory ?? ""
         : "",
@@ -1532,53 +1293,20 @@ const normalizeTavernState = (
     const scenes = (normalizedScenes.length > 0 ? normalizedScenes : [fallbackScene])
       .sort((left, right) => left.order - right.order)
       .map((scene, index) => ({ ...scene, order: index }));
-    const sharedLorebookEntries = mergeLorebookEntries(
-      normalizedRoom.lorebookEntries,
-      scenes.flatMap((scene) => scene.lorebookEntries),
-    );
-    const sharedTimelineEvents = mergeTimelineEvents(
-      normalizedRoom.timelineEvents,
-      scenes.flatMap((scene) => scene.timelineEvents),
-    );
-    const scenesWithoutSharedAssets = scenes.map((scene) => ({
-      ...scene,
-      lorebookEntries: [],
-      timelineEvents: [],
-    }));
     const activeSceneId = scenes.some((scene) => scene.id === (room as Partial<TavernRoom>).activeSceneId)
       ? (room as Partial<TavernRoom>).activeSceneId
       : scenes[0]?.id;
 
     return projectTavernSceneOntoRoom({
       ...normalizedRoom,
-      lorebookEntries: sharedLorebookEntries,
-      timelineEvents: sharedTimelineEvents,
       activeSceneId,
-      scenes: scenesWithoutSharedAssets,
+      scenes,
     });
   });
-  const legacyCharacters = candidate.characters.filter((character): character is TavernCharacter =>
-    Boolean(character?.id && character.name)
-  ).map((character) => normalizeTavernCharacter(character, {
-    allowSystemPreset: false,
-    allowLegacyModelConfig: true,
-  }));
   if (rooms.length === 0) {
     return null;
   }
-  const roomsWithLocalCharacters = materializeRoomLocalCharacters(
-    rooms,
-    legacyCharacters,
-    sourceMessagesByRoom,
-  );
-  const normalizedRoomsWithModels = applyLegacyCharacterModelsToRooms(
-    roomsWithLocalCharacters,
-    [
-      ...legacyCharacters,
-      ...roomsWithLocalCharacters.flatMap((room) => room.localCharacters ?? []),
-    ],
-  );
-  const normalizedRooms = normalizedRoomsWithModels;
+  const normalizedRooms = rooms;
   const messagesByScene = Object.fromEntries(
     normalizedRooms.flatMap((room) => (room.scenes ?? []).map((scene) => {
       const sceneMessages = Array.isArray(sourceMessagesByScene[scene.id])
@@ -1605,7 +1333,6 @@ const normalizeTavernState = (
     version: 1,
     activeRoomId,
     rooms: normalizedRooms,
-    characters: [],
     messagesByRoom,
     messagesByScene,
   });
@@ -1660,7 +1387,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
-    modelConfig: undefined,
     autoMemory: "",
     autoMemoryUpdatedAt: undefined,
     summarizedMessageIds: [],
@@ -1763,7 +1489,6 @@ export const createTavernCharacter = (input: {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  modelConfig?: TavernCharacterModelConfig;
 }): TavernCharacter => {
   const createdAt = now();
   return {
@@ -1774,7 +1499,6 @@ export const createTavernCharacter = (input: {
     speakingStyle: input.speakingStyle,
     goals: input.goals?.trim() || undefined,
     relationships: input.relationships?.trim() || undefined,
-    modelConfig: input.modelConfig,
     createdAt,
     updatedAt: createdAt,
   };

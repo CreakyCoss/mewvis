@@ -115,14 +115,7 @@ pub fn save_collaboration_workflow(
     let draft_instruction = normalize_optional_text(input.draft_instruction.as_deref());
     let review_instruction = normalize_optional_text(input.review_instruction.as_deref());
     let revise_instruction = normalize_optional_text(input.revise_instruction.as_deref());
-    let steps = normalize_workflow_steps(
-        input.steps,
-        &input.writer_agent_id,
-        &input.reviewer_agent_id,
-        draft_instruction.clone(),
-        review_instruction.clone(),
-        revise_instruction.clone(),
-    )?;
+    let steps = normalize_workflow_steps(input.steps)?;
     let writer_agent_id = steps
         .first()
         .map(|step| step.agent_id.as_str())
@@ -284,21 +277,14 @@ fn load_collaboration_workflows(conn: &Connection) -> Result<Vec<CollaborationWo
                 draft_instruction: row.get(5)?,
                 review_instruction: row.get(6)?,
                 revise_instruction: row.get(7)?,
-                steps: collaboration_workflow_steps_from_row(
-                    row.get::<_, Option<String>>(8)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                    row.get(6)?,
-                    row.get(7)?,
-                )
-                .map_err(|error| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        8,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
-                    )
-                })?,
+                steps: collaboration_workflow_steps_from_row(row.get::<_, Option<String>>(8)?)
+                    .map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            8,
+                            rusqlite::types::Type::Text,
+                            Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
+                        )
+                    })?,
                 created_at: row.get(9)?,
                 updated_at: row.get(10)?,
             })
@@ -311,11 +297,6 @@ fn load_collaboration_workflows(conn: &Connection) -> Result<Vec<CollaborationWo
 
 fn normalize_workflow_steps(
     steps: Option<Vec<SaveCollaborationWorkflowStepInput>>,
-    writer_agent_id: &str,
-    reviewer_agent_id: &str,
-    draft_instruction: Option<String>,
-    review_instruction: Option<String>,
-    revise_instruction: Option<String>,
 ) -> Result<Vec<CollaborationWorkflowStepRecord>, String> {
     let normalized_steps = steps
         .unwrap_or_default()
@@ -342,54 +323,15 @@ fn normalize_workflow_steps(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    if !normalized_steps.is_empty() {
-        return Ok(normalized_steps);
-    }
-
-    let writer_agent_id = writer_agent_id.trim();
-    if writer_agent_id.is_empty() {
+    if normalized_steps.is_empty() {
         return Err("请至少配置一个协作步骤".to_string());
     }
 
-    let reviewer_agent_id = reviewer_agent_id.trim();
-    let reviewer_agent_id = if reviewer_agent_id.is_empty() {
-        writer_agent_id
-    } else {
-        reviewer_agent_id
-    };
-
-    Ok(vec![
-        CollaborationWorkflowStepRecord {
-            id: normalize_record_id(None),
-            name: "起草".to_string(),
-            agent_id: writer_agent_id.to_string(),
-            instruction: draft_instruction,
-            phase: Some("draft".to_string()),
-        },
-        CollaborationWorkflowStepRecord {
-            id: normalize_record_id(None),
-            name: "审查".to_string(),
-            agent_id: reviewer_agent_id.to_string(),
-            instruction: review_instruction,
-            phase: Some("review".to_string()),
-        },
-        CollaborationWorkflowStepRecord {
-            id: normalize_record_id(None),
-            name: "修订".to_string(),
-            agent_id: writer_agent_id.to_string(),
-            instruction: revise_instruction,
-            phase: Some("revise".to_string()),
-        },
-    ])
+    Ok(normalized_steps)
 }
 
 fn collaboration_workflow_steps_from_row(
     steps_json: Option<String>,
-    writer_agent_id: String,
-    reviewer_agent_id: String,
-    draft_instruction: Option<String>,
-    review_instruction: Option<String>,
-    revise_instruction: Option<String>,
 ) -> Result<Vec<CollaborationWorkflowStep>, String> {
     if let Some(steps_json) = steps_json.filter(|value| !value.trim().is_empty()) {
         let steps = serde_json::from_str::<Vec<CollaborationWorkflowStepRecord>>(&steps_json)
@@ -410,25 +352,7 @@ fn collaboration_workflow_steps_from_row(
         }
     }
 
-    let legacy_steps = normalize_workflow_steps(
-        None,
-        &writer_agent_id,
-        &reviewer_agent_id,
-        draft_instruction,
-        review_instruction,
-        revise_instruction,
-    )?;
-
-    Ok(legacy_steps
-        .into_iter()
-        .map(|step| CollaborationWorkflowStep {
-            id: step.id,
-            name: step.name,
-            agent_id: step.agent_id,
-            instruction: step.instruction,
-            phase: step.phase,
-        })
-        .collect())
+    Ok(Vec::new())
 }
 
 fn agent_exists(conn: &Connection, id: &str) -> Result<bool, String> {

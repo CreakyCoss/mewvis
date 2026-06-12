@@ -17,7 +17,6 @@ pub struct AgentRuntimeModelInput {
     pub context_window: Option<u64>,
     pub max_tokens: Option<u64>,
     pub headers: Option<Value>,
-    pub compat: Option<Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

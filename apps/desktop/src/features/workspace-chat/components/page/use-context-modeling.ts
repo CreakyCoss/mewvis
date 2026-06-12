@@ -4,7 +4,7 @@ import {
   type ConversationSummarizer,
 } from "@/ai/agent-context";
 import { createSharedConversationSummarizer } from "@/features/shared-chat-runtime";
-import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 
 type UseContextModelingInput = {
   runtimeAgentRequiresModel: boolean;

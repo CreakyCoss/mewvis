@@ -24,12 +24,9 @@ import {
   Wine,
 } from "lucide-react";
 import type { ComponentType, FormEvent, ReactNode } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import {
-  groupRuntimeModelsByProvider,
-  type RuntimeModelOption,
-} from "@/features/llm-settings/runtime-models";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,7 +68,6 @@ import {
 } from "../storage";
 import type {
   TavernCharacter,
-  TavernCharacterModelConfig,
   TavernLorebookEntry,
   TavernReplyMode,
   TavernMessage,
@@ -92,7 +88,6 @@ type TavernManagementPageProps = {
   activeRoom: TavernRoom;
   characterById: Map<string, TavernCharacter>;
   messagesByRoom: Record<string, TavernMessage[]>;
-  runtimeModels: RuntimeModelOption[];
   globalRuntimeModel: RuntimeModelOption | null;
   canDeleteRoom: boolean;
   onCreateRoom: () => void;
@@ -147,12 +142,6 @@ const cloneTimelineScope = (
   return { mode: "auto" };
 };
 
-const cloneCharacterModelConfig = (
-  config: TavernCharacterModelConfig | undefined,
-): TavernCharacterModelConfig | undefined => config
-  ? { ...config }
-  : undefined;
-
 const cloneRoomCharacterConfigs = (
   configs: Record<string, TavernRoomCharacterConfig> | undefined,
 ): Record<string, TavernRoomCharacterConfig> => Object.fromEntries(
@@ -160,7 +149,6 @@ const cloneRoomCharacterConfigs = (
     characterId,
     {
       ...config,
-      modelConfig: cloneCharacterModelConfig(config.modelConfig),
     },
   ]),
 );
@@ -173,59 +161,6 @@ const characterMemoriesFromConfigs = (
     return memory ? [[characterId, memory]] : [];
   }),
 );
-
-const getRoomRoleModelConfig = (
-  room: TavernRoom,
-  characterId: string,
-): TavernCharacterModelConfig | undefined => {
-  const localCharacterModelConfig = room.localCharacters
-    ?.find((character) => character.id === characterId)
-    ?.modelConfig;
-  if (localCharacterModelConfig) {
-    return localCharacterModelConfig;
-  }
-
-  const activeSceneModelConfig = room.characterConfigs?.[characterId]?.modelConfig;
-  if (activeSceneModelConfig) {
-    return activeSceneModelConfig;
-  }
-
-  return room.scenes
-    ?.find((scene) => scene.characterConfigs?.[characterId]?.modelConfig)
-    ?.characterConfigs?.[characterId]
-    ?.modelConfig;
-};
-
-const materializeRoomRoleLibraryModels = (room: TavernRoom): TavernRoom => ({
-  ...room,
-  localCharacters: (room.localCharacters ?? []).map((character) => ({
-    ...character,
-    modelConfig: cloneCharacterModelConfig(getRoomRoleModelConfig(room, character.id)),
-  })),
-});
-
-const applyRoleLibraryModelsToCharacterConfigs = (
-  room: TavernRoom,
-  characterIds: string[],
-  configs: Record<string, TavernRoomCharacterConfig> | undefined,
-  memories: Record<string, string>,
-): Record<string, TavernRoomCharacterConfig> => {
-  const nextConfigs = { ...(configs ?? {}) };
-
-  for (const characterId of characterIds) {
-    const currentConfig = nextConfigs[characterId] ?? {
-      characterId,
-      memory: memories[characterId]?.trim() || undefined,
-    };
-    nextConfigs[characterId] = {
-      ...currentConfig,
-      characterId,
-      modelConfig: cloneCharacterModelConfig(getRoomRoleModelConfig(room, characterId)),
-    };
-  }
-
-  return nextConfigs;
-};
 
 const getTimelineEventLabel = (
   event: TavernTimelineEvent,
@@ -469,7 +404,6 @@ type RoomContentEditDraft =
     }
   | ({
       type: "settings";
-      modelConfig?: TavernCharacterModelConfig;
     } & TavernRoomSettings)
   | {
       type: "timeline";
@@ -493,7 +427,6 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   summarizedMessageIds: room.summarizedMessageIds
     ? [...room.summarizedMessageIds]
     : undefined,
-  modelConfig: room.modelConfig ? { ...room.modelConfig } : undefined,
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
   scenes: room.scenes?.map((scene) => ({
@@ -503,11 +436,6 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
     characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
     characterMemories: { ...scene.characterMemories },
     characterIds: [...scene.characterIds],
-    timelineEvents: scene.timelineEvents.map((event) => ({ ...event })),
-    lorebookEntries: scene.lorebookEntries.map((entry) => ({
-      ...entry,
-      keywords: [...entry.keywords],
-    })),
     assetDrafts: scene.assetDrafts.map((draft) => ({
       ...draft,
       sourceMessageIds: [...draft.sourceMessageIds],
@@ -521,7 +449,6 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   })) ?? [],
   localCharacters: room.localCharacters?.map((character) => ({
     ...character,
-    modelConfig: cloneCharacterModelConfig(character.modelConfig),
   })) ?? [],
   characterIds: [...room.characterIds],
   timelineEvents: room.timelineEvents.map((event) => ({ ...event })),
@@ -542,21 +469,10 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
 });
 
 const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
-  const roomWithRoleModels = materializeRoomRoleLibraryModels(room);
-  const characterConfigs = applyRoleLibraryModelsToCharacterConfigs(
-    roomWithRoleModels,
-    roomWithRoleModels.characterIds,
-    roomWithRoleModels.characterConfigs,
-    roomWithRoleModels.characterMemories,
-  );
+  const characterConfigs = cloneRoomCharacterConfigs(room.characterConfigs);
   const characterMemories = characterMemoriesFromConfigs(characterConfigs);
-  const scenes = roomWithRoleModels.scenes?.map((scene) => {
-    const sceneCharacterConfigs = applyRoleLibraryModelsToCharacterConfigs(
-      roomWithRoleModels,
-      scene.characterIds,
-      scene.characterConfigs,
-      scene.characterMemories,
-    );
+  const scenes = room.scenes?.map((scene) => {
+    const sceneCharacterConfigs = cloneRoomCharacterConfigs(scene.characterConfigs);
 
     return {
       ...scene,
@@ -566,11 +482,11 @@ const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
   });
 
   const syncedRoom = syncTavernRoomActiveScene({
-    ...roomWithRoleModels,
+    ...room,
     scenes,
     characterConfigs,
     characterMemories,
-    localCharacters: roomWithRoleModels.localCharacters ?? [],
+    localCharacters: room.localCharacters ?? [],
   });
 
   return projectTavernSceneOntoRoom({
@@ -582,26 +498,11 @@ const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
   });
 };
 
-const findConfiguredModel = (
-  runtimeModels: RuntimeModelOption[],
-  config: TavernCharacterModelConfig | undefined,
-) => {
-  if (!config?.providerId || !config.modelId) {
-    return null;
-  }
-
-  return runtimeModels.find((model) =>
-    model.provider.id === config.providerId &&
-    model.modelId === config.modelId
-  ) ?? null;
-};
-
 export const TavernManagementPage = ({
   rooms,
   activeRoom,
   characterById,
   messagesByRoom,
-  runtimeModels,
   globalRuntimeModel,
   canDeleteRoom,
   onCreateRoom,
@@ -652,9 +553,6 @@ export const TavernManagementPage = ({
   const editingCharacter = editingRoom && editingCharacterId
     ? editingRoom.localCharacters?.find((character) => character.id === editingCharacterId) ?? null
     : null;
-  const editingCharacterModelConfig = editingRoom && editingCharacter
-    ? cloneCharacterModelConfig(getRoomRoleModelConfig(editingRoom, editingCharacter.id))
-    : undefined;
   const activeRoomMessages = messagesByRoom[activeRoom.id] ?? [];
   const totalRoomCharacterCount = rooms.reduce(
     (sum, room) => sum + (room.localCharacters?.length ?? 0),
@@ -675,19 +573,12 @@ export const TavernManagementPage = ({
   const editingRoomMessageCount = editingRoom
     ? messagesByRoom[editingRoom.id]?.length ?? 0
     : 0;
-  const modelProviders = useMemo(
-    () => groupRuntimeModelsByProvider(runtimeModels),
-    [runtimeModels],
-  );
   const systemDefaultModelLabel = globalRuntimeModel
-    ? `${globalRuntimeModel.provider.name} / ${globalRuntimeModel.modelName}`
+    ? `${globalRuntimeModel.provider.name} / ${
+        globalRuntimeModel.modelName || globalRuntimeModel.modelId
+      }`
     : "未选择";
-  const editingRoomModel = editingRoom
-    ? findConfiguredModel(runtimeModels, editingRoom.modelConfig)
-    : null;
-  const editingRoomModelLabel = editingRoomModel
-    ? `${editingRoomModel.provider.name} / ${editingRoomModel.modelName}`
-    : `系统默认：${systemDefaultModelLabel}`;
+  const editingRoomModelLabel = systemDefaultModelLabel;
   const areAllTimelineEventsCollapsed = editingRoom && editingRoom.timelineEvents.length > 0
     ? editingRoom.timelineEvents.every((event) => collapsedTimelineEventIds[event.id])
     : false;
@@ -724,7 +615,7 @@ export const TavernManagementPage = ({
     onSelectRoom(roomId);
     setEditingRoomId(roomId);
     setEditingRoomDraft(cloneTavernRoom(projectTavernSceneOntoRoom(
-      materializeRoomRoleLibraryModels(room),
+      room,
     )));
     setRoomContentEditDraft(null);
     setRoomContentEditError("");
@@ -769,16 +660,13 @@ export const TavernManagementPage = ({
       const scenes = syncedRoom.scenes ?? [];
       const createdAt = Date.now();
       const characterConfigs = Object.fromEntries(
-        syncedRoom.characterIds.map((characterId) => {
-          const modelConfig = syncedRoom.characterConfigs?.[characterId]?.modelConfig;
-          return [
+        syncedRoom.characterIds.map((characterId) => [
+          characterId,
+          {
             characterId,
-            {
-              characterId,
-              modelConfig: modelConfig ? { ...modelConfig } : undefined,
-            },
-          ];
-        }),
+            memory: syncedRoom.characterConfigs?.[characterId]?.memory,
+          },
+        ]),
       );
       const scene = createTavernScene({
         title: `阶段 ${scenes.length + 1}`,
@@ -794,8 +682,6 @@ export const TavernManagementPage = ({
         summarizedMessageIds: [],
         characterConfigs,
         characterMemories: {},
-        lorebookEntries: [],
-        timelineEvents: [],
         assetDrafts: [],
         characterIds: syncedRoom.characterIds,
         activeCharacterId: syncedRoom.activeCharacterId,
@@ -871,28 +757,12 @@ export const TavernManagementPage = ({
     });
   };
 
-  const firstEnabledModelConfigForProvider = (
-    providerId: string,
-  ): TavernCharacterModelConfig | undefined => {
-    const provider = modelProviders.find((item) => item.providerId === providerId);
-    const model = provider?.models[0];
-    return provider && model
-      ? {
-          providerId: provider.providerId,
-          modelId: model.modelId,
-        }
-      : undefined;
-  };
-
   const createRoomLocalCharacter = (value: TavernCharacterFormValue) => {
     if (!editingRoom) {
       return;
     }
 
-    const character = {
-      ...createTavernCharacter(value),
-      modelConfig: cloneCharacterModelConfig(value.modelConfig),
-    };
+    const character = createTavernCharacter(value);
     patchEditingRoomDraft({
       localCharacters: [...(editingRoom.localCharacters ?? []), character],
     });
@@ -917,48 +787,13 @@ export const TavernManagementPage = ({
               speakingStyle: value.speakingStyle,
               goals: value.goals?.trim() || undefined,
               relationships: value.relationships?.trim() || undefined,
-              modelConfig: cloneCharacterModelConfig(value.modelConfig),
               updatedAt: Date.now(),
             }
           : character
       );
-    const roomWithNextRoleModel = materializeRoomRoleLibraryModels({
-      ...editingRoom,
-      localCharacters: nextLocalCharacters,
-    });
-    const nextScenes = roomWithNextRoleModel.scenes?.map((scene) => {
-      if (!scene.characterIds.includes(characterId)) {
-        return scene;
-      }
-
-      const characterConfigs = applyRoleLibraryModelsToCharacterConfigs(
-        roomWithNextRoleModel,
-        scene.characterIds,
-        scene.characterConfigs,
-        scene.characterMemories,
-      );
-      return {
-        ...scene,
-        characterConfigs,
-        characterMemories: characterMemoriesFromConfigs(characterConfigs),
-      };
-    });
-    const nextCharacterConfigs = editingRoom.characterIds.includes(characterId)
-      ? applyRoleLibraryModelsToCharacterConfigs(
-          roomWithNextRoleModel,
-          editingRoom.characterIds,
-          editingRoom.characterConfigs,
-          editingRoom.characterMemories,
-        )
-      : editingRoom.characterConfigs;
 
     patchEditingRoomDraft({
       localCharacters: nextLocalCharacters,
-      scenes: nextScenes,
-      characterConfigs: nextCharacterConfigs,
-      characterMemories: nextCharacterConfigs
-        ? characterMemoriesFromConfigs(nextCharacterConfigs)
-        : editingRoom.characterMemories,
     });
     setEditingCharacterId(null);
   };
@@ -1120,7 +955,6 @@ export const TavernManagementPage = ({
     setRoomContentEditError("");
     setRoomContentEditDraft({
       type: "settings",
-      modelConfig: editingRoom.modelConfig,
       ...editingRoom.settings,
     });
   };
@@ -1197,9 +1031,6 @@ export const TavernManagementPage = ({
             {
               characterId,
               memory: memory || undefined,
-              modelConfig: cloneCharacterModelConfig(
-                getRoomRoleModelConfig(editingRoom, characterId),
-              ),
             },
           ];
         }),
@@ -1255,7 +1086,6 @@ export const TavernManagementPage = ({
 
     if (roomContentEditDraft.type === "settings") {
       patchEditingRoomDraft({
-        modelConfig: roomContentEditDraft.modelConfig,
         settings: {
           immersiveDescriptionEnabled: roomContentEditDraft.immersiveDescriptionEnabled,
           showExecutionTrace: roomContentEditDraft.showExecutionTrace,
@@ -1490,7 +1320,6 @@ export const TavernManagementPage = ({
             ...roomContentEditDraft.characterConfigs,
             [character.id]: roomContentEditDraft.characterConfigs[character.id] ?? {
               characterId: character.id,
-              modelConfig: cloneCharacterModelConfig(character.modelConfig),
             },
           };
           setRoomContentEditDraft({
@@ -1902,79 +1731,9 @@ export const TavernManagementPage = ({
               <div>
                 <div className="text-sm font-medium leading-5">酒馆模型</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  角色选择“跟随酒馆”时会使用这里的模型。
+                  酒馆统一使用当前默认模型：{editingRoomModelLabel}
                 </div>
               </div>
-              <TavernEditorField label="模型策略" htmlFor="tavern-content-room-model-mode">
-                <NativeSelect
-                  id="tavern-content-room-model-mode"
-                  value={roomContentEditDraft.modelConfig ? "custom" : "system"}
-                  className={editorControlClassName}
-                  onChange={(event) => {
-                    setRoomContentEditDraft({
-                      ...roomContentEditDraft,
-                      modelConfig: event.target.value === "custom"
-                        ? roomContentEditDraft.modelConfig ??
-                          firstEnabledModelConfigForProvider(modelProviders[0]?.providerId ?? "")
-                        : undefined,
-                    });
-                  }}
-                >
-                  <NativeSelectOption value="system">跟随系统默认</NativeSelectOption>
-                  <NativeSelectOption value="custom" disabled={modelProviders.length === 0}>
-                    自定义
-                  </NativeSelectOption>
-                </NativeSelect>
-              </TavernEditorField>
-              {roomContentEditDraft.modelConfig && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <TavernEditorField label="供应商" htmlFor="tavern-content-room-provider">
-                    <NativeSelect
-                      id="tavern-content-room-provider"
-                      value={roomContentEditDraft.modelConfig.providerId}
-                      className={editorControlClassName}
-                      onChange={(event) => {
-                        setRoomContentEditDraft({
-                          ...roomContentEditDraft,
-                          modelConfig: firstEnabledModelConfigForProvider(event.target.value),
-                        });
-                      }}
-                    >
-                      {modelProviders.map((provider) => (
-                        <NativeSelectOption key={provider.providerId} value={provider.providerId}>
-                          {provider.providerName}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </TavernEditorField>
-                  <TavernEditorField label="模型" htmlFor="tavern-content-room-model">
-                    <NativeSelect
-                      id="tavern-content-room-model"
-                      value={roomContentEditDraft.modelConfig.modelId}
-                      className={editorControlClassName}
-                      onChange={(event) => {
-                        setRoomContentEditDraft({
-                          ...roomContentEditDraft,
-                          modelConfig: roomContentEditDraft.modelConfig
-                            ? {
-                                ...roomContentEditDraft.modelConfig,
-                                modelId: event.target.value,
-                              }
-                            : undefined,
-                        });
-                      }}
-                    >
-                      {(modelProviders.find((provider) =>
-                        provider.providerId === roomContentEditDraft.modelConfig?.providerId
-                      )?.models ?? []).map((model) => (
-                        <NativeSelectOption key={model.key} value={model.modelId}>
-                          {model.modelName}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </TavernEditorField>
-                </div>
-              )}
             </div>
             <div className={settingsFlagGridClassName}>
               <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
@@ -3014,17 +2773,6 @@ export const TavernManagementPage = ({
                           const referencedSceneCount = editingRoomScenes.filter((scene) =>
                             scene.characterIds.includes(character.id)
                           ).length;
-                          const characterModelConfig = getRoomRoleModelConfig(
-                            editingRoom,
-                            character.id,
-                          );
-                          const characterModel = findConfiguredModel(
-                            runtimeModels,
-                            characterModelConfig,
-                          );
-                          const characterModelLabel = characterModel
-                            ? `${characterModel.provider.name} / ${characterModel.modelName}`
-                            : `跟随酒馆：${editingRoomModelLabel}`;
 
                           return (
                             <Tooltip key={character.id}>
@@ -3071,7 +2819,7 @@ export const TavernManagementPage = ({
                                           {character.name}
                                         </span>
                                         <span className="rounded-sm bg-background/15 px-1.5 py-0.5 text-[11px] text-background/80">
-                                          {characterModelLabel}
+                                          {editingRoomModelLabel}
                                         </span>
                                       </div>
                                       <div className="mt-1 text-background/80">
@@ -3500,8 +3248,6 @@ export const TavernManagementPage = ({
       <TavernCharacterFormDialog
         open={isCreatingRoomCharacter || Boolean(editingCharacter)}
         character={editingCharacter}
-        modelConfig={editingCharacterModelConfig}
-        runtimeModels={runtimeModels}
         roomModelLabel={editingRoomModelLabel}
         onOpenChange={(open) => {
           if (!open) {

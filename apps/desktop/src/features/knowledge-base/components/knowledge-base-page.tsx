@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ContextEngine } from "@/ai/agent-context";
-import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import {
   CollectionDetailsDialog,
   CollectionFormDialog,
@@ -45,16 +44,11 @@ import {
   emptyEmbeddingDraft,
   emptyLibrary,
   emptySettings,
-  isEmbeddingProviderSupported,
   localOllamaBaseUrl,
-  localOllamaBatchSize,
-  localOllamaDimensions,
-  localOllamaModelId,
   localOllamaModelOptions,
-  localOllamaProviderId,
   missingStatus,
+  openAiCompatibleEmbeddingModelOptions,
   supportedTextExtensions,
-  type EmbeddingProviderOption,
   type KnowledgeBaseView,
   type PendingDeleteTarget,
   type PendingKnowledgeAction,
@@ -64,7 +58,6 @@ type KnowledgeBasePageProps = {
   onBack?: () => void;
   contextEngineId?: string;
   contextEngines?: ContextEngine[];
-  runtimeModels?: RuntimeModelOption[];
   onContextEngineChange?: (engineId: string) => void;
 };
 
@@ -72,7 +65,6 @@ export const KnowledgeBasePage = ({
   onBack,
   contextEngineId,
   contextEngines = [],
-  runtimeModels = [],
   onContextEngineChange,
 }: KnowledgeBasePageProps) => {
   const [library, setLibrary] = useState<KnowledgeLibrary>(emptyLibrary);
@@ -145,77 +137,27 @@ export const KnowledgeBasePage = ({
       ?? null,
     [embeddingProfiles],
   );
-  const supportedEmbeddingProviders = useMemo(
-    () => {
-      const providersById = new Map<string, EmbeddingProviderOption>();
-
-      for (const runtimeModel of runtimeModels) {
-        if (!isEmbeddingProviderSupported(runtimeModel.runtimeInput)) {
-          continue;
-        }
-
-        let provider = providersById.get(runtimeModel.provider.id);
-        if (!provider) {
-          provider = {
-            id: runtimeModel.provider.id,
-            name: runtimeModel.provider.name,
-            apiFormat: runtimeModel.runtimeInput.apiFormat,
-            apiEndpoint: runtimeModel.runtimeInput.apiEndpoint,
-            isDefault: providersById.size === 0,
-            models: [],
-          };
-          providersById.set(runtimeModel.provider.id, provider);
-        }
-
-        provider.models.push({
-          id: runtimeModel.modelId,
-          modelId: runtimeModel.runtimeInput.catalogModelId,
-          modelName: runtimeModel.modelName,
-          isEnabled: true,
-        });
-      }
-
-      return [...providersById.values()];
-    },
-    [runtimeModels],
-  );
-  const selectedEmbeddingProvider = useMemo(
-    () => supportedEmbeddingProviders.find((provider) => provider.id === embeddingDraft.providerId)
-      ?? null,
-    [embeddingDraft.providerId, supportedEmbeddingProviders],
-  );
-  const defaultEmbeddingProvider = useMemo(
-    () => defaultEmbeddingProfile?.providerId
-      ? supportedEmbeddingProviders.find((provider) => provider.id === defaultEmbeddingProfile.providerId)
-        ?? null
-      : null,
-    [defaultEmbeddingProfile, supportedEmbeddingProviders],
-  );
   const isLocalOllamaEmbedding = embeddingDraft.providerKind === "ollama";
   const embeddingModelOptions = useMemo(
     () => isLocalOllamaEmbedding
       ? localOllamaModelOptions
-      : selectedEmbeddingProvider?.models.filter((model) => model.isEnabled)
-        ?? selectedEmbeddingProvider?.models
-        ?? [],
-    [isLocalOllamaEmbedding, selectedEmbeddingProvider],
+      : openAiCompatibleEmbeddingModelOptions,
+    [isLocalOllamaEmbedding],
   );
   const defaultEmbeddingProviderLabel = defaultEmbeddingProfile?.providerKind === "ollama"
     ? "本地 Ollama"
-    : defaultEmbeddingProvider?.name ?? "OpenAI-compatible";
+    : "OpenAI-compatible";
   const defaultEmbeddingBaseUrl = defaultEmbeddingProfile?.providerKind === "ollama"
     ? defaultEmbeddingProfile.baseUrl || localOllamaBaseUrl
-    : defaultEmbeddingProfile?.baseUrl || defaultEmbeddingProvider?.apiEndpoint || "";
+    : defaultEmbeddingProfile?.baseUrl || "";
   const embeddingSummary = defaultEmbeddingProfile
     ? `${defaultEmbeddingProviderLabel} · ${defaultEmbeddingProfile.modelId} · ${defaultEmbeddingProfile.dimensions} 维`
     : "未配置 Embedding";
   const isEmbeddingConfigChanged = Boolean(
     defaultEmbeddingProfile && (
       defaultEmbeddingProfile.providerKind !== embeddingDraft.providerKind
-      || (defaultEmbeddingProfile.providerId ?? "") !== (
-        isLocalOllamaEmbedding ? "" : selectedEmbeddingProvider?.id ?? ""
-      )
       || (defaultEmbeddingProfile.baseUrl ?? "") !== (embeddingDraft.baseUrl.trim() || "")
+      || (defaultEmbeddingProfile.apiKey ?? "") !== (embeddingDraft.apiKey.trim() || "")
       || defaultEmbeddingProfile.modelId !== embeddingDraft.modelId.trim()
       || defaultEmbeddingProfile.dimensions !== Math.floor(embeddingDraft.dimensions)
     ),
@@ -271,36 +213,6 @@ export const KnowledgeBasePage = ({
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    if (embeddingDraft.providerId) {
-      return;
-    }
-
-    if (supportedEmbeddingProviders.length === 0) {
-      setEmbeddingDraft((current) => ({
-        ...current,
-        providerId: localOllamaProviderId,
-        providerKind: "ollama",
-        baseUrl: localOllamaBaseUrl,
-        modelId: localOllamaModelId,
-        dimensions: current.dimensions === 1536 ? localOllamaDimensions : current.dimensions,
-        batchSize: localOllamaBatchSize,
-      }));
-      return;
-    }
-
-    const provider = supportedEmbeddingProviders.find((item) => item.isDefault)
-      ?? supportedEmbeddingProviders[0];
-    const model = provider.models.find((item) => item.isEnabled) ?? provider.models[0];
-
-    setEmbeddingDraft((current) => ({
-      ...current,
-      providerId: provider.id,
-      providerKind: provider.apiFormat,
-      modelId: model?.modelId ?? "",
-    }));
-  }, [embeddingDraft.providerId, supportedEmbeddingProviders]);
 
   const applySavedLibrary = (nextLibrary: KnowledgeLibrary) => {
     setLibrary(nextLibrary);
@@ -426,11 +338,8 @@ export const KnowledgeBasePage = ({
   };
 
   const embeddingDraftValidationError = () => {
-    if (!embeddingDraft.providerId) {
+    if (!embeddingDraft.providerKind) {
       return "请选择 Embedding Provider";
-    }
-    if (!isLocalOllamaEmbedding && !selectedEmbeddingProvider) {
-      return "当前只支持 OpenAI-compatible Provider 或本地 Ollama 作为 Embedding Provider";
     }
     if (!embeddingDraft.modelId.trim()) {
       return "请选择或填写 Embedding 模型";
@@ -469,12 +378,10 @@ export const KnowledgeBasePage = ({
       const nextProfiles = await saveEmbeddingProfile({
         id: embeddingDraft.id,
         name: embeddingDraft.name,
-        providerId: isLocalOllamaEmbedding ? null : selectedEmbeddingProvider?.id,
-        providerKind: isLocalOllamaEmbedding
-          ? "ollama"
-          : selectedEmbeddingProvider?.apiFormat ?? "openai-compatible",
+        providerKind: isLocalOllamaEmbedding ? "ollama" : "openai-compatible",
         baseUrl: embeddingDraft.baseUrl.trim() || null,
-        modelId: embeddingDraft.modelId,
+        apiKey: isLocalOllamaEmbedding ? null : embeddingDraft.apiKey.trim() || null,
+        modelId: embeddingDraft.modelId.trim(),
         dimensions: Math.floor(embeddingDraft.dimensions),
         batchSize: Math.floor(embeddingDraft.batchSize),
         isDefault: true,
@@ -788,8 +695,6 @@ export const KnowledgeBasePage = ({
         open={isEmbeddingDialogOpen}
         embeddingDraft={embeddingDraft}
         defaultEmbeddingProfile={defaultEmbeddingProfile}
-        selectedEmbeddingProvider={selectedEmbeddingProvider}
-        supportedEmbeddingProviders={supportedEmbeddingProviders}
         embeddingModelOptions={embeddingModelOptions}
         isLocalOllamaEmbedding={isLocalOllamaEmbedding}
         isEmbeddingConfigChanged={isEmbeddingConfigChanged}

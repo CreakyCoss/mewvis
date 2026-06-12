@@ -1,14 +1,7 @@
-import type { ApiFormat, ProviderRuntimeConfig } from "./types";
+import type { CatalogProviderConfig } from "./types";
 
-export const API_FORMAT_ENDPOINT_SUFFIX: Partial<Record<ApiFormat, string>> = {
-  "anthropic-messages": "/anthropic",
-  "openai-codex-responses": "/v1",
-  "openai-completions": "/v1",
-  "openai-responses": "/v1",
-};
-
-// The raw provider api from models.dev is reference metadata only; runtime exports use this config.
-export const PROVIDER_RUNTIME_CONFIG: Record<string, ProviderRuntimeConfig> = {
+// The raw provider api from models.dev is reference metadata only; MODEL_CATALOG uses this config.
+export const PROVIDER_CATALOG_CONFIG: Record<string, CatalogProviderConfig> = {
   deepseek: {
     websiteUrl: "https://www.deepseek.com",
     models: [

@@ -17,5 +17,4 @@ export type AgentRuntimeModelInput = {
   contextWindow?: number;
   maxTokens?: number;
   headers?: Record<string, string>;
-  compat?: unknown;
 };

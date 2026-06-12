@@ -38,9 +38,9 @@ export type KnowledgeSettings = {
 export type EmbeddingProfile = {
   id: string;
   name: string;
-  providerId: string | null;
   providerKind: string;
   baseUrl: string | null;
+  apiKey: string | null;
   modelId: string;
   dimensions: number;
   batchSize: number;
@@ -77,9 +77,9 @@ export type SaveKnowledgeSettingsInput = {
 export type SaveEmbeddingProfileInput = {
   id?: string | null;
   name: string;
-  providerId?: string | null;
   providerKind: string;
   baseUrl?: string | null;
+  apiKey?: string | null;
   modelId: string;
   dimensions: number;
   batchSize?: number | null;

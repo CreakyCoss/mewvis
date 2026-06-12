@@ -14,9 +14,9 @@ import {
 } from "@/features/agent-settings/utils";
 import {
   findDefaultRuntimeModel,
-  findRuntimeModelByKey,
-} from "@/features/llm-settings/runtime-models";
-import { useLlmRuntimeModelStore } from "@/features/llm-settings/store";
+  findRuntimeModelById,
+  useLlmRuntimeModelStore,
+} from "@/features/llm-settings";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 
@@ -39,8 +39,8 @@ export const useModelSettings = ({
   chatExecutionMode,
 }: UseModelSettingsInput) => {
   const runtimeModels = useLlmRuntimeModelStore((store) => store.runtimeModels);
-  const selectedRuntimeModelKey = useLlmRuntimeModelStore((store) => store.selectedRuntimeModelKey);
-  const setSelectedRuntimeModelKey = useLlmRuntimeModelStore((store) => store.setSelectedRuntimeModelKey);
+  const selectedRuntimeModelId = useLlmRuntimeModelStore((store) => store.selectedRuntimeModelId);
+  const setSelectedRuntimeModelId = useLlmRuntimeModelStore((store) => store.setSelectedRuntimeModelId);
   const loadRuntimeModels = useLlmRuntimeModelStore((store) => store.loadRuntimeModels);
   const runtimeModelError = useLlmRuntimeModelStore((store) => store.error);
 
@@ -123,9 +123,9 @@ export const useModelSettings = ({
   }, [loadRuntimeAgents]);
 
   const selectedRuntimeModel = useMemo(
-    () => findRuntimeModelByKey(runtimeModels, selectedRuntimeModelKey)
+    () => findRuntimeModelById(runtimeModels, selectedRuntimeModelId)
       ?? findDefaultRuntimeModel(runtimeModels),
-    [runtimeModels, selectedRuntimeModelKey],
+    [runtimeModels, selectedRuntimeModelId],
   );
   const runtimeAgentCapability: AgentRuntimeAgentCapability =
     isAgentTaskMode(chatMode, chatExecutionMode) ? "agent" : "chat";
@@ -199,8 +199,8 @@ export const useModelSettings = ({
 
   return {
     runtimeModels,
-    selectedRuntimeModelKey,
-    setSelectedRuntimeModelKey,
+    selectedRuntimeModelId,
+    setSelectedRuntimeModelId,
     modelSource,
     setModelSource,
     selectedAgentId,

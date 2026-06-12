@@ -26,25 +26,20 @@ export type LlmSettings = {
   providers: LlmProvider[];
 };
 
-export type ProviderModelDraft = {
-  id: string;
-  modelId: string;
-  modelName: string;
-  isEnabled: boolean;
-  isOneMillionContext: boolean;
-};
+export type ProviderModelConfig = Omit<
+  ProviderModel,
+  "createdAt" | "updatedAt" | "providerId"
+>;
 
-export type LlmProviderDraft = {
-  id: string;
-  name: string;
-  provider: string;
-  apiFormat: string;
+export type LlmProviderConfig = Omit<
+  LlmProvider,
+  "apiEndpoint" | "apiKey" | "createdAt" | "updatedAt" | "models"
+> & {
   apiKey: string;
   apiEndpoint: string;
-  isDefault: boolean;
-  models: ProviderModelDraft[];
+  models: ProviderModelConfig[];
 };
 
-export type LlmSettingsDraft = {
-  providers: LlmProviderDraft[];
+export type LlmSettingsConfig = {
+  providers: LlmProviderConfig[];
 };

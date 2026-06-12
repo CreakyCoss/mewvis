@@ -1,23 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getLlmSettings, saveLlmSettings } from "../api";
-import type { LlmSettingsDraft } from "@/features/llm-settings/types";
+import { getLlmSettings, saveLlmSettings } from "./api";
+import type {
+  LlmProviderConfig,
+  LlmSettingsConfig,
+  ProviderModelConfig,
+} from "./types";
 import {
-  createModelDraft,
-  createProviderDraft,
-  normalizeDraft,
-  toDraft,
-  validateDraft,
-} from "../utils";
+  createModelConfig,
+  createProviderConfig,
+  normalizeLlmSettingsConfig,
+  toLlmSettingsConfig,
+  validateLlmSettingsConfig,
+} from "./draft";
 
 export const useSettings = (open: boolean) => {
-  const [draft, setDraft] = useState<LlmSettingsDraft>({ providers: [] });
+  const [draft, setDraft] = useState<LlmSettingsConfig>({ providers: [] });
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
   const selectedProvider = useMemo(() => {
-    return draft.providers.find((provider) => provider.id === selectedProviderId);
+    return draft.providers.find(
+      (provider) => provider.id === selectedProviderId,
+    );
   }, [draft.providers, selectedProviderId]);
 
   const load = useCallback(async () => {
@@ -26,7 +32,7 @@ export const useSettings = (open: boolean) => {
 
     try {
       const settings = await getLlmSettings();
-      const nextDraft = toDraft(settings);
+      const nextDraft = toLlmSettingsConfig(settings);
       setDraft(nextDraft);
       setSelectedProviderId(nextDraft.providers[0]?.id ?? "");
     } catch (caught) {
@@ -45,7 +51,7 @@ export const useSettings = (open: boolean) => {
   const addProvider = useCallback(() => {
     setDraft((current) => {
       const provider = {
-        ...createProviderDraft(),
+        ...createProviderConfig(),
         isDefault: current.providers.length === 0,
       };
       setSelectedProviderId(provider.id);
@@ -55,7 +61,9 @@ export const useSettings = (open: boolean) => {
 
   const removeProvider = useCallback((providerId: string) => {
     setDraft((current) => {
-      const providers = current.providers.filter((provider) => provider.id !== providerId);
+      const providers = current.providers.filter(
+        (provider) => provider.id !== providerId,
+      );
       const hasDefault = providers.some((provider) => provider.isDefault);
       const normalizedProviders =
         hasDefault || !providers[0]
@@ -75,7 +83,10 @@ export const useSettings = (open: boolean) => {
   }, []);
 
   const updateProvider = useCallback(
-    (providerId: string, updater: (provider: LlmSettingsDraft["providers"][number]) => LlmSettingsDraft["providers"][number]) => {
+    (
+      providerId: string,
+      updater: (provider: LlmProviderConfig) => LlmProviderConfig,
+    ) => {
       setDraft((current) => ({
         providers: current.providers.map((provider) =>
           provider.id === providerId ? updater(provider) : provider,
@@ -83,6 +94,22 @@ export const useSettings = (open: boolean) => {
       }));
     },
     [],
+  );
+
+  const updateModel = useCallback(
+    (
+      providerId: string,
+      modelConfigId: string,
+      updater: (model: ProviderModelConfig) => ProviderModelConfig,
+    ) => {
+      updateProvider(providerId, (provider) => ({
+        ...provider,
+        models: provider.models.map((model) =>
+          model.id === modelConfigId ? updater(model) : model,
+        ),
+      }));
+    },
+    [updateProvider],
   );
 
   const setDefaultProvider = useCallback((providerId: string) => {
@@ -97,7 +124,7 @@ export const useSettings = (open: boolean) => {
   const addModel = useCallback((providerId: string) => {
     updateProvider(providerId, (provider) => ({
       ...provider,
-      models: [...provider.models, createModelDraft()],
+      models: [...provider.models, createModelConfig()],
     }));
   }, [updateProvider]);
 
@@ -112,8 +139,8 @@ export const useSettings = (open: boolean) => {
   );
 
   const save = useCallback(async () => {
-    const normalizedDraft = normalizeDraft(draft);
-    const validationError = validateDraft(normalizedDraft);
+    const normalizedDraft = normalizeLlmSettingsConfig(draft);
+    const validationError = validateLlmSettingsConfig(normalizedDraft);
 
     if (validationError) {
       setError(validationError);
@@ -125,7 +152,7 @@ export const useSettings = (open: boolean) => {
 
     try {
       const settings = await saveLlmSettings(normalizedDraft);
-      const nextDraft = toDraft(settings);
+      const nextDraft = toLlmSettingsConfig(settings);
       setDraft(nextDraft);
       setSelectedProviderId(nextDraft.providers[0]?.id ?? "");
       return true;
@@ -144,11 +171,11 @@ export const useSettings = (open: boolean) => {
     isLoading,
     isSaving,
     error,
-    setDraft,
     setSelectedProviderId,
     addProvider,
     removeProvider,
     updateProvider,
+    updateModel,
     setDefaultProvider,
     addModel,
     removeModel,

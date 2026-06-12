@@ -8,23 +8,23 @@ export type ApiFormat =
 
 export type ModelInputModality = "text" | "image";
 
-export type ProviderRuntimeApi = {
+export type CatalogProviderApi = {
   apiFormat: ApiFormat;
   apiEndpoint?: string;
 };
 
-export type ProviderRuntimeConfig = {
+export type CatalogProviderConfig = {
   websiteUrl: string;
   models?: string[];
-  apis: ProviderRuntimeApi[];
+  apis: CatalogProviderApi[];
 };
 
-export type RawModelCatalogEntry = {
+type CatalogModelBase<Input> = {
   id: string;
   name: string;
   reasoning: boolean;
   thinkingLevelMap?: Record<string, string | null>;
-  input: readonly ModelInputModality[];
+  input: Input;
   cost: {
     input: number;
     output: number;
@@ -34,23 +34,26 @@ export type RawModelCatalogEntry = {
   contextWindow: number;
   maxTokens: number;
   headers?: Record<string, string>;
-  compat?: unknown;
 };
 
-export type RuntimeModelCatalogEntry = Omit<RawModelCatalogEntry, "input"> & {
-  input: ModelInputModality[];
-  provider: string;
+export type RawCatalogModel = CatalogModelBase<
+  readonly ModelInputModality[]
+>;
+
+export type CatalogModel = CatalogModelBase<ModelInputModality[]>;
+
+export type CatalogProvider = {
+  models: Record<string, CatalogModel>;
   websiteUrl: string;
-  apiFormat: ApiFormat;
-  apiEndpoint: string;
+  apis: CatalogProviderApi[];
 };
 
-export type RawProviderCatalog = {
+export type RawCatalogProvider = {
   /** Original provider API URL from models.dev, kept as reference metadata. */
   api: string;
-  models: Record<string, RawModelCatalogEntry>;
+  models: Record<string, RawCatalogModel>;
 };
 
-export type RawModelCatalog = Record<string, RawProviderCatalog>;
+export type RawModelCatalog = Record<string, RawCatalogProvider>;
 
-export type ModelCatalog = Record<string, RuntimeModelCatalogEntry[]>;
+export type ModelCatalog = Record<string, CatalogProvider>;

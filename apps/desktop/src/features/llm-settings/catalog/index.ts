@@ -1,10 +1,8 @@
-export {
-  getCatalogProviders,
-  getCatalogModels,
-  getCatalogModel,
-} from "./catalog";
+export { MODEL_CATALOG } from "./models";
 
 export type {
   ApiFormat,
-  RuntimeModelCatalogEntry,
+  CatalogModel,
+  CatalogProvider,
+  CatalogProviderApi,
 } from "./types";

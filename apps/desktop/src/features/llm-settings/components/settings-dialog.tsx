@@ -17,13 +17,13 @@ import {
   getProviderModelOptions,
   getProviderOption,
   getProviderOptions,
-} from "../constants";
-import { useSettings } from "../hooks/use-settings";
+} from "../settings/options";
+import { useSettings } from "../settings/use-settings";
 import {
   applyApiFormatDefaults,
   applyModelDefaults,
   applyProviderDefaults,
-} from "../utils";
+} from "../settings/draft";
 
 type SettingsDialogProps = {
   open: boolean;
@@ -45,6 +45,7 @@ export const SettingsDialog = ({
     addProvider,
     removeProvider,
     updateProvider,
+    updateModel,
     setDefaultProvider,
     addModel,
     removeModel,
@@ -57,7 +58,7 @@ export const SettingsDialog = ({
     ? getProviderApiFormatOptions(selectedProvider.provider)
     : [];
   const selectedModelOptions = selectedProvider
-    ? getProviderModelOptions(selectedProvider.provider, selectedProvider.apiFormat)
+    ? getProviderModelOptions(selectedProvider.provider)
     : [];
 
   const handleSave = async () => {
@@ -246,7 +247,9 @@ export const SettingsDialog = ({
                   <div className="flex items-center gap-2 text-sm">
                     <Switch
                       checked={selectedProvider.isDefault}
-                      onCheckedChange={() => setDefaultProvider(selectedProvider.id)}
+                      onCheckedChange={() =>
+                        setDefaultProvider(selectedProvider.id)
+                      }
                     />
                     <span>默认 Provider</span>
                   </div>
@@ -302,19 +305,16 @@ export const SettingsDialog = ({
                             value={model.modelId}
                             onChange={(event) => {
                               const value = event.currentTarget.value;
-                              updateProvider(selectedProvider.id, (provider) => ({
-                                ...provider,
-                                models: provider.models.map((item) =>
-                                  item.id === model.id
-                                    ? applyModelDefaults(
-                                        item,
-                                        selectedProvider.provider,
-                                        selectedProvider.apiFormat,
-                                        value,
-                                      )
-                                    : item,
-                                ),
-                              }));
+                              updateModel(
+                                selectedProvider.id,
+                                model.id,
+                                (item) =>
+                                  applyModelDefaults(
+                                    item,
+                                    selectedProvider.provider,
+                                    value,
+                                  ),
+                              );
                             }}
                           />
                         </div>
@@ -328,14 +328,14 @@ export const SettingsDialog = ({
                             value={model.modelName}
                             onChange={(event) => {
                               const value = event.currentTarget.value;
-                              updateProvider(selectedProvider.id, (provider) => ({
-                                ...provider,
-                                models: provider.models.map((item) =>
-                                  item.id === model.id
-                                    ? { ...item, modelName: value }
-                                    : item,
-                                ),
-                              }));
+                              updateModel(
+                                selectedProvider.id,
+                                model.id,
+                                (item) => ({
+                                  ...item,
+                                  modelName: value,
+                                }),
+                              );
                             }}
                             placeholder={
                               selectedModelOptions.find(
@@ -349,14 +349,14 @@ export const SettingsDialog = ({
                           <Switch
                             checked={model.isOneMillionContext}
                             onCheckedChange={(checked) => {
-                              updateProvider(selectedProvider.id, (provider) => ({
-                                ...provider,
-                                models: provider.models.map((item) =>
-                                  item.id === model.id
-                                    ? { ...item, isOneMillionContext: checked }
-                                    : item,
-                                ),
-                              }));
+                              updateModel(
+                                selectedProvider.id,
+                                model.id,
+                                (item) => ({
+                                  ...item,
+                                  isOneMillionContext: checked,
+                                }),
+                              );
                             }}
                           />
                           <span className="text-sm text-muted-foreground">1M</span>
@@ -366,14 +366,14 @@ export const SettingsDialog = ({
                           <Switch
                             checked={model.isEnabled}
                             onCheckedChange={(checked) => {
-                              updateProvider(selectedProvider.id, (provider) => ({
-                                ...provider,
-                                models: provider.models.map((item) =>
-                                  item.id === model.id
-                                    ? { ...item, isEnabled: checked }
-                                    : item,
-                                ),
-                              }));
+                              updateModel(
+                                selectedProvider.id,
+                                model.id,
+                                (item) => ({
+                                  ...item,
+                                  isEnabled: checked,
+                                }),
+                              );
                             }}
                           />
                           <span className="text-sm text-muted-foreground">启用</span>
@@ -385,7 +385,9 @@ export const SettingsDialog = ({
                             variant="ghost"
                             size="icon"
                             title="删除模型"
-                            onClick={() => removeModel(selectedProvider.id, model.id)}
+                            onClick={() =>
+                              removeModel(selectedProvider.id, model.id)
+                            }
                             disabled={selectedProvider.models.length <= 1}
                           >
                             <Trash2 className="size-4" />
@@ -410,7 +412,11 @@ export const SettingsDialog = ({
         </div>
 
         <DialogFooter className="px-6 pb-6 pt-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
-          <Button type="button" onClick={handleSave} disabled={isSaving || isLoading}>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || isLoading}
+          >
             <Save className="size-4" />
             <span>{isSaving ? "正在保存" : "保存设置"}</span>
           </Button>

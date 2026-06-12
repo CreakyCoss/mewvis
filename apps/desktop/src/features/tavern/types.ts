@@ -2,15 +2,9 @@ import type { VisualPresetId } from "@/features/visual-presets";
 
 export type TavernReplyMode = "active" | "round" | "director";
 
-export type TavernCharacterModelConfig = {
-  providerId: string;
-  modelId: string;
-};
-
 export type TavernRoomCharacterConfig = {
   characterId: string;
   memory?: string;
-  modelConfig?: TavernCharacterModelConfig;
 };
 
 export type TavernCharacter = {
@@ -24,8 +18,6 @@ export type TavernCharacter = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  /** 该角色在所属酒馆角色库中的模型配置；未设置时跟随酒馆模型。 */
-  modelConfig?: TavernCharacterModelConfig;
   createdAt: number;
   updatedAt: number;
 };
@@ -112,10 +104,6 @@ export type TavernScene = {
   summarizedMessageIds?: string[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
-  /** @deprecated 世界书是酒馆/大故事级共享数据，保留仅用于旧数据迁移。 */
-  lorebookEntries: TavernLorebookEntry[];
-  /** @deprecated 时间线是酒馆/大故事级共享数据，保留仅用于旧数据迁移。 */
-  timelineEvents: TavernTimelineEvent[];
   assetDrafts: TavernAssetDraft[];
   characterIds: string[];
   activeCharacterId: string;
@@ -141,7 +129,6 @@ export type TavernRoom = {
   sceneDirection: string;
   sceneTransition: string;
   memory: string;
-  modelConfig?: TavernCharacterModelConfig;
   autoMemory: string;
   autoMemoryUpdatedAt?: number;
   summarizedMessageIds?: string[];
@@ -176,7 +163,6 @@ export type TavernState = {
   version: 1;
   activeRoomId: string;
   rooms: TavernRoom[];
-  characters: TavernCharacter[];
   messagesByRoom: Record<string, TavernMessage[]>;
   messagesByScene?: Record<string, TavernMessage[]>;
 };

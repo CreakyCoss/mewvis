@@ -17,8 +17,8 @@ import {
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import { SettingsDialog } from "@/features/llm-settings/components/dialog";
-import { findDefaultRuntimeModel } from "@/features/llm-settings/runtime-models";
+import { SettingsDialog } from "@/features/llm-settings/components/settings-dialog";
+import { findDefaultRuntimeModel } from "@/features/llm-settings";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
@@ -255,8 +255,8 @@ export const WorkspaceChatPage = ({
   const [isContextCompressing, setIsContextCompressing] = useState(false);
   const {
     runtimeModels,
-    selectedRuntimeModelKey,
-    setSelectedRuntimeModelKey,
+    selectedRuntimeModelId,
+    setSelectedRuntimeModelId,
     modelSource,
     setModelSource,
     setSelectedAgentId,
@@ -282,6 +282,11 @@ export const WorkspaceChatPage = ({
     chatMode,
     chatExecutionMode,
   });
+  useEffect(() => {
+    if (chatMode === "collab" && collaborationWorkflows.length === 0) {
+      setChatMode("chat");
+    }
+  }, [chatMode, collaborationWorkflows.length, setChatMode]);
   const tavernDefaultRuntimeModel = useMemo(
     () => findDefaultRuntimeModel(runtimeModels),
     [runtimeModels],
@@ -1927,7 +1932,7 @@ export const WorkspaceChatPage = ({
     runtimeAgentId,
     agentProfiles,
     runtimeModels,
-    selectedRuntimeModelKey,
+    selectedRuntimeModelId,
     selectedRuntimeModel,
     collaborationWorkflows,
     selectedCollaborationWorkflow,
@@ -1955,7 +1960,7 @@ export const WorkspaceChatPage = ({
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedCollaborationWorkflowId,
-    setSelectedRuntimeModelKey,
+    setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
     sendMessage,
     onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
@@ -2011,7 +2016,6 @@ export const WorkspaceChatPage = ({
     <KnowledgeBasePage
       contextEngineId={contextEngineId}
       contextEngines={availableContextEngines}
-      runtimeModels={runtimeModels}
       onBack={() => setWorkspaceView("chat")}
       onContextEngineChange={changeContextEngine}
     />
@@ -2021,7 +2025,6 @@ export const WorkspaceChatPage = ({
     <TavernPage
       workspace={workspace}
       files={files}
-      runtimeModels={runtimeModels}
       runtimeModel={tavernDefaultRuntimeModel}
       runtimeAgentId={runtimeAgentId}
       onRoomImmersiveChange={setIsTavernRoomImmersive}

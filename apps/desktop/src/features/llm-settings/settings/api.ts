@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { LlmSettings, LlmSettingsDraft } from "@/features/llm-settings/types";
+import type { LlmSettings, LlmSettingsConfig } from "./types";
 
 export const getLlmSettings = () => {
   if (!isTauri()) {
@@ -9,7 +9,7 @@ export const getLlmSettings = () => {
   return invoke<LlmSettings>("get_llm_settings");
 };
 
-export const saveLlmSettings = (input: LlmSettingsDraft) => {
+export const saveLlmSettings = (input: LlmSettingsConfig) => {
   if (!isTauri()) {
     return Promise.resolve<LlmSettings>({ providers: [] });
   }

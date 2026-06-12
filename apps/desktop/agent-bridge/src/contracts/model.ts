@@ -19,5 +19,4 @@ export type RuntimeModelInput = {
   contextWindow?: number;
   maxTokens?: number;
   headers?: Record<string, string>;
-  compat?: unknown;
 };

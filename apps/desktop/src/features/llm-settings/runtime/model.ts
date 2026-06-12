@@ -1,14 +1,12 @@
 import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
-import { createRuntimeModelInputConfig } from "@/ai/agent-runtime/model-config";
-import { formatProviderModelName } from "./display";
 import type {
   LlmProvider,
   LlmSettings,
   ProviderModel,
-} from "./types";
+} from "../settings/types";
 
 export type RuntimeModelOption = {
-  key: string;
+  id: string;
   provider: {
     id: string;
     name: string;
@@ -18,27 +16,58 @@ export type RuntimeModelOption = {
   runtimeInput: AgentRuntimeModelInput;
 };
 
-export const runtimeModelKey = (
-  providerId: string,
-  modelSettingId: string,
-) => `${providerId}:${modelSettingId}`;
+const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
+
+const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
+  const text = value.trim();
+
+  if (!enabled || text.endsWith(ONE_MILLION_CONTEXT_SUFFIX)) {
+    return text;
+  }
+
+  return `${text}${ONE_MILLION_CONTEXT_SUFFIX}`;
+};
+
+const formatProviderModelId = (
+  model: Pick<ProviderModel, "modelId" | "isOneMillionContext">,
+) => withOneMillionContextSuffix(model.modelId, model.isOneMillionContext);
+
+const formatProviderModelName = (
+  model: Pick<ProviderModel, "modelId" | "modelName" | "isOneMillionContext">,
+) => withOneMillionContextSuffix(
+  model.modelName.trim() || model.modelId,
+  model.isOneMillionContext,
+);
+
+const createRuntimeModelInput = (
+  provider: LlmProvider,
+  model: ProviderModel,
+  modelId: string,
+): AgentRuntimeModelInput => ({
+  provider: provider.provider,
+  apiFormat: provider.apiFormat,
+  apiKey: provider.apiKey,
+  catalogModelId: model.modelId,
+  modelId,
+  apiEndpoint: provider.apiEndpoint ?? undefined,
+});
 
 export const buildRuntimeModelOption = (
   provider: LlmProvider,
   model: ProviderModel,
 ): RuntimeModelOption => {
-  const runtimeInput = createRuntimeModelInputConfig(provider, model);
-  const modelLabel = formatProviderModelName(model);
+  const modelId = formatProviderModelId(model);
+  const modelName = formatProviderModelName(model);
 
   return {
-    key: runtimeModelKey(provider.id, model.id),
+    id: model.id,
     provider: {
       id: provider.id,
       name: provider.name,
     },
-    modelId: model.id,
-    modelName: modelLabel,
-    runtimeInput,
+    modelId,
+    modelName,
+    runtimeInput: createRuntimeModelInput(provider, model, modelId),
   };
 };
 
@@ -57,19 +86,12 @@ export const findDefaultRuntimeModel = (
   runtimeModels: RuntimeModelOption[],
 ) => runtimeModels[0] ?? null;
 
-export const findRuntimeModelByKey = (
+export const findRuntimeModelById = (
   runtimeModels: RuntimeModelOption[],
-  key?: string | null,
-) => key ? runtimeModels.find((model) => model.key === key) ?? null : null;
-
-export const findRuntimeModelByLegacyIds = (
-  runtimeModels: RuntimeModelOption[],
-  providerId?: string | null,
-  modelSettingId?: string | null,
-) => runtimeModels.find((model) =>
-  model.provider.id === providerId &&
-  model.modelId === modelSettingId
-) ?? null;
+  id?: string | null,
+) => {
+  return id ? runtimeModels.find((model) => model.id === id) ?? null : null;
+};
 
 export const groupRuntimeModelsByProvider = (
   runtimeModels: RuntimeModelOption[],

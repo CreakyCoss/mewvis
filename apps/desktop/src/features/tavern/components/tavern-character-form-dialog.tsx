@@ -6,10 +6,6 @@ import {
   tavernAvatarGroups,
   tavernAvatarOptions,
 } from "@/assets/agent-avatars";
-import {
-  groupRuntimeModelsByProvider,
-  type RuntimeModelOption,
-} from "@/features/llm-settings/runtime-models";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,11 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernCharacterModelConfig } from "../types";
+import type { TavernCharacter } from "../types";
 
 export type TavernCharacterFormValue = {
   name: string;
@@ -33,14 +28,11 @@ export type TavernCharacterFormValue = {
   speakingStyle: string;
   goals?: string;
   relationships?: string;
-  modelConfig?: TavernCharacterModelConfig;
 };
 
 type TavernCharacterFormDialogProps = {
   open: boolean;
   character: TavernCharacter | null;
-  modelConfig?: TavernCharacterModelConfig;
-  runtimeModels?: RuntimeModelOption[];
   roomModelLabel?: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (value: TavernCharacterFormValue) => void;
@@ -49,8 +41,6 @@ type TavernCharacterFormDialogProps = {
 export const TavernCharacterFormDialog = ({
   open,
   character,
-  modelConfig,
-  runtimeModels = [],
   roomModelLabel = "未选择",
   onOpenChange,
   onSubmit,
@@ -61,38 +51,13 @@ export const TavernCharacterFormDialog = ({
   const [goals, setGoals] = useState("");
   const [relationships, setRelationships] = useState("");
   const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
-  const [modelMode, setModelMode] = useState<"room" | "custom">("room");
-  const [selectedModelConfig, setSelectedModelConfig] = useState<
-    TavernCharacterModelConfig | undefined
-  >(undefined);
   const [formError, setFormError] = useState("");
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
-  const modelProviders = useMemo(
-    () => groupRuntimeModelsByProvider(runtimeModels),
-    [runtimeModels],
-  );
-  const selectedProvider = selectedModelConfig?.providerId
-    ? modelProviders.find((provider) => provider.providerId === selectedModelConfig.providerId)
-    : null;
-  const selectedModels = selectedProvider?.models ?? [];
   const selectedAvatar = useMemo(
     () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
     [avatar],
   );
-
-  const firstEnabledModelConfigForProvider = (
-    providerId: string,
-  ): TavernCharacterModelConfig | undefined => {
-    const provider = modelProviders.find((item) => item.providerId === providerId);
-    const model = provider?.models[0];
-    return provider && model
-      ? {
-          providerId: provider.providerId,
-          modelId: model.modelId,
-        }
-      : undefined;
-  };
 
   useEffect(() => {
     if (!open) {
@@ -105,16 +70,8 @@ export const TavernCharacterFormDialog = ({
     setGoals(character?.goals ?? "");
     setRelationships(character?.relationships ?? "");
     setAvatar(normalizeTavernAvatarId(character?.avatar ?? tavernAvatarOptions[0]?.id));
-    const validModelConfig = modelConfig && modelProviders.some((provider) =>
-      provider.providerId === modelConfig.providerId &&
-      provider.models.some((model) => model.modelId === modelConfig.modelId)
-    )
-      ? modelConfig
-      : undefined;
-    setModelMode(validModelConfig ? "custom" : "room");
-    setSelectedModelConfig(validModelConfig);
     setFormError("");
-  }, [character, modelConfig, modelProviders, open]);
+  }, [character, open]);
 
   useEffect(() => {
     if (!open) {
@@ -132,11 +89,6 @@ export const TavernCharacterFormDialog = ({
       return;
     }
 
-    if (modelMode === "custom" && !selectedModelConfig) {
-      setFormError("请选择模型，或改为跟随酒馆。");
-      return;
-    }
-
     onSubmit({
       name: nextName,
       avatar,
@@ -144,79 +96,13 @@ export const TavernCharacterFormDialog = ({
       speakingStyle: nextSpeakingStyle,
       goals: goals.trim() || undefined,
       relationships: relationships.trim() || undefined,
-      modelConfig: modelMode === "custom" ? selectedModelConfig : undefined,
     });
     onOpenChange(false);
   };
 
   const renderModelControls = () => (
-    <div className="space-y-3 rounded-md border bg-muted/20 p-3">
-      <label className="block space-y-1.5" htmlFor="tavern-character-model-mode">
-        <span className="text-xs font-medium text-muted-foreground">模型策略</span>
-        <NativeSelect
-          id="tavern-character-model-mode"
-          value={modelMode}
-          onChange={(event) => {
-            const nextMode = event.target.value === "custom" ? "custom" : "room";
-            setModelMode(nextMode);
-            setSelectedModelConfig(
-              nextMode === "custom"
-                ? selectedModelConfig ??
-                  firstEnabledModelConfigForProvider(modelProviders[0]?.providerId ?? "")
-                : undefined,
-            );
-          }}
-        >
-          <NativeSelectOption value="room">跟随酒馆</NativeSelectOption>
-          <NativeSelectOption value="custom" disabled={modelProviders.length === 0}>
-            自定义
-          </NativeSelectOption>
-        </NativeSelect>
-        <span className="block text-xs leading-5 text-muted-foreground">
-          跟随酒馆时使用：{roomModelLabel}
-        </span>
-      </label>
-      {modelMode === "custom" && selectedModelConfig && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5" htmlFor="tavern-character-provider">
-            <span className="text-xs font-medium text-muted-foreground">供应商</span>
-            <NativeSelect
-              id="tavern-character-provider"
-              value={selectedModelConfig.providerId}
-              onChange={(event) => {
-                setSelectedModelConfig(
-                  firstEnabledModelConfigForProvider(event.target.value),
-                );
-              }}
-            >
-              {modelProviders.map((provider) => (
-                <NativeSelectOption key={provider.providerId} value={provider.providerId}>
-                  {provider.providerName}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </label>
-          <label className="block space-y-1.5" htmlFor="tavern-character-model">
-            <span className="text-xs font-medium text-muted-foreground">模型</span>
-            <NativeSelect
-              id="tavern-character-model"
-              value={selectedModelConfig.modelId}
-              onChange={(event) => {
-                setSelectedModelConfig({
-                  ...selectedModelConfig,
-                  modelId: event.target.value,
-                });
-              }}
-            >
-              {selectedModels.map((model) => (
-                <NativeSelectOption key={model.key} value={model.modelId}>
-                  {model.modelName}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </label>
-        </div>
-      )}
+    <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+      当前使用默认模型：{roomModelLabel}
     </div>
   );
 
@@ -226,7 +112,7 @@ export const TavernCharacterFormDialog = ({
         <DialogHeader className="border-b px-5 py-4 pr-12">
           <DialogTitle>{character ? "编辑角色" : "新建角色"}</DialogTitle>
           <DialogDescription>
-            编辑角色基础定义，并配置该角色使用的模型策略。
+            编辑角色基础定义。角色回复统一使用当前默认模型。
           </DialogDescription>
         </DialogHeader>
 

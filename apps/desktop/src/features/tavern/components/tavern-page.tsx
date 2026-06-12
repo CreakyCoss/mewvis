@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
-import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -188,7 +188,6 @@ const normalizeTavernMessagesForDisplay = (
 type TavernPageProps = {
   workspace: Workspace;
   files: WorkspaceFileEntry[];
-  runtimeModels: RuntimeModelOption[];
   runtimeModel: RuntimeModelOption | null;
   runtimeAgentId: string;
   onRoomImmersiveChange?: (isImmersive: boolean) => void;
@@ -492,7 +491,6 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
 export const TavernPage = ({
   workspace,
   files,
-  runtimeModels,
   runtimeModel,
   runtimeAgentId,
   onRoomImmersiveChange,
@@ -1033,9 +1031,8 @@ export const TavernPage = ({
 
         const copiedCharacterId = createLocalId("character");
         characterIdMap.set(character.id, copiedCharacterId);
-        const { modelConfig: _modelConfig, ...characterWithoutModel } = character;
         return [{
-          ...characterWithoutModel,
+          ...character,
           id: copiedCharacterId,
           systemPresetId: undefined,
           systemPresetCharacterId: undefined,
@@ -1046,10 +1043,7 @@ export const TavernPage = ({
       });
 
       const sceneIdMap = new Map<string, string>();
-      const sourceTimelineEvents = [
-        ...sourceRoom.timelineEvents,
-        ...sourceScenes.flatMap((scene) => scene.timelineEvents),
-      ];
+      const sourceTimelineEvents = sourceRoom.timelineEvents;
       const timelineEventIdMap = new Map<string, string>();
       const copiedTimelineEvents = sourceTimelineEvents.map((event) => {
         const copiedEventId = createLocalId("event");
@@ -1148,17 +1142,12 @@ export const TavernPage = ({
             if (!copiedCharacterId) {
               return [];
             }
-
-            const sourceConfig = scene.characterConfigs?.[sourceCharacterId];
             return [[
               copiedCharacterId,
-              {
-                characterId: copiedCharacterId,
-                memory: characterMemories[copiedCharacterId],
-                modelConfig: sourceConfig?.modelConfig
-                  ? { ...sourceConfig.modelConfig }
-                  : undefined,
-              },
+            {
+              characterId: copiedCharacterId,
+              memory: characterMemories[copiedCharacterId],
+            },
             ]];
           }),
         );
@@ -1169,8 +1158,6 @@ export const TavernPage = ({
           characterConfigs,
           characterMemories,
           timelineScope: remapTimelineScope(scene.timelineScope),
-          lorebookEntries: [],
-          timelineEvents: [],
           assetDrafts: scene.assetDrafts.map((draft) => ({
             ...draft,
             id: createLocalId("draft"),
@@ -1206,10 +1193,7 @@ export const TavernPage = ({
           updatedAt: createdAt,
         } satisfies TavernScene;
       });
-      const copiedLorebookEntries = [
-        ...sourceRoom.lorebookEntries,
-        ...sourceScenes.flatMap((scene) => scene.lorebookEntries),
-      ].map((entry) => ({
+      const copiedLorebookEntries = sourceRoom.lorebookEntries.map((entry) => ({
         ...entry,
         id: createLocalId("lore"),
         keywords: [...entry.keywords],
@@ -1227,7 +1211,6 @@ export const TavernPage = ({
         title: `${sourceRoom.title}（副本）`,
         activeSceneId,
         scenes: copiedScenes,
-        modelConfig: sourceRoom.modelConfig ? { ...sourceRoom.modelConfig } : undefined,
         localCharacters: copiedCharacters,
         lorebookEntries: copiedLorebookEntries,
         timelineEvents: copiedTimelineEvents,
@@ -1272,10 +1255,10 @@ export const TavernPage = ({
         return current;
       }
 
-      const restored = createTavernRoomFromSystemPreset(workspace.id, sourcePreset.id, {
-        roomId: sourceRoom.id,
-        roomCreatedAt: sourceRoom.createdAt,
-      });
+        const restored = createTavernRoomFromSystemPreset(workspace.id, sourcePreset.id, {
+          roomId: sourceRoom.id,
+          roomCreatedAt: sourceRoom.createdAt,
+        });
 
       return {
         ...current,
@@ -1283,7 +1266,6 @@ export const TavernPage = ({
         rooms: current.rooms.map((item) =>
           item.id === sourceRoom.id ? restored.room : item
         ),
-        characters: [],
         messagesByRoom: {
           ...current.messagesByRoom,
           [sourceRoom.id]: restored.messages,
@@ -1530,16 +1512,11 @@ export const TavernPage = ({
         if (!mappedId) {
           return [];
         }
-
-        const sourceConfig = parsed.room.characterConfigs?.[sourceCharacterId];
         return [[
           mappedId,
           {
             characterId: mappedId,
             memory: characterMemories[mappedId],
-            modelConfig: sourceConfig?.modelConfig ?? parsed.characters.find((character) =>
-              character.id === sourceCharacterId
-            )?.modelConfig,
           },
         ]];
       }),
@@ -1600,8 +1577,6 @@ export const TavernPage = ({
       summarizedMessageIds: [],
       characterConfigs,
       characterMemories,
-      lorebookEntries: [],
-      timelineEvents: [],
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
       characterIds,
       activeCharacterId,
@@ -1624,7 +1599,6 @@ export const TavernPage = ({
       sceneTransition: importedScene.transition,
       locked: false,
       memory: importedScene.memory,
-      modelConfig: parsed.room.modelConfig,
       autoMemory: importedScene.autoMemory,
       autoMemoryUpdatedAt: importedScene.autoMemoryUpdatedAt,
       summarizedMessageIds: [],
@@ -2237,9 +2211,6 @@ export const TavernPage = ({
     const candidateSpeakerModels = candidateSpeakers.map((speaker) => ({
       speaker,
       resolvedModel: resolveTavernCharacterModel({
-        character: speaker,
-        room: activeRoom,
-        runtimeModels,
         fallbackRuntimeModel: runtimeModel,
       }),
     }));
@@ -2429,9 +2400,6 @@ export const TavernPage = ({
         const directedSpeakerModels = speakers.map((speaker) => ({
           speaker,
           resolvedModel: resolveTavernCharacterModel({
-            character: speaker,
-            room: activeRoom,
-            runtimeModels,
             fallbackRuntimeModel: runtimeModel,
           }),
         }));
@@ -2691,7 +2659,6 @@ export const TavernPage = ({
     patchMessage,
     removeMessage,
     runtimeModel,
-    runtimeModels,
     resetExecutionTrace,
     patchExecutionStep,
     appendExecutionStep,
@@ -2794,7 +2761,6 @@ export const TavernPage = ({
         activeRoom={activeRoom}
         characterById={characterById}
         messagesByRoom={state.messagesByRoom}
-        runtimeModels={runtimeModels}
         globalRuntimeModel={runtimeModel}
         canDeleteRoom={state.rooms.length > 1}
         onCreateRoom={handleCreateRoom}

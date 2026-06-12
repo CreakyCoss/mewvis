@@ -44,6 +44,16 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_provider_model_one_million_context",
         run: add_provider_model_one_million_context,
     },
+    ConfigMigrationStep {
+        target_version: 10,
+        name: "add_embedding_profile_api_key",
+        run: add_embedding_profile_api_key,
+    },
+    ConfigMigrationStep {
+        target_version: 11,
+        name: "drop_embedding_profile_provider_id",
+        run: drop_embedding_profile_provider_id,
+    },
 ];
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -94,16 +104,15 @@ fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
         CREATE TABLE IF NOT EXISTS embedding_profiles (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            provider_id TEXT,
             provider_kind TEXT NOT NULL,
             base_url TEXT,
+            api_key TEXT,
             model_id TEXT NOT NULL,
             dimensions INTEGER NOT NULL,
             batch_size INTEGER NOT NULL DEFAULT 64,
             is_default INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            FOREIGN KEY(provider_id) REFERENCES llm_providers(id) ON DELETE SET NULL
+            updated_at INTEGER NOT NULL
         );
         "#,
     )
@@ -126,6 +135,56 @@ fn add_embedding_profile_base_url(conn: &Connection) -> Result<(), String> {
 
     conn.execute_batch("ALTER TABLE embedding_profiles ADD COLUMN base_url TEXT;")
         .map_err(|error| format!("无法添加 Embedding 地址配置：{error}"))
+}
+
+fn add_embedding_profile_api_key(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "embedding_profiles")?;
+
+    if columns.iter().any(|column| column == "api_key") {
+        return Ok(());
+    }
+
+    conn.execute_batch("ALTER TABLE embedding_profiles ADD COLUMN api_key TEXT;")
+        .map_err(|error| format!("无法添加 Embedding API Key 配置：{error}"))
+}
+
+fn drop_embedding_profile_provider_id(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "embedding_profiles")?;
+
+    if !columns.iter().any(|column| column == "provider_id") {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE embedding_profiles_next (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            provider_kind TEXT NOT NULL,
+            base_url TEXT,
+            api_key TEXT,
+            model_id TEXT NOT NULL,
+            dimensions INTEGER NOT NULL,
+            batch_size INTEGER NOT NULL DEFAULT 64,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        INSERT INTO embedding_profiles_next (
+            id, name, provider_kind, base_url, api_key, model_id,
+            dimensions, batch_size, is_default, created_at, updated_at
+        )
+        SELECT
+            id, name, provider_kind, base_url, api_key, model_id,
+            dimensions, batch_size, is_default, created_at, updated_at
+        FROM embedding_profiles;
+
+        DROP TABLE embedding_profiles;
+        ALTER TABLE embedding_profiles_next RENAME TO embedding_profiles;
+        "#,
+    )
+    .map_err(|error| format!("无法移除 Embedding Provider 关联字段：{error}"))
 }
 
 fn add_collaboration_workflows(conn: &Connection) -> Result<(), String> {
@@ -418,5 +477,56 @@ mod tests {
             .expect("read 1m flag");
 
         assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn drop_embedding_profile_provider_id_preserves_profile_data() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE embedding_profiles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider_id TEXT,
+                provider_kind TEXT NOT NULL,
+                base_url TEXT,
+                api_key TEXT,
+                model_id TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                batch_size INTEGER NOT NULL DEFAULT 64,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            INSERT INTO embedding_profiles (
+                id, name, provider_id, provider_kind, base_url, api_key,
+                model_id, dimensions, batch_size, is_default, created_at, updated_at
+            ) VALUES (
+                'embedding-1', 'Default Embedding', 'provider-1', 'openai-compatible',
+                'https://api.example.com/v1', 'key', 'text-embedding-3-small',
+                1536, 32, 1, 1, 2
+            );
+            "#,
+        )
+        .expect("create old embedding table");
+
+        drop_embedding_profile_provider_id(&conn).expect("drop provider id column");
+
+        let columns = table_columns(&conn, "embedding_profiles").expect("read columns");
+        assert!(!columns.iter().any(|column| column == "provider_id"));
+        assert!(columns.iter().any(|column| column == "api_key"));
+
+        let (name, api_key, model_id): (String, Option<String>, String) = conn
+            .query_row(
+                "SELECT name, api_key, model_id FROM embedding_profiles WHERE id = ?1",
+                params!["embedding-1"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read migrated embedding profile");
+
+        assert_eq!(name, "Default Embedding");
+        assert_eq!(api_key.as_deref(), Some("key"));
+        assert_eq!(model_id, "text-embedding-3-small");
     }
 }

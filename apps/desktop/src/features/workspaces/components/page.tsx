@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import { SettingsDialog } from "@/features/llm-settings/components/dialog";
+import { SettingsDialog } from "@/features/llm-settings/components/settings-dialog";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";

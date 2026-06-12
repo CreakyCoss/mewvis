@@ -43,7 +43,7 @@ import type {
 import {
   groupRuntimeModelsByProvider,
   type RuntimeModelOption,
-} from "@/features/llm-settings/runtime-models";
+} from "@/features/llm-settings";
 import type {
   ChatExecutionMode,
   ChatMode,
@@ -80,7 +80,7 @@ type ComposerProps = {
   selectedRuntimeAgentId: string;
   agentProfiles: AgentProfile[];
   runtimeModels: RuntimeModelOption[];
-  selectedRuntimeModelKey: string;
+  selectedRuntimeModelId: string;
   selectedRuntimeModel: RuntimeModelOption | null;
   selectedAgent: AgentProfile | null;
   collaborationWorkflows: CollaborationWorkflowProfile[];
@@ -95,7 +95,7 @@ type ComposerProps = {
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onCollaborationWorkflowChange: (workflowId: string) => void;
-  onRuntimeModelChange: (key: string) => void;
+  onRuntimeModelChange: (id: string) => void;
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
@@ -127,7 +127,7 @@ export const Composer = memo(({
   selectedRuntimeAgentId,
   agentProfiles,
   runtimeModels,
-  selectedRuntimeModelKey,
+  selectedRuntimeModelId,
   selectedRuntimeModel,
   selectedAgent,
   collaborationWorkflows,
@@ -492,14 +492,14 @@ export const Composer = memo(({
                                       <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
                                     ) : (
                                       <DropdownMenuRadioGroup
-                                        value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelKey : ""}
+                                        value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelId : ""}
                                         onValueChange={(value) => {
                                           onModelSourceChange("direct");
                                           onRuntimeModelChange(value);
                                         }}
                                       >
                                         {provider.models.map((model) => (
-                                          <DropdownMenuRadioItem key={model.key} value={model.key}>
+                                          <DropdownMenuRadioItem key={model.id} value={model.id}>
                                             <span className="truncate">{model.modelName}</span>
                                           </DropdownMenuRadioItem>
                                         ))}

@@ -224,12 +224,12 @@ export const AgentSettingsDialog = ({
                       disabled={runtimeModelGroups.length === 0}
                       onChange={(event) => {
                         const providerId = event.currentTarget.value;
-                        const provider = runtimeModelGroups.find((item) => item.providerId === providerId);
-                        const model = provider?.models[0];
+                        const group = runtimeModelGroups.find((item) => item.providerId === providerId);
+                        const model = group?.models[0];
                         updateDraft((current) => ({
                           ...current,
                           providerId,
-                          modelId: model?.modelId ?? "",
+                          modelId: model?.id ?? "",
                         }));
                       }}
                     >
@@ -261,7 +261,7 @@ export const AgentSettingsDialog = ({
                         <option value="">未启用模型</option>
                       ) : (
                         selectedRuntimeModels.map((model) => (
-                          <option key={model.key} value={model.modelId}>
+                          <option key={model.id} value={model.id}>
                             {model.modelName}
                           </option>
                         ))

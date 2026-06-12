@@ -1,9 +1,9 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
 import {
   findDefaultRuntimeModel,
-  findRuntimeModelByLegacyIds,
+  findRuntimeModelById,
   type RuntimeModelOption,
-} from "@/features/llm-settings/runtime-models";
+} from "@/features/llm-settings";
 import type {
   AgentProfile,
   AiAgent,
@@ -15,11 +15,6 @@ import type {
   SaveCollaborationWorkflowInput,
 } from "./types";
 
-export const DEFAULT_COLLABORATION_WORKFLOW_ID = "default-collaboration-workflow";
-
-export const defaultCollaborationWorkflowDescription =
-  "写作角色起草，审查角色提意见，再由写作角色修订定稿。";
-
 const createWorkflowStepId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -28,16 +23,21 @@ const createWorkflowStepId = () => {
   return `workflow-step-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
+const findAgentRuntimeModel = (
+  runtimeModels: RuntimeModelOption[],
+  agent: Pick<AiAgent, "providerId" | "modelId">,
+) => {
+  const runtimeModel = findRuntimeModelById(runtimeModels, agent.modelId);
+
+  return runtimeModel?.provider.id === agent.providerId ? runtimeModel : null;
+};
+
 export const resolveAgentProfiles = (
   agents: AiAgent[],
   runtimeModels: RuntimeModelOption[],
 ): AgentProfile[] => {
   return agents.flatMap((agent) => {
-    const runtimeModel = findRuntimeModelByLegacyIds(
-      runtimeModels,
-      agent.providerId,
-      agent.modelId,
-    );
+    const runtimeModel = findAgentRuntimeModel(runtimeModels, agent);
     if (!runtimeModel) {
       return [];
     }
@@ -56,8 +56,8 @@ export const resolveAgentProfiles = (
 export const resolveCollaborationWorkflowProfiles = (
   workflows: CollaborationWorkflow[],
   agentProfiles: AgentProfile[],
-): CollaborationWorkflowProfile[] => {
-  const customWorkflows = workflows.flatMap((workflow) => {
+): CollaborationWorkflowProfile[] =>
+  workflows.flatMap((workflow) => {
     const steps = resolveCollaborationWorkflowStepProfiles(workflow.steps, agentProfiles);
     if (steps.length === 0) {
       return [];
@@ -81,33 +81,7 @@ export const resolveCollaborationWorkflowProfiles = (
     }];
   });
 
-  if (customWorkflows.length > 0 || agentProfiles.length === 0) {
-    return customWorkflows;
-  }
-
-  const writerAgent = agentProfiles[0];
-  const reviewerAgent = agentProfiles.find((agent) => agent.id !== writerAgent.id) ?? writerAgent;
-  const steps = createDefaultCollaborationWorkflowSteps(writerAgent.id, reviewerAgent.id)
-    .map((step) => ({
-      ...step,
-      agent: step.agentId === reviewerAgent.id ? reviewerAgent : writerAgent,
-    }));
-
-  return [{
-    id: DEFAULT_COLLABORATION_WORKFLOW_ID,
-    name: "默认协作流程",
-    description: defaultCollaborationWorkflowDescription,
-    writerAgent,
-    reviewerAgent,
-    draftInstruction: null,
-    reviewInstruction: null,
-    reviseInstruction: null,
-    steps,
-    isDefault: true,
-  }];
-};
-
-export const createDefaultCollaborationWorkflowSteps = (
+export const createInitialCollaborationWorkflowSteps = (
   writerAgentId: string,
   reviewerAgentId: string,
 ): CollaborationWorkflowStep[] => [
@@ -164,7 +138,23 @@ export const createAgentDraft = (
     avatar: defaultAgentAvatar.id,
     description: "",
     providerId: runtimeModel?.provider.id ?? "",
-    modelId: runtimeModel?.modelId ?? "",
+    modelId: runtimeModel?.id ?? "",
+  };
+};
+
+export const agentToDraft = (
+  agent: AiAgent,
+  runtimeModels: RuntimeModelOption[],
+): SaveAiAgentInput => {
+  const runtimeModel = findAgentRuntimeModel(runtimeModels, agent);
+
+  return {
+    id: agent.id,
+    name: agent.name,
+    avatar: agent.avatar,
+    description: agent.description ?? "",
+    providerId: runtimeModel?.provider.id ?? agent.providerId,
+    modelId: runtimeModel?.id ?? agent.modelId,
   };
 };
 
@@ -185,7 +175,7 @@ export const createCollaborationWorkflowDraft = (
     reviewInstruction: "",
     reviseInstruction: "",
     steps: writerAgent
-      ? createDefaultCollaborationWorkflowSteps(writerAgent.id, reviewerAgent?.id ?? writerAgent.id)
+      ? createInitialCollaborationWorkflowSteps(writerAgent.id, reviewerAgent?.id ?? writerAgent.id)
       : [],
   };
 };

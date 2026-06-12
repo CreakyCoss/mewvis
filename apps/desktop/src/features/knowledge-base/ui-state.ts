@@ -18,27 +18,15 @@ export type CollectionDraft = {
 export type EmbeddingDraft = {
   id: string | null;
   name: string;
-  providerId: string;
-  providerKind: string;
+  providerKind: EmbeddingProviderKind;
   baseUrl: string;
+  apiKey: string;
   modelId: string;
   dimensions: number;
   batchSize: number;
 };
 
-export type EmbeddingProviderOption = {
-  id: string;
-  name: string;
-  apiFormat: string;
-  apiEndpoint?: string | null;
-  isDefault: boolean;
-  models: Array<{
-    id: string;
-    modelId: string;
-    modelName?: string | null;
-    isEnabled?: boolean;
-  }>;
-};
+export type EmbeddingProviderKind = "openai-compatible" | "ollama";
 
 export type PendingDeleteTarget =
   | { kind: "source"; source: KnowledgeSource }
@@ -82,7 +70,6 @@ export const emptySettings: KnowledgeSettings = {
   storageDirectory: null,
 };
 
-export const localOllamaProviderId = "__local_ollama__";
 export const localOllamaBaseUrl = "http://127.0.0.1:11434";
 export const localOllamaModelId = "nomic-embed-text";
 export const localOllamaDimensions = 768;
@@ -91,6 +78,14 @@ export const localOllamaModelOptions = [
   { id: "embeddinggemma", modelId: "embeddinggemma", modelName: "embeddinggemma" },
   { id: "nomic-embed-text", modelId: "nomic-embed-text", modelName: "nomic-embed-text" },
 ];
+export const openAiCompatibleEmbeddingModelOptions = [
+  { id: "text-embedding-3-small", modelId: "text-embedding-3-small", modelName: "text-embedding-3-small" },
+  { id: "text-embedding-3-large", modelId: "text-embedding-3-large", modelName: "text-embedding-3-large" },
+];
+
+const normalizeEmbeddingProviderKind = (
+  providerKind?: string | null,
+): EmbeddingProviderKind => providerKind === "ollama" ? "ollama" : "openai-compatible";
 
 export const emptyCollectionDraft = (): CollectionDraft => ({
   id: null,
@@ -101,9 +96,9 @@ export const emptyCollectionDraft = (): CollectionDraft => ({
 export const emptyEmbeddingDraft = (): EmbeddingDraft => ({
   id: null,
   name: "默认语义检索",
-  providerId: "",
   providerKind: "openai-compatible",
   baseUrl: "",
+  apiKey: "",
   modelId: "",
   dimensions: 1536,
   batchSize: 32,
@@ -111,32 +106,26 @@ export const emptyEmbeddingDraft = (): EmbeddingDraft => ({
 
 export const embeddingDraftFromProfile = (
   profile: EmbeddingProfile | null,
-): EmbeddingDraft => ({
-  id: profile?.id ?? null,
-  name: profile?.name ?? "默认语义检索",
-  providerId: profile?.providerKind === "ollama"
-    ? localOllamaProviderId
-    : profile?.providerId ?? "",
-  providerKind: profile?.providerKind ?? "openai-compatible",
-  baseUrl: profile?.providerKind === "ollama"
-    ? profile?.baseUrl ?? localOllamaBaseUrl
-    : profile?.baseUrl ?? "",
-  modelId: profile?.modelId ?? "",
-  dimensions: profile?.providerKind === "ollama"
-    ? profile.dimensions
-    : profile?.dimensions ?? 1536,
-  batchSize: profile?.providerKind === "ollama"
-    ? localOllamaBatchSize
-    : profile?.batchSize ?? 32,
-});
+): EmbeddingDraft => {
+  const providerKind = normalizeEmbeddingProviderKind(profile?.providerKind);
 
-export const isEmbeddingProviderSupported = (provider: Pick<EmbeddingProviderOption, "apiFormat">) =>
-  [
-    "openai",
-    "openai-compatible",
-    "openai-responses",
-    "openai-completions",
-  ].includes(provider.apiFormat);
+  return {
+    id: profile?.id ?? null,
+    name: profile?.name ?? "默认语义检索",
+    providerKind,
+    baseUrl: providerKind === "ollama"
+      ? profile?.baseUrl ?? localOllamaBaseUrl
+      : profile?.baseUrl ?? "",
+    apiKey: profile?.apiKey ?? "",
+    modelId: profile?.modelId ?? "",
+    dimensions: providerKind === "ollama"
+      ? profile?.dimensions ?? localOllamaDimensions
+      : profile?.dimensions ?? 1536,
+    batchSize: providerKind === "ollama"
+      ? localOllamaBatchSize
+      : profile?.batchSize ?? 32,
+  };
+};
 
 export const formatTime = (timestamp: number | null) =>
   timestamp

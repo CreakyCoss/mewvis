@@ -92,9 +92,12 @@ pub fn get_agent_session_status(
         })
         .unwrap_or_else(|| agent_root.clone());
     ensure_under_root(&agent_root, &session_dir)?;
+    let is_chat_session_lookup = session_path
+        .as_ref()
+        .is_some_and(|segments| segments.len() == 1);
 
     let mut status = AgentSessionStatus {
-        exists: session_dir.exists(),
+        exists: !is_chat_session_lookup && session_dir.exists(),
         session_dir: if let Some(segments) =
             session_path.as_ref().filter(|segments| segments.len() == 1)
         {
@@ -168,20 +171,6 @@ pub fn cleanup_orphan_agent_sessions(
         if !path.is_dir() {
             continue;
         }
-        let Some(id) = path.file_name().and_then(|value| value.to_str()) else {
-            continue;
-        };
-        let is_known_legacy_chat =
-            valid_chat_ids.contains(id) || protected_chat_id.as_deref() == Some(id);
-        if !is_known_legacy_chat && has_direct_session_files(&path)? {
-            let size = directory_size(&path)?;
-            fs::remove_dir_all(&path)
-                .map_err(|error| format!("无法删除孤儿 Agent 上下文：{error}"))?;
-            removed_count += 1;
-            removed_bytes += size;
-            continue;
-        }
-
         let mut child_dir_count = 0;
         for child in
             fs::read_dir(&path).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
@@ -206,7 +195,7 @@ pub fn cleanup_orphan_agent_sessions(
             removed_bytes += size;
         }
 
-        if !is_known_legacy_chat && (child_dir_count == 0 || is_empty_dir(&path)?) {
+        if child_dir_count == 0 || is_empty_dir(&path)? {
             let size = directory_size(&path)?;
             fs::remove_dir_all(&path)
                 .map_err(|error| format!("无法删除空 Agent 上下文目录：{error}"))?;
@@ -229,14 +218,6 @@ pub fn delete_agent_sessions_for_chat(
     let agent_root = agent_session_root(&root);
     if !agent_root.exists() {
         return Ok(());
-    }
-
-    let legacy_dir = agent_root.join(&chat_id);
-    ensure_under_root(&agent_root, &legacy_dir)?;
-    if legacy_dir.is_dir() && (has_direct_session_files(&legacy_dir)? || is_empty_dir(&legacy_dir)?)
-    {
-        fs::remove_dir_all(&legacy_dir)
-            .map_err(|error| format!("无法删除 Agent 长期上下文：{error}"))?;
     }
 
     for entry in
@@ -353,13 +334,6 @@ fn collect_chat_agent_session_stats(
 ) -> Result<(), String> {
     if !agent_root.exists() {
         return Ok(());
-    }
-
-    let legacy_dir = agent_root.join(chat_id);
-    ensure_under_root(agent_root, &legacy_dir)?;
-    if legacy_dir.is_dir() {
-        status.exists = true;
-        collect_agent_session_stats(&legacy_dir, status, latest_file)?;
     }
 
     for entry in
@@ -502,24 +476,6 @@ fn directory_size(path: &Path) -> Result<u64, String> {
         }
     }
     Ok(size)
-}
-
-fn has_direct_session_files(path: &Path) -> Result<bool, String> {
-    for entry in
-        fs::read_dir(path).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-    {
-        let entry = entry.map_err(|error| format!("无法读取 Agent 上下文项：{error}"))?;
-        let metadata = entry
-            .metadata()
-            .map_err(|error| format!("无法读取 Agent 上下文元数据：{error}"))?;
-        if metadata.is_file()
-            && entry.path().extension().and_then(|value| value.to_str()) == Some("jsonl")
-        {
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
 }
 
 fn is_empty_dir(path: &Path) -> Result<bool, String> {
@@ -720,6 +676,28 @@ mod tests {
                 .and_then(|item| item.tokens_before),
             Some(1234)
         );
+    }
+
+    #[test]
+    fn get_agent_session_status_ignores_direct_chat_session_dir() {
+        let workspace = TestWorkspace::new("agent-status-direct-chat");
+        let direct_chat_dir = workspace.agent_session_dir("chat-direct");
+        fs::create_dir_all(&direct_chat_dir).expect("create direct chat session dir");
+        fs::write(
+            direct_chat_dir.join("session.jsonl"),
+            "{\"type\":\"message\"}\n",
+        )
+        .expect("write direct chat session");
+
+        let status = get_agent_session_status(AgentSessionStatusInput {
+            workspace_path: workspace.path_string(),
+            session_id: Some("chat-direct".to_string()),
+        })
+        .expect("get agent session status");
+
+        assert!(!status.exists);
+        assert_eq!(status.session_file_count, 0);
+        assert_eq!(status.message_count, 0);
     }
 
     #[test]

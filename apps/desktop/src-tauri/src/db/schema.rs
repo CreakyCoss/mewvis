@@ -273,9 +273,9 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
         columns: &[
             "id",
             "name",
-            "provider_id",
             "provider_kind",
             "base_url",
+            "api_key",
             "model_id",
             "dimensions",
             "batch_size",
@@ -287,16 +287,15 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
             CREATE TABLE IF NOT EXISTS embedding_profiles (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                provider_id TEXT,
                 provider_kind TEXT NOT NULL,
                 base_url TEXT,
+                api_key TEXT,
                 model_id TEXT NOT NULL,
                 dimensions INTEGER NOT NULL,
                 batch_size INTEGER NOT NULL DEFAULT 64,
                 is_default INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL,
-                FOREIGN KEY(provider_id) REFERENCES llm_providers(id) ON DELETE SET NULL
+                updated_at INTEGER NOT NULL
             );
         "#,
     },

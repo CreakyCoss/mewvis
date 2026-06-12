@@ -2,7 +2,7 @@ import type {
   AgentProfile,
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
-import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 import type {
   ChatExecutionMode,
   ChatMode,

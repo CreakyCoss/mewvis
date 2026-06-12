@@ -71,6 +71,5 @@ export const createPiRuntimeModel = (
     contextWindow: runtimeModel.contextWindow ?? catalogModel?.contextWindow ?? 128000,
     maxTokens: runtimeModel.maxTokens ?? catalogModel?.maxTokens ?? 16384,
     headers: runtimeModel.headers ?? catalogModel?.headers,
-    compat: (runtimeModel.compat ?? catalogModel?.compat) as Model<Api>["compat"],
   };
 };

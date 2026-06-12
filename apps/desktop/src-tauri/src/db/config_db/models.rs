@@ -178,9 +178,9 @@ pub struct KnowledgeSettings {
 pub struct EmbeddingProfile {
     pub id: String,
     pub name: String,
-    pub provider_id: Option<String>,
     pub provider_kind: String,
     pub base_url: Option<String>,
+    pub api_key: Option<String>,
     pub model_id: String,
     pub dimensions: i64,
     pub batch_size: i64,

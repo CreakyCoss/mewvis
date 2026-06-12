@@ -3,12 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tauri::AppHandle;
 
-use crate::db::config_db::{self, EmbeddingProfile, LlmProvider};
+use crate::db::config_db::{self, EmbeddingProfile};
 
 #[derive(Debug)]
 pub struct ResolvedEmbeddingProfile {
     pub profile: EmbeddingProfile,
-    pub provider: Option<LlmProvider>,
 }
 
 pub trait TextEmbeddingProvider {
@@ -65,32 +64,22 @@ impl OpenAiCompatibleEmbeddingProvider {
         profile: &ResolvedEmbeddingProfile,
         texts: &[String],
     ) -> Result<Vec<Vec<f32>>, String> {
-        let provider = profile
-            .provider
-            .as_ref()
-            .ok_or_else(|| "Embedding 配置未选择 Provider".to_string())?;
-        let endpoint = embedding_endpoint(
-            profile
-                .profile
-                .base_url
-                .as_deref()
-                .or(provider.api_endpoint.as_deref()),
-        );
+        let endpoint = embedding_endpoint(profile.profile.base_url.as_deref());
         let api_key = profile
-            .provider
-            .as_ref()
-            .and_then(|provider| provider.api_key.as_deref())
-            .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| "Embedding Provider 缺少 API Key".to_string())?;
+            .profile
+            .api_key
+            .as_deref()
+            .filter(|value| !value.trim().is_empty());
 
-        let response = self
-            .client
-            .post(&endpoint)
-            .bearer_auth(api_key)
-            .json(&OpenAiEmbeddingRequest {
-                model: profile.profile.model_id.as_str(),
-                input: texts,
-            })
+        let mut request = self.client.post(&endpoint).json(&OpenAiEmbeddingRequest {
+            model: profile.profile.model_id.as_str(),
+            input: texts,
+        });
+        if let Some(api_key) = api_key {
+            request = request.bearer_auth(api_key);
+        }
+
+        let response = request
             .send()
             .map_err(|error| format!("Embedding 请求失败：{error}"))?;
 
@@ -121,13 +110,7 @@ impl OpenAiCompatibleEmbeddingProvider {
         profile: &ResolvedEmbeddingProfile,
         texts: &[String],
     ) -> Result<Vec<Vec<f32>>, String> {
-        let endpoints =
-            ollama_embedding_endpoints(profile.profile.base_url.as_deref().or_else(|| {
-                profile
-                    .provider
-                    .as_ref()
-                    .and_then(|provider| provider.api_endpoint.as_deref())
-            }));
+        let endpoints = ollama_embedding_endpoints(profile.profile.base_url.as_deref());
         let mut send_errors = Vec::new();
         for endpoint in endpoints {
             match self.send_ollama_embedding_request(&endpoint, profile, texts) {
@@ -201,28 +184,10 @@ pub fn resolve_default_embedding_profile(
     }
 
     if profile.provider_kind == "ollama" {
-        return Ok(Some(ResolvedEmbeddingProfile {
-            profile,
-            provider: None,
-        }));
+        return Ok(Some(ResolvedEmbeddingProfile { profile }));
     }
 
-    let provider_id = profile
-        .provider_id
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| "Embedding 配置未选择 Provider".to_string())?;
-    let settings = config_db::llm_settings(app)?;
-    let provider = settings
-        .providers
-        .into_iter()
-        .find(|provider| provider.id == provider_id)
-        .ok_or_else(|| "Embedding 配置选择的 Provider 不存在".to_string())?;
-
-    Ok(Some(ResolvedEmbeddingProfile {
-        profile,
-        provider: Some(provider),
-    }))
+    Ok(Some(ResolvedEmbeddingProfile { profile }))
 }
 
 fn is_supported_embedding_provider_kind(provider_kind: &str) -> bool {
