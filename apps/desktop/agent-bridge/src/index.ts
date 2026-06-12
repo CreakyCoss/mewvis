@@ -10,9 +10,7 @@ import {
   writeBridgeEvent,
   writeJsonLine,
 } from "./transport/stdio.js";
-
-const messageFromError = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+import { messageFromError } from "./utils/error.js";
 
 const main = async () => {
   const reader = createStdioBridgeReader();

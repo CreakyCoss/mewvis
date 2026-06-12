@@ -1,52 +1,34 @@
-import type { AgentRuntime, ChatRuntime, RuntimeMode } from "../contracts/runtime.js";
-import { resolveRuntime } from "../runtimes/index.js";
-import type {
-  AgentBridgeRunner,
-  AgentBridgeRunnerResolution,
-  BridgeRunnerResolution,
-  ChatBridgeRunner,
-  ChatBridgeRunnerResolution,
-  RunnableBridgeCommand,
-} from "./types.js";
 import {
   BridgeCommandType,
   type ChatCommand,
   type StartTaskCommand,
 } from "../contracts/protocol.js";
+import { resolveRuntime } from "../runtimes/index.js";
+import type {
+  AgentBridgeRunner,
+  BridgeRunner,
+  ChatBridgeRunner,
+  RunnableBridgeCommand,
+} from "./types.js";
 
-const toAgentRunner = (runtime: AgentRuntime): AgentBridgeRunner => async (command, context) => {
-  return runtime.run(command, context);
+const resolveAgentRunner = (command: StartTaskCommand): AgentBridgeRunner => {
+  const { implementation } = resolveRuntime("agent", command.agentId);
+  return (runtimeCommand, context) => implementation.run(runtimeCommand, context);
 };
 
-const toChatRunner = (runtime: ChatRuntime): ChatBridgeRunner => async (command, context) => {
-  return runtime.chat(command, context);
+const resolveChatRunner = (command: ChatCommand): ChatBridgeRunner => {
+  const { implementation } = resolveRuntime("chat", command.agentId);
+  return (runtimeCommand, context) => implementation.chat(runtimeCommand, context);
 };
 
-const modeForCommand = (command: RunnableBridgeCommand): RuntimeMode => {
-  if (command.type === BridgeCommandType.StartTask) {
-    return "agent";
+export function resolveBridgeRunner(command: StartTaskCommand): AgentBridgeRunner;
+export function resolveBridgeRunner(command: ChatCommand): ChatBridgeRunner;
+export function resolveBridgeRunner(command: RunnableBridgeCommand): BridgeRunner;
+export function resolveBridgeRunner(command: RunnableBridgeCommand): BridgeRunner {
+  switch (command.type) {
+    case BridgeCommandType.StartTask:
+      return resolveAgentRunner(command);
+    case BridgeCommandType.Chat:
+      return resolveChatRunner(command);
   }
-
-  return "chat";
-};
-
-export function resolveBridgeRunner(command: StartTaskCommand): AgentBridgeRunnerResolution;
-export function resolveBridgeRunner(command: ChatCommand): ChatBridgeRunnerResolution;
-export function resolveBridgeRunner(
-  command: RunnableBridgeCommand,
-): BridgeRunnerResolution {
-  const mode = modeForCommand(command);
-  const resolution = resolveRuntime(mode, command.agentId);
-
-  if (resolution.mode === "agent") {
-    return {
-      mode: resolution.mode,
-      runner: toAgentRunner(resolution.implementation),
-    };
-  }
-
-  return {
-    mode: resolution.mode,
-    runner: toChatRunner(resolution.implementation),
-  };
 }

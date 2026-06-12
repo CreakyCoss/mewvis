@@ -18,14 +18,4 @@ export type ChatBridgeRunner = (
   context: ChatRuntimeContext,
 ) => Promise<ChatResult>;
 
-export type AgentBridgeRunnerResolution = {
-  mode: "agent";
-  runner: AgentBridgeRunner;
-};
-
-export type ChatBridgeRunnerResolution = {
-  mode: "chat";
-  runner: ChatBridgeRunner;
-};
-
-export type BridgeRunnerResolution = AgentBridgeRunnerResolution | ChatBridgeRunnerResolution;
+export type BridgeRunner = AgentBridgeRunner | ChatBridgeRunner;
