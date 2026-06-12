@@ -2,7 +2,7 @@ import {
   getCatalogModels,
   getCatalogProviders,
   type RuntimeModelCatalogEntry,
-} from "@/ai/llm/model-catalog";
+} from "./catalog";
 
 export type ApiFormatValue = RuntimeModelCatalogEntry["apiFormat"] | "openrouter";
 

@@ -2,7 +2,7 @@ import {
   appendReferencesToPrompt,
   formatConversationForSummary,
 } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -37,8 +37,7 @@ export type TavernExtractedAssetDraft = {
 
 export type RunTavernAssetExtractionInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
@@ -178,8 +177,7 @@ const parseAssetDraft = ({
 
 export const runTavernAssetExtraction = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -303,8 +301,7 @@ export const runTavernAssetExtraction = async ({
   ].join("\n");
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的剧情资产整理员。",

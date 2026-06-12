@@ -2,7 +2,7 @@ import {
   appendReferencesToPrompt,
   formatConversationForSummary,
 } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -25,8 +25,7 @@ export type TavernDirectorDecision = {
 
 export type RunTavernDirectorInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
@@ -85,8 +84,7 @@ const parseDirectorDecision = (
 
 export const runTavernDirector = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -183,8 +181,7 @@ export const runTavernDirector = async ({
   ].join("\n");
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的导演 Agent。",

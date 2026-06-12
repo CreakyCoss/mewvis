@@ -26,7 +26,10 @@ import {
 import type { ComponentType, FormEvent, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import {
+  groupRuntimeModelsByProvider,
+  type RuntimeModelOption,
+} from "@/features/llm-settings/runtime-models";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,9 +92,8 @@ type TavernManagementPageProps = {
   activeRoom: TavernRoom;
   characterById: Map<string, TavernCharacter>;
   messagesByRoom: Record<string, TavernMessage[]>;
-  providers: LlmProvider[];
-  globalProvider: LlmProvider | null;
-  globalModel: ProviderModel | null;
+  runtimeModels: RuntimeModelOption[];
+  globalRuntimeModel: RuntimeModelOption | null;
   canDeleteRoom: boolean;
   onCreateRoom: () => void;
   onSelectRoom: (roomId: string) => void;
@@ -581,17 +583,17 @@ const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
 };
 
 const findConfiguredModel = (
-  providers: LlmProvider[],
+  runtimeModels: RuntimeModelOption[],
   config: TavernCharacterModelConfig | undefined,
 ) => {
-  const provider = config?.providerId
-    ? providers.find((item) => item.id === config.providerId)
-    : null;
-  const model = provider && config?.modelId
-    ? provider.models.find((item) => item.id === config.modelId && item.isEnabled)
-    : null;
+  if (!config?.providerId || !config.modelId) {
+    return null;
+  }
 
-  return provider && model ? { provider, model } : null;
+  return runtimeModels.find((model) =>
+    model.provider.id === config.providerId &&
+    model.modelId === config.modelId
+  ) ?? null;
 };
 
 export const TavernManagementPage = ({
@@ -599,9 +601,8 @@ export const TavernManagementPage = ({
   activeRoom,
   characterById,
   messagesByRoom,
-  providers,
-  globalProvider,
-  globalModel,
+  runtimeModels,
+  globalRuntimeModel,
   canDeleteRoom,
   onCreateRoom,
   onSelectRoom,
@@ -675,17 +676,17 @@ export const TavernManagementPage = ({
     ? messagesByRoom[editingRoom.id]?.length ?? 0
     : 0;
   const modelProviders = useMemo(
-    () => providers.filter((provider) => provider.models.some((model) => model.isEnabled)),
-    [providers],
+    () => groupRuntimeModelsByProvider(runtimeModels),
+    [runtimeModels],
   );
-  const systemDefaultModelLabel = globalProvider && globalModel
-    ? `${globalProvider.name} / ${globalModel.modelName}`
+  const systemDefaultModelLabel = globalRuntimeModel
+    ? `${globalRuntimeModel.provider.name} / ${globalRuntimeModel.modelName}`
     : "未选择";
   const editingRoomModel = editingRoom
-    ? findConfiguredModel(providers, editingRoom.modelConfig)
+    ? findConfiguredModel(runtimeModels, editingRoom.modelConfig)
     : null;
   const editingRoomModelLabel = editingRoomModel
-    ? `${editingRoomModel.provider.name} / ${editingRoomModel.model.modelName}`
+    ? `${editingRoomModel.provider.name} / ${editingRoomModel.modelName}`
     : `系统默认：${systemDefaultModelLabel}`;
   const areAllTimelineEventsCollapsed = editingRoom && editingRoom.timelineEvents.length > 0
     ? editingRoom.timelineEvents.every((event) => collapsedTimelineEventIds[event.id])
@@ -873,12 +874,12 @@ export const TavernManagementPage = ({
   const firstEnabledModelConfigForProvider = (
     providerId: string,
   ): TavernCharacterModelConfig | undefined => {
-    const provider = modelProviders.find((item) => item.id === providerId);
-    const model = provider?.models.find((item) => item.isEnabled);
+    const provider = modelProviders.find((item) => item.providerId === providerId);
+    const model = provider?.models[0];
     return provider && model
       ? {
-          providerId: provider.id,
-          modelId: model.id,
+          providerId: provider.providerId,
+          modelId: model.modelId,
         }
       : undefined;
   };
@@ -1914,7 +1915,7 @@ export const TavernManagementPage = ({
                       ...roomContentEditDraft,
                       modelConfig: event.target.value === "custom"
                         ? roomContentEditDraft.modelConfig ??
-                          firstEnabledModelConfigForProvider(modelProviders[0]?.id ?? "")
+                          firstEnabledModelConfigForProvider(modelProviders[0]?.providerId ?? "")
                         : undefined,
                     });
                   }}
@@ -1940,8 +1941,8 @@ export const TavernManagementPage = ({
                       }}
                     >
                       {modelProviders.map((provider) => (
-                        <NativeSelectOption key={provider.id} value={provider.id}>
-                          {provider.name}
+                        <NativeSelectOption key={provider.providerId} value={provider.providerId}>
+                          {provider.providerName}
                         </NativeSelectOption>
                       ))}
                     </NativeSelect>
@@ -1964,9 +1965,9 @@ export const TavernManagementPage = ({
                       }}
                     >
                       {(modelProviders.find((provider) =>
-                        provider.id === roomContentEditDraft.modelConfig?.providerId
-                      )?.models.filter((model) => model.isEnabled) ?? []).map((model) => (
-                        <NativeSelectOption key={model.id} value={model.id}>
+                        provider.providerId === roomContentEditDraft.modelConfig?.providerId
+                      )?.models ?? []).map((model) => (
+                        <NativeSelectOption key={model.key} value={model.modelId}>
                           {model.modelName}
                         </NativeSelectOption>
                       ))}
@@ -3018,11 +3019,11 @@ export const TavernManagementPage = ({
                             character.id,
                           );
                           const characterModel = findConfiguredModel(
-                            providers,
+                            runtimeModels,
                             characterModelConfig,
                           );
                           const characterModelLabel = characterModel
-                            ? `${characterModel.provider.name} / ${characterModel.model.modelName}`
+                            ? `${characterModel.provider.name} / ${characterModel.modelName}`
                             : `跟随酒馆：${editingRoomModelLabel}`;
 
                           return (
@@ -3500,7 +3501,7 @@ export const TavernManagementPage = ({
         open={isCreatingRoomCharacter || Boolean(editingCharacter)}
         character={editingCharacter}
         modelConfig={editingCharacterModelConfig}
-        providers={providers}
+        runtimeModels={runtimeModels}
         roomModelLabel={editingRoomModelLabel}
         onOpenChange={(open) => {
           if (!open) {

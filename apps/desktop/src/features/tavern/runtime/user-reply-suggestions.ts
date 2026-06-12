@@ -1,5 +1,5 @@
 import { formatConversationForSummary } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -10,8 +10,7 @@ import { tavernMessagesToRuntimeMessages } from "./prompt";
 
 export type TavernUserReplySuggestionInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
@@ -134,8 +133,7 @@ const createManagedReplyFallback = (room: TavernRoom) =>
 
 export const runTavernUserReplySuggestions = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -218,8 +216,7 @@ export const runTavernUserReplySuggestions = async ({
 
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的用户回复建议助手。",
@@ -245,8 +242,7 @@ export const runTavernUserReplySuggestions = async ({
 
 export const runTavernManagedUserReply = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -340,8 +336,7 @@ export const runTavernManagedUserReply = async ({
   const runManagedReplyRequest = async (content: string) => {
     const result = await runSharedRuntimeChat({
       agentId: runtimeAgentId,
-      provider,
-      model,
+      runtimeModel,
       stream: false,
       systemPrompt,
       messages: [{

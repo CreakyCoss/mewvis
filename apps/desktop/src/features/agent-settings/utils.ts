@@ -1,6 +1,9 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
-import type { LlmProvider } from "@/ai/llm/types";
-import { findDefaultProvider } from "@/features/llm-settings/utils";
+import {
+  findDefaultRuntimeModel,
+  findRuntimeModelByLegacyIds,
+  type RuntimeModelOption,
+} from "@/features/llm-settings/runtime-models";
 import type {
   AgentProfile,
   AiAgent,
@@ -27,12 +30,15 @@ const createWorkflowStepId = () => {
 
 export const resolveAgentProfiles = (
   agents: AiAgent[],
-  providers: LlmProvider[],
+  runtimeModels: RuntimeModelOption[],
 ): AgentProfile[] => {
   return agents.flatMap((agent) => {
-    const provider = providers.find((item) => item.id === agent.providerId);
-    const model = provider?.models.find((item) => item.id === agent.modelId && item.isEnabled);
-    if (!provider || !model) {
+    const runtimeModel = findRuntimeModelByLegacyIds(
+      runtimeModels,
+      agent.providerId,
+      agent.modelId,
+    );
+    if (!runtimeModel) {
       return [];
     }
 
@@ -41,8 +47,7 @@ export const resolveAgentProfiles = (
       name: agent.name,
       avatar: agent.avatar,
       description: agent.description,
-      provider,
-      model,
+      runtimeModel,
       isDefault: false,
     }];
   });
@@ -149,18 +154,17 @@ export const resolveCollaborationWorkflowStepProfiles = (
   });
 
 export const createAgentDraft = (
-  providers: LlmProvider[],
+  runtimeModels: RuntimeModelOption[],
 ): SaveAiAgentInput => {
-  const provider = findDefaultProvider(providers) ?? providers[0];
-  const model = provider?.models.find((item) => item.isEnabled) ?? provider?.models[0];
+  const runtimeModel = findDefaultRuntimeModel(runtimeModels);
 
   return {
     id: null,
     name: "",
     avatar: defaultAgentAvatar.id,
     description: "",
-    providerId: provider?.id ?? "",
-    modelId: model?.id ?? "",
+    providerId: runtimeModel?.provider.id ?? "",
+    modelId: runtimeModel?.modelId ?? "",
   };
 };
 

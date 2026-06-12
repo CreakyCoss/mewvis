@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ContextEngine } from "@/ai/agent-context";
-import type { LlmProvider } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import {
   CollectionDetailsDialog,
   CollectionFormDialog,
@@ -54,6 +54,7 @@ import {
   localOllamaProviderId,
   missingStatus,
   supportedTextExtensions,
+  type EmbeddingProviderOption,
   type KnowledgeBaseView,
   type PendingDeleteTarget,
   type PendingKnowledgeAction,
@@ -63,7 +64,7 @@ type KnowledgeBasePageProps = {
   onBack?: () => void;
   contextEngineId?: string;
   contextEngines?: ContextEngine[];
-  providers?: LlmProvider[];
+  runtimeModels?: RuntimeModelOption[];
   onContextEngineChange?: (engineId: string) => void;
 };
 
@@ -71,7 +72,7 @@ export const KnowledgeBasePage = ({
   onBack,
   contextEngineId,
   contextEngines = [],
-  providers = [],
+  runtimeModels = [],
   onContextEngineChange,
 }: KnowledgeBasePageProps) => {
   const [library, setLibrary] = useState<KnowledgeLibrary>(emptyLibrary);
@@ -145,8 +146,38 @@ export const KnowledgeBasePage = ({
     [embeddingProfiles],
   );
   const supportedEmbeddingProviders = useMemo(
-    () => providers.filter(isEmbeddingProviderSupported),
-    [providers],
+    () => {
+      const providersById = new Map<string, EmbeddingProviderOption>();
+
+      for (const runtimeModel of runtimeModels) {
+        if (!isEmbeddingProviderSupported(runtimeModel.runtimeInput)) {
+          continue;
+        }
+
+        let provider = providersById.get(runtimeModel.provider.id);
+        if (!provider) {
+          provider = {
+            id: runtimeModel.provider.id,
+            name: runtimeModel.provider.name,
+            apiFormat: runtimeModel.runtimeInput.apiFormat,
+            apiEndpoint: runtimeModel.runtimeInput.apiEndpoint,
+            isDefault: providersById.size === 0,
+            models: [],
+          };
+          providersById.set(runtimeModel.provider.id, provider);
+        }
+
+        provider.models.push({
+          id: runtimeModel.modelId,
+          modelId: runtimeModel.runtimeInput.catalogModelId,
+          modelName: runtimeModel.modelName,
+          isEnabled: true,
+        });
+      }
+
+      return [...providersById.values()];
+    },
+    [runtimeModels],
   );
   const selectedEmbeddingProvider = useMemo(
     () => supportedEmbeddingProviders.find((provider) => provider.id === embeddingDraft.providerId)

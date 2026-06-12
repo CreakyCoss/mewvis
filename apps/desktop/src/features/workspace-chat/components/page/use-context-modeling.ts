@@ -1,59 +1,45 @@
 import { useCallback, useMemo } from "react";
 import {
-  toAgentRuntimeModelInput,
-} from "@/ai/agent-runtime/config";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
-import {
   resolveAppContextWindow,
   type ConversationSummarizer,
 } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
 import { createSharedConversationSummarizer } from "@/features/shared-chat-runtime";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 
 type UseContextModelingInput = {
   runtimeAgentRequiresModel: boolean;
-  effectiveProvider?: LlmProvider | null;
-  effectiveModel?: ProviderModel | null;
+  effectiveRuntimeModel?: RuntimeModelOption | null;
 };
 
 export const useContextModeling = ({
   runtimeAgentRequiresModel,
-  effectiveProvider,
-  effectiveModel,
+  effectiveRuntimeModel,
 }: UseContextModelingInput) => {
-  const modelInputFor = useCallback((
-    provider: LlmProvider,
-    model: ProviderModel,
-  ): AgentRuntimeModelInput => toAgentRuntimeModelInput(provider, model), []);
-
   const contextModelFor = useCallback((
-    provider?: LlmProvider | null,
-    model?: ProviderModel | null,
+    runtimeModel?: RuntimeModelOption | null,
   ) => {
-    const modelInput = provider && model ? modelInputFor(provider, model) : null;
+    const modelInput = runtimeModel?.runtimeInput ?? null;
     const contextWindow = resolveAppContextWindow(modelInput);
 
     return modelInput
       ? { ...modelInput, contextWindow }
       : { contextWindow };
-  }, [modelInputFor]);
+  }, []);
 
   const effectiveAppContextWindow = useMemo(
-    () => contextModelFor(effectiveProvider, effectiveModel).contextWindow,
-    [contextModelFor, effectiveModel, effectiveProvider],
+    () => contextModelFor(effectiveRuntimeModel).contextWindow,
+    [contextModelFor, effectiveRuntimeModel],
   );
 
   const summarizerFor = useCallback((
-    provider?: LlmProvider | null,
-    model?: ProviderModel | null,
+    runtimeModel?: RuntimeModelOption | null,
   ): ConversationSummarizer | null => {
-    if (!runtimeAgentRequiresModel || !provider || !model) {
+    if (!runtimeAgentRequiresModel || !runtimeModel) {
       return null;
     }
 
     return createSharedConversationSummarizer({
-      provider,
-      model,
+      runtimeModel: runtimeModel.runtimeInput,
       systemPrompt: [
         "你是聊天历史压缩器。请把跨任务恢复所需的信息压缩成中文摘要。",
         "要求：保留用户目标、已确认的决策、关键约束、文件/路径/实体名、未完成事项、助手已经给出的重要结论。",
@@ -64,7 +50,6 @@ export const useContextModeling = ({
   }, [runtimeAgentRequiresModel]);
 
   return {
-    modelInputFor,
     contextModelFor,
     effectiveAppContextWindow,
     summarizerFor,

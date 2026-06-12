@@ -1,8 +1,8 @@
 import {
   API_FORMAT_ENDPOINT_SUFFIX,
   PROVIDER_RUNTIME_CONFIG,
-} from "./config.js";
-import { RAW_MODEL_CATALOG } from "./data.js";
+} from "./config";
+import { RAW_MODEL_CATALOG } from "./data";
 import type {
   ApiFormat,
   ModelCatalog,
@@ -10,7 +10,7 @@ import type {
   RawModelCatalog,
   RawModelCatalogEntry,
   RuntimeModelCatalogEntry,
-} from "./types.js";
+} from "./types";
 
 const rawModelCatalog = RAW_MODEL_CATALOG satisfies RawModelCatalog;
 
@@ -85,7 +85,7 @@ export const getCatalogModels = (provider: string) => {
 export const getCatalogModel = (
   provider: string,
   modelId: string,
-  apiFormat?: ApiFormat,
+  apiFormat?: string,
 ): RuntimeModelCatalogEntry | undefined => {
   return modelCatalog[provider]?.find((model) =>
     model.id === modelId && (!apiFormat || model.apiFormat === apiFormat),

@@ -1,4 +1,4 @@
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import type {
   TavernCharacter,
   TavernCharacterModelConfig,
@@ -6,40 +6,35 @@ import type {
 } from "../types";
 
 export type TavernResolvedCharacterModel = {
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: RuntimeModelOption;
   source: "character" | "room" | "global";
 };
 
-export type TavernReplyModel = Pick<TavernResolvedCharacterModel, "provider" | "model">;
+export type TavernReplyModel = Pick<TavernResolvedCharacterModel, "runtimeModel">;
 
 export const resolveTavernCharacterModel = ({
   character,
   room,
-  providers,
-  fallbackProvider,
-  fallbackModel,
+  runtimeModels,
+  fallbackRuntimeModel,
 }: {
   character: TavernCharacter;
   room?: TavernRoom | null;
-  providers: LlmProvider[];
-  fallbackProvider: LlmProvider | null;
-  fallbackModel: ProviderModel | null;
+  runtimeModels: RuntimeModelOption[];
+  fallbackRuntimeModel: RuntimeModelOption | null;
 }): TavernResolvedCharacterModel | null => {
   const resolveConfiguredModel = (
     config: TavernCharacterModelConfig | undefined,
   ) => {
-    const configuredProvider = config?.providerId
-      ? providers.find((provider) => provider.id === config.providerId)
-      : null;
-    const configuredModel = configuredProvider && config?.modelId
-      ? configuredProvider.models.find((model) =>
-          model.id === config.modelId && model.isEnabled
+    const runtimeModel = config?.providerId && config?.modelId
+      ? runtimeModels.find((model) =>
+          model.provider.id === config.providerId &&
+          model.modelId === config.modelId
         )
       : null;
 
-    return configuredProvider && configuredModel
-      ? { provider: configuredProvider, model: configuredModel }
+    return runtimeModel
+      ? { runtimeModel }
       : null;
   };
 
@@ -61,10 +56,9 @@ export const resolveTavernCharacterModel = ({
     };
   }
 
-  return fallbackProvider && fallbackModel
+  return fallbackRuntimeModel
     ? {
-        provider: fallbackProvider,
-        model: fallbackModel,
+        runtimeModel: fallbackRuntimeModel,
         source: "global",
       }
     : null;
@@ -73,7 +67,7 @@ export const resolveTavernCharacterModel = ({
 export const formatTavernResolvedModelLabel = (
   resolvedModel: TavernResolvedCharacterModel | null,
 ) => resolvedModel
-  ? `${resolvedModel.model.modelName}${
+  ? `${resolvedModel.runtimeModel.modelName}${
       resolvedModel.source === "character"
         ? "（角色自定义）"
         : resolvedModel.source === "room"

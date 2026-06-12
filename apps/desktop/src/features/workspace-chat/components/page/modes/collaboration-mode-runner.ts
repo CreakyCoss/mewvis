@@ -1,7 +1,6 @@
 import {
   buildCollaborationSystemPrompt,
 } from "@/ai/agent-context";
-import { formatProviderModelName } from "@/ai/llm/display";
 import {
   normalizeAllowedAgentTools,
   type AgentRuntimeAgentEvent,
@@ -394,7 +393,6 @@ export const runCollaborationTurn = async (
     runtimeAgentId,
     agentRuntime,
     contextEngine,
-    modelInputFor,
     allowedAgentTools,
     appendMessage,
     requestCollaborationPlanDecision,
@@ -442,7 +440,7 @@ export const runCollaborationTurn = async (
     supervisorAgent,
     "custom",
     {
-      limits: limitsFor(supervisorAgent.provider, supervisorAgent.model),
+      limits: limitsFor(supervisorAgent.runtimeModel),
       conversationSummary,
       agentExecutionSummary: currentAgentExecutionSummary,
       contextQuery: text,
@@ -468,8 +466,8 @@ export const runCollaborationTurn = async (
     { label: "workflow steps", content: formatWorkflowSteps(collaborationWorkflow) },
   );
   publishContextDebugSnapshot(debugPayloads, {
-    providerName: supervisorAgent.provider.name,
-    modelName: formatProviderModelName(supervisorAgent.model),
+    providerName: supervisorAgent.runtimeModel.provider.name,
+    modelName: supervisorAgent.runtimeModel.modelName,
     runtimeMessages,
   });
   const supervisorStartedAt = Date.now();
@@ -484,8 +482,8 @@ export const runCollaborationTurn = async (
       messageId: supervisorMessageId,
       agentId: supervisorAgent.id,
       agentName: supervisorAgent.name,
-      providerName: supervisorAgent.provider.name,
-      modelName: formatProviderModelName(supervisorAgent.model),
+      providerName: supervisorAgent.runtimeModel.provider.name,
+      modelName: supervisorAgent.runtimeModel.modelName,
       allowedTools: [],
       stream: true,
     },
@@ -506,7 +504,7 @@ export const runCollaborationTurn = async (
       messageId: supervisorMessageId,
       prompt: supervisorPrompt,
       agent: supervisorAgent,
-      runtimeModel: modelInputFor(supervisorAgent.provider, supervisorAgent.model),
+      runtimeModel: supervisorAgent.runtimeModel.runtimeInput,
       allowedTools: [],
       enabledSkillNames,
       traceTurnId,
@@ -514,8 +512,8 @@ export const runCollaborationTurn = async (
       traceMetadata: {
         collaborationRunId,
         role: "supervisor",
-        providerName: supervisorAgent.provider.name,
-        modelName: formatProviderModelName(supervisorAgent.model),
+        providerName: supervisorAgent.runtimeModel.provider.name,
+        modelName: supervisorAgent.runtimeModel.modelName,
       },
       appendVisibleTraceStep,
       updateMessage,
@@ -677,7 +675,7 @@ export const runCollaborationTurn = async (
       step.agent,
       promptPhase,
       {
-        limits: limitsFor(step.agent.provider, step.agent.model),
+        limits: limitsFor(step.agent.runtimeModel),
         conversationSummary,
         agentExecutionSummary: currentAgentExecutionSummary,
         contextQuery: text,
@@ -704,11 +702,11 @@ export const runCollaborationTurn = async (
       { label: `step ${index + 1} prompt`, content: stepPrompt },
       { label: `step ${index + 1} messages`, content: formatDebugMessages(stepMessages) },
     );
-  publishContextDebugSnapshot(debugPayloads, {
-    providerName: step.agent.provider.name,
-    modelName: formatProviderModelName(step.agent.model),
-    runtimeMessages: stepMessages,
-  });
+    publishContextDebugSnapshot(debugPayloads, {
+      providerName: step.agent.runtimeModel.provider.name,
+      modelName: step.agent.runtimeModel.modelName,
+      runtimeMessages: stepMessages,
+    });
     const stepStartedAt = Date.now();
     appendVisibleTraceStep(traceTurnId, {
       type: "request",
@@ -723,8 +721,8 @@ export const runCollaborationTurn = async (
         stepMessageId,
         agentId: step.agent.id,
         agentName: step.agent.name,
-        providerName: step.agent.provider.name,
-        modelName: formatProviderModelName(step.agent.model),
+        providerName: step.agent.runtimeModel.provider.name,
+        modelName: step.agent.runtimeModel.modelName,
         allowedTools: allowedToolsForStepRuns,
         stream: true,
       },
@@ -751,7 +749,7 @@ export const runCollaborationTurn = async (
         messageId: stepMessageId,
         prompt: stepPrompt,
         agent: step.agent,
-        runtimeModel: modelInputFor(step.agent.provider, step.agent.model),
+        runtimeModel: step.agent.runtimeModel.runtimeInput,
         allowedTools: allowedToolsForStepRuns,
         enabledSkillNames,
         traceTurnId,
@@ -763,8 +761,8 @@ export const runCollaborationTurn = async (
           stepName: step.name,
           agentId: step.agent.id,
           agentName: step.agent.name,
-          providerName: step.agent.provider.name,
-          modelName: formatProviderModelName(step.agent.model),
+          providerName: step.agent.runtimeModel.provider.name,
+          modelName: step.agent.runtimeModel.modelName,
         },
         appendVisibleTraceStep,
         updateMessage,

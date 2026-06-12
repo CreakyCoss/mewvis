@@ -3,7 +3,7 @@ import {
   type ConversationMessage,
   type ConversationSummarizer,
 } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "./runtime-chat";
 
 export type SharedConversationSummaryPromptInput = {
@@ -14,8 +14,7 @@ export type SharedConversationSummaryPromptInput = {
 
 export type RunSharedConversationSummaryInput = {
   agentId?: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   systemPrompt: string;
   previousSummary?: string;
   messages: ConversationMessage[];
@@ -25,7 +24,7 @@ export type RunSharedConversationSummaryInput = {
 
 export type CreateSharedConversationSummarizerInput = Pick<
   RunSharedConversationSummaryInput,
-  "agentId" | "provider" | "model" | "systemPrompt" | "buildUserPrompt"
+  "agentId" | "runtimeModel" | "systemPrompt" | "buildUserPrompt"
 >;
 
 const buildDefaultSummaryUserPrompt = ({
@@ -40,8 +39,7 @@ const buildDefaultSummaryUserPrompt = ({
 
 export const runSharedConversationSummary = async ({
   agentId,
-  provider,
-  model,
+  runtimeModel,
   systemPrompt,
   previousSummary = "",
   messages,
@@ -55,8 +53,7 @@ export const runSharedConversationSummary = async ({
   const formattedConversation = formatConversationForSummary(messages);
   const result = await runSharedRuntimeChat({
     agentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt,
     messages: [{
@@ -77,16 +74,14 @@ export const runSharedConversationSummary = async ({
 
 export const createSharedConversationSummarizer = ({
   agentId,
-  provider,
-  model,
+  runtimeModel,
   systemPrompt,
   buildUserPrompt,
 }: CreateSharedConversationSummarizerInput): ConversationSummarizer =>
   async ({ previousSummary, messages }) =>
     runSharedConversationSummary({
       agentId,
-      provider,
-      model,
+      runtimeModel,
       systemPrompt,
       previousSummary,
       messages,

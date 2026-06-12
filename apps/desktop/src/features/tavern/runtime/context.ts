@@ -8,8 +8,7 @@ import {
   SUMMARY_TARGET_RATIO,
   SUMMARY_TRIGGER_RATIO,
 } from "@/ai/agent-context";
-import { toAgentRuntimeModelInput } from "@/ai/agent-runtime/config";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedConversationSummary } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -44,8 +43,7 @@ export type PreparedTavernContext = {
 
 export type PrepareTavernRuntimeContextInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   messages: TavernMessage[];
   characters: TavernCharacter[];
@@ -128,14 +126,13 @@ const resolveTavernHistoryBudget = ({
 
 const summarizeTavernMessages = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
 }: Pick<
   PrepareTavernRuntimeContextInput,
-  "runtimeAgentId" | "provider" | "model" | "room" | "characters"
+  "runtimeAgentId" | "runtimeModel" | "room" | "characters"
 > & {
   messages: TavernMessage[];
 }) => {
@@ -146,8 +143,7 @@ const summarizeTavernMessages = async ({
   });
   return limitAutoMemory(await runSharedConversationSummary({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     systemPrompt: [
       "你是酒馆长期剧情记忆整理器。",
       "请把旧对话压缩成中文剧情状态，用于后续角色扮演。",
@@ -228,8 +224,7 @@ const summarizeTavernMessages = async ({
 
 export const prepareTavernRuntimeContext = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   messages,
   characters,
@@ -237,10 +232,8 @@ export const prepareTavernRuntimeContext = async ({
   currentUserText,
   replyModels,
 }: PrepareTavernRuntimeContextInput): Promise<PreparedTavernContext> => {
-  const summaryModelInput = toAgentRuntimeModelInput(provider, model);
-  const replyModelInputs = replyModels.map((replyModel) =>
-    toAgentRuntimeModelInput(replyModel.provider, replyModel.model)
-  );
+  const summaryModelInput = runtimeModel;
+  const replyModelInputs = replyModels.map((replyModel) => replyModel.runtimeModel.runtimeInput);
   const budgetingModelInputs = [
     summaryModelInput,
     ...(replyModelInputs.length > 0 ? replyModelInputs : [summaryModelInput]),
@@ -318,8 +311,7 @@ export const prepareTavernRuntimeContext = async ({
   try {
     const autoMemory = await summarizeTavernMessages({
       runtimeAgentId,
-      provider,
-      model,
+      runtimeModel,
       room,
       characters,
       messages: messagesToSummarize,

@@ -1,10 +1,9 @@
 import type {
-  LlmProvider,
   LlmProviderDraft,
   LlmSettings,
   LlmSettingsDraft,
   ProviderModelDraft,
-} from "@/ai/llm/types";
+} from "@/features/llm-settings/types";
 import {
   getDefaultApiFormat,
   getProviderModelOptions,
@@ -229,12 +228,6 @@ export const applyModelDefaults = (
     modelId,
     modelName: option?.name ?? (shouldFollowName ? modelId : model.modelName),
   };
-};
-
-export const findDefaultProvider = (
-  providers: LlmProvider[],
-): LlmProvider | undefined => {
-  return providers.find((provider) => provider.isDefault) ?? providers[0];
 };
 
 export const hasProviderOptions = () => {

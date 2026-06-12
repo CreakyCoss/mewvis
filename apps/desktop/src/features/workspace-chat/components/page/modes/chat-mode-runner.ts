@@ -1,7 +1,6 @@
 import {
   buildSystemPrompt,
 } from "@/ai/agent-context";
-import { formatProviderModelName } from "@/ai/llm/display";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import {
   formatDebugMessages,
@@ -36,8 +35,7 @@ export const runChatTurn = async (
     updateMessage,
     modelSource,
     selectedAgent,
-    effectiveProvider,
-    effectiveModel,
+    effectiveRuntimeModel,
   }: RunChatTurnDeps,
 ) => {
   const systemPrompt = buildSystemPrompt(
@@ -47,7 +45,7 @@ export const runChatTurn = async (
     enabledSkills,
     modelSource === "agent" ? selectedAgent : null,
     {
-      limits: limitsFor(effectiveProvider, effectiveModel),
+      limits: limitsFor(effectiveRuntimeModel),
       conversationSummary,
       agentExecutionSummary: currentAgentExecutionSummary,
       contextQuery: text,
@@ -67,8 +65,8 @@ export const runChatTurn = async (
     status: "done",
     content: systemPrompt,
     metadata: {
-      providerName: effectiveProvider?.name ?? null,
-      modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
+      providerName: effectiveRuntimeModel?.provider.name ?? null,
+      modelName: effectiveRuntimeModel?.modelName ?? null,
       stream: true,
       runtimeMessageCount: runtimeMessages.length,
     },
@@ -86,8 +84,7 @@ export const runChatTurn = async (
   });
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider: effectiveProvider,
-    model: effectiveModel,
+    runtimeModel: effectiveRuntimeModel?.runtimeInput ?? null,
     systemPrompt,
     messages: runtimeMessages,
     onTextDelta: (delta) => {

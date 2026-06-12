@@ -2,9 +2,9 @@ export {
   getCatalogProviders,
   getCatalogModels,
   getCatalogModel,
-} from "./catalog.js";
+} from "./catalog";
 
 export type {
   ApiFormat,
   RuntimeModelCatalogEntry,
-} from "./types.js";
+} from "./types";

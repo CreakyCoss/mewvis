@@ -1,4 +1,4 @@
-import type { ApiFormat, ProviderRuntimeConfig } from "./types.js";
+import type { ApiFormat, ProviderRuntimeConfig } from "./types";
 
 export const API_FORMAT_ENDPOINT_SUFFIX: Partial<Record<ApiFormat, string>> = {
   "anthropic-messages": "/anthropic",

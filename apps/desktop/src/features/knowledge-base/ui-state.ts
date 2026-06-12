@@ -1,4 +1,3 @@
-import type { LlmProvider } from "@/ai/llm/types";
 import type {
   EmbeddingProfile,
   KnowledgeCollection,
@@ -25,6 +24,20 @@ export type EmbeddingDraft = {
   modelId: string;
   dimensions: number;
   batchSize: number;
+};
+
+export type EmbeddingProviderOption = {
+  id: string;
+  name: string;
+  apiFormat: string;
+  apiEndpoint?: string | null;
+  isDefault: boolean;
+  models: Array<{
+    id: string;
+    modelId: string;
+    modelName?: string | null;
+    isEnabled?: boolean;
+  }>;
 };
 
 export type PendingDeleteTarget =
@@ -117,7 +130,7 @@ export const embeddingDraftFromProfile = (
     : profile?.batchSize ?? 32,
 });
 
-export const isEmbeddingProviderSupported = (provider: LlmProvider) =>
+export const isEmbeddingProviderSupported = (provider: Pick<EmbeddingProviderOption, "apiFormat">) =>
   [
     "openai",
     "openai-compatible",

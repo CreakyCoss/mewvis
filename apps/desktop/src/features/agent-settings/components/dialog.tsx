@@ -29,11 +29,11 @@ export const AgentSettingsDialog = ({
 }: AgentSettingsDialogProps) => {
   const {
     agents,
-    providers,
+    runtimeModelGroups,
     draft,
     selectedAgentId,
-    selectedProvider,
-    selectedModels,
+    selectedRuntimeModels,
+    selectedRuntimeModel,
     isLoading,
     isSaving,
     error,
@@ -221,24 +221,24 @@ export const AgentSettingsDialog = ({
                       id="agent-provider"
                       className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       value={draft.providerId}
-                      disabled={providers.length === 0}
+                      disabled={runtimeModelGroups.length === 0}
                       onChange={(event) => {
                         const providerId = event.currentTarget.value;
-                        const provider = providers.find((item) => item.id === providerId);
-                        const model = provider?.models.find((item) => item.isEnabled);
+                        const provider = runtimeModelGroups.find((item) => item.providerId === providerId);
+                        const model = provider?.models[0];
                         updateDraft((current) => ({
                           ...current,
                           providerId,
-                          modelId: model?.id ?? "",
+                          modelId: model?.modelId ?? "",
                         }));
                       }}
                     >
-                      {providers.length === 0 ? (
+                      {runtimeModelGroups.length === 0 ? (
                         <option value="">未配置 LLM</option>
                       ) : (
-                        providers.map((provider) => (
-                          <option key={provider.id} value={provider.id}>
-                            {provider.name}
+                        runtimeModelGroups.map((provider) => (
+                          <option key={provider.providerId} value={provider.providerId}>
+                            {provider.providerName}
                           </option>
                         ))
                       )}
@@ -251,18 +251,18 @@ export const AgentSettingsDialog = ({
                       id="agent-model"
                       className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       value={draft.modelId}
-                      disabled={!selectedProvider || selectedModels.length === 0}
+                      disabled={!selectedRuntimeModel && selectedRuntimeModels.length === 0}
                       onChange={(event) => {
                         const modelId = event.currentTarget.value;
                         updateDraft((current) => ({ ...current, modelId }));
                       }}
                     >
-                      {selectedModels.length === 0 ? (
+                      {selectedRuntimeModels.length === 0 ? (
                         <option value="">未启用模型</option>
                       ) : (
-                        selectedModels.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.modelName || model.modelId}
+                        selectedRuntimeModels.map((model) => (
+                          <option key={model.key} value={model.modelId}>
+                            {model.modelName}
                           </option>
                         ))
                       )}

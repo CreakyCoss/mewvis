@@ -18,9 +18,7 @@ import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
 import { SettingsDialog } from "@/features/llm-settings/components/dialog";
-import { findDefaultProvider } from "@/features/llm-settings/utils";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
-import { formatProviderModelName } from "@/ai/llm/display";
+import { findDefaultRuntimeModel } from "@/features/llm-settings/runtime-models";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
@@ -256,17 +254,16 @@ export const WorkspaceChatPage = ({
   const [isAgentSessionLoading, setIsAgentSessionLoading] = useState(false);
   const [isContextCompressing, setIsContextCompressing] = useState(false);
   const {
-    providers,
-    selectedProviderId,
-    setSelectedProviderId,
-    setSelectedModelId,
+    runtimeModels,
+    selectedRuntimeModelKey,
+    setSelectedRuntimeModelKey,
     modelSource,
     setModelSource,
     setSelectedAgentId,
     settingsError,
     setSettingsError,
     isSettingsLoading,
-    selectedModel,
+    selectedRuntimeModel,
     availableRuntimeAgents,
     selectedRuntimeAgent,
     setSelectedRuntimeAgentId,
@@ -278,37 +275,24 @@ export const WorkspaceChatPage = ({
     selectedCollaborationWorkflowId,
     setSelectedCollaborationWorkflowId,
     selectedAgent,
-    effectiveProvider,
-    effectiveModel,
+    effectiveRuntimeModel,
     loadLlmOptions,
   } = useModelSettings({
     agentRuntime,
     chatMode,
     chatExecutionMode,
   });
-  const tavernDefaultProvider = useMemo(() => {
-    const defaultProvider = findDefaultProvider(providers);
-    if (defaultProvider?.models.some((providerModel) => providerModel.isEnabled)) {
-      return defaultProvider;
-    }
-
-    return providers.find((candidateProvider) =>
-      candidateProvider.models.some((providerModel) => providerModel.isEnabled),
-    ) ?? null;
-  }, [providers]);
-  const tavernDefaultModel = useMemo(
-    () => tavernDefaultProvider?.models.find((providerModel) => providerModel.isEnabled) ?? null,
-    [tavernDefaultProvider],
+  const tavernDefaultRuntimeModel = useMemo(
+    () => findDefaultRuntimeModel(runtimeModels),
+    [runtimeModels],
   );
   const {
-    modelInputFor,
     contextModelFor,
     effectiveAppContextWindow,
     summarizerFor,
   } = useContextModeling({
     runtimeAgentRequiresModel,
-    effectiveProvider,
-    effectiveModel,
+    effectiveRuntimeModel,
   });
   const {
     skills,
@@ -1161,8 +1145,8 @@ export const WorkspaceChatPage = ({
       const nextContext = await contextEngine.compressConversation({
         conversation,
         currentContext: conversationContext,
-        modelContext: contextModelFor(effectiveProvider, effectiveModel),
-        summarizer: summarizerFor(effectiveProvider, effectiveModel),
+        modelContext: contextModelFor(effectiveRuntimeModel),
+        summarizer: summarizerFor(effectiveRuntimeModel),
         canUseModel: runtimeAgentRequiresModel,
       });
       conversationContextRef.current = nextContext;
@@ -1176,8 +1160,8 @@ export const WorkspaceChatPage = ({
           mode: "manual",
           phase: "manual",
           engineId: contextEngine.id,
-          providerName: effectiveProvider?.name ?? null,
-          modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
+          providerName: effectiveRuntimeModel?.provider.name ?? null,
+          modelName: effectiveRuntimeModel?.modelName ?? null,
           canUseModel: runtimeAgentRequiresModel,
         }));
       }
@@ -1208,8 +1192,7 @@ export const WorkspaceChatPage = ({
     conversationContext,
     contextModelFor,
     contextEngine,
-    effectiveModel,
-    effectiveProvider,
+    effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     summarizerFor,
   ]);
@@ -1220,22 +1203,17 @@ export const WorkspaceChatPage = ({
     const collaborationSummaryAgent = chatMode === "collab"
       ? selectedCollaborationWorkflow?.writerAgent ?? null
       : null;
-    const summaryProvider = collaborationSummaryAgent
-      ? collaborationSummaryAgent.provider
-      : effectiveProvider;
-    const summaryModel = collaborationSummaryAgent
-      ? collaborationSummaryAgent.model
-      : effectiveModel;
-    const summarySummarizer = summarizerFor(summaryProvider, summaryModel);
+    const summaryRuntimeModel = collaborationSummaryAgent?.runtimeModel ?? effectiveRuntimeModel;
+    const summarySummarizer = summarizerFor(summaryRuntimeModel);
     const contextPlan = contextEngine.createPlan({
-      modelContext: contextModelFor(summaryProvider, summaryModel),
+      modelContext: contextModelFor(summaryRuntimeModel),
       summarizer: summarySummarizer,
       canUseModel: runtimeAgentRequiresModel,
     });
     const nextContext = await contextEngine.rebuildAfterHistoryChange({
       conversation: nextConversation,
       currentContext: conversationContextRef.current,
-      modelContext: contextModelFor(summaryProvider, summaryModel),
+      modelContext: contextModelFor(summaryRuntimeModel),
       summarizer: summarySummarizer,
       canUseModel: runtimeAgentRequiresModel,
     });
@@ -1246,8 +1224,7 @@ export const WorkspaceChatPage = ({
     chatMode,
     contextModelFor,
     contextEngine,
-    effectiveModel,
-    effectiveProvider,
+    effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     selectedCollaborationWorkflow,
     summarizerFor,
@@ -1439,18 +1416,16 @@ export const WorkspaceChatPage = ({
     baseConversationContext,
     traceProviderName,
     traceModelName,
-    summaryProvider,
-    summaryModel,
+    summaryRuntimeModel,
   }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
     const limitsFor: LimitsForProvider = (
-      provider?: LlmProvider | null,
-      model?: ProviderModel | null,
+      runtimeModel,
     ) => contextEngine.createPlan({
-      modelContext: contextModelFor(provider, model),
+      modelContext: contextModelFor(runtimeModel),
       canUseModel: false,
     }).limits;
-    const summaryModelContext = contextModelFor(summaryProvider, summaryModel);
-    const summarySummarizer = summarizerFor(summaryProvider, summaryModel);
+    const summaryModelContext = contextModelFor(summaryRuntimeModel);
+    const summarySummarizer = summarizerFor(summaryRuntimeModel);
     const prepareContextStartedAt = Date.now();
     const preparedContext = await contextEngine.prepareConversation({
       conversation: nextConversation,
@@ -1501,8 +1476,8 @@ export const WorkspaceChatPage = ({
         mode: chatMode,
         phase: "prepare",
         engineId: contextEngine.id,
-        providerName: summaryProvider?.name ?? null,
-        modelName: summaryModel ? formatProviderModelName(summaryModel) : null,
+        providerName: summaryRuntimeModel?.provider.name ?? null,
+        modelName: summaryRuntimeModel?.modelName ?? null,
         canUseModel: runtimeAgentRequiresModel,
       }));
     }
@@ -1587,7 +1562,7 @@ export const WorkspaceChatPage = ({
       const finalContext = await contextEngine.finalizeChatTurn({
         conversation: finalConversation,
         currentContext: contextBeforeFinalize,
-        modelContext: contextModelFor(summaryProvider, summaryModel),
+        modelContext: contextModelFor(summaryRuntimeModel),
         summarizer: summarizeConversation,
         canUseModel: runtimeAgentRequiresModel,
       });
@@ -1603,8 +1578,8 @@ export const WorkspaceChatPage = ({
           mode,
           phase: "finalize",
           engineId: contextEngine.id,
-          providerName: summaryProvider?.name ?? null,
-          modelName: summaryModel ? formatProviderModelName(summaryModel) : null,
+          providerName: summaryRuntimeModel?.provider.name ?? null,
+          modelName: summaryRuntimeModel?.modelName ?? null,
           canUseModel: runtimeAgentRequiresModel,
         }));
       }
@@ -1652,8 +1627,7 @@ export const WorkspaceChatPage = ({
       chatMode,
       selectedCollaborationWorkflow,
       runtimeAgentRequiresModel,
-      effectiveProvider,
-      effectiveModel,
+      effectiveRuntimeModel,
       unresolvedFileReferences,
       ambiguousFileReferences,
     });
@@ -1682,11 +1656,11 @@ export const WorkspaceChatPage = ({
     const baseConversationContext = conversationContextRef.current;
     const currentAgentExecutionSummary = findLatestAgentExecutionSummary(baseConversation);
     const traceProviderName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
-      ? `${collaborationWriterAgent.provider.name} / ${collaborationReviewerAgent.provider.name}`
-      : effectiveProvider?.name ?? null;
+      ? `${collaborationWriterAgent.runtimeModel.provider.name} / ${collaborationReviewerAgent.runtimeModel.provider.name}`
+      : effectiveRuntimeModel?.provider.name ?? null;
     const traceModelName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
-      ? `${formatProviderModelName(collaborationWriterAgent.model)} / ${formatProviderModelName(collaborationReviewerAgent.model)}`
-      : effectiveModel ? formatProviderModelName(effectiveModel) : null;
+      ? `${collaborationWriterAgent.runtimeModel.modelName} / ${collaborationReviewerAgent.runtimeModel.modelName}`
+      : effectiveRuntimeModel?.modelName ?? null;
     const {
       nextConversation,
       userUiMessage,
@@ -1729,12 +1703,9 @@ export const WorkspaceChatPage = ({
     });
 
     try {
-      const summaryProvider = chatMode === "collab" && collaborationWriterAgent
-        ? collaborationWriterAgent.provider
-        : effectiveProvider;
-      const summaryModel = chatMode === "collab" && collaborationWriterAgent
-        ? collaborationWriterAgent.model
-        : effectiveModel;
+      const summaryRuntimeModel = chatMode === "collab" && collaborationWriterAgent
+        ? collaborationWriterAgent.runtimeModel
+        : effectiveRuntimeModel;
       const {
         summaryLimits,
         nextConversationContext,
@@ -1756,8 +1727,7 @@ export const WorkspaceChatPage = ({
         baseConversationContext,
         traceProviderName,
         traceModelName,
-        summaryProvider,
-        summaryModel,
+        summaryRuntimeModel,
       });
 
       if (chatMode === "collab") {
@@ -1790,7 +1760,6 @@ export const WorkspaceChatPage = ({
           runtimeAgentId,
           agentRuntime,
           contextEngine,
-          modelInputFor,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,
@@ -1802,7 +1771,7 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      if (runtimeAgentRequiresModel && (!effectiveProvider || !effectiveModel)) {
+      if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
         setChatError("请选择要使用的 LLM 和模型");
         return;
       }
@@ -1833,7 +1802,6 @@ export const WorkspaceChatPage = ({
           updateMessage,
           agentRuntime,
           contextEngine,
-          modelInputFor,
           setChatError,
           setAgentSessionStatus,
           setAgentSessionError,
@@ -1846,8 +1814,7 @@ export const WorkspaceChatPage = ({
           handledAgentDoneTaskIdsRef,
           chatTraceRef,
           agentSessionStatus,
-          effectiveProvider,
-          effectiveModel,
+          effectiveRuntimeModel,
           modelSource,
           selectedAgent,
           chatMode,
@@ -1880,8 +1847,7 @@ export const WorkspaceChatPage = ({
         updateMessage,
         modelSource,
         selectedAgent,
-        effectiveProvider,
-        effectiveModel,
+        effectiveRuntimeModel,
       });
     } catch (caught) {
       const message = String(caught);
@@ -1960,9 +1926,9 @@ export const WorkspaceChatPage = ({
     selectedRuntimeAgent,
     runtimeAgentId,
     agentProfiles,
-    providers,
-    selectedProviderId,
-    selectedModel,
+    runtimeModels,
+    selectedRuntimeModelKey,
+    selectedRuntimeModel,
     collaborationWorkflows,
     selectedCollaborationWorkflow,
     selectedCollaborationWorkflowId,
@@ -1989,8 +1955,7 @@ export const WorkspaceChatPage = ({
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedCollaborationWorkflowId,
-    setSelectedProviderId,
-    setSelectedModelId,
+    setSelectedRuntimeModelKey,
     toggleAllowedAgentTool,
     sendMessage,
     onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
@@ -2046,7 +2011,7 @@ export const WorkspaceChatPage = ({
     <KnowledgeBasePage
       contextEngineId={contextEngineId}
       contextEngines={availableContextEngines}
-      providers={providers}
+      runtimeModels={runtimeModels}
       onBack={() => setWorkspaceView("chat")}
       onContextEngineChange={changeContextEngine}
     />
@@ -2056,9 +2021,8 @@ export const WorkspaceChatPage = ({
     <TavernPage
       workspace={workspace}
       files={files}
-      providers={providers}
-      provider={tavernDefaultProvider}
-      model={tavernDefaultModel}
+      runtimeModels={runtimeModels}
+      runtimeModel={tavernDefaultRuntimeModel}
       runtimeAgentId={runtimeAgentId}
       onRoomImmersiveChange={setIsTavernRoomImmersive}
     />

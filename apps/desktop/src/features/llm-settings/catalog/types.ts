@@ -45,28 +45,6 @@ export type RuntimeModelCatalogEntry = Omit<RawModelCatalogEntry, "input"> & {
   apiEndpoint: string;
 };
 
-export type RuntimeModelInput = {
-  provider: string;
-  apiFormat: string;
-  apiKey?: string | null;
-  catalogModelId: string;
-  modelId: string;
-  apiEndpoint?: string | null;
-  reasoning?: boolean;
-  thinkingLevelMap?: Record<string, string | null>;
-  input?: ModelInputModality[];
-  cost?: {
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-  };
-  contextWindow?: number;
-  maxTokens?: number;
-  headers?: Record<string, string>;
-  compat?: unknown;
-};
-
 export type RawProviderCatalog = {
   /** Original provider API URL from models.dev, kept as reference metadata. */
   api: string;

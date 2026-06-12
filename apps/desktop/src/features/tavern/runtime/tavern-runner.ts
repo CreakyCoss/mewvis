@@ -1,4 +1,4 @@
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -14,8 +14,7 @@ import { cleanTavernThoughtText } from "./reply-cleanup";
 
 export type RunTavernReplyInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
@@ -29,8 +28,7 @@ export type RunTavernReplyInput = {
 
 export const runTavernReply = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   activeCharacter,
   characters,
@@ -58,8 +56,7 @@ export const runTavernReply = async ({
 
   return runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     systemPrompt,
     messages: runtimeMessages,
     onTextDelta,
@@ -69,8 +66,7 @@ export const runTavernReply = async ({
 
 export type RunTavernInnerThoughtInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
@@ -81,8 +77,7 @@ export type RunTavernInnerThoughtInput = {
 
 export const runTavernInnerThought = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   activeCharacter,
   characters,
@@ -102,8 +97,7 @@ export const runTavernInnerThought = async ({
     .join("\n\n");
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的角色内心独白补写器。",

@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { LlmProvider } from "@/ai/llm/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,23 +18,17 @@ import {
   localOllamaDimensions,
   localOllamaModelId,
   localOllamaProviderId,
+  type EmbeddingProviderOption,
   type EmbeddingDraft,
 } from "../ui-state";
-
-type EmbeddingModelOption = {
-  id: string;
-  modelId: string;
-  modelName?: string | null;
-  isEnabled?: boolean;
-};
 
 type EmbeddingConfigDialogProps = {
   open: boolean;
   embeddingDraft: EmbeddingDraft;
   defaultEmbeddingProfile: EmbeddingProfile | null;
-  selectedEmbeddingProvider: LlmProvider | null;
-  supportedEmbeddingProviders: LlmProvider[];
-  embeddingModelOptions: EmbeddingModelOption[];
+  selectedEmbeddingProvider: EmbeddingProviderOption | null;
+  supportedEmbeddingProviders: EmbeddingProviderOption[];
+  embeddingModelOptions: EmbeddingProviderOption["models"];
   isLocalOllamaEmbedding: boolean;
   isEmbeddingConfigChanged: boolean;
   isSavingEmbedding: boolean;

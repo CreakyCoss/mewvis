@@ -4,14 +4,19 @@ import type {
   AgentRuntimeAgentDefinition,
 } from "@/ai/agent-runtime/contracts";
 import { getAiAgentSettings } from "@/features/agent-settings/api";
-import type { AiAgent, CollaborationWorkflow } from "@/features/agent-settings/types";
+import type {
+  AiAgent,
+  CollaborationWorkflow,
+} from "@/features/agent-settings/types";
 import {
   resolveAgentProfiles,
   resolveCollaborationWorkflowProfiles,
 } from "@/features/agent-settings/utils";
-import { getLlmSettings } from "@/features/llm-settings/api";
-import type { LlmProvider } from "@/ai/llm/types";
-import { findDefaultProvider } from "@/features/llm-settings/utils";
+import {
+  findDefaultRuntimeModel,
+  findRuntimeModelByKey,
+} from "@/features/llm-settings/runtime-models";
+import { useLlmRuntimeModelStore } from "@/features/llm-settings/store";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 
@@ -33,9 +38,12 @@ export const useModelSettings = ({
   chatMode,
   chatExecutionMode,
 }: UseModelSettingsInput) => {
-  const [providers, setProviders] = useState<LlmProvider[]>([]);
-  const [selectedProviderId, setSelectedProviderId] = useState("");
-  const [selectedModelId, setSelectedModelId] = useState("");
+  const runtimeModels = useLlmRuntimeModelStore((store) => store.runtimeModels);
+  const selectedRuntimeModelKey = useLlmRuntimeModelStore((store) => store.selectedRuntimeModelKey);
+  const setSelectedRuntimeModelKey = useLlmRuntimeModelStore((store) => store.setSelectedRuntimeModelKey);
+  const loadRuntimeModels = useLlmRuntimeModelStore((store) => store.loadRuntimeModels);
+  const runtimeModelError = useLlmRuntimeModelStore((store) => store.error);
+
   const [runtimeAgents, setRuntimeAgents] = useState<AgentRuntimeAgentDefinition[]>([]);
   const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
   const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
@@ -53,35 +61,25 @@ export const useModelSettings = ({
     setSettingsError("");
 
     try {
-      const [settings, agentSettings] = await Promise.all([
-        getLlmSettings(),
+      const [agentSettings] = await Promise.all([
         getAiAgentSettings(),
+        loadRuntimeModels(),
       ]);
-      const nextProviders = settings.providers;
-      const defaultProvider = findDefaultProvider(nextProviders);
+      const runtimeModelState = useLlmRuntimeModelStore.getState();
+      if (runtimeModelState.error) {
+        throw new Error(runtimeModelState.error);
+      }
+      const nextRuntimeModels = runtimeModelState.runtimeModels;
 
-      setProviders(nextProviders);
       setAgents(agentSettings.agents);
       setCollaborationWorkflowSettings(agentSettings.collaborationWorkflows);
-      setSelectedProviderId((currentProviderId) => {
-        const currentProvider = nextProviders.find((provider) => provider.id === currentProviderId);
-        const nextProvider = currentProvider ?? defaultProvider;
-
-        setSelectedModelId((currentModelId) => {
-          const currentModel = nextProvider?.models.find((model) => model.id === currentModelId && model.isEnabled);
-          const nextModel = currentModel ?? nextProvider?.models.find((model) => model.isEnabled);
-          return nextModel?.id ?? "";
-        });
-
-        return nextProvider?.id ?? "";
-      });
       setSelectedAgentId((currentAgentId) => {
-        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
         const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
         return currentProfile?.id ?? profiles[0]?.id ?? "";
       });
       setSelectedCollaborationWorkflowId((currentWorkflowId) => {
-        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
         const workflowProfiles = resolveCollaborationWorkflowProfiles(
           agentSettings.collaborationWorkflows,
           profiles,
@@ -90,7 +88,7 @@ export const useModelSettings = ({
         return currentWorkflow?.id ?? workflowProfiles[0]?.id ?? "";
       });
       setModelSource((currentSource) => {
-        const profiles = resolveAgentProfiles(agentSettings.agents, nextProviders);
+        const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
         return currentSource === "agent" && profiles.length === 0 ? "direct" : currentSource;
       });
     } catch (caught) {
@@ -99,7 +97,7 @@ export const useModelSettings = ({
       setHasLoadedSettings(true);
       setIsSettingsLoading(false);
     }
-  }, []);
+  }, [loadRuntimeModels]);
 
   const loadRuntimeAgents = useCallback(async () => {
     try {
@@ -124,21 +122,10 @@ export const useModelSettings = ({
     void loadRuntimeAgents();
   }, [loadRuntimeAgents]);
 
-  const selectedProvider = useMemo(
-    () => providers.find((provider) => provider.id === selectedProviderId) ?? null,
-    [providers, selectedProviderId],
-  );
-
-  const selectedModels = useMemo(
-    () => selectedProvider?.models.filter((model) => model.isEnabled) ?? [],
-    [selectedProvider],
-  );
-
-  const selectedModel = useMemo(
-    () => selectedModels.find((model) => model.id === selectedModelId)
-      ?? selectedModels[0]
-      ?? null,
-    [selectedModelId, selectedModels],
+  const selectedRuntimeModel = useMemo(
+    () => findRuntimeModelByKey(runtimeModels, selectedRuntimeModelKey)
+      ?? findDefaultRuntimeModel(runtimeModels),
+    [runtimeModels, selectedRuntimeModelKey],
   );
   const runtimeAgentCapability: AgentRuntimeAgentCapability =
     isAgentTaskMode(chatMode, chatExecutionMode) ? "agent" : "chat";
@@ -158,8 +145,8 @@ export const useModelSettings = ({
   const runtimeAgentId = selectedRuntimeAgent?.id ?? defaultRuntimeAgentId;
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const agentProfiles = useMemo(
-    () => resolveAgentProfiles(agents, providers),
-    [agents, providers],
+    () => resolveAgentProfiles(agents, runtimeModels),
+    [agents, runtimeModels],
   );
   const collaborationWorkflows = useMemo(
     () => resolveCollaborationWorkflowProfiles(collaborationWorkflowSettings, agentProfiles),
@@ -177,29 +164,21 @@ export const useModelSettings = ({
       ?? null,
     [collaborationWorkflows, selectedCollaborationWorkflowId],
   );
-  const effectiveProvider = modelSource === "agent"
-    ? selectedAgent?.provider ?? null
-    : selectedProvider;
-  const effectiveModel = modelSource === "agent"
-    ? selectedAgent?.model ?? null
-    : selectedModel;
+  const effectiveRuntimeModel = modelSource === "agent"
+    ? selectedAgent?.runtimeModel ?? null
+    : selectedRuntimeModel;
+
+  useEffect(() => {
+    if (runtimeModelError) {
+      setSettingsError(runtimeModelError);
+    }
+  }, [runtimeModelError]);
 
   useEffect(() => {
     if (selectedRuntimeAgent && selectedRuntimeAgent.id !== selectedRuntimeAgentId) {
       setSelectedRuntimeAgentId(selectedRuntimeAgent.id);
     }
   }, [selectedRuntimeAgent, selectedRuntimeAgentId]);
-
-  useEffect(() => {
-    if (!selectedProvider) {
-      setSelectedModelId("");
-      return;
-    }
-
-    if (!selectedModel || !selectedProvider.models.some((model) => model.id === selectedModel.id)) {
-      setSelectedModelId(selectedProvider.models.find((model) => model.isEnabled)?.id ?? "");
-    }
-  }, [selectedModel, selectedProvider]);
 
   useEffect(() => {
     if (hasLoadedSettings && modelSource === "agent" && !selectedAgent && agentProfiles.length === 0) {
@@ -219,11 +198,9 @@ export const useModelSettings = ({
   }, [collaborationWorkflows, selectedCollaborationWorkflow, selectedCollaborationWorkflowId]);
 
   return {
-    providers,
-    selectedProviderId,
-    setSelectedProviderId,
-    selectedModelId,
-    setSelectedModelId,
+    runtimeModels,
+    selectedRuntimeModelKey,
+    setSelectedRuntimeModelKey,
     modelSource,
     setModelSource,
     selectedAgentId,
@@ -233,8 +210,7 @@ export const useModelSettings = ({
     settingsError,
     setSettingsError,
     isSettingsLoading,
-    selectedProvider,
-    selectedModel,
+    selectedRuntimeModel,
     availableRuntimeAgents,
     selectedRuntimeAgent,
     selectedRuntimeAgentId,
@@ -245,8 +221,7 @@ export const useModelSettings = ({
     collaborationWorkflows,
     selectedCollaborationWorkflow,
     selectedAgent,
-    effectiveProvider,
-    effectiveModel,
+    effectiveRuntimeModel,
     loadLlmOptions,
   };
 };

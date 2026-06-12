@@ -1,7 +1,6 @@
 import {
   createAgentMemoryTrace,
 } from "@/ai/agent-context";
-import { formatProviderModelName } from "@/ai/llm/display";
 import {
   normalizeAllowedAgentTools,
 } from "@/ai/agent-runtime/contracts";
@@ -44,7 +43,6 @@ export const runAgentTurn = async (
     updateMessage,
     agentRuntime,
     contextEngine,
-    modelInputFor,
     setChatError,
     setAgentSessionStatus,
     setAgentSessionError,
@@ -57,8 +55,7 @@ export const runAgentTurn = async (
     handledAgentDoneTaskIdsRef,
     chatTraceRef,
     agentSessionStatus,
-    effectiveProvider,
-    effectiveModel,
+    effectiveRuntimeModel,
     modelSource,
     selectedAgent,
     chatMode,
@@ -72,7 +69,7 @@ export const runAgentTurn = async (
     return;
   }
 
-  const agentLimits = limitsFor(effectiveProvider, effectiveModel);
+  const agentLimits = limitsFor(effectiveRuntimeModel);
   const agentSessionPlan = contextEngine.planAgentRun({
     chatSessionId: nextSessionId,
     conversation: baseConversation,
@@ -150,8 +147,8 @@ export const runAgentTurn = async (
   ], {
     mode: chatMode,
     agentSessionId,
-    providerName: effectiveProvider?.name ?? null,
-    modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
+    providerName: effectiveRuntimeModel?.provider.name ?? null,
+    modelName: effectiveRuntimeModel?.modelName ?? null,
     conversationSummary: agentPromptPayload.promptHistory.summary ||
       agentPromptPayload.bootstrapHistory.summary ||
       conversationSummary,
@@ -165,8 +162,8 @@ export const runAgentTurn = async (
     metadata: {
       agentSessionId,
       agentId: runtimeAgentId,
-      providerName: effectiveProvider?.name ?? null,
-      modelName: effectiveModel ? formatProviderModelName(effectiveModel) : null,
+      providerName: effectiveRuntimeModel?.provider.name ?? null,
+      modelName: effectiveRuntimeModel?.modelName ?? null,
       shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
       allowedTools: allowedToolsForRun,
       enabledSkills: enabledSkills.map((skill) => skill.name),
@@ -194,9 +191,7 @@ export const runAgentTurn = async (
     chatSessionId: agentSessionId,
     bootstrapContext: agentPromptPayload.bootstrapContext,
     prompt: agentPromptPayload.prompt,
-    runtimeModel: effectiveProvider && effectiveModel
-      ? modelInputFor(effectiveProvider, effectiveModel)
-      : undefined,
+    runtimeModel: effectiveRuntimeModel?.runtimeInput,
     allowedTools: allowedToolsForRun,
     enabledSkills: enabledSkills.map((skill) => skill.name),
   });

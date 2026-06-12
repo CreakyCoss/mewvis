@@ -1,5 +1,5 @@
 import { formatConversationForSummary } from "@/ai/agent-context";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,
@@ -14,8 +14,7 @@ import {
 
 export type TavernQuickSummaryInput = {
   runtimeAgentId: string;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: AgentRuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
@@ -154,8 +153,7 @@ const buildTavernQuickContext = ({
 
 export const runTavernQuickSummary = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -183,8 +181,7 @@ export const runTavernQuickSummary = async ({
 
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的剧情进展总结助手。",
@@ -205,8 +202,7 @@ export const runTavernQuickSummary = async ({
 
 export const runTavernQuickNovel = async ({
   runtimeAgentId,
-  provider,
-  model,
+  runtimeModel,
   room,
   characters,
   messages,
@@ -239,8 +235,7 @@ export const runTavernQuickNovel = async ({
 
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    provider,
-    model,
+    runtimeModel,
     stream: false,
     systemPrompt: [
       "你是酒馆模式的小说化写作助手。",

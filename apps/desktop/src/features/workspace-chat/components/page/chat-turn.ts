@@ -2,7 +2,7 @@ import type {
   AgentProfile,
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import type {
   ChatExecutionMode,
   ChatMode,
@@ -23,8 +23,7 @@ type ValidateComposerSubmitInput = {
   chatMode: ChatMode;
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   runtimeAgentRequiresModel: boolean;
-  effectiveProvider: LlmProvider | null;
-  effectiveModel: ProviderModel | null;
+  effectiveRuntimeModel: RuntimeModelOption | null;
   unresolvedFileReferences: FileReferenceMatch[];
   ambiguousFileReferences: FileReferenceMatch[];
 };
@@ -45,8 +44,7 @@ export const validateComposerSubmit = ({
   chatMode,
   selectedCollaborationWorkflow,
   runtimeAgentRequiresModel,
-  effectiveProvider,
-  effectiveModel,
+  effectiveRuntimeModel,
   unresolvedFileReferences,
   ambiguousFileReferences,
 }: ValidateComposerSubmitInput): ValidComposerSubmit | InvalidComposerSubmit => {
@@ -58,7 +56,7 @@ export const validateComposerSubmit = ({
     return { ok: false, error: "请选择协作流程" };
   }
 
-  if (chatMode !== "collab" && runtimeAgentRequiresModel && (!effectiveProvider || !effectiveModel)) {
+  if (chatMode !== "collab" && runtimeAgentRequiresModel && !effectiveRuntimeModel) {
     return { ok: false, error: "请选择要使用的 LLM 和模型" };
   }
 

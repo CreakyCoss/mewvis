@@ -5,7 +5,7 @@ import type {
   AgentProfile,
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
   ChatExecutionMode,
@@ -55,9 +55,9 @@ export type ChatPanelViewModel = {
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
   runtimeAgentId: string;
   agentProfiles: AgentProfile[];
-  providers: LlmProvider[];
-  selectedProviderId: string;
-  selectedModel: ProviderModel | null;
+  runtimeModels: RuntimeModelOption[];
+  selectedRuntimeModelKey: string;
+  selectedRuntimeModel: RuntimeModelOption | null;
   collaborationWorkflows: CollaborationWorkflowProfile[];
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   selectedCollaborationWorkflowId: string;
@@ -84,8 +84,7 @@ export type ChatPanelViewModel = {
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
   setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
-  setSelectedProviderId: Dispatch<SetStateAction<string>>;
-  setSelectedModelId: Dispatch<SetStateAction<string>>;
+  setSelectedRuntimeModelKey: (key: string) => void;
   toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
   onAbortTask: () => void;
@@ -121,9 +120,9 @@ export const ChatPanel = () => {
     selectedRuntimeAgent,
     runtimeAgentId,
     agentProfiles,
-    providers,
-    selectedProviderId,
-    selectedModel,
+    runtimeModels,
+    selectedRuntimeModelKey,
+    selectedRuntimeModel,
     collaborationWorkflows,
     selectedCollaborationWorkflow,
     selectedCollaborationWorkflowId,
@@ -142,8 +141,7 @@ export const ChatPanel = () => {
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedCollaborationWorkflowId,
-    setSelectedProviderId,
-    setSelectedModelId,
+    setSelectedRuntimeModelKey,
     toggleAllowedAgentTool,
     sendMessage,
     onAbortTask,
@@ -182,9 +180,9 @@ export const ChatPanel = () => {
       selectedRuntimeAgent={selectedRuntimeAgent}
       selectedRuntimeAgentId={runtimeAgentId}
       agentProfiles={agentProfiles}
-      providers={providers}
-      selectedProviderId={selectedProviderId}
-      selectedModel={selectedModel}
+      runtimeModels={runtimeModels}
+      selectedRuntimeModelKey={selectedRuntimeModelKey}
+      selectedRuntimeModel={selectedRuntimeModel}
       selectedAgent={selectedAgent}
       collaborationWorkflows={collaborationWorkflows}
       selectedCollaborationWorkflow={selectedCollaborationWorkflow}
@@ -198,12 +196,7 @@ export const ChatPanel = () => {
       onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}
       onCollaborationWorkflowChange={setSelectedCollaborationWorkflowId}
-      onProviderChange={(providerId) => {
-        const provider = providers.find((item) => item.id === providerId);
-        setSelectedProviderId(providerId);
-        setSelectedModelId(provider?.models.find((model) => model.isEnabled)?.id ?? "");
-      }}
-      onModelChange={setSelectedModelId}
+      onRuntimeModelChange={setSelectedRuntimeModelKey}
       onToggleAllowedAgentTool={toggleAllowedAgentTool}
       onSubmit={(input) => void sendMessage(input)}
       onAbortTask={onAbortTask}

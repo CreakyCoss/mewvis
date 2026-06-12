@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -188,9 +188,8 @@ const normalizeTavernMessagesForDisplay = (
 type TavernPageProps = {
   workspace: Workspace;
   files: WorkspaceFileEntry[];
-  providers: LlmProvider[];
-  provider: LlmProvider | null;
-  model: ProviderModel | null;
+  runtimeModels: RuntimeModelOption[];
+  runtimeModel: RuntimeModelOption | null;
   runtimeAgentId: string;
   onRoomImmersiveChange?: (isImmersive: boolean) => void;
 };
@@ -493,9 +492,8 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
 export const TavernPage = ({
   workspace,
   files,
-  providers,
-  provider,
-  model,
+  runtimeModels,
+  runtimeModel,
   runtimeAgentId,
   onRoomImmersiveChange,
 }: TavernPageProps) => {
@@ -1794,7 +1792,7 @@ export const TavernPage = ({
       return;
     }
 
-    if (!provider || !model) {
+    if (!runtimeModel) {
       setError("请先在设置中选择模型，再整理剧情资产。");
       return;
     }
@@ -1838,8 +1836,7 @@ export const TavernPage = ({
     try {
       const extractedDraft = await runTavernAssetExtraction({
         runtimeAgentId,
-        provider,
-        model,
+        runtimeModel: runtimeModel.runtimeInput,
         room: activeRoom,
         characters: roomCharacters,
         messages: contextMessages,
@@ -1887,12 +1884,11 @@ export const TavernPage = ({
     activeRoom,
     isExtractingAssets,
     isSending,
-    model,
     patchExecutionStep,
-    provider,
     resetExecutionTrace,
     roomCharacters,
     roomMessages,
+    runtimeModel,
     runtimeAgentId,
     workspace.id,
   ]);
@@ -1902,7 +1898,7 @@ export const TavernPage = ({
       return;
     }
 
-    if (!provider || !model) {
+    if (!runtimeModel) {
       setError("请先在设置中选择模型，再生成候选回复。");
       return;
     }
@@ -1922,8 +1918,7 @@ export const TavernPage = ({
     try {
       const suggestions = await runTavernUserReplySuggestions({
         runtimeAgentId,
-        provider,
-        model,
+        runtimeModel: runtimeModel.runtimeInput,
         room: activeRoom,
         characters: roomCharacters,
         messages: roomMessages,
@@ -1943,10 +1938,9 @@ export const TavernPage = ({
     draft,
     isGeneratingReplySuggestions,
     isSending,
-    model,
-    provider,
     roomCharacters,
     roomMessages,
+    runtimeModel,
     runtimeAgentId,
     workspace.id,
   ]);
@@ -1996,7 +1990,7 @@ export const TavernPage = ({
       return;
     }
 
-    if (!provider || !model) {
+    if (!runtimeModel) {
       setQuickSummaryError("请先在设置中选择模型，再总结当前进展。");
       return;
     }
@@ -2016,8 +2010,7 @@ export const TavernPage = ({
     try {
       const content = await runTavernQuickSummary({
         runtimeAgentId,
-        provider,
-        model,
+        runtimeModel: runtimeModel.runtimeInput,
         room: activeRoom,
         characters: roomCharacters,
         messages: summaryMessages,
@@ -2063,11 +2056,10 @@ export const TavernPage = ({
     isGeneratingQuickSummary,
     isQuickSummaryCacheFresh,
     isSending,
-    model,
-    provider,
     quickSummarySignature,
     roomCharacters,
     roomMessages,
+    runtimeModel,
     runtimeAgentId,
   ]);
 
@@ -2091,7 +2083,7 @@ export const TavernPage = ({
       return;
     }
 
-    if (!provider || !model) {
+    if (!runtimeModel) {
       setQuickSummaryError("请先在设置中选择模型，再生成小说。");
       return;
     }
@@ -2111,8 +2103,7 @@ export const TavernPage = ({
     try {
       const novelContent = await runTavernQuickNovel({
         runtimeAgentId,
-        provider,
-        model,
+        runtimeModel: runtimeModel.runtimeInput,
         room: activeRoom,
         characters: roomCharacters,
         messages: novelMessages,
@@ -2152,11 +2143,10 @@ export const TavernPage = ({
     activeRoom,
     isGeneratingQuickNovel,
     isSending,
-    model,
-    provider,
     quickSummarySignature,
     roomCharacters,
     roomMessages,
+    runtimeModel,
     runtimeAgentId,
   ]);
 
@@ -2215,7 +2205,7 @@ export const TavernPage = ({
       return;
     }
 
-    if (!provider || !model) {
+    if (!runtimeModel) {
       setError("请先在设置中选择模型，再进入酒馆对话。");
       return;
     }
@@ -2249,9 +2239,8 @@ export const TavernPage = ({
       resolvedModel: resolveTavernCharacterModel({
         character: speaker,
         room: activeRoom,
-        providers,
-        fallbackProvider: provider,
-        fallbackModel: model,
+        runtimeModels,
+        fallbackRuntimeModel: runtimeModel,
       }),
     }));
     const missingModelSpeaker = candidateSpeakerModels.find((item) => !item.resolvedModel);
@@ -2310,8 +2299,7 @@ export const TavernPage = ({
         setTurnStatus("导演正在代你生成本轮回复...");
         text = await runTavernManagedUserReply({
           runtimeAgentId,
-          provider,
-          model,
+          runtimeModel: runtimeModel.runtimeInput,
           room: activeRoom,
           characters: roomCharacters,
           messages: roomMessages,
@@ -2370,16 +2358,14 @@ export const TavernPage = ({
 
       const preparedContext = await prepareTavernRuntimeContext({
         runtimeAgentId,
-        provider,
-        model,
+        runtimeModel: runtimeModel.runtimeInput,
         room: activeRoom,
         messages: runtimeMessages,
         characters: roomCharacters,
         references,
         currentUserText: text,
         replyModels: resolvedSpeakerModels.map((resolvedModel) => ({
-          provider: resolvedModel.provider,
-          model: resolvedModel.model,
+          runtimeModel: resolvedModel.runtimeModel,
         })),
       });
       runtimeRoom = preparedContext.room;
@@ -2422,8 +2408,7 @@ export const TavernPage = ({
         });
         const directorDecision = await runTavernDirector({
           runtimeAgentId,
-          provider,
-          model,
+          runtimeModel: runtimeModel.runtimeInput,
           room: runtimeRoom,
           characters: roomCharacters,
           messages: runtimeMessages,
@@ -2446,9 +2431,8 @@ export const TavernPage = ({
           resolvedModel: resolveTavernCharacterModel({
             character: speaker,
             room: activeRoom,
-            providers,
-            fallbackProvider: provider,
-            fallbackModel: model,
+            runtimeModels,
+            fallbackRuntimeModel: runtimeModel,
           }),
         }));
         const missingDirectedModel = directedSpeakerModels.find((item) => !item.resolvedModel);
@@ -2531,8 +2515,7 @@ export const TavernPage = ({
 
         const result = await runTavernReply({
           runtimeAgentId,
-          provider: resolvedSpeakerModels[speakerIndex].provider,
-          model: resolvedSpeakerModels[speakerIndex].model,
+          runtimeModel: resolvedSpeakerModels[speakerIndex].runtimeModel.runtimeInput,
           room: runtimeRoom,
           activeCharacter: speaker,
           characters: roomCharacters,
@@ -2578,8 +2561,7 @@ export const TavernPage = ({
           try {
             finalThought = await runTavernInnerThought({
               runtimeAgentId,
-              provider: resolvedSpeakerModels[speakerIndex].provider,
-              model: resolvedSpeakerModels[speakerIndex].model,
+              runtimeModel: resolvedSpeakerModels[speakerIndex].runtimeModel.runtimeInput,
               room: runtimeRoom,
               activeCharacter: speaker,
               characters: roomCharacters,
@@ -2624,8 +2606,7 @@ export const TavernPage = ({
         try {
           const extractedDraft = await runTavernAssetExtraction({
             runtimeAgentId,
-            provider,
-            model,
+            runtimeModel: runtimeModel.runtimeInput,
             room: runtimeRoom,
             characters: roomCharacters,
             messages: runtimeMessages,
@@ -2707,11 +2688,10 @@ export const TavernPage = ({
     draft,
     isManagedModeEnabled,
     isSending,
-    model,
     patchMessage,
-    provider,
-    providers,
     removeMessage,
+    runtimeModel,
+    runtimeModels,
     resetExecutionTrace,
     patchExecutionStep,
     appendExecutionStep,
@@ -2814,9 +2794,8 @@ export const TavernPage = ({
         activeRoom={activeRoom}
         characterById={characterById}
         messagesByRoom={state.messagesByRoom}
-        providers={providers}
-        globalProvider={provider}
-        globalModel={model}
+        runtimeModels={runtimeModels}
+        globalRuntimeModel={runtimeModel}
         canDeleteRoom={state.rooms.length > 1}
         onCreateRoom={handleCreateRoom}
         onSelectRoom={(roomId) => setState((current) => ({

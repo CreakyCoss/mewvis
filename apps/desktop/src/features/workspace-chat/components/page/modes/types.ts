@@ -11,12 +11,11 @@ import type {
   PromptWorkspaceFile,
 } from "@/ai/agent-context";
 import type {
-  AgentRuntimeModelInput,
   AgentToolName,
 } from "@/ai/agent-runtime/contracts";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { AgentProfile, CollaborationWorkflowProfile } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
   ChatExecutionMode,
@@ -35,8 +34,7 @@ import type { RunningAgentTaskContext } from "../agent-task";
 import type { ChatTraceStepInput } from "../trace";
 
 export type LimitsForProvider = (
-  provider?: LlmProvider | null,
-  model?: ProviderModel | null,
+  runtimeModel?: RuntimeModelOption | null,
 ) => PromptContextLimits;
 
 export type PublishContextDebugSnapshot = (
@@ -105,8 +103,7 @@ export type RunChatTurnInput = {
 export type RunChatTurnDeps = CommonModeDeps & {
   modelSource: "direct" | "agent";
   selectedAgent: AgentProfile | null;
-  effectiveProvider: LlmProvider | null;
-  effectiveModel: ProviderModel | null;
+  effectiveRuntimeModel: RuntimeModelOption | null;
 };
 
 export type RunCollaborationTurnInput = {
@@ -131,7 +128,6 @@ export type RunCollaborationTurnInput = {
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
   contextEngine: ContextEngine;
-  modelInputFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelInput;
   allowedAgentTools: AgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -160,7 +156,6 @@ export type RunAgentTurnInput = {
 export type RunAgentTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
   contextEngine: ContextEngine;
-  modelInputFor: (provider: LlmProvider, model: ProviderModel) => AgentRuntimeModelInput;
   setChatError: (message: string) => void;
   setAgentSessionStatus: (status: AgentSessionStatus | null) => void;
   setAgentSessionError: (message: string) => void;
@@ -173,8 +168,7 @@ export type RunAgentTurnDeps = CommonModeDeps & {
   handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
   chatTraceRef: MutableRefObject<ChatTraceTurn[]>;
   agentSessionStatus: AgentSessionStatus | null;
-  effectiveProvider: LlmProvider | null;
-  effectiveModel: ProviderModel | null;
+  effectiveRuntimeModel: RuntimeModelOption | null;
   modelSource: "direct" | "agent";
   selectedAgent: AgentProfile | null;
   chatMode: ChatMode;
@@ -194,8 +188,7 @@ export type PrepareChatTurnRuntimeInput = {
   baseConversationContext: ChatContextSummary | null;
   traceProviderName: string | null;
   traceModelName: string | null;
-  summaryProvider: LlmProvider | null;
-  summaryModel: ProviderModel | null;
+  summaryRuntimeModel: RuntimeModelOption | null;
 };
 
 export type PreparedChatTurnRuntime = {

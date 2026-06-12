@@ -1,6 +1,6 @@
 import type { AgentToolName } from "../tools/definitions.js";
 import type { BridgeAgentDefinition } from "../runtimes/agents.js";
-import type { RuntimeModelInput } from "../llm/types.js";
+import type { RuntimeModelInput } from "./model.js";
 import type { AskUserInput } from "../tools/types.js";
 
 export enum BridgeCommandType {

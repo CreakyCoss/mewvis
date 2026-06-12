@@ -3,7 +3,7 @@ import {
   type Api,
   type Model,
 } from "@earendil-works/pi-ai";
-import type { RuntimeModelInput } from "../../../llm/types.js";
+import type { RuntimeModelInput } from "../../../contracts/model.js";
 import type {
   RuntimeChatCommand,
   RuntimeStartTaskCommand,

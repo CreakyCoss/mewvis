@@ -15,7 +15,7 @@ export type {
   AgentToolName,
 } from "../tools/definitions.js";
 
-export type { RuntimeModelInput } from "../llm/types.js";
+export type { RuntimeModelInput } from "./model.js";
 
 export { AskUserInputType } from "../tools/types.js";
 export type {

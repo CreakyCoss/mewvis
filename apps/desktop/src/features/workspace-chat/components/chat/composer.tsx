@@ -40,8 +40,10 @@ import type {
   AgentProfile,
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
-import { formatProviderModelName } from "@/ai/llm/display";
+import {
+  groupRuntimeModelsByProvider,
+  type RuntimeModelOption,
+} from "@/features/llm-settings/runtime-models";
 import type {
   ChatExecutionMode,
   ChatMode,
@@ -77,9 +79,9 @@ type ComposerProps = {
   selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
   selectedRuntimeAgentId: string;
   agentProfiles: AgentProfile[];
-  providers: LlmProvider[];
-  selectedProviderId: string;
-  selectedModel: ProviderModel | null;
+  runtimeModels: RuntimeModelOption[];
+  selectedRuntimeModelKey: string;
+  selectedRuntimeModel: RuntimeModelOption | null;
   selectedAgent: AgentProfile | null;
   collaborationWorkflows: CollaborationWorkflowProfile[];
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
@@ -93,8 +95,7 @@ type ComposerProps = {
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onCollaborationWorkflowChange: (workflowId: string) => void;
-  onProviderChange: (providerId: string) => void;
-  onModelChange: (modelId: string) => void;
+  onRuntimeModelChange: (key: string) => void;
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
@@ -125,9 +126,9 @@ export const Composer = memo(({
   selectedRuntimeAgent,
   selectedRuntimeAgentId,
   agentProfiles,
-  providers,
-  selectedProviderId,
-  selectedModel,
+  runtimeModels,
+  selectedRuntimeModelKey,
+  selectedRuntimeModel,
   selectedAgent,
   collaborationWorkflows,
   selectedCollaborationWorkflow,
@@ -141,8 +142,7 @@ export const Composer = memo(({
   onRuntimeAgentChange,
   onSelectedAgentChange,
   onCollaborationWorkflowChange,
-  onProviderChange,
-  onModelChange,
+  onRuntimeModelChange,
   onToggleAllowedAgentTool,
   onSubmit,
   onAbortTask,
@@ -203,13 +203,17 @@ export const Composer = memo(({
   const visibleAllowedAgentTools = isRestrictedChatAgent
     ? filterChatAgentAllowedTools(allowedAgentTools)
     : allowedAgentTools;
+  const runtimeModelGroups = useMemo(
+    () => groupRuntimeModelsByProvider(runtimeModels),
+    [runtimeModels],
+  );
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const selectedModelLabel = chatMode === "collab"
     ? selectedCollaborationWorkflow?.name ?? "选择协作流程"
     : modelSource === "agent"
       ? selectedAgent?.name ?? "选择角色"
-      : selectedModel
-        ? formatProviderModelName(selectedModel)
+      : selectedRuntimeModel
+        ? selectedRuntimeModel.modelName
         : "选择模型";
   const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
     ? "无需模型"
@@ -476,30 +480,27 @@ export const Composer = memo(({
                           模型
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent className="w-52">
-                          {providers.length === 0 ? (
+                          {runtimeModelGroups.length === 0 ? (
                             <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
                           ) : (
-                            providers.map((provider) => {
-                              const enabledModels = provider.models.filter((model) => model.isEnabled);
-
+                            runtimeModelGroups.map((provider) => {
                               return (
-                                <DropdownMenuSub key={provider.id}>
-                                  <DropdownMenuSubTrigger>{provider.name}</DropdownMenuSubTrigger>
+                                <DropdownMenuSub key={provider.providerId}>
+                                  <DropdownMenuSubTrigger>{provider.providerName}</DropdownMenuSubTrigger>
                                   <DropdownMenuSubContent className="w-56">
-                                    {enabledModels.length === 0 ? (
+                                    {provider.models.length === 0 ? (
                                       <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
                                     ) : (
                                       <DropdownMenuRadioGroup
-                                        value={selectedProviderId === provider.id ? selectedModel?.id ?? "" : ""}
+                                        value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelKey : ""}
                                         onValueChange={(value) => {
                                           onModelSourceChange("direct");
-                                          onProviderChange(provider.id);
-                                          onModelChange(value);
+                                          onRuntimeModelChange(value);
                                         }}
                                       >
-                                        {enabledModels.map((model) => (
-                                          <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                            <span className="truncate">{formatProviderModelName(model)}</span>
+                                        {provider.models.map((model) => (
+                                          <DropdownMenuRadioItem key={model.key} value={model.key}>
+                                            <span className="truncate">{model.modelName}</span>
                                           </DropdownMenuRadioItem>
                                         ))}
                                       </DropdownMenuRadioGroup>

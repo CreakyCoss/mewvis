@@ -1,4 +1,4 @@
-import type { LlmProvider, ProviderModel } from "@/ai/llm/types";
+import type { RuntimeModelOption } from "@/features/llm-settings/runtime-models";
 
 export type AiAgent = {
   id: string;
@@ -70,8 +70,7 @@ export type AgentProfile = {
   name: string;
   avatar: string;
   description: string | null;
-  provider: LlmProvider;
-  model: ProviderModel;
+  runtimeModel: RuntimeModelOption;
   isDefault: boolean;
 };
 

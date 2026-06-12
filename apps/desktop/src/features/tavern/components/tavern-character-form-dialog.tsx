@@ -6,7 +6,10 @@ import {
   tavernAvatarGroups,
   tavernAvatarOptions,
 } from "@/assets/agent-avatars";
-import type { LlmProvider } from "@/ai/llm/types";
+import {
+  groupRuntimeModelsByProvider,
+  type RuntimeModelOption,
+} from "@/features/llm-settings/runtime-models";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +40,7 @@ type TavernCharacterFormDialogProps = {
   open: boolean;
   character: TavernCharacter | null;
   modelConfig?: TavernCharacterModelConfig;
-  providers?: LlmProvider[];
+  runtimeModels?: RuntimeModelOption[];
   roomModelLabel?: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (value: TavernCharacterFormValue) => void;
@@ -47,7 +50,7 @@ export const TavernCharacterFormDialog = ({
   open,
   character,
   modelConfig,
-  providers = [],
+  runtimeModels = [],
   roomModelLabel = "未选择",
   onOpenChange,
   onSubmit,
@@ -66,13 +69,13 @@ export const TavernCharacterFormDialog = ({
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   const modelProviders = useMemo(
-    () => providers.filter((provider) => provider.models.some((model) => model.isEnabled)),
-    [providers],
+    () => groupRuntimeModelsByProvider(runtimeModels),
+    [runtimeModels],
   );
   const selectedProvider = selectedModelConfig?.providerId
-    ? modelProviders.find((provider) => provider.id === selectedModelConfig.providerId)
+    ? modelProviders.find((provider) => provider.providerId === selectedModelConfig.providerId)
     : null;
-  const selectedModels = selectedProvider?.models.filter((model) => model.isEnabled) ?? [];
+  const selectedModels = selectedProvider?.models ?? [];
   const selectedAvatar = useMemo(
     () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
     [avatar],
@@ -81,12 +84,12 @@ export const TavernCharacterFormDialog = ({
   const firstEnabledModelConfigForProvider = (
     providerId: string,
   ): TavernCharacterModelConfig | undefined => {
-    const provider = modelProviders.find((item) => item.id === providerId);
-    const model = provider?.models.find((item) => item.isEnabled);
+    const provider = modelProviders.find((item) => item.providerId === providerId);
+    const model = provider?.models[0];
     return provider && model
       ? {
-          providerId: provider.id,
-          modelId: model.id,
+          providerId: provider.providerId,
+          modelId: model.modelId,
         }
       : undefined;
   };
@@ -103,8 +106,8 @@ export const TavernCharacterFormDialog = ({
     setRelationships(character?.relationships ?? "");
     setAvatar(normalizeTavernAvatarId(character?.avatar ?? tavernAvatarOptions[0]?.id));
     const validModelConfig = modelConfig && modelProviders.some((provider) =>
-      provider.id === modelConfig.providerId &&
-      provider.models.some((model) => model.id === modelConfig.modelId && model.isEnabled)
+      provider.providerId === modelConfig.providerId &&
+      provider.models.some((model) => model.modelId === modelConfig.modelId)
     )
       ? modelConfig
       : undefined;
@@ -159,7 +162,7 @@ export const TavernCharacterFormDialog = ({
             setSelectedModelConfig(
               nextMode === "custom"
                 ? selectedModelConfig ??
-                  firstEnabledModelConfigForProvider(modelProviders[0]?.id ?? "")
+                  firstEnabledModelConfigForProvider(modelProviders[0]?.providerId ?? "")
                 : undefined,
             );
           }}
@@ -187,8 +190,8 @@ export const TavernCharacterFormDialog = ({
               }}
             >
               {modelProviders.map((provider) => (
-                <NativeSelectOption key={provider.id} value={provider.id}>
-                  {provider.name}
+                <NativeSelectOption key={provider.providerId} value={provider.providerId}>
+                  {provider.providerName}
                 </NativeSelectOption>
               ))}
             </NativeSelect>
@@ -206,7 +209,7 @@ export const TavernCharacterFormDialog = ({
               }}
             >
               {selectedModels.map((model) => (
-                <NativeSelectOption key={model.id} value={model.id}>
+                <NativeSelectOption key={model.key} value={model.modelId}>
                   {model.modelName}
                 </NativeSelectOption>
               ))}

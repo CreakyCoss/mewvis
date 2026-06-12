@@ -3,7 +3,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const targetPath = join(__dirname, "..", "agent-bridge", "src", "llm", "data.ts");
+const targetPath = join(__dirname, "..", "src", "features", "llm-settings", "catalog", "data.ts");
 const MODELS_DEV_URL = "https://models.dev/api.json";
 const RAW_CATALOG_EXPORT_NAME = "RAW_MODEL_CATALOG";
 

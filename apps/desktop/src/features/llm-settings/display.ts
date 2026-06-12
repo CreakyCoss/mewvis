@@ -2,7 +2,7 @@ import type { ProviderModel } from "./types";
 
 const oneMillionContextSuffix = "[1m]";
 
-export const formatProviderModelName = (model: ProviderModel) => {
+export const formatProviderModelName = (model: Pick<ProviderModel, "modelId" | "modelName" | "isOneMillionContext">) => {
   const name = model.isOneMillionContext
     ? model.modelId
     : model.modelName || model.modelId;
