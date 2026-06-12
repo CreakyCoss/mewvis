@@ -9,7 +9,11 @@ export type {
   AgentRuntimeAgentQuestionInput,
   AgentRuntimeChatEvent,
   AgentRuntimeDeltaEvent,
+  AgentRuntimeDoneEvent,
+  AgentRuntimeOutputEvent,
+  AgentRuntimeReplaceTextEvent,
   AgentRuntimeTextDeltaEvent,
+  AgentRuntimeThinkingEndEvent,
   AgentRuntimeThinkingDeltaEvent,
 } from "./events";
 export type {

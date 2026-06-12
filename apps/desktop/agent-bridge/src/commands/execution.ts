@@ -1,4 +1,5 @@
 import {
+  BridgeEventType,
   type BridgeEvent,
   type ChatCommand,
   type ChatResult,
@@ -82,7 +83,7 @@ export const executeChatCommand = async (
           return;
         }
 
-        attemptState.emitted ||= isVisibleChatEvent(command, event);
+        attemptState.emitted ||= isVisibleChatOutputEvent(command, event);
         context.emit(event);
       },
     };
@@ -192,12 +193,16 @@ const isRetryableExecutionError = (error: unknown) => {
   return RETRYABLE_ERROR_MESSAGES.some((keyword) => message.includes(keyword));
 };
 
-const isVisibleChatEvent = (command: ChatCommand, event: BridgeEvent) => {
-  if (!command.streamId) {
+const isVisibleChatOutputEvent = (command: ChatCommand, event: BridgeEvent) => {
+  if (!command.streamId || !("taskId" in event) || event.taskId !== command.streamId) {
     return false;
   }
 
-  return "taskId" in event && event.taskId === command.streamId;
+  return event.type === BridgeEventType.TextDelta
+    || event.type === BridgeEventType.ThinkingDelta
+    || event.type === BridgeEventType.ReplaceText
+    || event.type === BridgeEventType.ThinkingEnd
+    || event.type === BridgeEventType.Done;
 };
 
 const retryDelayMs = (attempt: number) =>

@@ -9,6 +9,7 @@ import type {
   AgentRuntimeChatInput,
   AgentRuntimeChatResult,
 } from "./contracts";
+import { dispatchAgentRuntimeOutputEvent } from "./output";
 
 export interface AgentRuntime {
   listAgents(): Promise<AgentRuntimeAgentDefinitionsResult>;
@@ -76,12 +77,7 @@ class TauriAgentRuntime implements AgentRuntime {
         if (event.payload.streamId !== streamId) {
           return;
         }
-        if (event.payload.type === "text_delta") {
-          input.onTextDelta?.(event.payload.delta);
-        }
-        if (event.payload.type === "thinking_delta") {
-          input.onThinkingDelta?.(event.payload.delta);
-        }
+        dispatchAgentRuntimeOutputEvent(event.payload, input);
       })
       : undefined;
 

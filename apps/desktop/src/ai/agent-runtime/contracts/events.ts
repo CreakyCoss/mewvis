@@ -23,6 +23,27 @@ export type AgentRuntimeDeltaEvent =
   | AgentRuntimeTextDeltaEvent
   | AgentRuntimeThinkingDeltaEvent;
 
+export type AgentRuntimeReplaceTextEvent = {
+  type: "replace_text";
+  text: string;
+};
+
+export type AgentRuntimeThinkingEndEvent = {
+  type: "thinking_end";
+  content: string;
+};
+
+export type AgentRuntimeDoneEvent = {
+  type: "done";
+  text: string;
+};
+
+export type AgentRuntimeOutputEvent =
+  | AgentRuntimeDeltaEvent
+  | AgentRuntimeReplaceTextEvent
+  | AgentRuntimeThinkingEndEvent
+  | AgentRuntimeDoneEvent;
+
 export type AgentRuntimeAgentEvent =
   | {
     type: "state";
@@ -43,13 +64,10 @@ export type AgentRuntimeAgentEvent =
     input?: AgentRuntimeAgentQuestionInput;
   }
   | { type: "question_answered"; taskId: string; questionId: string; answer: string }
-  | { type: "replace_text"; taskId: string; text: string }
-  | (AgentRuntimeDeltaEvent & { taskId: string })
-  | { type: "thinking_end"; taskId: string; content: string }
+  | (AgentRuntimeOutputEvent & { taskId: string })
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
-  | { type: "done"; taskId: string; text: string }
   | { type: "stderr"; taskId: string; message: string }
   | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };

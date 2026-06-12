@@ -3,6 +3,12 @@ import type {
   AgentRuntimeModelInput,
   AgentToolName,
 } from "@/ai/agent-runtime/contracts";
+import {
+  applyAgentRuntimeOutputEvent,
+  createAgentRuntimeOutputState,
+  isAgentRuntimeOutputEvent,
+  snapshotAgentRuntimeOutput,
+} from "@/ai/agent-runtime/output";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 
 export type SharedAgentTaskResult = {
@@ -62,8 +68,7 @@ export const runSharedAgentTask = async ({
   errorMessageForEvent = sharedAgentTaskErrorMessage,
 }: RunSharedAgentTaskInput): Promise<SharedAgentTaskResult> => {
   let taskId = "";
-  let latestText = "";
-  let latestThinking = "";
+  const output = createAgentRuntimeOutputState();
   let isSettled = false;
   let resolveTask!: (result: SharedAgentTaskResult) => void;
   let rejectTask!: (error: Error) => void;
@@ -92,36 +97,24 @@ export const runSharedAgentTask = async ({
 
     onEvent?.(event);
 
-    if (event.type === "text_delta") {
-      latestText += event.delta;
-      return;
-    }
-    if (event.type === "replace_text") {
-      latestText = event.text;
-      return;
-    }
-    if (event.type === "thinking_delta") {
-      latestThinking += event.delta;
-      return;
-    }
-    if (event.type === "thinking_end") {
-      latestThinking = event.content || latestThinking;
-      return;
-    }
-    if (event.type === "done") {
-      latestText = event.text || latestText;
+    if (isAgentRuntimeOutputEvent(event)) {
+      applyAgentRuntimeOutputEvent(output, event);
+      if (event.type !== "done") {
+        return;
+      }
+      const result = snapshotAgentRuntimeOutput(output);
       resolveTask({
         taskId,
-        text: latestText.trim(),
-        thinking: latestThinking.trim() || undefined,
+        ...result,
       });
       return;
     }
+
     if (event.type === "exit" && event.success) {
+      const result = snapshotAgentRuntimeOutput(output);
       resolveTask({
         taskId,
-        text: latestText.trim(),
-        thinking: latestThinking.trim() || undefined,
+        ...result,
       });
       return;
     }
