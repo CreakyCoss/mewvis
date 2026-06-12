@@ -1,16 +1,19 @@
+import type { BridgeAgentDefinition } from "./agents.js";
 import type {
-  AgentRunResult,
-  AskUserInput,
   BridgeEvent,
   ChatCommand,
   ChatResult,
   StartTaskCommand,
-} from "./protocol.js";
-import type { BridgeAgentDefinition } from "./agents.js";
+} from "../contracts/protocol.js";
+import type { AskUserInput } from "../tools/types.js";
 
 export type RuntimeStartTaskCommand = StartTaskCommand;
 
 export type RuntimeChatCommand = ChatCommand;
+
+export type AgentRunResult = {
+  text: string;
+};
 
 export type AskUser = (
   taskId: string,

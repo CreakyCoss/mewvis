@@ -3,7 +3,7 @@ import type {
   BridgeAgent,
   ChatRuntime,
   RuntimeMode,
-} from "../contracts/runtime.js";
+} from "./types.js";
 import { resolveBridgeAgent } from "./registry.js";
 
 export {

@@ -11,11 +11,11 @@ import {
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import productConfig from "../../../../product.config.json" with { type: "json" };
-import { normalizeAllowedAgentTools } from "../../contracts/tools.js";
+import { normalizeAllowedAgentTools } from "../../tools/definitions.js";
 import type {
   AskUser,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,

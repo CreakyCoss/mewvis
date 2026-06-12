@@ -1,5 +1,9 @@
-import { AskUserInputType, type AskUserInput, type AskUserOption } from "../contracts/protocol.js";
-import type { ToolParameterDefinition } from "./types.js";
+import {
+  AskUserInputType,
+  type AskUserInput,
+  type AskUserOption,
+  type ToolParameterDefinition,
+} from "./types.js";
 
 export const ASK_USER_TOOL_NAME = "ask_user";
 export const ASK_USER_TOOL_LABEL = "Ask User";

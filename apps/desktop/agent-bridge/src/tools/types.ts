@@ -1,3 +1,21 @@
+export enum AskUserInputType {
+  Text = "text",
+  Select = "select",
+}
+
+export type AskUserOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type AskUserInput = {
+  type: AskUserInputType;
+  label?: string;
+  options?: AskUserOption[];
+  selected?: string;
+};
+
 export type ToolParameterDefinition =
   | {
     type: "string";

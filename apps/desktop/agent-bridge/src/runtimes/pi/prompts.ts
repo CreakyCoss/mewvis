@@ -1,12 +1,12 @@
 import {
   BridgeEventType,
-  type AgentRunResult,
 } from "../../contracts/protocol.js";
 import type {
+  AgentRunResult,
   AskUser,
   EmitBridgeEvent,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import {
   throwPiSessionError,
   type PiAgentRunState,

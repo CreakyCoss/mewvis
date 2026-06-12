@@ -3,13 +3,11 @@ import {
   type Api,
   type Model,
 } from "@earendil-works/pi-ai";
-import type {
-  RuntimeModelInput,
-} from "../../contracts/protocol.js";
+import type { RuntimeModelInput } from "../../llm/types.js";
 import type {
   RuntimeChatCommand,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 
 export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
   const apiKey = runtimeModel.apiKey?.trim();

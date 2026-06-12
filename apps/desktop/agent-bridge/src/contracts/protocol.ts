@@ -1,5 +1,7 @@
-import type { AgentToolName } from "./tools.js";
-import type { BridgeAgentDefinition } from "./agents.js";
+import type { AgentToolName } from "../tools/definitions.js";
+import type { BridgeAgentDefinition } from "../runtimes/agents.js";
+import type { RuntimeModelInput } from "../llm/types.js";
+import type { AskUserInput } from "../tools/types.js";
 
 export enum BridgeCommandType {
   StartTask = "start_task",
@@ -19,7 +21,6 @@ export enum BridgeResultType {
 }
 
 export enum BridgeEventType {
-  State = "state",
   Started = "started",
   Question = "question",
   QuestionAnswered = "question_answered",
@@ -33,33 +34,6 @@ export enum BridgeEventType {
   Done = "done",
   Error = "error",
 }
-
-export enum AskUserInputType {
-  Text = "text",
-  Select = "select",
-}
-
-export type RuntimeModelInput = {
-  provider: string;
-  apiFormat: string;
-  apiKey?: string | null;
-  catalogModelId: string;
-  modelId: string;
-  apiEndpoint?: string | null;
-  reasoning?: boolean;
-  thinkingLevelMap?: Record<string, string | null>;
-  input?: Array<"text" | "image">;
-  cost?: {
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-  };
-  contextWindow?: number;
-  maxTokens?: number;
-  headers?: Record<string, string>;
-  compat?: unknown;
-};
 
 export type StartTaskCommand = {
   type: BridgeCommandType.StartTask;
@@ -120,10 +94,6 @@ export type AgentDefinitionsResult = {
   agents: readonly BridgeAgentDefinition[];
 };
 
-export type AgentRunResult = {
-  text: string;
-};
-
 export type PingCommand = {
   type: BridgeCommandType.Ping;
   requestId?: string | null;
@@ -160,29 +130,7 @@ export type BridgeCommand =
   | PingCommand
   | ShutdownCommand;
 
-export type AskUserOption = {
-  value: string;
-  label: string;
-  description?: string;
-};
-
-export type AskUserInput = {
-  type: AskUserInputType;
-  label?: string;
-  options?: AskUserOption[];
-  selected?: string;
-};
-
 export type BridgeEvent =
-  | {
-    type: BridgeEventType.State;
-    taskId: string;
-    taskState: string;
-    workerState: string;
-    workerId?: string;
-    sessionKey?: string;
-    queueDepth?: number;
-  }
   | { type: BridgeEventType.Started; taskId: string }
   | {
     type: BridgeEventType.Question;

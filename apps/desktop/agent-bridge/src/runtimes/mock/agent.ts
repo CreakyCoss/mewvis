@@ -1,12 +1,10 @@
-import {
-  BridgeEventType,
-  type AgentRunResult,
-} from "../../contracts/protocol.js";
+import { BridgeEventType } from "../../contracts/protocol.js";
 import type {
+  AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import { chunkText, createMockAgentText, sleep } from "./response.js";
 
 export class MockAgent implements AgentRuntime {

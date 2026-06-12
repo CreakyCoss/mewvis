@@ -2,7 +2,7 @@ import {
   AGENT_TOOL_DEFINITIONS as BRIDGE_AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS as BRIDGE_DEFAULT_ALLOWED_AGENT_TOOLS,
   normalizeAllowedAgentTools as normalizeBridgeAllowedAgentTools,
-} from "@agent-bridge/contracts/tools";
+} from "@agent-bridge/contracts";
 
 export type AgentToolName = string;
 

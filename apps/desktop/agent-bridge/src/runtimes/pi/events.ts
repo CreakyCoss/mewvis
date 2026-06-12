@@ -5,7 +5,7 @@ import {
 import type {
   EmitBridgeEvent,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import { messageFromError } from "../../utils/error.js";
 import type { PiAgentSession } from "./session.js";
 

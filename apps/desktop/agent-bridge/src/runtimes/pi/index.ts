@@ -1,6 +1,6 @@
 import { PiAgent } from "./agent.js";
 import { PiChatRuntime } from "./chat.js";
-import type { BridgeAgent } from "../../contracts/runtime.js";
+import type { BridgeAgent } from "../types.js";
 
 export const piBridgeAgent = {
   id: "pi",

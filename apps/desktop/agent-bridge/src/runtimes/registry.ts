@@ -1,5 +1,5 @@
-import type { BridgeAgent } from "../contracts/runtime.js";
-import { toBridgeAgentDefinition } from "../contracts/agents.js";
+import type { BridgeAgentDefinition } from "./agents.js";
+import type { BridgeAgent } from "./types.js";
 import { mockBridgeAgent } from "./mock/index.js";
 import { piBridgeAgent } from "./pi/index.js";
 
@@ -12,6 +12,15 @@ const createBridgeAgentRegistry = (
   agents: readonly BridgeAgent[],
 ): Readonly<Record<string, BridgeAgent>> =>
   Object.freeze(Object.fromEntries(agents.map((agent) => [agent.id, agent])));
+
+const toBridgeAgentDefinition = (agent: BridgeAgent): BridgeAgentDefinition =>
+  Object.freeze({
+    id: agent.id,
+    label: agent.label,
+    description: agent.description,
+    capabilities: Object.freeze([...agent.capabilities]),
+    requiresModel: agent.requiresModel,
+  });
 
 const bridgeAgentRegistry = createBridgeAgentRegistry(bridgeAgents);
 

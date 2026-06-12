@@ -10,7 +10,7 @@ import {
   type StartTaskCommand,
   type TaskResult,
 } from "./contracts/protocol.js";
-import type { EmitBridgeEvent } from "./contracts/runtime.js";
+import type { EmitBridgeEvent } from "./runtimes/types.js";
 import {
   bridgeAgentManifest,
 } from "./runtimes/index.js";

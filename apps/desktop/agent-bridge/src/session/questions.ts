@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import {
   BridgeEventType,
   type AnswerQuestionCommand,
-  type AskUserInput,
 } from "../contracts/protocol.js";
-import type { AskUser, EmitBridgeEvent } from "../contracts/runtime.js";
+import type { AskUser, EmitBridgeEvent } from "../runtimes/types.js";
+import type { AskUserInput } from "../tools/types.js";
 
 const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
 

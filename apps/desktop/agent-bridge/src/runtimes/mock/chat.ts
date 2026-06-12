@@ -7,7 +7,7 @@ import type {
   ChatRuntime,
   ChatRuntimeContext,
   RuntimeChatCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import { chunkText, createMockChatText, sleep } from "./response.js";
 
 export class MockChatRuntime implements ChatRuntime {

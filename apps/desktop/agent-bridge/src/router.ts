@@ -6,7 +6,7 @@ import {
   type ChatResult,
   type StartTaskCommand,
 } from "./contracts/protocol.js";
-import type { AskUser, EmitBridgeEvent } from "./contracts/runtime.js";
+import type { AskUser, EmitBridgeEvent } from "./runtimes/types.js";
 import type { BridgeQuestionManager } from "./session/questions.js";
 import { messageFromError } from "./utils/error.js";
 import {

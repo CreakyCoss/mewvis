@@ -1,6 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { AskUserInput } from "../../../contracts/protocol.js";
-import type { AskUser } from "../../../contracts/runtime.js";
+import type { AskUser } from "../../types.js";
 import {
   ASK_USER_TOOL_DESCRIPTION,
   ASK_USER_TOOL_LABEL,
@@ -10,6 +9,7 @@ import {
   type AskUserToolParams,
   normalizeAskUserInput,
 } from "../../../tools/ask-user.js";
+import type { AskUserInput } from "../../../tools/types.js";
 import { findXmlElement, parseXmlFragment } from "../../../utils/xml.js";
 import { toPiToolParameters } from "./schema.js";
 

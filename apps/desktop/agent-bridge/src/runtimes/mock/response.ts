@@ -1,7 +1,7 @@
 import type {
   RuntimeChatCommand,
   RuntimeStartTaskCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 
 const compact = (value: string, maxLength = 180) => {
   const normalized = value.replace(/\s+/g, " ").trim();

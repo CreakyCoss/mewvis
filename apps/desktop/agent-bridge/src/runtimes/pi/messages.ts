@@ -11,7 +11,7 @@ import {
   type ChatMessageInput,
   type ChatResult,
 } from "../../contracts/protocol.js";
-import type { RuntimeChatCommand } from "../../contracts/runtime.js";
+import type { RuntimeChatCommand } from "../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatResult => ({
   type: BridgeResultType.ChatResult,

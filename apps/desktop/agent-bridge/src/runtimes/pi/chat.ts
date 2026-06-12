@@ -11,7 +11,7 @@ import type {
   ChatRuntime,
   ChatRuntimeContext,
   RuntimeChatCommand,
-} from "../../contracts/runtime.js";
+} from "../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,

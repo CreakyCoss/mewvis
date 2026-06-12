@@ -1,4 +1,4 @@
-import type { BridgeAgent } from "../../contracts/runtime.js";
+import type { BridgeAgent } from "../types.js";
 import { MockAgent } from "./agent.js";
 import { MockChatRuntime } from "./chat.js";
 

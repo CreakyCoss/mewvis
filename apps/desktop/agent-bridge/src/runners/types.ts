@@ -1,10 +1,13 @@
 import type {
-  AgentRunResult,
   ChatCommand,
   ChatResult,
   StartTaskCommand,
 } from "../contracts/protocol.js";
-import type { AgentRuntimeContext, ChatRuntimeContext } from "../contracts/runtime.js";
+import type {
+  AgentRunResult,
+  AgentRuntimeContext,
+  ChatRuntimeContext,
+} from "../runtimes/types.js";
 
 export type RunnableBridgeCommand = StartTaskCommand | ChatCommand;
 
