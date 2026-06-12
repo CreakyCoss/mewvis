@@ -13,8 +13,9 @@ export type RuntimeModelOption = {
   };
   modelId: string;
   modelName: string;
-  runtimeInput: AgentRuntimeModelInput;
 };
+
+type RuntimeModelInputMap = Record<string, AgentRuntimeModelInput>;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
 
@@ -67,8 +68,14 @@ export const buildRuntimeModelOption = (
     },
     modelId,
     modelName,
-    runtimeInput: createRuntimeModelInput(provider, model, modelId),
   };
+};
+
+const buildRuntimeModelInput = (
+  provider: LlmProvider,
+  model: ProviderModel,
+): AgentRuntimeModelInput => {
+  return createRuntimeModelInput(provider, model, formatProviderModelId(model));
 };
 
 export const buildRuntimeModelOptions = (
@@ -82,38 +89,18 @@ export const buildRuntimeModelOptions = (
         .map((model) => buildRuntimeModelOption(provider, model))
     );
 
-export const findDefaultRuntimeModel = (
-  runtimeModels: RuntimeModelOption[],
-) => runtimeModels[0] ?? null;
+export const buildRuntimeModelInputs = (
+  settings: LlmSettings,
+): RuntimeModelInputMap => {
+  const inputs: RuntimeModelInputMap = {};
 
-export const findRuntimeModelById = (
-  runtimeModels: RuntimeModelOption[],
-  id?: string | null,
-) => {
-  return id ? runtimeModels.find((model) => model.id === id) ?? null : null;
-};
+  for (const provider of settings.providers) {
+    for (const model of provider.models) {
+      if (!model.isEnabled) continue;
 
-export const groupRuntimeModelsByProvider = (
-  runtimeModels: RuntimeModelOption[],
-) => {
-  const groups: Array<{
-    providerId: string;
-    providerName: string;
-    models: RuntimeModelOption[];
-  }> = [];
-
-  for (const model of runtimeModels) {
-    let group = groups.find((item) => item.providerId === model.provider.id);
-    if (!group) {
-      group = {
-        providerId: model.provider.id,
-        providerName: model.provider.name,
-        models: [],
-      };
-      groups.push(group);
+      inputs[model.id] = buildRuntimeModelInput(provider, model);
     }
-    group.models.push(model);
   }
 
-  return groups;
+  return inputs;
 };

@@ -40,10 +40,7 @@ import type {
   AgentProfile,
   CollaborationWorkflowProfile,
 } from "@/features/agent-settings/types";
-import {
-  groupRuntimeModelsByProvider,
-  type RuntimeModelOption,
-} from "@/features/llm-settings";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 import type {
   ChatExecutionMode,
   ChatMode,
@@ -99,6 +96,33 @@ type ComposerProps = {
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
+};
+
+type RuntimeModelGroup = {
+  providerId: string;
+  providerName: string;
+  models: RuntimeModelOption[];
+};
+
+const groupRuntimeModelsByProvider = (
+  runtimeModels: RuntimeModelOption[],
+): RuntimeModelGroup[] => {
+  const groups: RuntimeModelGroup[] = [];
+
+  for (const model of runtimeModels) {
+    let group = groups.find((item) => item.providerId === model.provider.id);
+    if (!group) {
+      group = {
+        providerId: model.provider.id,
+        providerName: model.provider.name,
+        models: [],
+      };
+      groups.push(group);
+    }
+    group.models.push(model);
+  }
+
+  return groups;
 };
 
 const formatContextWindowLabel = (tokens: number) => {

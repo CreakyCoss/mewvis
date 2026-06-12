@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import { SettingsDialog } from "@/features/llm-settings/components/settings-dialog";
+import { LlmSettingsPage } from "@/features/llm-settings/components/page";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import { CreateDialog } from "./create-dialog";
 import { Content } from "./content";
@@ -18,7 +18,7 @@ type WorkspacesPageProps = {
 export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
   const [isCollaborationWorkflowSettingsOpen, setIsCollaborationWorkflowSettingsOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLlmSettingsPageOpen, setIsLlmSettingsPageOpen] = useState(false);
   const {
     overview,
     form,
@@ -154,9 +154,9 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant={isLlmSettingsPageOpen ? "secondary" : "ghost"}
             className="w-full justify-start"
-            onClick={() => setIsSettingsOpen(true)}
+            onClick={() => setIsLlmSettingsPageOpen(true)}
           >
             <Settings className="size-4" />
             <span>LLM 设置</span>
@@ -165,68 +165,74 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col bg-background">
-        <header className="flex min-h-14 items-center justify-between gap-3 bg-card/80 px-4 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur md:px-5">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">工作区</h2>
-            <p className="truncate text-xs text-muted-foreground">
-              组织项目、配置模型，并进入工作区继续创作与编辑。
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              title="角色设置"
-              className="md:hidden"
-              onClick={() => setIsAgentSettingsOpen(true)}
-            >
-              <Bot className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              title="协作流程设置"
-              className="md:hidden"
-              onClick={() => setIsCollaborationWorkflowSettingsOpen(true)}
-            >
-              <GitBranch className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              title="LLM 设置"
-              className="md:hidden"
-              onClick={() => setIsSettingsOpen(true)}
-            >
-              <Settings className="size-4" />
-            </Button>
-            <Button type="button" onClick={openCreateWorkspace}>
-              <Plus className="size-4" />
-              <span>新增工作区</span>
-            </Button>
-          </div>
-        </header>
+        {isLlmSettingsPageOpen ? (
+          <LlmSettingsPage onBack={() => setIsLlmSettingsPageOpen(false)} />
+        ) : (
+          <>
+            <header className="flex min-h-14 items-center justify-between gap-3 bg-card/80 px-4 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur md:px-5">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">工作区</h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  组织项目、配置模型，并进入工作区继续创作与编辑。
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="角色设置"
+                  className="md:hidden"
+                  onClick={() => setIsAgentSettingsOpen(true)}
+                >
+                  <Bot className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="协作流程设置"
+                  className="md:hidden"
+                  onClick={() => setIsCollaborationWorkflowSettingsOpen(true)}
+                >
+                  <GitBranch className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  title="LLM 设置"
+                  className="md:hidden"
+                  onClick={() => setIsLlmSettingsPageOpen(true)}
+                >
+                  <Settings className="size-4" />
+                </Button>
+                <Button type="button" onClick={openCreateWorkspace}>
+                  <Plus className="size-4" />
+                  <span>新增工作区</span>
+                </Button>
+              </div>
+            </header>
 
-        {error && (
-          <div className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive md:mx-5">
-            {error}
-          </div>
+            {error && (
+              <div className="mx-4 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive md:mx-5">
+                {error}
+              </div>
+            )}
+
+            <ScrollArea className="min-h-0 flex-1">
+              <section className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6">
+                <Content
+                  overview={overview}
+                  sections={sections}
+                  isLoading={isLoading}
+                  onCreateWorkspace={openCreateWorkspace}
+                  onOpenWorkspace={onOpenWorkspace}
+                />
+              </section>
+            </ScrollArea>
+          </>
         )}
-
-        <ScrollArea className="min-h-0 flex-1">
-          <section className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6">
-            <Content
-              overview={overview}
-              sections={sections}
-              isLoading={isLoading}
-              onCreateWorkspace={openCreateWorkspace}
-              onOpenWorkspace={onOpenWorkspace}
-            />
-          </section>
-        </ScrollArea>
       </section>
 
       <CreateDialog
@@ -240,11 +246,6 @@ export const WorkspacesPage = ({ onOpenWorkspace }: WorkspacesPageProps) => {
         onOpenChange={handleDialogOpenChange}
         onFormChange={setForm}
         onSubmit={saveWorkspace}
-      />
-
-      <SettingsDialog
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
       />
 
       <AgentSettingsDialog

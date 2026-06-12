@@ -1,6 +1,7 @@
 import {
   buildSystemPrompt,
 } from "@/ai/agent-context";
+import { requireRuntimeModelInput } from "@/features/llm-settings";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import {
   formatDebugMessages,
@@ -38,6 +39,9 @@ export const runChatTurn = async (
     effectiveRuntimeModel,
   }: RunChatTurnDeps,
 ) => {
+  const runtimeModelInput = effectiveRuntimeModel
+    ? requireRuntimeModelInput(effectiveRuntimeModel)
+    : null;
   const systemPrompt = buildSystemPrompt(
     workspace,
     activeFile,
@@ -84,7 +88,7 @@ export const runChatTurn = async (
   });
   const result = await runSharedRuntimeChat({
     agentId: runtimeAgentId,
-    runtimeModel: effectiveRuntimeModel?.runtimeInput ?? null,
+    runtimeModel: runtimeModelInput,
     systemPrompt,
     messages: runtimeMessages,
     onTextDelta: (delta) => {

@@ -96,6 +96,10 @@ export const getProviderOption = (provider: string) => {
   return getProviderOptions().find((option) => option.value === provider);
 };
 
+export const getProviderWebsiteUrl = (provider: string) => {
+  return getProviderCatalog(provider)?.websiteUrl ?? "";
+};
+
 export const getProviderModels = (provider: string) => {
   return getProviderModelEntries(provider);
 };

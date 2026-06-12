@@ -1,34 +1,36 @@
 import { create } from "zustand";
+import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import { getLlmSettings } from "../settings/api";
 import {
+  buildRuntimeModelInputs,
   buildRuntimeModelOptions,
-  findDefaultRuntimeModel,
-  findRuntimeModelById,
   type RuntimeModelOption,
 } from "./model";
 
 type LlmRuntimeModelStore = {
   runtimeModels: RuntimeModelOption[];
+  runtimeModelInputs: Record<string, AgentRuntimeModelInput>;
   selectedRuntimeModelId: string;
   isLoading: boolean;
   error: string;
   loadRuntimeModels: () => Promise<void>;
   refreshRuntimeModels: () => Promise<void>;
   setSelectedRuntimeModelId: (id: string) => void;
-  getRuntimeModel: (id?: string | null) => RuntimeModelOption | null;
+  getRuntimeModelInput: (id?: string | null) => AgentRuntimeModelInput | null;
 };
 
 const resolveSelectedRuntimeModelId = (
   runtimeModels: RuntimeModelOption[],
   currentId: string,
 ) => {
-  const current = findRuntimeModelById(runtimeModels, currentId);
-  return current?.id ?? findDefaultRuntimeModel(runtimeModels)?.id ?? "";
+  const current = runtimeModels.find((model) => model.id === currentId);
+  return current?.id ?? runtimeModels[0]?.id ?? "";
 };
 
 export const useLlmRuntimeModelStore = create<LlmRuntimeModelStore>(
   (set, get) => ({
     runtimeModels: [],
+    runtimeModelInputs: {},
     selectedRuntimeModelId: "",
     isLoading: false,
     error: "",
@@ -37,12 +39,14 @@ export const useLlmRuntimeModelStore = create<LlmRuntimeModelStore>(
       try {
         const settings = await getLlmSettings();
         const runtimeModels = buildRuntimeModelOptions(settings);
+        const runtimeModelInputs = buildRuntimeModelInputs(settings);
         const selectedRuntimeModelId = resolveSelectedRuntimeModelId(
           runtimeModels,
           get().selectedRuntimeModelId,
         );
         set({
           runtimeModels,
+          runtimeModelInputs,
           selectedRuntimeModelId,
           isLoading: false,
           error: "",
@@ -60,12 +64,28 @@ export const useLlmRuntimeModelStore = create<LlmRuntimeModelStore>(
     setSelectedRuntimeModelId: (id) => {
       set({ selectedRuntimeModelId: id });
     },
-    getRuntimeModel: (id) => {
+    getRuntimeModelInput: (id) => {
       const state = get();
-      return findRuntimeModelById(
-        state.runtimeModels,
-        id ?? state.selectedRuntimeModelId,
-      );
+      const runtimeModelId = id ?? state.selectedRuntimeModelId;
+      return runtimeModelId
+        ? state.runtimeModelInputs[runtimeModelId] ?? null
+        : null;
     },
   }),
 );
+
+export const resolveRuntimeModelInput = (id?: string | null) =>
+  useLlmRuntimeModelStore.getState().getRuntimeModelInput(id);
+
+export const requireRuntimeModelInput = (
+  runtimeModel: RuntimeModelOption,
+  message = "当前模型配置已不可用，请重新选择模型。",
+) => {
+  const runtimeModelInput = resolveRuntimeModelInput(runtimeModel.id);
+
+  if (!runtimeModelInput) {
+    throw new Error(message);
+  }
+
+  return runtimeModelInput;
+};

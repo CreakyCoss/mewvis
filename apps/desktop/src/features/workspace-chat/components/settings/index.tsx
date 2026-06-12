@@ -61,7 +61,7 @@ export const SettingsPanel = ({
             </span>
             <span className="block text-base font-semibold">LLM 设置</span>
             <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-              管理 Provider、API Key、Base URL 和启用模型。
+              管理 Provider、API Key、API Endpoint 和启用模型。
             </span>
           </button>
 

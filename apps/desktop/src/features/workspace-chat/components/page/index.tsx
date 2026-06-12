@@ -17,8 +17,7 @@ import {
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/agent-settings/components/collaboration-workflow-dialog";
 import { AgentSettingsDialog } from "@/features/agent-settings/components/dialog";
-import { SettingsDialog } from "@/features/llm-settings/components/settings-dialog";
-import { findDefaultRuntimeModel } from "@/features/llm-settings";
+import { LlmSettingsPage } from "@/features/llm-settings/components/page";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
@@ -288,7 +287,7 @@ export const WorkspaceChatPage = ({
     }
   }, [chatMode, collaborationWorkflows.length, setChatMode]);
   const tavernDefaultRuntimeModel = useMemo(
-    () => findDefaultRuntimeModel(runtimeModels),
+    () => runtimeModels[0] ?? null,
     [runtimeModels],
   );
   const {
@@ -434,6 +433,7 @@ export const WorkspaceChatPage = ({
 
   const openSettingsPanel = useCallback(() => {
     setIsContextWorkbenchOpen(false);
+    setIsLlmSettingsOpen(false);
     setWorkspaceView("settings");
   }, []);
 
@@ -2001,7 +2001,15 @@ export const WorkspaceChatPage = ({
 
   const chatPanel = <ChatPanel />;
 
-  const settingsPanel = (
+  const settingsPanel = isLlmSettingsOpen ? (
+    <LlmSettingsPage
+      onBack={() => {
+        setIsLlmSettingsOpen(false);
+        void loadLlmOptions();
+      }}
+      onSettingsSaved={() => void loadLlmOptions()}
+    />
+  ) : (
     <SettingsPanel
       settingsError={settingsError}
       skillsError={skillsError}
@@ -2093,15 +2101,6 @@ export const WorkspaceChatPage = ({
         onOpenChange={handleSkillsDialogOpenChange}
         onToggleSkill={toggleWorkspaceSkill}
         onSave={() => void saveSkills()}
-      />
-      <SettingsDialog
-        open={isLlmSettingsOpen}
-        onOpenChange={(open) => {
-          setIsLlmSettingsOpen(open);
-          if (!open) {
-            void loadLlmOptions();
-          }
-        }}
       />
       <AgentSettingsDialog
         open={isAgentSettingsOpen}

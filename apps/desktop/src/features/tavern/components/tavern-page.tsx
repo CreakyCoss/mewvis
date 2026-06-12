@@ -3,7 +3,10 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
-import type { RuntimeModelOption } from "@/features/llm-settings";
+import {
+  requireRuntimeModelInput,
+  type RuntimeModelOption,
+} from "@/features/llm-settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -78,6 +81,10 @@ import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
+const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
+
+const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
+  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
 const normalizeNarratorEchoText = (text: string) =>
   text
@@ -1810,7 +1817,7 @@ export const TavernPage = ({
     try {
       const extractedDraft = await runTavernAssetExtraction({
         runtimeAgentId,
-        runtimeModel: runtimeModel.runtimeInput,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
         messages: contextMessages,
@@ -1892,7 +1899,7 @@ export const TavernPage = ({
     try {
       const suggestions = await runTavernUserReplySuggestions({
         runtimeAgentId,
-        runtimeModel: runtimeModel.runtimeInput,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
         messages: roomMessages,
@@ -1984,7 +1991,7 @@ export const TavernPage = ({
     try {
       const content = await runTavernQuickSummary({
         runtimeAgentId,
-        runtimeModel: runtimeModel.runtimeInput,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
         messages: summaryMessages,
@@ -2077,7 +2084,7 @@ export const TavernPage = ({
     try {
       const novelContent = await runTavernQuickNovel({
         runtimeAgentId,
-        runtimeModel: runtimeModel.runtimeInput,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
         messages: novelMessages,
@@ -2270,7 +2277,7 @@ export const TavernPage = ({
         setTurnStatus("导演正在代你生成本轮回复...");
         text = await runTavernManagedUserReply({
           runtimeAgentId,
-          runtimeModel: runtimeModel.runtimeInput,
+          runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: activeRoom,
           characters: roomCharacters,
           messages: roomMessages,
@@ -2329,7 +2336,7 @@ export const TavernPage = ({
 
       const preparedContext = await prepareTavernRuntimeContext({
         runtimeAgentId,
-        runtimeModel: runtimeModel.runtimeInput,
+        runtimeModel,
         room: activeRoom,
         messages: runtimeMessages,
         characters: roomCharacters,
@@ -2379,7 +2386,7 @@ export const TavernPage = ({
         });
         const directorDecision = await runTavernDirector({
           runtimeAgentId,
-          runtimeModel: runtimeModel.runtimeInput,
+          runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: runtimeRoom,
           characters: roomCharacters,
           messages: runtimeMessages,
@@ -2483,7 +2490,9 @@ export const TavernPage = ({
 
         const result = await runTavernReply({
           runtimeAgentId,
-          runtimeModel: resolvedSpeakerModels[speakerIndex].runtimeModel.runtimeInput,
+          runtimeModel: requireTavernRuntimeModelInput(
+            resolvedSpeakerModels[speakerIndex].runtimeModel,
+          ),
           room: runtimeRoom,
           activeCharacter: speaker,
           characters: roomCharacters,
@@ -2529,7 +2538,9 @@ export const TavernPage = ({
           try {
             finalThought = await runTavernInnerThought({
               runtimeAgentId,
-              runtimeModel: resolvedSpeakerModels[speakerIndex].runtimeModel.runtimeInput,
+              runtimeModel: requireTavernRuntimeModelInput(
+                resolvedSpeakerModels[speakerIndex].runtimeModel,
+              ),
               room: runtimeRoom,
               activeCharacter: speaker,
               characters: roomCharacters,
@@ -2574,7 +2585,7 @@ export const TavernPage = ({
         try {
           const extractedDraft = await runTavernAssetExtraction({
             runtimeAgentId,
-            runtimeModel: runtimeModel.runtimeInput,
+            runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
             room: runtimeRoom,
             characters: roomCharacters,
             messages: runtimeMessages,

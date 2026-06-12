@@ -11,6 +11,7 @@ import {
   runSharedAgentTask,
   type SharedAgentTaskResult,
 } from "@/features/shared-chat-runtime";
+import { requireRuntimeModelInput } from "@/features/llm-settings";
 import type {
   AgentProfile,
   CollaborationWorkflowProfile,
@@ -90,6 +91,13 @@ type SupervisorWorkflowPlanProposal = {
   reason: string;
   proposedStepIds: string[];
   proposedSteps: CollaborationWorkflowStepProfile[];
+};
+
+const resolveAgentRuntimeModelInput = (agent: AgentProfile) => {
+  return requireRuntimeModelInput(
+    agent.runtimeModel,
+    `Agent「${agent.name}」绑定的模型已不可用，请重新选择模型。`,
+  );
 };
 
 const workflowPlanJsonPattern = /<workflow_plan_json>\s*([\s\S]*?)\s*<\/workflow_plan_json>/i;
@@ -504,7 +512,7 @@ export const runCollaborationTurn = async (
       messageId: supervisorMessageId,
       prompt: supervisorPrompt,
       agent: supervisorAgent,
-      runtimeModel: supervisorAgent.runtimeModel.runtimeInput,
+      runtimeModel: resolveAgentRuntimeModelInput(supervisorAgent),
       allowedTools: [],
       enabledSkillNames,
       traceTurnId,
@@ -749,7 +757,7 @@ export const runCollaborationTurn = async (
         messageId: stepMessageId,
         prompt: stepPrompt,
         agent: step.agent,
-        runtimeModel: step.agent.runtimeModel.runtimeInput,
+        runtimeModel: resolveAgentRuntimeModelInput(step.agent),
         allowedTools: allowedToolsForStepRuns,
         enabledSkillNames,
         traceTurnId,

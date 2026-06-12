@@ -4,7 +4,10 @@ import {
   type ConversationSummarizer,
 } from "@/ai/agent-context";
 import { createSharedConversationSummarizer } from "@/features/shared-chat-runtime";
-import type { RuntimeModelOption } from "@/features/llm-settings";
+import {
+  resolveRuntimeModelInput,
+  type RuntimeModelOption,
+} from "@/features/llm-settings";
 
 type UseContextModelingInput = {
   runtimeAgentRequiresModel: boolean;
@@ -18,7 +21,9 @@ export const useContextModeling = ({
   const contextModelFor = useCallback((
     runtimeModel?: RuntimeModelOption | null,
   ) => {
-    const modelInput = runtimeModel?.runtimeInput ?? null;
+    const modelInput = runtimeModel
+      ? resolveRuntimeModelInput(runtimeModel.id)
+      : null;
     const contextWindow = resolveAppContextWindow(modelInput);
 
     return modelInput
@@ -37,9 +42,13 @@ export const useContextModeling = ({
     if (!runtimeAgentRequiresModel || !runtimeModel) {
       return null;
     }
+    const modelInput = resolveRuntimeModelInput(runtimeModel.id);
+    if (!modelInput) {
+      return null;
+    }
 
     return createSharedConversationSummarizer({
-      runtimeModel: runtimeModel.runtimeInput,
+      runtimeModel: modelInput,
       systemPrompt: [
         "你是聊天历史压缩器。请把跨任务恢复所需的信息压缩成中文摘要。",
         "要求：保留用户目标、已确认的决策、关键约束、文件/路径/实体名、未完成事项、助手已经给出的重要结论。",

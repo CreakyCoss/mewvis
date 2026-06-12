@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import {
-  findRuntimeModelById,
-  groupRuntimeModelsByProvider,
+  type RuntimeModelOption,
   useLlmRuntimeModelStore,
 } from "@/features/llm-settings";
 import {
@@ -26,6 +25,33 @@ import {
 } from "../utils";
 
 type AgentSettingsSelectionKind = "agent" | "workflow";
+
+type RuntimeModelGroup = {
+  providerId: string;
+  providerName: string;
+  models: RuntimeModelOption[];
+};
+
+const groupRuntimeModelsByProvider = (
+  runtimeModels: RuntimeModelOption[],
+): RuntimeModelGroup[] => {
+  const groups: RuntimeModelGroup[] = [];
+
+  for (const model of runtimeModels) {
+    let group = groups.find((item) => item.providerId === model.provider.id);
+    if (!group) {
+      group = {
+        providerId: model.provider.id,
+        providerName: model.provider.name,
+        models: [],
+      };
+      groups.push(group);
+    }
+    group.models.push(model);
+  }
+
+  return groups;
+};
 
 const workflowToDraft = (workflow: CollaborationWorkflow): SaveCollaborationWorkflowInput => ({
   id: workflow.id,
@@ -86,7 +112,9 @@ export const useAgentSettings = (open: boolean) => {
 
   const selectedRuntimeModel = useMemo(
     () => {
-      const runtimeModel = findRuntimeModelById(runtimeModels, draft.modelId);
+      const runtimeModel = runtimeModels.find(
+        (model) => model.id === draft.modelId,
+      );
 
       return runtimeModel?.provider.id === draft.providerId ? runtimeModel : null;
     },

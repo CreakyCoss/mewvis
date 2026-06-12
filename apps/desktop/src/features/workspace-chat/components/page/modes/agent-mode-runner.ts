@@ -4,6 +4,7 @@ import {
 import {
   normalizeAllowedAgentTools,
 } from "@/ai/agent-runtime/contracts";
+import { requireRuntimeModelInput } from "@/features/llm-settings";
 import { getAgentSessionStatus } from "../../../api";
 import {
   filterChatAgentAllowedTools,
@@ -64,6 +65,9 @@ export const runAgentTurn = async (
     currentSessionTitle,
   }: RunAgentTurnDeps,
 ) => {
+  const runtimeModelInput = effectiveRuntimeModel
+    ? requireRuntimeModelInput(effectiveRuntimeModel)
+    : null;
   if (!nextSessionId) {
     setChatError("无法创建 Agent 长期上下文，请重试");
     return;
@@ -191,7 +195,7 @@ export const runAgentTurn = async (
     chatSessionId: agentSessionId,
     bootstrapContext: agentPromptPayload.bootstrapContext,
     prompt: agentPromptPayload.prompt,
-    runtimeModel: effectiveRuntimeModel?.runtimeInput,
+    runtimeModel: runtimeModelInput ?? undefined,
     allowedTools: allowedToolsForRun,
     enabledSkills: enabledSkills.map((skill) => skill.name),
   });

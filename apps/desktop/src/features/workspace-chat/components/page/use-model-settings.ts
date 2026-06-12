@@ -12,11 +12,7 @@ import {
   resolveAgentProfiles,
   resolveCollaborationWorkflowProfiles,
 } from "@/features/agent-settings/utils";
-import {
-  findDefaultRuntimeModel,
-  findRuntimeModelById,
-  useLlmRuntimeModelStore,
-} from "@/features/llm-settings";
+import { useLlmRuntimeModelStore } from "@/features/llm-settings";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 
@@ -123,8 +119,9 @@ export const useModelSettings = ({
   }, [loadRuntimeAgents]);
 
   const selectedRuntimeModel = useMemo(
-    () => findRuntimeModelById(runtimeModels, selectedRuntimeModelId)
-      ?? findDefaultRuntimeModel(runtimeModels),
+    () => runtimeModels.find((model) => model.id === selectedRuntimeModelId)
+      ?? runtimeModels[0]
+      ?? null,
     [runtimeModels, selectedRuntimeModelId],
   );
   const runtimeAgentCapability: AgentRuntimeAgentCapability =

@@ -1,9 +1,5 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
-import {
-  findDefaultRuntimeModel,
-  findRuntimeModelById,
-  type RuntimeModelOption,
-} from "@/features/llm-settings";
+import type { RuntimeModelOption } from "@/features/llm-settings";
 import type {
   AgentProfile,
   AiAgent,
@@ -27,7 +23,9 @@ const findAgentRuntimeModel = (
   runtimeModels: RuntimeModelOption[],
   agent: Pick<AiAgent, "providerId" | "modelId">,
 ) => {
-  const runtimeModel = findRuntimeModelById(runtimeModels, agent.modelId);
+  const runtimeModel = runtimeModels.find(
+    (model) => model.id === agent.modelId,
+  );
 
   return runtimeModel?.provider.id === agent.providerId ? runtimeModel : null;
 };
@@ -130,7 +128,7 @@ export const resolveCollaborationWorkflowStepProfiles = (
 export const createAgentDraft = (
   runtimeModels: RuntimeModelOption[],
 ): SaveAiAgentInput => {
-  const runtimeModel = findDefaultRuntimeModel(runtimeModels);
+  const runtimeModel = runtimeModels[0] ?? null;
 
   return {
     id: null,
