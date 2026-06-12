@@ -10,7 +10,7 @@ import {
   executeStartTaskCommand,
 } from "./execution.js";
 import type { AskUser, EmitBridgeEvent } from "../runtimes/types.js";
-import { createBridgeQuestionManager } from "../session/questions.js";
+import { createBridgeQuestionManager } from "./questions.js";
 import { messageFromError } from "../utils/error.js";
 import {
   createAgentDefinitionsResult,

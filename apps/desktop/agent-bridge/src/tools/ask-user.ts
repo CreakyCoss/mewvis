@@ -5,72 +5,71 @@ import {
   type ToolParameterDefinition,
 } from "./types.js";
 
-export const ASK_USER_TOOL_NAME = "ask_user";
-export const ASK_USER_TOOL_LABEL = "Ask User";
-export const ASK_USER_TOOL_DESCRIPTION = "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.";
+const stringParam = (
+  description: string,
+  optional?: boolean,
+): ToolParameterDefinition => ({
+  type: "string",
+  description,
+  optional,
+});
 
-export const ASK_USER_TOOL_PARAMETERS = {
+const literalParam = (value: string): ToolParameterDefinition => ({
+  type: "literal",
+  value,
+});
+
+const objectParam = (
+  properties: Record<string, ToolParameterDefinition>,
+  optional?: boolean,
+): ToolParameterDefinition => ({
+  type: "object",
+  properties,
+  optional,
+});
+
+const ASK_USER_TOOL_PARAMETERS = {
   type: "object",
   properties: {
-    question: {
-      type: "string",
-      description: "The question to show the user",
-    },
-    context: {
-      type: "string",
-      description: "Optional short context explaining why this is needed",
-      optional: true,
-    },
-    input: {
-      type: "object",
-      optional: true,
-      properties: {
+    question: stringParam("The question to show the user"),
+    context: stringParam("Optional short context explaining why this is needed", true),
+    input: objectParam(
+      {
         type: {
           type: "union",
           description: "The UI control type to render for the answer",
           anyOf: [
-            { type: "literal", value: AskUserInputType.Text },
-            { type: "literal", value: AskUserInputType.Select },
+            literalParam(AskUserInputType.Text),
+            literalParam(AskUserInputType.Select),
           ],
         },
-        label: {
-          type: "string",
-          description: "Short label shown above the control",
-          optional: true,
-        },
+        label: stringParam("Short label shown above the control", true),
         options: {
           type: "array",
           description: "Required when type is select. Provide at least two options. Option value may be omitted; label will be used as the returned value.",
           optional: true,
-          items: {
-            type: "object",
-            properties: {
-              value: {
-                type: "string",
-                description: "Stable value returned to the agent when this option is selected. Optional; defaults to label.",
-                optional: true,
-              },
-              label: {
-                type: "string",
-                description: "Human readable option label",
-              },
-              description: {
-                type: "string",
-                description: "Optional helper text for this option",
-                optional: true,
-              },
-            },
-          },
+          items: objectParam({
+            value: stringParam(
+              "Stable value returned to the agent when this option is selected. Optional; defaults to label.",
+              true,
+            ),
+            label: stringParam("Human readable option label"),
+            description: stringParam("Optional helper text for this option", true),
+          }),
         },
-        selected: {
-          type: "string",
-          description: "Default selected option value",
-          optional: true,
-        },
+        selected: stringParam("Default selected option value", true),
       },
-    },
+      true,
+    ),
   },
 } as const satisfies ToolParameterDefinition;
+
+export const ASK_USER_TOOL_DEFINITION = {
+  name: "ask_user",
+  label: "Ask User",
+  description: "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.",
+  parameters: ASK_USER_TOOL_PARAMETERS,
+} as const;
 
 export type AskUserCall = {
   question: string;
@@ -85,44 +84,67 @@ export type AskUserToolParams = {
 };
 
 export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined => {
-  if (!value || typeof value !== "object") {
+  const input = objectFromUnknown(value);
+  if (!input) {
     return undefined;
   }
 
-  const input = value as Partial<AskUserInput>;
-  if (input.type !== AskUserInputType.Select && input.type !== AskUserInputType.Text) {
+  const type = normalizeInputType(input.type);
+  if (!type) {
     return undefined;
   }
 
   return {
-    type: input.type,
-    label: typeof input.label === "string" ? input.label : undefined,
-    selected: typeof input.selected === "string" ? input.selected : undefined,
-    options: Array.isArray(input.options)
-      ? input.options
-        .reduce<AskUserOption[]>((options, option, index) => {
-          if (!option || typeof option !== "object") {
-            return options;
-          }
-          const item = option as Partial<AskUserOption>;
-          const value = typeof item.value === "string" && item.value.trim()
-            ? item.value
-            : typeof item.label === "string" && item.label.trim()
-              ? item.label
-              : "";
-          const label = typeof item.label === "string" && item.label.trim()
-            ? item.label
-            : value || `选项 ${index + 1}`;
-          if (!value && !label) {
-            return options;
-          }
-          options.push({
-            value: value || label,
-            label,
-            description: typeof item.description === "string" ? item.description : undefined,
-          });
-          return options;
-        }, [])
-      : undefined,
+    type,
+    label: optionalString(input.label),
+    selected: optionalString(input.selected),
+    options: normalizeOptions(input.options),
   };
+};
+
+const normalizeInputType = (value: unknown) => {
+  if (value === AskUserInputType.Select || value === AskUserInputType.Text) {
+    return value;
+  }
+
+  return undefined;
+};
+
+const normalizeOptions = (value: unknown): AskUserOption[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value.flatMap((item, index) => {
+    const option = normalizeOption(item, index);
+    return option ? [option] : [];
+  });
+};
+
+const normalizeOption = (value: unknown, index: number): AskUserOption | undefined => {
+  const option = objectFromUnknown(value);
+  if (!option) {
+    return undefined;
+  }
+
+  const explicitValue = nonBlankString(option.value);
+  const explicitLabel = nonBlankString(option.label);
+  const label = explicitLabel ?? explicitValue ?? `选项 ${index + 1}`;
+
+  return {
+    value: explicitValue ?? label,
+    label,
+    description: optionalString(option.description),
+  };
+};
+
+const objectFromUnknown = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null ? value as Record<string, unknown> : undefined;
+
+const optionalString = (value: unknown) =>
+  typeof value === "string" ? value : undefined;
+
+const nonBlankString = (value: unknown) => {
+  const text = optionalString(value);
+  return text?.trim() ? text : undefined;
 };
