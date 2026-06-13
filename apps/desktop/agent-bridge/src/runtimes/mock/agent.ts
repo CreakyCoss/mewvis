@@ -20,6 +20,27 @@ export class MockAgent implements AgentRuntime {
       delta: "Mock agent 正在生成模拟结果...\n",
     });
     await sleep(30);
+    emit({
+      type: BridgeEventType.ToolStart,
+      taskId: command.taskId,
+      toolName: "mock_tool",
+      args: { promptLength: command.prompt.length },
+    });
+    await sleep(30);
+    emit({
+      type: BridgeEventType.ToolUpdate,
+      taskId: command.taskId,
+      toolName: "mock_tool",
+      partialResult: "模拟工具执行中",
+    });
+    await sleep(30);
+    emit({
+      type: BridgeEventType.ToolEnd,
+      taskId: command.taskId,
+      toolName: "mock_tool",
+      isError: false,
+      result: "模拟工具执行完成",
+    });
 
     for (const delta of chunkText(text)) {
       emit({ type: BridgeEventType.TextDelta, taskId: command.taskId, delta });

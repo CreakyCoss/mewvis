@@ -37,6 +37,22 @@ const piApiForFormat = (apiFormat: string): Api => {
     return "google-generative-ai";
   }
 
+  if (apiFormat === "openai-responses") {
+    return "openai-responses";
+  }
+
+  if (apiFormat === "azure-openai-responses") {
+    return "azure-openai-responses";
+  }
+
+  if (apiFormat === "openai-codex-responses") {
+    return "openai-codex-responses";
+  }
+
+  if (apiFormat === "openrouter") {
+    return "openai-completions";
+  }
+
   return "openai-completions";
 };
 
@@ -59,7 +75,7 @@ export const createPiRuntimeModel = (
     api: piApiForFormat(runtimeModel.apiFormat),
     provider: runtimeModel.provider,
     baseUrl: runtimeModel.apiEndpoint ?? catalogModel?.baseUrl ?? "",
-    reasoning: runtimeModel.reasoning ?? catalogModel?.reasoning ?? false,
+    reasoning: runtimeModel.reasoning ?? catalogModel?.reasoning ?? true,
     thinkingLevelMap: runtimeModel.thinkingLevelMap ?? catalogModel?.thinkingLevelMap,
     input: runtimeModel.input ?? catalogModel?.input ?? ["text"],
     cost: runtimeModel.cost ?? catalogModel?.cost ?? {

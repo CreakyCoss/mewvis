@@ -151,7 +151,7 @@ const resolveStringStateAction = (
 ) => typeof action === "function" ? action(previous) : action;
 
 const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
-  chat: false,
+  chat: true,
   agent: true,
   collab: true,
 };
