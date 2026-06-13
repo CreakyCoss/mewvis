@@ -14,7 +14,7 @@ pub use agents::{
     save_collaboration_workflow,
 };
 pub use inputs::{
-    CreateWorkspaceInput, SaveAiAgentInput, SaveCollaborationWorkflowInput,
+    CreateWorkspaceInput, SaveAiAgentInput, SaveCollaborationWorkflowInput, SaveSkillGroupInput,
     SaveEmbeddingProfileInput, SaveKnowledgeCollectionInput, SaveKnowledgeSettingsInput,
     SaveKnowledgeSourceInput, SaveLlmProviderInput, SaveLlmSettingsInput, SaveProviderModelInput,
     SaveWorkspaceSkillsInput, SetKnowledgeCollectionSourcesInput, UpdateWorkspaceInput,
@@ -29,7 +29,7 @@ pub use llm::{llm_settings, save_llm_settings};
 pub use models::{
     AiAgent, AiAgentSettings, CollaborationWorkflow, EmbeddingProfile, KnowledgeCollection,
     KnowledgeLibrary, KnowledgeSettings, KnowledgeSource, LlmProvider, LlmSettings, ProviderModel,
-    Workspace, WorkspaceGroup, WorkspaceOverview, WorkspaceSkillSettings,
+    SkillGroup, Workspace, WorkspaceGroup, WorkspaceOverview, WorkspaceSkillSettings,
 };
 pub use skills::{save_workspace_skill_settings, workspace_skill_settings};
 pub use workspace::{create_workspace, overview, update_workspace};

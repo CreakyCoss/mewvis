@@ -1,0 +1,111 @@
+import { useState } from "react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import type {
+  InstallSkillInput,
+  RemoveSkillInput,
+  SearchSkillMarketplaceInput,
+  WorkspaceSkillGroup,
+} from "../types";
+import { DiscoverSkillsTab } from "./discover";
+import { MySkillsTab } from "./my-skills";
+
+type SkillsPageProps = {
+  isLoading: boolean;
+  isSaving: boolean;
+  isMarketplaceSearching: boolean;
+  isMarketplaceLoadingMore: boolean;
+  isInstalling: boolean;
+  isRemoving: boolean;
+  error: string;
+  onToggleSkill: (name: string, enabled: boolean) => void;
+  onToggleGroup: (skillNames: string[], enabled: boolean) => void;
+  onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
+  onSearchMarketplace: (input: SearchSkillMarketplaceInput) => Promise<void>;
+  onInstallSkill: (input: InstallSkillInput) => Promise<void>;
+  onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
+};
+
+type SkillsTab = "mine" | "discover";
+
+export const SkillsPage = ({
+  isLoading,
+  isSaving,
+  isMarketplaceSearching,
+  isMarketplaceLoadingMore,
+  isInstalling,
+  isRemoving,
+  error,
+  onToggleSkill,
+  onToggleGroup,
+  onGroupsChange,
+  onSearchMarketplace,
+  onInstallSkill,
+  onRemoveSkill,
+}: SkillsPageProps) => {
+  const [activeTab, setActiveTab] = useState<SkillsTab>("mine");
+
+  return (
+    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-[#f6f6f5]">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as SkillsTab)}
+        className="flex h-full min-h-0 flex-1 flex-col gap-0"
+      >
+        <header className="shrink-0 bg-[#f6f6f5] px-5 pt-6 pb-4 lg:px-10 lg:pt-8">
+          <div className="flex min-w-0 items-center gap-8">
+            <button
+              type="button"
+              className={[
+                "rounded-md text-2xl font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6f6f5]",
+                activeTab === "discover" ? "text-foreground" : "text-muted-foreground/45",
+              ].join(" ")}
+              onClick={() => setActiveTab("discover")}
+            >
+              探索发现
+            </button>
+            <button
+              type="button"
+              className={[
+                "rounded-md text-2xl font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6f6f5]",
+                activeTab === "mine" ? "text-foreground" : "text-muted-foreground/45",
+              ].join(" ")}
+              onClick={() => setActiveTab("mine")}
+            >
+              Skill库
+            </button>
+          </div>
+        </header>
+
+        {error && (
+          <div className="mx-5 mt-4 shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive lg:mx-7">
+            {error}
+          </div>
+        )}
+
+        <TabsContent value="mine" className="min-h-0 flex-1 overflow-hidden">
+          <MySkillsTab
+            isLoading={isLoading}
+            isSaving={isSaving}
+            isInstalling={isInstalling}
+            isRemoving={isRemoving}
+            onToggleSkill={onToggleSkill}
+            onToggleGroup={onToggleGroup}
+            onGroupsChange={onGroupsChange}
+            onInstallSkill={onInstallSkill}
+            onRemoveSkill={onRemoveSkill}
+          />
+        </TabsContent>
+
+        <TabsContent value="discover" className="min-h-0 flex-1 overflow-hidden">
+          <DiscoverSkillsTab
+            isMarketplaceSearching={isMarketplaceSearching}
+            isMarketplaceLoadingMore={isMarketplaceLoadingMore}
+            isInstalling={isInstalling}
+            onSearchMarketplace={onSearchMarketplace}
+            onInstallSkill={onInstallSkill}
+          />
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+};

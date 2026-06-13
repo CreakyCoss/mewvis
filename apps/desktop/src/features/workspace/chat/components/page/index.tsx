@@ -22,7 +22,7 @@ import { LlmSettingsPage } from "@/features/ai/llm";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
-import { SkillsDialog } from "@/features/skills/components/dialog";
+import { SkillsPage } from "@/features/skills/components/page";
 import type { SidebarProps } from "@/features/workspace/shell/sidebar";
 import type { WorkbenchHeaderProps } from "@/features/workspace/shell/workbench-header";
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
@@ -310,17 +310,21 @@ export const WorkspaceChatPage = ({
     effectiveRuntimeModel,
   });
   const {
-    skills,
     enabledSkillNames,
     enabledSkills,
-    isSkillsDialogOpen,
-    setIsSkillsDialogOpen,
     skillsError,
     isSkillsLoading,
     isSkillsSaving,
+    isSkillMarketplaceSearching,
+    isSkillMarketplaceLoadingMore,
+    isSkillInstalling,
+    isSkillRemoving,
     toggleWorkspaceSkill,
-    handleSkillsDialogOpenChange,
-    saveSkills,
+    toggleWorkspaceSkillGroup,
+    updateSkillGroups,
+    searchMarketplace,
+    installMarketplaceSkill,
+    removeMarketplaceSkill,
   } = useWorkspaceSkills({
     workspaceId: workspace.id,
   });
@@ -446,6 +450,14 @@ export const WorkspaceChatPage = ({
     setIsContextWorkbenchOpen(false);
     setIsLlmSettingsOpen(false);
     setWorkspaceView("settings");
+  }, []);
+
+  const openSkillsPage = useCallback(() => {
+    setIsContextWorkbenchOpen(false);
+    setIsLlmSettingsOpen(false);
+    setIsAgentSettingsOpen(false);
+    setIsCollaborationWorkflowSettingsOpen(false);
+    setWorkspaceView("skills");
   }, []);
 
   const openContextWorkbench = useCallback(() => {
@@ -2012,6 +2024,24 @@ export const WorkspaceChatPage = ({
 
   const chatPanel = <ChatPanel />;
 
+  const skillsPanel = (
+    <SkillsPage
+      isLoading={isSkillsLoading}
+      isSaving={isSkillsSaving}
+      isMarketplaceSearching={isSkillMarketplaceSearching}
+      isMarketplaceLoadingMore={isSkillMarketplaceLoadingMore}
+      isInstalling={isSkillInstalling}
+      isRemoving={isSkillRemoving}
+      error={skillsError}
+      onToggleSkill={toggleWorkspaceSkill}
+      onToggleGroup={toggleWorkspaceSkillGroup}
+      onGroupsChange={updateSkillGroups}
+      onSearchMarketplace={searchMarketplace}
+      onInstallSkill={installMarketplaceSkill}
+      onRemoveSkill={removeMarketplaceSkill}
+    />
+  );
+
   const settingsPanel = isLlmSettingsOpen ? (
     <LlmSettingsPage
       onBack={() => {
@@ -2102,17 +2132,6 @@ export const WorkspaceChatPage = ({
 
   const dialogs = (
     <>
-      <SkillsDialog
-        open={isSkillsDialogOpen}
-        skills={skills}
-        enabledSkillNames={enabledSkillNames}
-        isLoading={isSkillsLoading}
-        isSaving={isSkillsSaving}
-        error={skillsError}
-        onOpenChange={handleSkillsDialogOpenChange}
-        onToggleSkill={toggleWorkspaceSkill}
-        onSave={() => void saveSkills()}
-      />
       <AgentSettingsDialog
         open={isAgentSettingsOpen}
         onOpenChange={(open) => {
@@ -2177,13 +2196,14 @@ export const WorkspaceChatPage = ({
           Boolean(currentSessionId) ||
           Boolean(visibleActiveAgentTaskId)
         ),
+        isSkillsOpen: workspaceView === "skills",
         isKnowledgeOpen: workspaceView === "knowledge",
         isTavernOpen: workspaceView === "tavern",
         onOpenWorkspace: openWorkspaceFromCurrentContext,
         onEditWorkspace,
         onStartNewSession: startSidebarSession,
         onOpenContext: openContextWorkbench,
-        onOpenSkills: () => setIsSkillsDialogOpen(true),
+        onOpenSkills: openSkillsPage,
         onOpenKnowledge: () => {
           setIsContextWorkbenchOpen(false);
           setIsLlmSettingsOpen(false);
@@ -2226,6 +2246,8 @@ export const WorkspaceChatPage = ({
 
   const content = workspaceView === "settings" ? (
     settingsPanel
+  ) : workspaceView === "skills" ? (
+    skillsPanel
   ) : workspaceView === "knowledge" ? (
     knowledgePanel
   ) : workspaceView === "tavern" ? (

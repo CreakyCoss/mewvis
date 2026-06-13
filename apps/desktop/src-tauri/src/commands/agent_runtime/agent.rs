@@ -1,6 +1,9 @@
 use super::{
     bridge::append_agent_diagnostic,
-    skills::{bundled_skills_path_for_bridge, workspace_skill_paths_for_bridge},
+    skills::{
+        app_skill_paths_for_bridge, bundled_skills_path_for_bridge,
+        workspace_skill_paths_for_bridge,
+    },
     supervisor::{AgentRuntimeSupervisor, AgentTaskSubmission},
     types::AgentRuntimeModelInput,
 };
@@ -46,13 +49,14 @@ pub fn run_agent_runtime_agent(
 
     let task_id = Uuid::now_v7().to_string();
     let bundled_skills_path = bundled_skills_path_for_bridge(&app)?;
-    let skill_paths = workspace_skill_paths_for_bridge(&input.workspace_path);
+    let mut skill_paths = app_skill_paths_for_bridge(&app)?;
+    skill_paths.extend(workspace_skill_paths_for_bridge(&input.workspace_path));
     let session_key = session_key_for_task(&input, &task_id);
 
     append_agent_diagnostic(
         &app,
         format!(
-            "submit task={task_id} session_key={} workspace={} bundled_skills={} workspace_skills={}",
+            "submit task={task_id} session_key={} workspace={} bundled_skills={} extra_skill_paths={}",
             session_key,
             input.workspace_path,
             bundled_skills_path.as_deref().unwrap_or("<none>"),

@@ -53,6 +53,16 @@ pub struct SaveLlmSettingsInput {
 pub struct SaveWorkspaceSkillsInput {
     pub workspace_id: String,
     pub enabled_skill_names: Vec<String>,
+    pub skill_groups: Option<Vec<SaveSkillGroupInput>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveSkillGroupInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
+    pub skill_names: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

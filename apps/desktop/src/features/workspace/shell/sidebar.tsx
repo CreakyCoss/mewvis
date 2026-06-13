@@ -44,6 +44,7 @@ export type SidebarProps = {
   workspaceSessionsById: Record<string, ChatSessionMeta[]>;
   isAgentSessionRunning: (workspacePath: string, sessionId: string) => boolean;
   suppressDefaultLoadingState: boolean;
+  isSkillsOpen: boolean;
   isKnowledgeOpen: boolean;
   isTavernOpen: boolean;
   onOpenWorkspace: (workspace: Workspace) => void;
@@ -218,6 +219,7 @@ export const Sidebar = ({
   workspaceSessionsById,
   isAgentSessionRunning,
   suppressDefaultLoadingState,
+  isSkillsOpen,
   isKnowledgeOpen,
   isTavernOpen,
   onOpenWorkspace,
@@ -296,8 +298,9 @@ export const Sidebar = ({
       <Button
         type="button"
         variant="ghost"
-        className="h-10 w-full justify-start rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted/55"
+        className="h-10 w-full justify-start rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted/55 data-[active=true]:bg-muted/55"
         title="技能广场"
+        data-active={isSkillsOpen}
         onClick={onOpenSkills}
       >
         <Wrench className="size-4" />

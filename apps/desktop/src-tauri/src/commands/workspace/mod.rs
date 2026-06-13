@@ -18,7 +18,10 @@ pub use files::{
 };
 pub use knowledge::search_workspace_knowledge;
 pub use overview::{create_workspace, get_workspace_overview, update_workspace};
-pub use skills::{get_workspace_skills, save_workspace_skills};
+pub use skills::{
+    get_workspace_skills, install_skill_from_marketplace, remove_app_skill, save_workspace_skills,
+    search_skill_marketplace,
+};
 pub use version_control::{
     create_workspace_version, create_workspace_version_branch,
     discard_workspace_version_file_changes, get_workspace_version_commit_file_diff,

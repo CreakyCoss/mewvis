@@ -1,5 +1,7 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 use tauri::{path::BaseDirectory, AppHandle, Manager};
+
+use crate::product_config::app_data_dir_name;
 
 pub(crate) fn bundled_skills_path(app: &AppHandle) -> Result<Option<PathBuf>, String> {
     let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,6 +22,20 @@ pub(crate) fn bundled_skills_path(app: &AppHandle) -> Result<Option<PathBuf>, St
     }
 
     Ok(None)
+}
+
+pub(crate) fn app_skills_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let home_dir = app
+        .path()
+        .home_dir()
+        .map_err(|error| format!("无法获取用户主目录：{error}"))?;
+    Ok(home_dir.join(app_data_dir_name()).join("skills").clean())
+}
+
+pub(crate) fn ensure_app_skills_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let path = app_skills_path(app)?;
+    fs::create_dir_all(&path).map_err(|error| format!("无法创建应用 Skills 目录：{error}"))?;
+    Ok(path)
 }
 
 trait CleanPath {
