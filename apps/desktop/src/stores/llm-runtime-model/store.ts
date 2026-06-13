@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
-import { getLlmSettings } from "../settings/api";
+import { getLlmSettings } from "@/features/llm-settings/api";
 import {
   buildRuntimeModelInputs,
   buildRuntimeModelOptions,

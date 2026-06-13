@@ -3,7 +3,7 @@ import type {
   LlmProvider,
   LlmSettings,
   ProviderModel,
-} from "../settings/types";
+} from "@/features/llm-settings/types";
 
 export type RuntimeModelOption = {
   id: string;
@@ -53,7 +53,7 @@ const createRuntimeModelInput = (
   apiEndpoint: provider.apiEndpoint ?? undefined,
 });
 
-export const buildRuntimeModelOption = (
+const buildRuntimeModelOption = (
   provider: LlmProvider,
   model: ProviderModel,
 ): RuntimeModelOption => {

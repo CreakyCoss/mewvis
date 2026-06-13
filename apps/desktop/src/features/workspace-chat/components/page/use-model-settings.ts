@@ -12,7 +12,7 @@ import {
   resolveAgentProfiles,
   resolveCollaborationWorkflowProfiles,
 } from "@/features/agent-settings/utils";
-import { useLlmRuntimeModelStore } from "@/features/llm-settings";
+import { useLlmRuntimeModelStore } from "@/stores/llm-runtime-model";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bot,
@@ -14,15 +14,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getApiFormatLabel,
-  getProviderOption,
   getProviderWebsiteUrl,
-} from "../settings/options";
-import { getLlmSettings } from "../settings/api";
-import type { LlmProvider, LlmSettings } from "../settings/types";
+} from "./options";
+import { getLlmSettings } from "./api";
+import type { LlmProvider, LlmSettings } from "./types";
 import {
-  ProviderDialog,
-  type ProviderDialogMode,
-} from "./provider-dialog";
+  ProviderEditDialog,
+  type ProviderEditDialogHandle,
+} from "./provider-edit";
 
 type LlmSettingsPageProps = {
   onBack: () => void;
@@ -39,8 +38,6 @@ const ProviderTile = ({
   provider: LlmProvider;
   onOpen: () => void;
 }) => {
-  const providerLabel =
-    getProviderOption(provider.provider)?.label || provider.provider;
   const apiEndpoint = provider.apiEndpoint?.trim() ?? "";
   const websiteUrl = getProviderWebsiteUrl(provider.provider).trim();
   const enabledModelCount = countEnabledModels(provider);
@@ -58,7 +55,7 @@ const ProviderTile = ({
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate text-base font-semibold">
-            {provider.name || providerLabel || "未命名 Provider"}
+            {provider.name || "未命名 Provider"}
           </span>
           {provider.isDefault && (
             <Badge variant="secondary" className="bg-primary/10 text-primary">
@@ -76,8 +73,6 @@ const ProviderTile = ({
           {apiEndpoint || websiteUrl || "未设置 API Endpoint"}
         </span>
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{providerLabel}</span>
-          <span>·</span>
           <span>{enabledModelCount}/{provider.models.length} 个模型启用</span>
           <span>·</span>
           <span>{provider.apiKey?.trim() ? "API Key 已配置" : "API Key 未配置"}</span>
@@ -93,23 +88,11 @@ export const LlmSettingsPage = ({
   onBack,
   onSettingsSaved,
 }: LlmSettingsPageProps) => {
+  const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
   const [settings, setSettings] = useState<LlmSettings>({ providers: [] });
   const [error, setError] = useState("");
-  const [dialogMode, setDialogMode] =
-    useState<ProviderDialogMode>("create");
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(
-    null,
-  );
-  const [isProviderDialogOpen, setIsProviderDialogOpen] = useState(false);
   const providers = settings.providers;
   const providerCount = providers.length;
-  const editingProvider = useMemo(
-    () =>
-      editingProviderId
-        ? providers.find((provider) => provider.id === editingProviderId) ?? null
-        : null,
-    [editingProviderId, providers],
-  );
   const enabledModelCount = useMemo(
     () => providers.reduce(
       (total, provider) => total + countEnabledModels(provider),
@@ -132,22 +115,11 @@ export const LlmSettingsPage = ({
   }, [loadSettings]);
 
   const openCreateProvider = () => {
-    setDialogMode("create");
-    setEditingProviderId(null);
-    setIsProviderDialogOpen(true);
+    providerEditDialogRef.current?.open({ mode: "create" });
   };
 
   const openEditProvider = (provider: LlmProvider) => {
-    setDialogMode("edit");
-    setEditingProviderId(provider.id);
-    setIsProviderDialogOpen(true);
-  };
-
-  const handleProviderDialogOpenChange = (open: boolean) => {
-    setIsProviderDialogOpen(open);
-    if (!open) {
-      setEditingProviderId(null);
-    }
+    providerEditDialogRef.current?.open({ mode: "edit", provider });
   };
 
   const handleSettingsSaved = async () => {
@@ -209,7 +181,7 @@ export const LlmSettingsPage = ({
             </div>
           </div>
 
-          {error && !isProviderDialogOpen && (
+          {error && (
             <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
@@ -245,12 +217,9 @@ export const LlmSettingsPage = ({
         </div>
       </ScrollArea>
 
-      <ProviderDialog
-        open={isProviderDialogOpen}
-        mode={dialogMode}
-        provider={editingProvider}
+      <ProviderEditDialog
+        bind={providerEditDialogRef}
         providers={providers}
-        onOpenChange={handleProviderDialogOpenChange}
         onSaved={handleSettingsSaved}
       />
     </section>

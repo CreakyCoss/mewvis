@@ -4,7 +4,7 @@ import {
 import {
   normalizeAllowedAgentTools,
 } from "@/ai/agent-runtime/contracts";
-import { requireRuntimeModelInput } from "@/features/llm-settings";
+import { requireRuntimeModelInput } from "@/stores/llm-runtime-model";
 import { getAgentSessionStatus } from "../../../api";
 import {
   filterChatAgentAllowedTools,

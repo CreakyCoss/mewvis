@@ -1,4 +1,4 @@
-import type { RuntimeModelOption } from "@/features/llm-settings";
+import type { RuntimeModelOption } from "@/stores/llm-runtime-model";
 
 export type AiAgent = {
   id: string;

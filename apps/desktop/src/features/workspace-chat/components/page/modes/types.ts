@@ -15,7 +15,7 @@ import type {
 } from "@/ai/agent-runtime/contracts";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { AgentProfile, CollaborationWorkflowProfile } from "@/features/agent-settings/types";
-import type { RuntimeModelOption } from "@/features/llm-settings";
+import type { RuntimeModelOption } from "@/stores/llm-runtime-model";
 import type { Workspace } from "@/features/workspaces/types";
 import type {
   ChatExecutionMode,

@@ -3,7 +3,7 @@ import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import {
   type RuntimeModelOption,
   useLlmRuntimeModelStore,
-} from "@/features/llm-settings";
+} from "@/stores/llm-runtime-model";
 import {
   deleteAiAgent,
   deleteCollaborationWorkflow,

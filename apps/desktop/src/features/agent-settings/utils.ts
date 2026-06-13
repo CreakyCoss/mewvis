@@ -1,5 +1,5 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
-import type { RuntimeModelOption } from "@/features/llm-settings";
+import type { RuntimeModelOption } from "@/stores/llm-runtime-model";
 import type {
   AgentProfile,
   AiAgent,
