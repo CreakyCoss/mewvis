@@ -11,6 +11,7 @@ pub struct AgentRuntimeModelInput {
     pub model_id: String,
     pub api_endpoint: Option<String>,
     pub reasoning: Option<bool>,
+    pub thinking_level: Option<String>,
     pub thinking_level_map: Option<Value>,
     pub input: Option<Vec<String>>,
     pub cost: Option<Value>,

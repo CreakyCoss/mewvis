@@ -3,7 +3,10 @@ import {
   type Api,
   type Model,
 } from "@earendil-works/pi-ai";
-import type { RuntimeModelInput } from "../../../contracts/model.js";
+import type {
+  RuntimeModelInput,
+  RuntimeThinkingLevel,
+} from "../../../contracts/model.js";
 import type {
   RuntimeChatCommand,
   RuntimeStartTaskCommand,
@@ -27,6 +30,10 @@ export const requirePiRuntimeConfig = (
 
   return command.runtimeModel;
 };
+
+export const resolvePiRuntimeThinkingLevel = (
+  runtimeModel: Pick<RuntimeModelInput, "thinkingLevel">,
+): RuntimeThinkingLevel | undefined => runtimeModel.thinkingLevel ?? undefined;
 
 const piApiForFormat = (apiFormat: string): Api => {
   if (apiFormat === "anthropic" || apiFormat === "anthropic-messages") {

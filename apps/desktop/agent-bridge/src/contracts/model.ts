@@ -1,5 +1,13 @@
 export type RuntimeModelInputModality = "text" | "image";
 
+export type RuntimeThinkingLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
 export type RuntimeModelInput = {
   provider: string;
   apiFormat: string;
@@ -8,6 +16,7 @@ export type RuntimeModelInput = {
   modelId: string;
   apiEndpoint?: string | null;
   reasoning?: boolean;
+  thinkingLevel?: RuntimeThinkingLevel | null;
   thinkingLevelMap?: Record<string, string | null>;
   input?: RuntimeModelInputModality[];
   cost?: {

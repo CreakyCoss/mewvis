@@ -2,6 +2,7 @@ import {
   completeSimple,
   streamSimple,
   type AssistantMessage,
+  type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import {
   BridgeEventType,
@@ -16,6 +17,7 @@ import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
+  resolvePiRuntimeThinkingLevel,
 } from "../model/index.js";
 import {
   createPiChatContext,
@@ -83,15 +85,21 @@ export class PiChatRuntime implements ChatRuntime {
     const runtimeModel = requirePiRuntimeConfig(command);
     const apiKey = requirePiApiKey(runtimeModel);
     const model = createPiRuntimeModel(runtimeModel);
+    const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
+    const options: SimpleStreamOptions = {
+      apiKey,
+      signal: context.signal,
+      maxRetries: context.maxRetries,
+    };
+
+    if (thinkingLevel && thinkingLevel !== "off") {
+      options.reasoning = thinkingLevel;
+    }
 
     return {
       model,
       chatContext: createPiChatContext(command, model),
-      options: {
-        apiKey,
-        signal: context.signal,
-        maxRetries: context.maxRetries,
-      },
+      options,
     };
   }
 }

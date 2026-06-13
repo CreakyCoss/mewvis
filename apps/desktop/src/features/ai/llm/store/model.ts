@@ -1,4 +1,7 @@
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type {
+  AgentRuntimeModelInput,
+  AgentRuntimeThinkingLevel,
+} from "@/ai/agent-runtime/contracts";
 import { MODEL_CATALOG, type CatalogModel } from "../catalog";
 import type {
   LlmProvider,
@@ -20,6 +23,7 @@ type RuntimeModelInputMap = Record<string, AgentRuntimeModelInput>;
 type CatalogRuntimeModelInput = Pick<
   AgentRuntimeModelInput,
   | "reasoning"
+  | "thinkingLevel"
   | "thinkingLevelMap"
   | "input"
   | "cost"
@@ -29,6 +33,14 @@ type CatalogRuntimeModelInput = Pick<
 >;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
+const THINKING_LEVELS: AgentRuntimeThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+];
 
 const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
   const text = value.trim();
@@ -58,11 +70,29 @@ const getCatalogModel = (
   return MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null;
 };
 
+const resolveHighestThinkingLevel = (
+  thinkingLevelMap: CatalogModel["thinkingLevelMap"],
+): AgentRuntimeThinkingLevel | null => {
+  if (!thinkingLevelMap) {
+    return null;
+  }
+
+  for (let index = THINKING_LEVELS.length - 1; index >= 0; index -= 1) {
+    const level = THINKING_LEVELS[index];
+    if (Object.prototype.hasOwnProperty.call(thinkingLevelMap, level)) {
+      return level;
+    }
+  }
+
+  return null;
+};
+
 const createCatalogRuntimeModelInput = (
   catalogModel: CatalogModel,
 ): CatalogRuntimeModelInput => {
   return {
     reasoning: catalogModel.reasoning,
+    thinkingLevel: resolveHighestThinkingLevel(catalogModel.thinkingLevelMap),
     input: [...catalogModel.input],
     cost: { ...catalogModel.cost },
     contextWindow: catalogModel.contextWindow,

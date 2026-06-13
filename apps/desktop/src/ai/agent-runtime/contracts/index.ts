@@ -3,7 +3,10 @@ export type {
   AgentRuntimeAgentDefinition,
   AgentRuntimeAgentDefinitionsResult,
 } from "./agents";
-export type { AgentRuntimeModelInput } from "./config";
+export type {
+  AgentRuntimeModelInput,
+  AgentRuntimeThinkingLevel,
+} from "./config";
 export type {
   AgentRuntimeAgentEvent,
   AgentRuntimeAgentQuestionInput,

@@ -16,6 +16,7 @@ import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
+  resolvePiRuntimeThinkingLevel,
 } from "../model/index.js";
 import { createPiResourceLoader } from "./resources.js";
 
@@ -33,6 +34,7 @@ export const createPiAgentSession = async (
   const runtimeModel = requirePiRuntimeConfig(command);
   const apiKey = requirePiApiKey(runtimeModel);
   const model = createPiRuntimeModel(runtimeModel);
+  const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
   const authStorage = AuthStorage.inMemory();
   authStorage.setRuntimeApiKey(model.provider, apiKey);
   const resourceLoader = await createPiResourceLoader(command, askUser);
@@ -45,6 +47,7 @@ export const createPiAgentSession = async (
     sessionManager,
     resourceLoader,
     model,
+    ...(thinkingLevel ? { thinkingLevel } : {}),
     tools: normalizeAllowedAgentTools(command.allowedTools),
   });
 

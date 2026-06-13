@@ -1,3 +1,11 @@
+export type AgentRuntimeThinkingLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
 export type AgentRuntimeModelInput = {
   provider: string;
   apiFormat: string;
@@ -6,6 +14,7 @@ export type AgentRuntimeModelInput = {
   modelId: string;
   apiEndpoint?: string | null;
   reasoning?: boolean;
+  thinkingLevel?: AgentRuntimeThinkingLevel | null;
   thinkingLevelMap?: Record<string, string | null>;
   input?: Array<"text" | "image">;
   cost?: {
