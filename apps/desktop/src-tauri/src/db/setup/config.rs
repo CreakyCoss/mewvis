@@ -254,9 +254,9 @@ mod tests {
             .expect("disable foreign keys");
         conn.execute(
             r#"
-            INSERT INTO workspace_enabled_skills (
-                workspace_id, skill_name, created_at, updated_at
-            ) VALUES ('missing-workspace', 'test-skill', 1, 1)
+            INSERT INTO skill_group_skills (
+                group_id, skill_name, created_at
+            ) VALUES ('missing-group', 'test-skill', 1)
             "#,
             [],
         )
@@ -273,8 +273,8 @@ mod tests {
             .query_row(
                 r#"
                 SELECT COUNT(*)
-                FROM workspace_enabled_skills
-                WHERE workspace_id = 'missing-workspace' AND skill_name = 'test-skill'
+                FROM skill_group_skills
+                WHERE group_id = 'missing-group' AND skill_name = 'test-skill'
                 "#,
                 [],
                 |row| row.get(0),

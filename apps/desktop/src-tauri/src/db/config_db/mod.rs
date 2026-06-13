@@ -14,10 +14,11 @@ pub use agents::{
     save_collaboration_workflow,
 };
 pub use inputs::{
-    CreateWorkspaceInput, SaveAiAgentInput, SaveCollaborationWorkflowInput, SaveSkillGroupInput,
+    CreateWorkspaceInput, SaveAiAgentInput, SaveCollaborationWorkflowInput,
     SaveEmbeddingProfileInput, SaveKnowledgeCollectionInput, SaveKnowledgeSettingsInput,
     SaveKnowledgeSourceInput, SaveLlmProviderInput, SaveLlmSettingsInput, SaveProviderModelInput,
-    SaveWorkspaceSkillsInput, SetKnowledgeCollectionSourcesInput, UpdateWorkspaceInput,
+    SaveSkillGroupInput, SaveWorkspaceSkillsInput, SetKnowledgeCollectionSourcesInput,
+    UpdateWorkspaceInput,
 };
 pub use knowledge::{
     default_embedding_profile, delete_knowledge_collection, delete_knowledge_source,

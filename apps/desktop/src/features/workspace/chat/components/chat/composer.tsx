@@ -41,6 +41,11 @@ import type {
   CollaborationWorkflowProfile,
 } from "@/features/ai/agent/types";
 import type { RuntimeModelOption } from "@/features/ai/llm/store";
+import {
+  ALL_SKILLS_GROUP_ID,
+  NO_SKILLS_GROUP_ID,
+} from "@/features/skills/constants";
+import type { WorkspaceSkillGroup } from "@/features/skills/types";
 import type {
   ChatExecutionMode,
   ChatMode,
@@ -84,6 +89,10 @@ type ComposerProps = {
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   selectedCollaborationWorkflowId: string;
   allowedAgentTools: AgentToolName[];
+  skillGroups: WorkspaceSkillGroup[];
+  defaultSkillGroupId: string;
+  selectedSkillGroupId: string;
+  selectedSkillGroupLabel: string;
   onChatModeChange: (mode: ChatMode) => void;
   onChatExecutionModeChange: (mode: ChatExecutionMode) => void;
   onShowThinkingProcessChange: (value: boolean) => void;
@@ -94,6 +103,7 @@ type ComposerProps = {
   onCollaborationWorkflowChange: (workflowId: string) => void;
   onRuntimeModelChange: (id: string) => void;
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
+  onSkillGroupChange: (skillGroupId: string) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
 };
@@ -158,6 +168,10 @@ export const Composer = memo(({
   selectedCollaborationWorkflow,
   selectedCollaborationWorkflowId,
   allowedAgentTools,
+  skillGroups,
+  defaultSkillGroupId,
+  selectedSkillGroupId,
+  selectedSkillGroupLabel,
   onChatModeChange,
   onChatExecutionModeChange,
   onShowThinkingProcessChange,
@@ -168,6 +182,7 @@ export const Composer = memo(({
   onCollaborationWorkflowChange,
   onRuntimeModelChange,
   onToggleAllowedAgentTool,
+  onSkillGroupChange,
   onSubmit,
   onAbortTask,
 }: ComposerProps) => {
@@ -425,6 +440,84 @@ export const Composer = memo(({
                     协作
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 min-w-0 max-w-[13rem] px-2 text-xs"
+                  title={`技能组：${selectedSkillGroupLabel}`}
+                >
+                  <Sparkles className="size-3.5 shrink-0" />
+                  <span>技能组</span>
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {selectedSkillGroupLabel}
+                  </span>
+                  <ChevronDown className="size-3 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60">
+                <DropdownMenuLabel>技能组（当前对话）</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup
+                  value={selectedSkillGroupId}
+                  onValueChange={onSkillGroupChange}
+                >
+                  <DropdownMenuRadioItem value={ALL_SKILLS_GROUP_ID}>
+                    <span className="min-w-0">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">全部</span>
+                        {defaultSkillGroupId === ALL_SKILLS_GROUP_ID && (
+                          <DefaultSkillGroupBadge />
+                        )}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        使用 Skill库中的全部技能
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value={NO_SKILLS_GROUP_ID}>
+                    <span className="min-w-0">
+                      <span className="block truncate">不使用技能</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        本次对话不注入 Skill 上下文
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                {skillGroups.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup
+                      value={selectedSkillGroupId}
+                      onValueChange={onSkillGroupChange}
+                    >
+                      {skillGroups.map((group) => (
+                        <DropdownMenuRadioItem
+                          key={group.id}
+                          value={group.id}
+                          title={group.description ?? undefined}
+                        >
+                          <span className="min-w-0">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="truncate">{group.name}</span>
+                              {group.id === defaultSkillGroupId && (
+                                <DefaultSkillGroupBadge />
+                              )}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {group.skillNames.length} 个 Skill
+                            </span>
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -713,3 +806,9 @@ export const Composer = memo(({
   );
 });
 Composer.displayName = "Composer";
+
+const DefaultSkillGroupBadge = () => (
+  <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sidebar-primary">
+    默认
+  </span>
+);

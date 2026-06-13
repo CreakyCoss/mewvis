@@ -30,7 +30,7 @@ export type RunSharedAgentTaskInput = {
   prompt: string;
   runtimeModel: AgentRuntimeModelInput;
   allowedTools: AgentToolName[];
-  enabledSkillNames: string[];
+  activeSkillNames: string[];
   chatSessionId?: string | null;
   bootstrapContext?: string | null;
   abortOnQuestion?: boolean;
@@ -59,7 +59,7 @@ export const runSharedAgentTask = async ({
   prompt,
   runtimeModel,
   allowedTools,
-  enabledSkillNames,
+  activeSkillNames,
   chatSessionId = null,
   bootstrapContext = null,
   abortOnQuestion = true,
@@ -141,7 +141,7 @@ export const runSharedAgentTask = async ({
       prompt,
       runtimeModel,
       allowedTools,
-      enabledSkills: enabledSkillNames,
+      enabledSkills: activeSkillNames,
     });
     taskId = task.taskId;
     onTaskCreated?.({

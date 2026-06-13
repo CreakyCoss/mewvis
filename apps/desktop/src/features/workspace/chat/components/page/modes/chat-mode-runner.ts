@@ -30,7 +30,7 @@ export const runChatTurn = async (
   {
     workspace,
     activeFile,
-    enabledSkills,
+    activeSkills,
     runtimeAgentId,
     appendVisibleTraceStep,
     updateMessage,
@@ -46,7 +46,7 @@ export const runChatTurn = async (
     workspace,
     activeFile,
     referencedFiles,
-    enabledSkills,
+    activeSkills,
     modelSource === "agent" ? selectedAgent : null,
     {
       limits: limitsFor(effectiveRuntimeModel),

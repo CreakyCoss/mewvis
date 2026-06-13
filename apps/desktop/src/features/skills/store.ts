@@ -9,6 +9,7 @@ import type {
   WorkspaceSkillGroup,
   WorkspaceSkillSettings,
 } from "./types";
+import { ALL_SKILLS_GROUP_ID } from "./constants";
 
 export const DEFAULT_MARKETPLACE_QUERY = "小说";
 export const DEFAULT_MARKETPLACE_SORT: SkillMarketplaceSort = "stars";
@@ -24,8 +25,8 @@ type SkillsStore = {
   skills: WorkspaceSkill[];
   skillGroups: WorkspaceSkillGroup[];
   savedSkillGroups: WorkspaceSkillGroup[];
-  enabledSkillKeys: string[];
-  savedEnabledSkillKeys: string[];
+  defaultSkillGroupId: string;
+  savedDefaultSkillGroupId: string;
   marketplaceResults: MarketplaceSkill[];
   marketplacePagination: SkillMarketplacePagination | null;
   marketplaceQuery: string;
@@ -34,22 +35,21 @@ type SkillsStore = {
   marketplaceCache: Record<string, MarketplaceCacheEntry>;
   setWorkspaceSkillSettings: (settings: WorkspaceSkillSettings) => void;
   setSkillGroups: (groups: WorkspaceSkillGroup[]) => void;
+  setDefaultSkillGroupId: (groupId: string) => void;
   setMarketplaceSearchResult: (
     input: SearchSkillMarketplaceInput,
     result: SkillMarketplaceSearchResult,
   ) => void;
   restoreMarketplaceCache: (input: SearchSkillMarketplaceInput) => boolean;
   resetDrafts: () => void;
-  toggleSkill: (key: string, enabled: boolean) => void;
-  toggleGroup: (skillKeys: string[], enabled: boolean) => void;
 };
 
 export const useSkillsStore = create<SkillsStore>((set, get) => ({
   skills: [],
   skillGroups: [],
   savedSkillGroups: [],
-  enabledSkillKeys: [],
-  savedEnabledSkillKeys: [],
+  defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
+  savedDefaultSkillGroupId: ALL_SKILLS_GROUP_ID,
   marketplaceResults: [],
   marketplacePagination: null,
   marketplaceQuery: DEFAULT_MARKETPLACE_QUERY,
@@ -57,20 +57,17 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   marketplaceHasLoaded: false,
   marketplaceCache: {},
   setWorkspaceSkillSettings: (settings) => {
-    const enabledSkillKeys = settings.skills
-      .filter((skill) => skill.enabled)
-      .map((skill) => skill.key)
-      .sort();
-
+    const defaultSkillGroupId = settings.defaultGroupId || ALL_SKILLS_GROUP_ID;
     set({
       skills: settings.skills,
       skillGroups: settings.groups,
       savedSkillGroups: settings.groups,
-      enabledSkillKeys,
-      savedEnabledSkillKeys: enabledSkillKeys,
+      defaultSkillGroupId,
+      savedDefaultSkillGroupId: defaultSkillGroupId,
     });
   },
   setSkillGroups: (groups) => set({ skillGroups: groups }),
+  setDefaultSkillGroupId: (groupId) => set({ defaultSkillGroupId: groupId }),
   setMarketplaceSearchResult: (input, result) => set((state) => {
     const query = normalizeMarketplaceQuery(input.query);
     const sortBy = input.sortBy ?? DEFAULT_MARKETPLACE_SORT;
@@ -115,47 +112,18 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   },
   resetDrafts: () => set((state) => ({
     skillGroups: state.savedSkillGroups,
-    enabledSkillKeys: state.savedEnabledSkillKeys,
+    defaultSkillGroupId: state.savedDefaultSkillGroupId,
   })),
-  toggleSkill: (key, enabled) => set((state) => {
-    const next = new Set(state.enabledSkillKeys);
-    if (enabled) {
-      next.add(key);
-    } else {
-      next.delete(key);
-    }
-    return { enabledSkillKeys: [...next].sort() };
-  }),
-  toggleGroup: (skillKeys, enabled) => set((state) => {
-    const next = new Set(state.enabledSkillKeys);
-    for (const key of skillKeys) {
-      if (enabled) {
-        next.add(key);
-      } else {
-        next.delete(key);
-      }
-    }
-    return { enabledSkillKeys: [...next].sort() };
-  }),
 }));
 
 export const hasSkillsDraftChanges = (
-  enabledSkillKeys: string[],
-  savedEnabledSkillKeys: string[],
   skillGroups: WorkspaceSkillGroup[],
   savedSkillGroups: WorkspaceSkillGroup[],
+  defaultSkillGroupId: string,
+  savedDefaultSkillGroupId: string,
 ) =>
-  !sameStringList(enabledSkillKeys, savedEnabledSkillKeys)
+  defaultSkillGroupId !== savedDefaultSkillGroupId
   || !sameSkillGroups(skillGroups, savedSkillGroups);
-
-const sameStringList = (left: string[], right: string[]) => {
-  if (left.length !== right.length) {
-    return false;
-  }
-  const normalizedLeft = [...left].sort();
-  const normalizedRight = [...right].sort();
-  return normalizedLeft.every((item, index) => item === normalizedRight[index]);
-};
 
 const sameSkillGroups = (
   left: WorkspaceSkillGroup[],

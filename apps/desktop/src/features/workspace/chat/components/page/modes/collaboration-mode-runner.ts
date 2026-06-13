@@ -58,7 +58,7 @@ type RunCollaborationAgentTaskInput = {
   agent: AgentProfile;
   runtimeModel: AgentRuntimeModelInput;
   allowedTools: AgentToolName[];
-  enabledSkillNames: string[];
+  activeSkillNames: string[];
   traceTurnId: string;
   traceLabel: string;
   traceMetadata: Record<string, unknown>;
@@ -314,7 +314,7 @@ const runCollaborationAgentTask = async ({
   agent,
   runtimeModel,
   allowedTools,
-  enabledSkillNames,
+  activeSkillNames,
   traceTurnId,
   traceLabel,
   traceMetadata,
@@ -328,7 +328,7 @@ const runCollaborationAgentTask = async ({
     prompt,
     runtimeModel,
     allowedTools,
-    enabledSkillNames,
+    activeSkillNames,
     errorMessageForEvent: collaborationTaskErrorMessage,
     onEvent: (event) => {
       const traceStep = agentEventTraceStep(event);
@@ -369,7 +369,7 @@ const runCollaborationAgentTask = async ({
           agentId: agent.id,
           agentName: agent.name,
           allowedTools,
-          enabledSkills: enabledSkillNames,
+          activeSkills: activeSkillNames,
         },
       });
     },
@@ -397,7 +397,7 @@ export const runCollaborationTurn = async (
   {
     workspace,
     activeFile,
-    enabledSkills,
+    activeSkills,
     runtimeAgentId,
     agentRuntime,
     contextEngine,
@@ -416,7 +416,7 @@ export const runCollaborationTurn = async (
     return;
   }
 
-  const enabledSkillNames = enabledSkills.map((skill) => skill.name);
+  const activeSkillNames = activeSkills.map((skill) => skill.name);
   const allowedToolsForStepRuns = normalizeAllowedAgentTools(allowedAgentTools)
     .filter((tool) => tool !== "ask_user");
   const debugPayloads = [knowledgeDebugPayload];
@@ -444,7 +444,7 @@ export const runCollaborationTurn = async (
     workspace,
     activeFile,
     referencedFiles,
-    enabledSkills,
+    activeSkills,
     supervisorAgent,
     "custom",
     {
@@ -514,7 +514,7 @@ export const runCollaborationTurn = async (
       agent: supervisorAgent,
       runtimeModel: resolveAgentRuntimeModelInput(supervisorAgent),
       allowedTools: [],
-      enabledSkillNames,
+      activeSkillNames,
       traceTurnId,
       traceLabel: "主控 Agent ",
       traceMetadata: {
@@ -679,7 +679,7 @@ export const runCollaborationTurn = async (
       workspace,
       activeFile,
       referencedFiles,
-      enabledSkills,
+      activeSkills,
       step.agent,
       promptPhase,
       {
@@ -759,7 +759,7 @@ export const runCollaborationTurn = async (
         agent: step.agent,
         runtimeModel: resolveAgentRuntimeModelInput(step.agent),
         allowedTools: allowedToolsForStepRuns,
-        enabledSkillNames,
+      activeSkillNames,
         traceTurnId,
         traceLabel: `${step.name} Agent `,
         traceMetadata: {

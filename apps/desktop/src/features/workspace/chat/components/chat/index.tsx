@@ -6,6 +6,7 @@ import type {
   CollaborationWorkflowProfile,
 } from "@/features/ai/agent/types";
 import type { RuntimeModelOption } from "@/features/ai/llm/store";
+import type { WorkspaceSkillGroup } from "@/features/skills/types";
 import type { Workspace } from "@/features/workspace/types";
 import type {
   ChatExecutionMode,
@@ -62,6 +63,10 @@ export type ChatPanelViewModel = {
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   selectedCollaborationWorkflowId: string;
   allowedAgentTools: AgentToolName[];
+  skillGroups: WorkspaceSkillGroup[];
+  defaultSkillGroupId: string;
+  selectedSkillGroupId: string;
+  selectedSkillGroupLabel: string;
   toggleThinking: (messageId: string) => void;
   toggleAgentEvents: (messageId: string) => void;
   toggleAgentThinkingBlock: (messageId: string, blockId: string) => void;
@@ -86,6 +91,7 @@ export type ChatPanelViewModel = {
   setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
   toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
+  setSelectedSkillGroupId: Dispatch<SetStateAction<string>>;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
   onAbortTask: () => void;
 };
@@ -127,6 +133,10 @@ export const ChatPanel = () => {
     selectedCollaborationWorkflow,
     selectedCollaborationWorkflowId,
     allowedAgentTools,
+    skillGroups,
+    defaultSkillGroupId,
+    selectedSkillGroupId,
+    selectedSkillGroupLabel,
     onOpenWorkspace,
     onCreateWorkspace,
     answerAgentQuestion,
@@ -143,6 +153,7 @@ export const ChatPanel = () => {
     setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
+    setSelectedSkillGroupId,
     sendMessage,
     onAbortTask,
   } = useChatPanelStore();
@@ -188,6 +199,10 @@ export const ChatPanel = () => {
       selectedCollaborationWorkflow={selectedCollaborationWorkflow}
       selectedCollaborationWorkflowId={selectedCollaborationWorkflowId}
       allowedAgentTools={allowedAgentTools}
+      skillGroups={skillGroups}
+      defaultSkillGroupId={defaultSkillGroupId}
+      selectedSkillGroupId={selectedSkillGroupId}
+      selectedSkillGroupLabel={selectedSkillGroupLabel}
       onChatModeChange={setChatMode}
       onChatExecutionModeChange={setChatExecutionMode}
       onShowThinkingProcessChange={setShowThinkingProcess}
@@ -198,6 +213,7 @@ export const ChatPanel = () => {
       onCollaborationWorkflowChange={setSelectedCollaborationWorkflowId}
       onRuntimeModelChange={setSelectedRuntimeModelId}
       onToggleAllowedAgentTool={toggleAllowedAgentTool}
+      onSkillGroupChange={setSelectedSkillGroupId}
       onSubmit={(input) => void sendMessage(input)}
       onAbortTask={onAbortTask}
     />

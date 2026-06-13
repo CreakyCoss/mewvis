@@ -19,7 +19,6 @@ pub struct WorkspaceSkill {
     pub content: String,
     pub source: String,
     pub path: String,
-    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -30,6 +29,7 @@ pub struct WorkspaceSkillGroup {
     pub description: Option<String>,
     pub source: String,
     pub readonly: bool,
+    pub is_default: bool,
     pub order: i64,
     pub skill_names: Vec<String>,
 }
@@ -39,7 +39,10 @@ pub struct WorkspaceSkillGroup {
 pub struct WorkspaceSkillSettings {
     pub skills: Vec<WorkspaceSkill>,
     pub groups: Vec<WorkspaceSkillGroup>,
+    pub default_group_id: String,
 }
+
+const ALL_SKILLS_GROUP_ID: &str = "all";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -88,14 +91,12 @@ pub async fn search_skill_marketplace(
     input: SearchSkillMarketplaceInput,
 ) -> Result<SkillMarketplaceSearchResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        skills_service::search_skill_marketplace(
-            skills_service::SearchSkillMarketplaceOptions {
-                query: input.query,
-                sort_by: input.sort_by,
-                page: input.page,
-                limit: input.limit,
-            },
-        )
+        skills_service::search_skill_marketplace(skills_service::SearchSkillMarketplaceOptions {
+            query: input.query,
+            sort_by: input.sort_by,
+            page: input.page,
+            limit: input.limit,
+        })
         .map(|result| SkillMarketplaceSearchResult {
             skills: result.skills,
             pagination: result.pagination,
@@ -139,26 +140,18 @@ fn load_workspace_skills(
     workspace_id: &str,
 ) -> Result<WorkspaceSkillSettings, String> {
     let DbWorkspaceSkillSettings {
-        enabled_skill_names,
+        default_group_id,
         skill_groups,
     } = config_db::workspace_skill_settings(app, workspace_id)?;
-    let enabled_identifiers = enabled_skill_names.into_iter().collect::<HashSet<_>>();
     let skill_definitions = skills_service::load_available_skills(app)?;
     let available_skill_keys = skill_definitions
         .iter()
         .map(|skill| skill.key.clone())
         .collect::<HashSet<_>>();
     let legacy_skill_key_by_name = legacy_skill_key_by_name(&skill_definitions);
-    let legacy_enabled_keys = enabled_identifiers
-        .iter()
-        .filter(|identifier| !available_skill_keys.contains(*identifier))
-        .filter_map(|name| legacy_skill_key_by_name.get(name).cloned())
-        .collect::<HashSet<_>>();
     let skills = skill_definitions
         .iter()
         .map(|skill| WorkspaceSkill {
-            enabled: enabled_identifiers.contains(&skill.key)
-                || legacy_enabled_keys.contains(&skill.key),
             key: skill.key.clone(),
             name: skill.name.clone(),
             description: skill.description.clone(),
@@ -178,13 +171,19 @@ fn load_workspace_skills(
             .cmp(&right.order)
             .then_with(|| left.name.cmp(&right.name))
     });
+    let default_group_id = resolve_default_group_id(default_group_id.as_deref(), &groups);
+    for group in &mut groups {
+        group.is_default = group.id == default_group_id;
+    }
 
-    Ok(WorkspaceSkillSettings { skills, groups })
+    Ok(WorkspaceSkillSettings {
+        skills,
+        groups,
+        default_group_id,
+    })
 }
 
-fn default_skill_groups(
-    skills: &[skills_service::SkillDefinition],
-) -> Vec<WorkspaceSkillGroup> {
+fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<WorkspaceSkillGroup> {
     let mut groups = BTreeMap::<String, WorkspaceSkillGroup>::new();
 
     for skill in skills {
@@ -200,6 +199,7 @@ fn default_skill_groups(
                 description: None,
                 source: skill.source.as_str().to_string(),
                 readonly: true,
+                is_default: false,
                 order: default_group.order,
                 skill_names: Vec::new(),
             });
@@ -234,6 +234,7 @@ fn custom_skill_groups(
             description: group.description,
             source: "custom".to_string(),
             readonly: false,
+            is_default: false,
             order: 1000 + group.order,
         })
         .filter(|group| !group.skill_names.is_empty())
@@ -251,9 +252,7 @@ fn resolve_skill_identifiers(
             if available_skill_keys.contains(&identifier) {
                 Some(identifier)
             } else {
-                legacy_skill_key_by_name
-                    .get(&identifier)
-                    .cloned()
+                legacy_skill_key_by_name.get(&identifier).cloned()
             }
         })
         .collect::<Vec<_>>();
@@ -263,12 +262,33 @@ fn resolve_skill_identifiers(
     resolved
 }
 
+fn resolve_default_group_id(
+    default_group_id: Option<&str>,
+    groups: &[WorkspaceSkillGroup],
+) -> String {
+    let Some(group_id) = default_group_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return ALL_SKILLS_GROUP_ID.to_string();
+    };
+
+    if group_id == ALL_SKILLS_GROUP_ID || groups.iter().any(|group| group.id == group_id) {
+        return group_id.to_string();
+    }
+
+    ALL_SKILLS_GROUP_ID.to_string()
+}
+
 fn legacy_skill_key_by_name(
     skills: &[skills_service::SkillDefinition],
 ) -> BTreeMap<String, String> {
     let mut candidates = BTreeMap::<String, Vec<&skills_service::SkillDefinition>>::new();
     for skill in skills {
-        candidates.entry(skill.name.clone()).or_default().push(skill);
+        candidates
+            .entry(skill.name.clone())
+            .or_default()
+            .push(skill);
     }
 
     candidates

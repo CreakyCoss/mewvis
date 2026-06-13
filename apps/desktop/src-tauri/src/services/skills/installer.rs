@@ -10,9 +10,8 @@ use tauri::AppHandle;
 use zip::ZipArchive;
 
 use super::{
-    ensure_app_skills_path,
-    parser::parse_skill_frontmatter,
-    skill_key, write_skill_source_marker, SkillDefinition, SkillSource,
+    ensure_app_skills_path, parser::parse_skill_frontmatter, skill_key, write_skill_source_marker,
+    SkillDefinition, SkillSource,
 };
 
 const USER_AGENT: &str = "Novel-Claw Skills Importer";
@@ -250,10 +249,7 @@ fn parse_skills_add_command(input: &str) -> Option<InstallSpec> {
     parse_github_install_spec(&repo_url, skill_name.as_deref()).ok()
 }
 
-fn parse_github_install_spec(
-    url: &str,
-    skill_name: Option<&str>,
-) -> Result<InstallSpec, String> {
+fn parse_github_install_spec(url: &str, skill_name: Option<&str>) -> Result<InstallSpec, String> {
     let clean_url = decode_html_entities(url)
         .trim()
         .trim_matches('"')
@@ -514,8 +510,7 @@ fn download_skill_dir(
         .tree
         .iter()
         .filter(|entry| {
-            entry.entry_type == "blob"
-                && (skill_dir.is_empty() || entry.path.starts_with(&prefix))
+            entry.entry_type == "blob" && (skill_dir.is_empty() || entry.path.starts_with(&prefix))
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -597,11 +592,17 @@ fn finalize_installed_skill(
     if destination.exists() {
         if destination.is_dir() {
             fs::remove_dir_all(&destination).map_err(|error| {
-                format!("无法替换已有 Skill {}：{error}", destination.to_string_lossy())
+                format!(
+                    "无法替换已有 Skill {}：{error}",
+                    destination.to_string_lossy()
+                )
             })?;
         } else {
             fs::remove_file(&destination).map_err(|error| {
-                format!("无法替换已有 Skill {}：{error}", destination.to_string_lossy())
+                format!(
+                    "无法替换已有 Skill {}：{error}",
+                    destination.to_string_lossy()
+                )
             })?;
         }
     }
@@ -630,7 +631,8 @@ fn finalize_installed_skill(
 fn extract_zip_skill(zip_path: &Path, temp_dir: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path)
         .map_err(|error| format!("无法打开 zip 文件 {}：{error}", zip_path.to_string_lossy()))?;
-    let mut archive = ZipArchive::new(file).map_err(|error| format!("无法读取 zip 文件：{error}"))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|error| format!("无法读取 zip 文件：{error}"))?;
     let skill_dir = resolve_zip_skill_dir(&mut archive)?;
     let prefix = if skill_dir.is_empty() {
         String::new()
@@ -666,7 +668,9 @@ fn extract_zip_skill(zip_path: &Path, temp_dir: &Path) -> Result<(), String> {
 
         extracted_files += 1;
         if extracted_files > MAX_SKILL_FILES {
-            return Err(format!("Skill 文件过多（{extracted_files} 个），已停止导入"));
+            return Err(format!(
+                "Skill 文件过多（{extracted_files} 个），已停止导入"
+            ));
         }
         total_bytes = total_bytes.saturating_add(file.size());
         if total_bytes > MAX_SKILL_BYTES {
@@ -795,7 +799,10 @@ where
     let status = response.status();
     if !status.is_success() {
         let body = response.text().unwrap_or_default();
-        return Err(format!("{label}请求失败（{status}）：{}", truncate(&body, 240)));
+        return Err(format!(
+            "{label}请求失败（{status}）：{}",
+            truncate(&body, 240)
+        ));
     }
     response
         .json::<T>()
@@ -811,7 +818,10 @@ fn get_text(client: &Client, url: &str, label: &str) -> Result<String, String> {
     let status = response.status();
     if !status.is_success() {
         let body = response.text().unwrap_or_default();
-        return Err(format!("{label}请求失败（{status}）：{}", truncate(&body, 240)));
+        return Err(format!(
+            "{label}请求失败（{status}）：{}",
+            truncate(&body, 240)
+        ));
     }
     response
         .text()
@@ -827,7 +837,10 @@ fn get_bytes(client: &Client, url: &str, label: &str) -> Result<Vec<u8>, String>
     let status = response.status();
     if !status.is_success() {
         let body = response.text().unwrap_or_default();
-        return Err(format!("{label}请求失败（{status}）：{}", truncate(&body, 240)));
+        return Err(format!(
+            "{label}请求失败（{status}）：{}",
+            truncate(&body, 240)
+        ));
     }
     response
         .bytes()
@@ -858,18 +871,11 @@ fn extract_github_url(value: &str) -> Option<String> {
     let end = tail
         .find(|character: char| {
             character.is_whitespace()
-                || matches!(
-                    character,
-                    '"' | '\'' | '<' | '>' | '`' | ')' | ']' | '}'
-                )
+                || matches!(character, '"' | '\'' | '<' | '>' | '`' | ')' | ']' | '}')
         })
         .unwrap_or(tail.len());
 
-    Some(
-        tail[..end]
-            .trim_end_matches([',', '.', ';'])
-            .to_string(),
-    )
+    Some(tail[..end].trim_end_matches([',', '.', ';']).to_string())
 }
 
 fn extract_skill_name_from_title(html: &str) -> Option<String> {

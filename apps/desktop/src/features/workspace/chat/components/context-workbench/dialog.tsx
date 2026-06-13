@@ -572,7 +572,7 @@ export const ContextWorkbenchDialog = ({
                           {(contextDebugSnapshot.agentSessionId ||
                             contextDebugSnapshot.activeFilePath ||
                             contextDebugSnapshot.referencedFilePaths.length > 0 ||
-                            contextDebugSnapshot.enabledSkillNames.length > 0) && (
+                            contextDebugSnapshot.activeSkillNames.length > 0) && (
                             <div className="space-y-2">
                               {contextDebugSnapshot.agentSessionId && (
                                 <CompactPathItem
@@ -599,10 +599,10 @@ export const ContextWorkbenchDialog = ({
                                   content={contextDebugSnapshot.referencedFilePaths.join("\n")}
                                 />
                               )}
-                              {contextDebugSnapshot.enabledSkillNames.length > 0 && (
+                              {contextDebugSnapshot.activeSkillNames.length > 0 && (
                                 <DebugPayloadBlock
-                                  label="enabled skills"
-                                  content={contextDebugSnapshot.enabledSkillNames.join("\n")}
+                                  label="active skills"
+                                  content={contextDebugSnapshot.activeSkillNames.join("\n")}
                                 />
                               )}
                             </div>

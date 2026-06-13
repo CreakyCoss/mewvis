@@ -26,7 +26,7 @@ export type ContextDebugSnapshot = {
   modelName?: string | null;
   activeFilePath?: string | null;
   referencedFilePaths: string[];
-  enabledSkillNames: string[];
+  activeSkillNames: string[];
   conversationSummary: string;
   runtimeMessages: ConversationMessage[];
   payloads: ContextDebugPayload[];

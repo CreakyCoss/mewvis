@@ -17,9 +17,9 @@ type SkillsPageProps = {
   isInstalling: boolean;
   isRemoving: boolean;
   error: string;
-  onToggleSkill: (key: string, enabled: boolean) => void;
-  onToggleGroup: (skillKeys: string[], enabled: boolean) => void;
-  onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
+  defaultSkillGroupId: string;
+  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onDefaultGroupChange: (groupId: string) => void;
   onSearchMarketplace: (input: SearchSkillMarketplaceInput) => Promise<void>;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;
   onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
@@ -35,9 +35,9 @@ export const SkillsPage = ({
   isInstalling,
   isRemoving,
   error,
-  onToggleSkill,
-  onToggleGroup,
+  defaultSkillGroupId,
   onGroupsChange,
+  onDefaultGroupChange,
   onSearchMarketplace,
   onInstallSkill,
   onRemoveSkill,
@@ -88,9 +88,9 @@ export const SkillsPage = ({
             isSaving={isSaving}
             isInstalling={isInstalling}
             isRemoving={isRemoving}
-            onToggleSkill={onToggleSkill}
-            onToggleGroup={onToggleGroup}
+            defaultSkillGroupId={defaultSkillGroupId}
             onGroupsChange={onGroupsChange}
+            onDefaultGroupChange={onDefaultGroupChange}
             onInstallSkill={onInstallSkill}
             onRemoveSkill={onRemoveSkill}
           />

@@ -52,7 +52,7 @@ pub struct SaveLlmSettingsInput {
 #[serde(rename_all = "camelCase")]
 pub struct SaveWorkspaceSkillsInput {
     pub workspace_id: String,
-    pub enabled_skill_names: Vec<String>,
+    pub default_group_id: Option<String>,
     pub skill_groups: Option<Vec<SaveSkillGroupInput>>,
 }
 

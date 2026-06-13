@@ -5,7 +5,6 @@ export type WorkspaceSkill = {
   content: string;
   source: "system" | "app" | "upload" | string;
   path: string;
-  enabled: boolean;
 };
 
 export type WorkspaceSkillGroup = {
@@ -14,6 +13,7 @@ export type WorkspaceSkillGroup = {
   description?: string | null;
   source: "system" | "app" | "custom" | string;
   readonly: boolean;
+  isDefault: boolean;
   order: number;
   skillNames: string[];
 };
@@ -21,6 +21,7 @@ export type WorkspaceSkillGroup = {
 export type WorkspaceSkillSettings = {
   skills: WorkspaceSkill[];
   groups: WorkspaceSkillGroup[];
+  defaultGroupId: string;
 };
 
 export type SaveWorkspaceSkillGroupInput = {

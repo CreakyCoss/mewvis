@@ -1,5 +1,6 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from "react";
 import { create } from "zustand";
+import { ALL_SKILLS_GROUP_ID } from "@/features/skills/constants";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import type { ChatPanelViewModel } from "./index";
 
@@ -63,6 +64,10 @@ const emptyChatPanelState: ChatPanelViewModel = {
   selectedCollaborationWorkflow: null,
   selectedCollaborationWorkflowId: "",
   allowedAgentTools: [],
+  skillGroups: [],
+  defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
+  selectedSkillGroupId: ALL_SKILLS_GROUP_ID,
+  selectedSkillGroupLabel: "全部",
   toggleThinking: noop,
   toggleAgentEvents: noop,
   toggleAgentThinkingBlock: noop,
@@ -87,6 +92,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   setSelectedCollaborationWorkflowId: noopDispatch,
   setSelectedRuntimeModelId: noop,
   toggleAllowedAgentTool: noop,
+  setSelectedSkillGroupId: noopDispatch,
   sendMessage: noopAsync,
   onAbortTask: noop,
 };

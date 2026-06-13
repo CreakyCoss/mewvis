@@ -59,6 +59,21 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_skill_groups",
         run: add_skill_groups,
     },
+    ConfigMigrationStep {
+        target_version: 13,
+        name: "drop_workspace_enabled_skills",
+        run: drop_workspace_enabled_skills,
+    },
+    ConfigMigrationStep {
+        target_version: 14,
+        name: "add_skill_group_default_flag",
+        run: add_skill_group_default_flag,
+    },
+    ConfigMigrationStep {
+        target_version: 15,
+        name: "add_skill_settings",
+        run: add_skill_settings,
+    },
 ];
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -211,9 +226,77 @@ fn add_skill_groups(conn: &Connection) -> Result<(), String> {
             PRIMARY KEY(group_id, skill_name),
             FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS skill_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
         "#,
     )
     .map_err(|error| format!("无法创建 Skill 分组配置表：{error}"))
+}
+
+fn drop_workspace_enabled_skills(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch("DROP TABLE IF EXISTS workspace_enabled_skills;")
+        .map_err(|error| format!("无法移除工作区 Skill 启用配置表：{error}"))
+}
+
+fn add_skill_group_default_flag(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "skill_groups")?;
+
+    if columns.iter().any(|column| column == "is_default") {
+        return Ok(());
+    }
+
+    conn.execute_batch("ALTER TABLE skill_groups ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0;")
+        .map_err(|error| format!("无法添加 Skill 默认分组标记：{error}"))
+}
+
+fn add_skill_settings(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS skill_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        "#,
+    )
+    .map_err(|error| format!("无法创建 Skill 设置表：{error}"))?;
+
+    let columns = table_columns(conn, "skill_groups")?;
+    if !columns.iter().any(|column| column == "is_default") {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        r#"
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE skill_groups_next (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            "order" INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        INSERT INTO skill_groups_next (
+            id, name, description, "order", created_at, updated_at
+        )
+        SELECT
+            id, name, description, "order", created_at, updated_at
+        FROM skill_groups;
+
+        DROP TABLE skill_groups;
+        ALTER TABLE skill_groups_next RENAME TO skill_groups;
+
+        PRAGMA foreign_keys = ON;
+        "#,
+    )
+    .map_err(|error| format!("无法移除 Skill 分组默认标记：{error}"))
 }
 
 fn add_collaboration_workflows(conn: &Connection) -> Result<(), String> {

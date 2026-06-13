@@ -79,7 +79,7 @@ export type RequestCollaborationPlanDecision = (
 export type CommonModeDeps = {
   workspace: Workspace;
   activeFile: PromptWorkspaceFile | null;
-  enabledSkills: PromptSkillContext[];
+  activeSkills: PromptSkillContext[];
   runtimeAgentId: string;
   appendVisibleTraceStep: AppendVisibleTraceStep;
   updateMessage: UpdateMessage;

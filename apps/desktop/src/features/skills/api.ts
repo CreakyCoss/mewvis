@@ -12,7 +12,7 @@ import type {
 
 export async function getWorkspaceSkills(workspaceId: string) {
   if (!isTauri()) {
-    return { skills: [], groups: [] } satisfies WorkspaceSkillSettings;
+    return { skills: [], groups: [], defaultGroupId: "all" } satisfies WorkspaceSkillSettings;
   }
 
   return invoke<WorkspaceSkillSettings>("get_workspace_skills", { workspaceId });
@@ -20,15 +20,15 @@ export async function getWorkspaceSkills(workspaceId: string) {
 
 export async function saveWorkspaceSkills(
   workspaceId: string,
-  enabledSkillNames: string[],
   skillGroups: SaveWorkspaceSkillGroupInput[],
+  defaultGroupId: string,
 ) {
   if (!isTauri()) {
-    return { skills: [], groups: [] } satisfies WorkspaceSkillSettings;
+    return { skills: [], groups: [], defaultGroupId } satisfies WorkspaceSkillSettings;
   }
 
   return invoke<WorkspaceSkillSettings>("save_workspace_skills", {
-    input: { workspaceId, enabledSkillNames, skillGroups },
+    input: { workspaceId, skillGroups, defaultGroupId },
   });
 }
 

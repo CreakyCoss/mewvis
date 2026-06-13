@@ -114,20 +114,6 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
         "#,
     },
     DatabaseTableSchema {
-        name: "workspace_enabled_skills",
-        columns: &["workspace_id", "skill_name", "created_at", "updated_at"],
-        create_sql: r#"
-            CREATE TABLE IF NOT EXISTS workspace_enabled_skills (
-                workspace_id TEXT NOT NULL,
-                skill_name TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL,
-                PRIMARY KEY (workspace_id, skill_name),
-                FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-            );
-        "#,
-    },
-    DatabaseTableSchema {
         name: "skill_groups",
         columns: &[
             "id",
@@ -144,6 +130,17 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
                 description TEXT,
                 "order" INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
+    DatabaseTableSchema {
+        name: "skill_settings",
+        columns: &["key", "value", "updated_at"],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS skill_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
         "#,

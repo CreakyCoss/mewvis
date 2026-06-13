@@ -1,6 +1,8 @@
 import type { WorkspaceSkill, WorkspaceSkillGroup } from "../types";
-
-export const ALL_SKILLS_GROUP_ID = "all";
+export {
+  ALL_SKILLS_GROUP_ID,
+  NO_SKILLS_GROUP_ID,
+} from "../constants";
 
 export const existingGroupSkillNames = (
   group: WorkspaceSkillGroup,

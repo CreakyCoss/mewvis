@@ -125,12 +125,8 @@ pub(crate) fn remove_app_skill(
         return Err("目标目录不是有效的 Skill".to_string());
     }
 
-    fs::remove_dir_all(&target_path).map_err(|error| {
-        format!(
-            "无法移除 Skill {}：{error}",
-            target_path.to_string_lossy(),
-        )
-    })?;
+    fs::remove_dir_all(&target_path)
+        .map_err(|error| format!("无法移除 Skill {}：{error}", target_path.to_string_lossy(),))?;
 
     Ok(RemovedSkill {
         key: skill.key,

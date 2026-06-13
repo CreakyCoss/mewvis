@@ -22,6 +22,10 @@ import { LlmSettingsPage } from "@/features/ai/llm";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
+import {
+  ALL_SKILLS_GROUP_ID,
+  NO_SKILLS_GROUP_ID,
+} from "@/features/skills/constants";
 import { SkillsPage } from "@/features/skills/components/page";
 import type { SidebarProps } from "@/features/workspace/shell/sidebar";
 import type { WorkbenchHeaderProps } from "@/features/workspace/shell/workbench-header";
@@ -236,6 +240,9 @@ export const WorkspaceChatPage = ({
   const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_AGENT_TOOLS,
   ]);
+  const [selectedSkillGroupId, setSelectedSkillGroupId] = useState(ALL_SKILLS_GROUP_ID);
+  const skillGroupSelectionTouchedRef = useRef(false);
+  const skillGroupWorkspaceRef = useRef(workspace.id);
   const [, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
   const [isTavernRoomImmersive, setIsTavernRoomImmersive] = useState(false);
@@ -310,8 +317,8 @@ export const WorkspaceChatPage = ({
     effectiveRuntimeModel,
   });
   const {
-    enabledSkillNames,
-    enabledSkills,
+    skills,
+    skillGroups,
     skillsError,
     isSkillsLoading,
     isSkillsSaving,
@@ -319,15 +326,56 @@ export const WorkspaceChatPage = ({
     isSkillMarketplaceLoadingMore,
     isSkillInstalling,
     isSkillRemoving,
-    toggleWorkspaceSkill,
-    toggleWorkspaceSkillGroup,
+    defaultSkillGroupId,
     updateSkillGroups,
+    updateDefaultSkillGroup,
     searchMarketplace,
     installMarketplaceSkill,
     removeMarketplaceSkill,
   } = useWorkspaceSkills({
     workspaceId: workspace.id,
   });
+  const selectedSkillGroup = useMemo(
+    () => skillGroups.find((group) => group.id === selectedSkillGroupId) ?? null,
+    [selectedSkillGroupId, skillGroups],
+  );
+  const selectedSkillGroupLabel =
+    selectedSkillGroupId === NO_SKILLS_GROUP_ID
+      ? "不使用技能"
+      : selectedSkillGroup?.name ?? "全部";
+  const activeSkills = useMemo(() => {
+    if (selectedSkillGroupId === NO_SKILLS_GROUP_ID) {
+      return [];
+    }
+    if (selectedSkillGroupId === ALL_SKILLS_GROUP_ID) {
+      return skills;
+    }
+    const skillKeys = new Set(selectedSkillGroup?.skillNames ?? []);
+    return skills.filter((skill) => skillKeys.has(skill.key));
+  }, [selectedSkillGroup?.skillNames, selectedSkillGroupId, skills]);
+  const activeSkillNames = useMemo(
+    () => activeSkills.map((skill) => skill.name).sort(),
+    [activeSkills],
+  );
+  useEffect(() => {
+    if (skillGroupWorkspaceRef.current !== workspace.id) {
+      skillGroupWorkspaceRef.current = workspace.id;
+      skillGroupSelectionTouchedRef.current = false;
+    }
+    if (!skillGroupSelectionTouchedRef.current) {
+      setSelectedSkillGroupId(defaultSkillGroupId);
+    }
+  }, [defaultSkillGroupId, workspace.id]);
+  useEffect(() => {
+    if (
+      selectedSkillGroupId !== ALL_SKILLS_GROUP_ID
+      && selectedSkillGroupId !== NO_SKILLS_GROUP_ID
+      && !selectedSkillGroup
+    ) {
+      skillGroupSelectionTouchedRef.current = false;
+      setSelectedSkillGroupId(defaultSkillGroupId);
+    }
+  }, [defaultSkillGroupId, selectedSkillGroup, selectedSkillGroupId]);
   const {
     files,
     activeFile,
@@ -860,6 +908,29 @@ export const WorkspaceChatPage = ({
     visibleActiveAgentTaskId,
     agentContextInvalidatedRef,
   });
+  const resetConversationSkillGroup = useCallback(() => {
+    skillGroupSelectionTouchedRef.current = false;
+    setSelectedSkillGroupId(defaultSkillGroupId);
+  }, [defaultSkillGroupId]);
+  const changeConversationSkillGroup = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    skillGroupSelectionTouchedRef.current = true;
+    setSelectedSkillGroupId(value);
+  }, []);
+  const startSessionWithDefaultSkillGroup = useCallback(() => {
+    resetConversationSkillGroup();
+    startSidebarSession();
+  }, [resetConversationSkillGroup, startSidebarSession]);
+  const loadDefaultSessionWithDefaultSkillGroup = useCallback(async (sessionId: string) => {
+    resetConversationSkillGroup();
+    await loadDefaultSessionById(sessionId);
+  }, [loadDefaultSessionById, resetConversationSkillGroup]);
+  const loadWorkspaceSessionWithDefaultSkillGroup = useCallback(async (
+    targetWorkspace: Workspace,
+    sessionId: string,
+  ) => {
+    resetConversationSkillGroup();
+    await loadWorkspaceSessionById(targetWorkspace, sessionId);
+  }, [loadWorkspaceSessionById, resetConversationSkillGroup]);
 
   const refreshAgentSessionStatus = useCallback(async () => {
     const requestId = agentSessionStatusRequestIdRef.current + 1;
@@ -1521,7 +1592,7 @@ export const WorkspaceChatPage = ({
       modelName: traceModelName,
       activeFilePath: activeFile?.path ?? null,
       referencedFilePaths: referencedFiles.map((file) => file.path),
-      enabledSkillNames,
+      activeSkillNames,
       conversationSummary,
       runtimeMessages,
     };
@@ -1784,7 +1855,7 @@ export const WorkspaceChatPage = ({
         }, {
           workspace,
           activeFile,
-          enabledSkills,
+          activeSkills,
           runtimeAgentId,
           agentRuntime,
           contextEngine,
@@ -1824,7 +1895,7 @@ export const WorkspaceChatPage = ({
         }, {
           workspace,
           activeFile,
-          enabledSkills,
+          activeSkills,
           runtimeAgentId,
           appendVisibleTraceStep,
           updateMessage,
@@ -1869,7 +1940,7 @@ export const WorkspaceChatPage = ({
       }, {
         workspace,
         activeFile,
-        enabledSkills,
+        activeSkills,
         runtimeAgentId,
         appendVisibleTraceStep,
         updateMessage,
@@ -1961,6 +2032,10 @@ export const WorkspaceChatPage = ({
     selectedCollaborationWorkflow,
     selectedCollaborationWorkflowId,
     allowedAgentTools,
+    skillGroups,
+    defaultSkillGroupId,
+    selectedSkillGroupId,
+    selectedSkillGroupLabel,
     toggleThinking,
     toggleAgentEvents,
     toggleAgentThinkingBlock,
@@ -1985,6 +2060,7 @@ export const WorkspaceChatPage = ({
     setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
+    setSelectedSkillGroupId: changeConversationSkillGroup,
     sendMessage,
     onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
   });
@@ -2033,9 +2109,9 @@ export const WorkspaceChatPage = ({
       isInstalling={isSkillInstalling}
       isRemoving={isSkillRemoving}
       error={skillsError}
-      onToggleSkill={toggleWorkspaceSkill}
-      onToggleGroup={toggleWorkspaceSkillGroup}
+      defaultSkillGroupId={defaultSkillGroupId}
       onGroupsChange={updateSkillGroups}
+      onDefaultGroupChange={updateDefaultSkillGroup}
       onSearchMarketplace={searchMarketplace}
       onInstallSkill={installMarketplaceSkill}
       onRemoveSkill={removeMarketplaceSkill}
@@ -2201,7 +2277,7 @@ export const WorkspaceChatPage = ({
         isTavernOpen: workspaceView === "tavern",
         onOpenWorkspace: openWorkspaceFromCurrentContext,
         onEditWorkspace,
-        onStartNewSession: startSidebarSession,
+        onStartNewSession: startSessionWithDefaultSkillGroup,
         onOpenContext: openContextWorkbench,
         onOpenSkills: openSkillsPage,
         onOpenKnowledge: () => {
@@ -2218,10 +2294,10 @@ export const WorkspaceChatPage = ({
           setIsCollaborationWorkflowSettingsOpen(false);
           setWorkspaceView("tavern");
         },
-        onLoadDefaultSession: (sessionId) => void loadDefaultSessionById(sessionId),
+        onLoadDefaultSession: (sessionId) => void loadDefaultSessionWithDefaultSkillGroup(sessionId),
         onRemoveDefaultSession: (sessionId) => void removeDefaultSession(sessionId),
         onLoadWorkspaceSession: (targetWorkspace, sessionId) =>
-          void loadWorkspaceSessionById(targetWorkspace, sessionId),
+          void loadWorkspaceSessionWithDefaultSkillGroup(targetWorkspace, sessionId),
         onRemoveWorkspaceSession: (targetWorkspace, sessionId) =>
           void removeWorkspaceSession(targetWorkspace, sessionId),
         onOpenSettings: openSettingsPanel,

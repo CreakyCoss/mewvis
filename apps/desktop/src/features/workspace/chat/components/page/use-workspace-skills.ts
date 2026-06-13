@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -34,7 +34,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   const {
     skills,
     skillGroups,
-    enabledSkillKeys,
+    defaultSkillGroupId,
     marketplaceResults,
     marketplacePagination,
     marketplaceQuery,
@@ -42,16 +42,15 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     marketplaceHasLoaded,
     setWorkspaceSkillSettings,
     setSkillGroups,
+    setDefaultSkillGroupId,
     setMarketplaceSearchResult,
     restoreMarketplaceCache,
     resetDrafts,
-    toggleSkill,
-    toggleGroup,
   } = useSkillsStore(
     useShallow((store) => ({
       skills: store.skills,
       skillGroups: store.skillGroups,
-      enabledSkillKeys: store.enabledSkillKeys,
+      defaultSkillGroupId: store.defaultSkillGroupId,
       marketplaceResults: store.marketplaceResults,
       marketplacePagination: store.marketplacePagination,
       marketplaceQuery: store.marketplaceQuery,
@@ -59,11 +58,10 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
       marketplaceHasLoaded: store.marketplaceHasLoaded,
       setWorkspaceSkillSettings: store.setWorkspaceSkillSettings,
       setSkillGroups: store.setSkillGroups,
+      setDefaultSkillGroupId: store.setDefaultSkillGroupId,
       setMarketplaceSearchResult: store.setMarketplaceSearchResult,
       restoreMarketplaceCache: store.restoreMarketplaceCache,
       resetDrafts: store.resetDrafts,
-      toggleSkill: store.toggleSkill,
-      toggleGroup: store.toggleGroup,
     })),
   );
 
@@ -85,18 +83,9 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     void loadWorkspaceSkills();
   }, [loadWorkspaceSkills]);
 
-  const enabledSkills = useMemo(() => {
-    const keys = new Set(enabledSkillKeys);
-    return skills.filter((skill) => keys.has(skill.key));
-  }, [enabledSkillKeys, skills]);
-  const enabledSkillNames = useMemo(
-    () => enabledSkills.map((skill) => skill.name).sort(),
-    [enabledSkills],
-  );
-
   const persistSkillSettings = useCallback(async (
-    nextEnabledSkillKeys: string[],
     nextSkillGroups: WorkspaceSkillGroup[],
+    nextDefaultSkillGroupId: string,
   ) => {
     setIsSkillsSaving(true);
     setSkillsError("");
@@ -104,8 +93,8 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     try {
       const settings = await saveWorkspaceSkills(
         workspaceId,
-        [...nextEnabledSkillKeys].sort(),
         toSaveSkillGroups(nextSkillGroups),
+        nextDefaultSkillGroupId,
       );
       setWorkspaceSkillSettings(settings);
     } catch (caught) {
@@ -116,33 +105,24 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     }
   }, [resetDrafts, setWorkspaceSkillSettings, workspaceId]);
 
-  const updateSkillGroups = useCallback((groups: WorkspaceSkillGroup[]) => {
-    setSkillGroups(groups);
-    void persistSkillSettings(enabledSkillKeys, groups);
-  }, [enabledSkillKeys, persistSkillSettings, setSkillGroups]);
-
-  const toggleWorkspaceSkill = useCallback((key: string, enabled: boolean) => {
-    const nextEnabledSkillKeys = nextEnabledAfterSkillToggle(
-      enabledSkillKeys,
-      key,
-      enabled,
-    );
-    toggleSkill(key, enabled);
-    void persistSkillSettings(nextEnabledSkillKeys, skillGroups);
-  }, [enabledSkillKeys, persistSkillSettings, skillGroups, toggleSkill]);
-
-  const toggleWorkspaceSkillGroup = useCallback((
-    skillKeys: string[],
-    enabled: boolean,
+  const updateSkillGroups = useCallback((
+    groups: WorkspaceSkillGroup[],
+    nextDefaultSkillGroupId = defaultSkillGroupId,
   ) => {
-    const nextEnabledSkillKeys = nextEnabledAfterGroupToggle(
-      enabledSkillKeys,
-      skillKeys,
-      enabled,
-    );
-    toggleGroup(skillKeys, enabled);
-    void persistSkillSettings(nextEnabledSkillKeys, skillGroups);
-  }, [enabledSkillKeys, persistSkillSettings, skillGroups, toggleGroup]);
+    setSkillGroups(groups);
+    setDefaultSkillGroupId(nextDefaultSkillGroupId);
+    void persistSkillSettings(groups, nextDefaultSkillGroupId);
+  }, [
+    defaultSkillGroupId,
+    persistSkillSettings,
+    setDefaultSkillGroupId,
+    setSkillGroups,
+  ]);
+
+  const updateDefaultSkillGroup = useCallback((nextDefaultSkillGroupId: string) => {
+    setDefaultSkillGroupId(nextDefaultSkillGroupId);
+    void persistSkillSettings(skillGroups, nextDefaultSkillGroupId);
+  }, [persistSkillSettings, setDefaultSkillGroupId, skillGroups]);
 
   const searchMarketplace = useCallback(async (input: SearchSkillMarketplaceInput) => {
     const normalizedInput = {
@@ -200,9 +180,6 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
 
     try {
       const removedSkill = await removeAppSkill(input);
-      const nextEnabledSkillKeys = enabledSkillKeys.filter(
-        (key) => key !== removedSkill.key,
-      );
       const nextSkillGroups = skillGroups.map((group) =>
         group.source === "custom"
           ? {
@@ -213,8 +190,8 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
       );
       const settings = await saveWorkspaceSkills(
         workspaceId,
-        nextEnabledSkillKeys,
         toSaveSkillGroups(nextSkillGroups),
+        defaultSkillGroupId,
       );
       setWorkspaceSkillSettings(settings);
       toast.success("技能已移除", {
@@ -227,8 +204,8 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
       setIsSkillRemoving(false);
     }
   }, [
-    enabledSkillKeys,
     loadWorkspaceSkills,
+    defaultSkillGroupId,
     setWorkspaceSkillSettings,
     skillGroups,
     workspaceId,
@@ -237,9 +214,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   return {
     skills,
     skillGroups,
-    enabledSkillKeys,
-    enabledSkillNames,
-    enabledSkills,
+    defaultSkillGroupId,
     skillsError,
     isSkillsLoading,
     isSkillsSaving,
@@ -252,9 +227,8 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     skillMarketplaceQuery: marketplaceQuery,
     skillMarketplaceSortBy: marketplaceSortBy,
     skillMarketplaceHasLoaded: marketplaceHasLoaded,
-    toggleWorkspaceSkill,
-    toggleWorkspaceSkillGroup,
     updateSkillGroups,
+    updateDefaultSkillGroup,
     searchMarketplace,
     installMarketplaceSkill,
     removeMarketplaceSkill,
@@ -272,33 +246,3 @@ const toSaveSkillGroups = (
       description: group.description,
       skillNames: group.skillNames,
     }));
-
-const nextEnabledAfterSkillToggle = (
-  enabledSkillKeys: string[],
-  key: string,
-  enabled: boolean,
-) => {
-  const next = new Set(enabledSkillKeys);
-  if (enabled) {
-    next.add(key);
-  } else {
-    next.delete(key);
-  }
-  return [...next].sort();
-};
-
-const nextEnabledAfterGroupToggle = (
-  enabledSkillKeys: string[],
-  skillKeys: string[],
-  enabled: boolean,
-) => {
-  const next = new Set(enabledSkillKeys);
-  for (const key of skillKeys) {
-    if (enabled) {
-      next.add(key);
-    } else {
-      next.delete(key);
-    }
-  }
-  return [...next].sort();
-};

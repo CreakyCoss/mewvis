@@ -38,7 +38,7 @@ export const runAgentTurn = async (
   }: RunAgentTurnInput,
   {
     workspace,
-    enabledSkills,
+    activeSkills,
     runtimeAgentId,
     appendVisibleTraceStep,
     updateMessage,
@@ -170,7 +170,7 @@ export const runAgentTurn = async (
       modelName: effectiveRuntimeModel?.modelName ?? null,
       shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
       allowedTools: allowedToolsForRun,
-      enabledSkills: enabledSkills.map((skill) => skill.name),
+      activeSkills: activeSkills.map((skill) => skill.name),
     },
     payloads: [
       {
@@ -197,7 +197,7 @@ export const runAgentTurn = async (
     prompt: agentPromptPayload.prompt,
     runtimeModel: runtimeModelInput ?? undefined,
     allowedTools: allowedToolsForRun,
-    enabledSkills: enabledSkills.map((skill) => skill.name),
+    enabledSkills: activeSkills.map((skill) => skill.name),
   });
   handledAgentDoneTaskIdsRef.current.delete(task.taskId);
   appendVisibleTraceStep(traceTurnId, {

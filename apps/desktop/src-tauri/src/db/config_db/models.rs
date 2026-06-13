@@ -127,7 +127,7 @@ pub struct AiAgentSettings {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSkillSettings {
-    pub enabled_skill_names: Vec<String>,
+    pub default_group_id: Option<String>,
     pub skill_groups: Vec<SkillGroup>,
 }
 

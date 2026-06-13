@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use std::collections::BTreeSet;
 use tauri::AppHandle;
 
@@ -17,6 +17,8 @@ struct NormalizedSkillGroup {
     skill_names: Vec<String>,
 }
 
+const DEFAULT_SKILL_GROUP_SETTING_KEY: &str = "default_group_id";
+
 pub fn workspace_skill_settings(
     app: &AppHandle,
     workspace_id: &str,
@@ -25,7 +27,7 @@ pub fn workspace_skill_settings(
     ensure_workspace_exists(&conn, workspace_id)?;
 
     Ok(WorkspaceSkillSettings {
-        enabled_skill_names: load_workspace_skill_names(&conn, workspace_id)?,
+        default_group_id: load_default_skill_group_id(&conn)?,
         skill_groups: load_skill_groups(&conn)?,
     })
 }
@@ -42,34 +44,17 @@ pub fn save_workspace_skill_settings(
     let mut conn = open_config_connection(app)?;
     ensure_workspace_exists(&conn, workspace_id)?;
 
-    let skill_names = normalize_skill_names(input.enabled_skill_names);
-    let skill_groups = input
-        .skill_groups
-        .map(normalize_skill_groups)
-        .transpose()?;
+    let skill_groups = input.skill_groups.map(normalize_skill_groups).transpose()?;
     let now = now_millis()?;
     let tx = conn
         .transaction()
         .map_err(|error| format!("无法开始保存工作区 Skills：{error}"))?;
-    tx.execute(
-        "DELETE FROM workspace_enabled_skills WHERE workspace_id = ?1",
-        params![workspace_id],
-    )
-    .map_err(|error| format!("无法清空工作区 Skills：{error}"))?;
-
-    for skill_name in skill_names {
-        tx.execute(
-            r#"
-            INSERT INTO workspace_enabled_skills (workspace_id, skill_name, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4)
-            "#,
-            params![workspace_id, skill_name, now, now],
-        )
-        .map_err(|error| format!("无法保存工作区 Skill：{error}"))?;
-    }
 
     if let Some(skill_groups) = skill_groups {
         save_skill_groups(&tx, skill_groups, now)?;
+    }
+    if let Some(default_group_id) = input.default_group_id {
+        save_default_skill_group_id(&tx, default_group_id, now)?;
     }
 
     tx.commit()
@@ -78,28 +63,18 @@ pub fn save_workspace_skill_settings(
     workspace_skill_settings(app, workspace_id)
 }
 
-fn load_workspace_skill_names(
-    conn: &Connection,
-    workspace_id: &str,
-) -> Result<Vec<String>, String> {
-    let mut statement = conn
-        .prepare(
-            r#"
-            SELECT skill_name
-            FROM workspace_enabled_skills
-            WHERE workspace_id = ?1
-            ORDER BY created_at ASC, skill_name ASC
-            "#,
-        )
-        .map_err(|error| format!("无法读取工作区 Skills：{error}"))?;
-
-    let skill_names = statement
-        .query_map(params![workspace_id], |row| row.get::<_, String>(0))
-        .map_err(|error| format!("无法读取工作区 Skills：{error}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("无法解析工作区 Skills：{error}"))?;
-
-    Ok(skill_names)
+fn load_default_skill_group_id(conn: &Connection) -> Result<Option<String>, String> {
+    conn.query_row(
+        r#"
+        SELECT value
+        FROM skill_settings
+        WHERE key = ?1
+        "#,
+        params![DEFAULT_SKILL_GROUP_SETTING_KEY],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map_err(|error| format!("无法读取默认 Skill 分组：{error}"))
 }
 
 fn load_skill_groups(conn: &Connection) -> Result<Vec<SkillGroup>, String> {
@@ -142,6 +117,36 @@ fn load_skill_groups(conn: &Connection) -> Result<Vec<SkillGroup>, String> {
             })
         })
         .collect()
+}
+
+fn save_default_skill_group_id(
+    tx: &Transaction<'_>,
+    default_group_id: String,
+    now: i64,
+) -> Result<(), String> {
+    let normalized = default_group_id.trim();
+    if normalized.is_empty() {
+        tx.execute(
+            "DELETE FROM skill_settings WHERE key = ?1",
+            params![DEFAULT_SKILL_GROUP_SETTING_KEY],
+        )
+        .map_err(|error| format!("无法清空默认 Skill 分组：{error}"))?;
+        return Ok(());
+    }
+
+    tx.execute(
+        r#"
+        INSERT INTO skill_settings (key, value, updated_at)
+        VALUES (?1, ?2, ?3)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at
+        "#,
+        params![DEFAULT_SKILL_GROUP_SETTING_KEY, normalized, now],
+    )
+    .map_err(|error| format!("无法保存默认 Skill 分组：{error}"))?;
+
+    Ok(())
 }
 
 fn load_skill_group_names(conn: &Connection, group_id: &str) -> Result<Vec<String>, String> {

@@ -4,8 +4,6 @@ import {
   Globe2,
   Loader2,
   Palette,
-  Pause,
-  Play,
   Search,
   Sparkles,
   Trash2,
@@ -18,40 +16,29 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { WorkspaceSkill } from "../../types";
-import {
-  skillContentPreview,
-  skillDescriptionPreview,
-} from "../utils";
+import { skillDescriptionPreview } from "../utils";
 
 type SkillListItemProps = {
   skill: WorkspaceSkill;
-  enabled: boolean;
   disabled: boolean;
   removable: boolean;
   removing: boolean;
-  onToggle: (key: string, enabled: boolean) => void;
   onRemove: (skill: WorkspaceSkill) => void;
 };
 
 export const SkillListItem = ({
   skill,
-  enabled,
   disabled,
   removable,
   removing,
-  onToggle,
   onRemove,
 }: SkillListItemProps) => {
   const description = skillDescriptionPreview(skill.description);
+  const fullDescription = skill.description.trim() || "暂无描述";
   const actionPinned = removing;
-  const actionSpaceClassName = removable ? "pr-28" : "pr-14";
   const actionHoverSpaceClassName = removable
-    ? "group-hover:pr-28 group-focus-within:pr-28"
-    : "group-hover:pr-14 group-focus-within:pr-14";
-  const statusTitleSpaceClassName = enabled
-    ? "pr-24 group-hover:pr-0 group-focus-within:pr-0"
+    ? "group-hover:pr-14 group-focus-within:pr-14"
     : "";
-  const toggleLabel = enabled ? "停用" : "启用";
 
   return (
     <Tooltip>
@@ -70,7 +57,6 @@ export const SkillListItem = ({
           }}
           className={[
             "group relative grid min-h-[112px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-[22px] bg-white p-4 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] ring-1 ring-black/[0.03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/35 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]",
-            enabled ? "ring-sidebar-primary/25" : "",
           ].join(" ")}
         >
           <div className="flex size-14 items-center justify-center rounded-2xl bg-[#ececec] text-muted-foreground">
@@ -80,16 +66,11 @@ export const SkillListItem = ({
           <div
             className={[
               "min-w-0",
-              actionPinned ? actionSpaceClassName : "",
+              actionPinned ? "pr-14" : "",
               actionPinned ? "" : actionHoverSpaceClassName,
             ].join(" ")}
           >
-            <div
-              className={[
-                "flex min-w-0 items-center gap-2",
-                actionPinned ? "" : statusTitleSpaceClassName,
-              ].join(" ")}
-            >
+            <div className="flex min-w-0 items-center gap-2">
               <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">
                 {skill.name}
               </h3>
@@ -99,30 +80,15 @@ export const SkillListItem = ({
             </p>
           </div>
 
-          <div className="pointer-events-none absolute top-3 right-3 flex w-24 items-center justify-end">
-            {enabled && (
-              <span className="inline-flex h-5 min-w-[68px] items-center justify-center rounded-full border border-sidebar-primary/15 bg-sidebar-primary/10 px-2 text-[11px] font-medium leading-4 whitespace-nowrap text-sidebar-primary">
-                已启用
-              </span>
-            )}
-          </div>
-
-          <div
-            className={[
-              "absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-2 transition-opacity",
-              actionPinned
-                ? "opacity-100"
-                : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-            ].join(" ")}
-          >
-            <SkillActionIconButton
-              label={toggleLabel}
-              variant={enabled ? "secondary" : "default"}
-              disabled={disabled || removing}
-              onClick={() => onToggle(skill.key, !enabled)}
-              icon={enabled ? <Pause className="size-4" /> : <Play className="size-4" />}
-            />
-            {removable && (
+          {removable && (
+            <div
+              className={[
+                "absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-2 transition-opacity",
+                actionPinned
+                  ? "opacity-100"
+                  : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+              ].join(" ")}
+            >
               <SkillActionIconButton
                 label={removing ? "移除中" : "移除"}
                 variant="destructive"
@@ -136,8 +102,8 @@ export const SkillListItem = ({
                   )
                 }
               />
-            )}
-          </div>
+            </div>
+          )}
         </article>
       </TooltipTrigger>
 
@@ -150,18 +116,9 @@ export const SkillListItem = ({
         <div className="space-y-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-semibold">{skill.name}</span>
-            <span className="rounded-full bg-background/15 px-2 py-0.5 text-[11px]">
-              {enabled ? "已启用" : "未启用"}
-            </span>
           </div>
-          <p className="text-xs text-background/75">
-            {description}
-          </p>
-          <p className="break-all text-[11px] text-background/60">
-            {skill.path}
-          </p>
-          <p className="line-clamp-4 break-words font-mono text-[11px] text-background/75">
-            {skillContentPreview(skill.content)}
+          <p className="whitespace-pre-wrap break-words text-xs text-background/75">
+            {fullDescription}
           </p>
         </div>
       </TooltipContent>

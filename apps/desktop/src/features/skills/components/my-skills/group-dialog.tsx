@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ALL_SKILLS_GROUP_ID } from "../../constants";
 import type { WorkspaceSkill, WorkspaceSkillGroup } from "../../types";
 import { EmptyState } from "../shared";
 import {
@@ -43,9 +45,10 @@ type GroupDialogProps = {
   groups: WorkspaceSkillGroup[];
   skills: WorkspaceSkill[];
   skillsByKey: Map<string, WorkspaceSkill>;
-  enabledSkillKeys: string[];
+  defaultGroupId: string;
   onOpenChange: (open: boolean) => void;
-  onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
+  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onDefaultGroupChange: (groupId: string) => void;
   onSelectedGroupChange: (groupId: string) => void;
 };
 
@@ -54,12 +57,14 @@ export const GroupDialog = ({
   groups,
   skills,
   skillsByKey,
-  enabledSkillKeys,
+  defaultGroupId,
   onOpenChange,
   onGroupsChange,
+  onDefaultGroupChange,
   onSelectedGroupChange,
 }: GroupDialogProps) => {
   const [groupName, setGroupName] = useState("");
+  const [isDefaultGroup, setIsDefaultGroup] = useState(false);
   const [selectedSkillNames, setSelectedSkillNames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedSources, setCollapsedSources] = useState<Set<string>>(
@@ -68,11 +73,8 @@ export const GroupDialog = ({
   const [error, setError] = useState("");
 
   const isEditable = state.mode !== "view" && state.group?.readonly !== true;
+  const targetGroupId = state.group?.id ?? ALL_SKILLS_GROUP_ID;
   const dialogTitle = getDialogTitle(state.mode, state.group?.readonly === true);
-  const enabledKeys = useMemo(
-    () => new Set(enabledSkillKeys),
-    [enabledSkillKeys],
-  );
   const visibleSkills = useMemo(
     () => filterSkills(skills, searchQuery),
     [skills, searchQuery],
@@ -93,9 +95,11 @@ export const GroupDialog = ({
 
     if (state.mode === "create") {
       setGroupName("");
+      setIsDefaultGroup(false);
       setSelectedSkillNames([]);
     } else {
       setGroupName(state.group?.name ?? state.fallbackName ?? "");
+      setIsDefaultGroup(targetGroupId === defaultGroupId);
       setSelectedSkillNames(
         state.group
           ? existingGroupSkillNames(state.group, skillsByKey)
@@ -112,6 +116,8 @@ export const GroupDialog = ({
     state.group,
     state.mode,
     state.open,
+    targetGroupId,
+    defaultGroupId,
   ]);
 
   const toggleSkill = (skillKey: string, checked: boolean) => {
@@ -153,6 +159,17 @@ export const GroupDialog = ({
   };
 
   const saveGroup = () => {
+    if (!isEditable) {
+      const nextDefaultGroupId = isDefaultGroup
+        ? targetGroupId
+        : targetGroupId === defaultGroupId
+          ? ALL_SKILLS_GROUP_ID
+          : defaultGroupId;
+      onDefaultGroupChange(nextDefaultGroupId);
+      onOpenChange(false);
+      return;
+    }
+
     const name = groupName.trim();
     if (!name) {
       setError("分组名称不能为空");
@@ -171,20 +188,29 @@ export const GroupDialog = ({
     }
 
     const id = state.group?.id ?? `draft-${crypto.randomUUID()}`;
+    const nextDefaultGroupId = isDefaultGroup
+      ? id
+      : id === defaultGroupId
+        ? ALL_SKILLS_GROUP_ID
+        : defaultGroupId;
     const nextGroup: WorkspaceSkillGroup = {
       id,
       name,
       description: state.group?.description ?? null,
       source: "custom",
       readonly: false,
+      isDefault: id === nextDefaultGroupId,
       order: state.group?.order ?? nextCustomGroupOrder(groups),
       skillNames: [...selectedSkillNames].sort(),
     };
-    const nextGroups = state.group
+    const nextGroups = (state.group
       ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group))
-      : [...groups, nextGroup];
+      : [...groups, nextGroup]).map((group) => ({
+        ...group,
+        isDefault: group.id === nextDefaultGroupId,
+      }));
 
-    onGroupsChange(nextGroups);
+    onGroupsChange(nextGroups, nextDefaultGroupId);
     onSelectedGroupChange(id);
     onOpenChange(false);
   };
@@ -202,21 +228,46 @@ export const GroupDialog = ({
               <div className="flex min-w-0 items-center gap-2">
                 <FolderPlus className="size-4 shrink-0 text-sidebar-primary/90" />
                 {isEditable ? (
-                  <div className="flex h-10 w-full max-w-[520px] items-center rounded-xl bg-white px-3 shadow-xs ring-1 ring-black/[0.03] focus-within:ring-sidebar-primary/25">
-                    <Input
-                      id="skill-group-name"
-                      aria-label="分组名称"
-                      className="h-8 border-0 bg-transparent px-0 text-lg font-semibold tracking-normal shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
-                      value={groupName}
-                      onChange={(event) => setGroupName(event.target.value)}
-                      placeholder="输入分组名称"
-                      disabled={!isEditable}
-                    />
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <div className="flex h-10 w-full max-w-[520px] min-w-[220px] flex-1 items-center rounded-xl bg-white px-3 shadow-xs ring-1 ring-black/[0.03] focus-within:ring-sidebar-primary/25">
+                      <Input
+                        id="skill-group-name"
+                        aria-label="分组名称"
+                        className="h-8 border-0 bg-transparent px-0 text-lg font-semibold tracking-normal shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
+                        value={groupName}
+                        onChange={(event) => setGroupName(event.target.value)}
+                        placeholder="输入分组名称"
+                        disabled={!isEditable}
+                      />
+                    </div>
+                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-white px-3 text-xs font-medium text-foreground/80 shadow-xs ring-1 ring-black/[0.03] transition-colors hover:bg-white/90">
+                      <Checkbox
+                        checked={isDefaultGroup}
+                        onCheckedChange={(checked) => setIsDefaultGroup(checked === true)}
+                      />
+                      <span>默认用于新对话</span>
+                    </label>
                   </div>
                 ) : (
-                  <span className="truncate text-lg font-semibold tracking-normal">
-                    {groupName || dialogTitle}
-                  </span>
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-lg font-semibold tracking-normal">
+                        {groupName || dialogTitle}
+                      </span>
+                      {targetGroupId === defaultGroupId && (
+                        <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-2 py-0.5 text-xs font-medium text-sidebar-primary">
+                          默认
+                        </span>
+                      )}
+                    </div>
+                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-white px-3 text-xs font-medium text-foreground/80 shadow-xs ring-1 ring-black/[0.03] transition-colors hover:bg-white/90">
+                      <Checkbox
+                        checked={isDefaultGroup}
+                        onCheckedChange={(checked) => setIsDefaultGroup(checked === true)}
+                      />
+                      <span>默认用于新对话</span>
+                    </label>
+                  </div>
                 )}
               </div>
               <DialogDescription className="mt-1.5 text-xs leading-5">
@@ -315,7 +366,6 @@ export const GroupDialog = ({
                             <div className="grid gap-3 md:grid-cols-2">
                               {skillGroup.skills.map((skill) => {
                                 const checked = selectedSkillSet.has(skill.key);
-                                const enabled = enabledKeys.has(skill.key);
                                 return (
                                   <button
                                     type="button"
@@ -343,11 +393,6 @@ export const GroupDialog = ({
                                         <span className="min-w-0 truncate font-mono text-[15px] font-semibold tracking-normal">
                                           {skill.name}
                                         </span>
-                                        {enabled && (
-                                          <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-sidebar-primary/10 px-2 text-[11px] font-medium leading-4 text-sidebar-primary">
-                                            已启用
-                                          </span>
-                                        )}
                                       </span>
                                       <span className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
                                         {skillDescriptionPreview(skill.description)}
@@ -383,10 +428,10 @@ export const GroupDialog = ({
           >
             {isEditable ? "取消" : "关闭"}
           </Button>
-          {isEditable && (
+          {(isEditable || isDefaultGroup !== (targetGroupId === defaultGroupId)) && (
             <Button type="button" className="rounded-full" onClick={saveGroup}>
               <CheckCircle2 className="size-4" />
-              <span>保存分组</span>
+              <span>{isEditable ? "保存分组" : "保存默认"}</span>
             </Button>
           )}
         </DialogFooter>

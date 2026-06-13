@@ -44,9 +44,9 @@ export const createMockAgentText = (command: RuntimeStartTaskCommand) => {
   const enabledTools = command.allowedTools?.length
     ? command.allowedTools.join(", ")
     : "未传入工具列表";
-  const enabledSkills = command.enabledSkills?.length
+  const activeSkills = command.enabledSkills?.length
     ? command.enabledSkills.join(", ")
-    : "未启用技能";
+    : "不使用技能";
 
   return [
     "Mock agent 已完成模拟任务。",
@@ -54,7 +54,7 @@ export const createMockAgentText = (command: RuntimeStartTaskCommand) => {
     `工作区：${command.workspacePath}`,
     `任务摘要：${compact(command.prompt)}`,
     `允许工具：${enabledTools}`,
-    `启用技能：${enabledSkills}`,
+    `当前技能：${activeSkills}`,
     "",
     "这是本地生成的结果，不会启动真实 coding agent，也不会修改文件。",
   ].join("\n");

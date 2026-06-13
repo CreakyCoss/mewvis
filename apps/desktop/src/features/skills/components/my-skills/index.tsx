@@ -1,23 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FocusEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Circle,
   Download,
   Folder,
-  FolderCog,
   FolderPlus,
   Gamepad2,
   Leaf,
-  ListFilter,
   Loader2,
   Monitor,
-  Pencil,
+  Plus,
   Search,
   BriefcaseBusiness,
-  Trash2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -30,14 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -72,53 +66,38 @@ type MySkillsTabProps = {
   isSaving: boolean;
   isInstalling: boolean;
   isRemoving: boolean;
-  onToggleSkill: (key: string, enabled: boolean) => void;
-  onToggleGroup: (skillKeys: string[], enabled: boolean) => void;
-  onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
+  defaultSkillGroupId: string;
+  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onDefaultGroupChange: (groupId: string) => void;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;
   onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
 };
 
-type EnabledFilter = "all" | "enabled" | "disabled";
-
-const ENABLED_FILTER_OPTIONS = [
-  ["all", "全部状态"],
-  ["enabled", "已启用"],
-  ["disabled", "未启用"],
-] satisfies Array<[EnabledFilter, string]>;
-
-const ACTION_MENU_CONTENT_CLASS =
-  "w-32 rounded-lg p-1 text-xs shadow-md ring-1 ring-black/[0.05]";
-const ACTION_MENU_ITEM_CLASS =
-  "h-7 min-h-0 rounded-md px-2 py-0 text-xs leading-none [&_svg]:size-3";
-const FILTER_MENU_RADIO_ITEM_CLASS =
-  "h-7 min-h-0 rounded-md py-0 pr-7 pl-2 text-xs leading-none [&_svg]:size-3";
+const QUICK_ACTION_BUTTON_CLASS =
+  "size-10 rounded-full bg-white text-foreground/70 shadow-xs ring-1 ring-black/[0.03] hover:bg-white hover:text-foreground focus-visible:ring-sidebar-primary/25";
 
 export const MySkillsTab = ({
   isLoading,
   isSaving,
   isInstalling,
   isRemoving,
-  onToggleSkill,
-  onToggleGroup,
+  defaultSkillGroupId,
   onGroupsChange,
+  onDefaultGroupChange,
   onInstallSkill,
   onRemoveSkill,
 }: MySkillsTabProps) => {
   const {
     skills,
     groups,
-    enabledSkillKeys,
   } = useSkillsStore(
     useShallow((store) => ({
       skills: store.skills,
       groups: store.skillGroups,
-      enabledSkillKeys: store.enabledSkillKeys,
     })),
   );
   const [selectedGroupId, setSelectedGroupId] = useState(ALL_SKILLS_GROUP_ID);
   const [skillSearchQuery, setSkillSearchQuery] = useState("");
-  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
   const [collapsedSources, setCollapsedSources] = useState<Set<string>>(
     () => new Set(),
   );
@@ -127,6 +106,7 @@ export const MySkillsTab = ({
     atEnd: false,
   });
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [pendingRemoveSkill, setPendingRemoveSkill] = useState<WorkspaceSkill | null>(null);
   const [pendingDeleteGroup, setPendingDeleteGroup] =
     useState<WorkspaceSkillGroup | null>(null);
@@ -138,10 +118,6 @@ export const MySkillsTab = ({
   });
   const groupScrollerRef = useRef<HTMLDivElement | null>(null);
 
-  const enabledKeys = useMemo(
-    () => new Set(enabledSkillKeys),
-    [enabledSkillKeys],
-  );
   const skillsByKey = useMemo(
     () => new Map(skills.map((skill) => [skill.key, skill])),
     [skills],
@@ -154,21 +130,12 @@ export const MySkillsTab = ({
     ? existingGroupSkillNames(selectedGroup, skillsByKey)
     : skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
-  const selectedGroupEnabledCount = selectedGroupSkillKeys.filter((key) =>
-    enabledKeys.has(key),
-  ).length;
   const visibleSkills = selectedGroup
     ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key))
     : skills;
-  const filteredSkills = useMemo(
-    () => visibleSkills.filter((skill) =>
-      matchesEnabledFilter(skill.key, enabledFilter, enabledKeys),
-    ),
-    [enabledFilter, enabledKeys, visibleSkills],
-  );
   const displayedSkills = useMemo(
-    () => filterSkills(filteredSkills, skillSearchQuery),
-    [filteredSkills, skillSearchQuery],
+    () => filterSkills(visibleSkills, skillSearchQuery),
+    [visibleSkills, skillSearchQuery],
   );
   const displayedSkillGroups = useMemo(
     () => groupSkillsBySource(displayedSkills),
@@ -310,7 +277,12 @@ export const MySkillsTab = ({
       return;
     }
 
-    onGroupsChange(groups.filter((group) => group.id !== pendingDeleteGroup.id));
+    onGroupsChange(
+      groups.filter((group) => group.id !== pendingDeleteGroup.id),
+      pendingDeleteGroup.id === defaultSkillGroupId
+        ? ALL_SKILLS_GROUP_ID
+        : defaultSkillGroupId,
+    );
     setSelectedGroupId(ALL_SKILLS_GROUP_ID);
     setPendingDeleteGroup(null);
     setGroupDialogState((current) =>
@@ -322,7 +294,24 @@ export const MySkillsTab = ({
           }
         : current,
     );
-  }, [groups, isSaving, onGroupsChange, pendingDeleteGroup]);
+  }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, pendingDeleteGroup]);
+
+  const closeQuickActionsOnBlur = useCallback((
+    event: FocusEvent<HTMLDivElement>,
+  ) => {
+    const nextTarget = event.relatedTarget;
+    if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+      setIsQuickActionOpen(false);
+    }
+  }, []);
+
+  const openSelectedGroupDetails = () => {
+    if (selectedGroup && !selectedGroup.readonly) {
+      openEditGroup(selectedGroup);
+      return;
+    }
+    openViewGroup(selectedGroup);
+  };
 
   return (
     <TooltipProvider delayDuration={220}>
@@ -339,6 +328,7 @@ export const MySkillsTab = ({
                   id={ALL_SKILLS_GROUP_ID}
                   name="全部"
                   selected={selectedGroupId === ALL_SKILLS_GROUP_ID}
+                  isDefault={defaultSkillGroupId === ALL_SKILLS_GROUP_ID}
                   onSelect={setSelectedGroupId}
                 />
                 {groups.map((group) => (
@@ -347,6 +337,7 @@ export const MySkillsTab = ({
                     id={group.id}
                     name={group.name}
                     selected={selectedGroupId === group.id}
+                    isDefault={group.id === defaultSkillGroupId}
                     onSelect={setSelectedGroupId}
                   />
                 ))}
@@ -380,151 +371,115 @@ export const MySkillsTab = ({
                 />
                 <Search className="size-4 shrink-0 text-muted-foreground/45" />
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-10 rounded-full bg-white text-foreground/70 shadow-xs ring-1 ring-black/[0.03] hover:bg-white hover:text-foreground"
-                    aria-label="导入 Skill"
-                    onClick={() => setIsImportDialogOpen(true)}
-                  >
-                    <Download className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={8}>
-                  导入 Skill
-                </TooltipContent>
-              </Tooltip>
+              <div
+                className="relative z-30"
+                onMouseEnter={() => setIsQuickActionOpen(true)}
+                onMouseLeave={() => setIsQuickActionOpen(false)}
+                onFocus={() => setIsQuickActionOpen(true)}
+                onBlur={closeQuickActionsOnBlur}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className={QUICK_ACTION_BUTTON_CLASS}
+                      aria-label="更多 Skill 操作"
+                    >
+                      <Plus
+                        className={[
+                          "size-4 transition-transform duration-150",
+                          isQuickActionOpen ? "rotate-45" : "",
+                        ].filter(Boolean).join(" ")}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" sideOffset={8}>
+                    更多操作
+                  </TooltipContent>
+                </Tooltip>
+
+                {isQuickActionOpen && (
+                  <div className="animate-in fade-in-0 slide-in-from-top-1 absolute top-full right-0 flex flex-col items-center gap-2 pt-2 duration-150">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className={QUICK_ACTION_BUTTON_CLASS}
+                          aria-label="导入 Skill"
+                          onClick={() => {
+                            setIsQuickActionOpen(false);
+                            setIsImportDialogOpen(true);
+                          }}
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" sideOffset={8}>
+                        导入 Skill
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className={QUICK_ACTION_BUTTON_CLASS}
+                          aria-label="新增分组"
+                          onClick={() => {
+                            setIsQuickActionOpen(false);
+                            openCreateGroup();
+                          }}
+                        >
+                          <FolderPlus className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" sideOffset={8}>
+                        新增分组
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-foreground">{selectedGroupName}</span>
-              <span>已启用 {selectedGroupEnabledCount} 个，共 {visibleSkills.length} 个</span>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="group/selected-group relative flex max-w-full items-center gap-1">
+              <button
+                type="button"
+                className="-ml-1 inline-flex min-w-0 items-center rounded-full px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-black/[0.04] hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                onClick={openSelectedGroupDetails}
+                aria-label={
+                  selectedGroup && !selectedGroup.readonly
+                    ? `编辑分组：${selectedGroupName}`
+                    : `查看分组：${selectedGroupName}`
+                }
+              >
+                <span className="max-w-[220px] truncate">{selectedGroupName}</span>
+              </button>
+              {selectedGroup && !selectedGroup.readonly && (
+                <div className="pointer-events-none absolute left-0 top-full z-20 pt-1 opacity-0 transition-opacity group-hover/selected-group:pointer-events-auto group-hover/selected-group:opacity-100 group-focus-within/selected-group:pointer-events-auto group-focus-within/selected-group:opacity-100">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-7 rounded-full bg-white px-2.5 text-xs text-destructive shadow-xs ring-1 ring-destructive/10 hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`删除分组：${selectedGroupName}`}
+                    disabled={isSaving}
+                    onClick={() => setPendingDeleteGroup(selectedGroup)}
+                  >
+                    删除分组
+                  </Button>
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-7 rounded-full px-2"
-                  >
-                    <ListFilter className="size-3.5" />
-                    <span>{filterTriggerLabel(enabledFilter)}</span>
-                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
-                  <DropdownMenuRadioGroup
-                    value={enabledFilter}
-                    onValueChange={(value) => setEnabledFilter(value as EnabledFilter)}
-                  >
-                    {ENABLED_FILTER_OPTIONS.map(([value, label]) => (
-                      <DropdownMenuRadioItem
-                        key={value}
-                        value={value}
-                        className={FILTER_MENU_RADIO_ITEM_CLASS}
-                      >
-                        {label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-7 rounded-full px-2"
-                  >
-                    <FolderCog className="size-3.5" />
-                    <span>分组</span>
-                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
-                  <DropdownMenuItem
-                    className={ACTION_MENU_ITEM_CLASS}
-                    onSelect={() => {
-                      if (selectedGroup && !selectedGroup.readonly) {
-                        openEditGroup(selectedGroup);
-                        return;
-                      }
-                      openViewGroup(selectedGroup);
-                    }}
-                  >
-                    {selectedGroup && !selectedGroup.readonly ? (
-                      <Pencil className="size-3" />
-                    ) : (
-                      <Folder className="size-3" />
-                    )}
-                    <span>
-                      {selectedGroup && !selectedGroup.readonly ? "编辑分组" : "查看分组"}
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={ACTION_MENU_ITEM_CLASS}
-                    onSelect={openCreateGroup}
-                  >
-                    <FolderPlus className="size-3" />
-                    <span>新增分组</span>
-                  </DropdownMenuItem>
-                  {selectedGroup && !selectedGroup.readonly && (
-                    <DropdownMenuItem
-                      className={[
-                        ACTION_MENU_ITEM_CLASS,
-                        "text-destructive focus:bg-destructive/10 focus:text-destructive",
-                      ].join(" ")}
-                      disabled={isSaving}
-                      onSelect={() => setPendingDeleteGroup(selectedGroup)}
-                    >
-                      <Trash2 className="size-3" />
-                      <span>删除分组</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-7 rounded-full px-2"
-                  >
-                    <CheckCircle2 className="size-3.5" />
-                    <span>批量</span>
-                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
-                  <DropdownMenuItem
-                    className={ACTION_MENU_ITEM_CLASS}
-                    disabled={selectedGroupSkillKeys.length === 0 || isSaving}
-                    onSelect={() => onToggleGroup(selectedGroupSkillKeys, true)}
-                  >
-                    <CheckCircle2 className="size-3" />
-                    <span>启用当前</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={ACTION_MENU_ITEM_CLASS}
-                    disabled={selectedGroupSkillKeys.length === 0 || isSaving}
-                    onSelect={() => onToggleGroup(selectedGroupSkillKeys, false)}
-                  >
-                    <Circle className="size-3" />
-                    <span>停用当前</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center">
+              <span>共 {visibleSkills.length} 个 Skill</span>
             </div>
           </div>
         </div>
@@ -540,9 +495,6 @@ export const MySkillsTab = ({
               ) : displayedSkills.length > 0 ? (
                 <div className="space-y-5">
                     {displayedSkillGroups.map((skillGroup) => {
-                      const enabledCount = skillGroup.skills.filter((skill) =>
-                        enabledKeys.has(skill.key),
-                      ).length;
                       const collapsed = collapsedSources.has(skillGroup.source);
 
                       return (
@@ -564,7 +516,7 @@ export const MySkillsTab = ({
                                 {skillGroup.label}
                               </span>
                               <span className="text-xs tabular-nums text-muted-foreground">
-                                已启用 {enabledCount}/{skillGroup.skills.length}
+                                {skillGroup.skills.length} 个
                               </span>
                             </button>
                           </div>
@@ -575,13 +527,11 @@ export const MySkillsTab = ({
                                 <SkillListItem
                                   key={skill.key}
                                   skill={skill}
-                                  enabled={enabledKeys.has(skill.key)}
                                   disabled={isSaving || isRemoving}
                                   removable={
                                     skill.source === "app" || skill.source === "upload"
                                   }
                                   removing={removingSkillKey === skill.key}
-                                  onToggle={onToggleSkill}
                                   onRemove={setPendingRemoveSkill}
                                 />
                               ))}
@@ -607,7 +557,7 @@ export const MySkillsTab = ({
         groups={groups}
         skills={skills}
         skillsByKey={skillsByKey}
-        enabledSkillKeys={enabledSkillKeys}
+        defaultGroupId={defaultSkillGroupId}
         onOpenChange={(open) =>
           setGroupDialogState((current) => ({
             ...current,
@@ -615,6 +565,7 @@ export const MySkillsTab = ({
           }))
         }
         onGroupsChange={onGroupsChange}
+        onDefaultGroupChange={onDefaultGroupChange}
         onSelectedGroupChange={setSelectedGroupId}
       />
       <ImportSkillDialog
@@ -636,7 +587,7 @@ export const MySkillsTab = ({
             <AlertDialogTitle>移除 Skill？</AlertDialogTitle>
             <AlertDialogDescription>
               将从应用技能目录中移除“{pendingRemoveSkill?.name ?? ""}”。移除后这个
-              Skill 会从当前工作区、Skill库和已启用列表中消失。
+              Skill 会从 Skill库和自定义分组中消失。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -694,6 +645,7 @@ type CategoryPillProps = {
   id: string;
   name: string;
   selected: boolean;
+  isDefault?: boolean;
   onSelect: (id: string) => void;
 };
 
@@ -701,6 +653,7 @@ const CategoryPill = ({
   id,
   name,
   selected,
+  isDefault = false,
   onSelect,
 }: CategoryPillProps) => (
   <button
@@ -716,6 +669,11 @@ const CategoryPill = ({
   >
     <CategoryIcon name={name} />
     <span>{name}</span>
+    {isDefault && (
+      <span className="rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-primary">
+        默认
+      </span>
+    )}
   </button>
 );
 
@@ -733,21 +691,4 @@ const CategoryIcon = ({ name }: { name: string }) => {
     return <Gamepad2 className="size-3.5 text-red-500" />;
   }
   return null;
-};
-
-const filterTriggerLabel = (enabledFilter: EnabledFilter) =>
-  enabledFilter === "all"
-    ? "筛选"
-    : ENABLED_FILTER_OPTIONS.find(([value]) => value === enabledFilter)?.[1] ?? "筛选";
-
-const matchesEnabledFilter = (
-  skillKey: string,
-  filter: EnabledFilter,
-  enabledKeys: Set<string>,
-) => {
-  if (filter === "all") {
-    return true;
-  }
-  const enabled = enabledKeys.has(skillKey);
-  return filter === "enabled" ? enabled : !enabled;
 };
