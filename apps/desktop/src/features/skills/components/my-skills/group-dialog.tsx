@@ -37,7 +37,7 @@ type GroupDialogProps = {
   state: GroupDialogState;
   groups: WorkspaceSkillGroup[];
   skills: WorkspaceSkill[];
-  skillsByName: Map<string, WorkspaceSkill>;
+  skillsByKey: Map<string, WorkspaceSkill>;
   onOpenChange: (open: boolean) => void;
   onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
   onSelectedGroupChange: (groupId: string) => void;
@@ -47,7 +47,7 @@ export const GroupDialog = ({
   state,
   groups,
   skills,
-  skillsByName,
+  skillsByKey,
   onOpenChange,
   onGroupsChange,
   onSelectedGroupChange,
@@ -76,14 +76,14 @@ export const GroupDialog = ({
       setGroupName(state.group?.name ?? state.fallbackName ?? "");
       setSelectedSkillNames(
         state.group
-          ? existingGroupSkillNames(state.group, skillsByName)
+          ? existingGroupSkillNames(state.group, skillsByKey)
           : state.fallbackSkillNames ?? [],
       );
     }
     setSearchQuery("");
     setError("");
   }, [
-    skillsByName,
+    skillsByKey,
     state.fallbackName,
     state.fallbackSkillNames,
     state.group,
@@ -91,13 +91,13 @@ export const GroupDialog = ({
     state.open,
   ]);
 
-  const toggleSkill = (skillName: string, checked: boolean) => {
+  const toggleSkill = (skillKey: string, checked: boolean) => {
     setSelectedSkillNames((current) => {
       const next = new Set(current);
       if (checked) {
-        next.add(skillName);
+        next.add(skillKey);
       } else {
-        next.delete(skillName);
+        next.delete(skillKey);
       }
       return [...next].sort();
     });
@@ -226,10 +226,10 @@ export const GroupDialog = ({
                 {visibleSkills.length > 0 ? (
                   <div className="overflow-hidden rounded-lg border bg-background">
                     {visibleSkills.map((skill) => {
-                      const checked = selectedSkillNames.includes(skill.name);
+                      const checked = selectedSkillNames.includes(skill.key);
                       return (
                         <label
-                          key={skill.name}
+                          key={skill.key}
                           className={[
                             "grid min-w-0 gap-3 border-b px-4 py-3 last:border-b-0",
                             isEditable ? "cursor-pointer hover:bg-muted/25" : "bg-muted/10",
@@ -241,7 +241,7 @@ export const GroupDialog = ({
                             checked={checked}
                             disabled={!isEditable}
                             onCheckedChange={(nextChecked) =>
-                              toggleSkill(skill.name, nextChecked === true)
+                              toggleSkill(skill.key, nextChecked === true)
                             }
                           />
                           <span className="min-w-0">
@@ -249,7 +249,7 @@ export const GroupDialog = ({
                               <span className="truncate font-mono text-sm font-semibold">
                                 {skill.name}
                               </span>
-                              <SkillSourceBadge source={skill.source} systemOnly />
+                              <SkillSourceBadge source={skill.source} />
                             </span>
                             <span className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">
                               {skillDescriptionPreview(skill.description)}

@@ -1,8 +1,9 @@
 export type WorkspaceSkill = {
+  key: string;
   name: string;
   description: string;
   content: string;
-  source: "system" | "app" | string;
+  source: "system" | "app" | "upload" | string;
   path: string;
   enabled: boolean;
 };
@@ -67,6 +68,7 @@ export type SkillMarketplaceSearchResult = {
 export type InstallSkillInput = {
   source: string;
   skillName?: string | null;
+  sourceKind?: "remote" | "zip" | string | null;
 };
 
 export type InstalledSkill = {
@@ -77,10 +79,13 @@ export type InstalledSkill = {
 };
 
 export type RemoveSkillInput = {
-  name: string;
+  name?: string;
+  key?: string;
+  path?: string;
 };
 
 export type RemovedSkill = {
+  key: string;
   name: string;
   path: string;
 };

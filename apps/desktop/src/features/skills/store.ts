@@ -24,8 +24,8 @@ type SkillsStore = {
   skills: WorkspaceSkill[];
   skillGroups: WorkspaceSkillGroup[];
   savedSkillGroups: WorkspaceSkillGroup[];
-  enabledSkillNames: string[];
-  savedEnabledSkillNames: string[];
+  enabledSkillKeys: string[];
+  savedEnabledSkillKeys: string[];
   marketplaceResults: MarketplaceSkill[];
   marketplacePagination: SkillMarketplacePagination | null;
   marketplaceQuery: string;
@@ -40,16 +40,16 @@ type SkillsStore = {
   ) => void;
   restoreMarketplaceCache: (input: SearchSkillMarketplaceInput) => boolean;
   resetDrafts: () => void;
-  toggleSkill: (name: string, enabled: boolean) => void;
-  toggleGroup: (skillNames: string[], enabled: boolean) => void;
+  toggleSkill: (key: string, enabled: boolean) => void;
+  toggleGroup: (skillKeys: string[], enabled: boolean) => void;
 };
 
 export const useSkillsStore = create<SkillsStore>((set, get) => ({
   skills: [],
   skillGroups: [],
   savedSkillGroups: [],
-  enabledSkillNames: [],
-  savedEnabledSkillNames: [],
+  enabledSkillKeys: [],
+  savedEnabledSkillKeys: [],
   marketplaceResults: [],
   marketplacePagination: null,
   marketplaceQuery: DEFAULT_MARKETPLACE_QUERY,
@@ -57,17 +57,17 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   marketplaceHasLoaded: false,
   marketplaceCache: {},
   setWorkspaceSkillSettings: (settings) => {
-    const enabledSkillNames = settings.skills
+    const enabledSkillKeys = settings.skills
       .filter((skill) => skill.enabled)
-      .map((skill) => skill.name)
+      .map((skill) => skill.key)
       .sort();
 
     set({
       skills: settings.skills,
       skillGroups: settings.groups,
       savedSkillGroups: settings.groups,
-      enabledSkillNames,
-      savedEnabledSkillNames: enabledSkillNames,
+      enabledSkillKeys,
+      savedEnabledSkillKeys: enabledSkillKeys,
     });
   },
   setSkillGroups: (groups) => set({ skillGroups: groups }),
@@ -115,37 +115,37 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   },
   resetDrafts: () => set((state) => ({
     skillGroups: state.savedSkillGroups,
-    enabledSkillNames: state.savedEnabledSkillNames,
+    enabledSkillKeys: state.savedEnabledSkillKeys,
   })),
-  toggleSkill: (name, enabled) => set((state) => {
-    const next = new Set(state.enabledSkillNames);
+  toggleSkill: (key, enabled) => set((state) => {
+    const next = new Set(state.enabledSkillKeys);
     if (enabled) {
-      next.add(name);
+      next.add(key);
     } else {
-      next.delete(name);
+      next.delete(key);
     }
-    return { enabledSkillNames: [...next].sort() };
+    return { enabledSkillKeys: [...next].sort() };
   }),
-  toggleGroup: (skillNames, enabled) => set((state) => {
-    const next = new Set(state.enabledSkillNames);
-    for (const name of skillNames) {
+  toggleGroup: (skillKeys, enabled) => set((state) => {
+    const next = new Set(state.enabledSkillKeys);
+    for (const key of skillKeys) {
       if (enabled) {
-        next.add(name);
+        next.add(key);
       } else {
-        next.delete(name);
+        next.delete(key);
       }
     }
-    return { enabledSkillNames: [...next].sort() };
+    return { enabledSkillKeys: [...next].sort() };
   }),
 }));
 
 export const hasSkillsDraftChanges = (
-  enabledSkillNames: string[],
-  savedEnabledSkillNames: string[],
+  enabledSkillKeys: string[],
+  savedEnabledSkillKeys: string[],
   skillGroups: WorkspaceSkillGroup[],
   savedSkillGroups: WorkspaceSkillGroup[],
 ) =>
-  !sameStringList(enabledSkillNames, savedEnabledSkillNames)
+  !sameStringList(enabledSkillKeys, savedEnabledSkillKeys)
   || !sameSkillGroups(skillGroups, savedSkillGroups);
 
 const sameStringList = (left: string[], right: string[]) => {

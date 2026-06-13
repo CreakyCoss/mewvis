@@ -2,16 +2,17 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
-    io::Write,
+    io::{Read, Seek, Write},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::AppHandle;
+use zip::ZipArchive;
 
 use super::{
     ensure_app_skills_path,
     parser::parse_skill_frontmatter,
-    SkillDefinition, SkillSource,
+    skill_key, write_skill_source_marker, SkillDefinition, SkillSource,
 };
 
 const USER_AGENT: &str = "Novel-Claw Skills Importer";
@@ -23,6 +24,7 @@ const MAX_SKILL_BYTES: u64 = 50 * 1024 * 1024;
 pub(crate) struct InstallSkillRequest {
     pub source: String,
     pub skill_name: Option<String>,
+    pub source_kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -175,6 +177,10 @@ pub(crate) fn install_skill_from_source(
     let source = request.source.trim();
     if source.is_empty() {
         return Err("请输入 SkillsMP 链接、GitHub 链接或 skills add 安装命令".to_string());
+    }
+
+    if is_zip_install_request(source, request.source_kind.as_deref()) {
+        return install_zip_skill(app, source);
     }
 
     let client = http_client()?;
@@ -332,7 +338,46 @@ fn install_github_skill(
     fs::create_dir_all(&temp_dir).map_err(|error| format!("无法创建临时目录：{error}"))?;
 
     let install_result = download_skill_dir(client, spec, &ref_name, &tree, &skill_dir, &temp_dir)
-        .and_then(|_| finalize_installed_skill(&app_skills, &temp_dir, &spec.source_url));
+        .and_then(|_| {
+            finalize_installed_skill(&app_skills, &temp_dir, &spec.source_url, SkillSource::App)
+        });
+
+    if install_result.is_err() {
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    install_result
+}
+
+fn install_zip_skill(app: &AppHandle, source: &str) -> Result<InstalledSkill, String> {
+    let zip_path = PathBuf::from(source);
+    if !zip_path.is_file() {
+        return Err("请选择有效的 Skill zip 文件".to_string());
+    }
+
+    let app_skills = ensure_app_skills_path(app)?;
+    let fallback_name = zip_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("skill");
+    let temp_dir = app_skills.join(format!(
+        ".upload-{}-{}",
+        safe_dir_name(fallback_name),
+        now_millis()?
+    ));
+    if temp_dir.exists() {
+        fs::remove_dir_all(&temp_dir).map_err(|error| format!("无法清理临时目录：{error}"))?;
+    }
+    fs::create_dir_all(&temp_dir).map_err(|error| format!("无法创建临时目录：{error}"))?;
+
+    let install_result = extract_zip_skill(&zip_path, &temp_dir).and_then(|_| {
+        finalize_installed_skill(
+            &app_skills,
+            &temp_dir,
+            &zip_path.to_string_lossy(),
+            SkillSource::Upload,
+        )
+    });
 
     if install_result.is_err() {
         let _ = fs::remove_dir_all(&temp_dir);
@@ -526,6 +571,7 @@ fn finalize_installed_skill(
     app_skills: &Path,
     temp_dir: &Path,
     source_url: &str,
+    source: SkillSource,
 ) -> Result<InstalledSkill, String> {
     let skill_file = temp_dir.join("SKILL.md");
     if !skill_file.is_file() {
@@ -542,7 +588,11 @@ fn finalize_installed_skill(
         .trim_start_matches(".install-")
         .to_string();
     let name = name.unwrap_or(fallback_name);
-    let destination = app_skills.join(safe_dir_name(&name));
+    let destination_dir_name = match source {
+        SkillSource::Upload => safe_dir_name(&format!("uploaded-{name}")),
+        _ => safe_dir_name(&name),
+    };
+    let destination = app_skills.join(destination_dir_name);
 
     if destination.exists() {
         if destination.is_dir() {
@@ -558,12 +608,14 @@ fn finalize_installed_skill(
 
     fs::rename(temp_dir, &destination)
         .map_err(|error| format!("无法安装 Skill 到应用目录：{error}"))?;
+    write_skill_source_marker(&destination, &source)?;
 
     let definition = SkillDefinition {
+        key: skill_key(&source, &name),
         name: name.clone(),
         description: description.unwrap_or_default(),
         content,
-        source: SkillSource::App,
+        source,
         path: destination.to_string_lossy().to_string(),
     };
 
@@ -573,6 +625,112 @@ fn finalize_installed_skill(
         path: definition.path,
         source_url: source_url.to_string(),
     })
+}
+
+fn extract_zip_skill(zip_path: &Path, temp_dir: &Path) -> Result<(), String> {
+    let file = fs::File::open(zip_path)
+        .map_err(|error| format!("无法打开 zip 文件 {}：{error}", zip_path.to_string_lossy()))?;
+    let mut archive = ZipArchive::new(file).map_err(|error| format!("无法读取 zip 文件：{error}"))?;
+    let skill_dir = resolve_zip_skill_dir(&mut archive)?;
+    let prefix = if skill_dir.is_empty() {
+        String::new()
+    } else {
+        format!("{skill_dir}/")
+    };
+    let mut extracted_files = 0usize;
+    let mut total_bytes = 0u64;
+
+    for index in 0..archive.len() {
+        let mut file = archive
+            .by_index(index)
+            .map_err(|error| format!("无法读取 zip 条目：{error}"))?;
+        if file.is_dir() {
+            continue;
+        }
+
+        let Some(enclosed_name) = file.enclosed_name() else {
+            return Err(format!("zip 中包含不安全路径：{}", file.name()));
+        };
+        let normalized_path = normalize_zip_path(&enclosed_name)?;
+        let relative = if skill_dir.is_empty() {
+            normalized_path.as_str()
+        } else {
+            let Some(relative) = normalized_path.strip_prefix(&prefix) else {
+                continue;
+            };
+            relative
+        };
+        if relative.is_empty() {
+            continue;
+        }
+
+        extracted_files += 1;
+        if extracted_files > MAX_SKILL_FILES {
+            return Err(format!("Skill 文件过多（{extracted_files} 个），已停止导入"));
+        }
+        total_bytes = total_bytes.saturating_add(file.size());
+        if total_bytes > MAX_SKILL_BYTES {
+            return Err(format!(
+                "Skill 目录超过 {} MB，已停止导入",
+                MAX_SKILL_BYTES / 1024 / 1024
+            ));
+        }
+
+        let relative_path = safe_relative_path(relative)?;
+        let target = temp_dir.join(relative_path);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|error| format!("无法创建目录：{error}"))?;
+        }
+        let mut target_file = fs::File::create(&target).map_err(|error| {
+            format!("无法写入 Skill 文件 {}：{error}", target.to_string_lossy())
+        })?;
+        std::io::copy(&mut file, &mut target_file).map_err(|error| {
+            format!("无法保存 Skill 文件 {}：{error}", target.to_string_lossy())
+        })?;
+    }
+
+    if extracted_files == 0 {
+        return Err("zip 中没有找到可导入的 Skill 文件".to_string());
+    }
+    if !temp_dir.join("SKILL.md").is_file() {
+        return Err("zip 中缺少 SKILL.md".to_string());
+    }
+
+    Ok(())
+}
+
+fn resolve_zip_skill_dir<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<String, String> {
+    let mut candidates = Vec::new();
+
+    for index in 0..archive.len() {
+        let file = archive
+            .by_index(index)
+            .map_err(|error| format!("无法读取 zip 条目：{error}"))?;
+        if file.is_dir() {
+            continue;
+        }
+        let Some(enclosed_name) = file.enclosed_name() else {
+            return Err(format!("zip 中包含不安全路径：{}", file.name()));
+        };
+        let normalized_path = normalize_zip_path(&enclosed_name)?;
+        if normalized_path == "SKILL.md" {
+            candidates.push(String::new());
+        } else if let Some(dir) = normalized_path.strip_suffix("/SKILL.md") {
+            candidates.push(dir.to_string());
+        }
+    }
+
+    candidates.sort_by(|left, right| {
+        left.matches('/')
+            .count()
+            .cmp(&right.matches('/').count())
+            .then_with(|| left.len().cmp(&right.len()))
+            .then_with(|| left.cmp(right))
+    });
+    candidates
+        .into_iter()
+        .next()
+        .ok_or_else(|| "zip 中没有找到 SKILL.md".to_string())
 }
 
 fn default_branch(client: &Client, spec: &InstallSpec) -> Result<String, String> {
@@ -688,6 +846,10 @@ fn is_skillsmp_url(value: &str) -> bool {
     value.contains("skillsmp.com/")
 }
 
+fn is_zip_install_request(source: &str, source_kind: Option<&str>) -> bool {
+    source_kind == Some("zip") || source.to_lowercase().ends_with(".zip")
+}
+
 fn extract_github_url(value: &str) -> Option<String> {
     let decoded = decode_html_entities(value);
     let marker = "https://github.com/";
@@ -747,6 +909,28 @@ fn safe_relative_path(value: &str) -> Result<PathBuf, String> {
         path.push(segment);
     }
     Ok(path)
+}
+
+fn normalize_zip_path(path: &Path) -> Result<String, String> {
+    let mut segments = Vec::new();
+    for component in path.components() {
+        let std::path::Component::Normal(segment) = component else {
+            return Err(format!("zip 中包含不安全路径：{}", path.to_string_lossy()));
+        };
+        let Some(segment) = segment.to_str() else {
+            return Err(format!("zip 路径不是有效文本：{}", path.to_string_lossy()));
+        };
+        if segment.is_empty() || segment == "." || segment == ".." {
+            return Err(format!("zip 中包含不安全路径：{}", path.to_string_lossy()));
+        }
+        segments.push(segment.to_string());
+    }
+
+    if segments.is_empty() {
+        return Err("zip 中包含空路径".to_string());
+    }
+
+    Ok(segments.join("/"))
 }
 
 fn safe_dir_name(value: &str) -> String {

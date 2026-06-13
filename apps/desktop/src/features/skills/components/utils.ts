@@ -4,8 +4,8 @@ export const ALL_SKILLS_GROUP_ID = "all";
 
 export const existingGroupSkillNames = (
   group: WorkspaceSkillGroup,
-  skillsByName: Map<string, WorkspaceSkill>,
-) => group.skillNames.filter((name) => skillsByName.has(name));
+  skillsByKey: Map<string, WorkspaceSkill>,
+) => group.skillNames.filter((key) => skillsByKey.has(key));
 
 export const nextCustomGroupOrder = (groups: WorkspaceSkillGroup[]) => {
   const maxOrder = groups
@@ -22,9 +22,12 @@ export const sourceLabel = (source: string | undefined, readonly: boolean) => {
     return "视图";
   }
   if (source === "app") {
-    return "个人";
+    return "在线导入";
   }
-  return "系统";
+  if (source === "upload") {
+    return "本地上传";
+  }
+  return "系统内置";
 };
 
 export const filterSkills = (skills: WorkspaceSkill[], query: string) => {

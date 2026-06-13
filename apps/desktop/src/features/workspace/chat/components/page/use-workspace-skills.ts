@@ -34,7 +34,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   const {
     skills,
     skillGroups,
-    enabledSkillNames,
+    enabledSkillKeys,
     marketplaceResults,
     marketplacePagination,
     marketplaceQuery,
@@ -51,7 +51,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     useShallow((store) => ({
       skills: store.skills,
       skillGroups: store.skillGroups,
-      enabledSkillNames: store.enabledSkillNames,
+      enabledSkillKeys: store.enabledSkillKeys,
       marketplaceResults: store.marketplaceResults,
       marketplacePagination: store.marketplacePagination,
       marketplaceQuery: store.marketplaceQuery,
@@ -86,12 +86,16 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   }, [loadWorkspaceSkills]);
 
   const enabledSkills = useMemo(() => {
-    const names = new Set(enabledSkillNames);
-    return skills.filter((skill) => names.has(skill.name));
-  }, [enabledSkillNames, skills]);
+    const keys = new Set(enabledSkillKeys);
+    return skills.filter((skill) => keys.has(skill.key));
+  }, [enabledSkillKeys, skills]);
+  const enabledSkillNames = useMemo(
+    () => enabledSkills.map((skill) => skill.name).sort(),
+    [enabledSkills],
+  );
 
   const persistSkillSettings = useCallback(async (
-    nextEnabledSkillNames: string[],
+    nextEnabledSkillKeys: string[],
     nextSkillGroups: WorkspaceSkillGroup[],
   ) => {
     setIsSkillsSaving(true);
@@ -100,7 +104,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     try {
       const settings = await saveWorkspaceSkills(
         workspaceId,
-        [...nextEnabledSkillNames].sort(),
+        [...nextEnabledSkillKeys].sort(),
         toSaveSkillGroups(nextSkillGroups),
       );
       setWorkspaceSkillSettings(settings);
@@ -114,31 +118,31 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
 
   const updateSkillGroups = useCallback((groups: WorkspaceSkillGroup[]) => {
     setSkillGroups(groups);
-    void persistSkillSettings(enabledSkillNames, groups);
-  }, [enabledSkillNames, persistSkillSettings, setSkillGroups]);
+    void persistSkillSettings(enabledSkillKeys, groups);
+  }, [enabledSkillKeys, persistSkillSettings, setSkillGroups]);
 
-  const toggleWorkspaceSkill = useCallback((name: string, enabled: boolean) => {
-    const nextEnabledSkillNames = nextEnabledAfterSkillToggle(
-      enabledSkillNames,
-      name,
+  const toggleWorkspaceSkill = useCallback((key: string, enabled: boolean) => {
+    const nextEnabledSkillKeys = nextEnabledAfterSkillToggle(
+      enabledSkillKeys,
+      key,
       enabled,
     );
-    toggleSkill(name, enabled);
-    void persistSkillSettings(nextEnabledSkillNames, skillGroups);
-  }, [enabledSkillNames, persistSkillSettings, skillGroups, toggleSkill]);
+    toggleSkill(key, enabled);
+    void persistSkillSettings(nextEnabledSkillKeys, skillGroups);
+  }, [enabledSkillKeys, persistSkillSettings, skillGroups, toggleSkill]);
 
   const toggleWorkspaceSkillGroup = useCallback((
-    skillNames: string[],
+    skillKeys: string[],
     enabled: boolean,
   ) => {
-    const nextEnabledSkillNames = nextEnabledAfterGroupToggle(
-      enabledSkillNames,
-      skillNames,
+    const nextEnabledSkillKeys = nextEnabledAfterGroupToggle(
+      enabledSkillKeys,
+      skillKeys,
       enabled,
     );
-    toggleGroup(skillNames, enabled);
-    void persistSkillSettings(nextEnabledSkillNames, skillGroups);
-  }, [enabledSkillNames, persistSkillSettings, skillGroups, toggleGroup]);
+    toggleGroup(skillKeys, enabled);
+    void persistSkillSettings(nextEnabledSkillKeys, skillGroups);
+  }, [enabledSkillKeys, persistSkillSettings, skillGroups, toggleGroup]);
 
   const searchMarketplace = useCallback(async (input: SearchSkillMarketplaceInput) => {
     const normalizedInput = {
@@ -196,20 +200,20 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
 
     try {
       const removedSkill = await removeAppSkill(input);
-      const nextEnabledSkillNames = enabledSkillNames.filter(
-        (name) => name !== removedSkill.name,
+      const nextEnabledSkillKeys = enabledSkillKeys.filter(
+        (key) => key !== removedSkill.key,
       );
       const nextSkillGroups = skillGroups.map((group) =>
         group.source === "custom"
           ? {
               ...group,
-              skillNames: group.skillNames.filter((name) => name !== removedSkill.name),
+              skillNames: group.skillNames.filter((key) => key !== removedSkill.key),
             }
           : group,
       );
       const settings = await saveWorkspaceSkills(
         workspaceId,
-        nextEnabledSkillNames,
+        nextEnabledSkillKeys,
         toSaveSkillGroups(nextSkillGroups),
       );
       setWorkspaceSkillSettings(settings);
@@ -223,7 +227,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
       setIsSkillRemoving(false);
     }
   }, [
-    enabledSkillNames,
+    enabledSkillKeys,
     loadWorkspaceSkills,
     setWorkspaceSkillSettings,
     skillGroups,
@@ -233,6 +237,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   return {
     skills,
     skillGroups,
+    enabledSkillKeys,
     enabledSkillNames,
     enabledSkills,
     skillsError,
@@ -269,30 +274,30 @@ const toSaveSkillGroups = (
     }));
 
 const nextEnabledAfterSkillToggle = (
-  enabledSkillNames: string[],
-  name: string,
+  enabledSkillKeys: string[],
+  key: string,
   enabled: boolean,
 ) => {
-  const next = new Set(enabledSkillNames);
+  const next = new Set(enabledSkillKeys);
   if (enabled) {
-    next.add(name);
+    next.add(key);
   } else {
-    next.delete(name);
+    next.delete(key);
   }
   return [...next].sort();
 };
 
 const nextEnabledAfterGroupToggle = (
-  enabledSkillNames: string[],
-  skillNames: string[],
+  enabledSkillKeys: string[],
+  skillKeys: string[],
   enabled: boolean,
 ) => {
-  const next = new Set(enabledSkillNames);
-  for (const name of skillNames) {
+  const next = new Set(enabledSkillKeys);
+  for (const key of skillKeys) {
     if (enabled) {
-      next.add(name);
+      next.add(key);
     } else {
-      next.delete(name);
+      next.delete(key);
     }
   }
   return [...next].sort();

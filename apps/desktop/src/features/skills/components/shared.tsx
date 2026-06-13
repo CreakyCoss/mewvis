@@ -46,7 +46,7 @@ export const SkillSourceBadge = ({
     <Badge
       variant="outline"
       className={cn(
-        "h-5 border px-2 text-[11px] font-medium",
+        "h-5 min-w-[68px] border px-2 text-center text-[11px] font-medium whitespace-nowrap",
         sourceBadgeClassName(source, readonly),
       )}
     >
@@ -57,11 +57,14 @@ export const SkillSourceBadge = ({
 
 const sourceBadgeClassName = (source: string | undefined, readonly: boolean) => {
   if (!readonly) {
-    return "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/15 dark:text-amber-200";
+    return "border-amber-300/90 bg-amber-100 text-amber-800 dark:border-amber-300/35 dark:bg-amber-400/20 dark:text-amber-100";
   }
 
   if (source === "app") {
-    return "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/15 dark:text-emerald-200";
+    return "border-emerald-300/90 bg-emerald-100 text-emerald-800 dark:border-emerald-300/35 dark:bg-emerald-400/20 dark:text-emerald-100";
+  }
+  if (source === "upload") {
+    return "border-violet-300/90 bg-violet-100 text-violet-800 dark:border-violet-300/35 dark:bg-violet-400/20 dark:text-violet-100";
   }
 
   return "border-slate-200/80 bg-slate-100/80 text-slate-600 dark:border-slate-400/20 dark:bg-slate-500/15 dark:text-slate-200";

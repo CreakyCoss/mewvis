@@ -19,7 +19,10 @@ import {
 } from "@/components/ui/tooltip";
 import type { WorkspaceSkill } from "../../types";
 import { SkillSourceBadge } from "../shared";
-import { skillContentPreview, skillDescriptionPreview } from "../utils";
+import {
+  skillContentPreview,
+  skillDescriptionPreview,
+} from "../utils";
 
 type SkillListItemProps = {
   skill: WorkspaceSkill;
@@ -27,7 +30,7 @@ type SkillListItemProps = {
   disabled: boolean;
   removable: boolean;
   removing: boolean;
-  onToggle: (name: string, enabled: boolean) => void;
+  onToggle: (key: string, enabled: boolean) => void;
   onRemove: (skill: WorkspaceSkill) => void;
 };
 
@@ -42,10 +45,10 @@ export const SkillListItem = ({
 }: SkillListItemProps) => {
   const description = skillDescriptionPreview(skill.description);
   const actionPinned = removing;
-  const actionSpaceClassName = removable ? "pr-24" : "pr-14";
+  const actionSpaceClassName = "pr-40";
   const actionHoverSpaceClassName = removable
-    ? "group-hover:pr-24 group-focus-within:pr-24"
-    : "group-hover:pr-14 group-focus-within:pr-14";
+    ? "group-hover:pr-40 group-focus-within:pr-40"
+    : "group-hover:pr-40 group-focus-within:pr-40";
   const toggleLabel = enabled ? "停用" : "启用";
 
   return (
@@ -74,7 +77,7 @@ export const SkillListItem = ({
 
           <div
             className={[
-              "min-w-0",
+              "min-w-0 pr-40",
               actionPinned ? actionSpaceClassName : actionHoverSpaceClassName,
             ].join(" ")}
           >
@@ -82,16 +85,19 @@ export const SkillListItem = ({
               <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">
                 {skill.name}
               </h3>
-              <SkillSourceBadge source={skill.source} systemOnly />
-              {enabled && (
-                <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-2 py-0.5 text-[11px] font-medium leading-4 text-sidebar-primary">
-                  已启用
-                </span>
-              )}
             </div>
             <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">
               {description}
             </p>
+          </div>
+
+          <div className="pointer-events-none absolute top-3 right-3 flex w-36 items-center justify-end gap-1">
+            <SkillSourceBadge source={skill.source} />
+            {enabled && (
+              <span className="inline-flex h-5 min-w-[68px] items-center justify-center rounded-full border border-sidebar-primary/15 bg-sidebar-primary/10 px-2 text-[11px] font-medium leading-4 whitespace-nowrap text-sidebar-primary">
+                已启用
+              </span>
+            )}
           </div>
 
           <div
@@ -106,7 +112,7 @@ export const SkillListItem = ({
               label={toggleLabel}
               variant={enabled ? "secondary" : "default"}
               disabled={disabled || removing}
-              onClick={() => onToggle(skill.name, !enabled)}
+              onClick={() => onToggle(skill.key, !enabled)}
               icon={enabled ? <Pause className="size-4" /> : <Play className="size-4" />}
             />
             {removable && (

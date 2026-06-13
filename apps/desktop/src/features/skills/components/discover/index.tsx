@@ -78,7 +78,7 @@ export const DiscoverSkillsTab = ({
     cachedSortBy || DEFAULT_MARKETPLACE_SORT,
   );
   const [selectedCategory, setSelectedCategory] = useState("全部");
-  const [installingSkillName, setInstallingSkillName] = useState<string | null>(null);
+  const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [categoryScrollState, setCategoryScrollState] = useState({
     canScroll: false,
     atEnd: false,
@@ -87,8 +87,12 @@ export const DiscoverSkillsTab = ({
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
   const hasRequestedInitialSearchRef = useRef(false);
 
-  const installedSkillNames = useMemo(
-    () => new Set(skills.map((skill) => skill.name)),
+  const installedAppSkillNames = useMemo(
+    () => new Set(
+      skills
+        .filter((skill) => skill.source === "app")
+        .map((skill) => skill.name),
+    ),
     [skills],
   );
 
@@ -152,20 +156,21 @@ export const DiscoverSkillsTab = ({
   };
 
   const handleInstallSkill = useCallback(async (skill: MarketplaceSkill) => {
-    if (isInstalling || installingSkillName) {
+    if (isInstalling || installingSkillKey) {
       return;
     }
 
-    setInstallingSkillName(skill.name);
+    setInstallingSkillKey(marketplaceSkillKey(skill));
     try {
       await onInstallSkill({
         source: skill.githubUrl || skill.skillUrl,
         skillName: skill.name,
+        sourceKind: "remote",
       });
     } finally {
-      setInstallingSkillName(null);
+      setInstallingSkillKey(null);
     }
-  }, [installingSkillName, isInstalling, onInstallSkill]);
+  }, [installingSkillKey, isInstalling, onInstallSkill]);
 
   const updateCategoryScrollState = useCallback(() => {
     const scroller = categoryScrollerRef.current;
@@ -391,15 +396,16 @@ export const DiscoverSkillsTab = ({
             <TooltipProvider delayDuration={220}>
               <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {marketplaceResults.map((skill) => {
-                  const installed = installedSkillNames.has(skill.name);
-                  const installing = installingSkillName === skill.name;
+                  const resultKey = marketplaceSkillKey(skill);
+                  const installed = installedAppSkillNames.has(skill.name);
+                  const installing = installingSkillKey === resultKey;
                   return (
                     <MarketplaceResult
-                      key={`${skill.skillUrl}-${skill.githubUrl}`}
+                      key={resultKey}
                       skill={skill}
                       installed={installed}
                       installing={installing}
-                      actionHidden={Boolean(installingSkillName) && !installing && !installed}
+                      actionHidden={Boolean(installingSkillKey) && !installing && !installed}
                       onInstall={() => void handleInstallSkill(skill)}
                     />
                   );
@@ -430,6 +436,9 @@ const SORT_LABELS: Record<SkillMarketplaceSort, string> = {
   stars: "最热",
   updatedAt: "最新",
 };
+
+const marketplaceSkillKey = (skill: MarketplaceSkill) =>
+  skill.githubUrl || skill.skillUrl || skill.name;
 
 const SearchLoadingState = () => (
   <div className="flex min-h-[220px] items-center justify-center gap-2 text-sm text-muted-foreground">

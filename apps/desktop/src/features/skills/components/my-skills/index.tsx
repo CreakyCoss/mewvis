@@ -7,9 +7,11 @@ import {
   Circle,
   Download,
   Folder,
+  FolderCog,
   FolderPlus,
   Gamepad2,
   Leaf,
+  ListFilter,
   Loader2,
   Monitor,
   Pencil,
@@ -27,6 +29,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -55,12 +67,37 @@ type MySkillsTabProps = {
   isSaving: boolean;
   isInstalling: boolean;
   isRemoving: boolean;
-  onToggleSkill: (name: string, enabled: boolean) => void;
-  onToggleGroup: (skillNames: string[], enabled: boolean) => void;
+  onToggleSkill: (key: string, enabled: boolean) => void;
+  onToggleGroup: (skillKeys: string[], enabled: boolean) => void;
   onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;
   onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
 };
+
+type SourceFilter = "all" | "system" | "app" | "upload";
+type EnabledFilter = "all" | "enabled" | "disabled";
+
+const SOURCE_FILTER_OPTIONS = [
+  ["all", "全部来源"],
+  ["system", "系统内置"],
+  ["app", "在线导入"],
+  ["upload", "本地上传"],
+] satisfies Array<[SourceFilter, string]>;
+
+const ENABLED_FILTER_OPTIONS = [
+  ["all", "全部状态"],
+  ["enabled", "已启用"],
+  ["disabled", "未启用"],
+] satisfies Array<[EnabledFilter, string]>;
+
+const ACTION_MENU_CONTENT_CLASS =
+  "w-32 rounded-lg p-1 text-xs shadow-md ring-1 ring-black/[0.05]";
+const ACTION_MENU_ITEM_CLASS =
+  "h-7 min-h-0 rounded-md px-2 py-0 text-xs leading-none [&_svg]:size-3";
+const FILTER_MENU_LABEL_CLASS =
+  "px-2 py-1 text-[11px] leading-none text-muted-foreground";
+const FILTER_MENU_RADIO_ITEM_CLASS =
+  "h-7 min-h-0 rounded-md py-0 pr-7 pl-2 text-xs leading-none [&_svg]:size-3";
 
 export const MySkillsTab = ({
   isLoading,
@@ -76,23 +113,25 @@ export const MySkillsTab = ({
   const {
     skills,
     groups,
-    enabledSkillNames,
+    enabledSkillKeys,
   } = useSkillsStore(
     useShallow((store) => ({
       skills: store.skills,
       groups: store.skillGroups,
-      enabledSkillNames: store.enabledSkillNames,
+      enabledSkillKeys: store.enabledSkillKeys,
     })),
   );
   const [selectedGroupId, setSelectedGroupId] = useState(ALL_SKILLS_GROUP_ID);
   const [skillSearchQuery, setSkillSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
   const [groupScrollState, setGroupScrollState] = useState({
     canScroll: false,
     atEnd: false,
   });
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [pendingRemoveSkill, setPendingRemoveSkill] = useState<WorkspaceSkill | null>(null);
-  const [removingSkillName, setRemovingSkillName] = useState<string | null>(null);
+  const [removingSkillKey, setRemovingSkillKey] = useState<string | null>(null);
   const [groupDialogState, setGroupDialogState] = useState<GroupDialogState>({
     open: false,
     mode: "create",
@@ -100,31 +139,38 @@ export const MySkillsTab = ({
   });
   const groupScrollerRef = useRef<HTMLDivElement | null>(null);
 
-  const enabledNames = useMemo(
-    () => new Set(enabledSkillNames),
-    [enabledSkillNames],
+  const enabledKeys = useMemo(
+    () => new Set(enabledSkillKeys),
+    [enabledSkillKeys],
   );
-  const skillsByName = useMemo(
-    () => new Map(skills.map((skill) => [skill.name, skill])),
+  const skillsByKey = useMemo(
+    () => new Map(skills.map((skill) => [skill.key, skill])),
     [skills],
   );
   const selectedGroup =
     selectedGroupId === ALL_SKILLS_GROUP_ID
       ? null
       : groups.find((group) => group.id === selectedGroupId) ?? null;
-  const selectedGroupSkillNames = selectedGroup
-    ? existingGroupSkillNames(selectedGroup, skillsByName)
-    : skills.map((skill) => skill.name);
+  const selectedGroupSkillKeys = selectedGroup
+    ? existingGroupSkillNames(selectedGroup, skillsByKey)
+    : skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
-  const selectedGroupEnabledCount = selectedGroupSkillNames.filter((name) =>
-    enabledNames.has(name),
+  const selectedGroupEnabledCount = selectedGroupSkillKeys.filter((key) =>
+    enabledKeys.has(key),
   ).length;
   const visibleSkills = selectedGroup
-    ? skills.filter((skill) => selectedGroupSkillNames.includes(skill.name))
+    ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key))
     : skills;
+  const filteredSkills = useMemo(
+    () => visibleSkills.filter((skill) =>
+      matchesSourceFilter(skill, sourceFilter)
+      && matchesEnabledFilter(skill.key, enabledFilter, enabledKeys),
+    ),
+    [enabledFilter, enabledKeys, sourceFilter, visibleSkills],
+  );
   const displayedSkills = useMemo(
-    () => filterSkills(visibleSkills, skillSearchQuery),
-    [skillSearchQuery, visibleSkills],
+    () => filterSkills(filteredSkills, skillSearchQuery),
+    [filteredSkills, skillSearchQuery],
   );
 
   useEffect(() => {
@@ -204,7 +250,7 @@ export const MySkillsTab = ({
   const openViewGroup = (
     group: WorkspaceSkillGroup | null,
     fallbackName = "全部技能",
-    fallbackSkillNames = skills.map((skill) => skill.name),
+    fallbackSkillNames = skills.map((skill) => skill.key),
   ) => {
     setGroupDialogState({
       open: true,
@@ -232,12 +278,16 @@ export const MySkillsTab = ({
       return;
     }
 
-    setRemovingSkillName(pendingRemoveSkill.name);
+    setRemovingSkillKey(pendingRemoveSkill.key);
     try {
-      await onRemoveSkill({ name: pendingRemoveSkill.name });
+      await onRemoveSkill({
+        key: pendingRemoveSkill.key,
+        name: pendingRemoveSkill.name,
+        path: pendingRemoveSkill.path,
+      });
       setPendingRemoveSkill(null);
     } finally {
-      setRemovingSkillName(null);
+      setRemovingSkillKey(null);
     }
   }, [isRemoving, onRemoveSkill, pendingRemoveSkill]);
 
@@ -303,49 +353,128 @@ export const MySkillsTab = ({
               <span>已启用 {selectedGroupEnabledCount} 个，共 {visibleSkills.length} 个</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-7 rounded-full px-2"
-                onClick={() => openViewGroup(selectedGroup)}
-              >
-                查看分组
-              </Button>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-7 rounded-full px-2"
-                onClick={() => onToggleGroup(selectedGroupSkillNames, true)}
-                disabled={selectedGroupSkillNames.length === 0 || isSaving}
-              >
-                <CheckCircle2 className="size-3.5" />
-                <span>启用当前</span>
-              </Button>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-7 rounded-full px-2"
-                onClick={() => onToggleGroup(selectedGroupSkillNames, false)}
-                disabled={selectedGroupSkillNames.length === 0 || isSaving}
-              >
-                <Circle className="size-3.5" />
-                <span>停用当前</span>
-              </Button>
-              {selectedGroup && !selectedGroup.readonly && (
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  className="h-7 rounded-full px-2"
-                  onClick={() => openEditGroup(selectedGroup)}
-                >
-                  <Pencil className="size-3.5" />
-                  <span>编辑</span>
-                </Button>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-7 rounded-full px-2"
+                  >
+                    <ListFilter className="size-3.5" />
+                    <span>{filterTriggerLabel(sourceFilter, enabledFilter)}</span>
+                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
+                  <DropdownMenuLabel className={FILTER_MENU_LABEL_CLASS}>来源</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={sourceFilter}
+                    onValueChange={(value) => setSourceFilter(value as SourceFilter)}
+                  >
+                    {SOURCE_FILTER_OPTIONS.map(([value, label]) => (
+                      <DropdownMenuRadioItem
+                        key={value}
+                        value={value}
+                        className={FILTER_MENU_RADIO_ITEM_CLASS}
+                      >
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className={FILTER_MENU_LABEL_CLASS}>状态</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={enabledFilter}
+                    onValueChange={(value) => setEnabledFilter(value as EnabledFilter)}
+                  >
+                    {ENABLED_FILTER_OPTIONS.map(([value, label]) => (
+                      <DropdownMenuRadioItem
+                        key={value}
+                        value={value}
+                        className={FILTER_MENU_RADIO_ITEM_CLASS}
+                      >
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-7 rounded-full px-2"
+                  >
+                    <FolderCog className="size-3.5" />
+                    <span>分组</span>
+                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
+                  <DropdownMenuItem
+                    className={ACTION_MENU_ITEM_CLASS}
+                    onSelect={() => openViewGroup(selectedGroup)}
+                  >
+                    <Folder className="size-3" />
+                    <span>查看分组</span>
+                  </DropdownMenuItem>
+                  {selectedGroup && !selectedGroup.readonly && (
+                    <DropdownMenuItem
+                      className={ACTION_MENU_ITEM_CLASS}
+                      onSelect={() => openEditGroup(selectedGroup)}
+                    >
+                      <Pencil className="size-3" />
+                      <span>编辑分组</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className={ACTION_MENU_ITEM_CLASS}
+                    onSelect={openCreateGroup}
+                  >
+                    <FolderPlus className="size-3" />
+                    <span>新增分组</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="h-7 rounded-full px-2"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    <span>批量</span>
+                    <ChevronRight className="size-3 rotate-90 text-muted-foreground/70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={ACTION_MENU_CONTENT_CLASS}>
+                  <DropdownMenuItem
+                    className={ACTION_MENU_ITEM_CLASS}
+                    disabled={selectedGroupSkillKeys.length === 0 || isSaving}
+                    onSelect={() => onToggleGroup(selectedGroupSkillKeys, true)}
+                  >
+                    <CheckCircle2 className="size-3" />
+                    <span>启用当前</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={ACTION_MENU_ITEM_CLASS}
+                    disabled={selectedGroupSkillKeys.length === 0 || isSaving}
+                    onSelect={() => onToggleGroup(selectedGroupSkillKeys, false)}
+                  >
+                    <Circle className="size-3" />
+                    <span>停用当前</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 type="button"
                 size="xs"
@@ -355,16 +484,6 @@ export const MySkillsTab = ({
               >
                 <Download className="size-3.5" />
                 <span>导入</span>
-              </Button>
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="h-7 rounded-full px-2"
-                onClick={openCreateGroup}
-              >
-                <FolderPlus className="size-3.5" />
-                <span>新增分组</span>
               </Button>
             </div>
           </div>
@@ -383,12 +502,12 @@ export const MySkillsTab = ({
                   <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                     {displayedSkills.map((skill) => (
                       <SkillListItem
-                        key={`${skill.source}-${skill.name}`}
+                        key={skill.key}
                         skill={skill}
-                        enabled={enabledNames.has(skill.name)}
+                        enabled={enabledKeys.has(skill.key)}
                         disabled={isSaving || isRemoving}
-                        removable={skill.source === "app"}
-                        removing={removingSkillName === skill.name}
+                        removable={skill.source === "app" || skill.source === "upload"}
+                        removing={removingSkillKey === skill.key}
                         onToggle={onToggleSkill}
                         onRemove={setPendingRemoveSkill}
                       />
@@ -410,7 +529,7 @@ export const MySkillsTab = ({
         state={groupDialogState}
         groups={groups}
         skills={skills}
-        skillsByName={skillsByName}
+        skillsByKey={skillsByKey}
         onOpenChange={(open) =>
           setGroupDialogState((current) => ({
             ...current,
@@ -504,4 +623,35 @@ const CategoryIcon = ({ name }: { name: string }) => {
     return <Gamepad2 className="size-3.5 text-red-500" />;
   }
   return null;
+};
+
+const filterTriggerLabel = (
+  sourceFilter: SourceFilter,
+  enabledFilter: EnabledFilter,
+) => {
+  const selectedLabels = [
+    sourceFilter === "all"
+      ? null
+      : SOURCE_FILTER_OPTIONS.find(([value]) => value === sourceFilter)?.[1],
+    enabledFilter === "all"
+      ? null
+      : ENABLED_FILTER_OPTIONS.find(([value]) => value === enabledFilter)?.[1],
+  ].filter(Boolean);
+
+  return selectedLabels.length > 0 ? selectedLabels.join("/") : "筛选";
+};
+
+const matchesSourceFilter = (skill: WorkspaceSkill, filter: SourceFilter) =>
+  filter === "all" || skill.source === filter;
+
+const matchesEnabledFilter = (
+  skillKey: string,
+  filter: EnabledFilter,
+  enabledKeys: Set<string>,
+) => {
+  if (filter === "all") {
+    return true;
+  }
+  const enabled = enabledKeys.has(skillKey);
+  return filter === "enabled" ? enabled : !enabled;
 };

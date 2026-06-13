@@ -7,12 +7,13 @@ use crate::{
         self, SaveWorkspaceSkillsInput, SkillGroup as DbSkillGroup,
         WorkspaceSkillSettings as DbWorkspaceSkillSettings,
     },
-    services::skills::{self as skills_service, SkillSource},
+    services::skills as skills_service,
 };
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSkill {
+    pub key: String,
     pub name: String,
     pub description: String,
     pub content: String,
@@ -52,7 +53,9 @@ pub struct SearchSkillMarketplaceInput {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAppSkillInput {
-    pub name: String,
+    pub name: Option<String>,
+    pub key: Option<String>,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,7 +123,12 @@ pub async fn remove_app_skill(
     input: RemoveAppSkillInput,
 ) -> Result<skills_service::RemovedSkill, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        skills_service::remove_app_skill(&app, &input.name)
+        skills_service::remove_app_skill(
+            &app,
+            input.name.as_deref(),
+            input.key.as_deref(),
+            input.path.as_deref(),
+        )
     })
     .await
     .map_err(|error| format!("Skill 移除任务失败：{error}"))?
@@ -134,17 +142,24 @@ fn load_workspace_skills(
         enabled_skill_names,
         skill_groups,
     } = config_db::workspace_skill_settings(app, workspace_id)?;
-    let enabled_names = enabled_skill_names.into_iter().collect::<HashSet<_>>();
+    let enabled_identifiers = enabled_skill_names.into_iter().collect::<HashSet<_>>();
     let skill_definitions = skills_service::load_available_skills(app)?;
-    let available_skill_names = skill_definitions
+    let available_skill_keys = skill_definitions
         .iter()
-        .map(|skill| skill.name.clone())
+        .map(|skill| skill.key.clone())
+        .collect::<HashSet<_>>();
+    let legacy_skill_key_by_name = legacy_skill_key_by_name(&skill_definitions);
+    let legacy_enabled_keys = enabled_identifiers
+        .iter()
+        .filter(|identifier| !available_skill_keys.contains(*identifier))
+        .filter_map(|name| legacy_skill_key_by_name.get(name).cloned())
         .collect::<HashSet<_>>();
     let skills = skill_definitions
         .iter()
-        .into_iter()
         .map(|skill| WorkspaceSkill {
-            enabled: enabled_names.contains(&skill.name),
+            enabled: enabled_identifiers.contains(&skill.key)
+                || legacy_enabled_keys.contains(&skill.key),
+            key: skill.key.clone(),
             name: skill.name.clone(),
             description: skill.description.clone(),
             content: skill.content.clone(),
@@ -153,7 +168,11 @@ fn load_workspace_skills(
         })
         .collect::<Vec<_>>();
     let mut groups = default_skill_groups(&skill_definitions);
-    groups.extend(custom_skill_groups(skill_groups, &available_skill_names));
+    groups.extend(custom_skill_groups(
+        skill_groups,
+        &available_skill_keys,
+        &legacy_skill_key_by_name,
+    ));
     groups.sort_by(|left, right| {
         left.order
             .cmp(&right.order)
@@ -169,6 +188,9 @@ fn default_skill_groups(
     let mut groups = BTreeMap::<String, WorkspaceSkillGroup>::new();
 
     for skill in skills {
+        if skill.source.as_str() == "app" {
+            continue;
+        }
         let default_group = skills_service::default_group_for_skill(skill);
         let entry = groups
             .entry(default_group.id.to_string())
@@ -176,16 +198,12 @@ fn default_skill_groups(
                 id: default_group.id.to_string(),
                 name: default_group.name.to_string(),
                 description: None,
-                source: if skill.source == SkillSource::System {
-                    "system".to_string()
-                } else {
-                    "app".to_string()
-                },
+                source: skill.source.as_str().to_string(),
                 readonly: true,
                 order: default_group.order,
                 skill_names: Vec::new(),
             });
-        entry.skill_names.push(skill.name.clone());
+        entry.skill_names.push(skill.key.clone());
     }
 
     groups
@@ -200,16 +218,17 @@ fn default_skill_groups(
 
 fn custom_skill_groups(
     groups: Vec<DbSkillGroup>,
-    available_skill_names: &HashSet<String>,
+    available_skill_keys: &HashSet<String>,
+    legacy_skill_key_by_name: &BTreeMap<String, String>,
 ) -> Vec<WorkspaceSkillGroup> {
     groups
         .into_iter()
         .map(|group| WorkspaceSkillGroup {
-            skill_names: group
-                .skill_names
-                .into_iter()
-                .filter(|name| available_skill_names.contains(name))
-                .collect(),
+            skill_names: resolve_skill_identifiers(
+                group.skill_names,
+                available_skill_keys,
+                legacy_skill_key_by_name,
+            ),
             id: group.id,
             name: group.name,
             description: group.description,
@@ -219,4 +238,57 @@ fn custom_skill_groups(
         })
         .filter(|group| !group.skill_names.is_empty())
         .collect()
+}
+
+fn resolve_skill_identifiers(
+    identifiers: Vec<String>,
+    available_skill_keys: &HashSet<String>,
+    legacy_skill_key_by_name: &BTreeMap<String, String>,
+) -> Vec<String> {
+    let mut resolved = identifiers
+        .into_iter()
+        .filter_map(|identifier| {
+            if available_skill_keys.contains(&identifier) {
+                Some(identifier)
+            } else {
+                legacy_skill_key_by_name
+                    .get(&identifier)
+                    .cloned()
+            }
+        })
+        .collect::<Vec<_>>();
+
+    resolved.sort();
+    resolved.dedup();
+    resolved
+}
+
+fn legacy_skill_key_by_name(
+    skills: &[skills_service::SkillDefinition],
+) -> BTreeMap<String, String> {
+    let mut candidates = BTreeMap::<String, Vec<&skills_service::SkillDefinition>>::new();
+    for skill in skills {
+        candidates.entry(skill.name.clone()).or_default().push(skill);
+    }
+
+    candidates
+        .into_iter()
+        .filter_map(|(name, mut skills)| {
+            skills.sort_by(|left, right| {
+                legacy_source_rank(left.source.as_str())
+                    .cmp(&legacy_source_rank(right.source.as_str()))
+                    .then_with(|| left.path.cmp(&right.path))
+            });
+            skills.first().map(|skill| (name, skill.key.clone()))
+        })
+        .collect()
+}
+
+fn legacy_source_rank(source: &str) -> i32 {
+    match source {
+        "system" => 0,
+        "app" => 1,
+        "upload" => 2,
+        _ => 3,
+    }
 }

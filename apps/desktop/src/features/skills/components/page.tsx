@@ -17,8 +17,8 @@ type SkillsPageProps = {
   isInstalling: boolean;
   isRemoving: boolean;
   error: string;
-  onToggleSkill: (name: string, enabled: boolean) => void;
-  onToggleGroup: (skillNames: string[], enabled: boolean) => void;
+  onToggleSkill: (key: string, enabled: boolean) => void;
+  onToggleGroup: (skillKeys: string[], enabled: boolean) => void;
   onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
   onSearchMarketplace: (input: SearchSkillMarketplaceInput) => Promise<void>;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;

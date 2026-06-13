@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { Download, FileArchive, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,24 +27,51 @@ export const ImportSkillDialog = ({
   onInstallSkill,
 }: ImportSkillDialogProps) => {
   const [source, setSource] = useState("");
+  const [zipPath, setZipPath] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) {
+      setZipPath("");
       setError("");
     }
   }, [open]);
 
+  const chooseZipFile = async () => {
+    const selected = await openDialog({
+      multiple: false,
+      directory: false,
+      title: "选择 Skill zip 文件",
+      filters: [
+        {
+          name: "Skill zip",
+          extensions: ["zip"],
+        },
+      ],
+    });
+
+    if (typeof selected === "string") {
+      setZipPath(selected);
+      setError("");
+    }
+  };
+
   const handleImport = async () => {
     const nextSource = source.trim();
-    if (!nextSource) {
-      setError("请粘贴 SkillsMP 链接、GitHub 链接或 skills add 命令");
+    const nextZipPath = zipPath.trim();
+    if (!nextSource && !nextZipPath) {
+      setError("请粘贴安装来源，或选择一个 Skill zip 文件");
       return;
     }
 
     setError("");
-    await onInstallSkill({ source: nextSource });
+    await onInstallSkill(
+      nextZipPath
+        ? { source: nextZipPath, sourceKind: "zip" }
+        : { source: nextSource, sourceKind: "remote" },
+    );
     setSource("");
+    setZipPath("");
     onOpenChange(false);
   };
 
@@ -53,7 +81,7 @@ export const ImportSkillDialog = ({
         <DialogHeader>
           <DialogTitle>导入 Skill</DialogTitle>
           <DialogDescription>
-            粘贴 SkillsMP 详情页、GitHub 链接或 skills add 命令，Skill 会安装到应用技能目录。
+            在线导入支持 SkillsMP、GitHub 或 skills add 命令；本地上传支持 Skill zip 文件。
           </DialogDescription>
         </DialogHeader>
 
@@ -63,8 +91,38 @@ export const ImportSkillDialog = ({
             onChange={(event) => setSource(event.target.value)}
             placeholder="https://skillsmp.com/zh/skill/...&#10;或 skills add https://github.com/... --skill ..."
             className="min-h-28 resize-none"
-            disabled={isInstalling}
+            disabled={isInstalling || Boolean(zipPath)}
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => void chooseZipFile()}
+              disabled={isInstalling || Boolean(source.trim())}
+            >
+              <FileArchive className="size-4" />
+              <span>本地上传 zip</span>
+            </Button>
+            {zipPath && (
+              <div className="min-w-0 flex-1 truncate rounded-full bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                {zipPath}
+              </div>
+            )}
+            {zipPath && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full px-2"
+                onClick={() => setZipPath("")}
+                disabled={isInstalling}
+              >
+                清除
+              </Button>
+            )}
+          </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
 
