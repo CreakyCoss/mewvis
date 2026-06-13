@@ -7,7 +7,7 @@ import { createSharedConversationSummarizer } from "@/features/shared-chat-runti
 import {
   resolveRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/stores/llm-runtime-model";
+} from "@/features/llm-settings/store";
 
 type UseContextModelingInput = {
   runtimeAgentRequiresModel: boolean;

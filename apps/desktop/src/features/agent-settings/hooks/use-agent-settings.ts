@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import {
   type RuntimeModelOption,
-  useLlmRuntimeModelStore,
-} from "@/stores/llm-runtime-model";
+  useLlmSettingsStore,
+} from "@/features/llm-settings/store";
 import {
   deleteAiAgent,
   deleteCollaborationWorkflow,
@@ -84,8 +84,8 @@ export const useAgentSettings = (open: boolean) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const runtimeModels = useLlmRuntimeModelStore((store) => store.runtimeModels);
-  const loadRuntimeModels = useLlmRuntimeModelStore((store) => store.loadRuntimeModels);
+  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
+  const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? null,
@@ -128,9 +128,9 @@ export const useAgentSettings = (open: boolean) => {
     try {
       const [agentSettings] = await Promise.all([
         getAiAgentSettings(),
-        loadRuntimeModels(),
+        loadLlmSettings(),
       ]);
-      const nextRuntimeModels = useLlmRuntimeModelStore.getState().runtimeModels;
+      const nextRuntimeModels = useLlmSettingsStore.getState().runtimeModels;
       setAgents(agentSettings.agents);
       setWorkflows(agentSettings.collaborationWorkflows);
       const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
@@ -155,7 +155,7 @@ export const useAgentSettings = (open: boolean) => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadRuntimeModels]);
+  }, [loadLlmSettings]);
 
   useEffect(() => {
     if (open) {

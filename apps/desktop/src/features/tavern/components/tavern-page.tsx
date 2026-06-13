@@ -6,7 +6,7 @@ import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/stores/llm-runtime-model";
+} from "@/features/llm-settings/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

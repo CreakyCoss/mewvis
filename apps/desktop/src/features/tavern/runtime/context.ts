@@ -12,7 +12,7 @@ import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/stores/llm-runtime-model";
+} from "@/features/llm-settings/store";
 import { runSharedConversationSummary } from "@/features/shared-chat-runtime";
 import type {
   TavernCharacter,

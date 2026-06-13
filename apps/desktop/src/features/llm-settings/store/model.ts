@@ -1,9 +1,10 @@
 import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import { MODEL_CATALOG, type CatalogModel } from "../catalog";
 import type {
   LlmProvider,
   LlmSettings,
   ProviderModel,
-} from "@/features/llm-settings/types";
+} from "../types";
 
 export type RuntimeModelOption = {
   id: string;
@@ -16,6 +17,16 @@ export type RuntimeModelOption = {
 };
 
 type RuntimeModelInputMap = Record<string, AgentRuntimeModelInput>;
+type CatalogRuntimeModelInput = Pick<
+  AgentRuntimeModelInput,
+  | "reasoning"
+  | "thinkingLevelMap"
+  | "input"
+  | "cost"
+  | "contextWindow"
+  | "maxTokens"
+  | "headers"
+>;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
 
@@ -40,18 +51,46 @@ const formatProviderModelName = (
   model.isOneMillionContext,
 );
 
+const getCatalogModel = (
+  provider: Pick<LlmProvider, "provider">,
+  model: Pick<ProviderModel, "modelId">,
+): CatalogModel | null => {
+  return MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null;
+};
+
+const createCatalogRuntimeModelInput = (
+  catalogModel: CatalogModel,
+): CatalogRuntimeModelInput => {
+  return {
+    reasoning: catalogModel.reasoning,
+    input: [...catalogModel.input],
+    cost: { ...catalogModel.cost },
+    contextWindow: catalogModel.contextWindow,
+    maxTokens: catalogModel.maxTokens,
+    thinkingLevelMap: catalogModel.thinkingLevelMap
+      ? { ...catalogModel.thinkingLevelMap }
+      : undefined,
+    headers: catalogModel.headers ? { ...catalogModel.headers } : undefined,
+  };
+};
+
 const createRuntimeModelInput = (
   provider: LlmProvider,
   model: ProviderModel,
   modelId: string,
-): AgentRuntimeModelInput => ({
-  provider: provider.provider,
-  apiFormat: provider.apiFormat,
-  apiKey: provider.apiKey,
-  catalogModelId: model.modelId,
-  modelId,
-  apiEndpoint: provider.apiEndpoint ?? undefined,
-});
+): AgentRuntimeModelInput => {
+  const catalogModel = getCatalogModel(provider, model);
+
+  return {
+    provider: provider.provider,
+    apiFormat: provider.apiFormat,
+    apiKey: provider.apiKey,
+    catalogModelId: model.modelId,
+    modelId,
+    apiEndpoint: provider.apiEndpoint ?? undefined,
+    ...(catalogModel ? createCatalogRuntimeModelInput(catalogModel) : {}),
+  };
+};
 
 const buildRuntimeModelOption = (
   provider: LlmProvider,

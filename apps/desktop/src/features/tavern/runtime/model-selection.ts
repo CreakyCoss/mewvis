@@ -1,4 +1,4 @@
-import type { RuntimeModelOption } from "@/stores/llm-runtime-model";
+import type { RuntimeModelOption } from "@/features/llm-settings/store";
 
 export type TavernResolvedCharacterModel = {
   runtimeModel: RuntimeModelOption;

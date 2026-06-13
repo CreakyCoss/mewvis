@@ -1,7 +1,7 @@
 import {
   buildSystemPrompt,
 } from "@/ai/agent-context";
-import { requireRuntimeModelInput } from "@/stores/llm-runtime-model";
+import { requireRuntimeModelInput } from "@/features/llm-settings/store";
 import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
 import {
   formatDebugMessages,

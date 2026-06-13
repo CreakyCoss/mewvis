@@ -12,7 +12,7 @@ import {
   resolveAgentProfiles,
   resolveCollaborationWorkflowProfiles,
 } from "@/features/agent-settings/utils";
-import { useLlmRuntimeModelStore } from "@/stores/llm-runtime-model";
+import { useLlmSettingsStore } from "@/features/llm-settings/store";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 
@@ -34,15 +34,14 @@ export const useModelSettings = ({
   chatMode,
   chatExecutionMode,
 }: UseModelSettingsInput) => {
-  const runtimeModels = useLlmRuntimeModelStore((store) => store.runtimeModels);
-  const selectedRuntimeModelId = useLlmRuntimeModelStore((store) => store.selectedRuntimeModelId);
-  const setSelectedRuntimeModelId = useLlmRuntimeModelStore((store) => store.setSelectedRuntimeModelId);
-  const loadRuntimeModels = useLlmRuntimeModelStore((store) => store.loadRuntimeModels);
-  const runtimeModelError = useLlmRuntimeModelStore((store) => store.error);
+  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
+  const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
+  const runtimeModelError = useLlmSettingsStore((store) => store.error);
 
   const [runtimeAgents, setRuntimeAgents] = useState<AgentRuntimeAgentDefinition[]>([]);
   const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
   const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
+  const [selectedRuntimeModelId, setSelectedRuntimeModelId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [collaborationWorkflowSettings, setCollaborationWorkflowSettings] = useState<CollaborationWorkflow[]>([]);
   const [modelSource, setModelSource] = useState<ModelSource>("direct");
@@ -59,9 +58,9 @@ export const useModelSettings = ({
     try {
       const [agentSettings] = await Promise.all([
         getAiAgentSettings(),
-        loadRuntimeModels(),
+        loadLlmSettings(),
       ]);
-      const runtimeModelState = useLlmRuntimeModelStore.getState();
+      const runtimeModelState = useLlmSettingsStore.getState();
       if (runtimeModelState.error) {
         throw new Error(runtimeModelState.error);
       }
@@ -93,7 +92,7 @@ export const useModelSettings = ({
       setHasLoadedSettings(true);
       setIsSettingsLoading(false);
     }
-  }, [loadRuntimeModels]);
+  }, [loadLlmSettings]);
 
   const loadRuntimeAgents = useCallback(async () => {
     try {
@@ -117,6 +116,13 @@ export const useModelSettings = ({
   useEffect(() => {
     void loadRuntimeAgents();
   }, [loadRuntimeAgents]);
+
+  useEffect(() => {
+    setSelectedRuntimeModelId((currentId) => {
+      const current = runtimeModels.find((model) => model.id === currentId);
+      return current?.id ?? runtimeModels[0]?.id ?? "";
+    });
+  }, [runtimeModels]);
 
   const selectedRuntimeModel = useMemo(
     () => runtimeModels.find((model) => model.id === selectedRuntimeModelId)

@@ -11,7 +11,7 @@ import {
   runSharedAgentTask,
   type SharedAgentTaskResult,
 } from "@/features/shared-chat-runtime";
-import { requireRuntimeModelInput } from "@/stores/llm-runtime-model";
+import { requireRuntimeModelInput } from "@/features/llm-settings/store";
 import type {
   AgentProfile,
   CollaborationWorkflowProfile,

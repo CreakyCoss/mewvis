@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   ArrowLeft,
   Bot,
@@ -16,12 +17,12 @@ import {
   getApiFormatLabel,
   getProviderWebsiteUrl,
 } from "./options";
-import { getLlmSettings } from "./api";
-import type { LlmProvider, LlmSettings } from "./types";
+import type { LlmProvider } from "./types";
 import {
   ProviderEditDialog,
   type ProviderEditDialogHandle,
 } from "./provider-edit";
+import { useLlmSettingsStore } from "./store";
 
 type LlmSettingsPageProps = {
   onBack: () => void;
@@ -89,8 +90,13 @@ export const LlmSettingsPage = ({
   onSettingsSaved,
 }: LlmSettingsPageProps) => {
   const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
-  const [settings, setSettings] = useState<LlmSettings>({ providers: [] });
-  const [error, setError] = useState("");
+  const { settings, error, loadSettings } = useLlmSettingsStore(
+    useShallow((store) => ({
+      settings: store.settings,
+      error: store.error,
+      loadSettings: store.loadSettings,
+    })),
+  );
   const providers = settings.providers;
   const providerCount = providers.length;
   const enabledModelCount = useMemo(
@@ -100,19 +106,6 @@ export const LlmSettingsPage = ({
     ),
     [providers],
   );
-  const loadSettings = useCallback(async () => {
-    setError("");
-
-    try {
-      setSettings(await getLlmSettings());
-    } catch (caught) {
-      setError(String(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
 
   const openCreateProvider = () => {
     providerEditDialogRef.current?.open({ mode: "create" });
