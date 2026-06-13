@@ -376,7 +376,7 @@ export const MessageList = () => {
         return (
           <div
             key={message.id}
-            className="flex gap-3 data-[role=user]:justify-end data-[role=user]:pr-2 xl:data-[role=user]:pr-6"
+            className="flex min-w-0 max-w-full gap-3 data-[role=user]:justify-end data-[role=user]:pr-2 xl:data-[role=user]:pr-6"
             data-role={message.role}
           >
             {message.role === "assistant" && (
@@ -396,7 +396,7 @@ export const MessageList = () => {
               </div>
             )}
             <div
-              className="flex max-w-[88%] flex-col gap-1 lg:max-w-[82%] xl:max-w-[78%] data-[role=assistant]:items-start data-[role=user]:items-end"
+              className="flex min-w-0 max-w-[88%] flex-col gap-1 lg:max-w-[82%] xl:max-w-[78%] data-[role=assistant]:items-start data-[role=user]:items-end"
               data-role={message.role}
               onMouseLeave={(event) => {
                 if (expandedHistoryActionsMessageId === message.id) {
@@ -432,7 +432,7 @@ export const MessageList = () => {
                 </div>
               )}
               <div
-                className="relative rounded-md px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:bg-card data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                className="relative min-w-0 max-w-full overflow-hidden rounded-md px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:w-full data-[role=assistant]:bg-card data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
                 data-role={message.role}
                 onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
                 onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
@@ -563,7 +563,7 @@ export const MessageList = () => {
                           ))}
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap">
+                      <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                         {message.text}
                       </div>
                     </div>

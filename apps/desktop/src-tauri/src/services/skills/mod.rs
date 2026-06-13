@@ -167,7 +167,7 @@ pub(crate) fn default_group_for_skill(skill: &SkillDefinition) -> SkillDefaultGr
             name: "小说创作",
             order: 10,
         },
-        "story-cover" | "story-deslop" => SkillDefaultGroup {
+        "story-cover" | "story-deslop" | "browser-cdp" => SkillDefaultGroup {
             id: "system-story-creation",
             name: "小说创作",
             order: 10,
@@ -176,11 +176,6 @@ pub(crate) fn default_group_for_skill(skill: &SkillDefinition) -> SkillDefaultGr
             id: "system-metaphysics",
             name: "命理分析",
             order: 40,
-        },
-        "browser-cdp" => SkillDefaultGroup {
-            id: "system-automation",
-            name: "通用工具",
-            order: 50,
         },
         _ => SkillDefaultGroup {
             id: "system-general",

@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_ALLOWED_AGENT_TOOLS,
@@ -156,6 +156,47 @@ const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
   collab: true,
 };
 
+const specialSkillGroupIds = new Set([
+  ALL_SKILLS_GROUP_ID,
+  NO_SKILLS_GROUP_ID,
+]);
+
+const defaultSkillGroupSelection = (defaultSkillGroupId: string) => [
+  defaultSkillGroupId || ALL_SKILLS_GROUP_ID,
+];
+
+const uniqueSkillGroupIds = (ids: string[]) => [...new Set(ids.filter(Boolean))];
+
+const normalizeSkillGroupSelection = (ids: string[]) => {
+  const uniqueIds = uniqueSkillGroupIds(ids);
+  if (uniqueIds.includes(NO_SKILLS_GROUP_ID)) {
+    return [NO_SKILLS_GROUP_ID];
+  }
+  if (uniqueIds.includes(ALL_SKILLS_GROUP_ID)) {
+    return [ALL_SKILLS_GROUP_ID];
+  }
+  return uniqueIds.length > 0 ? uniqueIds : [NO_SKILLS_GROUP_ID];
+};
+
+const toggleSkillGroupSelection = (
+  current: string[],
+  skillGroupId: string,
+  checked: boolean,
+) => {
+  if (checked) {
+    if (specialSkillGroupIds.has(skillGroupId)) {
+      return [skillGroupId];
+    }
+    return normalizeSkillGroupSelection([
+      ...current.filter((id) => !specialSkillGroupIds.has(id)),
+      skillGroupId,
+    ]);
+  }
+
+  const next = current.filter((id) => id !== skillGroupId);
+  return normalizeSkillGroupSelection(next);
+};
+
 type CommitChatTurnDraftInput = Pick<
   ChatTurnDraft,
   "nextConversation" | "userUiMessage" | "traceTurn"
@@ -215,7 +256,7 @@ export const WorkspaceChatPage = ({
   const loadVersionControlRef = useRef<((historyBranchOverride?: string) => Promise<void>) | null>(null);
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [chatMode, setChatMode] = useState<ChatMode>("chat");
+  const [chatMode, setChatMode] = useState<ChatMode>("agent");
   const [chatExecutionMode, setChatExecutionMode] = useState<ChatExecutionMode>("agent");
   const [showThinkingProcess, setShowThinkingProcess] = useState(true);
   const [toolCallProcessByMode, setToolCallProcessByMode] = useState<Record<ChatMode, boolean>>({
@@ -240,7 +281,9 @@ export const WorkspaceChatPage = ({
   const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_AGENT_TOOLS,
   ]);
-  const [selectedSkillGroupId, setSelectedSkillGroupId] = useState(ALL_SKILLS_GROUP_ID);
+  const [selectedSkillGroupIds, setSelectedSkillGroupIds] = useState<string[]>([
+    ALL_SKILLS_GROUP_ID,
+  ]);
   const skillGroupSelectionTouchedRef = useRef(false);
   const skillGroupWorkspaceRef = useRef(workspace.id);
   const [, setCollaborationPhase] = useState<CollaborationPhase>("idle");
@@ -335,24 +378,53 @@ export const WorkspaceChatPage = ({
   } = useWorkspaceSkills({
     workspaceId: workspace.id,
   });
-  const selectedSkillGroup = useMemo(
-    () => skillGroups.find((group) => group.id === selectedSkillGroupId) ?? null,
-    [selectedSkillGroupId, skillGroups],
+  const availableSkillGroupIds = useMemo(
+    () => new Set(skillGroups.map((group) => group.id)),
+    [skillGroups],
   );
-  const selectedSkillGroupLabel =
-    selectedSkillGroupId === NO_SKILLS_GROUP_ID
-      ? "不使用技能"
-      : selectedSkillGroup?.name ?? "全部";
+  const resolvedDefaultSkillGroupIds = useMemo(() => {
+    const defaultSelection = defaultSkillGroupSelection(defaultSkillGroupId);
+    const [defaultId] = defaultSelection;
+    return specialSkillGroupIds.has(defaultId) || availableSkillGroupIds.has(defaultId)
+      ? defaultSelection
+      : [ALL_SKILLS_GROUP_ID];
+  }, [availableSkillGroupIds, defaultSkillGroupId]);
+  const selectedSkillGroups = useMemo(
+    () => selectedSkillGroupIds
+      .map((id) => skillGroups.find((group) => group.id === id) ?? null)
+      .filter((group) => group !== null),
+    [selectedSkillGroupIds, skillGroups],
+  );
+  const selectedSkillGroupLabel = useMemo(() => {
+    if (selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)) {
+      return "不使用技能";
+    }
+    if (selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)) {
+      return "全部";
+    }
+
+    const groupNames = selectedSkillGroups.map((group) => group.name);
+    if (groupNames.length === 0) {
+      return "不使用技能";
+    }
+    if (groupNames.length <= 2) {
+      return groupNames.join("、");
+    }
+
+    return `${groupNames.slice(0, 2).join("、")} 等 ${groupNames.length} 组`;
+  }, [selectedSkillGroupIds, selectedSkillGroups]);
   const activeSkills = useMemo(() => {
-    if (selectedSkillGroupId === NO_SKILLS_GROUP_ID) {
+    if (selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)) {
       return [];
     }
-    if (selectedSkillGroupId === ALL_SKILLS_GROUP_ID) {
+    if (selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)) {
       return skills;
     }
-    const skillKeys = new Set(selectedSkillGroup?.skillNames ?? []);
+    const skillKeys = new Set(
+      selectedSkillGroups.flatMap((group) => group.skillNames),
+    );
     return skills.filter((skill) => skillKeys.has(skill.key));
-  }, [selectedSkillGroup?.skillNames, selectedSkillGroupId, skills]);
+  }, [selectedSkillGroupIds, selectedSkillGroups, skills]);
   const activeSkillNames = useMemo(
     () => activeSkills.map((skill) => skill.name).sort(),
     [activeSkills],
@@ -363,19 +435,29 @@ export const WorkspaceChatPage = ({
       skillGroupSelectionTouchedRef.current = false;
     }
     if (!skillGroupSelectionTouchedRef.current) {
-      setSelectedSkillGroupId(defaultSkillGroupId);
+      setSelectedSkillGroupIds(resolvedDefaultSkillGroupIds);
     }
-  }, [defaultSkillGroupId, workspace.id]);
+  }, [resolvedDefaultSkillGroupIds, workspace.id]);
   useEffect(() => {
-    if (
-      selectedSkillGroupId !== ALL_SKILLS_GROUP_ID
-      && selectedSkillGroupId !== NO_SKILLS_GROUP_ID
-      && !selectedSkillGroup
-    ) {
-      skillGroupSelectionTouchedRef.current = false;
-      setSelectedSkillGroupId(defaultSkillGroupId);
+    const validSkillGroupIds = selectedSkillGroupIds.filter((id) =>
+      specialSkillGroupIds.has(id) || availableSkillGroupIds.has(id)
+    );
+    if (validSkillGroupIds.length === selectedSkillGroupIds.length) {
+      return;
     }
-  }, [defaultSkillGroupId, selectedSkillGroup, selectedSkillGroupId]);
+
+    if (validSkillGroupIds.length === 0) {
+      skillGroupSelectionTouchedRef.current = false;
+      setSelectedSkillGroupIds(resolvedDefaultSkillGroupIds);
+      return;
+    }
+
+    setSelectedSkillGroupIds(normalizeSkillGroupSelection(validSkillGroupIds));
+  }, [
+    availableSkillGroupIds,
+    resolvedDefaultSkillGroupIds,
+    selectedSkillGroupIds,
+  ]);
   const {
     files,
     activeFile,
@@ -910,14 +992,17 @@ export const WorkspaceChatPage = ({
   });
   const resetConversationSkillGroup = useCallback(() => {
     skillGroupSelectionTouchedRef.current = false;
-    setSelectedSkillGroupId(defaultSkillGroupId);
-  }, [defaultSkillGroupId]);
-  const changeConversationSkillGroup = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    setSelectedSkillGroupIds(resolvedDefaultSkillGroupIds);
+  }, [resolvedDefaultSkillGroupIds]);
+  const toggleConversationSkillGroup = useCallback((skillGroupId: string, checked: boolean) => {
     skillGroupSelectionTouchedRef.current = true;
-    setSelectedSkillGroupId(value);
+    setSelectedSkillGroupIds((current) =>
+      toggleSkillGroupSelection(current, skillGroupId, checked)
+    );
   }, []);
   const startSessionWithDefaultSkillGroup = useCallback(() => {
     resetConversationSkillGroup();
+    setChatMode("agent");
     startSidebarSession();
   }, [resetConversationSkillGroup, startSidebarSession]);
   const loadDefaultSessionWithDefaultSkillGroup = useCallback(async (sessionId: string) => {
@@ -1456,14 +1541,6 @@ export const WorkspaceChatPage = ({
       answeringAgentQuestionIdsRef.current.delete(pendingAgentQuestion.questionId);
       setIsAnsweringAgentQuestion(false);
     }
-  };
-
-  const answerAgentQuestion = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    await submitAgentQuestionAnswer(
-      agentQuestionAnswer === "other" ? customAgentQuestionAnswer : agentQuestionAnswer,
-    );
   };
 
   const loadReferencedFiles = async (
@@ -2034,7 +2111,7 @@ export const WorkspaceChatPage = ({
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,
-    selectedSkillGroupId,
+    selectedSkillGroupIds,
     selectedSkillGroupLabel,
     toggleThinking,
     toggleAgentEvents,
@@ -2045,7 +2122,6 @@ export const WorkspaceChatPage = ({
     onMoveHistoryMessage: moveHistoryMessage,
     onOpenWorkspace: openWorkspaceFromCurrentContext,
     onCreateWorkspace,
-    answerAgentQuestion,
     resolveCollaborationPlanDecision,
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
@@ -2060,7 +2136,7 @@ export const WorkspaceChatPage = ({
     setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
-    setSelectedSkillGroupId: changeConversationSkillGroup,
+    toggleSelectedSkillGroup: toggleConversationSkillGroup,
     sendMessage,
     onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
   });

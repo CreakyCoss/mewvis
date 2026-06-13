@@ -59,7 +59,7 @@ const MarkdownContentComponent = ({
     : content;
 
   return (
-    <div className={`min-w-0 text-sm leading-6 ${className ?? ""}`}>
+    <div className={`min-w-0 overflow-hidden break-words text-sm leading-6 [overflow-wrap:anywhere] ${className ?? ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -78,7 +78,9 @@ const MarkdownContentComponent = ({
               href={href}
               target="_blank"
               rel="noreferrer"
-              className={inverted ? "underline underline-offset-2" : "text-primary underline underline-offset-2"}
+              className={inverted
+                ? "break-words underline underline-offset-2 [overflow-wrap:anywhere]"
+                : "break-words text-primary underline underline-offset-2 [overflow-wrap:anywhere]"}
             >
               {children}
             </a>
@@ -110,7 +112,7 @@ const MarkdownContentComponent = ({
             if (!isBlock) {
               return (
                 <code
-                  className={`rounded-sm border px-1 py-0.5 font-mono text-[0.88em] ${
+                  className={`break-words rounded-sm border px-1 py-0.5 font-mono text-[0.88em] [overflow-wrap:anywhere] ${
                     inverted
                       ? "border-primary-foreground/20 bg-primary-foreground/15"
                       : "border-border/60 bg-muted/60 text-foreground"
@@ -129,7 +131,7 @@ const MarkdownContentComponent = ({
           },
           pre: ({ children }) => (
             <pre
-              className={`mb-2 max-w-full overflow-x-auto rounded-md border px-3 py-2.5 shadow-xs last:mb-0 ${
+              className={`mb-2 min-w-0 max-w-full overflow-x-auto rounded-md border px-3 py-2.5 shadow-xs last:mb-0 ${
                 inverted
                   ? "border-primary-foreground/20 bg-primary-foreground/10"
                   : "border-border/80 bg-muted/45"
@@ -139,7 +141,7 @@ const MarkdownContentComponent = ({
             </pre>
           ),
           table: ({ children }) => (
-            <div className="mb-2 max-w-full overflow-x-auto last:mb-0">
+            <div className="mb-2 min-w-0 max-w-full overflow-x-auto last:mb-0">
               <table className="w-full border-collapse text-left text-xs">
                 {children}
               </table>

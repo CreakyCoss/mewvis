@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/ai/agent-runtime/contracts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
@@ -65,7 +65,7 @@ export type ChatPanelViewModel = {
   allowedAgentTools: AgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
-  selectedSkillGroupId: string;
+  selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
   toggleThinking: (messageId: string) => void;
   toggleAgentEvents: (messageId: string) => void;
@@ -76,7 +76,6 @@ export type ChatPanelViewModel = {
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
-  answerAgentQuestion: (event: FormEvent<HTMLFormElement>) => void;
   resolveCollaborationPlanDecision: (approved: boolean) => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
@@ -91,7 +90,7 @@ export type ChatPanelViewModel = {
   setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
   toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
-  setSelectedSkillGroupId: Dispatch<SetStateAction<string>>;
+  toggleSelectedSkillGroup: (skillGroupId: string, checked: boolean) => void;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
   onAbortTask: () => void;
 };
@@ -135,11 +134,10 @@ export const ChatPanel = () => {
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,
-    selectedSkillGroupId,
+    selectedSkillGroupIds,
     selectedSkillGroupLabel,
     onOpenWorkspace,
     onCreateWorkspace,
-    answerAgentQuestion,
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
@@ -153,7 +151,7 @@ export const ChatPanel = () => {
     setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
-    setSelectedSkillGroupId,
+    toggleSelectedSkillGroup,
     sendMessage,
     onAbortTask,
   } = useChatPanelStore();
@@ -201,7 +199,7 @@ export const ChatPanel = () => {
       allowedAgentTools={allowedAgentTools}
       skillGroups={skillGroups}
       defaultSkillGroupId={defaultSkillGroupId}
-      selectedSkillGroupId={selectedSkillGroupId}
+      selectedSkillGroupIds={selectedSkillGroupIds}
       selectedSkillGroupLabel={selectedSkillGroupLabel}
       onChatModeChange={setChatMode}
       onChatExecutionModeChange={setChatExecutionMode}
@@ -213,7 +211,7 @@ export const ChatPanel = () => {
       onCollaborationWorkflowChange={setSelectedCollaborationWorkflowId}
       onRuntimeModelChange={setSelectedRuntimeModelId}
       onToggleAllowedAgentTool={toggleAllowedAgentTool}
-      onSkillGroupChange={setSelectedSkillGroupId}
+      onSkillGroupChange={toggleSelectedSkillGroup}
       onSubmit={(input) => void sendMessage(input)}
       onAbortTask={onAbortTask}
     />
@@ -222,7 +220,7 @@ export const ChatPanel = () => {
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       <ScrollArea ref={chatScrollAreaRef} className="h-full min-h-0 flex-1 overflow-hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6 xl:px-7 xl:py-7">
+        <div className="mx-auto flex min-w-0 w-full max-w-5xl flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6 xl:px-7 xl:py-7">
           {isEmptyConversation ? (
             <div className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center px-2 py-10">
               <div className="w-full space-y-7">
@@ -252,7 +250,7 @@ export const ChatPanel = () => {
       </ScrollArea>
 
       {!isEmptyConversation && (
-        <div className="bg-background/90 px-4 py-3 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur lg:px-6 xl:px-7 xl:py-4">
+        <div className="min-w-0 bg-background/90 px-4 py-3 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur lg:px-6 xl:px-7 xl:py-4">
           {statusBanner}
           {pendingAgentQuestion && (
             <PendingAgentQuestionForm
@@ -260,7 +258,6 @@ export const ChatPanel = () => {
               agentQuestionAnswer={agentQuestionAnswer}
               customAgentQuestionAnswer={customAgentQuestionAnswer}
               isAnsweringAgentQuestion={isAnsweringAgentQuestion}
-              onAnswerAgentQuestion={answerAgentQuestion}
               onAgentQuestionAnswerChange={setAgentQuestionAnswer}
               onCustomAgentQuestionAnswerChange={setCustomAgentQuestionAnswer}
               onSubmitAgentQuestionAnswer={submitAgentQuestionAnswer}

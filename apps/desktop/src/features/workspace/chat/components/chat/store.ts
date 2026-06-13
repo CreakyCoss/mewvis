@@ -7,6 +7,7 @@ import type { ChatPanelViewModel } from "./index";
 const noop = () => {};
 const noopAsync = async () => {};
 const noopDispatch: Dispatch<SetStateAction<string>> = () => {};
+const noopSkillGroupToggle = () => {};
 const noopChatModeDispatch: Dispatch<SetStateAction<ChatMode>> = () => {};
 const noopChatExecutionModeDispatch: Dispatch<SetStateAction<ChatExecutionMode>> = () => {};
 const noopModelSourceDispatch: Dispatch<SetStateAction<ModelSource>> = () => {};
@@ -48,7 +49,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   isSending: false,
   activeAgentTaskId: "",
   isSettingsLoading: false,
-  chatMode: "chat",
+  chatMode: "agent",
   chatExecutionMode: "agent",
   showThinkingProcess: true,
   showToolCallProcess: false,
@@ -66,7 +67,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   allowedAgentTools: [],
   skillGroups: [],
   defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
-  selectedSkillGroupId: ALL_SKILLS_GROUP_ID,
+  selectedSkillGroupIds: [ALL_SKILLS_GROUP_ID],
   selectedSkillGroupLabel: "全部",
   toggleThinking: noop,
   toggleAgentEvents: noop,
@@ -77,7 +78,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   onMoveHistoryMessage: noop,
   onOpenWorkspace: noop,
   onCreateWorkspace: noop,
-  answerAgentQuestion: noop,
   resolveCollaborationPlanDecision: noop,
   setAgentQuestionAnswer: noopDispatch,
   setCustomAgentQuestionAnswer: noopDispatch,
@@ -92,7 +92,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   setSelectedCollaborationWorkflowId: noopDispatch,
   setSelectedRuntimeModelId: noop,
   toggleAllowedAgentTool: noop,
-  setSelectedSkillGroupId: noopDispatch,
+  toggleSelectedSkillGroup: noopSkillGroupToggle,
   sendMessage: noopAsync,
   onAbortTask: noop,
 };

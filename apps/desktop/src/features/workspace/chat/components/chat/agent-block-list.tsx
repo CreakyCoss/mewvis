@@ -50,7 +50,7 @@ const AgentBlockListComponent = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 max-w-full space-y-2 overflow-hidden">
       {visibleBlocks.map((block) => {
         if (block.type === "thinking") {
           const isCollapsed = Boolean(block.isCollapsed);
@@ -184,7 +184,7 @@ const AgentBlockListComponent = ({
         }
 
         return (
-          <div key={block.id} className="agent-response-block">
+          <div key={block.id} className="agent-response-block min-w-0 max-w-full overflow-hidden">
             <SmoothMarkdownContent
               content={block.content}
               isStreaming={isMessageStreaming}

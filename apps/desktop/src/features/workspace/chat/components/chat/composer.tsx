@@ -91,7 +91,7 @@ type ComposerProps = {
   allowedAgentTools: AgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
-  selectedSkillGroupId: string;
+  selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
   onChatModeChange: (mode: ChatMode) => void;
   onChatExecutionModeChange: (mode: ChatExecutionMode) => void;
@@ -103,7 +103,7 @@ type ComposerProps = {
   onCollaborationWorkflowChange: (workflowId: string) => void;
   onRuntimeModelChange: (id: string) => void;
   onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
-  onSkillGroupChange: (skillGroupId: string) => void;
+  onSkillGroupChange: (skillGroupId: string, checked: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
 };
@@ -170,7 +170,7 @@ export const Composer = memo(({
   allowedAgentTools,
   skillGroups,
   defaultSkillGroupId,
-  selectedSkillGroupId,
+  selectedSkillGroupIds,
   selectedSkillGroupLabel,
   onChatModeChange,
   onChatExecutionModeChange,
@@ -463,59 +463,65 @@ export const Composer = memo(({
               <DropdownMenuContent align="start" className="w-60">
                 <DropdownMenuLabel>技能组（当前对话）</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup
-                  value={selectedSkillGroupId}
-                  onValueChange={onSkillGroupChange}
+                <DropdownMenuCheckboxItem
+                  checked={selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(checked) =>
+                    onSkillGroupChange(ALL_SKILLS_GROUP_ID, checked)
+                  }
                 >
-                  <DropdownMenuRadioItem value={ALL_SKILLS_GROUP_ID}>
-                    <span className="min-w-0">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate">全部</span>
-                        {defaultSkillGroupId === ALL_SKILLS_GROUP_ID && (
-                          <DefaultSkillGroupBadge />
-                        )}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        使用 Skill库中的全部技能
-                      </span>
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">全部</span>
+                      {defaultSkillGroupId === ALL_SKILLS_GROUP_ID && (
+                        <DefaultSkillGroupBadge />
+                      )}
                     </span>
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value={NO_SKILLS_GROUP_ID}>
-                    <span className="min-w-0">
-                      <span className="block truncate">不使用技能</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        本次对话不注入 Skill 上下文
-                      </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      使用 Skill 库中的全部技能
                     </span>
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
+                  </span>
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(checked) =>
+                    onSkillGroupChange(NO_SKILLS_GROUP_ID, checked)
+                  }
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate">不使用技能</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      本次对话不注入 Skill 上下文
+                    </span>
+                  </span>
+                </DropdownMenuCheckboxItem>
                 {skillGroups.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup
-                      value={selectedSkillGroupId}
-                      onValueChange={onSkillGroupChange}
-                    >
-                      {skillGroups.map((group) => (
-                        <DropdownMenuRadioItem
-                          key={group.id}
-                          value={group.id}
-                          title={group.description ?? undefined}
-                        >
-                          <span className="min-w-0">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <span className="truncate">{group.name}</span>
-                              {group.id === defaultSkillGroupId && (
-                                <DefaultSkillGroupBadge />
-                              )}
-                            </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {group.skillNames.length} 个 Skill
-                            </span>
+                    {skillGroups.map((group) => (
+                      <DropdownMenuCheckboxItem
+                        key={group.id}
+                        checked={selectedSkillGroupIds.includes(group.id)}
+                        onSelect={(event) => event.preventDefault()}
+                        onCheckedChange={(checked) =>
+                          onSkillGroupChange(group.id, checked)
+                        }
+                        title={group.description ?? undefined}
+                      >
+                        <span className="min-w-0">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate">{group.name}</span>
+                            {group.id === defaultSkillGroupId && (
+                              <DefaultSkillGroupBadge />
+                            )}
                           </span>
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {group.skillNames.length} 个 Skill
+                          </span>
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
                   </>
                 )}
               </DropdownMenuContent>
