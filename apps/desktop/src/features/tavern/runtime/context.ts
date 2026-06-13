@@ -12,8 +12,8 @@ import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/features/llm-settings/store";
-import { runSharedConversationSummary } from "@/features/shared-chat-runtime";
+} from "@/features/ai/llm/store";
+import { runSharedConversationSummary } from "@/features/ai/runtime";
 import type {
   TavernCharacter,
   TavernMessage,

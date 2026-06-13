@@ -26,7 +26,7 @@ import {
 import type { ComponentType, FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import type { RuntimeModelOption } from "@/features/llm-settings/store";
+import type { RuntimeModelOption } from "@/features/ai/llm/store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

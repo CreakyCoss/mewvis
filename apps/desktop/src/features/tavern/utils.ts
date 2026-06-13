@@ -1,4 +1,4 @@
-import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
+import type { WorkspaceFileEntry } from "@/features/workspace/chat/types";
 
 export const compactScene = (scene: string) => {
   const trimmed = scene.trim();

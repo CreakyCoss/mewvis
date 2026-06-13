@@ -9,7 +9,7 @@ import {
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
-import { SmoothMarkdownContent } from "@/features/workspace-chat/components/chat/smooth-stream-content";
+import { SmoothMarkdownContent } from "@/features/workspace/chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
 import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import type {

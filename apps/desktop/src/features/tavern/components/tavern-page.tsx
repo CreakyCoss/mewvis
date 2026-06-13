@@ -6,7 +6,7 @@ import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/features/llm-settings/store";
+} from "@/features/ai/llm/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,17 +19,17 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MarkdownContent } from "@/features/workspace-chat/components/chat/markdown-content";
-import { readWorkspaceFile } from "@/features/workspace-chat/api";
-import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
+import { MarkdownContent } from "@/features/workspace/chat/components/chat/markdown-content";
+import { readWorkspaceFile } from "@/features/workspace/chat/api";
+import type { WorkspaceFileEntry } from "@/features/workspace/chat/types";
 import { getVisualPreset, normalizeVisualPresetId } from "@/features/visual-presets";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
-} from "@/features/workspace-chat/utils/references";
-import type { Workspace } from "@/features/workspaces/types";
+} from "@/features/workspace/chat/utils/references";
+import type { Workspace } from "@/features/workspace/types";
 import { cn } from "@/lib/utils";
 import {
   createTavernAssetDraft,

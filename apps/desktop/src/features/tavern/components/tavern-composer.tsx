@@ -3,7 +3,7 @@ import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/visual-presets";
-import type { WorkspaceFileEntry } from "@/features/workspace-chat/types";
+import type { WorkspaceFileEntry } from "@/features/workspace/chat/types";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter, TavernReplyMode } from "../types";
 

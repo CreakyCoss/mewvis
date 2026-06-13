@@ -1,6 +1,6 @@
 import { formatConversationForSummary } from "@/ai/agent-context";
 import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
-import { runSharedRuntimeChat } from "@/features/shared-chat-runtime";
+import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {
   TavernCharacter,
   TavernMessage,
