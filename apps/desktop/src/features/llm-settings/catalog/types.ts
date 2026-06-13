@@ -4,7 +4,8 @@ export type ApiFormat =
   | "openai-codex-responses"
   | "openai-responses"
   | "azure-openai-responses"
-  | "google-generative-ai";
+  | "google-generative-ai"
+  | "openrouter";
 
 export type ModelInputModality = "text" | "image";
 

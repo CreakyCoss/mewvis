@@ -1,15 +1,14 @@
-import type { CatalogProviderApi } from "../catalog";
+import type { ApiFormat } from "../catalog";
 import {
   getApiFormatLabel,
   getProviderApiFormats,
   getProviderApis,
   getProviderCatalog,
   getProviderModels,
-  type ApiFormatValue,
 } from "../options";
 
 type ApiFormatOption = {
-  value: ApiFormatValue;
+  value: ApiFormat;
   label: string;
 };
 
@@ -19,7 +18,7 @@ type ModelOption = {
 };
 
 const apiFormatEndpointSuffix: Partial<
-  Record<CatalogProviderApi["apiFormat"], string>
+  Record<ApiFormat, string>
 > = {
   "anthropic-messages": "/anthropic",
   "openai-codex-responses": "/v1",
@@ -37,9 +36,7 @@ const inferApiEndpointFromWebsite = (provider: string, apiFormat: string) => {
   );
   if (!websiteUrl) return "";
 
-  return `${websiteUrl}${
-    apiFormatEndpointSuffix[apiFormat as CatalogProviderApi["apiFormat"]] ?? ""
-  }`;
+  return `${websiteUrl}${apiFormatEndpointSuffix[apiFormat as ApiFormat] ?? ""}`;
 };
 
 const resolveApiEndpoint = (provider: string, apiFormat: string) => {
@@ -59,7 +56,7 @@ export const getProviderApiFormatOptions = (
   }));
 };
 
-export const getDefaultApiFormat = (provider: string): ApiFormatValue => {
+export const getDefaultApiFormat = (provider: string): ApiFormat => {
   return getProviderApiFormats(provider)[0] ?? "openai-completions";
 };
 
