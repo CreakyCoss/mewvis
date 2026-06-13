@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, FolderPlus, Search, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import {
+  CheckCircle2,
+  ChevronRight,
+  FolderPlus,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,12 +19,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { WorkspaceSkill, WorkspaceSkillGroup } from "../../types";
-import { EmptyState, SkillSourceBadge } from "../shared";
+import { EmptyState } from "../shared";
 import {
   existingGroupSkillNames,
   filterSkills,
+  groupSkillsBySource,
   nextCustomGroupOrder,
-  skillContentPreview,
   skillDescriptionPreview,
 } from "../utils";
 
@@ -38,6 +43,7 @@ type GroupDialogProps = {
   groups: WorkspaceSkillGroup[];
   skills: WorkspaceSkill[];
   skillsByKey: Map<string, WorkspaceSkill>;
+  enabledSkillKeys: string[];
   onOpenChange: (open: boolean) => void;
   onGroupsChange: (groups: WorkspaceSkillGroup[]) => void;
   onSelectedGroupChange: (groupId: string) => void;
@@ -48,6 +54,7 @@ export const GroupDialog = ({
   groups,
   skills,
   skillsByKey,
+  enabledSkillKeys,
   onOpenChange,
   onGroupsChange,
   onSelectedGroupChange,
@@ -55,13 +62,28 @@ export const GroupDialog = ({
   const [groupName, setGroupName] = useState("");
   const [selectedSkillNames, setSelectedSkillNames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [error, setError] = useState("");
 
   const isEditable = state.mode !== "view" && state.group?.readonly !== true;
   const dialogTitle = getDialogTitle(state.mode, state.group?.readonly === true);
+  const enabledKeys = useMemo(
+    () => new Set(enabledSkillKeys),
+    [enabledSkillKeys],
+  );
   const visibleSkills = useMemo(
     () => filterSkills(skills, searchQuery),
-    [searchQuery, skills],
+    [skills, searchQuery],
+  );
+  const visibleSkillGroups = useMemo(
+    () => groupSkillsBySource(visibleSkills),
+    [visibleSkills],
+  );
+  const selectedSkillSet = useMemo(
+    () => new Set(selectedSkillNames),
+    [selectedSkillNames],
   );
 
   useEffect(() => {
@@ -81,6 +103,7 @@ export const GroupDialog = ({
       );
     }
     setSearchQuery("");
+    setCollapsedSources(new Set());
     setError("");
   }, [
     skillsByKey,
@@ -100,6 +123,32 @@ export const GroupDialog = ({
         next.delete(skillKey);
       }
       return [...next].sort();
+    });
+  };
+
+  const toggleSkillGroup = (skillKeys: string[], checked: boolean) => {
+    setSelectedSkillNames((current) => {
+      const next = new Set(current);
+      for (const skillKey of skillKeys) {
+        if (checked) {
+          next.add(skillKey);
+        } else {
+          next.delete(skillKey);
+        }
+      }
+      return [...next].sort();
+    });
+  };
+
+  const toggleSourceCollapse = (source: string) => {
+    setCollapsedSources((current) => {
+      const next = new Set(current);
+      if (next.has(source)) {
+        next.delete(source);
+      } else {
+        next.add(source);
+      }
+      return next;
     });
   };
 
@@ -143,30 +192,44 @@ export const GroupDialog = ({
   return (
     <Dialog open={state.open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-transparent p-0 shadow-lg sm:max-w-4xl"
+        className="flex h-[calc(100vh-2rem)] max-h-[760px] flex-col gap-0 overflow-hidden border-transparent bg-[#f6f6f5] p-0 shadow-xl sm:max-w-5xl"
         showCloseButton={false}
       >
-        <DialogHeader className="border-b px-5 py-4">
+        <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
           <div className="flex items-start justify-between gap-4 pr-9">
-            <div className="min-w-0">
-              <DialogTitle className="flex items-center gap-2 text-base">
-                <FolderPlus className="size-4 text-sidebar-primary" />
-                <span>{dialogTitle}</span>
-              </DialogTitle>
-              <DialogDescription className="mt-2">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
+              <div className="flex min-w-0 items-center gap-2">
+                <FolderPlus className="size-4 shrink-0 text-sidebar-primary/90" />
+                {isEditable ? (
+                  <div className="flex h-10 w-full max-w-[520px] items-center rounded-xl bg-white px-3 shadow-xs ring-1 ring-black/[0.03] focus-within:ring-sidebar-primary/25">
+                    <Input
+                      id="skill-group-name"
+                      aria-label="分组名称"
+                      className="h-8 border-0 bg-transparent px-0 text-lg font-semibold tracking-normal shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
+                      value={groupName}
+                      onChange={(event) => setGroupName(event.target.value)}
+                      placeholder="输入分组名称"
+                      disabled={!isEditable}
+                    />
+                  </div>
+                ) : (
+                  <span className="truncate text-lg font-semibold tracking-normal">
+                    {groupName || dialogTitle}
+                  </span>
+                )}
+              </div>
+              <DialogDescription className="mt-1.5 text-xs leading-5">
                 {isEditable
                   ? "从当前技能广场中勾选技能，组成这个工作区可复用的技能分组。"
                   : "查看这个分组包含的技能，系统分组不可直接修改。"}
               </DialogDescription>
             </div>
-            <Badge variant={isEditable ? "default" : "outline"}>
-              {selectedSkillNames.length}/{skills.length}
-            </Badge>
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
-              className="absolute top-3 right-3"
+              className="absolute top-4 right-4 rounded-full"
               onClick={() => onOpenChange(false)}
               aria-label="关闭分组弹窗"
             >
@@ -175,93 +238,131 @@ export const GroupDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)]">
-          <section className="border-b p-5 lg:border-r lg:border-b-0">
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">
-                  分组名称
-                </label>
-                <Input
-                  className="mt-2"
-                  value={groupName}
-                  onChange={(event) => setGroupName(event.target.value)}
-                  placeholder="输入分组名称"
-                  disabled={!isEditable}
-                />
-              </div>
-
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="text-xs font-medium text-muted-foreground">分组类型</div>
-                <div className="mt-2">
-                  <SkillSourceBadge
-                    source={state.group?.source}
-                    readonly={state.group?.readonly ?? state.mode === "view"}
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
+          {error && (
+            <div className="shrink-0 rounded-2xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
+              {error}
             </div>
-          </section>
+          )}
 
-          <section className="flex min-h-0 flex-col">
-            <div className="border-b p-4">
-              <div className="flex items-center gap-2">
-                <Search className="size-4 shrink-0 text-muted-foreground" />
+          <section className="flex min-h-0 flex-col overflow-hidden">
+            <div className="flex shrink-0 flex-col gap-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">选择技能</span>
+                <span className="ml-2">
+                  已选 {selectedSkillNames.length} 个，共 {skills.length} 个
+                </span>
+              </div>
+              <div className="flex h-9 w-full items-center gap-2 rounded-full bg-white px-3 shadow-xs ring-1 ring-black/[0.03] sm:w-[260px]">
+                <Search className="size-4 shrink-0 text-muted-foreground/45" />
                 <Input
+                  className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="搜索要加入分组的技能"
+                  placeholder="搜索技能"
                 />
               </div>
             </div>
 
             <ScrollArea className="min-h-0 flex-1">
-              <div className="p-4">
+              <div className="p-1">
                 {visibleSkills.length > 0 ? (
-                  <div className="overflow-hidden rounded-lg border bg-background">
-                    {visibleSkills.map((skill) => {
-                      const checked = selectedSkillNames.includes(skill.key);
+                  <div className="space-y-4">
+                    {visibleSkillGroups.map((skillGroup) => {
+                      const skillKeys = skillGroup.skills.map((skill) => skill.key);
+                      const selectedCount = skillKeys.filter((skillKey) =>
+                        selectedSkillSet.has(skillKey),
+                      ).length;
+                      const allSelected =
+                        skillKeys.length > 0 && selectedCount === skillKeys.length;
+                      const collapsed = collapsedSources.has(skillGroup.source);
+
                       return (
-                        <label
-                          key={skill.key}
-                          className={[
-                            "grid min-w-0 gap-3 border-b px-4 py-3 last:border-b-0",
-                            isEditable ? "cursor-pointer hover:bg-muted/25" : "bg-muted/10",
-                            "md:grid-cols-[auto_minmax(0,1fr)_auto]",
-                          ].join(" ")}
-                        >
-                          <Checkbox
-                            className="mt-1"
-                            checked={checked}
-                            disabled={!isEditable}
-                            onCheckedChange={(nextChecked) =>
-                              toggleSkill(skill.key, nextChecked === true)
-                            }
-                          />
-                          <span className="min-w-0">
-                            <span className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="truncate font-mono text-sm font-semibold">
-                                {skill.name}
+                        <section key={skillGroup.source} className="space-y-2">
+                          <div className="flex h-8 items-center justify-between px-1">
+                            <button
+                              type="button"
+                              className="flex min-w-0 items-center gap-2 rounded-full px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                              aria-expanded={!collapsed}
+                              onClick={() => toggleSourceCollapse(skillGroup.source)}
+                            >
+                              <ChevronRight
+                                className={[
+                                  "size-3.5 shrink-0 text-muted-foreground/70 transition-transform",
+                                  collapsed ? "" : "rotate-90",
+                                ].join(" ")}
+                              />
+                              <span className="text-sm font-semibold text-foreground">
+                                {skillGroup.label}
                               </span>
-                              <SkillSourceBadge source={skill.source} />
-                            </span>
-                            <span className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">
-                              {skillDescriptionPreview(skill.description)}
-                            </span>
-                            <span className="mt-2 block line-clamp-2 break-words font-mono text-xs leading-5 text-muted-foreground">
-                              {skillContentPreview(skill.content)}
-                            </span>
-                          </span>
-                          {checked && (
-                            <CheckCircle2 className="mt-1 size-4 text-sidebar-primary" />
+                              <span className="text-xs tabular-nums text-muted-foreground">
+                                {selectedCount}/{skillKeys.length}
+                              </span>
+                            </button>
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="ghost"
+                              className="h-7 rounded-full px-2 text-xs text-muted-foreground hover:bg-white/70"
+                              disabled={!isEditable || skillKeys.length === 0}
+                              onClick={() => toggleSkillGroup(skillKeys, !allSelected)}
+                            >
+                              {allSelected ? "取消全选" : "全选"}
+                            </Button>
+                          </div>
+
+                          {!collapsed && (
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {skillGroup.skills.map((skill) => {
+                                const checked = selectedSkillSet.has(skill.key);
+                                const enabled = enabledKeys.has(skill.key);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={skill.key}
+                                    disabled={!isEditable}
+                                    aria-pressed={checked}
+                                    aria-label={`${checked ? "取消选择" : "选择"} ${skill.name}`}
+                                    onClick={() => toggleSkill(skill.key, !checked)}
+                                    className={[
+                                      "group relative grid min-h-[92px] min-w-0 grid-cols-[44px_minmax(0,1fr)] items-center gap-3 rounded-[18px] bg-white p-3 text-left shadow-[0_1px_0_rgb(15_23_42_/_0.03)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/40",
+                                      checked
+                                        ? "bg-sidebar-primary/[0.04] ring-2 ring-sidebar-primary/45"
+                                        : "ring-1 ring-black/[0.03]",
+                                      isEditable
+                                        ? "cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]"
+                                        : "cursor-default opacity-80",
+                                    ].join(" ")}
+                                  >
+                                    <span className="flex size-11 items-center justify-center rounded-2xl bg-[#ececec] text-violet-500">
+                                      <Sparkles className="size-5" />
+                                    </span>
+
+                                    <span className="min-w-0 pr-7">
+                                      <span className="flex min-w-0 items-center gap-2">
+                                        <span className="min-w-0 truncate font-mono text-[15px] font-semibold tracking-normal">
+                                          {skill.name}
+                                        </span>
+                                        {enabled && (
+                                          <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-sidebar-primary/10 px-2 text-[11px] font-medium leading-4 text-sidebar-primary">
+                                            已启用
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
+                                        {skillDescriptionPreview(skill.description)}
+                                      </span>
+                                    </span>
+
+                                    {checked && (
+                                      <CheckCircle2 className="pointer-events-none absolute top-3 right-3 size-5 text-sidebar-primary" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
-                        </label>
+                        </section>
                       );
                     })}
                   </div>
@@ -273,12 +374,17 @@ export const GroupDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="border-t px-5 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="shrink-0 border-t border-black/[0.04] bg-white/70 px-5 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => onOpenChange(false)}
+          >
             {isEditable ? "取消" : "关闭"}
           </Button>
           {isEditable && (
-            <Button type="button" onClick={saveGroup}>
+            <Button type="button" className="rounded-full" onClick={saveGroup}>
               <CheckCircle2 className="size-4" />
               <span>保存分组</span>
             </Button>

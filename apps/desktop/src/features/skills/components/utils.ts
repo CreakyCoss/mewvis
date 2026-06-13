@@ -30,6 +30,39 @@ export const sourceLabel = (source: string | undefined, readonly: boolean) => {
   return "系统内置";
 };
 
+const SOURCE_GROUP_ORDER = ["system", "app", "upload"];
+
+export const groupSkillsBySource = (skills: WorkspaceSkill[]) => {
+  const groupedSkills = new Map<string, WorkspaceSkill[]>();
+  for (const skill of skills) {
+    const source = skill.source || "system";
+    const group = groupedSkills.get(source) ?? [];
+    group.push(skill);
+    groupedSkills.set(source, group);
+  }
+
+  return [...groupedSkills.entries()]
+    .sort(([sourceA], [sourceB]) => {
+      const indexA = SOURCE_GROUP_ORDER.indexOf(sourceA);
+      const indexB = SOURCE_GROUP_ORDER.indexOf(sourceB);
+      if (indexA === -1 && indexB === -1) {
+        return sourceA.localeCompare(sourceB);
+      }
+      if (indexA === -1) {
+        return 1;
+      }
+      if (indexB === -1) {
+        return -1;
+      }
+      return indexA - indexB;
+    })
+    .map(([source, group]) => ({
+      source,
+      label: sourceLabel(source, true),
+      skills: group,
+    }));
+};
+
 export const filterSkills = (skills: WorkspaceSkill[], query: string) => {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {

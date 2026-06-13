@@ -18,7 +18,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { WorkspaceSkill } from "../../types";
-import { SkillSourceBadge } from "../shared";
 import {
   skillContentPreview,
   skillDescriptionPreview,
@@ -45,10 +44,13 @@ export const SkillListItem = ({
 }: SkillListItemProps) => {
   const description = skillDescriptionPreview(skill.description);
   const actionPinned = removing;
-  const actionSpaceClassName = "pr-40";
+  const actionSpaceClassName = removable ? "pr-28" : "pr-14";
   const actionHoverSpaceClassName = removable
-    ? "group-hover:pr-40 group-focus-within:pr-40"
-    : "group-hover:pr-40 group-focus-within:pr-40";
+    ? "group-hover:pr-28 group-focus-within:pr-28"
+    : "group-hover:pr-14 group-focus-within:pr-14";
+  const statusTitleSpaceClassName = enabled
+    ? "pr-24 group-hover:pr-0 group-focus-within:pr-0"
+    : "";
   const toggleLabel = enabled ? "停用" : "启用";
 
   return (
@@ -77,11 +79,17 @@ export const SkillListItem = ({
 
           <div
             className={[
-              "min-w-0 pr-40",
-              actionPinned ? actionSpaceClassName : actionHoverSpaceClassName,
+              "min-w-0",
+              actionPinned ? actionSpaceClassName : "",
+              actionPinned ? "" : actionHoverSpaceClassName,
             ].join(" ")}
           >
-            <div className="flex min-w-0 items-center gap-2">
+            <div
+              className={[
+                "flex min-w-0 items-center gap-2",
+                actionPinned ? "" : statusTitleSpaceClassName,
+              ].join(" ")}
+            >
               <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">
                 {skill.name}
               </h3>
@@ -91,8 +99,7 @@ export const SkillListItem = ({
             </p>
           </div>
 
-          <div className="pointer-events-none absolute top-3 right-3 flex w-36 items-center justify-end gap-1">
-            <SkillSourceBadge source={skill.source} />
+          <div className="pointer-events-none absolute top-3 right-3 flex w-24 items-center justify-end">
             {enabled && (
               <span className="inline-flex h-5 min-w-[68px] items-center justify-center rounded-full border border-sidebar-primary/15 bg-sidebar-primary/10 px-2 text-[11px] font-medium leading-4 whitespace-nowrap text-sidebar-primary">
                 已启用
