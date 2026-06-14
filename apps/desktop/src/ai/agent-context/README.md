@@ -5,9 +5,12 @@ relevant text selection, context-material assembly, and agent session sync state
 
 Feature code should treat this folder as the context boundary. Long-lived
 conversation context should be accessed through `agentContext.createSession()`;
-callers may set the active engine, current context snapshot, model limits, and
-optional summarizer on the session, then use session lifecycle methods to
-prepare, compress, rebuild, invalidate, finalize, and read summary state.
+callers may pass a manager created by `agentContext.createSessionManager()` when
+they need to own the session handle, or let `createSession()` create the default
+in-memory manager.
+The returned session exposes lifecycle methods to prepare, compress, rebuild,
+invalidate, finalize, and read summary state; engine plans and prompt payload
+assembly remain internal.
 React state, Tauri calls, workspace file IO, LLM calls, runtime execution,
 application identity, tool-use policy, and workflow-specific prompt instructions
 stay in the feature/API layers.
@@ -22,8 +25,9 @@ Internal layers:
   conversation context, prompt material, RAG, memory, descriptors, and session
   protocol. This is the source of public type exports.
 - `session/`: stateful conversation-context session orchestration. It owns the
-  active engine id, current context snapshot, model/summarizer selection, and
-  lifecycle methods for prepare/compress/rebuild/invalidate/finalize.
+  session manager, active engine id, current context snapshot,
+  model/summarizer selection, and lifecycle methods for
+  prepare/compress/rebuild/invalidate/finalize.
 - `core/`: durable context data types, token budgeting, conversation hashing,
   rolling summary updates, runtime history selection, and per-agent sync state.
 - `prompt/`: context-material assembly and relevant text selection. This layer
@@ -37,12 +41,9 @@ Internal layers:
 Public surface:
 - `protocol/`: protocol data shapes and session API types. Adding or changing
   feature-facing context contracts starts here.
-- `contracts.ts`: compatibility type aggregator for older internal import paths.
-  New code should import protocol types from `protocol/` internally or from
-  `@/ai/agent-context` externally.
 - `public-api.ts`: facade over internal implementations. It builds the
-  `agentContext` object, exposes session creation, and keeps full engine
-  instances private.
+  `agentContext` object, exposes session/session-manager creation, and keeps full
+  engine instances private.
 - `index.ts`: the only supported external import path. Feature code should
   import from `@/ai/agent-context`, never from package internals, and keep runtime
   trace helpers in runtime-specific modules.

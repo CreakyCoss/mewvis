@@ -74,14 +74,36 @@ export const runAgentTurn = async (
   }
 
   const agentLimits = limitsFor(effectiveRuntimeModel);
-  const agentSessionPlan = contextSession.planAgentRun({
+  if (agentSessionResetPromiseRef.current) {
+    const resetSucceeded = await agentSessionResetPromiseRef.current;
+    if (!resetSucceeded) {
+      throw new Error("无法重置旧 Agent 长期上下文，已停止本次运行以避免复用旧记忆。");
+    }
+  }
+  let currentAgentSessionStatus = agentSessionStatus;
+  const agentPromptPayload = await contextSession.prepareAgentRun({
     chatSessionId: nextSessionId,
     conversation: baseConversation,
     agentId: runtimeAgentId,
     tokenBudget: agentLimits.recentHistoryTokens,
     isHistoryInvalidated: agentContextInvalidatedRef.current,
+    text,
+    references: referencedFiles,
+    knowledgeMatches,
+    agentInstructions: buildWorkspaceAgentInteractionInstructions(),
+    selectedAgent: modelSource === "agent" ? selectedAgent : null,
+    limits: agentLimits,
+    loadAgentSessionStatus: async (agentSessionId) => {
+      try {
+        currentAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
+        setAgentSessionStatus(currentAgentSessionStatus);
+      } catch (caught) {
+        setAgentSessionError(String(caught));
+      }
+      return currentAgentSessionStatus;
+    },
   });
-  const agentSessionId = agentSessionPlan.agentSessionId;
+  const agentSessionId = agentPromptPayload.agentSessionId;
   patchVisibleTraceTurn(traceTurnId, {
     agentSessionId,
   });
@@ -91,30 +113,6 @@ export const runAgentTurn = async (
     agentSessionId,
     agentId: runtimeAgentId,
     trace: taskTrace,
-  });
-  if (agentSessionResetPromiseRef.current) {
-    const resetSucceeded = await agentSessionResetPromiseRef.current;
-    if (!resetSucceeded) {
-      throw new Error("无法重置旧 Agent 长期上下文，已停止本次运行以避免复用旧记忆。");
-    }
-  }
-  let currentAgentSessionStatus = agentSessionStatus;
-  try {
-    currentAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
-    setAgentSessionStatus(currentAgentSessionStatus);
-  } catch (caught) {
-    setAgentSessionError(String(caught));
-  }
-  const agentPromptPayload = contextSession.buildAgentRunPayload({
-    conversation: baseConversation,
-    sessionPlan: agentSessionPlan,
-    agentSessionStatus: currentAgentSessionStatus,
-    text,
-    references: referencedFiles,
-    knowledgeMatches,
-    agentInstructions: buildWorkspaceAgentInteractionInstructions(),
-    selectedAgent: modelSource === "agent" ? selectedAgent : null,
-    limits: agentLimits,
   });
   const allowedToolsForRun = normalizeAllowedRuntimeAgentTools(
     chatMode === "chat" && chatExecutionMode === "agent"

@@ -25,6 +25,9 @@ import {
 import {
   createAgentContextSession,
 } from "./session";
+import {
+  createAgentContextSessionManager,
+} from "./session/manager";
 import type { AgentContextApi } from "./protocol/session";
 
 const descriptorFor = (
@@ -45,6 +48,10 @@ const formatConversationForSummary:
 const createSession:
   AgentContextApi["createSession"] =
     createAgentContextSession;
+
+const createSessionManager:
+  AgentContextApi["createSessionManager"] =
+    createAgentContextSessionManager;
 
 const normalizeChatContextSummary:
   AgentContextApi["normalizeChatContextSummary"] =
@@ -88,6 +95,7 @@ const formatReferencesForPrompt:
 
 export const agentContext: AgentContextApi = {
   DEFAULT_CONTEXT_ENGINE_ID,
+  createSessionManager,
   createSession,
   formatConversationForSummary,
   normalizeChatContextSummary,

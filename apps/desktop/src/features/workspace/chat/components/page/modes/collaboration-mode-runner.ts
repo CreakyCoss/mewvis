@@ -667,7 +667,7 @@ export const runCollaborationTurn = async (
         )]
         : []),
     ];
-    const stepMessages = contextSession.selectConversationMessages({
+    const stepMessages = contextSession.selectRecentConversation({
       conversation: stepConversation,
       limits: summaryLimits,
     });

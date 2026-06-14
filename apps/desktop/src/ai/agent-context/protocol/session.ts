@@ -4,6 +4,7 @@ import type {
   ConversationMessage,
   ConversationRunStatus,
   ConversationSummarizer,
+  RuntimeConversationContext,
 } from "./context";
 import type { ContextEngineDescriptor } from "./descriptor";
 import type {
@@ -11,10 +12,7 @@ import type {
   PrepareMemoryBackedRuntimeContextInput,
 } from "./memory";
 import type {
-  AgentRunContextPayload,
-  AgentRunContextPlan,
   BuildPromptContextOptions,
-  PreparedConversationContext,
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
@@ -23,7 +21,6 @@ import type {
   PromptKnowledgeReference,
   PromptReference,
   ReferencePromptLimits,
-  RuntimeContextPlan,
 } from "./prompt";
 
 export type TokenBudgetModel = {
@@ -35,25 +32,61 @@ export type NormalizableConversationMessage =
   | ConversationMessage
   | (Omit<ConversationMessage, "id"> & { id?: string });
 
-type RuntimeContextSelectionInput = {
+export type AgentContextRuntimeInput = {
   engineId?: string | null;
   modelContext?: PromptContextModel | null;
   summarizer?: ConversationSummarizer | null;
   canUseModel?: boolean;
 };
 
-export type AgentContextSessionSetInput = RuntimeContextSelectionInput & {
+export type AgentContextSessionSetInput = AgentContextRuntimeInput & {
   context?: ChatContextSummary | null;
 };
 
-export type CreateAgentContextSessionInput = AgentContextSessionSetInput;
+export type AgentContextSessionManagerSnapshot = {
+  engineId: string | null;
+  context: ChatContextSummary | null;
+  modelContext: PromptContextModel | null;
+  summarizer: ConversationSummarizer | null;
+  canUseModel: boolean;
+};
+
+export type AgentContextSessionManager = {
+  get(): AgentContextSessionManagerSnapshot;
+  set(input: AgentContextSessionSetInput): void;
+  getContext(): ChatContextSummary | null;
+  setContext(context: ChatContextSummary | null): ChatContextSummary | null;
+  getSummary(): string;
+};
+
+export type CreateAgentContextSessionManagerInput = AgentContextSessionSetInput;
+
+export type CreateAgentContextSessionInput = AgentContextSessionSetInput & {
+  manager?: AgentContextSessionManager;
+};
+
+export type PreparedConversationContext = {
+  limits: PromptContextLimits;
+  context: ChatContextSummary | null;
+  runtimeMessages: ConversationMessage[];
+  conversationSummary: string;
+};
+
+export type PreparedAgentRunContext = {
+  agentSessionId: string;
+  bootstrapContext: string;
+  prompt: string;
+  shouldBootstrapAgentContext: boolean;
+  bootstrapHistory: RuntimeConversationContext;
+  promptHistory: RuntimeConversationContext;
+};
 
 export type AgentContextSession = {
   set(input: AgentContextSessionSetInput): void;
   get(): ChatContextSummary | null;
   getSummary(): string;
   getActiveAgentRuntimeSessionId(agentId?: string | null): string | null;
-  createPlan(input?: RuntimeContextSelectionInput): RuntimeContextPlan;
+  getContextLimits(input?: AgentContextRuntimeInput): PromptContextLimits;
   prepareConversation(input: {
     conversation: ConversationMessage[];
     forceSummarize?: boolean;
@@ -70,28 +103,26 @@ export type AgentContextSession = {
   invalidateAfterHistoryChange(input: {
     conversation: ConversationMessage[];
   }): ChatContextSummary;
-  selectConversationMessages(input: {
+  selectRecentConversation(input: {
     conversation: ConversationMessage[];
     limits: PromptContextLimits;
   }): ConversationMessage[];
-  planAgentRun(input: {
+  prepareAgentRun(input: {
     chatSessionId: string;
     conversation: ConversationMessage[];
     agentId?: string | null;
     tokenBudget?: number;
     isHistoryInvalidated?: boolean;
-  }): AgentRunContextPlan;
-  buildAgentRunPayload(input: {
-    conversation: ConversationMessage[];
-    sessionPlan: AgentRunContextPlan;
-    agentSessionStatus?: AgentSessionContextStatus | null;
     text: string;
     references: PromptFileReference[];
     knowledgeMatches?: PromptKnowledgeReference[];
     agentInstructions?: string | null;
     selectedAgent: PromptAgentProfile | null;
     limits: PromptContextLimits;
-  }): AgentRunContextPayload;
+    loadAgentSessionStatus?: (
+      agentSessionId: string,
+    ) => AgentSessionContextStatus | null | Promise<AgentSessionContextStatus | null>;
+  }): Promise<PreparedAgentRunContext>;
   finalizeChatTurn(input: {
     conversation: ConversationMessage[];
     forceSummarize?: boolean;
@@ -109,6 +140,9 @@ export type AgentContextSession = {
 
 export type AgentContextApi = {
   DEFAULT_CONTEXT_ENGINE_ID: string;
+  createSessionManager(
+    input?: CreateAgentContextSessionManagerInput,
+  ): AgentContextSessionManager;
   createSession(input?: CreateAgentContextSessionInput): AgentContextSession;
   formatConversationForSummary(messages: ConversationMessage[]): string;
   normalizeChatContextSummary(

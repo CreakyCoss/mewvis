@@ -1618,11 +1618,11 @@ export const WorkspaceChatPage = ({
   }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
     const limitsFor: LimitsForProvider = (
       runtimeModel,
-    ) => contextSessionRef.current.createPlan({
+    ) => contextSessionRef.current.getContextLimits({
       engineId: contextEngineId,
       modelContext: contextModelFor(runtimeModel),
       canUseModel: false,
-    }).limits;
+    });
     const summaryModelContext = contextModelFor(summaryRuntimeModel);
     const summarySummarizer = summarizerFor(summaryRuntimeModel);
     const prepareContextStartedAt = Date.now();
@@ -1637,7 +1637,6 @@ export const WorkspaceChatPage = ({
       conversation: nextConversation,
     });
     const summaryLimits = preparedContext.limits;
-    const summarizeConversation = preparedContext.summarizer;
     const nextConversationContext = preparedContext.context;
     const runtimeMessages = preparedContext.runtimeMessages;
     const conversationSummary = preparedContext.conversationSummary;
@@ -1765,7 +1764,6 @@ export const WorkspaceChatPage = ({
         engineId: contextEngineId,
         context: contextBeforeFinalize,
         modelContext: contextModelFor(summaryRuntimeModel),
-        summarizer: summarizeConversation,
         canUseModel: runtimeAgentRequiresModel,
       });
       const finalContext = await contextSessionRef.current.finalizeChatTurn({
