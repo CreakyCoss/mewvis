@@ -7,18 +7,12 @@ export type CatalogProviderApi = {
   apiEndpoint?: string;
 };
 
-export type CatalogProviderConfig = {
-  websiteUrl: string;
-  models?: string[];
-  apis: CatalogProviderApi[];
-};
-
-type CatalogModelBase<Input> = {
+export type CatalogModel = {
   id: string;
   name: string;
   reasoning: boolean;
   thinkingLevelMap?: Record<string, string | null>;
-  input: Input;
+  input: ModelInputModality[];
   cost: {
     input: number;
     output: number;
@@ -30,24 +24,10 @@ type CatalogModelBase<Input> = {
   headers?: Record<string, string>;
 };
 
-export type RawCatalogModel = CatalogModelBase<
-  readonly ModelInputModality[]
->;
-
-export type CatalogModel = CatalogModelBase<ModelInputModality[]>;
-
 export type CatalogProvider = {
   models: Record<string, CatalogModel>;
   websiteUrl: string;
   apis: CatalogProviderApi[];
 };
-
-export type RawCatalogProvider = {
-  /** Original provider API URL from models.dev, kept as reference metadata. */
-  api: string;
-  models: Record<string, RawCatalogModel>;
-};
-
-export type RawModelCatalog = Record<string, RawCatalogProvider>;
 
 export type ModelCatalog = Record<string, CatalogProvider>;

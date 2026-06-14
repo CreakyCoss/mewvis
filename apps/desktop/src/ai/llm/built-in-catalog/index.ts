@@ -1,13 +1,23 @@
-import { PROVIDER_CATALOG_CONFIG } from "./config";
+import { MODEL_PROVIDER_CONFIG } from "../provider-config";
 import { RAW_MODEL_CATALOG } from "./data";
 import type {
   CatalogModel,
   CatalogProvider,
+  ModelInputModality,
   ModelCatalog,
-  RawCatalogModel,
-  RawCatalogProvider,
-  RawModelCatalog,
-} from "./types";
+} from "../types";
+
+type RawCatalogModel = Omit<CatalogModel, "input"> & {
+  input: readonly ModelInputModality[];
+};
+
+type RawCatalogProvider = {
+  /** Original provider API URL from models.dev, kept as reference metadata. */
+  api: string;
+  models: Record<string, RawCatalogModel>;
+};
+
+type RawModelCatalog = Record<string, RawCatalogProvider>;
 
 const rawModelCatalog = RAW_MODEL_CATALOG satisfies RawModelCatalog;
 
@@ -36,7 +46,7 @@ const buildCatalogProvider = (
   provider: string,
   rawProviderCatalog: RawCatalogProvider,
 ): CatalogProvider | null => {
-  const catalogConfig = PROVIDER_CATALOG_CONFIG[provider];
+  const catalogConfig = MODEL_PROVIDER_CONFIG[provider];
   if (!catalogConfig) return null;
 
   const models = buildCatalogModelMap(
