@@ -1,4 +1,4 @@
-import type { ApiFormat } from "../catalog";
+import type { ApiFormat } from "@/ai/llm";
 import {
   getApiFormatLabel,
   getProviderApiFormats,

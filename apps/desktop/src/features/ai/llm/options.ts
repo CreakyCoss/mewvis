@@ -1,4 +1,4 @@
-import { MODEL_CATALOG, type ApiFormat } from "./catalog";
+import { MODEL_CATALOG, type ApiFormat } from "@/ai/llm";
 
 export type ProviderOption = {
   value: string;

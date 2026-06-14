@@ -2,7 +2,7 @@ import type {
   AgentRuntimeModelInput,
   AgentRuntimeThinkingLevel,
 } from "@/ai/agent-runtime/contracts";
-import { MODEL_CATALOG, type CatalogModel } from "../catalog";
+import { MODEL_CATALOG, type CatalogModel } from "@/ai/llm";
 import type {
   LlmProvider,
   LlmSettings,
