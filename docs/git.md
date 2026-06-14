@@ -20,6 +20,11 @@ git remote -v
 ```bash
 git remote add <name> <url>
 ```
+示例：
+```bash
+git remote add origin http://zhw:zhw89757.@localhost:9080/zhw/novel-claw.git
+git remote add pi https://github.com/earendil-works/pi.git
+```
 
 ### 删除远程仓库
 ```bash

@@ -9,6 +9,8 @@ Thumbs.db
 
 # Build outputs
 dist/
+dist-ssr
+*.local
 build/
 *.class
 *.o
@@ -16,7 +18,12 @@ build/
 *.dll
 
 # Logs
+logs
 *.log
+
+# Editor directories and files
+!.vscode/extensions.json
+*.sw?
 
 # Node
 node_modules/
