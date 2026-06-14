@@ -1,5 +1,5 @@
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
-import type { AgentMemoryTrace } from "@/ai/agent-context";
+import type { AgentMemoryTrace } from "@/ai/agent-runtime/memory";
 import type { PendingAgentQuestion } from "../../page-types";
 import type {
   ChatContextSummary,

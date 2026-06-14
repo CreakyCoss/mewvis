@@ -1,6 +1,9 @@
 import { Tiktoken } from "js-tiktoken/lite";
 import o200kBase from "js-tiktoken/ranks/o200k_base";
-import type { ConversationMessage } from "./types";
+import type {
+  ConversationMessage,
+  TokenBudgetModel,
+} from "../contracts";
 
 const encoder = new Tiktoken(o200kBase);
 
@@ -9,10 +12,7 @@ export const DEFAULT_CONVERSATION_TOKEN_BUDGET = 64000;
 export const SUMMARY_TRIGGER_RATIO = 0.85;
 export const SUMMARY_TARGET_RATIO = 0.65;
 
-export type TokenBudgetModel = {
-  contextWindow?: number;
-  maxTokens?: number;
-} | null | undefined;
+export type { TokenBudgetModel } from "../contracts";
 
 const normalizeContextWindow = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0

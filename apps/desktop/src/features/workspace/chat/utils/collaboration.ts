@@ -207,9 +207,6 @@ export const createCollaborationConversationMessage = (
   role: "assistant",
   content: renderCollaborationStepOutput(output.step, output.text),
   timestamp: Date.now(),
-  metadata: {
-    collaboration: output.metadata,
-  },
 });
 
 export const createCollaborationSupervisorConversationMessage = (
@@ -219,7 +216,4 @@ export const createCollaborationSupervisorConversationMessage = (
   role: "assistant",
   content: renderCollaborationSupervisorOutput(output.agentName, output.text),
   timestamp: Date.now(),
-  metadata: {
-    collaboration: output.metadata,
-  },
 });

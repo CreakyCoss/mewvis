@@ -1,4 +1,4 @@
-import type { ContextEngine } from "@/ai/agent-context";
+import type { ContextEngineDescriptor } from "@/ai/agent-context";
 import type {
   EmbeddingProfile,
   KnowledgeIndexStatus,
@@ -26,9 +26,9 @@ type OverviewViewProps = {
   isSavingSettings: boolean;
   isLoading: boolean;
   canConfigureContextEngine: boolean;
-  selectedContextEngine: ContextEngine | null;
+  selectedContextEngine: ContextEngineDescriptor | null;
   contextEngineId?: string;
-  contextEngines: ContextEngine[];
+  contextEngines: ContextEngineDescriptor[];
   defaultEmbeddingProfile: EmbeddingProfile | null;
   embeddingSummary: string;
   defaultEmbeddingBaseUrl: string;

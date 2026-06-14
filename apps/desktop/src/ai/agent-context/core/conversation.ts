@@ -8,35 +8,28 @@ import {
 import type {
   AgentConversationSync,
   AgentConversationSyncMessage,
-  AgentSessionStatus,
+  AgentSessionContextStatus,
   ChatContextSummary,
   ConversationMessage,
+  ConversationSummaryInput,
+  ConversationSummarizer,
+  RuntimeConversationContext,
 } from "./types";
 
 const MAX_SUMMARY_CHARS = 12000;
 const MAX_SUMMARY_MESSAGE_CHARS = 900;
 
-export type ConversationSummaryInput = {
-  previousSummary: string;
-  messages: ConversationMessage[];
-};
-
-export type ConversationSummarizer = (
-  input: ConversationSummaryInput,
-) => Promise<string>;
+export type {
+  ConversationSummaryInput,
+  ConversationSummarizer,
+  RuntimeConversationContext,
+} from "../contracts";
 
 export type UpdateConversationContextOptions = {
   summarizer?: ConversationSummarizer;
   tokenBudget?: number;
   forceSummarize?: boolean;
   rebuildSummary?: boolean;
-};
-
-export type RuntimeConversationContext = {
-  summary: string;
-  recentMessages: ConversationMessage[];
-  syncStatus?: "fresh" | "stale";
-  agentSessionId?: string | null;
 };
 
 export const EMPTY_RUNTIME_CONVERSATION_CONTEXT: RuntimeConversationContext = {
@@ -85,9 +78,9 @@ export const conversationMessageContentHash = (message: ConversationMessage) =>
   hashString([
     message.role,
     message.content,
-    message.metadata?.agentExecutionSummary ?? "",
-    message.metadata?.agentRunStatus ?? "",
-    message.metadata?.agentSessionId ?? "",
+    message.metadata?.executionSummary ?? "",
+    message.metadata?.runStatus ?? "",
+    message.metadata?.runtimeSessionId ?? "",
   ].join("\n"));
 
 const conversationSliceContentHash = (messages: ConversationMessage[]) =>
@@ -113,11 +106,45 @@ const legacyConversationMessageId = (
   hashString(`${message.role}\n${message.content}`),
 ].join("-");
 
+const normalizeConversationMessageMetadata = (
+  metadata: unknown,
+): ConversationMessage["metadata"] => {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const candidate = metadata as Partial<NonNullable<ConversationMessage["metadata"]>> & {
+    agentExecutionSummary?: unknown;
+    agentRunStatus?: unknown;
+    agentSessionId?: unknown;
+  };
+  const normalized: NonNullable<ConversationMessage["metadata"]> = {};
+  const executionSummary = typeof candidate.executionSummary === "string"
+    ? candidate.executionSummary
+    : typeof candidate.agentExecutionSummary === "string"
+      ? candidate.agentExecutionSummary
+      : "";
+  if (executionSummary) {
+    normalized.executionSummary = executionSummary;
+  }
+  const runStatus = candidate.runStatus ?? candidate.agentRunStatus;
+  if (runStatus === "done" || runStatus === "error") {
+    normalized.runStatus = runStatus;
+  }
+  const runtimeSessionId = candidate.runtimeSessionId ?? candidate.agentSessionId;
+  if (typeof runtimeSessionId === "string" || runtimeSessionId === null) {
+    normalized.runtimeSessionId = runtimeSessionId;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+};
+
 export const normalizeConversationMessages = (
   conversation: Array<ConversationMessage | (Omit<ConversationMessage, "id"> & { id?: string })>,
 ) => conversation.map((message, index) => ({
   ...message,
   id: message.id?.trim() || legacyConversationMessageId(message, index),
+  metadata: normalizeConversationMessageMetadata(message.metadata),
 }));
 
 export const toAgentConversationSyncMessage = (
@@ -130,7 +157,7 @@ export const toAgentConversationSyncMessage = (
 });
 
 export const createAgentSessionFingerprint = (
-  status: AgentSessionStatus | null | undefined,
+  status: AgentSessionContextStatus | null | undefined,
 ) => status
   ? {
     latestSessionFile: status.latestSessionFile ?? null,

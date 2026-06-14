@@ -1,5 +1,8 @@
 import {
   createAgentMemoryTrace,
+} from "@/ai/agent-runtime/memory";
+import {
+  agentContext,
 } from "@/ai/agent-context";
 import {
   normalizeAllowedRuntimeAgentTools,
@@ -17,6 +20,12 @@ import type {
   RunAgentTurnDeps,
   RunAgentTurnInput,
 } from "./types";
+import { buildWorkspaceAgentInteractionInstructions } from "./agent-prompts";
+
+const {
+  buildAgentRunContextPayload,
+  planAgentRunContext,
+} = agentContext;
 
 export const runAgentTurn = async (
   {
@@ -41,9 +50,9 @@ export const runAgentTurn = async (
     activeSkills,
     runtimeAgentId,
     appendVisibleTraceStep,
-    updateMessage,
-    agentRuntime,
-    contextEngine,
+	    updateMessage,
+	    agentRuntime,
+	    contextEngineId,
     setChatError,
     setAgentSessionStatus,
     setAgentSessionError,
@@ -74,7 +83,8 @@ export const runAgentTurn = async (
   }
 
   const agentLimits = limitsFor(effectiveRuntimeModel);
-  const agentSessionPlan = contextEngine.planAgentRun({
+  const agentSessionPlan = planAgentRunContext({
+    engineId: contextEngineId,
     chatSessionId: nextSessionId,
     conversation: baseConversation,
     currentContext: baseConversationContext,
@@ -106,7 +116,8 @@ export const runAgentTurn = async (
   } catch (caught) {
     setAgentSessionError(String(caught));
   }
-  const agentPromptPayload = contextEngine.buildAgentPromptPayload({
+  const agentPromptPayload = buildAgentRunContextPayload({
+    engineId: contextEngineId,
     conversation: baseConversation,
     currentContext: baseConversationContext,
     sessionPlan: agentSessionPlan,
@@ -114,6 +125,7 @@ export const runAgentTurn = async (
     text,
     references: referencedFiles,
     knowledgeMatches,
+    agentInstructions: buildWorkspaceAgentInteractionInstructions(),
     selectedAgent: modelSource === "agent" ? selectedAgent : null,
     limits: agentLimits,
   });

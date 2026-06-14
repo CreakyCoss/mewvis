@@ -71,4 +71,4 @@ const buildModelCatalog = (): ModelCatalog => {
   return catalog;
 };
 
-export const MODEL_CATALOG = buildModelCatalog();
+export const BUILT_IN_MODEL_CATALOG = buildModelCatalog();

@@ -1,6 +1,3 @@
-import {
-  buildSystemPrompt,
-} from "@/ai/agent-context";
 import { requireRuntimeModelInput } from "@/features/ai/llm/store";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import {
@@ -11,6 +8,7 @@ import type {
   RunChatTurnDeps,
   RunChatTurnInput,
 } from "./types";
+import { buildWorkspaceSystemPrompt } from "./workspace-system-prompt";
 
 export const runChatTurn = async (
   {
@@ -42,7 +40,7 @@ export const runChatTurn = async (
   const runtimeModelInput = effectiveRuntimeModel
     ? requireRuntimeModelInput(effectiveRuntimeModel)
     : null;
-  const systemPrompt = buildSystemPrompt(
+  const systemPrompt = buildWorkspaceSystemPrompt(
     workspace,
     activeFile,
     referencedFiles,

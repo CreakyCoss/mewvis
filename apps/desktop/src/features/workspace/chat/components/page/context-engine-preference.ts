@@ -1,14 +1,15 @@
-import {
-  DEFAULT_CONTEXT_ENGINE_ID,
-  getContextEngine,
-} from "@/ai/agent-context";
+import { agentContext } from "@/ai/agent-context";
 import { appStorageKey } from "@/product-config";
 
 const CONTEXT_ENGINE_STORAGE_KEY = appStorageKey("context-engine");
+const {
+  DEFAULT_CONTEXT_ENGINE_ID,
+  getContextEngineDescriptor,
+} = agentContext;
 
 export const readPreferredContextEngineId = () => {
   try {
-    return getContextEngine(window.localStorage.getItem(CONTEXT_ENGINE_STORAGE_KEY)).id;
+    return getContextEngineDescriptor(window.localStorage.getItem(CONTEXT_ENGINE_STORAGE_KEY)).id;
   } catch {
     return DEFAULT_CONTEXT_ENGINE_ID;
   }

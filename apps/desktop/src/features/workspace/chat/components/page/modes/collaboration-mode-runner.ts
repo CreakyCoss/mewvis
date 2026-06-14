@@ -1,12 +1,10 @@
 import {
-  buildCollaborationSystemPrompt,
-} from "@/ai/agent-context";
-import {
   normalizeAllowedRuntimeAgentTools,
   type RuntimeModelInput,
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
+import { agentContext } from "@/ai/agent-context";
 import {
   runSharedAgentTask,
   type SharedAgentTaskResult,
@@ -48,6 +46,11 @@ import type {
   RunCollaborationTurnInput,
   UpdateMessage,
 } from "./types";
+import { buildCollaborationSystemPrompt } from "./collaboration-prompts";
+
+const {
+  selectConversationMessages,
+} = agentContext;
 
 type RunCollaborationAgentTaskInput = {
   agentRuntime: RunCollaborationTurnDeps["agentRuntime"];
@@ -398,9 +401,9 @@ export const runCollaborationTurn = async (
     workspace,
     activeFile,
     activeSkills,
-    runtimeAgentId,
-    agentRuntime,
-    contextEngine,
+	    runtimeAgentId,
+	    agentRuntime,
+	    contextEngineId,
     allowedAgentTools,
     appendMessage,
     requestCollaborationPlanDecision,
@@ -670,11 +673,12 @@ export const runCollaborationTurn = async (
         )]
         : []),
     ];
-    const stepMessages = contextEngine.selectConversationMessages(
-      stepConversation,
-      nextConversationContext,
-      summaryLimits,
-    );
+    const stepMessages = selectConversationMessages({
+      engineId: contextEngineId,
+      conversation: stepConversation,
+      context: nextConversationContext,
+      limits: summaryLimits,
+    });
     const systemPrompt = buildCollaborationSystemPrompt(
       workspace,
       activeFile,

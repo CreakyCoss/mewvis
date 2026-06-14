@@ -1,5 +1,5 @@
 import {
-  appendReferencesToPrompt,
+  agentContext,
   type ConversationMessage,
 } from "@/ai/agent-context";
 import type {
@@ -11,6 +11,10 @@ import type {
   TavernTimelineEvent,
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
+
+const {
+  appendReferencesToPrompt,
+} = agentContext;
 
 const formatCharacter = (character: TavernCharacter) => [
   `name: ${character.name}`,

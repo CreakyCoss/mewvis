@@ -1,15 +1,13 @@
 import { selectRelevantText } from "./context-selection";
+import type {
+  PromptReference,
+  ReferencePromptLimits,
+} from "../contracts";
 
-export type PromptReference = {
-  path: string;
-  content: string;
-};
-
-export type ReferencePromptLimits = {
-  perFileChars?: number;
-  totalChars?: number;
-  query?: string;
-};
+export type {
+  PromptReference,
+  ReferencePromptLimits,
+} from "../contracts";
 
 const takeReferenceContent = (content: string, maxChars: number) => {
   return selectRelevantText(content, undefined, maxChars);

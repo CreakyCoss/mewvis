@@ -6,14 +6,15 @@ import {
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import {
+  agentContext,
+  type ConversationSummarizer,
+} from "@/ai/agent-context";
+import {
   buildAgentConversationContent,
   buildAgentExecutionSummary,
   createAgentMemoryTrace,
-  getContextEngine,
-  listContextEngines,
   type AgentMemoryTrace,
-  type ConversationSummarizer,
-} from "@/ai/agent-context";
+} from "@/ai/agent-runtime/memory";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { CollaborationWorkflowSettingsDialog } from "@/features/ai/workflow/components/dialog";
 import { AgentSettingsDialog } from "@/features/ai/agent/components/dialog";
@@ -125,6 +126,19 @@ import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
 import { useWorkspaceSkills } from "./use-workspace-skills";
 import { useWorkspaceVersionControl } from "./use-workspace-version-control";
 
+const {
+  compressConversationContext: compressConversationContextForEngine,
+  createContextPlan,
+  finalizeAgentRunContext,
+  finalizeChatTurnContext,
+  getActiveAgentRuntimeSessionId,
+  getContextEngineDescriptor,
+  invalidateConversationContextAfterHistoryChange,
+  listContextEngineDescriptors,
+  prepareConversationContext,
+  rebuildConversationContextAfterHistoryChange: rebuildConversationContextForEngine,
+} = agentContext;
+
 type WorkspaceChatPageProps = {
   workspace: Workspace;
   workspaceSections: WorkspaceSection[];
@@ -216,9 +230,12 @@ export const WorkspaceChatPage = ({
   renderShell,
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
-  const availableContextEngines = useMemo(() => listContextEngines(), []);
+  const availableContextEngines = useMemo(() => listContextEngineDescriptors(), []);
   const [contextEngineId, setContextEngineId] = useState(readPreferredContextEngineId);
-  const contextEngine = useMemo(() => getContextEngine(contextEngineId), [contextEngineId]);
+  const contextEngineDescriptor = useMemo(
+    () => getContextEngineDescriptor(contextEngineId),
+    [contextEngineId],
+  );
   const preferredContextEngineIdRef = useRef(contextEngineId);
   const knowledgeRagIndex = useMemo(() => createGlobalKnowledgeRagIndex(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -796,7 +813,7 @@ export const WorkspaceChatPage = ({
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
-    setContextEngineId(getContextEngine(
+    setContextEngineId(getContextEngineDescriptor(
       task.context?.engine?.id ?? preferredContextEngineIdRef.current,
     ).id);
     const nextTitle = task.title || deriveSessionTitle(task.messages);
@@ -924,7 +941,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    const nextEngine = getContextEngine(engineId);
+    const nextEngine = getContextEngineDescriptor(engineId);
     setSettingsError("");
     preferredContextEngineIdRef.current = nextEngine.id;
     writePreferredContextEngineId(nextEngine.id);
@@ -1168,12 +1185,12 @@ export const WorkspaceChatPage = ({
           id: activeAgentMessageIdRef.current || createMessageId(),
           role: "assistant",
           content: conversationContent,
-          timestamp: Date.now(),
-          metadata: {
-            agentExecutionSummary: executionSummary,
-            agentRunStatus: status,
-            agentSessionId,
-          },
+	          timestamp: Date.now(),
+	          metadata: {
+	            executionSummary,
+	            runStatus: status,
+	            runtimeSessionId: agentSessionId,
+	          },
         },
       ];
       conversationRef.current = nextConversation;
@@ -1192,7 +1209,8 @@ export const WorkspaceChatPage = ({
 
         const contextBeforeFinalize = conversationContextRef.current;
         const finalizeContextStartedAt = Date.now();
-        const syncedContext = await contextEngine.finalizeAgentRun({
+        const syncedContext = await finalizeAgentRunContext({
+          engineId: contextEngineId,
           conversation: nextConversation,
           currentContext: contextBeforeFinalize,
           summarizer: conversationSummarizerRef.current,
@@ -1212,7 +1230,7 @@ export const WorkspaceChatPage = ({
             conversationLength: nextConversation.length,
             mode: "agent",
             phase: "agent_finalize",
-            engineId: contextEngine.id,
+            engineId: contextEngineId,
             providerName: null,
             modelName: null,
             canUseModel: Boolean(conversationSummarizerRef.current),
@@ -1224,7 +1242,7 @@ export const WorkspaceChatPage = ({
     });
 
     return executionSummary;
-  }, [agentRuntimeSessionId, agentSessionStatus, appendVisibleTraceStep, contextEngine, workspace.path]);
+  }, [agentRuntimeSessionId, agentSessionStatus, appendVisibleTraceStep, contextEngineId, workspace.path]);
 
   const persistRunningAgentTask = useCallback(async (task: RunningAgentTaskContext) => {
     const title = deriveSessionTitle(task.messages);
@@ -1308,11 +1326,12 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    setAgentRuntimeSessionId(contextEngine.getActiveAgentRuntimeSessionId(
-      conversationContext,
-      runtimeAgentId,
-    ));
-  }, [contextEngine, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
+    setAgentRuntimeSessionId(getActiveAgentRuntimeSessionId({
+      engineId: contextEngineId,
+      context: conversationContext,
+      agentId: runtimeAgentId,
+    }));
+  }, [contextEngineId, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
 
   const compressConversationContext = useCallback(async () => {
     if (conversation.length === 0) {
@@ -1326,7 +1345,8 @@ export const WorkspaceChatPage = ({
     setSessionsError("");
 
     try {
-      const nextContext = await contextEngine.compressConversation({
+      const nextContext = await compressConversationContextForEngine({
+        engineId: contextEngineId,
         conversation,
         currentContext: conversationContext,
         modelContext: contextModelFor(effectiveRuntimeModel),
@@ -1343,7 +1363,7 @@ export const WorkspaceChatPage = ({
           conversationLength: conversation.length,
           mode: "manual",
           phase: "manual",
-          engineId: contextEngine.id,
+	          engineId: contextEngineId,
           providerName: effectiveRuntimeModel?.provider.name ?? null,
           modelName: effectiveRuntimeModel?.modelName ?? null,
           canUseModel: runtimeAgentRequiresModel,
@@ -1361,7 +1381,7 @@ export const WorkspaceChatPage = ({
           content: message,
           metadata: {
             mode: "manual",
-            engineId: contextEngine.id,
+	            engineId: contextEngineId,
             conversationLength: conversation.length,
           },
         });
@@ -1375,7 +1395,7 @@ export const WorkspaceChatPage = ({
     conversation,
     conversationContext,
     contextModelFor,
-    contextEngine,
+	    contextEngineId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     summarizerFor,
@@ -1389,12 +1409,14 @@ export const WorkspaceChatPage = ({
       : null;
     const summaryRuntimeModel = collaborationSummaryAgent?.runtimeModel ?? effectiveRuntimeModel;
     const summarySummarizer = summarizerFor(summaryRuntimeModel);
-    const contextPlan = contextEngine.createPlan({
+    const contextPlan = createContextPlan({
+      engineId: contextEngineId,
       modelContext: contextModelFor(summaryRuntimeModel),
       summarizer: summarySummarizer,
       canUseModel: runtimeAgentRequiresModel,
     });
-    const nextContext = await contextEngine.rebuildAfterHistoryChange({
+    const nextContext = await rebuildConversationContextForEngine({
+      engineId: contextEngineId,
       conversation: nextConversation,
       currentContext: conversationContextRef.current,
       modelContext: contextModelFor(summaryRuntimeModel),
@@ -1407,7 +1429,7 @@ export const WorkspaceChatPage = ({
   }, [
     chatMode,
     contextModelFor,
-    contextEngine,
+	    contextEngineId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     selectedCollaborationWorkflow,
@@ -1431,10 +1453,11 @@ export const WorkspaceChatPage = ({
       ),
     );
     agentContextInvalidatedRef.current = true;
-    const invalidatedContext = contextEngine.invalidateAfterHistoryChange(
-      conversationContextRef.current,
-      sanitizedConversation,
-    );
+    const invalidatedContext = invalidateConversationContextAfterHistoryChange({
+      engineId: contextEngineId,
+      context: conversationContextRef.current,
+      conversation: sanitizedConversation,
+    });
     conversationContextRef.current = invalidatedContext;
     setConversationContext(invalidatedContext);
     setContextDebugSnapshot(null);
@@ -1463,7 +1486,7 @@ export const WorkspaceChatPage = ({
       setSessionsError(String(caught));
     });
   }, [
-    contextEngine,
+	    contextEngineId,
     currentSessionId,
     rebuildConversationContextAfterHistoryChange,
     visibleActiveAgentTaskId,
@@ -1593,17 +1616,19 @@ export const WorkspaceChatPage = ({
     traceProviderName,
     traceModelName,
     summaryRuntimeModel,
-  }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
-    const limitsFor: LimitsForProvider = (
-      runtimeModel,
-    ) => contextEngine.createPlan({
-      modelContext: contextModelFor(runtimeModel),
-      canUseModel: false,
-    }).limits;
+	  }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
+	    const limitsFor: LimitsForProvider = (
+	      runtimeModel,
+	    ) => createContextPlan({
+	      engineId: contextEngineId,
+	      modelContext: contextModelFor(runtimeModel),
+	      canUseModel: false,
+	    }).limits;
     const summaryModelContext = contextModelFor(summaryRuntimeModel);
     const summarySummarizer = summarizerFor(summaryRuntimeModel);
     const prepareContextStartedAt = Date.now();
-    const preparedContext = await contextEngine.prepareConversation({
+    const preparedContext = await prepareConversationContext({
+      engineId: contextEngineId,
       conversation: nextConversation,
       currentContext: baseConversationContext,
       modelContext: summaryModelContext,
@@ -1617,22 +1642,22 @@ export const WorkspaceChatPage = ({
     const conversationSummary = preparedContext.conversationSummary;
     conversationSummarizerRef.current = summarizeConversation ?? null;
     setConversationContext(nextConversationContext);
-    conversationContextRef.current = nextConversationContext;
-    patchVisibleTraceTurn(traceTurnId, {
-      contextEngineId: contextEngine.id,
-      contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
-      conversationSummary,
+	    conversationContextRef.current = nextConversationContext;
+	    patchVisibleTraceTurn(traceTurnId, {
+	      contextEngineId,
+	      contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
+	      conversationSummary,
     });
     appendVisibleTraceStep(traceTurnId, {
       type: "context",
       label: "上下文准备",
       startedAt: prepareContextStartedAt,
       endedAt: Date.now(),
-      status: "done",
-      content: conversationSummary || "（空）",
-      metadata: {
-        engineId: contextEngine.id,
-        runtimeMessageCount: runtimeMessages.length,
+	      status: "done",
+	      content: conversationSummary || "（空）",
+	      metadata: {
+	        engineId: contextEngineId,
+	        runtimeMessageCount: runtimeMessages.length,
         contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
         canUseModel: runtimeAgentRequiresModel,
       },
@@ -1648,20 +1673,20 @@ export const WorkspaceChatPage = ({
         startedAt: prepareContextStartedAt,
         previousContext: baseConversationContext,
         nextContext: nextConversationContext,
-        conversationLength: nextConversation.length,
-        mode: chatMode,
-        phase: "prepare",
-        engineId: contextEngine.id,
+	        conversationLength: nextConversation.length,
+	        mode: chatMode,
+	        phase: "prepare",
+	        engineId: contextEngineId,
         providerName: summaryRuntimeModel?.provider.name ?? null,
         modelName: summaryRuntimeModel?.modelName ?? null,
         canUseModel: runtimeAgentRequiresModel,
       }));
     }
 
-    const debugSnapshotBase: Omit<ContextDebugSnapshot, "payloads" | "updatedAt"> = {
-      id: `${now}-${userMessageId}`,
-      mode: chatMode,
-      engineId: contextEngine.id,
+	    const debugSnapshotBase: Omit<ContextDebugSnapshot, "payloads" | "updatedAt"> = {
+	      id: `${now}-${userMessageId}`,
+	      mode: chatMode,
+	      engineId: contextEngineId,
       contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
       runtimeAgentId,
       agentSessionId: null,
@@ -1685,7 +1710,8 @@ export const WorkspaceChatPage = ({
       });
     };
 
-    const knowledgeMatches = contextEngine.capabilities.includes("rag_index")
+    const hasRagIndex = contextEngineDescriptor.capabilities.includes("rag_index");
+    const knowledgeMatches = hasRagIndex
       ? await knowledgeRagIndex.search({
         query: text,
         conversation: nextConversation,
@@ -1703,7 +1729,7 @@ export const WorkspaceChatPage = ({
       status: "done",
       content: formatKnowledgeMatches(knowledgeMatches),
       metadata: {
-        enabled: contextEngine.capabilities.includes("rag_index"),
+	        enabled: hasRagIndex,
         matchCount: knowledgeMatches.length,
         query: text,
       },
@@ -1735,7 +1761,8 @@ export const WorkspaceChatPage = ({
 
       const finalizeContextStartedAt = Date.now();
       const contextBeforeFinalize = conversationContextRef.current;
-      const finalContext = await contextEngine.finalizeChatTurn({
+      const finalContext = await finalizeChatTurnContext({
+        engineId: contextEngineId,
         conversation: finalConversation,
         currentContext: contextBeforeFinalize,
         modelContext: contextModelFor(summaryRuntimeModel),
@@ -1753,7 +1780,7 @@ export const WorkspaceChatPage = ({
           conversationLength: finalConversation.length,
           mode,
           phase: "finalize",
-          engineId: contextEngine.id,
+	          engineId: contextEngineId,
           providerName: summaryRuntimeModel?.provider.name ?? null,
           modelName: summaryRuntimeModel?.modelName ?? null,
           canUseModel: runtimeAgentRequiresModel,
@@ -1862,7 +1889,7 @@ export const WorkspaceChatPage = ({
       providerName: traceProviderName,
       modelName: traceModelName,
       runtimeAgentId,
-      contextEngineId: contextEngine.id,
+	      contextEngineId,
       contextWindow: effectiveAppContextWindow,
       userMessageId,
       assistantMessageId,
@@ -1933,9 +1960,9 @@ export const WorkspaceChatPage = ({
           workspace,
           activeFile,
           activeSkills,
-          runtimeAgentId,
-          agentRuntime,
-          contextEngine,
+	          runtimeAgentId,
+	          agentRuntime,
+	          contextEngineId,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,
@@ -1975,9 +2002,9 @@ export const WorkspaceChatPage = ({
           activeSkills,
           runtimeAgentId,
           appendVisibleTraceStep,
-          updateMessage,
-          agentRuntime,
-          contextEngine,
+	          updateMessage,
+	          agentRuntime,
+	          contextEngineId,
           setChatError,
           setAgentSessionStatus,
           setAgentSessionError,

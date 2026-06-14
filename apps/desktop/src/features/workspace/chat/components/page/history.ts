@@ -1,4 +1,4 @@
-import { extractAgentExecutionSummary } from "@/ai/agent-context";
+import { extractAgentExecutionSummary } from "@/ai/agent-runtime/memory";
 import type {
   ChatContextSummary,
   ChatMessage,
@@ -119,6 +119,27 @@ const findConversationMatchIndex = (
   );
 };
 
+const visibleAgentMetadata = (
+  metadata: ConversationMessage["metadata"] | null | undefined,
+): ConversationMessage["metadata"] => {
+  if (!metadata) {
+    return null;
+  }
+
+  const nextMetadata: NonNullable<ConversationMessage["metadata"]> = {};
+  if (metadata.executionSummary) {
+    nextMetadata.executionSummary = metadata.executionSummary;
+  }
+  if (metadata.runStatus) {
+    nextMetadata.runStatus = metadata.runStatus;
+  }
+  if (metadata.runtimeSessionId !== undefined) {
+    nextMetadata.runtimeSessionId = metadata.runtimeSessionId;
+  }
+
+  return Object.keys(nextMetadata).length > 0 ? nextMetadata : null;
+};
+
 export const rebuildConversationFromVisibleMessages = (
   conversation: ConversationMessage[],
   currentMessages: ChatMessage[],
@@ -144,12 +165,7 @@ export const rebuildConversationFromVisibleMessages = (
       role: chatMessage.role,
       content: collaborationConversationContentFromMessage(chatMessage),
       timestamp: matchedMessage?.timestamp ?? chatMessage.createdAt,
-      metadata: chatMessage.collaboration
-        ? {
-          ...matchedMessage?.metadata,
-          collaboration: chatMessage.collaboration,
-        }
-        : matchedMessage?.metadata ?? null,
+      metadata: visibleAgentMetadata(matchedMessage?.metadata),
     };
   });
 };
@@ -157,7 +173,7 @@ export const rebuildConversationFromVisibleMessages = (
 export const stripHiddenAgentContextMetadata = (
   conversation: ConversationMessage[],
 ): ConversationMessage[] => conversation.map((message) =>
-  message.metadata?.agentExecutionSummary || message.metadata?.agentSessionId
+  message.metadata?.executionSummary || message.metadata?.runtimeSessionId
     ? {
       ...message,
       metadata: null,

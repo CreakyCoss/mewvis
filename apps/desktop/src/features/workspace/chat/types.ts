@@ -5,13 +5,13 @@ import type {
 } from "@/ai/agent-context";
 
 export type {
-  AgentConversationSync,
-  AgentConversationSyncMessage,
-  AgentSessionStatus,
   ChatContextSummary,
-  CleanupAgentSessionsResult,
   ConversationMessage,
 } from "@/ai/agent-context";
+export type {
+  AgentSessionStatus,
+  CleanupAgentSessionsResult,
+} from "@/ai/agent-runtime/session";
 
 export type WorkspaceFileEntry = {
   path: string;

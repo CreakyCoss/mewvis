@@ -1,31 +1,44 @@
 # Agent Context Boundary
 
 This folder owns conversation context policy: token budgets, summary refresh,
-relevant text selection, prompt context assembly, and agent session sync state.
+relevant text selection, context-material assembly, and agent session sync state.
 
 Feature code should treat this folder as the context boundary and pass in plain
 inputs such as conversation messages, model context limits, referenced files,
-minimal workspace/skill/agent prompt profiles, and an optional summarizer
-function. React state, Tauri calls, workspace file IO, LLM calls, and runtime
-execution stay in the feature/API layers.
+minimal file/skill/agent context profiles, and an optional summarizer function.
+React state, Tauri calls, workspace file IO, LLM calls, runtime
+execution, application identity, tool-use policy, and workflow-specific prompt
+instructions stay in the feature/API layers.
 
-Use `runtime-context.ts` for orchestration-level calls from UI code. It exposes
-the `ContextEngine` interface, registry helpers, and the built-in engines, so
-feature code can switch context implementations without branching around
-summary, prompt, or agent-session details.
+Use `index.ts` for all feature-layer imports. It exposes selected protocol
+types from `contracts.ts` and one stable `agentContext` facade from
+`public-api.ts`, so feature code is insulated from internal file layout, helper
+names, and implementation type changes.
 
 Internal layers:
 - `core/`: durable context data types, token budgeting, conversation hashing,
   rolling summary updates, runtime history selection, and per-agent sync state.
-- `prompt/`: prompt assembly and relevant text selection. This layer may read
-  core conversation state, but it does not perform runtime or LLM calls.
+- `prompt/`: context-material assembly and relevant text selection. This layer
+  may read core conversation state, but it does not perform runtime or LLM calls
+  and should not contain product identity or workflow-specific instructions.
 - `engine/`: context engine interfaces, engine registry, built-in engines, and
-  placeholder RAG/memory service contracts.
-- `memory/`: agent execution memory extraction and summarization helpers.
+  placeholder RAG/memory service contracts. It also contains reusable
+  memory-backed runtime context policy for domain features with their own
+  persistent memory fields.
 
-`index.ts` is the single public entry point that re-exports the layered
-implementation. New code inside this package should import from the internal
-layer it actually needs; feature code should import from `@/ai/agent-context`.
+Public surface:
+- `contracts.ts`: protocol data shapes and the `AgentContextApi` facade type.
+  Adding or changing feature-facing context contracts starts here.
+- `public-api.ts`: facade over internal implementations. It builds the
+  `agentContext` object and keeps full engine instances private.
+- `index.ts`: the only supported external import path. Feature code should
+  import from `@/ai/agent-context`, never from package internals, and keep runtime
+  trace helpers in runtime-specific modules.
+
+External callers should keep only engine ids and `ContextEngineDescriptor`
+objects. They should call `agentContext.*` methods with `engineId` when a context
+operation is needed. The full `ContextEngine` interface, registry helpers, and
+built-in engine objects are SPI for this package only.
 
 `ChatContextSummary.engine` records the active engine id/version and reserves
 slots for future RAG index snapshots and memory layer snapshots. Engines can
@@ -38,6 +51,6 @@ Built-in engines:
 - `rag-index`: experimental RAG skeleton with a placeholder index service.
 - `hybrid-memory`: experimental RAG + multi-layer memory skeleton.
 
-Register new engines with `registerContextEngine(engine)` and expose them through
-`listContextEngines()`. The workspace chat settings panel already switches by
-engine id through `getContextEngine(engineId)`.
+Register built-in engines inside the engine layer and expose descriptors/actions
+through the public facade. Feature settings can switch by engine id through
+`agentContext.getContextEngineDescriptor(engineId)`.

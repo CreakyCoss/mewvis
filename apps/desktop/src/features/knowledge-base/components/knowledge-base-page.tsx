@@ -3,7 +3,7 @@ import { ArrowLeft, Database, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ContextEngine } from "@/ai/agent-context";
+import type { ContextEngineDescriptor } from "@/ai/agent-context";
 import {
   CollectionDetailsDialog,
   CollectionFormDialog,
@@ -57,7 +57,7 @@ import {
 type KnowledgeBasePageProps = {
   onBack?: () => void;
   contextEngineId?: string;
-  contextEngines?: ContextEngine[];
+  contextEngines?: ContextEngineDescriptor[];
   onContextEngineChange?: (engineId: string) => void;
 };
 

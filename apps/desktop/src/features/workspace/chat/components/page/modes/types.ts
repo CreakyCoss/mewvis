@@ -1,15 +1,14 @@
 import type { MutableRefObject } from "react";
 import type {
-  AgentMemoryTrace,
-  AgentSessionStatus,
   ChatContextSummary,
-  ContextEngine,
   ContextRagMatch,
   ConversationMessage,
+  PromptContextFile,
   PromptContextLimits,
   PromptSkillContext,
-  PromptWorkspaceFile,
 } from "@/ai/agent-context";
+import type { AgentMemoryTrace } from "@/ai/agent-runtime/memory";
+import type { AgentSessionStatus } from "@/ai/agent-runtime/session";
 import type {
   RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
@@ -78,7 +77,7 @@ export type RequestCollaborationPlanDecision = (
 
 export type CommonModeDeps = {
   workspace: Workspace;
-  activeFile: PromptWorkspaceFile | null;
+  activeFile: PromptContextFile | null;
   activeSkills: PromptSkillContext[];
   runtimeAgentId: string;
   appendVisibleTraceStep: AppendVisibleTraceStep;
@@ -127,7 +126,7 @@ export type RunCollaborationTurnInput = {
 
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextEngine: ContextEngine;
+  contextEngineId: string;
   allowedAgentTools: RuntimeAgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -155,7 +154,7 @@ export type RunAgentTurnInput = {
 
 export type RunAgentTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextEngine: ContextEngine;
+  contextEngineId: string;
   setChatError: (message: string) => void;
   setAgentSessionStatus: (status: AgentSessionStatus | null) => void;
   setAgentSessionError: (message: string) => void;

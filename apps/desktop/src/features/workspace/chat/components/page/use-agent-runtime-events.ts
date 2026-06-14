@@ -4,7 +4,7 @@ import {
   buildAgentExecutionSummary,
   recordAgentMemoryEvent,
   type AgentMemoryTrace,
-} from "@/ai/agent-context";
+} from "@/ai/agent-runtime/memory";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import type { PendingAgentQuestion } from "../../page-types";
@@ -104,9 +104,9 @@ const appendRunningAgentTaskResult = (
       content: conversationContent,
       timestamp: Date.now(),
       metadata: {
-        agentExecutionSummary: executionSummary,
-        agentRunStatus: status,
-        agentSessionId: task.agentSessionId,
+        executionSummary,
+        runStatus: status,
+        runtimeSessionId: task.agentSessionId,
       },
     },
   ];

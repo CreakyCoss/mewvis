@@ -29,8 +29,9 @@ import {
   type ContextRagIndex,
 } from "./rag";
 import type {
-  AgentSessionStatus,
+  AgentSessionContextStatus,
   ChatContextSummary,
+  ContextEngineCapability as ContextEngineCapabilityContract,
   ContextEngineState,
   ContextMemoryLayerSnapshot,
   ConversationMessage,
@@ -44,11 +45,7 @@ export const DEFAULT_CONTEXT_ENGINE_VERSION = 1;
 export const RAG_CONTEXT_ENGINE_ID = "rag-index";
 export const HYBRID_MEMORY_CONTEXT_ENGINE_ID = "hybrid-memory";
 
-export type ContextEngineCapability =
-  | "rolling_summary"
-  | "agent_session_sync"
-  | "rag_index"
-  | "memory_layers";
+export type ContextEngineCapability = ContextEngineCapabilityContract;
 
 export type ContextEngineServices = {
   ragIndex?: ContextRagIndex | null;
@@ -99,10 +96,11 @@ export type BuildAgentRunPromptPayloadInput = {
   conversation: ConversationMessage[];
   currentContext: ChatContextSummary | null;
   sessionPlan: AgentRunSessionPlan;
-  agentSessionStatus?: AgentSessionStatus | null;
+  agentSessionStatus?: AgentSessionContextStatus | null;
   text: string;
   references: PromptFileReference[];
   knowledgeMatches?: PromptKnowledgeReference[];
+  agentInstructions?: string | null;
   selectedAgent: PromptAgentProfile | null;
   limits: PromptContextLimits;
 };
@@ -123,7 +121,7 @@ export type FinalizeAgentRunContextInput = {
   agentSessionId?: string | null;
   agentId?: string | null;
   runStatus: "done" | "error";
-  agentSessionStatus?: AgentSessionStatus | null;
+  agentSessionStatus?: AgentSessionContextStatus | null;
 };
 
 export type FinalizeChatTurnContextInput = PrepareRuntimeConversationContextInput;
@@ -309,6 +307,7 @@ export const buildAgentRunPromptPayload = ({
   text,
   references,
   knowledgeMatches,
+  agentInstructions,
   selectedAgent,
   limits,
 }: BuildAgentRunPromptPayloadInput): AgentRunPromptPayload => {
@@ -343,6 +342,7 @@ export const buildAgentRunPromptPayload = ({
         includeRecentConversation: true,
         contextQuery: text,
         knowledgeMatches,
+        interactionInstructions: agentInstructions,
       },
     ),
     shouldBootstrapAgentContext,
@@ -538,7 +538,7 @@ export const hybridMemoryContextEngine = registerContextEngine(createDefaultCont
     memoryLayers: [
       createPlaceholderMemoryLayer("conversation-memory", "conversation"),
       createPlaceholderMemoryLayer("agent-memory", "agent"),
-      createPlaceholderMemoryLayer("workspace-memory", "workspace"),
+      createPlaceholderMemoryLayer("document-memory", "document"),
     ],
   },
   metadata: {

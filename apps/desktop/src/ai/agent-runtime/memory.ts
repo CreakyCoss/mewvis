@@ -239,10 +239,21 @@ export const buildAgentConversationContent = (
 };
 
 export const extractAgentExecutionSummary = (
-  message: { content: string; metadata?: { agentExecutionSummary?: string } | null } | string,
+  message: {
+    content: string;
+    metadata?: {
+      executionSummary?: string;
+      agentExecutionSummary?: string;
+    } | null;
+  } | string,
 ) => {
-  if (typeof message !== "string" && message.metadata?.agentExecutionSummary) {
-    return message.metadata.agentExecutionSummary.trim();
+  if (typeof message !== "string") {
+    const summary = message.metadata?.executionSummary ??
+      message.metadata?.agentExecutionSummary ??
+      "";
+    if (summary) {
+      return summary.trim();
+    }
   }
 
   const content = typeof message === "string" ? message : message.content;

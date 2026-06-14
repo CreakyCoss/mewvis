@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import {
-  resolveAppContextWindow,
+  agentContext,
   type ConversationSummarizer,
 } from "@/ai/agent-context";
 import { createSharedConversationSummarizer } from "@/features/ai/runtime";
@@ -8,6 +8,10 @@ import {
   resolveRuntimeModelInput,
   type RuntimeModelOption,
 } from "@/features/ai/llm/store";
+
+const {
+  resolveAppContextWindow,
+} = agentContext;
 
 type UseContextModelingInput = {
   runtimeAgentRequiresModel: boolean;

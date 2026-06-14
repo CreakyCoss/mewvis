@@ -1,6 +1,6 @@
 import type { CatalogProviderConfig } from "./types";
 
-// The raw provider api from models.dev is reference metadata only; MODEL_CATALOG uses this config.
+// The raw provider api from models.dev is reference metadata only; the built-in catalog uses this config.
 export const PROVIDER_CATALOG_CONFIG: Record<string, CatalogProviderConfig> = {
   deepseek: {
     websiteUrl: "https://www.deepseek.com",

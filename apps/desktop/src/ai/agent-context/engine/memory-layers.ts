@@ -1,7 +1,7 @@
 import type {
   ContextMemoryLayerSnapshot,
   ConversationMessage,
-} from "../core/types";
+} from "../contracts";
 
 export type ContextMemoryKind = ContextMemoryLayerSnapshot["kind"];
 
@@ -30,7 +30,7 @@ export type ContextMemoryLayer = {
   retrieve(input: ContextMemoryQuery): Promise<ContextMemoryItem[]>;
   record?(items: ContextMemoryItem[]): Promise<void>;
   compact?(conversation: ConversationMessage[]): Promise<void>;
-  invalidate?(reason: "history_changed" | "workspace_changed" | "strategy_changed"): Promise<void>;
+  invalidate?(reason: "history_changed" | "source_changed" | "strategy_changed"): Promise<void>;
 };
 
 export const createPlaceholderMemoryLayer = (

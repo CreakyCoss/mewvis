@@ -8,8 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
-  normalizeChatContextSummary,
-  normalizeConversationMessages,
+  agentContext,
 } from "@/ai/agent-context";
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
@@ -41,7 +40,12 @@ import {
 import type { RunningAgentTaskContext } from "./agent-task";
 import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
 import { useSidebarSessions } from "./use-sidebar-sessions";
-import { getContextEngine } from "@/ai/agent-context";
+
+const {
+  getContextEngineDescriptor,
+  normalizeChatContextSummary,
+  normalizeConversationMessages,
+} = agentContext;
 
 type UseWorkspaceChatSessionsInput = {
   workspace: Workspace;
@@ -245,7 +249,7 @@ export const useWorkspaceChatSessions = ({
     setConversationContext(hydratedContext);
     replaceChatTrace(hydratedTrace);
     setContextDebugSnapshot(null);
-    setContextEngineId(getContextEngine(
+    setContextEngineId(getContextEngineDescriptor(
       runningTask?.context?.engine?.id ?? preferredContextEngineIdRef.current,
     ).id);
     const nextSessionId = session?.id ?? null;
