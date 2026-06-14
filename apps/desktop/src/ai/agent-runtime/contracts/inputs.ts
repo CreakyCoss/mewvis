@@ -1,5 +1,7 @@
-import type { AgentRuntimeModelInput } from "./config";
-import type { AgentToolName } from "./tools";
+import type {
+  RuntimeAgentToolName,
+  RuntimeModelInput,
+} from "@/ai/runtime-protocol";
 
 export type AgentRuntimeAgentTaskInput = {
   agentId?: string | null;
@@ -7,8 +9,8 @@ export type AgentRuntimeAgentTaskInput = {
   chatSessionId?: string | null;
   prompt: string;
   bootstrapContext?: string | null;
-  runtimeModel?: AgentRuntimeModelInput | null;
-  allowedTools?: AgentToolName[];
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: RuntimeAgentToolName[];
   enabledSkills?: string[];
 };
 
@@ -24,7 +26,7 @@ export type AgentRuntimeChatMessage = {
 export type AgentRuntimeChatInput = {
   type: "chat";
   agentId?: string | null;
-  runtimeModel?: AgentRuntimeModelInput | null;
+  runtimeModel?: RuntimeModelInput | null;
   systemPrompt: string;
   messages: AgentRuntimeChatMessage[];
   stream?: boolean;

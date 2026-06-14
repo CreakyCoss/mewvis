@@ -1,10 +1,10 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  DEFAULT_ALLOWED_AGENT_TOOLS,
-  normalizeAllowedAgentTools,
-  type AgentToolName,
-} from "@/ai/agent-runtime/contracts";
+  DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
+  normalizeAllowedRuntimeAgentTools,
+  type RuntimeAgentToolName,
+} from "@/ai/runtime-protocol";
 import {
   buildAgentConversationContent,
   buildAgentExecutionSummary,
@@ -278,8 +278,8 @@ export const WorkspaceChatPage = ({
       };
     });
   }, [chatMode]);
-  const [allowedAgentTools, setAllowedAgentTools] = useState<AgentToolName[]>(() => [
-    ...DEFAULT_ALLOWED_AGENT_TOOLS,
+  const [allowedAgentTools, setAllowedAgentTools] = useState<RuntimeAgentToolName[]>(() => [
+    ...DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   ]);
   const [selectedSkillGroupIds, setSelectedSkillGroupIds] = useState<string[]>([
     ALL_SKILLS_GROUP_ID,
@@ -908,10 +908,10 @@ export const WorkspaceChatPage = ({
     scrollActiveThinkingToBottom,
   ]);
 
-  const toggleAllowedAgentTool = useCallback((toolId: AgentToolName, enabled: boolean) => {
+  const toggleAllowedAgentTool = useCallback((toolId: RuntimeAgentToolName, enabled: boolean) => {
     setAllowedAgentTools((current) => {
       if (enabled) {
-        return current.includes(toolId) ? current : normalizeAllowedAgentTools([...current, toolId]);
+        return current.includes(toolId) ? current : normalizeAllowedRuntimeAgentTools([...current, toolId]);
       }
 
       return current.filter((item) => item !== toolId);

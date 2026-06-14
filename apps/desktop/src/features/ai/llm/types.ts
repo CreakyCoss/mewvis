@@ -1,3 +1,5 @@
+import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
+
 export type ProviderModel = {
   id: string;
   providerId: string;
@@ -13,7 +15,7 @@ export type LlmProvider = {
   id: string;
   name: string;
   provider: string;
-  apiFormat: string;
+  apiFormat: RuntimeApiFormat;
   apiKey?: string | null;
   apiEndpoint?: string | null;
   isDefault: boolean;

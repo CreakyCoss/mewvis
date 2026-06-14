@@ -1,4 +1,4 @@
-import type { ApiFormat } from "@/ai/llm";
+import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
 import {
   getApiFormatLabel,
   getProviderApiFormats,
@@ -8,7 +8,7 @@ import {
 } from "../options";
 
 type ApiFormatOption = {
-  value: ApiFormat;
+  value: RuntimeApiFormat;
   label: string;
 };
 
@@ -18,7 +18,7 @@ type ModelOption = {
 };
 
 const apiFormatEndpointSuffix: Partial<
-  Record<ApiFormat, string>
+  Record<RuntimeApiFormat, string>
 > = {
   "anthropic-messages": "/anthropic",
   "openai-codex-responses": "/v1",
@@ -30,16 +30,22 @@ const normalizeWebsiteUrl = (websiteUrl: string) => {
   return websiteUrl.trim().replace(/\/+$/, "");
 };
 
-const inferApiEndpointFromWebsite = (provider: string, apiFormat: string) => {
+const inferApiEndpointFromWebsite = (
+  provider: string,
+  apiFormat: RuntimeApiFormat,
+) => {
   const websiteUrl = normalizeWebsiteUrl(
     getProviderCatalog(provider)?.websiteUrl ?? "",
   );
   if (!websiteUrl) return "";
 
-  return `${websiteUrl}${apiFormatEndpointSuffix[apiFormat as ApiFormat] ?? ""}`;
+  return `${websiteUrl}${apiFormatEndpointSuffix[apiFormat] ?? ""}`;
 };
 
-const resolveApiEndpoint = (provider: string, apiFormat: string) => {
+const resolveApiEndpoint = (
+  provider: string,
+  apiFormat: RuntimeApiFormat,
+) => {
   const api = getProviderApis(provider).find(
     (item) => item.apiFormat === apiFormat,
   );
@@ -56,7 +62,7 @@ export const getProviderApiFormatOptions = (
   }));
 };
 
-export const getDefaultApiFormat = (provider: string): ApiFormat => {
+export const getDefaultApiFormat = (provider: string): RuntimeApiFormat => {
   return getProviderApiFormats(provider)[0] ?? "openai-completions";
 };
 
@@ -67,7 +73,10 @@ export const getProviderModelOptions = (provider: string): ModelOption[] => {
   }));
 };
 
-export const inferApiEndpoint = (provider: string, apiFormat: string) => {
+export const inferApiEndpoint = (
+  provider: string,
+  apiFormat: RuntimeApiFormat,
+) => {
   if (apiFormat === "openrouter") {
     return "https://openrouter.ai/api/v1";
   }

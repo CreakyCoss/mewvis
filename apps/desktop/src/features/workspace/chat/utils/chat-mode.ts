@@ -1,4 +1,4 @@
-import type { AgentToolName } from "@/ai/agent-runtime/contracts";
+import type { RuntimeAgentToolName } from "@/ai/runtime-protocol";
 import type { ChatExecutionMode, ChatMode } from "../page-types";
 
 const CHAT_AGENT_BLOCKED_TOOL_NAMES = new Set([
@@ -17,7 +17,7 @@ export const isAgentTaskMode = (
   chatExecutionMode: ChatExecutionMode,
 ) => mode === "agent" || (mode === "chat" && chatExecutionMode === "agent");
 
-export const isChatAgentRestrictedTool = (toolName: AgentToolName) => {
+export const isChatAgentRestrictedTool = (toolName: RuntimeAgentToolName) => {
   const normalizedName = toolName.trim().toLowerCase();
   return CHAT_AGENT_BLOCKED_TOOL_NAMES.has(normalizedName) ||
     normalizedName.includes("bash") ||
@@ -29,5 +29,5 @@ export const isChatAgentRestrictedTool = (toolName: AgentToolName) => {
 };
 
 export const filterChatAgentAllowedTools = (
-  tools: readonly AgentToolName[],
+  tools: readonly RuntimeAgentToolName[],
 ) => tools.filter((tool) => !isChatAgentRestrictedTool(tool));

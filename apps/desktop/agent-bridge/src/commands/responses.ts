@@ -11,9 +11,7 @@ import {
   type TaskResult,
 } from "../contracts/protocol.js";
 import type { EmitBridgeEvent } from "../runtimes/types.js";
-import {
-  bridgeAgentManifest,
-} from "../runtimes/index.js";
+import { bridgeAgentManifest } from "../runtimes/registry.js";
 
 export type WriteBridgeJsonLine = (value: unknown) => void;
 

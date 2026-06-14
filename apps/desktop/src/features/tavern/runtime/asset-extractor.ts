@@ -2,7 +2,7 @@ import {
   appendReferencesToPrompt,
   formatConversationForSummary,
 } from "@/ai/agent-context";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {
   TavernCharacter,
@@ -37,7 +37,7 @@ export type TavernExtractedAssetDraft = {
 
 export type RunTavernAssetExtractionInput = {
   runtimeAgentId: string;
-  runtimeModel: AgentRuntimeModelInput;
+  runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];

@@ -3,7 +3,7 @@ import {
   type ConversationMessage,
   type ConversationSummarizer,
 } from "@/ai/agent-context";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "./runtime-chat";
 
 export type SharedConversationSummaryPromptInput = {
@@ -14,7 +14,7 @@ export type SharedConversationSummaryPromptInput = {
 
 export type RunSharedConversationSummaryInput = {
   agentId?: string;
-  runtimeModel: AgentRuntimeModelInput;
+  runtimeModel: RuntimeModelInput;
   systemPrompt: string;
   previousSummary?: string;
   messages: ConversationMessage[];

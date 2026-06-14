@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { getLlmSettings } from "../api";
 import {
   buildRuntimeModelInputs,
@@ -13,11 +13,11 @@ export { type RuntimeModelOption } from "./model";
 type LlmSettingsStore = {
   settings: LlmSettings;
   runtimeModels: RuntimeModelOption[];
-  runtimeModelInputs: Record<string, AgentRuntimeModelInput>;
+  runtimeModelInputs: Record<string, RuntimeModelInput>;
   isLoading: boolean;
   error: string;
   loadSettings: () => Promise<void>;
-  getRuntimeModelInput: (id?: string | null) => AgentRuntimeModelInput | null;
+  getRuntimeModelInput: (id?: string | null) => RuntimeModelInput | null;
 };
 
 let loadSettingsPromise: Promise<void> | null = null;

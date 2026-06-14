@@ -1,5 +1,14 @@
 export type RuntimeModelInputModality = "text" | "image";
 
+export type RuntimeApiFormat =
+  | "anthropic-messages"
+  | "openai-completions"
+  | "openai-codex-responses"
+  | "openai-responses"
+  | "azure-openai-responses"
+  | "google-generative-ai"
+  | "openrouter";
+
 export type RuntimeThinkingLevel =
   | "off"
   | "minimal"
@@ -10,7 +19,7 @@ export type RuntimeThinkingLevel =
 
 export type RuntimeModelInput = {
   provider: string;
-  apiFormat: string;
+  apiFormat: RuntimeApiFormat;
   apiKey?: string | null;
   catalogModelId: string;
   modelId: string;

@@ -1,3 +1,4 @@
+import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
 import {
   getProviderApiFormats,
   getProviderOption,
@@ -106,7 +107,7 @@ export const normalizeLlmSettingsConfig = (
       getProviderOption(provider.provider)?.label ||
       provider.provider,
     provider: provider.provider.trim(),
-    apiFormat: provider.apiFormat.trim(),
+    apiFormat: provider.apiFormat,
     apiKey: provider.apiKey.trim(),
     apiEndpoint: provider.apiEndpoint.trim(),
     isDefault: index === draft.providers.findIndex((item) => item.isDefault),
@@ -247,7 +248,7 @@ export const applyProviderDefaults = (
 
 export const applyApiFormatDefaults = (
   provider: LlmProviderConfig,
-  apiFormat: string,
+  apiFormat: RuntimeApiFormat,
 ): LlmProviderConfig => {
   return {
     ...provider,

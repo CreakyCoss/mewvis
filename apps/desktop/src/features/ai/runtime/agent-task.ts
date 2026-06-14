@@ -1,8 +1,8 @@
 import type {
-  AgentRuntimeAgentEvent,
-  AgentRuntimeModelInput,
-  AgentToolName,
-} from "@/ai/agent-runtime/contracts";
+  RuntimeModelInput,
+  RuntimeAgentToolName,
+} from "@/ai/runtime-protocol";
+import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import {
   applyAgentRuntimeOutputEvent,
   createAgentRuntimeOutputState,
@@ -28,8 +28,8 @@ export type RunSharedAgentTaskInput = {
   runtimeAgentId: string;
   workspacePath: string;
   prompt: string;
-  runtimeModel: AgentRuntimeModelInput;
-  allowedTools: AgentToolName[];
+  runtimeModel: RuntimeModelInput;
+  allowedTools: RuntimeAgentToolName[];
   activeSkillNames: string[];
   chatSessionId?: string | null;
   bootstrapContext?: string | null;

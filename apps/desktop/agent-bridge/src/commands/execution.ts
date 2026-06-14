@@ -5,7 +5,7 @@ import {
   type ChatResult,
   type StartTaskCommand,
 } from "../contracts/protocol.js";
-import { resolveRuntime } from "../runtimes/index.js";
+import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunResult,
   AgentRuntimeContext,

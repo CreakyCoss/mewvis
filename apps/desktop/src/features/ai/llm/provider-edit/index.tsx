@@ -306,7 +306,12 @@ export const ProviderEditDialog = ({
                     className={selectClassName}
                     value={providerDraft.apiFormat}
                     onChange={(event) => {
-                      const value = event.currentTarget.value;
+                      const value = selectedApiFormatOptions.find(
+                        (apiFormat) =>
+                          apiFormat.value === event.currentTarget.value,
+                      )?.value;
+                      if (!value) return;
+
                       updateProviderDraft((current) =>
                         applyApiFormatDefaults(current, value),
                       );

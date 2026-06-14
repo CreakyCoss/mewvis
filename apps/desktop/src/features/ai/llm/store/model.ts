@@ -1,7 +1,7 @@
 import type {
-  AgentRuntimeModelInput,
-  AgentRuntimeThinkingLevel,
-} from "@/ai/agent-runtime/contracts";
+  RuntimeModelInput,
+  RuntimeThinkingLevel,
+} from "@/ai/runtime-protocol";
 import { MODEL_CATALOG, type CatalogModel } from "@/ai/llm";
 import type {
   LlmProvider,
@@ -19,9 +19,9 @@ export type RuntimeModelOption = {
   modelName: string;
 };
 
-type RuntimeModelInputMap = Record<string, AgentRuntimeModelInput>;
+type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
 type CatalogRuntimeModelInput = Pick<
-  AgentRuntimeModelInput,
+  RuntimeModelInput,
   | "reasoning"
   | "thinkingLevel"
   | "thinkingLevelMap"
@@ -33,7 +33,7 @@ type CatalogRuntimeModelInput = Pick<
 >;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
-const THINKING_LEVELS: AgentRuntimeThinkingLevel[] = [
+const THINKING_LEVELS: RuntimeThinkingLevel[] = [
   "off",
   "minimal",
   "low",
@@ -72,7 +72,7 @@ const getCatalogModel = (
 
 const resolveHighestThinkingLevel = (
   thinkingLevelMap: CatalogModel["thinkingLevelMap"],
-): AgentRuntimeThinkingLevel | null => {
+): RuntimeThinkingLevel | null => {
   if (!thinkingLevelMap) {
     return null;
   }
@@ -108,7 +108,7 @@ const createRuntimeModelInput = (
   provider: LlmProvider,
   model: ProviderModel,
   modelId: string,
-): AgentRuntimeModelInput => {
+): RuntimeModelInput => {
   const catalogModel = getCatalogModel(provider, model);
 
   return {
@@ -143,7 +143,7 @@ const buildRuntimeModelOption = (
 const buildRuntimeModelInput = (
   provider: LlmProvider,
   model: ProviderModel,
-): AgentRuntimeModelInput => {
+): RuntimeModelInput => {
   return createRuntimeModelInput(provider, model, formatProviderModelId(model));
 };
 

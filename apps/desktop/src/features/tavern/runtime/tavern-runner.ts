@@ -1,4 +1,4 @@
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {
   TavernCharacter,
@@ -14,7 +14,7 @@ import { cleanTavernThoughtText } from "./reply-cleanup";
 
 export type RunTavernReplyInput = {
   runtimeAgentId: string;
-  runtimeModel: AgentRuntimeModelInput;
+  runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
@@ -66,7 +66,7 @@ export const runTavernReply = async ({
 
 export type RunTavernInnerThoughtInput = {
   runtimeAgentId: string;
-  runtimeModel: AgentRuntimeModelInput;
+  runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];

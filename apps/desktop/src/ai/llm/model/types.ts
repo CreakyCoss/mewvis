@@ -1,16 +1,9 @@
-export type ApiFormat =
-  | "anthropic-messages"
-  | "openai-completions"
-  | "openai-codex-responses"
-  | "openai-responses"
-  | "azure-openai-responses"
-  | "google-generative-ai"
-  | "openrouter";
+import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
 
 export type ModelInputModality = "text" | "image";
 
 export type CatalogProviderApi = {
-  apiFormat: ApiFormat;
+  apiFormat: RuntimeApiFormat;
   apiEndpoint?: string;
 };
 

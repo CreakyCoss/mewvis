@@ -11,8 +11,8 @@ import type {
   PromptWorkspaceFile,
 } from "@/ai/agent-context";
 import type {
-  AgentToolName,
-} from "@/ai/agent-runtime/contracts";
+  RuntimeAgentToolName,
+} from "@/ai/runtime-protocol";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { AgentProfile, CollaborationWorkflowProfile } from "@/features/ai/agent/types";
 import type { RuntimeModelOption } from "@/features/ai/llm/store";
@@ -128,7 +128,7 @@ export type RunCollaborationTurnInput = {
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
   contextEngine: ContextEngine;
-  allowedAgentTools: AgentToolName[];
+  allowedAgentTools: RuntimeAgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
   setChatError: (message: string) => void;
@@ -173,7 +173,7 @@ export type RunAgentTurnDeps = CommonModeDeps & {
   selectedAgent: AgentProfile | null;
   chatMode: ChatMode;
   chatExecutionMode: ChatExecutionMode;
-  allowedAgentTools: AgentToolName[];
+  allowedAgentTools: RuntimeAgentToolName[];
   currentSessionTitle: string;
 };
 

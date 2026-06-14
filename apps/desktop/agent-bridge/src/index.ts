@@ -1,4 +1,4 @@
-import { createBridgeCommandRouter } from "./commands/index.js";
+import { createBridgeCommandRouter } from "./commands/router.js";
 import {
   BridgeEventType,
   type BridgeCommand,

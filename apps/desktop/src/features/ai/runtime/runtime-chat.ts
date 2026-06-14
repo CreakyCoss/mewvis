@@ -6,13 +6,13 @@ import {
 } from "@/ai/agent-runtime/output";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { ConversationMessage } from "@/ai/agent-context";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 
 const sharedAgentRuntime = createAgentRuntime();
 
 export type RunSharedRuntimeChatInput = {
   agentId?: string;
-  runtimeModel?: AgentRuntimeModelInput | null;
+  runtimeModel?: RuntimeModelInput | null;
   systemPrompt: string;
   messages: ConversationMessage[];
   stream?: boolean;

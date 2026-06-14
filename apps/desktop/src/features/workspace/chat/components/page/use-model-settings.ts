@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
-  AgentRuntimeAgentCapability,
-  AgentRuntimeAgentDefinition,
-} from "@/ai/agent-runtime/contracts";
+  RuntimeAgentCapability,
+  RuntimeAgentDefinition,
+} from "@/ai/runtime-protocol";
 import { getAiAgentSettings } from "@/features/ai/agent/api";
 import type {
   AiAgent,
@@ -18,7 +18,7 @@ import { isAgentTaskMode } from "../../utils/chat-mode";
 
 type RuntimeAgentSource = {
   listAgents: () => Promise<Readonly<{
-    agents: readonly AgentRuntimeAgentDefinition[];
+    agents: readonly RuntimeAgentDefinition[];
     defaultAgentId: string;
   }>>;
 };
@@ -38,7 +38,7 @@ export const useModelSettings = ({
   const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModelError = useLlmSettingsStore((store) => store.error);
 
-  const [runtimeAgents, setRuntimeAgents] = useState<AgentRuntimeAgentDefinition[]>([]);
+  const [runtimeAgents, setRuntimeAgents] = useState<RuntimeAgentDefinition[]>([]);
   const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
   const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
   const [selectedRuntimeModelId, setSelectedRuntimeModelId] = useState("");
@@ -130,7 +130,7 @@ export const useModelSettings = ({
       ?? null,
     [runtimeModels, selectedRuntimeModelId],
   );
-  const runtimeAgentCapability: AgentRuntimeAgentCapability =
+  const runtimeAgentCapability: RuntimeAgentCapability =
     isAgentTaskMode(chatMode, chatExecutionMode) ? "agent" : "chat";
   const availableRuntimeAgents = useMemo(
     () => runtimeAgents.filter((agent) =>

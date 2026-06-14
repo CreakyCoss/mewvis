@@ -8,7 +8,7 @@ import {
   SUMMARY_TARGET_RATIO,
   SUMMARY_TRIGGER_RATIO,
 } from "@/ai/agent-context";
-import type { AgentRuntimeModelInput } from "@/ai/agent-runtime/contracts";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,
   type RuntimeModelOption,
@@ -143,7 +143,7 @@ const summarizeTavernMessages = async ({
   messages,
 }: {
   runtimeAgentId: string;
-  runtimeModel: AgentRuntimeModelInput;
+  runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];

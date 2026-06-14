@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import type { AgentRuntimeAgentDefinition, AgentToolName } from "@/ai/agent-runtime/contracts";
+import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/ai/runtime-protocol";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   AgentProfile,
@@ -52,8 +52,8 @@ export type ChatPanelViewModel = {
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
   effectiveContextWindow: number;
-  availableRuntimeAgents: readonly AgentRuntimeAgentDefinition[];
-  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
+  availableRuntimeAgents: readonly RuntimeAgentDefinition[];
+  selectedRuntimeAgent: RuntimeAgentDefinition | null;
   runtimeAgentId: string;
   agentProfiles: AgentProfile[];
   runtimeModels: RuntimeModelOption[];
@@ -62,7 +62,7 @@ export type ChatPanelViewModel = {
   collaborationWorkflows: CollaborationWorkflowProfile[];
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   selectedCollaborationWorkflowId: string;
-  allowedAgentTools: AgentToolName[];
+  allowedAgentTools: RuntimeAgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
@@ -89,7 +89,7 @@ export type ChatPanelViewModel = {
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
   setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
-  toggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
+  toggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
   toggleSelectedSkillGroup: (skillGroupId: string, checked: boolean) => void;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
   onAbortTask: () => void;

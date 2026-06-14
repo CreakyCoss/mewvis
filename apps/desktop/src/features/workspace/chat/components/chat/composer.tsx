@@ -15,10 +15,10 @@ import {
   Wrench,
 } from "lucide-react";
 import {
-  AGENT_TOOL_DEFINITIONS,
-  type AgentRuntimeAgentDefinition,
-  type AgentToolName,
-} from "@/ai/agent-runtime/contracts";
+  RUNTIME_AGENT_TOOL_DEFINITIONS,
+  type RuntimeAgentDefinition,
+  type RuntimeAgentToolName,
+} from "@/ai/runtime-protocol";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -77,8 +77,8 @@ type ComposerProps = {
   showToolCallProcess: boolean;
   effectiveContextWindow: number;
   modelSource: ModelSource;
-  runtimeAgents: readonly AgentRuntimeAgentDefinition[];
-  selectedRuntimeAgent: AgentRuntimeAgentDefinition | null;
+  runtimeAgents: readonly RuntimeAgentDefinition[];
+  selectedRuntimeAgent: RuntimeAgentDefinition | null;
   selectedRuntimeAgentId: string;
   agentProfiles: AgentProfile[];
   runtimeModels: RuntimeModelOption[];
@@ -88,7 +88,7 @@ type ComposerProps = {
   collaborationWorkflows: CollaborationWorkflowProfile[];
   selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   selectedCollaborationWorkflowId: string;
-  allowedAgentTools: AgentToolName[];
+  allowedAgentTools: RuntimeAgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
@@ -102,7 +102,7 @@ type ComposerProps = {
   onSelectedAgentChange: (agentId: string) => void;
   onCollaborationWorkflowChange: (workflowId: string) => void;
   onRuntimeModelChange: (id: string) => void;
-  onToggleAllowedAgentTool: (toolId: AgentToolName, enabled: boolean) => void;
+  onToggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
   onSkillGroupChange: (skillGroupId: string, checked: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
@@ -765,7 +765,7 @@ export const Composer = memo(({
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuLabel>工具</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {AGENT_TOOL_DEFINITIONS.map((tool) => {
+                {RUNTIME_AGENT_TOOL_DEFINITIONS.map((tool) => {
                   const isRestrictedTool = isRestrictedChatAgent && isChatAgentRestrictedTool(tool.name);
 
                   return (

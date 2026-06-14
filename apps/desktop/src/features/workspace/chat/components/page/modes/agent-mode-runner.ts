@@ -2,8 +2,8 @@ import {
   createAgentMemoryTrace,
 } from "@/ai/agent-context";
 import {
-  normalizeAllowedAgentTools,
-} from "@/ai/agent-runtime/contracts";
+  normalizeAllowedRuntimeAgentTools,
+} from "@/ai/runtime-protocol";
 import { requireRuntimeModelInput } from "@/features/ai/llm/store";
 import { getAgentSessionStatus } from "../../../api";
 import {
@@ -117,7 +117,7 @@ export const runAgentTurn = async (
     selectedAgent: modelSource === "agent" ? selectedAgent : null,
     limits: agentLimits,
   });
-  const allowedToolsForRun = normalizeAllowedAgentTools(
+  const allowedToolsForRun = normalizeAllowedRuntimeAgentTools(
     chatMode === "chat" && chatExecutionMode === "agent"
       ? filterChatAgentAllowedTools(allowedAgentTools)
       : allowedAgentTools,

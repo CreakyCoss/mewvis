@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { RuntimeAgentDefinition } from "@/ai/runtime-protocol";
 import type {
-  AgentRuntimeAgentDefinitionsResult,
   AgentRuntimeAgentEvent,
   AgentRuntimeChatEvent,
   AgentRuntimeAgentInput,
@@ -10,6 +10,11 @@ import type {
   AgentRuntimeChatResult,
 } from "./contracts";
 import { dispatchAgentRuntimeOutputEvent } from "./output";
+
+export type AgentRuntimeAgentDefinitionsResult = Readonly<{
+  defaultAgentId: string;
+  agents: readonly RuntimeAgentDefinition[];
+}>;
 
 export interface AgentRuntime {
   listAgents(): Promise<AgentRuntimeAgentDefinitionsResult>;

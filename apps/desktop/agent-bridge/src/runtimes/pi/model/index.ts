@@ -4,6 +4,7 @@ import {
   type Model,
 } from "@earendil-works/pi-ai";
 import type {
+  RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,
 } from "../../../contracts/model.js";
@@ -35,32 +36,22 @@ export const resolvePiRuntimeThinkingLevel = (
   runtimeModel: Pick<RuntimeModelInput, "thinkingLevel">,
 ): RuntimeThinkingLevel | undefined => runtimeModel.thinkingLevel ?? undefined;
 
-const piApiForFormat = (apiFormat: string): Api => {
-  if (apiFormat === "anthropic" || apiFormat === "anthropic-messages") {
-    return "anthropic-messages";
+const piApiForFormat = (apiFormat: RuntimeApiFormat): Api => {
+  switch (apiFormat) {
+    case "anthropic-messages":
+      return "anthropic-messages";
+    case "google-generative-ai":
+      return "google-generative-ai";
+    case "openai-responses":
+      return "openai-responses";
+    case "azure-openai-responses":
+      return "azure-openai-responses";
+    case "openai-codex-responses":
+      return "openai-codex-responses";
+    case "openai-completions":
+    case "openrouter":
+      return "openai-completions";
   }
-
-  if (apiFormat === "google" || apiFormat === "google-generative-ai") {
-    return "google-generative-ai";
-  }
-
-  if (apiFormat === "openai-responses") {
-    return "openai-responses";
-  }
-
-  if (apiFormat === "azure-openai-responses") {
-    return "azure-openai-responses";
-  }
-
-  if (apiFormat === "openai-codex-responses") {
-    return "openai-codex-responses";
-  }
-
-  if (apiFormat === "openrouter") {
-    return "openai-completions";
-  }
-
-  return "openai-completions";
 };
 
 const readCatalogPiModel = (

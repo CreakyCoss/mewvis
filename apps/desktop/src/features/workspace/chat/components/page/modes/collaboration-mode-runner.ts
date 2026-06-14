@@ -2,11 +2,11 @@ import {
   buildCollaborationSystemPrompt,
 } from "@/ai/agent-context";
 import {
-  normalizeAllowedAgentTools,
-  type AgentRuntimeAgentEvent,
-  type AgentRuntimeModelInput,
-  type AgentToolName,
-} from "@/ai/agent-runtime/contracts";
+  normalizeAllowedRuntimeAgentTools,
+  type RuntimeModelInput,
+  type RuntimeAgentToolName,
+} from "@/ai/runtime-protocol";
+import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import {
   runSharedAgentTask,
   type SharedAgentTaskResult,
@@ -56,8 +56,8 @@ type RunCollaborationAgentTaskInput = {
   messageId: string;
   prompt: string;
   agent: AgentProfile;
-  runtimeModel: AgentRuntimeModelInput;
-  allowedTools: AgentToolName[];
+  runtimeModel: RuntimeModelInput;
+  allowedTools: RuntimeAgentToolName[];
   activeSkillNames: string[];
   traceTurnId: string;
   traceLabel: string;
@@ -93,7 +93,7 @@ type SupervisorWorkflowPlanProposal = {
   proposedSteps: CollaborationWorkflowStepProfile[];
 };
 
-const resolveAgentRuntimeModelInput = (agent: AgentProfile) => {
+const resolveRuntimeModelInput = (agent: AgentProfile) => {
   return requireRuntimeModelInput(
     agent.runtimeModel,
     `Agent「${agent.name}」绑定的模型已不可用，请重新选择模型。`,
@@ -417,7 +417,7 @@ export const runCollaborationTurn = async (
   }
 
   const activeSkillNames = activeSkills.map((skill) => skill.name);
-  const allowedToolsForStepRuns = normalizeAllowedAgentTools(allowedAgentTools)
+  const allowedToolsForStepRuns = normalizeAllowedRuntimeAgentTools(allowedAgentTools)
     .filter((tool) => tool !== "ask_user");
   const debugPayloads = [knowledgeDebugPayload];
   const stepOutputs: CollaborationStepOutput[] = [];
@@ -512,7 +512,7 @@ export const runCollaborationTurn = async (
       messageId: supervisorMessageId,
       prompt: supervisorPrompt,
       agent: supervisorAgent,
-      runtimeModel: resolveAgentRuntimeModelInput(supervisorAgent),
+      runtimeModel: resolveRuntimeModelInput(supervisorAgent),
       allowedTools: [],
       activeSkillNames,
       traceTurnId,
@@ -757,7 +757,7 @@ export const runCollaborationTurn = async (
         messageId: stepMessageId,
         prompt: stepPrompt,
         agent: step.agent,
-        runtimeModel: resolveAgentRuntimeModelInput(step.agent),
+        runtimeModel: resolveRuntimeModelInput(step.agent),
         allowedTools: allowedToolsForStepRuns,
       activeSkillNames,
         traceTurnId,

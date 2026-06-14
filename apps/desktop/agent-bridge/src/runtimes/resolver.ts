@@ -6,10 +6,6 @@ import type {
 } from "./types.js";
 import { resolveBridgeAgent } from "./registry.js";
 
-export {
-  bridgeAgentManifest,
-} from "./registry.js";
-
 export type RuntimeResolution =
   | {
     mode: "agent";

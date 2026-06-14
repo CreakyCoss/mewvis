@@ -1,11 +1,12 @@
-import { MODEL_CATALOG, type ApiFormat } from "@/ai/llm";
+import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
+import { MODEL_CATALOG } from "@/ai/llm";
 
 export type ProviderOption = {
   value: string;
   label: string;
 };
 
-const apiFormatLabelEntries: Array<[ApiFormat, string]> = [
+const apiFormatLabelEntries: Array<[RuntimeApiFormat, string]> = [
   ["openai-completions", "OpenAI Compatible"],
   ["openai-responses", "OpenAI Responses"],
   ["anthropic-messages", "Anthropic Messages"],
@@ -15,7 +16,7 @@ const apiFormatLabelEntries: Array<[ApiFormat, string]> = [
   ["openrouter", "OpenRouter"],
 ];
 
-const apiFormatLabels = new Map<ApiFormat, string>(apiFormatLabelEntries);
+const apiFormatLabels = new Map<RuntimeApiFormat, string>(apiFormatLabelEntries);
 
 export const getProviderCatalog = (provider: string) => {
   return MODEL_CATALOG[provider];
@@ -30,7 +31,7 @@ export const getProviderApis = (provider: string) => {
 };
 
 export const getApiFormatLabel = (apiFormat: string) => {
-  return apiFormatLabels.get(apiFormat as ApiFormat) ?? apiFormat;
+  return apiFormatLabels.get(apiFormat as RuntimeApiFormat) ?? apiFormat;
 };
 
 export const getProviderOptions = (): ProviderOption[] => {
@@ -57,8 +58,8 @@ export const getProviderWebsiteUrl = (provider: string) => {
   return getProviderCatalog(provider)?.websiteUrl ?? "";
 };
 
-export const getProviderApiFormats = (provider: string): ApiFormat[] => {
-  const formats = new Set<ApiFormat>();
+export const getProviderApiFormats = (provider: string): RuntimeApiFormat[] => {
+  const formats = new Set<RuntimeApiFormat>();
 
   for (const api of getProviderApis(provider)) {
     formats.add(api.apiFormat);
