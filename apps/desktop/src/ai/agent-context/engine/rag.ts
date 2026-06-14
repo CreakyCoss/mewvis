@@ -1,4 +1,4 @@
-import type { ContextRagIndex } from "../contracts";
+import type { ContextRagIndex } from "../protocol/rag";
 
 export type {
   ContextRagDocument,
@@ -7,7 +7,7 @@ export type {
   ContextRagMatch,
   ContextRagQuery,
   ContextRagSourceType,
-} from "../contracts";
+} from "../protocol/rag";
 
 export const createPlaceholderRagIndex = (
   id = "context-rag",

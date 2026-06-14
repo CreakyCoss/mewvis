@@ -7,7 +7,6 @@ import {
 } from "@/ai/runtime-protocol";
 import {
   agentContext,
-  type ConversationSummarizer,
 } from "@/ai/agent-context";
 import {
   buildAgentConversationContent,
@@ -127,16 +126,9 @@ import { useWorkspaceSkills } from "./use-workspace-skills";
 import { useWorkspaceVersionControl } from "./use-workspace-version-control";
 
 const {
-  compressConversationContext: compressConversationContextForEngine,
-  createContextPlan,
-  finalizeAgentRunContext,
-  finalizeChatTurnContext,
-  getActiveAgentRuntimeSessionId,
+  createSession: createAgentContextSession,
   getContextEngineDescriptor,
-  invalidateConversationContextAfterHistoryChange,
   listContextEngineDescriptors,
-  prepareConversationContext,
-  rebuildConversationContextAfterHistoryChange: rebuildConversationContextForEngine,
 } = agentContext;
 
 type WorkspaceChatPageProps = {
@@ -250,13 +242,15 @@ export const WorkspaceChatPage = ({
   const messagesRef = useRef<ChatMessage[]>([]);
   const conversationRef = useRef<ConversationMessage[]>([]);
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
+  const contextSessionRef = useRef(createAgentContextSession({
+    engineId: contextEngineId,
+  }));
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
   const pendingAgentQuestionRef = useRef<PendingAgentQuestion | null>(null);
   const agentQuestionAnswerRef = useRef("");
   const customAgentQuestionAnswerRef = useRef("");
   const answeringAgentQuestionIdsRef = useRef<Set<string>>(new Set());
-  const conversationSummarizerRef = useRef<ConversationSummarizer | null>(null);
   const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
   const collaborationPlanDecisionResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -810,12 +804,17 @@ export const WorkspaceChatPage = ({
     messagesRef.current = task.messages;
     conversationRef.current = task.conversation;
     conversationContextRef.current = task.context;
+    const nextContextEngineId = getContextEngineDescriptor(
+      task.context?.engine?.id ?? preferredContextEngineIdRef.current,
+    ).id;
+    contextSessionRef.current.set({
+      engineId: nextContextEngineId,
+      context: task.context,
+    });
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
-    setContextEngineId(getContextEngineDescriptor(
-      task.context?.engine?.id ?? preferredContextEngineIdRef.current,
-    ).id);
+    setContextEngineId(nextContextEngineId);
     const nextTitle = task.title || deriveSessionTitle(task.messages);
     currentSessionTitleRef.current = nextTitle;
     setCurrentSessionTitle(nextTitle);
@@ -837,7 +836,7 @@ export const WorkspaceChatPage = ({
       currentTask.title = currentSessionTitleRef.current;
       currentTask.messages = messagesRef.current;
       currentTask.conversation = conversationRef.current;
-      currentTask.context = conversationContextRef.current;
+      currentTask.context = contextSessionRef.current.get();
       currentTask.pendingQuestion =
         pendingAgentQuestionRef.current?.taskId === currentTaskId
           ? pendingAgentQuestionRef.current
@@ -1125,7 +1124,11 @@ export const WorkspaceChatPage = ({
 
   useEffect(() => {
     conversationContextRef.current = conversationContext;
-  }, [conversationContext]);
+    contextSessionRef.current.set({
+      engineId: contextEngineId,
+      context: conversationContext,
+    });
+  }, [contextEngineId, conversationContext]);
 
   useEffect(() => {
     if (!visibleActiveAgentTaskId) {
@@ -1207,13 +1210,14 @@ export const WorkspaceChatPage = ({
           }
         }
 
-        const contextBeforeFinalize = conversationContextRef.current;
+        const contextBeforeFinalize = contextSessionRef.current.get();
         const finalizeContextStartedAt = Date.now();
-        const syncedContext = await finalizeAgentRunContext({
+        contextSessionRef.current.set({
           engineId: contextEngineId,
+          context: contextBeforeFinalize,
+        });
+        const syncedContext = await contextSessionRef.current.finalizeAgentRun({
           conversation: nextConversation,
-          currentContext: contextBeforeFinalize,
-          summarizer: conversationSummarizerRef.current,
           agentSessionId,
           agentId,
           runStatus: status,
@@ -1233,7 +1237,7 @@ export const WorkspaceChatPage = ({
             engineId: contextEngineId,
             providerName: null,
             modelName: null,
-            canUseModel: Boolean(conversationSummarizerRef.current),
+            canUseModel: runtimeAgentRequiresModel,
           }));
         }
       })();
@@ -1326,11 +1330,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    setAgentRuntimeSessionId(getActiveAgentRuntimeSessionId({
-      engineId: contextEngineId,
-      context: conversationContext,
-      agentId: runtimeAgentId,
-    }));
+    setAgentRuntimeSessionId(contextSessionRef.current.getActiveAgentRuntimeSessionId(runtimeAgentId));
   }, [contextEngineId, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
 
   const compressConversationContext = useCallback(async () => {
@@ -1339,19 +1339,21 @@ export const WorkspaceChatPage = ({
     }
 
     const compressionStartedAt = Date.now();
-    const previousContext = conversationContextRef.current ?? conversationContext;
+    const previousContext = contextSessionRef.current.get() ?? conversationContext;
     const latestTraceTurn = chatTraceRef.current[chatTraceRef.current.length - 1];
     setIsContextCompressing(true);
     setSessionsError("");
 
     try {
-      const nextContext = await compressConversationContextForEngine({
+      contextSessionRef.current.set({
         engineId: contextEngineId,
-        conversation,
-        currentContext: conversationContext,
+        context: previousContext,
         modelContext: contextModelFor(effectiveRuntimeModel),
         summarizer: summarizerFor(effectiveRuntimeModel),
         canUseModel: runtimeAgentRequiresModel,
+      });
+      const nextContext = await contextSessionRef.current.compressConversation({
+        conversation,
       });
       conversationContextRef.current = nextContext;
       setConversationContext(nextContext);
@@ -1395,13 +1397,13 @@ export const WorkspaceChatPage = ({
     conversation,
     conversationContext,
     contextModelFor,
-	    contextEngineId,
+    contextEngineId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     summarizerFor,
   ]);
 
-  const rebuildConversationContextAfterHistoryChange = useCallback(async (
+  const rebuildContextAfterHistoryChange = useCallback(async (
     nextConversation: ConversationMessage[],
   ) => {
     const collaborationSummaryAgent = chatMode === "collab"
@@ -1409,27 +1411,22 @@ export const WorkspaceChatPage = ({
       : null;
     const summaryRuntimeModel = collaborationSummaryAgent?.runtimeModel ?? effectiveRuntimeModel;
     const summarySummarizer = summarizerFor(summaryRuntimeModel);
-    const contextPlan = createContextPlan({
+    contextSessionRef.current.set({
       engineId: contextEngineId,
+      context: conversationContextRef.current,
       modelContext: contextModelFor(summaryRuntimeModel),
       summarizer: summarySummarizer,
       canUseModel: runtimeAgentRequiresModel,
     });
-    const nextContext = await rebuildConversationContextForEngine({
-      engineId: contextEngineId,
+    const nextContext = await contextSessionRef.current.rebuildAfterHistoryChange({
       conversation: nextConversation,
-      currentContext: conversationContextRef.current,
-      modelContext: contextModelFor(summaryRuntimeModel),
-      summarizer: summarySummarizer,
-      canUseModel: runtimeAgentRequiresModel,
     });
-    conversationSummarizerRef.current = contextPlan.summarizer ?? null;
     conversationContextRef.current = nextContext;
     setConversationContext(nextContext);
   }, [
     chatMode,
     contextModelFor,
-	    contextEngineId,
+    contextEngineId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     selectedCollaborationWorkflow,
@@ -1453,9 +1450,11 @@ export const WorkspaceChatPage = ({
       ),
     );
     agentContextInvalidatedRef.current = true;
-    const invalidatedContext = invalidateConversationContextAfterHistoryChange({
+    contextSessionRef.current.set({
       engineId: contextEngineId,
       context: conversationContextRef.current,
+    });
+    const invalidatedContext = contextSessionRef.current.invalidateAfterHistoryChange({
       conversation: sanitizedConversation,
     });
     conversationContextRef.current = invalidatedContext;
@@ -1482,13 +1481,13 @@ export const WorkspaceChatPage = ({
         });
       agentSessionResetPromiseRef.current = resetPromise;
     }
-    void rebuildConversationContextAfterHistoryChange(sanitizedConversation).catch((caught) => {
+    void rebuildContextAfterHistoryChange(sanitizedConversation).catch((caught) => {
       setSessionsError(String(caught));
     });
   }, [
-	    contextEngineId,
+    contextEngineId,
     currentSessionId,
-    rebuildConversationContextAfterHistoryChange,
+    rebuildContextAfterHistoryChange,
     visibleActiveAgentTaskId,
     workspace.path,
   ]);
@@ -1616,48 +1615,49 @@ export const WorkspaceChatPage = ({
     traceProviderName,
     traceModelName,
     summaryRuntimeModel,
-	  }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
-	    const limitsFor: LimitsForProvider = (
-	      runtimeModel,
-	    ) => createContextPlan({
-	      engineId: contextEngineId,
-	      modelContext: contextModelFor(runtimeModel),
-	      canUseModel: false,
-	    }).limits;
+  }: PrepareChatTurnRuntimeInput): Promise<PreparedChatTurnRuntime> => {
+    const limitsFor: LimitsForProvider = (
+      runtimeModel,
+    ) => contextSessionRef.current.createPlan({
+      engineId: contextEngineId,
+      modelContext: contextModelFor(runtimeModel),
+      canUseModel: false,
+    }).limits;
     const summaryModelContext = contextModelFor(summaryRuntimeModel);
     const summarySummarizer = summarizerFor(summaryRuntimeModel);
     const prepareContextStartedAt = Date.now();
-    const preparedContext = await prepareConversationContext({
+    contextSessionRef.current.set({
       engineId: contextEngineId,
-      conversation: nextConversation,
-      currentContext: baseConversationContext,
+      context: baseConversationContext,
       modelContext: summaryModelContext,
       summarizer: summarySummarizer,
       canUseModel: runtimeAgentRequiresModel,
+    });
+    const preparedContext = await contextSessionRef.current.prepareConversation({
+      conversation: nextConversation,
     });
     const summaryLimits = preparedContext.limits;
     const summarizeConversation = preparedContext.summarizer;
     const nextConversationContext = preparedContext.context;
     const runtimeMessages = preparedContext.runtimeMessages;
     const conversationSummary = preparedContext.conversationSummary;
-    conversationSummarizerRef.current = summarizeConversation ?? null;
     setConversationContext(nextConversationContext);
-	    conversationContextRef.current = nextConversationContext;
-	    patchVisibleTraceTurn(traceTurnId, {
-	      contextEngineId,
-	      contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
-	      conversationSummary,
+    conversationContextRef.current = nextConversationContext;
+    patchVisibleTraceTurn(traceTurnId, {
+      contextEngineId,
+      contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
+      conversationSummary,
     });
     appendVisibleTraceStep(traceTurnId, {
       type: "context",
       label: "上下文准备",
       startedAt: prepareContextStartedAt,
       endedAt: Date.now(),
-	      status: "done",
-	      content: conversationSummary || "（空）",
-	      metadata: {
-	        engineId: contextEngineId,
-	        runtimeMessageCount: runtimeMessages.length,
+      status: "done",
+      content: conversationSummary || "（空）",
+      metadata: {
+        engineId: contextEngineId,
+        runtimeMessageCount: runtimeMessages.length,
         contextWindow: summaryModelContext.contextWindow ?? effectiveAppContextWindow,
         canUseModel: runtimeAgentRequiresModel,
       },
@@ -1761,13 +1761,15 @@ export const WorkspaceChatPage = ({
 
       const finalizeContextStartedAt = Date.now();
       const contextBeforeFinalize = conversationContextRef.current;
-      const finalContext = await finalizeChatTurnContext({
+      contextSessionRef.current.set({
         engineId: contextEngineId,
-        conversation: finalConversation,
-        currentContext: contextBeforeFinalize,
+        context: contextBeforeFinalize,
         modelContext: contextModelFor(summaryRuntimeModel),
         summarizer: summarizeConversation,
         canUseModel: runtimeAgentRequiresModel,
+      });
+      const finalContext = await contextSessionRef.current.finalizeChatTurn({
+        conversation: finalConversation,
       });
       conversationContextRef.current = finalContext;
       setConversationContext(finalContext);
@@ -1946,7 +1948,6 @@ export const WorkspaceChatPage = ({
           text,
           referencedFiles,
           nextConversation,
-          nextConversationContext,
           runtimeMessages,
           summaryLimits,
           conversationSummary,
@@ -1960,9 +1961,9 @@ export const WorkspaceChatPage = ({
           workspace,
           activeFile,
           activeSkills,
-	          runtimeAgentId,
-	          agentRuntime,
-	          contextEngineId,
+          runtimeAgentId,
+          agentRuntime,
+          contextSession: contextSessionRef.current,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,
@@ -1987,7 +1988,6 @@ export const WorkspaceChatPage = ({
           text,
           referencedFiles,
           baseConversation,
-          baseConversationContext,
           nextConversation,
           nextConversationContext,
           nextMessages,
@@ -2002,9 +2002,12 @@ export const WorkspaceChatPage = ({
           activeSkills,
           runtimeAgentId,
           appendVisibleTraceStep,
-	          updateMessage,
-	          agentRuntime,
-	          contextEngineId,
+          updateMessage,
+          agentRuntime,
+          contextSession: createAgentContextSession({
+            engineId: contextEngineId,
+            context: baseConversationContext,
+          }),
           setChatError,
           setAgentSessionStatus,
           setAgentSessionError,

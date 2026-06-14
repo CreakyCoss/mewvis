@@ -4,19 +4,31 @@ export type {
   AgentSessionContextStatus,
   AgentSessionFingerprint,
   ChatContextSummary,
-  ContextEngineCapability,
   ContextEngineState,
-  ContextMemoryLayerSnapshot,
-  ContextRagIndexSnapshot,
   ConversationMessage,
   ConversationMessageMetadata,
   ConversationSummaryFingerprint,
   ConversationSummaryInput,
   ConversationSummarizer,
+  RuntimeConversationContext,
+} from "../protocol/context";
+
+export type {
+  ContextEngineCapability,
+} from "../protocol/descriptor";
+
+export type {
+  ContextMemoryLayerSnapshot,
+} from "../protocol/memory";
+
+export type {
+  ContextRagIndexSnapshot,
+} from "../protocol/rag";
+
+export type {
   PromptAgentProfile,
   PromptContextFile,
   PromptFileReference,
   PromptKnowledgeReference,
   PromptSkillContext,
-  RuntimeConversationContext,
-} from "../contracts";
+} from "../protocol/prompt";

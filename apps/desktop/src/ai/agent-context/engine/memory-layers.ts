@@ -1,7 +1,9 @@
 import type {
   ContextMemoryLayerSnapshot,
+} from "../protocol/memory";
+import type {
   ConversationMessage,
-} from "../contracts";
+} from "../protocol/context";
 
 export type ContextMemoryKind = ContextMemoryLayerSnapshot["kind"];
 

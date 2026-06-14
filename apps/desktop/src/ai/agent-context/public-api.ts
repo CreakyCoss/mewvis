@@ -11,8 +11,7 @@ import {
   DEFAULT_CONTEXT_ENGINE_ID,
   getContextEngine as getContextEngineInternal,
   listContextEngines as listContextEnginesInternal,
-  type AgentRunSessionPlan,
-} from "./engine/runtime-context";
+} from "./engine/registry";
 import {
   prepareMemoryBackedRuntimeContext as prepareMemoryBackedRuntimeContextInternal,
 } from "./engine/domain-memory";
@@ -23,7 +22,10 @@ import {
   appendReferencesToPrompt as appendReferencesToPromptInternal,
   formatReferencesForPrompt as formatReferencesForPromptInternal,
 } from "./prompt/references";
-import type { AgentContextApi } from "./contracts";
+import {
+  createAgentContextSession,
+} from "./session";
+import type { AgentContextApi } from "./protocol/session";
 
 const descriptorFor = (
   engine: ReturnType<typeof getContextEngineInternal>,
@@ -39,6 +41,10 @@ const descriptorFor = (
 const formatConversationForSummary:
   AgentContextApi["formatConversationForSummary"] =
     formatConversationForSummaryInternal;
+
+const createSession:
+  AgentContextApi["createSession"] =
+    createAgentContextSession;
 
 const normalizeChatContextSummary:
   AgentContextApi["normalizeChatContextSummary"] =
@@ -64,57 +70,6 @@ const listContextEngineDescriptors:
   AgentContextApi["listContextEngineDescriptors"] =
     () => listContextEnginesInternal().map(descriptorFor);
 
-const createContextPlan:
-  AgentContextApi["createContextPlan"] =
-    ({ engineId, ...selection }) => getContextEngineInternal(engineId).createPlan(selection);
-
-const prepareConversationContext:
-  AgentContextApi["prepareConversationContext"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).prepareConversation(input);
-
-const compressConversationContext:
-  AgentContextApi["compressConversationContext"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).compressConversation(input);
-
-const rebuildConversationContextAfterHistoryChange:
-  AgentContextApi["rebuildConversationContextAfterHistoryChange"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).rebuildAfterHistoryChange(input);
-
-const invalidateConversationContextAfterHistoryChange:
-  AgentContextApi["invalidateConversationContextAfterHistoryChange"] =
-    ({ engineId, context, conversation }) =>
-      getContextEngineInternal(engineId).invalidateAfterHistoryChange(context, conversation);
-
-const getActiveAgentRuntimeSessionId:
-  AgentContextApi["getActiveAgentRuntimeSessionId"] =
-    ({ engineId, context, agentId }) =>
-      getContextEngineInternal(engineId).getActiveAgentRuntimeSessionId(context, agentId);
-
-const selectConversationMessages:
-  AgentContextApi["selectConversationMessages"] =
-    ({ engineId, conversation, context, limits }) =>
-      getContextEngineInternal(engineId).selectConversationMessages(conversation, context, limits);
-
-const planAgentRunContext:
-  AgentContextApi["planAgentRunContext"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).planAgentRun(input);
-
-const buildAgentRunContextPayload:
-  AgentContextApi["buildAgentRunContextPayload"] =
-    ({ engineId, ...input }) =>
-      getContextEngineInternal(engineId).buildAgentPromptPayload({
-        ...input,
-        sessionPlan: input.sessionPlan as AgentRunSessionPlan,
-      });
-
-const finalizeChatTurnContext:
-  AgentContextApi["finalizeChatTurnContext"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).finalizeChatTurn(input);
-
-const finalizeAgentRunContext:
-  AgentContextApi["finalizeAgentRunContext"] =
-    ({ engineId, ...input }) => getContextEngineInternal(engineId).finalizeAgentRun(input);
-
 const prepareMemoryBackedRuntimeContext:
   AgentContextApi["prepareMemoryBackedRuntimeContext"] =
     prepareMemoryBackedRuntimeContextInternal;
@@ -133,6 +88,7 @@ const formatReferencesForPrompt:
 
 export const agentContext: AgentContextApi = {
   DEFAULT_CONTEXT_ENGINE_ID,
+  createSession,
   formatConversationForSummary,
   normalizeChatContextSummary,
   normalizeConversationMessages,
@@ -140,17 +96,6 @@ export const agentContext: AgentContextApi = {
   resolveAppContextWindow,
   getContextEngineDescriptor,
   listContextEngineDescriptors,
-  createContextPlan,
-  prepareConversationContext,
-  compressConversationContext,
-  rebuildConversationContextAfterHistoryChange,
-  invalidateConversationContextAfterHistoryChange,
-  getActiveAgentRuntimeSessionId,
-  selectConversationMessages,
-  planAgentRunContext,
-  buildAgentRunContextPayload,
-  finalizeChatTurnContext,
-  finalizeAgentRunContext,
   prepareMemoryBackedRuntimeContext,
   buildPromptContext,
   appendReferencesToPrompt,

@@ -2,8 +2,10 @@ import { Tiktoken } from "js-tiktoken/lite";
 import o200kBase from "js-tiktoken/ranks/o200k_base";
 import type {
   ConversationMessage,
+} from "../protocol/context";
+import type {
   TokenBudgetModel,
-} from "../contracts";
+} from "../protocol/session";
 
 const encoder = new Tiktoken(o200kBase);
 
@@ -12,7 +14,7 @@ export const DEFAULT_CONVERSATION_TOKEN_BUDGET = 64000;
 export const SUMMARY_TRIGGER_RATIO = 0.85;
 export const SUMMARY_TARGET_RATIO = 0.65;
 
-export type { TokenBudgetModel } from "../contracts";
+export type { TokenBudgetModel } from "../protocol/session";
 
 const normalizeContextWindow = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0

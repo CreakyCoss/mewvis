@@ -2,12 +2,12 @@ import { selectRelevantText } from "./context-selection";
 import type {
   PromptReference,
   ReferencePromptLimits,
-} from "../contracts";
+} from "../protocol/prompt";
 
 export type {
   PromptReference,
   ReferencePromptLimits,
-} from "../contracts";
+} from "../protocol/prompt";
 
 const takeReferenceContent = (content: string, maxChars: number) => {
   return selectRelevantText(content, undefined, maxChars);

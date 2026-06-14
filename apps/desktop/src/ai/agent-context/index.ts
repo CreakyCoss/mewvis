@@ -1,21 +1,34 @@
 export type {
-  AgentContextApi,
   ChatContextSummary,
-  ContextEngineDescriptor,
-  ContextRagIndex,
-  ContextRagMatch,
-  ContextRagQuery,
   ConversationMessage,
   ConversationSummarizer,
+} from "./protocol/context";
+
+export type {
+  ContextEngineDescriptor,
+} from "./protocol/descriptor";
+
+export type {
   MemoryBackedRuntimeContextStats,
+} from "./protocol/memory";
+
+export type {
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
   PromptFileReference,
   PromptKnowledgeReference,
-  PromptReference,
   PromptSkillContext,
-  ReferencePromptLimits,
-} from "./contracts";
+} from "./protocol/prompt";
+
+export type {
+  ContextRagIndex,
+  ContextRagMatch,
+  ContextRagQuery,
+} from "./protocol/rag";
+
+export type {
+  AgentContextSession,
+} from "./protocol/session";
 
 export { agentContext } from "./public-api";

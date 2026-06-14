@@ -10,169 +10,37 @@ import {
   invalidateConversationContextForHistoryChange,
   markAgentConversationSynced,
   updateConversationContext,
-  type ConversationSummarizer,
-  type RuntimeConversationContext,
 } from "../core/conversation";
 import {
   buildAgentBootstrapPrompt,
   buildAgentPrompt,
   createPromptContextLimits,
   type PromptContextLimits,
-  type PromptContextModel,
 } from "../prompt/prompts";
-import {
-  createPlaceholderMemoryLayer,
-  type ContextMemoryLayer,
-} from "./memory-layers";
-import {
-  createPlaceholderRagIndex,
-  type ContextRagIndex,
-} from "./rag";
 import type {
-  AgentSessionContextStatus,
   ChatContextSummary,
-  ContextEngineCapability as ContextEngineCapabilityContract,
   ContextEngineState,
   ContextMemoryLayerSnapshot,
   ConversationMessage,
-  PromptAgentProfile,
-  PromptFileReference,
-  PromptKnowledgeReference,
 } from "../core/types";
+import type {
+  AgentRunPromptPayload,
+  AgentRunSessionPlan,
+  BuildAgentRunPromptPayloadInput,
+  ContextEngine,
+  ContextEngineFactoryOptions,
+  FinalizeAgentRunContextInput,
+  PlanAgentRunSessionInput,
+  PreparedRuntimeConversationContext,
+  PrepareRuntimeConversationContextInput,
+  RuntimeContextModelSelection,
+  RuntimeContextPlan,
+} from "./types";
 
 export const DEFAULT_CONTEXT_ENGINE_ID = "rolling-summary";
 export const DEFAULT_CONTEXT_ENGINE_VERSION = 1;
 export const RAG_CONTEXT_ENGINE_ID = "rag-index";
 export const HYBRID_MEMORY_CONTEXT_ENGINE_ID = "hybrid-memory";
-
-export type ContextEngineCapability = ContextEngineCapabilityContract;
-
-export type ContextEngineServices = {
-  ragIndex?: ContextRagIndex | null;
-  memoryLayers?: ContextMemoryLayer[];
-};
-
-export type RuntimeContextModelSelection = {
-  modelContext?: PromptContextModel | null;
-  summarizer?: ConversationSummarizer | null;
-  canUseModel?: boolean;
-};
-
-export type RuntimeContextPlan = {
-  limits: PromptContextLimits;
-  summarizer?: ConversationSummarizer;
-};
-
-export type PrepareRuntimeConversationContextInput =
-  RuntimeContextModelSelection & {
-    conversation: ConversationMessage[];
-    currentContext: ChatContextSummary | null;
-    forceSummarize?: boolean;
-    rebuildSummary?: boolean;
-  };
-
-export type PreparedRuntimeConversationContext = RuntimeContextPlan & {
-  context: ChatContextSummary | null;
-  runtimeMessages: ConversationMessage[];
-  conversationSummary: string;
-};
-
-export type AgentRunSessionPlan = {
-  agentSessionId: string;
-  promptHistory: RuntimeConversationContext;
-  shouldStartFreshSession: boolean;
-};
-
-export type PlanAgentRunSessionInput = {
-  chatSessionId: string;
-  conversation: ConversationMessage[];
-  currentContext: ChatContextSummary | null;
-  agentId?: string | null;
-  tokenBudget?: number;
-  isHistoryInvalidated?: boolean;
-};
-
-export type BuildAgentRunPromptPayloadInput = {
-  conversation: ConversationMessage[];
-  currentContext: ChatContextSummary | null;
-  sessionPlan: AgentRunSessionPlan;
-  agentSessionStatus?: AgentSessionContextStatus | null;
-  text: string;
-  references: PromptFileReference[];
-  knowledgeMatches?: PromptKnowledgeReference[];
-  agentInstructions?: string | null;
-  selectedAgent: PromptAgentProfile | null;
-  limits: PromptContextLimits;
-};
-
-export type AgentRunPromptPayload = {
-  bootstrapContext: string;
-  prompt: string;
-  shouldBootstrapAgentContext: boolean;
-  bootstrapHistory: RuntimeConversationContext;
-  promptHistory: RuntimeConversationContext;
-};
-
-export type FinalizeAgentRunContextInput = {
-  conversation: ConversationMessage[];
-  currentContext: ChatContextSummary | null;
-  summarizer?: ConversationSummarizer | null;
-  tokenBudget?: number;
-  agentSessionId?: string | null;
-  agentId?: string | null;
-  runStatus: "done" | "error";
-  agentSessionStatus?: AgentSessionContextStatus | null;
-};
-
-export type FinalizeChatTurnContextInput = PrepareRuntimeConversationContextInput;
-
-export type ContextEngine = {
-  id: string;
-  version: number;
-  label: string;
-  description: string;
-  capabilities: ContextEngineCapability[];
-  experimental?: boolean;
-  services?: ContextEngineServices;
-  createPlan(input: RuntimeContextModelSelection): RuntimeContextPlan;
-  prepareConversation(
-    input: PrepareRuntimeConversationContextInput,
-  ): Promise<PreparedRuntimeConversationContext>;
-  selectConversationMessages(
-    conversation: ConversationMessage[],
-    context: ChatContextSummary | null,
-    limits: PromptContextLimits,
-  ): ConversationMessage[];
-  compressConversation(
-    input: PrepareRuntimeConversationContextInput,
-  ): Promise<ChatContextSummary | null>;
-  rebuildAfterHistoryChange(
-    input: PrepareRuntimeConversationContextInput,
-  ): Promise<ChatContextSummary | null>;
-  invalidateAfterHistoryChange(
-    context: ChatContextSummary | null,
-    conversation: ConversationMessage[],
-  ): ChatContextSummary;
-  getActiveAgentRuntimeSessionId(
-    context: ChatContextSummary | null | undefined,
-    agentId?: string | null,
-  ): string | null;
-  planAgentRun(input: PlanAgentRunSessionInput): AgentRunSessionPlan;
-  buildAgentPromptPayload(input: BuildAgentRunPromptPayloadInput): AgentRunPromptPayload;
-  finalizeChatTurn(input: FinalizeChatTurnContextInput): Promise<ChatContextSummary | null>;
-  finalizeAgentRun(input: FinalizeAgentRunContextInput): Promise<ChatContextSummary | null>;
-};
-
-export type ContextEngineFactoryOptions = {
-  id?: string;
-  version?: number;
-  label?: string;
-  description?: string;
-  capabilities?: ContextEngineCapability[];
-  experimental?: boolean;
-  services?: ContextEngineServices;
-  metadata?: Record<string, unknown>;
-};
 
 export const createRuntimeContextPlan = ({
   modelContext,
@@ -503,54 +371,3 @@ export const createDefaultContextEngine = (
 
   return engine;
 };
-
-const contextEngineRegistry = new Map<string, ContextEngine>();
-
-export const registerContextEngine = (engine: ContextEngine) => {
-  contextEngineRegistry.set(engine.id, engine);
-  return engine;
-};
-
-export const defaultContextEngine = registerContextEngine(createDefaultContextEngine());
-
-export const ragContextEngine = registerContextEngine(createDefaultContextEngine({
-  id: RAG_CONTEXT_ENGINE_ID,
-  label: "RAG 索引",
-  description: "发送消息时从全局知识库已启用集合召回相关片段，并结合滚动摘要回答。",
-  capabilities: ["rolling_summary", "agent_session_sync", "rag_index"],
-  experimental: true,
-  services: {
-    ragIndex: createPlaceholderRagIndex(),
-  },
-  metadata: {
-    fallback: DEFAULT_CONTEXT_ENGINE_ID,
-  },
-}));
-
-export const hybridMemoryContextEngine = registerContextEngine(createDefaultContextEngine({
-  id: HYBRID_MEMORY_CONTEXT_ENGINE_ID,
-  label: "混合记忆",
-  description: "结合全局知识库召回、滚动摘要和预留多层记忆快照管理上下文。",
-  capabilities: ["rolling_summary", "agent_session_sync", "rag_index", "memory_layers"],
-  experimental: true,
-  services: {
-    ragIndex: createPlaceholderRagIndex("hybrid-rag"),
-    memoryLayers: [
-      createPlaceholderMemoryLayer("conversation-memory", "conversation"),
-      createPlaceholderMemoryLayer("agent-memory", "agent"),
-      createPlaceholderMemoryLayer("document-memory", "document"),
-    ],
-  },
-  metadata: {
-    fallback: DEFAULT_CONTEXT_ENGINE_ID,
-  },
-}));
-
-export const CONTEXT_ENGINE_REGISTRY = contextEngineRegistry;
-
-export const listContextEngines = () => [...contextEngineRegistry.values()];
-
-export const getContextEngine = (engineId?: string | null) =>
-  engineId && contextEngineRegistry.has(engineId)
-    ? contextEngineRegistry.get(engineId) ?? defaultContextEngine
-    : defaultContextEngine;

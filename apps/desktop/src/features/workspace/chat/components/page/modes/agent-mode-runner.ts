@@ -2,9 +2,6 @@ import {
   createAgentMemoryTrace,
 } from "@/ai/agent-runtime/memory";
 import {
-  agentContext,
-} from "@/ai/agent-context";
-import {
   normalizeAllowedRuntimeAgentTools,
 } from "@/ai/runtime-protocol";
 import { requireRuntimeModelInput } from "@/features/ai/llm/store";
@@ -22,11 +19,6 @@ import type {
 } from "./types";
 import { buildWorkspaceAgentInteractionInstructions } from "./agent-prompts";
 
-const {
-  buildAgentRunContextPayload,
-  planAgentRunContext,
-} = agentContext;
-
 export const runAgentTurn = async (
   {
     nextSessionId,
@@ -35,7 +27,6 @@ export const runAgentTurn = async (
     text,
     referencedFiles,
     baseConversation,
-    baseConversationContext,
     nextConversation,
     nextConversationContext,
     nextMessages,
@@ -50,9 +41,9 @@ export const runAgentTurn = async (
     activeSkills,
     runtimeAgentId,
     appendVisibleTraceStep,
-	    updateMessage,
-	    agentRuntime,
-	    contextEngineId,
+    updateMessage,
+    agentRuntime,
+    contextSession,
     setChatError,
     setAgentSessionStatus,
     setAgentSessionError,
@@ -83,11 +74,9 @@ export const runAgentTurn = async (
   }
 
   const agentLimits = limitsFor(effectiveRuntimeModel);
-  const agentSessionPlan = planAgentRunContext({
-    engineId: contextEngineId,
+  const agentSessionPlan = contextSession.planAgentRun({
     chatSessionId: nextSessionId,
     conversation: baseConversation,
-    currentContext: baseConversationContext,
     agentId: runtimeAgentId,
     tokenBudget: agentLimits.recentHistoryTokens,
     isHistoryInvalidated: agentContextInvalidatedRef.current,
@@ -116,10 +105,8 @@ export const runAgentTurn = async (
   } catch (caught) {
     setAgentSessionError(String(caught));
   }
-  const agentPromptPayload = buildAgentRunContextPayload({
-    engineId: contextEngineId,
+  const agentPromptPayload = contextSession.buildAgentRunPayload({
     conversation: baseConversation,
-    currentContext: baseConversationContext,
     sessionPlan: agentSessionPlan,
     agentSessionStatus: currentAgentSessionStatus,
     text,

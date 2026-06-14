@@ -4,7 +4,6 @@ import {
 } from "../core/conversation";
 import type {
   BuildPromptContextOptions,
-  ConversationMessage,
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
@@ -12,7 +11,10 @@ import type {
   PromptFileReference,
   PromptKnowledgeReference,
   PromptSkillContext,
-} from "../contracts";
+} from "../protocol/prompt";
+import type {
+  ConversationMessage,
+} from "../protocol/context";
 import { selectRelevantText } from "./context-selection";
 import { createConversationTokenBudget } from "../core/token-budget";
 
@@ -20,7 +22,7 @@ export type {
   BuildPromptContextOptions,
   PromptContextLimits,
   PromptContextModel,
-} from "../contracts";
+} from "../protocol/prompt";
 
 export type BuildAgentPromptOptions = {
   includeConversationContext?: boolean;

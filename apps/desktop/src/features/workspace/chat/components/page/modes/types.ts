@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import type {
+  AgentContextSession,
   ChatContextSummary,
   ContextRagMatch,
   ConversationMessage,
@@ -112,7 +113,6 @@ export type RunCollaborationTurnInput = {
   text: string;
   referencedFiles: ResolvedFileReference[];
   nextConversation: ConversationMessage[];
-  nextConversationContext: ChatContextSummary | null;
   runtimeMessages: ConversationMessage[];
   summaryLimits: PromptContextLimits;
   conversationSummary: string;
@@ -126,7 +126,7 @@ export type RunCollaborationTurnInput = {
 
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextEngineId: string;
+  contextSession: AgentContextSession;
   allowedAgentTools: RuntimeAgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -141,7 +141,6 @@ export type RunAgentTurnInput = {
   text: string;
   referencedFiles: ResolvedFileReference[];
   baseConversation: ConversationMessage[];
-  baseConversationContext: ChatContextSummary | null;
   nextConversation: ConversationMessage[];
   nextConversationContext: ChatContextSummary | null;
   nextMessages: ChatMessage[];
@@ -154,7 +153,7 @@ export type RunAgentTurnInput = {
 
 export type RunAgentTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextEngineId: string;
+  contextSession: AgentContextSession;
   setChatError: (message: string) => void;
   setAgentSessionStatus: (status: AgentSessionStatus | null) => void;
   setAgentSessionError: (message: string) => void;

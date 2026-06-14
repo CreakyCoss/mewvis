@@ -1,7 +1,7 @@
 import type {
   PreparedMemoryBackedRuntimeContext,
   PrepareMemoryBackedRuntimeContextInput,
-} from "../contracts";
+} from "../protocol/memory";
 import {
   countConversationTokens,
   createConversationTokenBudget,
@@ -18,7 +18,7 @@ export type {
   MemoryBackedRuntimeContextUpdate,
   PreparedMemoryBackedRuntimeContext,
   PrepareMemoryBackedRuntimeContextInput,
-} from "../contracts";
+} from "../protocol/memory";
 
 export const limitMemoryText = ({
   memory,

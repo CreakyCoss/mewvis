@@ -2,11 +2,6 @@ import type { ActiveReferenceToken, FileReferenceMatch } from "../page-types";
 import type { WorkspaceFileEntry } from "../types";
 import { agentContext } from "@/ai/agent-context";
 
-export type {
-  PromptReference,
-  ReferencePromptLimits,
-} from "@/ai/agent-context";
-
 export const {
   appendReferencesToPrompt,
   formatReferencesForPrompt,

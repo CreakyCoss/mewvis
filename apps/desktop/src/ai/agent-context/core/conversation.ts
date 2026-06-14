@@ -23,7 +23,7 @@ export type {
   ConversationSummaryInput,
   ConversationSummarizer,
   RuntimeConversationContext,
-} from "../contracts";
+} from "../protocol/context";
 
 export type UpdateConversationContextOptions = {
   summarizer?: ConversationSummarizer;
