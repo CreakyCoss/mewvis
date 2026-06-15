@@ -56,6 +56,7 @@ export type AgentRunSessionPlan = {
 
 export type PlanAgentRunSessionInput = {
   chatSessionId: string;
+  sessionRoot?: "chats" | "tavern";
   conversation: ConversationMessage[];
   currentContext: ChatContextSummary | null;
   agentId?: string | null;

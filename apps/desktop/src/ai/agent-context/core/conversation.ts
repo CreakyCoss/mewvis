@@ -62,17 +62,49 @@ export const createAgentContextKey = (agentId: string | null | undefined) => {
     || "default";
 };
 
-export const createAgentSessionGenerationId = () => `session-${crypto.randomUUID()}`;
+export const createChatContextKey = (chatSessionId: string | null | undefined) => {
+  const key = chatSessionId?.trim() || "chat";
+  return key
+    .replace(/\.json$/, "")
+    .replace(/[\\/]+/g, "-")
+    .replace(/\.\./g, "-")
+    .replace(/^\.+/, "")
+    || "chat";
+};
+
+const padIdPart = (value: number, length = 2) => value.toString().padStart(length, "0");
+
+const formatTimestampId = (date: Date) => [
+  date.getFullYear(),
+  padIdPart(date.getMonth() + 1),
+  padIdPart(date.getDate()),
+  "-",
+  padIdPart(date.getHours()),
+  padIdPart(date.getMinutes()),
+  padIdPart(date.getSeconds()),
+  "-",
+  padIdPart(date.getMilliseconds(), 3),
+].join("");
+
+export const createAgentSessionGenerationId = () => {
+  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `session-${formatTimestampId(new Date())}-${suffix}`;
+};
+
+export type AgentRuntimeSessionRoot = "chats" | "tavern";
 
 export const createAgentRuntimeSessionId = (
   chatSessionId: string,
   agentId: string | null | undefined,
   generationId?: string | null,
+  sessionRoot: AgentRuntimeSessionRoot = "chats",
 ) => [
+  sessionRoot,
+  createChatContextKey(chatSessionId),
+  "sessions",
   createAgentContextKey(agentId),
-  chatSessionId.trim().replace(/\.json$/, ""),
-  generationId?.trim() || null,
-].filter(Boolean).join("/");
+  generationId?.trim() || createAgentSessionGenerationId(),
+].join("/");
 
 export const conversationMessageContentHash = (message: ConversationMessage) =>
   hashString([

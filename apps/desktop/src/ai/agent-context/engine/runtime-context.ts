@@ -132,6 +132,7 @@ export const getActiveAgentRuntimeSessionId = (
 
 export const planAgentRunSession = ({
   chatSessionId,
+  sessionRoot,
   conversation,
   currentContext,
   agentId,
@@ -156,7 +157,8 @@ export const planAgentRunSession = ({
     ? createAgentRuntimeSessionId(
       chatSessionId,
       agentId,
-      shouldStartFreshSession ? createAgentSessionGenerationId() : null,
+      createAgentSessionGenerationId(),
+      sessionRoot,
     )
     : existingAgentSessionId;
 

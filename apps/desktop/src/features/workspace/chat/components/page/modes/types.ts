@@ -2,19 +2,20 @@ import type { MutableRefObject } from "react";
 import type {
   AgentContextSession,
   ChatContextSummary,
-  ContextRagMatch,
   ConversationMessage,
+  PreparedAgentRunContext,
+  PromptKnowledgeReference,
   PromptContextFile,
   PromptContextLimits,
+  PromptFileReference,
   PromptSkillContext,
 } from "@/ai/agent-context";
 import type { AgentMemoryTrace } from "@/ai/agent-runtime/memory";
-import type { AgentSessionStatus } from "@/ai/agent-runtime/session";
 import type {
   RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { AgentProfile, CollaborationWorkflowProfile } from "@/features/ai/agent/types";
+import type { CollaborationWorkflowProfile } from "@/features/ai/agent/types";
 import type { RuntimeModelOption } from "@/features/ai/llm/store";
 import type { Workspace } from "@/features/workspace/types";
 import type {
@@ -24,7 +25,6 @@ import type {
   CollaborationPlanDecisionRequest,
   ContextDebugPayload,
   ContextDebugSnapshot,
-  ResolvedFileReference,
 } from "../../../page-types";
 import type {
   ChatMessage,
@@ -85,39 +85,18 @@ export type CommonModeDeps = {
   updateMessage: UpdateMessage;
 };
 
-export type RunChatTurnInput = {
-  traceTurnId: string;
-  assistantMessageId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  runtimeMessages: ConversationMessage[];
-  conversationSummary: string;
-  currentAgentExecutionSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-  finalizeAssistantTurn: FinalizeAssistantTurn;
-};
-
-export type RunChatTurnDeps = CommonModeDeps & {
-  modelSource: "direct" | "agent";
-  selectedAgent: AgentProfile | null;
-  effectiveRuntimeModel: RuntimeModelOption | null;
-};
-
 export type RunCollaborationTurnInput = {
   collaborationWorkflow: CollaborationWorkflowProfile;
   traceTurnId: string;
   assistantMessageId: string;
   text: string;
-  referencedFiles: ResolvedFileReference[];
+  referencedFiles: PromptFileReference[];
   nextConversation: ConversationMessage[];
   runtimeMessages: ConversationMessage[];
   summaryLimits: PromptContextLimits;
   conversationSummary: string;
   currentAgentExecutionSummary: string;
-  knowledgeMatches: ContextRagMatch[];
+  knowledgeMatches: PromptKnowledgeReference[];
   knowledgeDebugPayload: ContextDebugPayload;
   limitsFor: LimitsForProvider;
   publishContextDebugSnapshot: PublishContextDebugSnapshot;
@@ -138,65 +117,28 @@ export type RunAgentTurnInput = {
   nextSessionId: string | null;
   traceTurnId: string;
   assistantMessageId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  baseConversation: ConversationMessage[];
   nextConversation: ConversationMessage[];
   nextConversationContext: ChatContextSummary | null;
   nextMessages: ChatMessage[];
   conversationSummary: string;
-  knowledgeMatches: ContextRagMatch[];
   knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
+  agentPromptPayload: PreparedAgentRunContext;
   publishContextDebugSnapshot: PublishContextDebugSnapshot;
 };
 
 export type RunAgentTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextSession: AgentContextSession;
   setChatError: (message: string) => void;
-  setAgentSessionStatus: (status: AgentSessionStatus | null) => void;
-  setAgentSessionError: (message: string) => void;
   prepareActiveAgentRun: PrepareActiveAgentRun;
   patchVisibleTraceTurn: PatchVisibleTraceTurn;
   addRunningAgentTask: (task: RunningAgentTaskContext) => void;
   activateAgentTaskId: (taskId: string) => void;
-  agentContextInvalidatedRef: MutableRefObject<boolean>;
   agentSessionResetPromiseRef: MutableRefObject<Promise<boolean> | null>;
   handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
   chatTraceRef: MutableRefObject<ChatTraceTurn[]>;
-  agentSessionStatus: AgentSessionStatus | null;
   effectiveRuntimeModel: RuntimeModelOption | null;
-  modelSource: "direct" | "agent";
-  selectedAgent: AgentProfile | null;
   chatMode: ChatMode;
   chatExecutionMode: ChatExecutionMode;
   allowedAgentTools: RuntimeAgentToolName[];
   currentSessionTitle: string;
-};
-
-export type PrepareChatTurnRuntimeInput = {
-  now: number;
-  userMessageId: string;
-  assistantMessageId: string;
-  traceTurnId: string;
-  text: string;
-  referencedFiles: ResolvedFileReference[];
-  nextConversation: ConversationMessage[];
-  baseConversationContext: ChatContextSummary | null;
-  traceProviderName: string | null;
-  traceModelName: string | null;
-  summaryRuntimeModel: RuntimeModelOption | null;
-};
-
-export type PreparedChatTurnRuntime = {
-  summaryLimits: PromptContextLimits;
-  nextConversationContext: ChatContextSummary | null;
-  runtimeMessages: ConversationMessage[];
-  conversationSummary: string;
-  knowledgeMatches: ContextRagMatch[];
-  knowledgeDebugPayload: ContextDebugPayload;
-  limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
-  finalizeAssistantTurn: FinalizeAssistantTurn;
 };

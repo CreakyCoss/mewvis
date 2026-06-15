@@ -3,6 +3,7 @@ pub(crate) mod chat_sessions;
 pub(crate) mod embeddings;
 pub(crate) mod knowledge;
 pub(crate) mod skills;
+pub(crate) mod tavern_sessions;
 pub(crate) mod vector_store;
 pub(crate) mod version_control;
 pub(crate) mod workspace_files;

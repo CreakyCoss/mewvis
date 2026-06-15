@@ -139,6 +139,7 @@ export const useWorkspaceChatSessions = ({
   const defaultSidebarSessionsRequestIdRef = useRef(0);
   const sessionsRequestIdRef = useRef(0);
   const isHydratingSessionRef = useRef(false);
+  const hydratedWorkspacePathRef = useRef(workspace.path);
   const [chatSessions, setChatSessions] = useState<ChatSessionMeta[]>([]);
   const [defaultChatSessions, setDefaultChatSessions] = useState<ChatSessionMeta[]>([]);
   const [isDefaultSessionsLoading, setIsDefaultSessionsLoading] = useState(false);
@@ -223,6 +224,7 @@ export const useWorkspaceChatSessions = ({
     }
     detachActiveAgentTask();
     isHydratingSessionRef.current = true;
+    hydratedWorkspacePathRef.current = workspace.path;
     const normalizedConversation = normalizeConversationMessages(session?.conversation ?? []);
     const runningTask = session?.id
       ? [...runningAgentTasksRef.current.values()].find((task) =>
@@ -298,6 +300,12 @@ export const useWorkspaceChatSessions = ({
   const loadSessions = useCallback(async () => {
     const requestId = sessionsRequestIdRef.current + 1;
     sessionsRequestIdRef.current = requestId;
+    if (saveSessionTimerRef.current) {
+      window.clearTimeout(saveSessionTimerRef.current);
+      saveSessionTimerRef.current = null;
+    }
+    isHydratingSessionRef.current = true;
+    hydratedWorkspacePathRef.current = "";
     setIsSessionsLoading(true);
     setSessionsError("");
     const workspaceSessionIdToLoad =
@@ -311,12 +319,11 @@ export const useWorkspaceChatSessions = ({
     const shouldStartEmptySession = shouldStartPendingNewSession;
 
     try {
-      const [sessions, targetSession] = await Promise.all([
-        listChatSessions(workspace.path),
-        shouldStartEmptySession
-          ? Promise.resolve(null)
-          : loadChatSession(workspace.path, sessionIdToLoad),
-      ]);
+      const sessions = await listChatSessions(workspace.path);
+      const targetSessionId = sessionIdToLoad ?? sessions[0]?.id ?? null;
+      const targetSession = shouldStartEmptySession || !targetSessionId
+        ? null
+        : await loadChatSession(workspace.path, targetSessionId);
       if (sessionsRequestIdRef.current !== requestId) {
         return;
       }
@@ -353,6 +360,11 @@ export const useWorkspaceChatSessions = ({
     } finally {
       if (sessionsRequestIdRef.current === requestId) {
         setIsSessionsLoading(false);
+        window.setTimeout(() => {
+          if (sessionsRequestIdRef.current === requestId && hydratedWorkspacePathRef.current !== workspace.path) {
+            isHydratingSessionRef.current = false;
+          }
+        }, 0);
       }
     }
   }, [
@@ -667,6 +679,10 @@ export const useWorkspaceChatSessions = ({
 
   useEffect(() => {
     if (isHydratingSessionRef.current) {
+      return;
+    }
+
+    if (hydratedWorkspacePathRef.current !== workspace.path) {
       return;
     }
 

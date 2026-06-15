@@ -6,22 +6,22 @@ import type {
   PromptContextModel,
 } from "../protocol/prompt";
 import type {
-  AgentContextSessionManager,
-  AgentContextSessionManagerSnapshot,
+  AgentContextSessionStateManager,
+  AgentContextSessionStateSnapshot,
   AgentContextSessionSetInput,
-  CreateAgentContextSessionManagerInput,
+  CreateAgentContextSessionStateManagerInput,
 } from "../protocol/session";
 
-export const createAgentContextSessionManager = (
-  initialInput: CreateAgentContextSessionManagerInput = {},
-): AgentContextSessionManager => {
+export const createAgentContextSessionStateManager = (
+  initialInput: CreateAgentContextSessionStateManagerInput = {},
+): AgentContextSessionStateManager => {
   let engineId = initialInput.engineId ?? null;
   let context = initialInput.context ?? null;
   let modelContext: PromptContextModel | null = initialInput.modelContext ?? null;
   let summarizer: ConversationSummarizer | null = initialInput.summarizer ?? null;
   let canUseModel = initialInput.canUseModel ?? false;
 
-  const snapshot = (): AgentContextSessionManagerSnapshot => ({
+  const snapshot = (): AgentContextSessionStateSnapshot => ({
     engineId,
     context,
     modelContext,
@@ -29,7 +29,7 @@ export const createAgentContextSessionManager = (
     canUseModel,
   });
 
-  const manager: AgentContextSessionManager = {
+  const manager: AgentContextSessionStateManager = {
     get() {
       return snapshot();
     },
@@ -64,3 +64,6 @@ export const createAgentContextSessionManager = (
 
   return manager;
 };
+
+export const createAgentContextSessionManager =
+  createAgentContextSessionStateManager;

@@ -11,7 +11,9 @@ use std::{
     time::SystemTime,
 };
 
-const AGENT_SESSION_DIR_NAME: &str = "agent-sessions";
+const CHAT_DIR_NAME: &str = "chats";
+const LEGACY_AGENT_SESSION_DIR_NAME: &str = "agent-sessions";
+const SESSIONS_DIR_NAME: &str = "sessions";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,27 +83,23 @@ pub fn get_agent_session_status(
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let root = workspace_root(&input.workspace_path)?;
-    let agent_root = agent_session_root(&root);
+    let app_root = workspace_app_data_dir(&root);
     let session_path = session_id.map(sanitize_agent_session_path).transpose()?;
-    let session_dir = session_path
-        .as_ref()
-        .map(|segments| {
-            segments
-                .iter()
-                .fold(agent_root.clone(), |path, segment| path.join(segment))
-        })
-        .unwrap_or_else(|| agent_root.clone());
-    ensure_under_root(&agent_root, &session_dir)?;
-    let is_chat_session_lookup = session_path
-        .as_ref()
-        .is_some_and(|segments| segments.len() == 1);
+    let session_dir = resolve_agent_session_dir(&app_root, session_path.as_deref());
+    ensure_under_root(&app_root, &session_dir)?;
 
     let mut status = AgentSessionStatus {
-        exists: !is_chat_session_lookup && session_dir.exists(),
+        exists: session_dir.exists(),
         session_dir: if let Some(segments) =
             session_path.as_ref().filter(|segments| segments.len() == 1)
         {
-            format!("{}/*/{}", agent_session_dir_display(), segments[0])
+            format!(
+                "{}/{}/{}/{}",
+                crate::product_config::app_data_dir_name(),
+                CHAT_DIR_NAME,
+                segments[0],
+                SESSIONS_DIR_NAME
+            )
         } else {
             display_workspace_relative(&input.workspace_path, &session_dir)?
         },
@@ -120,15 +118,6 @@ pub fn get_agent_session_status(
     };
 
     let mut latest_file: Option<(PathBuf, SystemTime)> = None;
-    if let Some(segments) = session_path.as_ref().filter(|segments| segments.len() == 1) {
-        collect_chat_agent_session_stats(&agent_root, &segments[0], &mut status, &mut latest_file)?;
-        status.latest_session_file = latest_file
-            .as_ref()
-            .map(|(path, _)| display_workspace_relative(&input.workspace_path, path))
-            .transpose()?;
-        return Ok(status);
-    }
-
     if !session_dir.exists() {
         return Ok(status);
     }
@@ -144,64 +133,23 @@ pub fn get_agent_session_status(
 
 pub fn cleanup_orphan_agent_sessions(
     input: CleanupAgentSessionsInput,
-    valid_chat_ids: &HashSet<String>,
+    _valid_chat_ids: &HashSet<String>,
 ) -> Result<CleanupAgentSessionsResult, String> {
     let root = workspace_root(&input.workspace_path)?;
-    let agent_root = agent_session_root(&root);
-    if !agent_root.exists() {
+    let app_root = workspace_app_data_dir(&root);
+    let legacy_agent_root = app_root.join(LEGACY_AGENT_SESSION_DIR_NAME);
+    ensure_under_root(&app_root, &legacy_agent_root)?;
+    if !legacy_agent_root.exists() {
         return Ok(CleanupAgentSessionsResult {
             removed_count: 0,
             removed_bytes: 0,
         });
     }
 
-    let protected_chat_id = input
-        .protected_session_id
-        .as_deref()
-        .map(protected_chat_id_from_agent_session_path)
-        .transpose()?;
-
-    let mut removed_count = 0;
-    let mut removed_bytes = 0;
-    for entry in
-        fs::read_dir(&agent_root).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-    {
-        let entry = entry.map_err(|error| format!("无法读取 Agent 上下文项：{error}"))?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let mut child_dir_count = 0;
-        for child in
-            fs::read_dir(&path).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-        {
-            let child = child.map_err(|error| format!("无法读取 Agent 上下文项：{error}"))?;
-            let child_path = child.path();
-            if !child_path.is_dir() {
-                continue;
-            }
-            child_dir_count += 1;
-            let Some(chat_id) = child_path.file_name().and_then(|value| value.to_str()) else {
-                continue;
-            };
-            if valid_chat_ids.contains(chat_id) || protected_chat_id.as_deref() == Some(chat_id) {
-                continue;
-            }
-
-            let size = directory_size(&child_path)?;
-            fs::remove_dir_all(&child_path)
-                .map_err(|error| format!("无法删除孤儿 Agent 上下文：{error}"))?;
-            removed_count += 1;
-            removed_bytes += size;
-        }
-
-        if child_dir_count == 0 || is_empty_dir(&path)? {
-            let size = directory_size(&path)?;
-            fs::remove_dir_all(&path)
-                .map_err(|error| format!("无法删除空 Agent 上下文目录：{error}"))?;
-            removed_bytes += size;
-        }
-    }
+    let removed_count = count_child_dirs(&legacy_agent_root)?;
+    let removed_bytes = directory_size(&legacy_agent_root)?;
+    fs::remove_dir_all(&legacy_agent_root)
+        .map_err(|error| format!("无法删除旧 Agent 上下文目录：{error}"))?;
 
     Ok(CleanupAgentSessionsResult {
         removed_count,
@@ -215,46 +163,31 @@ pub fn delete_agent_sessions_for_chat(
 ) -> Result<(), String> {
     let chat_id = sanitize_session_id(chat_session_id)?;
     let root = workspace_root(workspace_path)?;
-    let agent_root = agent_session_root(&root);
-    if !agent_root.exists() {
-        return Ok(());
-    }
-
-    for entry in
-        fs::read_dir(&agent_root).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-    {
-        let entry = entry.map_err(|error| format!("无法读取 Agent 上下文项：{error}"))?;
-        let agent_dir = entry.path();
-        if !agent_dir.is_dir() {
-            continue;
-        }
-
-        let chat_dir = agent_dir.join(&chat_id);
-        ensure_under_root(&agent_root, &chat_dir)?;
-        if chat_dir.exists() {
-            fs::remove_dir_all(&chat_dir)
-                .map_err(|error| format!("无法删除 Agent 长期上下文：{error}"))?;
-        }
-
-        if is_empty_dir(&agent_dir)? {
-            fs::remove_dir(&agent_dir)
-                .map_err(|error| format!("无法删除空 Agent 上下文目录：{error}"))?;
-        }
+    let app_root = workspace_app_data_dir(&root);
+    let sessions_dir = app_root
+        .join(CHAT_DIR_NAME)
+        .join(chat_id)
+        .join(SESSIONS_DIR_NAME);
+    ensure_under_root(&app_root, &sessions_dir)?;
+    if sessions_dir.exists() {
+        fs::remove_dir_all(&sessions_dir)
+            .map_err(|error| format!("无法删除 Agent 长期上下文：{error}"))?;
     }
 
     Ok(())
 }
 
-fn agent_session_root(root: &Path) -> PathBuf {
-    workspace_app_data_dir(root).join(AGENT_SESSION_DIR_NAME)
-}
-
-fn agent_session_dir_display() -> String {
-    format!(
-        "{}/{}",
-        crate::product_config::app_data_dir_name(),
-        AGENT_SESSION_DIR_NAME
-    )
+fn resolve_agent_session_dir(app_root: &Path, session_path: Option<&[String]>) -> PathBuf {
+    match session_path {
+        None => app_root.join(CHAT_DIR_NAME),
+        Some(segments) if segments.len() == 1 => app_root
+            .join(CHAT_DIR_NAME)
+            .join(&segments[0])
+            .join(SESSIONS_DIR_NAME),
+        Some(segments) => segments
+            .iter()
+            .fold(app_root.to_path_buf(), |path, segment| path.join(segment)),
+    }
 }
 
 fn sanitize_agent_session_path(session_id: &str) -> Result<Vec<String>, String> {
@@ -276,17 +209,6 @@ fn sanitize_agent_session_path(session_id: &str) -> Result<Vec<String>, String> 
     }
 
     Ok(segments)
-}
-
-fn protected_chat_id_from_agent_session_path(session_id: &str) -> Result<String, String> {
-    let segments = sanitize_agent_session_path(session_id)?;
-    let chat_segment = if segments.len() >= 2 {
-        &segments[1]
-    } else {
-        &segments[0]
-    };
-
-    sanitize_session_id(chat_segment)
 }
 
 fn collect_agent_session_stats(
@@ -321,36 +243,6 @@ fn collect_agent_session_stats(
             *latest_file = Some((path.clone(), modified));
         }
         parse_agent_session_file(&path, status)?;
-    }
-
-    Ok(())
-}
-
-fn collect_chat_agent_session_stats(
-    agent_root: &Path,
-    chat_id: &str,
-    status: &mut AgentSessionStatus,
-    latest_file: &mut Option<(PathBuf, SystemTime)>,
-) -> Result<(), String> {
-    if !agent_root.exists() {
-        return Ok(());
-    }
-
-    for entry in
-        fs::read_dir(agent_root).map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-    {
-        let entry = entry.map_err(|error| format!("无法读取 Agent 上下文项：{error}"))?;
-        let agent_dir = entry.path();
-        if !agent_dir.is_dir() {
-            continue;
-        }
-
-        let chat_dir = agent_dir.join(chat_id);
-        ensure_under_root(agent_root, &chat_dir)?;
-        if chat_dir.is_dir() {
-            status.exists = true;
-            collect_agent_session_stats(&chat_dir, status, latest_file)?;
-        }
     }
 
     Ok(())
@@ -478,11 +370,15 @@ fn directory_size(path: &Path) -> Result<u64, String> {
     Ok(size)
 }
 
-fn is_empty_dir(path: &Path) -> Result<bool, String> {
-    Ok(fs::read_dir(path)
-        .map_err(|error| format!("无法读取 Agent 上下文目录：{error}"))?
-        .next()
-        .is_none())
+fn count_child_dirs(path: &Path) -> Result<usize, String> {
+    let mut count = 0;
+    for entry in fs::read_dir(path).map_err(|error| format!("无法读取目录：{error}"))? {
+        let entry = entry.map_err(|error| format!("无法读取目录项：{error}"))?;
+        if entry.path().is_dir() {
+            count += 1;
+        }
+    }
+    Ok(count)
 }
 
 #[cfg(test)]
@@ -510,8 +406,35 @@ mod tests {
             self.path.to_string_lossy().to_string()
         }
 
-        fn agent_session_dir(&self, session_id: &str) -> PathBuf {
-            agent_session_root(&self.path).join(session_id)
+        fn app_data_dir(&self) -> PathBuf {
+            workspace_app_data_dir(&self.path)
+        }
+
+        fn legacy_agent_session_dir(&self, session_id: &str) -> PathBuf {
+            self.app_data_dir()
+                .join(LEGACY_AGENT_SESSION_DIR_NAME)
+                .join(session_id)
+        }
+
+        fn chat_agent_session_dir(
+            &self,
+            chat_id: &str,
+            agent_id: &str,
+            session_id: &str,
+        ) -> PathBuf {
+            self.app_data_dir()
+                .join(CHAT_DIR_NAME)
+                .join(chat_id)
+                .join(SESSIONS_DIR_NAME)
+                .join(agent_id)
+                .join(session_id)
+        }
+
+        fn chat_session_agent_root(&self, chat_id: &str) -> PathBuf {
+            self.app_data_dir()
+                .join(CHAT_DIR_NAME)
+                .join(chat_id)
+                .join(SESSIONS_DIR_NAME)
         }
     }
 
@@ -522,10 +445,10 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_orphan_agent_sessions_keeps_known_sessions() {
+    fn cleanup_orphan_agent_sessions_removes_legacy_root() {
         let workspace = TestWorkspace::new("cleanup-orphans");
-        let known_dir = workspace.agent_session_dir("writer-agent/chat-known");
-        let orphan_dir = workspace.agent_session_dir("writer-agent/chat-orphan");
+        let known_dir = workspace.legacy_agent_session_dir("writer-agent/chat-known");
+        let orphan_dir = workspace.legacy_agent_session_dir("writer-agent/chat-orphan");
         fs::create_dir_all(&known_dir).expect("create known agent session dir");
         fs::create_dir_all(&orphan_dir).expect("create orphan agent session dir");
         fs::write(orphan_dir.join("session.jsonl"), "{\"type\":\"message\"}\n")
@@ -542,15 +465,15 @@ mod tests {
 
         assert_eq!(result.removed_count, 1);
         assert!(result.removed_bytes > 0);
-        assert!(known_dir.exists());
+        assert!(!known_dir.exists());
         assert!(!orphan_dir.exists());
     }
 
     #[test]
-    fn cleanup_orphan_agent_sessions_preserves_protected_unsaved_session() {
+    fn cleanup_orphan_agent_sessions_removes_legacy_protected_session() {
         let workspace = TestWorkspace::new("cleanup-protected");
-        let protected_dir = workspace.agent_session_dir("writer-agent/chat-unsaved");
-        let orphan_dir = workspace.agent_session_dir("writer-agent/chat-orphan");
+        let protected_dir = workspace.legacy_agent_session_dir("writer-agent/chat-unsaved");
+        let orphan_dir = workspace.legacy_agent_session_dir("writer-agent/chat-orphan");
         fs::create_dir_all(&protected_dir).expect("create protected agent session dir");
         fs::create_dir_all(&orphan_dir).expect("create orphan agent session dir");
 
@@ -564,15 +487,16 @@ mod tests {
         .expect("cleanup orphan agent sessions");
 
         assert_eq!(result.removed_count, 1);
-        assert!(protected_dir.exists());
+        assert!(!protected_dir.exists());
         assert!(!orphan_dir.exists());
     }
 
     #[test]
-    fn cleanup_orphan_agent_sessions_preserves_nested_protected_runtime_session() {
+    fn cleanup_orphan_agent_sessions_removes_legacy_nested_session() {
         let workspace = TestWorkspace::new("cleanup-protected-nested");
-        let protected_dir = workspace.agent_session_dir("writer-agent/chat-unsaved/session-active");
-        let orphan_chat_dir = workspace.agent_session_dir("writer-agent/chat-orphan");
+        let protected_dir =
+            workspace.legacy_agent_session_dir("writer-agent/chat-unsaved/session-active");
+        let orphan_chat_dir = workspace.legacy_agent_session_dir("writer-agent/chat-orphan");
         let orphan_session_dir = orphan_chat_dir.join("session-old");
         fs::create_dir_all(&protected_dir).expect("create protected runtime session dir");
         fs::create_dir_all(&orphan_session_dir).expect("create orphan runtime session dir");
@@ -592,14 +516,15 @@ mod tests {
         .expect("cleanup orphan agent sessions");
 
         assert_eq!(result.removed_count, 1);
-        assert!(protected_dir.exists());
+        assert!(!protected_dir.exists());
         assert!(!orphan_chat_dir.exists());
     }
 
     #[test]
     fn get_agent_session_status_reads_jsonl_stats() {
         let workspace = TestWorkspace::new("agent-status");
-        let agent_dir = workspace.agent_session_dir("writer-agent/chat-stats");
+        let agent_dir =
+            workspace.chat_agent_session_dir("chat-stats", "writer-agent", "session-main");
         fs::create_dir_all(&agent_dir).expect("create agent session dir");
         fs::write(
             agent_dir.join("session.jsonl"),
@@ -681,7 +606,10 @@ mod tests {
     #[test]
     fn get_agent_session_status_ignores_direct_chat_session_dir() {
         let workspace = TestWorkspace::new("agent-status-direct-chat");
-        let direct_chat_dir = workspace.agent_session_dir("chat-direct");
+        let direct_chat_dir = workspace
+            .app_data_dir()
+            .join(CHAT_DIR_NAME)
+            .join("chat-direct");
         fs::create_dir_all(&direct_chat_dir).expect("create direct chat session dir");
         fs::write(
             direct_chat_dir.join("session.jsonl"),
@@ -703,10 +631,8 @@ mod tests {
     #[test]
     fn get_agent_session_status_reads_nested_agent_session_path() {
         let workspace = TestWorkspace::new("agent-status-nested");
-        let agent_dir = workspace
-            .agent_session_dir("writer-agent")
-            .join("chat-stats")
-            .join("session-reset");
+        let agent_dir =
+            workspace.chat_agent_session_dir("chat-stats", "writer-agent", "session-reset");
         fs::create_dir_all(&agent_dir).expect("create nested agent session dir");
         fs::write(
             agent_dir.join("session.jsonl"),
@@ -725,7 +651,7 @@ mod tests {
 
         let status = get_agent_session_status(AgentSessionStatusInput {
             workspace_path: workspace.path_string(),
-            session_id: Some("writer-agent/chat-stats/session-reset".to_string()),
+            session_id: Some("chats/chat-stats/sessions/writer-agent/session-reset".to_string()),
         })
         .expect("get nested agent session status");
 
@@ -737,15 +663,17 @@ mod tests {
     #[test]
     fn delete_agent_sessions_for_chat_removes_nested_agent_sessions() {
         let workspace = TestWorkspace::new("delete-agent-chat");
-        let target_dir = workspace.agent_session_dir("writer-agent/chat-delete");
-        let other_dir = workspace.agent_session_dir("writer-agent/chat-keep");
+        let target_dir =
+            workspace.chat_agent_session_dir("chat-delete", "writer-agent", "session-main");
+        let other_dir =
+            workspace.chat_agent_session_dir("chat-keep", "writer-agent", "session-main");
         fs::create_dir_all(&target_dir).expect("create target agent session dir");
         fs::create_dir_all(&other_dir).expect("create other agent session dir");
 
         delete_agent_sessions_for_chat(&workspace.path_string(), "chat-delete")
             .expect("delete agent sessions for chat");
 
-        assert!(!target_dir.exists());
+        assert!(!workspace.chat_session_agent_root("chat-delete").exists());
         assert!(other_dir.exists());
     }
 }

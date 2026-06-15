@@ -45,11 +45,6 @@ export type FileTreeNode = {
   entry?: WorkspaceFileEntry;
 };
 
-export type ResolvedFileReference = {
-  path: string;
-  content: string;
-};
-
 export type PendingAgentQuestion = {
   taskId: string;
   questionId: string;

@@ -8,7 +8,6 @@ import type {
   ChatMode,
   FileReferenceMatch,
   ModelSource,
-  ResolvedFileReference,
 } from "../../page-types";
 import type {
   ChatContextSummary,
@@ -93,7 +92,7 @@ type CreateChatTurnDraftInput = {
   chatMode: ChatMode;
   chatExecutionMode: ChatExecutionMode;
   modelSource: ModelSource;
-  referencedFiles: ResolvedFileReference[];
+  referencedFiles: Array<{ path: string }>;
   baseConversation: ConversationMessage[];
   baseConversationContext: ChatContextSummary | null;
   activeFilePath: string | null;

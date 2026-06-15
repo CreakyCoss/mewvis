@@ -29,6 +29,17 @@ export type {
 
 export type {
   AgentContextSession,
+  AgentContextSessionAdapterInput,
+  AgentContextSessionFileDescriptor,
+  AgentContextSessionLoadedResources,
+  AgentContextSessionLoadResourcesInput,
+  AgentContextSessionManager,
+  AgentContextSessionPreparedAgentTurn,
+  AgentContextSessionPromptInput,
+  AgentContextSessionPromptResult,
+  AgentContextSessionSnapshot,
+  AgentContextSessionTraceTurn,
+  PreparedAgentRunContext,
 } from "./protocol/session";
 
 export { agentContext } from "./public-api";

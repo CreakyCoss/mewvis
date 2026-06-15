@@ -4,7 +4,24 @@ export const DEFAULT_SESSION_TITLE = "新的聊天";
 
 export const createMessageId = () => crypto.randomUUID();
 
-export const createChatSessionId = () => `chat-${crypto.randomUUID()}`;
+const padDatePart = (value: number, length = 2) => value.toString().padStart(length, "0");
+
+const formatTimestampId = (date: Date) => [
+  date.getFullYear(),
+  padDatePart(date.getMonth() + 1),
+  padDatePart(date.getDate()),
+  "-",
+  padDatePart(date.getHours()),
+  padDatePart(date.getMinutes()),
+  padDatePart(date.getSeconds()),
+  "-",
+  padDatePart(date.getMilliseconds(), 3),
+].join("");
+
+export const createChatSessionId = () => {
+  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `chat-${formatTimestampId(new Date())}-${suffix}`;
+};
 
 export const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
 

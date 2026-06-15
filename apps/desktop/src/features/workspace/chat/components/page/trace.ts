@@ -1,5 +1,5 @@
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
-import type { ContextRagMatch } from "@/ai/agent-context";
+import type { PromptKnowledgeReference } from "@/ai/agent-context";
 import type {
   ChatContextSummary,
   ChatTraceStep,
@@ -350,7 +350,7 @@ const debugMetadataString = (
   return typeof value === "string" && value.trim() ? value.trim() : "";
 };
 
-export const formatKnowledgeMatches = (matches: ContextRagMatch[]) => matches.length
+export const formatKnowledgeMatches = (matches: PromptKnowledgeReference[]) => matches.length
   ? matches
     .map((match, index) => [
       `K${index + 1} origin=RAG score=${match.score?.toFixed(3) ?? "n/a"}`,

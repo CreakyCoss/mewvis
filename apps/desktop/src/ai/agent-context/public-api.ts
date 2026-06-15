@@ -25,9 +25,6 @@ import {
 import {
   createAgentContextSession,
 } from "./session";
-import {
-  createAgentContextSessionManager,
-} from "./session/manager";
 import type { AgentContextApi } from "./protocol/session";
 
 const descriptorFor = (
@@ -51,7 +48,7 @@ const createSession:
 
 const createSessionManager:
   AgentContextApi["createSessionManager"] =
-    createAgentContextSessionManager;
+    createAgentContextSession;
 
 const normalizeChatContextSummary:
   AgentContextApi["normalizeChatContextSummary"] =

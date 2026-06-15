@@ -66,7 +66,6 @@ const createPiSessionManager = (command: RuntimeStartTaskCommand) => {
   const sessionDir = resolve(
     command.workspacePath,
     productConfig.appDataDirName,
-    "agent-sessions",
     ...sessionPath,
   );
   mkdirSync(sessionDir, { recursive: true });
@@ -89,7 +88,7 @@ const normalizePiAgentSessionPath = (chatSessionId: string | null | undefined) =
       segment.startsWith(".")
     )
   ) {
-    throw new Error("聊天记录 ID 不合法，无法创建长期 Agent session");
+    throw new Error("Agent session ID 不合法，无法创建长期 Agent session");
   }
 
   return segments;

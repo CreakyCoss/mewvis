@@ -2,6 +2,7 @@ import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { agentContext } from "@/ai/agent-context";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
@@ -33,6 +34,7 @@ import type { Workspace } from "@/features/workspace/types";
 import { cn } from "@/lib/utils";
 import {
   createTavernAssetDraft,
+  createDefaultTavernState,
   createTavernLorebookEntry,
   createTavernMessage,
   createTavernRoomFromSystemPreset,
@@ -502,7 +504,8 @@ export const TavernPage = ({
   runtimeAgentId,
   onRoomImmersiveChange,
 }: TavernPageProps) => {
-  const [state, setState] = useState<TavernState>(() => loadTavernState(workspace.id));
+  const [state, setState] = useState<TavernState>(() => createDefaultTavernState(workspace.id));
+  const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [error, setError] = useState("");
@@ -530,6 +533,7 @@ export const TavernPage = ({
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
+  const resourceSessionRef = useRef(agentContext.createSessionManager());
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const managedAutoRunTimerRef = useRef<number | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -542,7 +546,8 @@ export const TavernPage = ({
     }
 
     workspaceIdRef.current = workspace.id;
-    setState(loadTavernState(workspace.id));
+    setState(createDefaultTavernState(workspace.id));
+    setIsTavernStateHydrated(false);
     setDraft("");
     setDraftCursor(0);
     setError("");
@@ -570,6 +575,35 @@ export const TavernPage = ({
   }, [workspace.id]);
 
   useEffect(() => {
+    let isCancelled = false;
+    setIsTavernStateHydrated(false);
+
+    loadTavernState(workspace.path, workspace.id)
+      .then((nextState) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setState(nextState);
+        setIsTavernStateHydrated(true);
+      })
+      .catch((loadError) => {
+        if (isCancelled) {
+          return;
+        }
+
+        console.error("Failed to load tavern state", loadError);
+        toast.error("无法加载酒馆记录，已使用默认酒馆。");
+        setState(createDefaultTavernState(workspace.id));
+        setIsTavernStateHydrated(true);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [workspace.id, workspace.path]);
+
+  useEffect(() => {
     return () => {
       if (managedAutoRunTimerRef.current !== null) {
         window.clearTimeout(managedAutoRunTimerRef.current);
@@ -579,10 +613,15 @@ export const TavernPage = ({
   }, []);
 
   useEffect(() => {
-    if (state.rooms.some((room) => room.workspaceId === workspace.id)) {
-      saveTavernState(workspace.id, state);
+    if (
+      isTavernStateHydrated &&
+      state.rooms.some((room) => room.workspaceId === workspace.id)
+    ) {
+      void saveTavernState(workspace.path, workspace.id, state).catch((saveError) => {
+        console.error("Failed to save tavern state", saveError);
+      });
     }
-  }, [state, workspace.id]);
+  }, [isTavernStateHydrated, state, workspace.id, workspace.path]);
 
   useEffect(() => {
     if (quickSummaryCacheState.workspaceId !== workspace.id) {
@@ -1757,15 +1796,21 @@ export const TavernPage = ({
   }, [activeReferenceToken, draftCursor]);
 
   const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
-    return Promise.all(
-      referencedFilePreviews.map(async (file) => {
-        const workspaceFile = await readWorkspaceFile(workspace.path, file.path);
+    const resources = await resourceSessionRef.current.loadResources({
+      references: referencedFilePreviews.map((file) => ({ path: file.path })),
+      loadFile: async ({ path }) => {
+        const workspaceFile = await readWorkspaceFile(workspace.path, path);
         return {
-          path: file.path,
+          path: workspaceFile.path,
           content: workspaceFile.content,
+          updatedAt: workspaceFile.updatedAt,
         };
-      }),
-    );
+      },
+    });
+    return resources.references.map((file) => ({
+      path: file.path,
+      content: file.content,
+    }));
   }, [referencedFilePreviews, workspace.path]);
 
   const extractRecentAssets = useCallback(async () => {
