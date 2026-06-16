@@ -26,8 +26,7 @@ export const runAgentTurn = async (
     nextConversationContext,
     nextMessages,
     conversationSummary,
-    knowledgeDebugPayload,
-    publishContextDebugSnapshot,
+    reportContextDebugUpdate,
     agentPromptPayload,
   }: RunAgentTurnInput,
   {
@@ -82,34 +81,7 @@ export const runAgentTurn = async (
       ? filterChatAgentAllowedTools(allowedAgentTools)
       : allowedAgentTools,
   );
-  publishContextDebugSnapshot([
-    knowledgeDebugPayload,
-    {
-      label: "bridge initial prompt",
-      content: formatAgentInitialPromptPreview(
-        agentPromptPayload.bootstrapContext,
-        agentPromptPayload.prompt,
-        agentPromptPayload.shouldBootstrapAgentContext,
-      ),
-    },
-    {
-      label: "bootstrapContext",
-      content: agentPromptPayload.bootstrapContext || "（空）",
-    },
-    {
-      label: "prompt",
-      content: agentPromptPayload.prompt,
-    },
-    {
-      label: "prompt recent_conversation",
-      content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
-    },
-    {
-      label: "bootstrap recent_conversation",
-      content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
-    },
-  ], {
-    mode: chatMode,
+  reportContextDebugUpdate({
     agentSessionId,
     providerName: effectiveRuntimeModel?.provider.name ?? null,
     modelName: effectiveRuntimeModel?.modelName ?? null,
@@ -117,6 +89,32 @@ export const runAgentTurn = async (
       agentPromptPayload.bootstrapHistory.summary ||
       conversationSummary,
     runtimeMessages: agentPromptPayload.promptHistory.recentMessages,
+    payloads: [
+      {
+        label: "bridge initial prompt",
+        content: formatAgentInitialPromptPreview(
+          agentPromptPayload.bootstrapContext,
+          agentPromptPayload.prompt,
+          agentPromptPayload.shouldBootstrapAgentContext,
+        ),
+      },
+      {
+        label: "bootstrapContext",
+        content: agentPromptPayload.bootstrapContext || "（空）",
+      },
+      {
+        label: "prompt",
+        content: agentPromptPayload.prompt,
+      },
+      {
+        label: "prompt recent_conversation",
+        content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
+      },
+      {
+        label: "bootstrap recent_conversation",
+        content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
+      },
+    ],
   });
   appendVisibleTraceStep(traceTurnId, {
     type: "request",

@@ -1,10 +1,6 @@
 import {
+  type BuildSystemPromptInput,
   type PromptAgentProfile,
-  type PromptContextFile,
-  type PromptContextLimits,
-  type PromptFileReference,
-  type PromptKnowledgeReference,
-  type PromptSkillContext,
 } from "@/ai/agent-context";
 import type { CollaborationPromptPhase } from "../../../utils/collaboration";
 import {
@@ -12,21 +8,22 @@ import {
   type WorkspacePromptContext,
 } from "./workspace-system-prompt";
 
-type BuildCollaborationSystemPromptOptions = {
-  limits?: PromptContextLimits;
-  conversationSummary?: string;
-  agentExecutionSummary?: string;
-  contextQuery?: string;
-  knowledgeMatches?: PromptKnowledgeReference[];
+type CollaborationPromptOptions = {
   collaborationInstruction?: string | null;
   collaborationStepName?: string;
   collaborationStepIndex?: number;
   collaborationStepCount?: number;
 };
 
+type BuildCollaborationSystemPromptInput = BuildSystemPromptInput & {
+  workspace: WorkspacePromptContext;
+  selectedAgent: PromptAgentProfile;
+  phase: CollaborationPromptPhase;
+} & CollaborationPromptOptions;
+
 const phaseInstructionFor = (
   phase: CollaborationPromptPhase,
-  options: BuildCollaborationSystemPromptOptions,
+  options: CollaborationPromptOptions,
 ) => {
   const instructions = {
     draft: [
@@ -58,39 +55,36 @@ const phaseInstructionFor = (
   return instructions.join("\n");
 };
 
-export const buildCollaborationSystemPrompt = (
-  workspace: WorkspacePromptContext,
-  activeFile: PromptContextFile | null,
-  referencedFiles: PromptFileReference[],
-  activeSkills: PromptSkillContext[],
-  selectedAgent: PromptAgentProfile,
-  phase: CollaborationPromptPhase,
-  options: BuildCollaborationSystemPromptOptions = {},
-) => {
-  const basePrompt = buildWorkspaceSystemPrompt(
-    workspace,
-    activeFile,
-    referencedFiles,
-    activeSkills,
-    selectedAgent,
-    {
-      limits: options.limits,
-      conversationSummary: options.conversationSummary,
-      agentExecutionSummary: options.agentExecutionSummary,
-      contextQuery: options.contextQuery,
-      knowledgeMatches: options.knowledgeMatches,
-    },
-  );
-  const customInstruction = options.collaborationInstruction?.trim()
+export const buildCollaborationSystemPrompt = ({
+  workspace,
+  phase,
+  collaborationInstruction,
+  collaborationStepName,
+  collaborationStepIndex,
+  collaborationStepCount,
+  trailingSections,
+  ...promptInput
+}: BuildCollaborationSystemPromptInput) => {
+  const collaborationOptions = {
+    collaborationInstruction,
+    collaborationStepName,
+    collaborationStepIndex,
+    collaborationStepCount,
+  };
+  const customInstruction = collaborationInstruction?.trim()
     ? [
         "协作流程自定义说明：",
-        options.collaborationInstruction.trim(),
+        collaborationInstruction.trim(),
       ].join("\n")
     : "";
 
-  return [
-    basePrompt,
-    phaseInstructionFor(phase, options),
-    customInstruction,
-  ].filter(Boolean).join("\n\n");
+  return buildWorkspaceSystemPrompt({
+    workspace,
+    ...promptInput,
+    trailingSections: [
+      phaseInstructionFor(phase, collaborationOptions),
+      customInstruction,
+      ...(trailingSections ?? []),
+    ],
+  });
 };

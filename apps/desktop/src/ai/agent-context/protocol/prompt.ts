@@ -70,6 +70,17 @@ export type BuildPromptContextOptions = {
   knowledgeMatches?: PromptKnowledgeReference[];
 };
 
+export type PromptSystemPromptSection = string | null | undefined | false;
+
+export type BuildSystemPromptInput = BuildPromptContextOptions & {
+  activeFile: PromptContextFile | null;
+  references: PromptFileReference[];
+  activeSkills: PromptSkillContext[];
+  selectedAgent: PromptAgentProfile | null;
+  leadingSections?: PromptSystemPromptSection[];
+  trailingSections?: PromptSystemPromptSection[];
+};
+
 export type RuntimeContextPlan = {
   limits: PromptContextLimits;
   summarizer?: ConversationSummarizer;

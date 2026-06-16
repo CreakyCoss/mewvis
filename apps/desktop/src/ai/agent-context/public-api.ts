@@ -17,6 +17,7 @@ import {
 } from "./engine/domain-memory";
 import {
   buildPromptContext as buildPromptContextInternal,
+  buildSystemPrompt as buildSystemPromptInternal,
 } from "./prompt/prompts";
 import {
   appendReferencesToPrompt as appendReferencesToPromptInternal,
@@ -82,6 +83,10 @@ const buildPromptContext:
   AgentContextApi["buildPromptContext"] =
     buildPromptContextInternal;
 
+const buildSystemPrompt:
+  AgentContextApi["buildSystemPrompt"] =
+    buildSystemPromptInternal;
+
 const appendReferencesToPrompt:
   AgentContextApi["appendReferencesToPrompt"] =
     appendReferencesToPromptInternal;
@@ -103,6 +108,7 @@ export const agentContext: AgentContextApi = {
   listContextEngineDescriptors,
   prepareMemoryBackedRuntimeContext,
   buildPromptContext,
+  buildSystemPrompt,
   appendReferencesToPrompt,
   formatReferencesForPrompt,
 };

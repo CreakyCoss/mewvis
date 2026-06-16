@@ -13,6 +13,7 @@ import type {
 } from "./memory";
 import type {
   BuildPromptContextOptions,
+  BuildSystemPromptInput,
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
@@ -99,6 +100,8 @@ export type AgentContextSessionTracePayload = {
   sourceDescription?: string;
 };
 
+export type AgentContextSessionDebugPayload = AgentContextSessionTracePayload;
+
 export type AgentContextSessionTraceStepType =
   | "input"
   | "file"
@@ -158,6 +161,7 @@ export type AgentContextPromptSystemPromptBuilderInput = {
   selectedAgent: PromptAgentProfile | null;
   knowledgeMatches: PromptKnowledgeReference[];
   contextQuery: string;
+  executionMemorySummary: string;
 };
 
 export type AgentContextPromptSystemPromptBuilder = (
@@ -169,6 +173,7 @@ export type AgentContextPromptExecutorInput =
     turnId: string;
     systemPrompt: string;
     traceTurn: AgentContextSessionTraceTurn;
+    debugSnapshot: AgentContextSessionDebugSnapshot;
   };
 
 export type AgentContextPromptExecutorResult = {
@@ -241,6 +246,26 @@ export type AgentContextSessionPromptResult = {
   activeFile: PromptContextFile | null;
   knowledgeMatches: PromptKnowledgeReference[];
   traceTurn: AgentContextSessionTraceTurn;
+  debugSnapshot: AgentContextSessionDebugSnapshot;
+};
+
+export type AgentContextSessionDebugSnapshot = {
+  id: string;
+  turnId: string;
+  chatId: string | null;
+  updatedAt: number;
+  engineId: string | null;
+  contextWindow: number | null;
+  activeFilePath?: string | null;
+  referencedFilePaths: string[];
+  activeSkillNames: string[];
+  selectedAgentId?: string | null;
+  selectedAgentName?: string | null;
+  conversationSummary: string;
+  runtimeMessages: ConversationMessage[];
+  knowledgeMatches: PromptKnowledgeReference[];
+  systemPrompt: string;
+  payloads: AgentContextSessionDebugPayload[];
 };
 
 export type AgentContextSessionSnapshot = AgentContextSessionStateSnapshot & {
@@ -298,24 +323,37 @@ export type AgentContextSessionPreparedAgentTurn = PreparedAgentRunContext & {
   agentSessionStatus: AgentSessionContextStatus | null;
 };
 
-export type AgentContextSession = {
-  set(input: AgentContextSessionSetInput): void;
+export type AgentContextSessionStateReader = {
   get(): ChatContextSummary | null;
   snapshot(): AgentContextSessionSnapshot;
   getConversation(): ConversationMessage[];
-  setConversation(conversation: NormalizableConversationMessage[]): ConversationMessage[];
   getTrace(): AgentContextSessionTraceTurn[];
   getLastPrompt(): AgentContextSessionPromptResult | null;
+  getDebugSnapshot(): AgentContextSessionDebugSnapshot | null;
   getSummary(): string;
   getActiveAgentRuntimeSessionId(agentId?: string | null): string | null;
-  getContextLimits(input?: AgentContextRuntimeInput): PromptContextLimits;
+};
+
+export type AgentContextSessionStateWriter = {
+  set(input: AgentContextSessionSetInput): void;
+  setConversation(conversation: NormalizableConversationMessage[]): ConversationMessage[];
+};
+
+export type AgentContextSessionResourceLoader = {
   loadResources(
     input: AgentContextSessionLoadResourcesInput,
   ): Promise<AgentContextSessionLoadedResources>;
+};
+
+export type AgentContextSessionTurnRunner = {
+  getContextLimits(input?: AgentContextRuntimeInput): PromptContextLimits;
   prompt(input: AgentContextSessionPromptInput): Promise<AgentContextSessionPromptResult>;
   prepareAgentTurn(
     input: AgentContextSessionPrepareAgentTurnInput,
   ): Promise<AgentContextSessionPreparedAgentTurn>;
+};
+
+export type AgentContextConversationContextController = {
   prepareConversation(input: {
     conversation: ConversationMessage[];
     forceSummarize?: boolean;
@@ -351,6 +389,18 @@ export type AgentContextSession = {
   }): Promise<ChatContextSummary | null>;
 };
 
+export type AgentContextConversationSelector = Pick<
+  AgentContextConversationContextController,
+  "selectRecentConversation"
+>;
+
+export type AgentContextSession =
+  AgentContextSessionStateReader &
+  AgentContextSessionStateWriter &
+  AgentContextSessionResourceLoader &
+  AgentContextSessionTurnRunner &
+  AgentContextConversationContextController;
+
 export type AgentContextSessionManager = AgentContextSession;
 
 export type AgentContextApi = {
@@ -380,6 +430,7 @@ export type AgentContextApi = {
     selectedAgent: PromptAgentProfile | null,
     options?: BuildPromptContextOptions,
   ): string;
+  buildSystemPrompt(input: BuildSystemPromptInput): string;
   appendReferencesToPrompt(
     text: string,
     references: PromptReference[],

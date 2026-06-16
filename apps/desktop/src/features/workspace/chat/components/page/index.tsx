@@ -8,9 +8,6 @@ import {
 import {
   agentContext,
   type AgentContextSessionFileDescriptor,
-  type AgentContextSessionPromptInput,
-  type AgentContextSessionPromptResult,
-  type PreparedAgentRunContext,
 } from "@/ai/agent-context";
 import {
   buildAgentConversationContent,
@@ -23,8 +20,6 @@ import { CollaborationWorkflowSettingsDialog } from "@/features/ai/workflow/comp
 import { AgentSettingsDialog } from "@/features/ai/agent/components/dialog";
 import { SettingsPanel } from "@/features/app/settings";
 import { LlmSettingsPage } from "@/features/ai/llm";
-import { requireRuntimeModelInput } from "@/features/ai/llm/store";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
@@ -48,7 +43,6 @@ import type {
   ChatMode,
   CollaborationPhase,
   CollaborationPlanDecisionRequest,
-  ContextDebugPayload,
   ContextDebugSnapshot,
   ComposerSubmitInput,
   PendingAgentQuestion,
@@ -78,16 +72,16 @@ import {
   upsertChatSessionMeta,
 } from "./history";
 import {
-  contextCompressionTraceStep,
-  didConversationContextCompress,
-  formatDebugMessages,
-  formatKnowledgeMatches,
-} from "./trace";
-import {
   type ChatTurnDraft,
   createChatTurnDraft,
   validateComposerSubmit,
 } from "./chat-turn";
+import {
+  compressConversationContextRuntime,
+  finalizeAgentRunContextRuntime,
+  invalidateContextAfterHistoryChangeRuntime,
+  rebuildContextAfterHistoryChangeRuntime,
+} from "./conversation-context-runtime";
 import {
   createChatSessionId,
   createMessageId,
@@ -103,14 +97,17 @@ import {
 import {
   runCollaborationTurn,
 } from "./modes/collaboration-mode-runner";
-import { createMessageStreamAccumulator } from "./modes/shared";
 import { buildWorkspaceAgentInteractionInstructions } from "./modes/agent-prompts";
-import { buildWorkspaceSystemPrompt } from "./modes/workspace-system-prompt";
 import type {
   FinalizeAssistantTurn,
-  LimitsForProvider,
-  PublishContextDebugSnapshot,
 } from "./modes/types";
+import { runDirectChatTurnRuntime } from "./direct-turn-runtime";
+import {
+  createManagedContextDebugReporter,
+  finalizeManagedAssistantTurn,
+  managedPreparationTraceSteps,
+  prepareManagedTurnRuntime,
+} from "./managed-turn-runtime";
 import { ContextWorkbenchDialog } from "../context-workbench/dialog";
 import { ChatPanel } from "../chat";
 import { useChatPanelStoreBridge } from "../chat/store";
@@ -122,6 +119,7 @@ import { useAgentRuntimeEvents } from "./use-agent-runtime-events";
 import { useContextModeling } from "./use-context-modeling";
 import { useFileWorkbench } from "./use-file-workbench";
 import { useModelSettings } from "./use-model-settings";
+import { useWorkspaceAgentContextSession } from "./use-workspace-agent-context-session";
 import { useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useChatTraceState } from "./use-chat-trace-state";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
@@ -129,7 +127,6 @@ import { useWorkspaceSkills } from "./use-workspace-skills";
 import { useWorkspaceVersionControl } from "./use-workspace-version-control";
 
 const {
-  createSessionManager: createAgentContextSessionManager,
   getContextEngineDescriptor,
   listContextEngineDescriptors,
 } = agentContext;
@@ -252,17 +249,18 @@ export const WorkspaceChatPage = ({
   const messagesRef = useRef<ChatMessage[]>([]);
   const conversationRef = useRef<ConversationMessage[]>([]);
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
-  const contextSessionRef = useRef(createAgentContextSessionManager({
+  const loadContextFile = useCallback(async ({ path }: { path: string }) => {
+    const content = await readWorkspaceFile(workspaceRef.current.path, path);
+    return {
+      path: content.path,
+      content: content.content,
+      updatedAt: content.updatedAt,
+    };
+  }, []);
+  const agentContextSession = useWorkspaceAgentContextSession({
     engineId: contextEngineId,
-    loadFile: async ({ path }) => {
-      const content = await readWorkspaceFile(workspaceRef.current.path, path);
-      return {
-        path: content.path,
-        content: content.content,
-        updatedAt: content.updatedAt,
-      };
-    },
-  }));
+    loadFile: loadContextFile,
+  });
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
   const pendingAgentQuestionRef = useRef<PendingAgentQuestion | null>(null);
@@ -454,10 +452,6 @@ export const WorkspaceChatPage = ({
     );
     return skills.filter((skill) => skillKeys.has(skill.key));
   }, [selectedSkillGroupIds, selectedSkillGroups, skills]);
-  const activeSkillNames = useMemo(
-    () => activeSkills.map((skill) => skill.name).sort(),
-    [activeSkills],
-  );
   useEffect(() => {
     if (skillGroupWorkspaceRef.current !== workspace.id) {
       skillGroupWorkspaceRef.current = workspace.id;
@@ -825,7 +819,7 @@ export const WorkspaceChatPage = ({
     const nextContextEngineId = getContextEngineDescriptor(
       task.context?.engine?.id ?? preferredContextEngineIdRef.current,
     ).id;
-    contextSessionRef.current.set({
+    agentContextSession.syncState({
       chatId: task.sessionId,
       engineId: nextContextEngineId,
       context: task.context,
@@ -855,7 +849,7 @@ export const WorkspaceChatPage = ({
       currentTask.title = currentSessionTitleRef.current;
       currentTask.messages = messagesRef.current;
       currentTask.conversation = conversationRef.current;
-      currentTask.context = contextSessionRef.current.get();
+      currentTask.context = agentContextSession.getContext();
       currentTask.pendingQuestion =
         pendingAgentQuestionRef.current?.taskId === currentTaskId
           ? pendingAgentQuestionRef.current
@@ -1143,12 +1137,12 @@ export const WorkspaceChatPage = ({
 
   useEffect(() => {
     conversationContextRef.current = conversationContext;
-    contextSessionRef.current.set({
+    agentContextSession.syncState({
       chatId: currentSessionId,
       engineId: contextEngineId,
       context: conversationContext,
     });
-  }, [contextEngineId, conversationContext, currentSessionId]);
+  }, [agentContextSession, contextEngineId, conversationContext, currentSessionId]);
 
   useEffect(() => {
     if (!visibleActiveAgentTaskId) {
@@ -1208,12 +1202,12 @@ export const WorkspaceChatPage = ({
           id: activeAgentMessageIdRef.current || createMessageId(),
           role: "assistant",
           content: conversationContent,
-	          timestamp: Date.now(),
-	          metadata: {
-	            executionSummary,
-	            runStatus: status,
-	            runtimeSessionId: agentSessionId,
-	          },
+          timestamp: Date.now(),
+          metadata: {
+            executionSummary,
+            runStatus: status,
+            runtimeSessionId: agentSessionId,
+          },
         },
       ];
       conversationRef.current = nextConversation;
@@ -1230,36 +1224,27 @@ export const WorkspaceChatPage = ({
           }
         }
 
-        const contextBeforeFinalize = contextSessionRef.current.get();
         const finalizeContextStartedAt = Date.now();
-        contextSessionRef.current.set({
+        const finalizedContext = await finalizeAgentRunContextRuntime({
+          contextSession: agentContextSession.agentRunFinalizer,
           chatId: currentSessionId,
-          engineId: contextEngineId,
-          context: contextBeforeFinalize,
-        });
-        const syncedContext = await contextSessionRef.current.finalizeAgentRun({
+          contextEngineId,
           conversation: nextConversation,
           agentSessionId,
           agentId,
           runStatus: status,
           agentSessionStatus: latestAgentSessionStatus,
+          runtimeAgentRequiresModel,
+          startedAt: finalizeContextStartedAt,
         });
+        const syncedContext = finalizedContext.nextContext;
         agentContextInvalidatedRef.current = false;
         conversationContextRef.current = syncedContext;
         setConversationContext(syncedContext);
-        if (traceTurnId && didConversationContextCompress(contextBeforeFinalize, syncedContext)) {
-          appendVisibleTraceStep(traceTurnId, contextCompressionTraceStep({
-            startedAt: finalizeContextStartedAt,
-            previousContext: contextBeforeFinalize,
-            nextContext: syncedContext,
-            conversationLength: nextConversation.length,
-            mode: "agent",
-            phase: "agent_finalize",
-            engineId: contextEngineId,
-            providerName: null,
-            modelName: null,
-            canUseModel: runtimeAgentRequiresModel,
-          }));
+        if (traceTurnId) {
+          for (const step of finalizedContext.traceSteps) {
+            appendVisibleTraceStep(traceTurnId, step);
+          }
         }
       })();
 
@@ -1267,7 +1252,15 @@ export const WorkspaceChatPage = ({
     });
 
     return executionSummary;
-  }, [agentRuntimeSessionId, agentSessionStatus, appendVisibleTraceStep, contextEngineId, workspace.path]);
+  }, [
+    agentRuntimeSessionId,
+    agentSessionStatus,
+    appendVisibleTraceStep,
+    contextEngineId,
+    currentSessionId,
+    runtimeAgentRequiresModel,
+    workspace.path,
+  ]);
 
   const persistRunningAgentTask = useCallback(async (task: RunningAgentTaskContext) => {
     const title = deriveSessionTitle(task.messages);
@@ -1351,8 +1344,8 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    setAgentRuntimeSessionId(contextSessionRef.current.getActiveAgentRuntimeSessionId(runtimeAgentId));
-  }, [contextEngineId, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
+    setAgentRuntimeSessionId(agentContextSession.getActiveAgentRuntimeSessionId(runtimeAgentId));
+  }, [agentContextSession, contextEngineId, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
 
   const compressConversationContext = useCallback(async () => {
     if (conversation.length === 0) {
@@ -1360,38 +1353,34 @@ export const WorkspaceChatPage = ({
     }
 
     const compressionStartedAt = Date.now();
-    const previousContext = contextSessionRef.current.get() ?? conversationContext;
     const latestTraceTurn = chatTraceRef.current[chatTraceRef.current.length - 1];
     setIsContextCompressing(true);
     setSessionsError("");
 
     try {
-      contextSessionRef.current.set({
+      const compressedContext = await compressConversationContextRuntime({
+        contextSession: agentContextSession.compressor,
         chatId: currentSessionId,
-        engineId: contextEngineId,
-        context: previousContext,
-        modelContext: contextModelFor(effectiveRuntimeModel),
-        summarizer: summarizerFor(effectiveRuntimeModel),
-        canUseModel: runtimeAgentRequiresModel,
-      });
-      const nextContext = await contextSessionRef.current.compressConversation({
+        contextEngineId,
+        fallbackContext: conversationContext,
         conversation,
+        runtimeModel: effectiveRuntimeModel,
+        contextModelFor,
+        summarizerFor,
+        runtimeAgentRequiresModel,
+        startedAt: compressionStartedAt,
+        mode: "manual",
+        phase: "manual",
+        providerName: effectiveRuntimeModel?.provider.name ?? null,
+        modelName: effectiveRuntimeModel?.modelName ?? null,
       });
+      const nextContext = compressedContext.nextContext;
       conversationContextRef.current = nextContext;
       setConversationContext(nextContext);
-      if (latestTraceTurn && didConversationContextCompress(previousContext, nextContext)) {
-        appendVisibleTraceStep(latestTraceTurn.id, contextCompressionTraceStep({
-          startedAt: compressionStartedAt,
-          previousContext,
-          nextContext,
-          conversationLength: conversation.length,
-          mode: "manual",
-          phase: "manual",
-	          engineId: contextEngineId,
-          providerName: effectiveRuntimeModel?.provider.name ?? null,
-          modelName: effectiveRuntimeModel?.modelName ?? null,
-          canUseModel: runtimeAgentRequiresModel,
-        }));
+      if (latestTraceTurn) {
+        for (const step of compressedContext.traceSteps) {
+          appendVisibleTraceStep(latestTraceTurn.id, step);
+        }
       }
     } catch (caught) {
       const message = String(caught);
@@ -1405,7 +1394,7 @@ export const WorkspaceChatPage = ({
           content: message,
           metadata: {
             mode: "manual",
-	            engineId: contextEngineId,
+            engineId: contextEngineId,
             conversationLength: conversation.length,
           },
         });
@@ -1420,6 +1409,7 @@ export const WorkspaceChatPage = ({
     conversationContext,
     contextModelFor,
     contextEngineId,
+    currentSessionId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     summarizerFor,
@@ -1432,17 +1422,16 @@ export const WorkspaceChatPage = ({
       ? selectedCollaborationWorkflow?.writerAgent ?? null
       : null;
     const summaryRuntimeModel = collaborationSummaryAgent?.runtimeModel ?? effectiveRuntimeModel;
-    const summarySummarizer = summarizerFor(summaryRuntimeModel);
-    contextSessionRef.current.set({
+    const nextContext = await rebuildContextAfterHistoryChangeRuntime({
+      contextSession: agentContextSession.historySession,
       chatId: currentSessionId,
-      engineId: contextEngineId,
-      context: conversationContextRef.current,
-      modelContext: contextModelFor(summaryRuntimeModel),
-      summarizer: summarySummarizer,
-      canUseModel: runtimeAgentRequiresModel,
-    });
-    const nextContext = await contextSessionRef.current.rebuildAfterHistoryChange({
-      conversation: nextConversation,
+      contextEngineId,
+      currentContext: conversationContextRef.current,
+      nextConversation,
+      runtimeModel: summaryRuntimeModel,
+      contextModelFor,
+      summarizerFor,
+      runtimeAgentRequiresModel,
     });
     conversationContextRef.current = nextContext;
     setConversationContext(nextContext);
@@ -1450,6 +1439,7 @@ export const WorkspaceChatPage = ({
     chatMode,
     contextModelFor,
     contextEngineId,
+    currentSessionId,
     effectiveRuntimeModel,
     runtimeAgentRequiresModel,
     selectedCollaborationWorkflow,
@@ -1473,12 +1463,11 @@ export const WorkspaceChatPage = ({
       ),
     );
     agentContextInvalidatedRef.current = true;
-    contextSessionRef.current.set({
+    const invalidatedContext = invalidateContextAfterHistoryChangeRuntime({
+      contextSession: agentContextSession.historySession,
       chatId: currentSessionId,
-      engineId: contextEngineId,
-      context: conversationContextRef.current,
-    });
-    const invalidatedContext = contextSessionRef.current.invalidateAfterHistoryChange({
+      contextEngineId,
+      currentContext: conversationContextRef.current,
       conversation: sanitizedConversation,
     });
     conversationContextRef.current = invalidatedContext;
@@ -1615,32 +1604,7 @@ export const WorkspaceChatPage = ({
     return nextMessages;
   };
 
-  const appendSessionPromptTraceSteps = (
-    traceTurnId: string,
-    steps: AgentContextSessionPromptResult["traceTurn"]["steps"],
-    labels: Set<string>,
-  ) => {
-    for (const step of steps) {
-      if (!labels.has(step.label)) {
-        continue;
-      }
-
-      appendVisibleTraceStep(traceTurnId, {
-        type: step.type === "file" ? "context" : step.type,
-        label: step.label === "知识检索" ? "知识库检索" : step.label,
-        startedAt: step.startedAt,
-        endedAt: step.endedAt,
-        durationMs: step.durationMs,
-        status: step.status,
-        content: step.content,
-        metadata: step.metadata,
-        payloads: step.payloads,
-      });
-    }
-  };
-
   const runDirectChatTurnWithSessionPrompt = async ({
-    now,
     userMessageId,
     assistantMessageId,
     traceTurnId,
@@ -1653,7 +1617,6 @@ export const WorkspaceChatPage = ({
     traceModelName,
     nextSessionId,
   }: {
-    now: number;
     userMessageId: string;
     assistantMessageId: string;
     traceTurnId: string;
@@ -1666,23 +1629,15 @@ export const WorkspaceChatPage = ({
     traceModelName: string | null;
     nextSessionId: string | null;
   }) => {
-    const summaryRuntimeModel = effectiveRuntimeModel;
-    const summaryModelContext = contextModelFor(summaryRuntimeModel);
-    const summarySummarizer = summarizerFor(summaryRuntimeModel);
-    const runtimeModelInput = effectiveRuntimeModel
-      ? requireRuntimeModelInput(effectiveRuntimeModel)
-      : null;
-    const contextWindow = summaryModelContext.contextWindow ?? effectiveAppContextWindow;
     const hasRagIndex = contextEngineDescriptor.capabilities.includes("rag_index");
-    let didPublishPreparationTrace = false;
-
-    contextSessionRef.current.set({
-      chatId: nextSessionId,
-      engineId: contextEngineId,
-      context: baseConversationContext,
-      modelContext: summaryModelContext,
-      summarizer: summarySummarizer,
-      canUseModel: runtimeAgentRequiresModel,
+    const result = await runDirectChatTurnRuntime({
+      contextSession: agentContextSession.turnSession,
+      workspace,
+      contextEngineId,
+      effectiveAppContextWindow,
+      runtimeAgentRequiresModel,
+      contextModelFor,
+      summarizerFor,
       searchKnowledge: hasRagIndex
         ? ({ query, conversation, references }) =>
           knowledgeRagIndex.search({
@@ -1696,201 +1651,40 @@ export const WorkspaceChatPage = ({
             },
           })
         : undefined,
-      buildSystemPrompt: (promptInput) => {
-        conversationContextRef.current = promptInput.context;
-        setConversationContext(promptInput.context);
-        patchVisibleTraceTurn(traceTurnId, {
-          contextEngineId,
-          contextWindow,
-          conversationSummary: promptInput.conversationSummary,
-        });
-
-        const knowledgeDebugPayload: ContextDebugPayload = {
-          label: "retrieved knowledge",
-          sourceLabel: "RAG",
-          sourceDescription: "全局知识库已启用集合检索",
-          content: formatKnowledgeMatches(promptInput.knowledgeMatches),
-        };
-        const systemPrompt = buildWorkspaceSystemPrompt(
-          workspace,
-          promptInput.activeFile,
-          promptInput.references,
-          promptInput.activeSkills,
-          promptInput.selectedAgent,
-          {
-            limits: promptInput.limits,
-            conversationSummary: promptInput.conversationSummary,
-            agentExecutionSummary: currentAgentExecutionSummary,
-            contextQuery: text,
-            knowledgeMatches: promptInput.knowledgeMatches,
-          },
-        );
-        setContextDebugSnapshot({
-          id: `${now}-${userMessageId}`,
-          updatedAt: Date.now(),
-          mode: chatMode,
-          engineId: contextEngineId,
-          contextWindow,
-          runtimeAgentId,
-          agentSessionId: null,
-          providerName: traceProviderName,
-          modelName: traceModelName,
-          activeFilePath: activeFile?.path ?? null,
-          referencedFilePaths: referencedFiles.map((file) => file.path),
-          activeSkillNames,
-          conversationSummary: promptInput.conversationSummary,
-          runtimeMessages: promptInput.runtimeMessages,
-          payloads: [
-            knowledgeDebugPayload,
-            { label: "systemPrompt", content: systemPrompt },
-            { label: "messages", content: formatDebugMessages(promptInput.runtimeMessages) },
-          ],
-        });
-
-        return systemPrompt;
-      },
-      runPrompt: async (promptInput) => {
-        if (!didPublishPreparationTrace) {
-          appendSessionPromptTraceSteps(
-            traceTurnId,
-            promptInput.traceTurn.steps,
-            new Set(["上下文文件", "上下文准备", "知识检索"]),
-          );
-          didPublishPreparationTrace = true;
-        }
-
-        const chatRequestStartedAt = Date.now();
-        let hasLoggedStreamStart = false;
-        appendVisibleTraceStep(traceTurnId, {
-          type: "request",
-          label: "模型请求",
-          status: "done",
-          content: promptInput.systemPrompt,
-          metadata: {
-            providerName: effectiveRuntimeModel?.provider.name ?? null,
-            modelName: effectiveRuntimeModel?.modelName ?? null,
-            stream: true,
-            runtimeMessageCount: promptInput.runtimeMessages.length,
-          },
-          payloads: [
-            {
-              label: "messages",
-              content: formatDebugMessages(promptInput.runtimeMessages),
-            },
-          ],
-        });
-
-        const streamAccumulator = createMessageStreamAccumulator({
-          messageId: assistantMessageId,
-          updateMessage,
-        });
-        const response = await runSharedRuntimeChat({
-          agentId: runtimeAgentId,
-          runtimeModel: runtimeModelInput,
-          systemPrompt: promptInput.systemPrompt,
-          messages: promptInput.runtimeMessages,
-          onTextDelta: (delta) => {
-            if (!hasLoggedStreamStart) {
-              hasLoggedStreamStart = true;
-              appendVisibleTraceStep(traceTurnId, {
-                type: "stream",
-                label: "开始流式输出",
-                status: "done",
-                content: delta,
-              });
-            }
-            streamAccumulator.appendTextDelta(delta);
-          },
-          onThinkingDelta: (delta) => {
-            if (!hasLoggedStreamStart) {
-              hasLoggedStreamStart = true;
-              appendVisibleTraceStep(traceTurnId, {
-                type: "stream",
-                label: "开始流式输出",
-                status: "done",
-                content: delta,
-              });
-            }
-            streamAccumulator.appendThinkingDelta(delta);
-          },
-        });
-        streamAccumulator.flushPendingStreamDeltas();
-        const assistantText = response.text.trim();
-        const thinking = response.thinking?.trim() || undefined;
-        appendVisibleTraceStep(traceTurnId, {
-          type: "response",
-          label: "模型响应",
-          startedAt: chatRequestStartedAt,
-          endedAt: Date.now(),
-          status: "done",
-          content: assistantText,
-          metadata: {
-            thinkingLength: thinking?.length ?? 0,
-            textLength: assistantText.length,
-          },
-          payloads: thinking
-            ? [{ label: "thinking", content: thinking }]
-            : undefined,
-        });
-
-        updateMessage(assistantMessageId, (message) => ({
-          ...message,
-          text: assistantText,
-          thinking,
-          status: "done",
-        }));
-
-        return {
-          text: assistantText,
-          thinking,
-        };
-      },
-    });
-
-    const result = await contextSessionRef.current.prompt({
-      chatId: nextSessionId,
-      id: userMessageId,
+      chatMode,
+      runtimeAgentId,
+      effectiveRuntimeModel,
+      traceProviderName,
+      traceModelName,
+      nextSessionId,
+      userMessageId,
       assistantMessageId,
+      traceTurnId,
       text,
-      conversation: baseConversation,
-      references: referencedFiles,
+      referencedFiles,
       activeFile: toPromptFileDescriptor(activeFile),
       activeSkills,
       selectedAgent: modelSource === "agent" ? selectedAgent : null,
+      baseConversation,
+      baseConversationContext,
+      executionMemorySummary: currentAgentExecutionSummary,
+      onPreparedContext: (context) => {
+        conversationContextRef.current = context;
+        setConversationContext(context);
+      },
+      onDebugSnapshot: setContextDebugSnapshot,
+      appendVisibleTraceStep,
+      patchVisibleTraceTurn,
+      updateMessage,
     });
 
     conversationRef.current = result.conversation;
     setConversation(result.conversation);
     conversationContextRef.current = result.context;
     setConversationContext(result.context);
-
-    if (didConversationContextCompress(result.previousContext, result.context)) {
-      appendVisibleTraceStep(traceTurnId, contextCompressionTraceStep({
-        startedAt: Date.now(),
-        previousContext: result.previousContext,
-        nextContext: result.context,
-        conversationLength: result.conversation.length,
-        mode: "chat",
-        phase: "finalize",
-        engineId: contextEngineId,
-        providerName: effectiveRuntimeModel?.provider.name ?? null,
-        modelName: effectiveRuntimeModel?.modelName ?? null,
-        canUseModel: runtimeAgentRequiresModel,
-      }));
-    }
-    appendSessionPromptTraceSteps(
-      traceTurnId,
-      result.traceTurn.steps,
-      new Set(["上下文回写"]),
-    );
-    patchVisibleTraceTurn(traceTurnId, {
-      status: "done",
-      conversationSummary: result.conversationSummary,
-    });
   };
 
   const prepareManagedTurnRuntimeWithSessionPrompt = async ({
-    now,
     userMessageId,
     assistantMessageId,
     traceTurnId,
@@ -1904,7 +1698,6 @@ export const WorkspaceChatPage = ({
     summaryRuntimeModel,
     prepareAgentPayload = false,
   }: {
-    now: number;
     userMessageId: string;
     assistantMessageId: string;
     traceTurnId: string;
@@ -1918,25 +1711,19 @@ export const WorkspaceChatPage = ({
     summaryRuntimeModel: typeof effectiveRuntimeModel;
     prepareAgentPayload?: boolean;
   }) => {
-    const limitsFor: LimitsForProvider = (
-      runtimeModel,
-    ) => contextSessionRef.current.getContextLimits({
-      engineId: contextEngineId,
-      modelContext: contextModelFor(runtimeModel),
-      canUseModel: false,
-    });
-    const summaryModelContext = contextModelFor(summaryRuntimeModel);
-    const summarySummarizer = summarizerFor(summaryRuntimeModel);
-    const contextWindow = summaryModelContext.contextWindow ?? effectiveAppContextWindow;
     const hasRagIndex = contextEngineDescriptor.capabilities.includes("rag_index");
-
-    contextSessionRef.current.set({
-      chatId: nextSessionId,
-      engineId: contextEngineId,
-      context: baseConversationContext,
-      modelContext: summaryModelContext,
-      summarizer: summarySummarizer,
-      canUseModel: runtimeAgentRequiresModel,
+    const {
+      result,
+      agentPromptPayload,
+      limitsFor,
+      contextWindow,
+    } = await prepareManagedTurnRuntime({
+      contextSession: agentContextSession.turnSession,
+      contextEngineId,
+      effectiveAppContextWindow,
+      runtimeAgentRequiresModel,
+      contextModelFor,
+      summarizerFor,
       searchKnowledge: hasRagIndex
         ? ({ query, conversation, references }) =>
           knowledgeRagIndex.search({
@@ -1950,63 +1737,32 @@ export const WorkspaceChatPage = ({
             },
           })
         : undefined,
-    });
-    const promptConversation = nextConversation.slice(0, -1);
-    const promptInput = {
-      chatId: nextSessionId,
-      id: userMessageId,
+      nextSessionId,
+      userMessageId,
       assistantMessageId,
       text,
-      conversation: promptConversation,
-      references: referencedFiles,
+      referencedFiles,
       activeFile: toPromptFileDescriptor(activeFile),
-      systemPrompt: "",
-      execute: false,
-      appendAssistantMessage: false,
-    } satisfies AgentContextSessionPromptInput;
-
-    let agentPromptPayload: PreparedAgentRunContext | null = null;
-    let result: AgentContextSessionPromptResult;
-    if (prepareAgentPayload) {
-      if (!nextSessionId) {
-        throw new Error("无法创建 Agent 长期上下文，请重试");
-      }
-      const agentLimits = limitsFor(summaryRuntimeModel);
-      const agentTurn = await contextSessionRef.current.prepareAgentTurn({
-        ...promptInput,
-        chatSessionId: nextSessionId,
-        agentConversation: promptConversation,
-        agentContext: baseConversationContext,
-        agentId: runtimeAgentId,
-        tokenBudget: agentLimits.recentHistoryTokens,
-        isHistoryInvalidated: agentContextInvalidatedRef.current,
-        agentInstructions: buildWorkspaceAgentInteractionInstructions(),
-        selectedAgent: modelSource === "agent" ? selectedAgent : null,
-        limits: agentLimits,
-        loadAgentSessionStatus: async (agentSessionId) => {
-          try {
-            const status = await getAgentSessionStatus(workspace.path, agentSessionId);
-            setAgentSessionStatus(status);
-            setAgentSessionError("");
-            return status;
-          } catch (caught) {
-            setAgentSessionError(String(caught));
-            return agentSessionStatus;
-          }
-        },
-      });
-      agentPromptPayload = {
-        agentSessionId: agentTurn.agentSessionId,
-        bootstrapContext: agentTurn.bootstrapContext,
-        prompt: agentTurn.prompt,
-        shouldBootstrapAgentContext: agentTurn.shouldBootstrapAgentContext,
-        bootstrapHistory: agentTurn.bootstrapHistory,
-        promptHistory: agentTurn.promptHistory,
-      };
-      result = agentTurn.preparedPrompt;
-    } else {
-      result = await contextSessionRef.current.prompt(promptInput);
-    }
+      nextConversation,
+      baseConversationContext,
+      summaryRuntimeModel,
+      prepareAgentPayload,
+      runtimeAgentId,
+      agentContextInvalidated: agentContextInvalidatedRef.current,
+      selectedAgent: modelSource === "agent" ? selectedAgent : null,
+      agentInstructions: buildWorkspaceAgentInteractionInstructions(),
+      loadAgentSessionStatus: async (agentSessionId) => {
+        try {
+          const status = await getAgentSessionStatus(workspace.path, agentSessionId);
+          setAgentSessionStatus(status);
+          setAgentSessionError("");
+          return status;
+        } catch (caught) {
+          setAgentSessionError(String(caught));
+          return agentSessionStatus;
+        }
+      },
+    });
 
     conversationContextRef.current = result.context;
     setConversationContext(result.context);
@@ -2015,116 +1771,59 @@ export const WorkspaceChatPage = ({
       contextWindow,
       conversationSummary: result.conversationSummary,
     });
-    appendSessionPromptTraceSteps(
-      traceTurnId,
-      result.traceTurn.steps,
-      new Set(["上下文文件", "上下文准备", "知识检索"]),
-    );
-    if (didConversationContextCompress(result.previousContext, result.context)) {
-      appendVisibleTraceStep(traceTurnId, contextCompressionTraceStep({
-        startedAt: result.traceTurn.createdAt,
-        previousContext: result.previousContext,
-        nextContext: result.context,
-        conversationLength: result.conversation.length,
-        mode: chatMode,
-        phase: "prepare",
-        engineId: contextEngineId,
-        providerName: summaryRuntimeModel?.provider.name ?? null,
-        modelName: summaryRuntimeModel?.modelName ?? null,
-        canUseModel: runtimeAgentRequiresModel,
-      }));
+    for (const step of managedPreparationTraceSteps({
+      result,
+      mode: chatMode,
+      contextEngineId,
+      runtimeModel: summaryRuntimeModel,
+      runtimeAgentRequiresModel,
+    })) {
+      appendVisibleTraceStep(traceTurnId, step);
     }
 
-    const knowledgeDebugPayload: ContextDebugPayload = {
-      label: "retrieved knowledge",
-      sourceLabel: "RAG",
-      sourceDescription: "全局知识库已启用集合检索",
-      content: formatKnowledgeMatches(result.knowledgeMatches),
-    };
-    const publishContextDebugSnapshot: PublishContextDebugSnapshot = (
-      payloads,
-      overrides = {},
-    ) => {
-      setContextDebugSnapshot({
-        id: `${now}-${userMessageId}`,
-        updatedAt: Date.now(),
-        mode: chatMode,
-        engineId: contextEngineId,
-        contextWindow,
-        runtimeAgentId,
-        agentSessionId: null,
-        providerName: traceProviderName,
-        modelName: traceModelName,
-        activeFilePath: activeFile?.path ?? null,
-        referencedFilePaths: result.references.map((file) => file.path),
-        activeSkillNames,
-        conversationSummary: result.conversationSummary,
-        runtimeMessages: result.runtimeMessages,
-        payloads,
-        ...overrides,
-      });
-    };
+    const reportContextDebugUpdate = createManagedContextDebugReporter({
+      result,
+      mode: chatMode,
+      contextEngineId,
+      contextWindow,
+      runtimeAgentId,
+      providerName: traceProviderName,
+      modelName: traceModelName,
+      onDebugSnapshot: setContextDebugSnapshot,
+    });
     const finalizeAssistantTurn: FinalizeAssistantTurn = async ({
       mode,
       assistantText,
       assistantMessages,
     }) => {
-      const finalConversation: ConversationMessage[] = [
-        ...nextConversation,
-        ...(assistantMessages && assistantMessages.length > 0
-          ? assistantMessages
-          : [{
-            id: assistantMessageId,
-            role: "assistant" as const,
-            content: assistantText,
-            timestamp: Date.now(),
-          }]),
-      ];
+      const finalized = await finalizeManagedAssistantTurn({
+        contextSession: agentContextSession.chatTurnFinalizer,
+        nextSessionId,
+        contextEngineId,
+        contextBeforeFinalize: conversationContextRef.current,
+        modelContext: contextModelFor(summaryRuntimeModel),
+        runtimeAgentRequiresModel,
+        nextConversation,
+        assistantMessageId,
+        mode,
+        assistantText,
+        assistantMessages,
+        resultConversationSummary: result.conversationSummary,
+        startedAt: Date.now(),
+        providerName: summaryRuntimeModel?.provider.name ?? null,
+        modelName: summaryRuntimeModel?.modelName ?? null,
+      });
+      const { finalConversation, finalContext } = finalized;
       conversationRef.current = finalConversation;
       setConversation(finalConversation);
-
-      const finalizeContextStartedAt = Date.now();
-      const contextBeforeFinalize = conversationContextRef.current;
-      contextSessionRef.current.set({
-        chatId: nextSessionId,
-        engineId: contextEngineId,
-        context: contextBeforeFinalize,
-        modelContext: contextModelFor(summaryRuntimeModel),
-        canUseModel: runtimeAgentRequiresModel,
-      });
-      const finalContext = await contextSessionRef.current.finalizeChatTurn({
-        conversation: finalConversation,
-      });
       conversationContextRef.current = finalContext;
       setConversationContext(finalContext);
-
-      if (didConversationContextCompress(contextBeforeFinalize, finalContext)) {
-        appendVisibleTraceStep(traceTurnId, contextCompressionTraceStep({
-          startedAt: finalizeContextStartedAt,
-          previousContext: contextBeforeFinalize,
-          nextContext: finalContext,
-          conversationLength: finalConversation.length,
-          mode,
-          phase: "finalize",
-          engineId: contextEngineId,
-          providerName: summaryRuntimeModel?.provider.name ?? null,
-          modelName: summaryRuntimeModel?.modelName ?? null,
-          canUseModel: runtimeAgentRequiresModel,
-        }));
+      for (const step of finalized.traceSteps) {
+        appendVisibleTraceStep(traceTurnId, step);
       }
-      appendVisibleTraceStep(traceTurnId, {
-        type: "context",
-        label: "上下文回写",
-        status: "done",
-        content: finalContext?.summary ?? "（空）",
-        metadata: {
-          mode,
-          conversationLength: finalConversation.length,
-        },
-      });
       patchVisibleTraceTurn(traceTurnId, {
         status: "done",
-        conversationSummary: finalContext?.summary ?? result.conversationSummary,
+        conversationSummary: finalized.conversationSummary,
       });
     };
 
@@ -2136,10 +1835,9 @@ export const WorkspaceChatPage = ({
       activeFile: result.activeFile,
       referencedFiles: result.references,
       knowledgeMatches: result.knowledgeMatches,
-      knowledgeDebugPayload,
       agentPromptPayload,
       limitsFor,
-      publishContextDebugSnapshot,
+      reportContextDebugUpdate,
       finalizeAssistantTurn,
     };
   };
@@ -2216,7 +1914,7 @@ export const WorkspaceChatPage = ({
       providerName: traceProviderName,
       modelName: traceModelName,
       runtimeAgentId,
-	      contextEngineId,
+      contextEngineId,
       contextWindow: effectiveAppContextWindow,
       userMessageId,
       assistantMessageId,
@@ -2237,7 +1935,6 @@ export const WorkspaceChatPage = ({
 
       if (shouldUseSessionPrompt) {
         await runDirectChatTurnWithSessionPrompt({
-          now,
           userMessageId,
           assistantMessageId,
           traceTurnId,
@@ -2255,7 +1952,6 @@ export const WorkspaceChatPage = ({
 
       if (shouldRunAgentTask) {
         const preparedAgentRuntime = await prepareManagedTurnRuntimeWithSessionPrompt({
-          now,
           userMessageId,
           assistantMessageId,
           traceTurnId,
@@ -2287,9 +1983,8 @@ export const WorkspaceChatPage = ({
           nextConversationContext: preparedAgentRuntime.nextConversationContext,
           nextMessages,
           conversationSummary: preparedAgentRuntime.conversationSummary,
-          knowledgeDebugPayload: preparedAgentRuntime.knowledgeDebugPayload,
           agentPromptPayload: preparedAgentRuntime.agentPromptPayload,
-          publishContextDebugSnapshot: preparedAgentRuntime.publishContextDebugSnapshot,
+          reportContextDebugUpdate: preparedAgentRuntime.reportContextDebugUpdate,
         }, {
           workspace,
           activeFile: preparedAgentRuntime.activeFile,
@@ -2321,7 +2016,6 @@ export const WorkspaceChatPage = ({
           return;
         }
         const preparedCollaborationRuntime = await prepareManagedTurnRuntimeWithSessionPrompt({
-          now,
           userMessageId,
           assistantMessageId,
           traceTurnId,
@@ -2347,9 +2041,8 @@ export const WorkspaceChatPage = ({
           conversationSummary: preparedCollaborationRuntime.conversationSummary,
           currentAgentExecutionSummary,
           knowledgeMatches: preparedCollaborationRuntime.knowledgeMatches,
-          knowledgeDebugPayload: preparedCollaborationRuntime.knowledgeDebugPayload,
           limitsFor: preparedCollaborationRuntime.limitsFor,
-          publishContextDebugSnapshot: preparedCollaborationRuntime.publishContextDebugSnapshot,
+          reportContextDebugUpdate: preparedCollaborationRuntime.reportContextDebugUpdate,
           finalizeAssistantTurn: preparedCollaborationRuntime.finalizeAssistantTurn,
         }, {
           workspace,
@@ -2357,7 +2050,7 @@ export const WorkspaceChatPage = ({
           activeSkills,
           runtimeAgentId,
           agentRuntime,
-          contextSession: contextSessionRef.current,
+          selectRecentConversation: agentContextSession.selectRecentConversation,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,

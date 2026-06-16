@@ -13,9 +13,13 @@ search, prompt building, and prompt execution.
 The preferred per-turn API is `session.prompt(...)`. It owns the prompt turn
 pipeline: conversation state, referenced-file loading, context preparation,
 optional knowledge search, prompt material assembly, runner dispatch, context
-finalization, and trace/debug snapshots. Callers can inspect `session.snapshot()`,
-`session.getConversation()`, `session.getTrace()`, `session.getLastPrompt()`, or
-`session.get()` for the current context. Lower-level lifecycle methods
+finalization, and trace/debug snapshots. Prompt results include a standardized
+`debugSnapshot` with context facts, prompt material, runtime messages, and
+retrieved knowledge. Feature code may enrich that snapshot with UI/runtime
+labels such as mode, provider, model, or agent session id, but should not rebuild
+the core context facts itself. Callers can inspect `session.snapshot()`,
+`session.getConversation()`, `session.getTrace()`, `session.getLastPrompt()`,
+`session.getDebugSnapshot()`, or `session.get()` for the current context. Lower-level lifecycle methods
 (`prepareConversation`, `compressConversation`, `rebuildAfterHistoryChange`,
 `invalidateAfterHistoryChange`, `finalizeChatTurn`, and `finalizeAgentRun`) remain
 available for migration and specialized flows.
@@ -79,6 +83,14 @@ and `AgentContextSessionManager` instances. Per-turn work should go through
 methods on the same session. The full `ContextEngine` interface, registry
 helpers, built-in engine objects, and raw engine operation inputs are SPI for
 this package only.
+
+When passing session capabilities across feature boundaries, prefer the narrow
+interfaces exported from `@/ai/agent-context`: `AgentContextSessionTurnRunner`
+for prompt turns, `AgentContextConversationSelector` for recent-message
+selection, `AgentContextConversationContextController` for maintenance flows,
+`AgentContextSessionResourceLoader` for resource resolution, and
+`AgentContextSessionStateReader` for UI inspection. Avoid handing a full
+`AgentContextSessionManager` to code that only needs one of those capabilities.
 
 Minimal manager shape:
 

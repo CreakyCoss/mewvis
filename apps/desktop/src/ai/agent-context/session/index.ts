@@ -5,7 +5,7 @@ import {
   getContextEngine,
 } from "../engine/registry";
 import {
-  buildPromptContext,
+  buildSystemPrompt as buildAgentContextSystemPrompt,
 } from "../prompt/prompts";
 import type {
   ChatContextSummary,
@@ -15,6 +15,7 @@ import type {
 import type {
   PromptContextFile,
   PromptFileReference,
+  PromptKnowledgeReference,
 } from "../protocol/prompt";
 import type {
   AgentContextPromptExecutorInput,
@@ -56,6 +57,25 @@ const findLastAssistantMessage = (
 
   return null;
 };
+
+const formatTraceMessages = (messages: ConversationMessage[]) =>
+  messages
+    .map((message) => `${message.role}: ${message.content}`)
+    .join("\n\n");
+
+const formatTraceKnowledgeMatches = (matches: PromptKnowledgeReference[]) =>
+  matches.length
+    ? matches.map((match, index) => {
+      const title = match.title || match.path || match.id;
+      const score = match.score == null ? "" : `score=${match.score.toFixed(3)}`;
+      const chunk = match.chunkId ? `chunk=${match.chunkId}` : "";
+      return [
+        `[K${index + 1}] ${title}`,
+        [score, chunk].filter(Boolean).join(" · "),
+        match.content,
+      ].filter(Boolean).join("\n");
+    }).join("\n\n---\n\n")
+    : "（空）";
 
 const traceStep = (
   input: Omit<AgentContextSessionTraceStep, "id" | "startedAt"> & {
@@ -260,20 +280,7 @@ export const createAgentContextSession = (
   };
   const buildDefaultSystemPrompt = (
     input: AgentContextPromptSystemPromptBuilderInput,
-    promptInput: AgentContextSessionPromptInput,
-  ) => buildPromptContext(
-    input.activeFile,
-    input.references,
-    input.activeSkills,
-    input.selectedAgent,
-    {
-      limits: input.limits,
-      conversationSummary: input.conversationSummary,
-      executionMemorySummary: promptInput.executionMemorySummary,
-      contextQuery: input.contextQuery,
-      knowledgeMatches: input.knowledgeMatches,
-    },
-  );
+  ) => buildAgentContextSystemPrompt(input);
 
   const session: AgentContextSession = {
     set(input) {
@@ -307,6 +314,9 @@ export const createAgentContextSession = (
     },
     getLastPrompt() {
       return lastPrompt;
+    },
+    getDebugSnapshot() {
+      return lastPrompt?.debugSnapshot ?? null;
     },
     getSummary() {
       return manager.getSummary();
@@ -504,11 +514,45 @@ export const createAgentContextSession = (
           selectedAgent: input.selectedAgent ?? null,
           knowledgeMatches,
           contextQuery,
+          executionMemorySummary: input.executionMemorySummary ?? "",
         };
         const systemPrompt = input.systemPrompt ??
           await (input.buildSystemPrompt ?? buildSystemPrompt ?? (
-            (builder) => buildDefaultSystemPrompt(builder, input)
+            (builder) => buildDefaultSystemPrompt(builder)
           ))(builderInput);
+        const debugSnapshot = {
+          id: turn.id,
+          turnId: turn.id,
+          chatId,
+          updatedAt: Date.now(),
+          engineId: turn.engineId ?? null,
+          contextWindow: turn.contextWindow ?? null,
+          activeFilePath: activeFile?.path ?? null,
+          referencedFilePaths: references.map((file) => file.path),
+          activeSkillNames: builderInput.activeSkills.map((skill) => skill.name),
+          selectedAgentId: builderInput.selectedAgent?.id ?? null,
+          selectedAgentName: builderInput.selectedAgent?.name ?? null,
+          conversationSummary: builderInput.conversationSummary,
+          runtimeMessages: builderInput.runtimeMessages,
+          knowledgeMatches,
+          systemPrompt,
+          payloads: [
+            {
+              label: "retrieved knowledge",
+              sourceLabel: "RAG",
+              sourceDescription: "agent-context 知识检索结果",
+              content: formatTraceKnowledgeMatches(knowledgeMatches),
+            },
+            {
+              label: "systemPrompt",
+              content: systemPrompt,
+            },
+            {
+              label: "runtime messages",
+              content: formatTraceMessages(prepared.runtimeMessages),
+            },
+          ],
+        };
         appendTraceStep(turn, {
           type: "request",
           label: "Prompt 准备",
@@ -521,9 +565,7 @@ export const createAgentContextSession = (
           payloads: [
             {
               label: "runtime messages",
-              content: prepared.runtimeMessages
-                .map((message) => `${message.role}: ${message.content}`)
-                .join("\n\n"),
+              content: formatTraceMessages(prepared.runtimeMessages),
             },
           ],
         });
@@ -539,6 +581,7 @@ export const createAgentContextSession = (
           turnId: turn.id,
           systemPrompt,
           traceTurn: turn,
+          debugSnapshot,
         };
         const requestStartedAt = Date.now();
         const executorResult = shouldExecute
@@ -627,6 +670,11 @@ export const createAgentContextSession = (
           activeFile,
           knowledgeMatches,
           traceTurn: turn,
+          debugSnapshot: {
+            ...debugSnapshot,
+            updatedAt: Date.now(),
+            conversationSummary: finalContext?.summary ?? prepared.conversationSummary,
+          },
         };
         return lastPrompt;
       } catch (caught) {

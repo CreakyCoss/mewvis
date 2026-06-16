@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import type {
-  AgentContextSession,
+  AgentContextConversationSelector,
   ChatContextSummary,
   ConversationMessage,
   PreparedAgentRunContext,
@@ -24,7 +24,6 @@ import type {
   CollaborationPhase,
   CollaborationPlanDecisionRequest,
   ContextDebugPayload,
-  ContextDebugSnapshot,
 } from "../../../page-types";
 import type {
   ChatMessage,
@@ -37,10 +36,19 @@ export type LimitsForProvider = (
   runtimeModel?: RuntimeModelOption | null,
 ) => PromptContextLimits;
 
-export type PublishContextDebugSnapshot = (
-  payloads: ContextDebugPayload[],
-  overrides?: Partial<ContextDebugSnapshot>,
-) => void;
+export type SelectRecentConversation =
+  AgentContextConversationSelector["selectRecentConversation"];
+
+export type ContextDebugUpdate = {
+  payloads: ContextDebugPayload[];
+  agentSessionId?: string | null;
+  providerName?: string | null;
+  modelName?: string | null;
+  conversationSummary?: string;
+  runtimeMessages?: ConversationMessage[];
+};
+
+export type ReportContextDebugUpdate = (update: ContextDebugUpdate) => void;
 
 export type FinalizeAssistantTurn = (input: {
   mode: "chat" | "collab";
@@ -97,15 +105,14 @@ export type RunCollaborationTurnInput = {
   conversationSummary: string;
   currentAgentExecutionSummary: string;
   knowledgeMatches: PromptKnowledgeReference[];
-  knowledgeDebugPayload: ContextDebugPayload;
   limitsFor: LimitsForProvider;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
+  reportContextDebugUpdate: ReportContextDebugUpdate;
   finalizeAssistantTurn: FinalizeAssistantTurn;
 };
 
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  contextSession: AgentContextSession;
+  selectRecentConversation: SelectRecentConversation;
   allowedAgentTools: RuntimeAgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -121,9 +128,8 @@ export type RunAgentTurnInput = {
   nextConversationContext: ChatContextSummary | null;
   nextMessages: ChatMessage[];
   conversationSummary: string;
-  knowledgeDebugPayload: ContextDebugPayload;
   agentPromptPayload: PreparedAgentRunContext;
-  publishContextDebugSnapshot: PublishContextDebugSnapshot;
+  reportContextDebugUpdate: ReportContextDebugUpdate;
 };
 
 export type RunAgentTurnDeps = CommonModeDeps & {

@@ -1,6 +1,8 @@
 export type {
+  AgentSessionContextStatus,
   ChatContextSummary,
   ConversationMessage,
+  ConversationRunStatus,
   ConversationSummarizer,
 } from "./protocol/context";
 
@@ -13,11 +15,14 @@ export type {
 } from "./protocol/memory";
 
 export type {
+  BuildSystemPromptInput,
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
+  PromptContextModel,
   PromptFileReference,
   PromptKnowledgeReference,
+  PromptSystemPromptSection,
   PromptSkillContext,
 } from "./protocol/prompt";
 
@@ -28,8 +33,12 @@ export type {
 } from "./protocol/rag";
 
 export type {
+  AgentContextConversationContextController,
+  AgentContextConversationSelector,
   AgentContextSession,
   AgentContextSessionAdapterInput,
+  AgentContextSessionDebugPayload,
+  AgentContextSessionDebugSnapshot,
   AgentContextSessionFileDescriptor,
   AgentContextSessionLoadedResources,
   AgentContextSessionLoadResourcesInput,
@@ -37,8 +46,13 @@ export type {
   AgentContextSessionPreparedAgentTurn,
   AgentContextSessionPromptInput,
   AgentContextSessionPromptResult,
+  AgentContextSessionResourceLoader,
   AgentContextSessionSnapshot,
+  AgentContextSessionStateReader,
+  AgentContextSessionStateWriter,
   AgentContextSessionTraceTurn,
+  AgentContextSessionTurnRunner,
+  AgentContextPromptSystemPromptBuilderInput,
   PreparedAgentRunContext,
 } from "./protocol/session";
 

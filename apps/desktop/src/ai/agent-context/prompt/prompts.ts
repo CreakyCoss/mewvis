@@ -4,12 +4,14 @@ import {
 } from "../core/conversation";
 import type {
   BuildPromptContextOptions,
+  BuildSystemPromptInput,
   PromptAgentProfile,
   PromptContextFile,
   PromptContextLimits,
   PromptContextModel,
   PromptFileReference,
   PromptKnowledgeReference,
+  PromptSystemPromptSection,
   PromptSkillContext,
 } from "../protocol/prompt";
 import type {
@@ -20,8 +22,10 @@ import { createConversationTokenBudget } from "../core/token-budget";
 
 export type {
   BuildPromptContextOptions,
+  BuildSystemPromptInput,
   PromptContextLimits,
   PromptContextModel,
+  PromptSystemPromptSection,
 } from "../protocol/prompt";
 
 export type BuildAgentPromptOptions = {
@@ -38,6 +42,17 @@ const BASE_CONTEXT_WINDOW = 64000;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const normalizePromptSections = (
+  sections: PromptSystemPromptSection[] | undefined,
+) => (sections ?? []).flatMap((section) => {
+  if (typeof section !== "string") {
+    return [];
+  }
+
+  const trimmed = section.trim();
+  return trimmed ? [trimmed] : [];
+});
 
 export const createPromptContextLimits = (
   model?: PromptContextModel | null,
@@ -428,6 +443,36 @@ export const buildPromptContext = (
     skillsContext,
   ].join("\n");
 };
+
+export const buildSystemPrompt = ({
+  activeFile,
+  references,
+  activeSkills,
+  selectedAgent,
+  leadingSections,
+  trailingSections,
+  limits,
+  conversationSummary,
+  executionMemorySummary,
+  contextQuery,
+  knowledgeMatches,
+}: BuildSystemPromptInput) => [
+  ...normalizePromptSections(leadingSections),
+  buildPromptContext(
+    activeFile,
+    references,
+    activeSkills,
+    selectedAgent,
+    {
+      limits,
+      conversationSummary,
+      executionMemorySummary,
+      contextQuery,
+      knowledgeMatches,
+    },
+  ),
+  ...normalizePromptSections(trailingSections),
+].filter(Boolean).join("\n\n");
 
 export const buildConversationContextForAgent = (
   conversation: ConversationMessage[],

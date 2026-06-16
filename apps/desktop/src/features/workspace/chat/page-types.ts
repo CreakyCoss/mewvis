@@ -1,5 +1,9 @@
 import type { AgentRuntimeAgentQuestionInput } from "@/ai/agent-runtime/contracts";
-import type { ConversationMessage, WorkspaceFileEntry } from "./types";
+import type {
+  AgentContextSessionDebugPayload,
+  AgentContextSessionDebugSnapshot,
+} from "@/ai/agent-context";
+import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "settings" | "skills" | "knowledge" | "tavern";
 export type ModelSource = "direct" | "agent";
@@ -7,16 +11,12 @@ export type ChatMode = "chat" | "agent" | "collab";
 export type ChatExecutionMode = "direct" | "agent";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
 
-export type ContextDebugPayload = {
-  label: string;
-  content: string;
-  sourceLabel?: string;
-  sourceDescription?: string;
-};
+export type ContextDebugPayload = AgentContextSessionDebugPayload;
 
-export type ContextDebugSnapshot = {
-  id: string;
-  updatedAt: number;
+export type ContextDebugSnapshot = Omit<
+  AgentContextSessionDebugSnapshot,
+  "engineId" | "contextWindow"
+> & {
   mode: ChatMode;
   engineId: string;
   contextWindow: number;
@@ -24,12 +24,6 @@ export type ContextDebugSnapshot = {
   agentSessionId?: string | null;
   providerName?: string | null;
   modelName?: string | null;
-  activeFilePath?: string | null;
-  referencedFilePaths: string[];
-  activeSkillNames: string[];
-  conversationSummary: string;
-  runtimeMessages: ConversationMessage[];
-  payloads: ContextDebugPayload[];
 };
 
 export type FileReferenceMatch = {

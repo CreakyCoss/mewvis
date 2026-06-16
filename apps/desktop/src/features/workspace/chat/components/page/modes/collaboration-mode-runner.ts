@@ -18,6 +18,9 @@ import type {
   ChatMessage,
   ConversationMessage,
 } from "../../../types";
+import type {
+  ContextDebugPayload,
+} from "../../../page-types";
 import { applyAgentEventToMessage } from "../../../utils/agent-blocks";
 import {
   createCollaborationConversationMessage,
@@ -386,9 +389,8 @@ export const runCollaborationTurn = async (
     conversationSummary,
     currentAgentExecutionSummary,
     knowledgeMatches,
-    knowledgeDebugPayload,
     limitsFor,
-    publishContextDebugSnapshot,
+    reportContextDebugUpdate,
     finalizeAssistantTurn,
   }: RunCollaborationTurnInput,
   {
@@ -397,7 +399,7 @@ export const runCollaborationTurn = async (
     activeSkills,
     runtimeAgentId,
     agentRuntime,
-    contextSession,
+    selectRecentConversation,
     allowedAgentTools,
     appendMessage,
     requestCollaborationPlanDecision,
@@ -416,7 +418,7 @@ export const runCollaborationTurn = async (
   const activeSkillNames = activeSkills.map((skill) => skill.name);
   const allowedToolsForStepRuns = normalizeAllowedRuntimeAgentTools(allowedAgentTools)
     .filter((tool) => tool !== "ask_user");
-  const debugPayloads = [knowledgeDebugPayload];
+  const debugPayloads: ContextDebugPayload[] = [];
   const stepOutputs: CollaborationStepOutput[] = [];
   const collaborationRunId = `${traceTurnId}:collaboration`;
   const supervisorAgent = collaborationWorkflow.writerAgent;
@@ -437,28 +439,26 @@ export const runCollaborationTurn = async (
     metadata: supervisorMetadata,
   }));
 
-  const supervisorSystemPrompt = buildCollaborationSystemPrompt(
+  const supervisorSystemPrompt = buildCollaborationSystemPrompt({
     workspace,
     activeFile,
-    referencedFiles,
+    references: referencedFiles,
     activeSkills,
-    supervisorAgent,
-    "custom",
-    {
-      limits: limitsFor(supervisorAgent.runtimeModel),
-      conversationSummary,
-      agentExecutionSummary: currentAgentExecutionSummary,
-      contextQuery: text,
-      knowledgeMatches,
-      collaborationInstruction: [
-        "你是协作主控 Agent，负责把已配置协作流程整理成严格串行的执行计划。",
-        "不要执行各步骤的正文任务，只输出计划、输入传递关系和每步验收标准。",
-      ].join("\n"),
-      collaborationStepName: "主控规划",
-      collaborationStepIndex: 0,
-      collaborationStepCount: configuredSteps.length,
-    },
-  );
+    selectedAgent: supervisorAgent,
+    phase: "custom",
+    limits: limitsFor(supervisorAgent.runtimeModel),
+    conversationSummary,
+    executionMemorySummary: currentAgentExecutionSummary,
+    contextQuery: text,
+    knowledgeMatches,
+    collaborationInstruction: [
+      "你是协作主控 Agent，负责把已配置协作流程整理成严格串行的执行计划。",
+      "不要执行各步骤的正文任务，只输出计划、输入传递关系和每步验收标准。",
+    ].join("\n"),
+    collaborationStepName: "主控规划",
+    collaborationStepIndex: 0,
+    collaborationStepCount: configuredSteps.length,
+  });
   const supervisorPrompt = buildSupervisorPrompt({
     workflow: collaborationWorkflow,
     systemPrompt: supervisorSystemPrompt,
@@ -470,7 +470,8 @@ export const runCollaborationTurn = async (
     { label: "supervisor prompt", content: supervisorPrompt },
     { label: "workflow steps", content: formatWorkflowSteps(collaborationWorkflow) },
   );
-  publishContextDebugSnapshot(debugPayloads, {
+  reportContextDebugUpdate({
+    payloads: [...debugPayloads],
     providerName: supervisorAgent.runtimeModel.provider.name,
     modelName: supervisorAgent.runtimeModel.modelName,
     runtimeMessages,
@@ -667,29 +668,27 @@ export const runCollaborationTurn = async (
         )]
         : []),
     ];
-    const stepMessages = contextSession.selectRecentConversation({
+    const stepMessages = selectRecentConversation({
       conversation: stepConversation,
       limits: summaryLimits,
     });
-    const systemPrompt = buildCollaborationSystemPrompt(
+    const systemPrompt = buildCollaborationSystemPrompt({
       workspace,
       activeFile,
-      referencedFiles,
+      references: referencedFiles,
       activeSkills,
-      step.agent,
-      promptPhase,
-      {
-        limits: limitsFor(step.agent.runtimeModel),
-        conversationSummary,
-        agentExecutionSummary: currentAgentExecutionSummary,
-        contextQuery: text,
-        knowledgeMatches,
-        collaborationInstruction: step.instruction,
-        collaborationStepName: step.name,
-        collaborationStepIndex: index + 1,
-        collaborationStepCount: executionSteps.length,
-      },
-    );
+      selectedAgent: step.agent,
+      phase: promptPhase,
+      limits: limitsFor(step.agent.runtimeModel),
+      conversationSummary,
+      executionMemorySummary: currentAgentExecutionSummary,
+      contextQuery: text,
+      knowledgeMatches,
+      collaborationInstruction: step.instruction,
+      collaborationStepName: step.name,
+      collaborationStepIndex: index + 1,
+      collaborationStepCount: executionSteps.length,
+    });
     const stepPrompt = buildStepAgentPrompt({
       workflow: collaborationWorkflow,
       step,
@@ -706,7 +705,8 @@ export const runCollaborationTurn = async (
       { label: `step ${index + 1} prompt`, content: stepPrompt },
       { label: `step ${index + 1} messages`, content: formatDebugMessages(stepMessages) },
     );
-    publishContextDebugSnapshot(debugPayloads, {
+    reportContextDebugUpdate({
+      payloads: [...debugPayloads],
       providerName: step.agent.runtimeModel.provider.name,
       modelName: step.agent.runtimeModel.modelName,
       runtimeMessages: stepMessages,
