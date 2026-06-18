@@ -15,6 +15,7 @@ export enum BridgeTaskCommandType {
 export enum BridgeContextCommandType {
   CreateSession = "create_session",
   Compact = "compact",
+  SummarizeSession = "summarize_session",
   MessageEdit = "message_edit",
   MessageDelete = "message_delete",
   MessageAppend = "message_append",
@@ -175,11 +176,23 @@ export type BridgeCompactOptions = {
   compactInstruction?: string | null;
 };
 
+export type BridgeSummaryOptions = {
+  summaryInstruction?: string | null;
+  maxSummaryChars?: number | null;
+};
+
 export type CompactCommand = SessionCommandBase & {
   type: BridgeContextCommandType.Compact;
   target: BridgeCompactTarget;
   options?: BridgeCompactOptions | null;
   runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
+};
+
+export type SummarizeSessionCommand = SessionCommandBase & {
+  type: BridgeContextCommandType.SummarizeSession;
+  agent?: Pick<BridgeAgentTarget, "agentId"> | null;
+  options?: BridgeSummaryOptions | null;
+  runtime?: Pick<BridgeRuntimeOptions, "model"> | null;
 };
 
 export type CreateSessionCommand = SessionCommandBase & {
@@ -216,38 +229,6 @@ export type RebuildCommand = SessionCommandBase & {
 
 export type ReadSessionCommand = SessionCommandBase & {
   type: BridgeContextCommandType.ReadSession;
-};
-
-export type SessionResult = {
-  type: BridgeResultType.SessionResult;
-  requestId?: string | null;
-  sessionRootDir: string;
-  summary: string;
-  messages: Array<{
-    role: string;
-    content: string;
-    timestamp: number;
-    metadata?: Record<string, unknown> | null;
-  }>;
-  requestContexts?: Array<{
-    recordId: string;
-    content: string;
-    timestamp: number;
-    metadata?: Record<string, unknown> | null;
-  }>;
-  runtimeInstructions?: Array<{
-    recordId: string;
-    content: string;
-    timestamp: number;
-    metadata?: Record<string, unknown> | null;
-  }>;
-};
-
-export type SessionMutationResult = Omit<SessionResult, "type"> & {
-  type: BridgeResultType.SessionMutationResult;
-  messageRecordId?: string | null;
-  messageRecordIds?: string[];
-  compacted?: boolean;
 };
 
 export type AgentDefinitionsResult = {
@@ -296,6 +277,7 @@ export type BridgeTaskCommand =
 export type BridgeContextCommand =
   | CreateSessionCommand
   | CompactCommand
+  | SummarizeSessionCommand
   | MessageEditCommand
   | MessageDeleteCommand
   | MessageAppendCommand

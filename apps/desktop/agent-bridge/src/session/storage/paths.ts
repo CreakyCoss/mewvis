@@ -4,7 +4,6 @@ import { isAbsolute, resolve } from "node:path";
 export type BridgeSessionPaths = {
   sessionDir: string;
   ledgerPath: string;
-  contextPath: string;
   tracePath: string;
   agentsDir: string;
 };
@@ -43,7 +42,6 @@ export const resolveBridgeSessionPaths = async (
   return {
     sessionDir,
     ledgerPath: resolve(sessionDir, "ledger.jsonl"),
-    contextPath: resolve(sessionDir, "context.json"),
     tracePath: resolve(sessionDir, "trace.jsonl"),
     agentsDir,
   };

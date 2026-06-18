@@ -267,6 +267,7 @@ export async function runAgentRuntimeChat(
 }
 
 export type AgentRuntimeSessionMessage = {
+  messageRecordId: string;
   role: string;
   content: string;
   timestamp: number;
@@ -294,6 +295,45 @@ export type CreateAgentRuntimeSessionInput = {
   metadata?: Record<string, unknown> | null;
 };
 
+export type AgentRuntimeDisplaySummary = {
+  recordId: string;
+  targetLeafId: string;
+  summary: string;
+  timestamp: number;
+  generatedAt: number;
+  summaryInstruction?: string | null;
+  runtimeId?: string | null;
+  modelId?: string | null;
+  sourceCharCount?: number | null;
+  chunkCount?: number | null;
+  llmCallCount?: number | null;
+  messageCount?: number | null;
+  entryCount?: number | null;
+};
+
+export type AgentRuntimeLink = {
+  linkId: string;
+  runtime?: string | null;
+  runtimeId?: string | null;
+  agentRoleId?: string | null;
+  agentSessionId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
+  streamId?: string | null;
+  turnId?: string | null;
+  parentEntryId?: string | null;
+  rootUserEntryId?: string | null;
+  systemMessageRecordId?: string | null;
+  userMessageRecordId?: string | null;
+  assistantMessageRecordIds: string[];
+  requestContextRecordIds: string[];
+  runtimeInstructionRecordIds: string[];
+  messageRecordIds: string[];
+  status?: "running" | "done" | "error" | null;
+  startedAt?: number | null;
+  endedAt?: number | null;
+};
+
 export type AgentRuntimeSessionResult = {
   type: "session_result" | "session_mutation_result";
   requestId?: string | null;
@@ -302,6 +342,9 @@ export type AgentRuntimeSessionResult = {
   messages: AgentRuntimeSessionMessage[];
   requestContexts?: AgentRuntimeSessionAuxiliaryEntry[];
   runtimeInstructions?: AgentRuntimeSessionAuxiliaryEntry[];
+  displaySummary?: AgentRuntimeDisplaySummary | null;
+  displaySummaries?: AgentRuntimeDisplaySummary[];
+  runtimeLinks?: AgentRuntimeLink[];
   messageRecordId?: string | null;
   messageRecordIds?: string[];
   compacted?: boolean;
@@ -339,6 +382,21 @@ export async function compactAgentRuntimeSession(input: {
   }
 
   return invoke<AgentRuntimeSessionResult>("compact_agent_runtime_session", { input });
+}
+
+export async function summarizeAgentRuntimeSession(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  agentId?: string | null;
+  summaryInstruction?: string | null;
+  maxSummaryChars?: number | null;
+  runtimeModel?: RuntimeModelInput | null;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("summarize_agent_runtime_session", { input });
 }
 
 export async function editAgentRuntimeSessionMessage(input: {

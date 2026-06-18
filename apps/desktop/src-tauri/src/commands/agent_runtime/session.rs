@@ -35,6 +35,17 @@ pub struct CompactAgentRuntimeSessionInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SummarizeAgentRuntimeSessionInput {
+    workspace_path: String,
+    session_root_dir: String,
+    agent_id: Option<String>,
+    summary_instruction: Option<String>,
+    max_summary_chars: Option<u64>,
+    runtime_model: Option<AgentRuntimeModelInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EditAgentRuntimeSessionMessageInput {
     workspace_path: String,
     session_root_dir: String,
@@ -126,6 +137,35 @@ pub async fn compact_agent_runtime_session(
             },
             "options": {
                 "compactInstruction": input.compact_instruction,
+            },
+            "runtime": {
+                "model": input.runtime_model,
+            },
+        }),
+        &["session_mutation_result"],
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn summarize_agent_runtime_session(
+    app: AppHandle,
+    input: SummarizeAgentRuntimeSessionInput,
+) -> Result<Value, String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    call_session_bridge(
+        app,
+        json!({
+            "type": "summarize_session",
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "agent": {
+                "agentId": input.agent_id,
+            },
+            "options": {
+                "summaryInstruction": input.summary_instruction,
+                "maxSummaryChars": input.max_summary_chars,
             },
             "runtime": {
                 "model": input.runtime_model,

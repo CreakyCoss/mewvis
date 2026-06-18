@@ -18,7 +18,6 @@ const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-bridge-live-e2e-"))
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "live-e2e-session", "session");
 const sessionDirPath = sessionRootDir;
 const ledgerPath = join(sessionDirPath, "ledger.jsonl");
-const contextPath = join(sessionDirPath, "context.json");
 const runMarker = `LIVE_E2E_${Date.now()}`;
 
 const LIVE_MODEL_TEMPLATE = Object.freeze({
@@ -125,7 +124,6 @@ const readLedgerFile = (filePath) => {
 };
 
 const readLedger = () => readLedgerFile(ledgerPath);
-const readContextCache = () => JSON.parse(readFileSync(contextPath, "utf8"));
 
 const bridge = spawn(process.execPath, [bridgePath], {
   cwd: workspaceRoot,
@@ -605,8 +603,85 @@ try {
     finalSession.requestContexts,
   );
 
+  const beforeSummaryLedger = readLedger();
+  const summaryTargetLeaf = beforeSummaryLedger.entries.at(-1);
+  assert(summaryTargetLeaf, "live summarize 前应存在 ledger leaf", beforeSummaryLedger.entries);
+  const displaySummaryResult = await request({
+    type: "summarize_session",
+    requestId: "live-summarize-display-session",
+    workspacePath,
+    sessionRootDir,
+    agent: { agentId: "pi" },
+    options: {
+      summaryInstruction: `生成前端展示摘要，保留 ${runMarker} 相关测试线索，并说明摘要不参与 agent 上下文。`,
+      maxSummaryChars: 3000,
+    },
+    runtime: {
+      model: runtimeModel,
+    },
+  }, "session_mutation_result", CHAT_TIMEOUT_MS);
+  assert(displaySummaryResult.summary === "", "display summary 不应写入 bridge shared summary", displaySummaryResult);
+  assert(
+    displaySummaryResult.displaySummary?.summary?.trim() &&
+      displaySummaryResult.displaySummary.targetLeafId === summaryTargetLeaf.id &&
+      displaySummaryResult.displaySummary.runtimeId === "pi" &&
+      displaySummaryResult.displaySummary.modelId === runtimeModel.modelId &&
+      displaySummaryResult.displaySummary.sourceCharCount > 0,
+    "live summarize_session 应返回真实模型生成的 displaySummary",
+    displaySummaryResult.displaySummary,
+  );
+  assert(
+    displaySummaryResult.messages.length === finalSession.messages.length &&
+      displaySummaryResult.messages.at(-1)?.content === finalSession.messages.at(-1)?.content,
+    "display summary 不应改变 active messages",
+    displaySummaryResult.messages,
+  );
   const finalLedger = readLedger();
-  const contextCache = readContextCache();
+  const displaySummaryEntry = finalLedger.entry(displaySummaryResult.displaySummary.recordId);
+  const displaySummaryLeaf = finalLedger.entries.at(-1);
+  assert(
+    displaySummaryEntry?.type === "custom" &&
+      displaySummaryEntry.customType === "display_summary" &&
+      displaySummaryEntry.parentId === summaryTargetLeaf.id &&
+      displaySummaryEntry.data?.displayOnly === true,
+    "live display_summary 应写入 display-only custom entry",
+    displaySummaryEntry,
+  );
+  assert(
+    displaySummaryLeaf?.type === "leaf" &&
+      displaySummaryLeaf.parentId === displaySummaryEntry.id &&
+      displaySummaryLeaf.targetId === summaryTargetLeaf.id,
+    "live display_summary 写入后应复位 leaf",
+    displaySummaryLeaf,
+  );
+  const sessionWithDisplaySummary = await request({
+    type: "read_session",
+    requestId: "live-read-after-display-summary",
+    workspacePath,
+    sessionRootDir,
+  }, "session_result", 10_000);
+  assert(
+    sessionWithDisplaySummary.displaySummary?.recordId === displaySummaryResult.displaySummary.recordId &&
+      sessionWithDisplaySummary.displaySummaries?.some((summary) =>
+        summary.recordId === displaySummaryResult.displaySummary.recordId
+      ),
+    "read_session 应返回最近一次 displaySummary 和当前分支 displaySummaries",
+    sessionWithDisplaySummary,
+  );
+  assert(
+    sessionWithDisplaySummary.runtimeLinks?.some((link) =>
+      link.runtime === "agent" &&
+        link.agentRoleId === writerRoleId &&
+        link.assistantMessageRecordIds.length > 0
+    ) &&
+      sessionWithDisplaySummary.runtimeLinks?.some((link) =>
+        link.runtime === "agent" &&
+          link.agentRoleId === editorRoleId &&
+          link.assistantMessageRecordIds.length > 0
+      ),
+    "read_session 应返回多 agent 的结构化 runtimeLinks",
+    sessionWithDisplaySummary.runtimeLinks,
+  );
   const serialWriterAssistant = finalLedger.entries.find((entry) =>
     entry.type === "message" &&
     entry.message.role === "assistant" &&
@@ -624,7 +699,6 @@ try {
     "serial editor handoff 不应把内部 prompt 重复记录为 user message",
     serialEditorAssistant.message.metadata,
   );
-  assert(contextCache.summary === "", "context cache 不应写 shared summary", contextCache);
 
   const checks = {
     model: {
@@ -656,10 +730,13 @@ try {
     },
     bridgeLedger: {
       sharedSummary: finalSession.summary,
+      displaySummaryRecordId: displaySummaryResult.displaySummary?.recordId,
+      displaySummaryChunkCount: displaySummaryResult.displaySummary?.chunkCount,
+      displaySummaryLlmCallCount: displaySummaryResult.displaySummary?.llmCallCount,
+      runtimeLinkCount: sessionWithDisplaySummary.runtimeLinks?.length ?? 0,
       hasSharedCompactionEntry: finalLedger.entries.some((entry) => entry.type === "compaction"),
       agentCompactEntry: Boolean(agentCompactEntry),
       ledgerLines: finalLedger.entries.length + 1,
-      contextLeafId: contextCache.leafId,
     },
     autoAnsweredQuestions: autoAnsweredQuestions.length,
     workspacePath: process.env.NOVEL_CLAW_KEEP_LIVE_E2E_WORKSPACE === "1" ? workspacePath : "<removed>",

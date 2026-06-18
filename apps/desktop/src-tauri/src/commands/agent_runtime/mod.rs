@@ -20,5 +20,6 @@ pub use session::{
     append_agent_runtime_session_messages, compact_agent_runtime_session,
     create_agent_runtime_session, delete_agent_runtime_session_message,
     edit_agent_runtime_session_message, read_agent_runtime_session, rebuild_agent_runtime_session,
+    summarize_agent_runtime_session,
 };
 pub use supervisor::AgentRuntimeSupervisor;

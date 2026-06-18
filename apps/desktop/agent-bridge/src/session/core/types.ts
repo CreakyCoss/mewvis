@@ -1,3 +1,8 @@
+import type {
+  BridgeDisplaySummary,
+  BridgeRuntimeLink,
+} from "../contracts/results.js";
+
 export type BridgeMessageRole = "user" | "assistant" | "system";
 
 export type BridgeMessageActorType =
@@ -17,6 +22,7 @@ export type BridgeMessageSource =
   | "app_edit"
   | "app_delete"
   | "bridge_compact"
+  | "bridge_display_summary"
   | "bridge_branch";
 
 export type BridgeMessageMetadata = {
@@ -46,6 +52,7 @@ export type BridgeMessageMetadata = {
 };
 
 export type BridgeMessage = {
+  messageRecordId?: string;
   role: BridgeMessageRole;
   content: string;
   timestamp: number;
@@ -134,6 +141,9 @@ export type BridgeSessionContext = {
     timestamp: number;
     metadata?: BridgeMessageMetadata | null;
   }>;
+  displaySummary: BridgeDisplaySummary | null;
+  displaySummaries: BridgeDisplaySummary[];
+  runtimeLinks: BridgeRuntimeLink[];
   leafId: string | null;
   entries: BridgeLedgerEntry[];
 };

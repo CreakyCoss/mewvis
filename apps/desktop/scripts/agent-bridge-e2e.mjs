@@ -8,11 +8,12 @@ const bridgePath = join(workspaceRoot, "agent-bridge/dist/index.js");
 const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-bridge-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "e2e-session", "session");
 const aliasSessionRootDir = join(workspacePath, "standalone-session-store", "chats", "alias-session", "session");
+const oversizedSummarySessionRootDir = join(workspacePath, "standalone-session-store", "chats", "oversized-summary-session", "session");
 const sessionDirPath = sessionRootDir;
 const ledgerPath = join(sessionDirPath, "ledger.jsonl");
 const aliasLedgerPath = join(aliasSessionRootDir, "ledger.jsonl");
+const oversizedSummaryLedgerPath = join(oversizedSummarySessionRootDir, "ledger.jsonl");
 const tracePath = join(sessionDirPath, "trace.jsonl");
-const contextPath = join(sessionDirPath, "context.json");
 
 if (!existsSync(bridgePath)) {
   throw new Error("agent-bridge/dist/index.js 不存在，请先运行 pnpm build:agent-bridge");
@@ -41,8 +42,6 @@ const readLedgerFile = (filePath) => {
 };
 
 const readLedger = () => readLedgerFile(ledgerPath);
-
-const readContextCache = () => JSON.parse(readFileSync(contextPath, "utf8"));
 
 const bridge = spawn(process.execPath, [bridgePath], {
   cwd: workspaceRoot,
@@ -693,14 +692,118 @@ try {
     compactEntry,
   );
 
-  const contextCache = readContextCache();
-  assert(contextCache.leafId === compactEntry.id, "context cache 可在 bridge 内部记录当前 leafId", contextCache);
-  assert(contextCache.summary === "", "context cache 不应因底层 agent compact 生成 shared summary", contextCache);
+  const summarized = await request({
+    type: "summarize_session",
+    requestId: "summarize-display-after-compact",
+    workspacePath,
+    sessionRootDir,
+    agent: { agentId: "mock" },
+    options: {
+      summaryInstruction: "生成 E2E 展示摘要，必须提到这只是前端展示数据。",
+      maxSummaryChars: 1800,
+    },
+    runtime: {
+      model: { contextWindow: 4096, maxTokens: 512 },
+    },
+  }, "session_mutation_result");
+  assert(summarized.summary === "", "展示摘要不应写入 bridge shared summary", summarized);
   assert(
-    contextCache.messages.length === compacted.messages.length &&
-      contextCache.messages.at(-1)?.content === compacted.messages.at(-1)?.content,
-    "context cache messages 应与 bridge active messages 一致",
-    contextCache,
+    summarized.displaySummary?.summary?.trim() &&
+      summarized.displaySummary.targetLeafId === compactEntry.id &&
+      summarized.displaySummary.runtimeId === "mock" &&
+      summarized.displaySummary.chunkCount >= 1,
+    "summarize_session 应返回 displaySummary，并指向摘要触发时的 leaf",
+    summarized.displaySummary,
+  );
+  assert(
+    summarized.messages.length === compacted.messages.length &&
+      summarized.messages.at(-1)?.content === compacted.messages.at(-1)?.content,
+    "display summary 不应出现在 active messages 中",
+    summarized.messages,
+  );
+  const summaryLedger = readLedger();
+  const displaySummaryEntry = summaryLedger.entry(summarized.displaySummary.recordId);
+  const summaryLeafEntry = summaryLedger.entries.at(-1);
+  assert(
+    displaySummaryEntry?.type === "custom" &&
+      displaySummaryEntry.customType === "display_summary" &&
+      displaySummaryEntry.parentId === compactEntry.id &&
+      displaySummaryEntry.data?.displayOnly === true &&
+      displaySummaryEntry.data?.targetLeafId === compactEntry.id,
+    "display_summary 应作为 display-only custom entry 写入 ledger",
+    displaySummaryEntry,
+  );
+  assert(
+    summaryLeafEntry?.type === "leaf" &&
+      summaryLeafEntry.parentId === displaySummaryEntry.id &&
+      summaryLeafEntry.targetId === compactEntry.id,
+    "display_summary 写入后应通过 leaf entry 复位到原 leaf，避免污染后续上下文",
+    summaryLeafEntry,
+  );
+  const afterDisplaySummary = await request({
+    type: "read_session",
+    requestId: "read-after-display-summary",
+    workspacePath,
+    sessionRootDir,
+  }, "session_result");
+  assert(
+    afterDisplaySummary.displaySummary?.recordId === summarized.displaySummary.recordId &&
+      afterDisplaySummary.displaySummaries?.some((summary) => summary.recordId === summarized.displaySummary.recordId),
+    "read_session 应返回当前 leaf 的最近一次 displaySummary 和当前分支所有 displaySummaries",
+    afterDisplaySummary,
+  );
+  assert(
+    Array.isArray(afterDisplaySummary.runtimeLinks),
+    "read_session 应稳定返回 runtimeLinks 数组",
+    afterDisplaySummary.runtimeLinks,
+  );
+
+  const oversizedSummarySource = Array.from({ length: 260 }, (_item, index) =>
+    [
+      `超长摘要源段落 ${index + 1}`,
+      "这段文本用于强制触发 display summary 的分块摘要路径。",
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".repeat(2),
+    ].join(" | ")
+  ).join("\n\n");
+  const oversizedAppend = await request({
+    type: "message_append",
+    requestId: "append-oversized-summary-source",
+    workspacePath,
+    sessionRootDir: oversizedSummarySessionRootDir,
+    messages: [
+      { role: "user", content: oversizedSummarySource, timestamp: 31 },
+    ],
+  }, "session_mutation_result");
+  const oversizedSummary = await request({
+    type: "summarize_session",
+    requestId: "summarize-oversized-display",
+    workspacePath,
+    sessionRootDir: oversizedSummarySessionRootDir,
+    agent: { agentId: "mock" },
+    options: {
+      summaryInstruction: "测试超长输入分块摘要。",
+      maxSummaryChars: 1200,
+    },
+    runtime: {
+      model: { contextWindow: 4096, maxTokens: 512 },
+    },
+  }, "session_mutation_result");
+  assert(
+    oversizedSummary.displaySummary?.targetLeafId === oversizedAppend.messageRecordId &&
+      oversizedSummary.displaySummary.chunkCount > 1 &&
+      oversizedSummary.displaySummary.llmCallCount > oversizedSummary.displaySummary.chunkCount,
+    "超长 display summary 应触发分块摘要和最终合成",
+    oversizedSummary.displaySummary,
+  );
+  const oversizedSummaryLedger = readLedgerFile(oversizedSummaryLedgerPath);
+  const oversizedDisplaySummaryEntry = oversizedSummaryLedger.entry(oversizedSummary.displaySummary.recordId);
+  assert(
+    oversizedDisplaySummaryEntry?.type === "custom" &&
+      oversizedDisplaySummaryEntry.customType === "display_summary" &&
+      oversizedSummaryLedger.entries.at(-1)?.type === "leaf" &&
+      oversizedSummaryLedger.entries.at(-1)?.targetId === oversizedAppend.messageRecordId,
+    "超长 display summary 也应写入 display-only entry 并复位 leaf",
+    oversizedSummaryLedger.entries.slice(-3),
   );
 
   const directAgentRoleId = "mock-direct-agent";
@@ -1167,10 +1270,23 @@ try {
     "serial handoff 不应把内部 agent prompt 重复写成 user 消息",
     afterSerial.messages,
   );
+  assert(
+    afterSerial.runtimeLinks?.some((link) =>
+      link.runtime === "agent" &&
+        link.agentRoleId === "mock-serial-first-agent" &&
+        link.assistantMessageRecordIds.includes(firstSerialAssistantEntry.id)
+    ) &&
+      afterSerial.runtimeLinks?.some((link) =>
+        link.runtime === "agent" &&
+          link.agentRoleId === "mock-serial-second-agent" &&
+          link.assistantMessageRecordIds.includes(serialAssistantEntry.id)
+      ),
+    "read_session 应返回当前分支上多 agent 的结构化 runtimeLinks",
+    afterSerial.runtimeLinks,
+  );
 
   assert(existsSync(ledgerPath), "ledger.jsonl 应存在", ledgerPath);
   assert(existsSync(tracePath), "trace.jsonl 应存在", tracePath);
-  assert(existsSync(contextPath), "context.json 应存在", contextPath);
 
   const finalLedger = readLedger();
 
@@ -1199,6 +1315,12 @@ try {
     agentSessionCompacted: compacted.compacted,
     agentCompactDidNotWriteSharedSummary: compacted.summary === "",
     agentCompactMessages: compacted.messages.map((message) => `${message.role}:${message.content}`),
+    displaySummaryRecordId: summarized.displaySummary?.recordId,
+    displaySummaryTargetLeafId: summarized.displaySummary?.targetLeafId,
+    displaySummaryCount: afterDisplaySummary.displaySummaries?.length ?? 0,
+    oversizedDisplaySummaryChunkCount: oversizedSummary.displaySummary?.chunkCount,
+    oversizedDisplaySummaryLlmCallCount: oversizedSummary.displaySummary?.llmCallCount,
+    runtimeLinkCount: afterSerial.runtimeLinks?.length ?? 0,
     directAgentRunAgentRoleId: directAgentRoleId,
     directAgentRunUserMessage: afterDirectTask.messages.at(-2)?.content,
     directRequestContextDelivered: directDone.text.includes(`请求上下文：${directRequestContext}`),

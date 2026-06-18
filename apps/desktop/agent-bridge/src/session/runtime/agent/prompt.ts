@@ -14,7 +14,6 @@ import {
   type PromptLimits,
 } from "../../core/prompt-budget.js";
 import { buildBridgeSessionContext } from "../../core/projection.js";
-import { writeBridgeContextCache } from "../../storage/context-cache.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,
@@ -283,7 +282,6 @@ export const prepareBridgeRuntimeAgentPrompt = async (
     storage,
     systemEntry?.id ?? contextLeafId,
   );
-  await writeBridgeContextCache(paths.contextPath, updatedSessionContext);
 
   const sessionPlan = await createAgentSessionPlan({
     workspacePath: command.workspacePath,

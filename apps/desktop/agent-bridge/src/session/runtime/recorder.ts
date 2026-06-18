@@ -15,8 +15,6 @@ import type {
 } from "../core/types.js";
 import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
 import { resolveBridgeSessionPaths } from "../storage/paths.js";
-import { buildBridgeSessionContext } from "../core/projection.js";
-import { writeBridgeContextCache } from "../storage/context-cache.js";
 import {
   runtimeBridgeEntryMetadata,
   runtimeBridgeMessageMetadata,
@@ -138,7 +136,6 @@ export class BridgeSessionRecorder {
     private readonly input: {
       command: SessionBackedCommand;
       tracePath: string;
-      contextPath: string;
       storage: BridgeLedgerStorage;
       baseLeafId: string | null;
     },
@@ -158,7 +155,6 @@ export class BridgeSessionRecorder {
     return new BridgeSessionRecorder({
       command,
       tracePath: paths.tracePath,
-      contextPath: paths.contextPath,
       storage,
       baseLeafId: storage.getLeafId(),
     });
@@ -170,7 +166,6 @@ export class BridgeSessionRecorder {
     this.intentLeafId = await this.recordIntentEntries(this.parentEntryId);
 
     if (this.input.command.recordUserMessage === false) {
-      await this.refreshContextCache();
       return null;
     }
 
@@ -194,7 +189,6 @@ export class BridgeSessionRecorder {
     );
     this.userEntryId = entry.id;
     this.rootUserEntryId ??= entry.id;
-    await this.refreshContextCache();
     return entry;
   }
 
@@ -234,7 +228,6 @@ export class BridgeSessionRecorder {
     const text = (input.text ?? this.text).trim();
     const thinking = (input.thinking ?? this.thinking).trim();
     if (!text && !thinking) {
-      await this.refreshContextCache();
       return null;
     }
 
@@ -256,7 +249,6 @@ export class BridgeSessionRecorder {
       }),
     }, assistantParentId);
     this.assistantEntryId = entry.id;
-    await this.refreshContextCache();
     return entry;
   }
 
@@ -394,12 +386,5 @@ export class BridgeSessionRecorder {
       }
     }
     return null;
-  }
-
-  private async refreshContextCache() {
-    await writeBridgeContextCache(
-      this.input.contextPath,
-      buildBridgeSessionContext(this.input.storage),
-    );
   }
 }

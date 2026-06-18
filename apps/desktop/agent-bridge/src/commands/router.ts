@@ -19,7 +19,8 @@ import {
   editBridgeSessionMessage,
   readBridgeSession,
   rebuildBridgeSession,
-} from "./session.js";
+  summarizeBridgeSession,
+} from "../session/index.js";
 import type { AgentRunCommand, AskUser, EmitBridgeEvent, RuntimeChatCommand } from "../runtimes/types.js";
 import { createBridgeQuestionManager } from "./questions.js";
 import { messageFromError } from "../utils/error.js";
@@ -250,6 +251,14 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
             askUser: questions.askUser,
             emit: deps.emit,
           }));
+        } catch (error: unknown) {
+          emitCommandError(command, deps.emit, messageFromError(error));
+        }
+        return true;
+
+      case BridgeContextCommandType.SummarizeSession:
+        try {
+          deps.writeJsonLine(await summarizeBridgeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
