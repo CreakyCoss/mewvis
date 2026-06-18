@@ -29,7 +29,11 @@ const emptyContextPanelState: ContextPanelViewModel = {
   isVersionHistoryLoading: false,
   restoringVersionFilePath: "",
   discardingVersionFilePath: "",
-  chatTrace: [],
+  workspacePath: "",
+  chatId: null,
+  ledgerRuntimeModel: null,
+  ledgerAgentId: null,
+  conversationLedgerBind: null,
   onRefreshFiles: noop,
   onRefreshVersionControl: noop,
   onSelectVersionFile: noop,
@@ -43,7 +47,6 @@ const emptyContextPanelState: ContextPanelViewModel = {
   onPrepareNewFile: noop,
   onOpenFile: noop,
   onToggleDirectory: noop,
-  onClearChatTrace: noop,
 };
 
 type ContextPanelStore = ContextPanelViewModel & {

@@ -9,7 +9,7 @@ import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,
   type RuntimeModelOption,
-} from "@/features/ai/llm/store";
+} from "@/features/ai/components/llm-setting/store";
 import { runSharedConversationSummary } from "@/features/ai/runtime";
 import type {
   TavernCharacter,

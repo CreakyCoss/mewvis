@@ -1,4 +1,4 @@
-import type { CatalogProviderApi } from "./types";
+import type { CatalogProviderApi } from "./types.js";
 
 type CatalogProviderConfig = {
   websiteUrl: string;

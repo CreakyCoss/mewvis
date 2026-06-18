@@ -11,15 +11,14 @@ import type {
   RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { CollaborationWorkflowProfile } from "@/features/ai/agent/types";
-import type { RuntimeModelOption } from "@/features/ai/llm/store";
+import type { CollaborationWorkflowProfile } from "@/features/ai/components/agent-setting/types";
+import type { RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import type { Workspace } from "@/features/workspace/types";
 import type {
   ChatExecutionMode,
   ChatMode,
   CollaborationPhase,
   CollaborationPlanDecisionRequest,
-  ContextDebugPayload,
 } from "../../../page-types";
 import type {
   ChatMessage,
@@ -31,17 +30,6 @@ import type { ChatTraceStepInput } from "../trace";
 export type LimitsForProvider = (
   runtimeModel?: RuntimeModelOption | null,
 ) => PromptContextLimits;
-
-export type ContextDebugUpdate = {
-  payloads: ContextDebugPayload[];
-  agentSessionId?: string | null;
-  providerName?: string | null;
-  modelName?: string | null;
-  conversationSummary?: string;
-  runtimeMessages?: ConversationMessage[];
-};
-
-export type ReportContextDebugUpdate = (update: ContextDebugUpdate) => void;
 
 export type FinalizeAssistantTurn = (input: {
   mode: "chat" | "collab";
@@ -98,7 +86,6 @@ export type RunCollaborationTurnInput = {
   baseSystemPrompt: string;
   baseRequestContext: string;
   baseRuntimeInstruction: string;
-  reportContextDebugUpdate: ReportContextDebugUpdate;
   finalizeAssistantTurn: FinalizeAssistantTurn;
 };
 
@@ -118,7 +105,6 @@ export type RunAgentTurnInput = {
   nextConversation: ConversationMessage[];
   nextConversationContext: ChatContextSummary | null;
   nextMessages: ChatMessage[];
-  conversationSummary: string;
   agentPromptPayload: {
     agentRoleId: string;
     systemPrompt: string;
@@ -127,7 +113,6 @@ export type RunAgentTurnInput = {
     bootstrapInstruction?: string | null;
     userMessage: string;
   };
-  reportContextDebugUpdate: ReportContextDebugUpdate;
 };
 
 export type RunAgentTurnDeps = CommonModeDeps & {

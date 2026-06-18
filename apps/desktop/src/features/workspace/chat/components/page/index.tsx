@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedRuntimeAgentTools,
+  type RuntimeModelInput,
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import {
@@ -16,11 +17,23 @@ import {
   type AgentMemoryTrace,
 } from "@/ai/agent-runtime/memory";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import { CollaborationWorkflowSettingsDialog } from "@/features/ai/workflow/components/dialog";
-import { AgentSettingsDialog } from "@/features/ai/agent/components/dialog";
+import { CollaborationWorkflowSettingsDialog } from "@/features/ai/components/workflow-setting/components/dialog";
+import { AgentSettingsDialog } from "@/features/ai/components/agent-setting/components/dialog";
 import { SettingsPanel } from "@/features/app/settings";
-import { LlmSettingsPage } from "@/features/ai/llm";
-import { requireRuntimeModelInput } from "@/features/ai/llm/store";
+import { LlmSettingsPage } from "@/features/ai/components/llm-setting";
+import { requireRuntimeModelInput } from "@/features/ai/components/llm-setting/store";
+import {
+  compactAgentRuntimeSession,
+  deleteAgentRuntimeSessionMessage,
+  editAgentRuntimeSessionMessage,
+  readAgentRuntimeSession,
+  rebuildAgentRuntimeSession,
+} from "@/features/ai/components/conversation-ledger/api";
+import type {
+  AgentRuntimeSessionMessageInput,
+  AgentRuntimeSessionResult,
+  ConversationLedgerHandle,
+} from "@/features/ai/components/conversation-ledger/types";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
 import {
@@ -33,22 +46,14 @@ import type { WorkbenchHeaderProps } from "@/features/workspace/shell/workbench-
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
   cleanupOrphanAgentSessions,
-  compactAgentRuntimeSession,
-  deleteAgentRuntimeSessionMessage,
-  editAgentRuntimeSessionMessage,
   getAgentSessionStatus,
-  readAgentRuntimeSession,
-  rebuildAgentRuntimeSession,
   saveChatSession,
-  type AgentRuntimeSessionMessageInput,
-  type AgentRuntimeSessionResult,
 } from "../../api";
 import type {
   ChatExecutionMode,
   ChatMode,
   CollaborationPhase,
   CollaborationPlanDecisionRequest,
-  ContextDebugSnapshot,
   ComposerSubmitInput,
   PendingAgentQuestion,
   WorkspaceView,
@@ -268,6 +273,7 @@ export const WorkspaceChatPage = ({
   const messagesRef = useRef<ChatMessage[]>([]);
   const conversationRef = useRef<ConversationMessage[]>([]);
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
+  const conversationLedgerRef = useRef<ConversationLedgerHandle>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
   const pendingAgentQuestionRef = useRef<PendingAgentQuestion | null>(null);
@@ -338,7 +344,6 @@ export const WorkspaceChatPage = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [conversationContext, setConversationContext] = useState<ChatContextSummary | null>(null);
-  const [contextDebugSnapshot, setContextDebugSnapshot] = useState<ContextDebugSnapshot | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
   const [agentRuntimeSessionId, setAgentRuntimeSessionId] = useState<string | null>(null);
@@ -581,14 +586,12 @@ export const WorkspaceChatPage = ({
   });
 
   const {
-    chatTrace,
     chatTraceRef,
     replaceChatTrace,
     appendVisibleTraceStep,
     patchVisibleTraceTurn,
     appendRunningAgentTaskTraceStep,
     patchRunningAgentTaskTraceTurn,
-    clearChatTrace,
   } = useChatTraceState({
     workspacePath: workspace.path,
     currentSessionIdRef,
@@ -999,7 +1002,6 @@ export const WorkspaceChatPage = ({
     setConversationContext,
     conversationContextRef,
     replaceChatTrace,
-    setContextDebugSnapshot,
     setContextEngineId,
     preferredContextEngineIdRef,
     setAgentRuntimeSessionId,
@@ -1134,6 +1136,22 @@ export const WorkspaceChatPage = ({
     conversationContextRef.current = conversationContext;
   }, [conversationContext]);
 
+  const conversationLedgerRuntimeModel = useMemo<RuntimeModelInput | null>(() => {
+    if (!effectiveRuntimeModel) {
+      return null;
+    }
+
+    try {
+      return requireRuntimeModelInput(effectiveRuntimeModel);
+    } catch {
+      return null;
+    }
+  }, [effectiveRuntimeModel]);
+
+  const refreshConversationLedger = useCallback(() => {
+    void conversationLedgerRef.current?.refresh();
+  }, []);
+
   useEffect(() => {
     if (!visibleActiveAgentTaskId) {
       return;
@@ -1225,6 +1243,7 @@ export const WorkspaceChatPage = ({
             workspacePath: workspace.path,
             sessionRootDir: bridgeSessionRootDir,
           });
+          refreshConversationLedger();
           const syncedContext = contextFromBridgeSessionSummary(bridgeContext?.summary ?? "");
           conversationContextRef.current = syncedContext;
           setConversationContext(syncedContext);
@@ -1256,6 +1275,7 @@ export const WorkspaceChatPage = ({
     agentRuntimeSessionId,
     appendVisibleTraceStep,
     currentSessionId,
+    refreshConversationLedger,
     workspace.path,
   ]);
 
@@ -1361,6 +1381,7 @@ export const WorkspaceChatPage = ({
         agentRoleId: activeAgentRoleId,
         runtimeModel: runtimeModelInput,
       });
+      refreshConversationLedger();
       if (latestTraceTurn) {
         appendVisibleTraceStep(latestTraceTurn.id, {
           type: "context",
@@ -1404,6 +1425,7 @@ export const WorkspaceChatPage = ({
     appendVisibleTraceStep,
     currentSessionId,
     effectiveRuntimeModel,
+    refreshConversationLedger,
     workspace.path,
   ]);
 
@@ -1414,6 +1436,7 @@ export const WorkspaceChatPage = ({
     if (!result) {
       return;
     }
+    refreshConversationLedger();
 
     const recordIdsByMessageId = new Map<string, string | null>();
     let entryIndex = 0;
@@ -1442,7 +1465,7 @@ export const WorkspaceChatPage = ({
     const nextContext = contextFromBridgeSessionSummary(result.summary);
     conversationContextRef.current = nextContext;
     setConversationContext(nextContext);
-  }, []);
+  }, [refreshConversationLedger]);
 
   const rebuildBridgeSessionFromMessages = useCallback((
     nextMessages: ChatMessage[],
@@ -1485,7 +1508,6 @@ export const WorkspaceChatPage = ({
     );
     conversationContextRef.current = null;
     setConversationContext(null);
-    setContextDebugSnapshot(null);
     setAgentRuntimeSessionId(null);
     setAgentSessionStatus(null);
     setAgentSessionError("");
@@ -1538,6 +1560,7 @@ export const WorkspaceChatPage = ({
         if (!result) {
           return;
         }
+        refreshConversationLedger();
         const nextContext = contextFromBridgeSessionSummary(result.summary);
         conversationContextRef.current = nextContext;
         setConversationContext(nextContext);
@@ -1556,6 +1579,7 @@ export const WorkspaceChatPage = ({
   }, [
     applyHistoryChange,
     currentSessionId,
+    refreshConversationLedger,
     rebuildBridgeSessionFromMessages,
     updateMessage,
     workspace.path,
@@ -1590,6 +1614,7 @@ export const WorkspaceChatPage = ({
         if (!result) {
           return;
         }
+        refreshConversationLedger();
         const nextContext = contextFromBridgeSessionSummary(result.summary);
         conversationContextRef.current = nextContext;
         setConversationContext(nextContext);
@@ -1602,6 +1627,7 @@ export const WorkspaceChatPage = ({
   }, [
     applyHistoryChange,
     currentSessionId,
+    refreshConversationLedger,
     rebuildBridgeSessionFromMessages,
     workspace.path,
   ]);
@@ -1616,11 +1642,6 @@ export const WorkspaceChatPage = ({
     }
     rebuildBridgeSessionFromMessages(nextMessages);
   }, [applyHistoryChange, rebuildBridgeSessionFromMessages]);
-  const latestAgentExecutionSummary = useMemo(
-    () => findLatestAgentExecutionSummary(conversation),
-    [conversation],
-  );
-
   const submitAgentQuestionAnswer = async (answerValue: string) => {
     const answer = answerValue.trim();
     if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
@@ -1686,8 +1707,6 @@ export const WorkspaceChatPage = ({
     referencedFiles,
     baseConversation,
     currentAgentExecutionSummary,
-    traceProviderName,
-    traceModelName,
     nextSessionId,
   }: {
     userMessageId: string;
@@ -1697,18 +1716,13 @@ export const WorkspaceChatPage = ({
     referencedFiles: Array<{ path: string }>;
     baseConversation: ConversationMessage[];
     currentAgentExecutionSummary: string;
-    traceProviderName: string | null;
-    traceModelName: string | null;
     nextSessionId: string | null;
   }) => {
     const modelContext = contextModelFor(effectiveRuntimeModel);
     const result = await runBridgeDirectChatTurnRuntime({
       workspace,
-      chatMode,
       runtimeAgentId,
       effectiveRuntimeModel,
-      traceProviderName,
-      traceModelName,
       nextSessionId,
       userMessageId,
       assistantMessageId,
@@ -1722,7 +1736,6 @@ export const WorkspaceChatPage = ({
       executionMemorySummary: currentAgentExecutionSummary,
       contextWindow: modelContext.contextWindow ?? effectiveAppContextWindow,
       modelContext,
-      onDebugSnapshot: setContextDebugSnapshot,
       appendVisibleTraceStep,
       patchVisibleTraceTurn,
       updateMessage,
@@ -1732,6 +1745,7 @@ export const WorkspaceChatPage = ({
     setConversation(result.finalConversation);
     conversationContextRef.current = result.context;
     setConversationContext(result.context);
+    refreshConversationLedger();
   };
 
   const sendMessage = async ({
@@ -1834,8 +1848,6 @@ export const WorkspaceChatPage = ({
           referencedFiles: referencedFileDescriptors,
           baseConversation,
           currentAgentExecutionSummary,
-          traceProviderName,
-          traceModelName,
           nextSessionId,
         });
         return;
@@ -1845,10 +1857,7 @@ export const WorkspaceChatPage = ({
         const agentModelContext = contextModelFor(effectiveRuntimeModel);
         const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
           workspace,
-          chatMode,
           runtimeAgentId,
-          traceProviderName,
-          traceModelName,
           nextSessionId,
           traceTurnId,
           text,
@@ -1859,7 +1868,6 @@ export const WorkspaceChatPage = ({
           agentInstructions: buildWorkspaceAgentInteractionInstructions(),
           executionMemorySummary: currentAgentExecutionSummary,
           contextWindow: agentModelContext.contextWindow ?? effectiveAppContextWindow,
-          onDebugSnapshot: setContextDebugSnapshot,
           appendVisibleTraceStep,
           patchVisibleTraceTurn,
         });
@@ -1889,9 +1897,7 @@ export const WorkspaceChatPage = ({
           nextConversation,
           nextConversationContext: preparedAgentRuntime.nextConversationContext,
           nextMessages,
-          conversationSummary: preparedAgentRuntime.conversationSummary,
           agentPromptPayload: preparedAgentRuntime.agentPromptPayload,
-          reportContextDebugUpdate: preparedAgentRuntime.reportContextDebugUpdate,
         }, {
           workspace,
           activeFile: preparedAgentRuntime.activeFile,
@@ -1924,10 +1930,6 @@ export const WorkspaceChatPage = ({
         const collabModelContext = contextModelFor(summaryRuntimeModel);
         const preparedCollaborationRuntime = await prepareBridgeCollaborationTurnRuntime({
           workspace,
-          chatMode,
-          runtimeAgentId,
-          traceProviderName,
-          traceModelName,
           nextSessionId,
           userMessageId,
           assistantMessageId,
@@ -1940,7 +1942,6 @@ export const WorkspaceChatPage = ({
           executionMemorySummary: currentAgentExecutionSummary,
           contextWindow: collabModelContext.contextWindow ?? effectiveAppContextWindow,
           modelContext: collabModelContext,
-          onDebugSnapshot: setContextDebugSnapshot,
           appendVisibleTraceStep,
           patchVisibleTraceTurn,
           updateMessage,
@@ -1949,6 +1950,7 @@ export const WorkspaceChatPage = ({
             setConversation(finalConversation);
             conversationContextRef.current = finalContext;
             setConversationContext(finalContext);
+            refreshConversationLedger();
           },
         });
 
@@ -1964,7 +1966,6 @@ export const WorkspaceChatPage = ({
           baseSystemPrompt: preparedCollaborationRuntime.baseSystemPrompt,
           baseRequestContext: preparedCollaborationRuntime.baseRequestContext,
           baseRuntimeInstruction: preparedCollaborationRuntime.baseRuntimeInstruction,
-          reportContextDebugUpdate: preparedCollaborationRuntime.reportContextDebugUpdate,
           finalizeAssistantTurn: preparedCollaborationRuntime.finalizeAssistantTurn,
         }, {
           workspace,
@@ -2216,7 +2217,11 @@ export const WorkspaceChatPage = ({
     isVersionHistoryLoading,
     restoringVersionFilePath,
     discardingVersionFilePath,
-    chatTrace,
+    workspacePath: workspace.path,
+    chatId: currentSessionId,
+    ledgerRuntimeModel: conversationLedgerRuntimeModel,
+    ledgerAgentId: runtimeAgentId,
+    conversationLedgerBind: conversationLedgerRef,
     onRefreshFiles: () => void loadFiles(),
     onRefreshVersionControl: () => void loadVersionControl(),
     onSelectVersionFile: (path) => void selectVersionFile(path),
@@ -2230,7 +2235,6 @@ export const WorkspaceChatPage = ({
     onPrepareNewFile: prepareNewFile,
     onOpenFile: (path) => void openFile(path),
     onToggleDirectory: toggleFileTreeDirectory,
-    onClearChatTrace: clearChatTrace,
   });
 
   useEffect(() => {
@@ -2271,9 +2275,6 @@ export const WorkspaceChatPage = ({
         agentSessionError={agentSessionError}
         isAgentSessionLoading={isAgentSessionLoading}
         isContextCompressing={isContextCompressing}
-        conversationContext={conversationContext}
-        contextDebugSnapshot={contextDebugSnapshot}
-        latestAgentExecutionSummary={latestAgentExecutionSummary}
         onOpenChange={handleContextWorkbenchOpenChange}
         onRefreshAgentSession={() => void refreshAgentSessionStatus()}
         onCleanupAgentSessions={() => void cleanupAgentSessions()}

@@ -11,8 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { SaveCollaborationWorkflowInput } from "../../agent/types";
-import { useAgentSettings } from "../../agent/hooks/use-agent";
+import type { SaveCollaborationWorkflowInput } from "../../agent-setting/types";
+import { useAgentSettings } from "../../agent-setting/hooks/use-agent";
 
 type WorkflowStepDraft = NonNullable<SaveCollaborationWorkflowInput["steps"]>[number];
 

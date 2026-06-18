@@ -1,4 +1,4 @@
-import type { CollaborationWorkflowProfile, CollaborationWorkflowStepProfile } from "@/features/ai/agent/types";
+import type { CollaborationWorkflowProfile, CollaborationWorkflowStepProfile } from "@/features/ai/components/agent-setting/types";
 import type {
   ChatMessage,
   ChatMessageCollaboration,

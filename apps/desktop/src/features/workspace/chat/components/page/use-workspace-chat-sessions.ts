@@ -27,7 +27,6 @@ import type {
   ConversationMessage,
 } from "../../types";
 import type {
-  ContextDebugSnapshot,
   PendingAgentQuestion,
 } from "../../page-types";
 import {
@@ -62,7 +61,6 @@ type UseWorkspaceChatSessionsInput = {
   setConversationContext: Dispatch<SetStateAction<ChatContextSummary | null>>;
   conversationContextRef: MutableRefObject<ChatContextSummary | null>;
   replaceChatTrace: (nextTrace: ChatTraceTurn[]) => void;
-  setContextDebugSnapshot: Dispatch<SetStateAction<ContextDebugSnapshot | null>>;
   setContextEngineId: Dispatch<SetStateAction<string>>;
   preferredContextEngineIdRef: MutableRefObject<string>;
   setAgentRuntimeSessionId: Dispatch<SetStateAction<string | null>>;
@@ -102,7 +100,6 @@ export const useWorkspaceChatSessions = ({
   setConversationContext,
   conversationContextRef,
   replaceChatTrace,
-  setContextDebugSnapshot,
   setContextEngineId,
   preferredContextEngineIdRef,
   setAgentRuntimeSessionId,
@@ -235,7 +232,6 @@ export const useWorkspaceChatSessions = ({
     setConversation(visibleConversation);
     setConversationContext(hydratedContext);
     replaceChatTrace(hydratedTrace);
-    setContextDebugSnapshot(null);
     setContextEngineId(getContextEngineDescriptor(
       runningTask?.context?.engine?.id ?? preferredContextEngineIdRef.current,
     ).id);
@@ -271,7 +267,6 @@ export const useWorkspaceChatSessions = ({
     setAgentRuntimeSessionId,
     setAgentSessionError,
     setAgentSessionStatus,
-    setContextDebugSnapshot,
     setContextEngineId,
     setConversation,
     setConversationContext,

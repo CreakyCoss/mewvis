@@ -8,20 +8,17 @@ import {
   runSharedAgentTask,
   type SharedAgentTaskResult,
 } from "@/features/ai/runtime";
-import { requireRuntimeModelInput } from "@/features/ai/llm/store";
+import { requireRuntimeModelInput } from "@/features/ai/components/llm-setting/store";
 import type {
   AgentProfile,
   CollaborationWorkflowProfile,
   CollaborationWorkflowStepProfile,
-} from "@/features/ai/agent/types";
+} from "@/features/ai/components/agent-setting/types";
 import type {
   ChatMessage,
   ConversationMessage,
   PromptContextLimits,
 } from "../../../types";
-import type {
-  ContextDebugPayload,
-} from "../../../page-types";
 import { applyAgentEventToMessage } from "../../../utils/agent-blocks";
 import {
   createCollaborationConversationMessage,
@@ -522,7 +519,6 @@ export const runCollaborationTurn = async (
     baseSystemPrompt,
     baseRequestContext,
     baseRuntimeInstruction,
-    reportContextDebugUpdate,
     finalizeAssistantTurn,
   }: RunCollaborationTurnInput,
   {
@@ -548,7 +544,6 @@ export const runCollaborationTurn = async (
   const activeSkillNames = activeSkills.map((skill) => skill.name);
   const allowedToolsForStepRuns = normalizeAllowedRuntimeAgentTools(allowedAgentTools)
     .filter((tool) => tool !== "ask_user");
-  const debugPayloads: ContextDebugPayload[] = [];
   const stepOutputs: CollaborationStepOutput[] = [];
   const collaborationRunId = `${traceTurnId}:collaboration`;
   const supervisorAgent = collaborationWorkflow.writerAgent;
@@ -589,19 +584,6 @@ export const runCollaborationTurn = async (
     workflow: collaborationWorkflow,
     runtimeMessages,
     userRequest: text,
-  });
-  debugPayloads.push(
-    { label: "supervisor systemPrompt", content: baseSystemPrompt },
-    { label: "supervisor runtimeInstruction", content: supervisorRuntimeInstruction },
-    { label: "supervisor requestContext", content: baseRequestContext },
-    { label: "supervisor prompt", content: supervisorPrompt },
-    { label: "workflow steps", content: formatWorkflowSteps(collaborationWorkflow) },
-  );
-  reportContextDebugUpdate({
-    payloads: [...debugPayloads],
-    providerName: supervisorAgent.runtimeModel.provider.name,
-    modelName: supervisorAgent.runtimeModel.modelName,
-    runtimeMessages,
   });
   const supervisorStartedAt = Date.now();
   appendVisibleTraceStep(traceTurnId, {
@@ -830,19 +812,6 @@ export const runCollaborationTurn = async (
       userRequest: text,
       supervisorPlan,
       priorOutputs: stepOutputs,
-    });
-    debugPayloads.push(
-      { label: `step ${index + 1} systemPrompt`, content: baseSystemPrompt },
-      { label: `step ${index + 1} runtimeInstruction`, content: stepRuntimeInstruction },
-      { label: `step ${index + 1} requestContext`, content: baseRequestContext },
-      { label: `step ${index + 1} prompt`, content: stepPrompt },
-      { label: `step ${index + 1} messages`, content: formatDebugMessages(stepMessages) },
-    );
-    reportContextDebugUpdate({
-      payloads: [...debugPayloads],
-      providerName: step.agent.runtimeModel.provider.name,
-      modelName: step.agent.runtimeModel.modelName,
-      runtimeMessages: stepMessages,
     });
     const stepStartedAt = Date.now();
     appendVisibleTraceStep(traceTurnId, {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Archive, Bug, Check, Copy, Database, RefreshCw, Trash2 } from "lucide-react";
+import { Archive, Check, Copy, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MewvisOffice } from "./office";
-import type { ContextDebugSnapshot } from "../../page-types";
-import type { AgentSessionStatus, ChatContextSummary } from "../../types";
+import type { AgentSessionStatus } from "../../types";
 
 type ContextWorkbenchDialogProps = {
   open: boolean;
@@ -23,33 +22,11 @@ type ContextWorkbenchDialogProps = {
   agentSessionError: string;
   isAgentSessionLoading: boolean;
   isContextCompressing: boolean;
-  conversationContext: ChatContextSummary | null;
-  contextDebugSnapshot: ContextDebugSnapshot | null;
-  latestAgentExecutionSummary: string;
   onOpenChange: (open: boolean) => void;
   onRefreshAgentSession: () => void;
   onCleanupAgentSessions: () => void;
   onCompressConversationContext: () => void;
 };
-
-const formatBytes = (bytes: number) => {
-  if (bytes < 1024) {
-    return `${bytes.toLocaleString()} B`;
-  }
-
-  const units = ["KB", "MB", "GB"];
-  let value = bytes / 1024;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`;
-};
-
-const formatCompactNumber = (value: number) =>
-  value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const getCompactReference = (value: string) => {
   const normalized = value.trim().replace(/[\\/]+$/, "");
@@ -61,11 +38,6 @@ const getCompactReference = (value: string) => {
   return `${lastPart.slice(0, 10)}…${lastPart.slice(-6)}`;
 };
 
-const getCompactPathBreadcrumb = (value: string) => {
-  const parts = value.trim().replace(/[\\/]+$/, "").split(/[\\/]/).filter(Boolean);
-  return parts.slice(-3).map(getCompactReference).join(" / ");
-};
-
 type CompactPathItemProps = {
   label: string;
   value: string;
@@ -74,31 +46,6 @@ type CompactPathItemProps = {
   detailValue?: string;
   copyLabel?: string;
 };
-
-type SummaryMetric = {
-  label: string;
-  value: string;
-  suffix?: string;
-};
-
-const DEBUG_PREVIEW_CHAR_LIMIT = 24000;
-
-const formatDateTime = (value: number | null | undefined) =>
-  value ? new Date(value).toLocaleString() : "无";
-
-const previewDebugText = (content: string) => content.length > DEBUG_PREVIEW_CHAR_LIMIT
-  ? `${content.slice(0, DEBUG_PREVIEW_CHAR_LIMIT)}\n\n[预览已截断，复制可获取全文]`
-  : content;
-
-const contextStateToJson = (context: ChatContextSummary) => JSON.stringify({
-  updatedAt: context.updatedAt,
-  summarizedUntilIndex: context.summarizedUntilIndex,
-  historyInvalidatedAt: context.historyInvalidatedAt ?? null,
-  summaryFingerprint: context.summaryFingerprint ?? null,
-  conversationFingerprint: context.conversationFingerprint ?? null,
-  engine: context.engine ?? null,
-  agentSyncs: context.agentSyncs ?? {},
-}, null, 2);
 
 const CompactPathItem = ({
   label,
@@ -178,67 +125,6 @@ const CompactPathItem = ({
   );
 };
 
-type DebugPayloadBlockProps = {
-  label: string;
-  content: string;
-  sourceLabel?: string;
-  sourceDescription?: string;
-};
-
-const DebugPayloadBlock = ({
-  label,
-  content,
-  sourceLabel,
-  sourceDescription,
-}: DebugPayloadBlockProps) => {
-  const [isCopied, setIsCopied] = useState(false);
-  const preview = previewDebugText(content || "（空）");
-
-  const copyPayload = async () => {
-    try {
-      await navigator.clipboard.writeText(content || "");
-      setIsCopied(true);
-      window.setTimeout(() => setIsCopied(false), 1200);
-    } catch {
-      setIsCopied(false);
-    }
-  };
-
-  return (
-    <div className="overflow-hidden rounded-2xl bg-muted/25">
-      <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 truncate text-xs font-medium text-foreground">
-            {label}
-          </div>
-          {sourceLabel && (
-            <span
-              className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
-              title={sourceDescription ?? sourceLabel}
-            >
-              {sourceLabel}
-            </span>
-          )}
-        </div>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="size-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-          title={`复制 ${label}`}
-          aria-label={`复制 ${label}`}
-          onClick={() => void copyPayload()}
-        >
-          {isCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-        </Button>
-      </div>
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-5 text-muted-foreground">
-        {preview}
-      </pre>
-    </div>
-  );
-};
-
 export const ContextWorkbenchDialog = ({
   open,
   currentSessionId,
@@ -249,24 +135,15 @@ export const ContextWorkbenchDialog = ({
   agentSessionError,
   isAgentSessionLoading,
   isContextCompressing,
-  conversationContext,
-  contextDebugSnapshot,
-  latestAgentExecutionSummary,
   onOpenChange,
   onRefreshAgentSession,
   onCleanupAgentSessions,
   onCompressConversationContext,
 }: ContextWorkbenchDialogProps) => {
   const [isChatIdCopied, setIsChatIdCopied] = useState(false);
-  const [debugView, setDebugView] = useState<"payload" | "state">("payload");
   const chatName = currentSessionTitle.trim() || "未命名聊天";
   const contextSessionValue = currentSessionId ?? "";
   const chatIdReference = currentSessionId ? getCompactReference(currentSessionId) : "未生成 chatId";
-  const memoryLocationValue = agentSessionStatus?.sessionDir ?? "";
-  const memoryLocationReference = memoryLocationValue ? getCompactPathBreadcrumb(memoryLocationValue) : "";
-  const tokenUsage = agentSessionStatus?.tokenUsage;
-  const tokenUsageLabel = formatCompactNumber(tokenUsage?.totalTokens ?? 0);
-  const estimatedContextTokenLabel = formatCompactNumber(agentSessionStatus?.estimatedContextTokens ?? 0);
   const isCoreWorking = Boolean(activeAgentTaskId) || isAgentSessionLoading || isContextCompressing;
   const chatStateLabel = activeAgentTaskId
     ? "处理中"
@@ -295,60 +172,6 @@ export const ContextWorkbenchDialog = ({
       setIsChatIdCopied(false);
     }
   };
-  const contextMetrics: SummaryMetric[] = [
-    {
-      label: "用量",
-      value: tokenUsageLabel,
-      suffix: "tokens",
-    },
-    {
-      label: "消息",
-      value: formatCompactNumber(agentSessionStatus?.activeMessageCount ?? 0),
-    },
-    {
-      label: "工具",
-      value: formatCompactNumber(agentSessionStatus?.activeToolCallCount ?? 0),
-    },
-    {
-      label: "文件",
-      value: formatCompactNumber(agentSessionStatus?.sessionFileCount ?? 0),
-    },
-  ];
-  const contextFootMetrics: SummaryMetric[] = [
-    {
-      label: "上下文估算",
-      value: estimatedContextTokenLabel,
-      suffix: "tokens",
-    },
-    {
-      label: "压缩次数",
-      value: formatCompactNumber(agentSessionStatus?.compactionCount ?? 0),
-    },
-    {
-      label: "占用",
-      value: formatBytes(agentSessionStatus?.totalBytes ?? 0),
-    },
-  ];
-  const summaryMetrics = [...contextMetrics, ...contextFootMetrics];
-  const debugSnapshotMeta = contextDebugSnapshot
-    ? [
-      ["模式", contextDebugSnapshot.mode],
-      ["引擎", contextDebugSnapshot.engineId],
-      ["窗口", `${formatCompactNumber(contextDebugSnapshot.contextWindow)} tokens`],
-      ["运行体", contextDebugSnapshot.runtimeAgentId || "未选择"],
-      ["模型", [contextDebugSnapshot.providerName, contextDebugSnapshot.modelName].filter(Boolean).join(" / ") || "未选择"],
-      ["生成时间", formatDateTime(contextDebugSnapshot.updatedAt)],
-    ]
-    : [];
-  const contextStateMeta = conversationContext
-    ? [
-      ["引擎", conversationContext.engine?.id ?? "rolling-summary"],
-      ["更新时间", formatDateTime(conversationContext.updatedAt)],
-      ["摘要到", String(conversationContext.summarizedUntilIndex)],
-      ["Agent 同步", String(Object.keys(conversationContext.agentSyncs ?? {}).length)],
-      ["历史失效", conversationContext.historyInvalidatedAt ? formatDateTime(conversationContext.historyInvalidatedAt) : "否"],
-    ]
-    : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
@@ -373,7 +196,7 @@ export const ContextWorkbenchDialog = ({
                           {chatName}
                         </DialogTitle>
                         <DialogDescription className="sr-only">
-                          当前聊天的上下文、记忆目录和最近执行记录。
+                          当前聊天的中枢面板。
                         </DialogDescription>
                         <button
                           type="button"
@@ -399,28 +222,7 @@ export const ContextWorkbenchDialog = ({
                     </div>
                   </DialogHeader>
 
-                  <div className="mt-5 grid grid-cols-2 gap-2">
-                    {summaryMetrics.map((metric) => (
-                      <div
-                        key={metric.label}
-                        className="rounded-2xl bg-muted/30 p-3"
-                      >
-                        <div className="text-xs text-muted-foreground">
-                          {metric.label}
-                        </div>
-                        <div className="mt-1 flex items-baseline gap-1">
-                          <span className="text-xl font-semibold tabular-nums">
-                            {metric.value}
-                          </span>
-                          {"suffix" in metric && metric.suffix && (
-                            <span className="text-xs text-muted-foreground">{metric.suffix}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 grid gap-2">
+                  <div className="mt-5 grid gap-2">
                     <CompactPathItem
                       label="当前聊天"
                       value={contextSessionValue}
@@ -428,13 +230,6 @@ export const ContextWorkbenchDialog = ({
                       displayValue={currentSessionId ? chatIdReference : ""}
                       detailValue={currentSessionId ? chatName : ""}
                       copyLabel="chatId"
-                    />
-                    <CompactPathItem
-                      label="记忆目录"
-                      value={memoryLocationValue}
-                      emptyText="暂无记忆目录"
-                      displayValue={memoryLocationReference}
-                      copyLabel="记忆目录"
                     />
                   </div>
 
@@ -483,229 +278,14 @@ export const ContextWorkbenchDialog = ({
                   </div>
                 </section>
 
-                {(agentSessionStatus?.latestCompaction || latestAgentExecutionSummary || agentSessionError) && (
+                {agentSessionError && (
                   <section className="rounded-[24px] bg-card p-4 shadow-xs">
-                    <div className="text-sm font-medium">最近记录</div>
-                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                      {agentSessionStatus?.latestCompaction && (
-                        <div className="rounded-2xl bg-muted/25 p-3">
-                          <div className="font-medium text-foreground">最近压缩</div>
-                          <div className="mt-1 text-xs">
-                            {agentSessionStatus.latestCompaction.tokensBefore
-                              ? `${formatCompactNumber(agentSessionStatus.latestCompaction.tokensBefore)} tokens`
-                              : "已压缩"}
-                            {agentSessionStatus.latestCompaction.timestamp
-                              ? ` · ${agentSessionStatus.latestCompaction.timestamp}`
-                              : ""}
-                          </div>
-                          {agentSessionStatus.latestCompaction.summary && (
-                            <div className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
-                              {agentSessionStatus.latestCompaction.summary}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {latestAgentExecutionSummary && (
-                        <div className="rounded-2xl bg-muted/25 p-3">
-                          <div className="font-medium text-foreground">最近执行摘要</div>
-                          <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words font-sans text-xs leading-5">
-                            {latestAgentExecutionSummary}
-                          </pre>
-                        </div>
-                      )}
-
-                      {agentSessionError && (
-                        <div className="rounded-2xl bg-sidebar-primary/10 p-3 text-sidebar-primary">
-                          {agentSessionError}
-                        </div>
-                      )}
+                    <div className="text-sm font-medium">运行状态</div>
+                    <div className="mt-3 rounded-2xl bg-sidebar-primary/10 p-3 text-sm text-sidebar-primary">
+                      {agentSessionError}
                     </div>
                   </section>
                 )}
-
-                <section className="rounded-[24px] bg-card p-4 shadow-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                      <Bug className="size-4 shrink-0" />
-                      <span className="truncate">上下文调试</span>
-                    </div>
-                    <div className="grid shrink-0 grid-cols-2 rounded-xl bg-muted/35 p-1 text-xs">
-                      <button
-                        type="button"
-                        className={[
-                          "rounded-lg px-2.5 py-1 transition-colors",
-                          debugView === "payload" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-                        ].join(" ")}
-                        onClick={() => setDebugView("payload")}
-                      >
-                        载荷
-                      </button>
-                      <button
-                        type="button"
-                        className={[
-                          "rounded-lg px-2.5 py-1 transition-colors",
-                          debugView === "state" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-                        ].join(" ")}
-                        onClick={() => setDebugView("state")}
-                      >
-                        状态
-                      </button>
-                    </div>
-                  </div>
-
-                  {debugView === "payload" ? (
-                    <div className="mt-3 space-y-3">
-                      {contextDebugSnapshot ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-2">
-                            {debugSnapshotMeta.map(([label, value]) => (
-                              <div key={label} className="min-w-0 rounded-2xl bg-muted/25 px-3 py-2">
-                                <div className="text-[11px] text-muted-foreground">{label}</div>
-                                <div className="mt-0.5 truncate text-xs font-medium" title={value}>
-                                  {value}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {(contextDebugSnapshot.agentSessionId ||
-                            contextDebugSnapshot.activeFilePath ||
-                            contextDebugSnapshot.referencedFilePaths.length > 0 ||
-                            contextDebugSnapshot.activeSkillNames.length > 0) && (
-                            <div className="space-y-2">
-                              {contextDebugSnapshot.agentSessionId && (
-                                <CompactPathItem
-                                  label="Agent session"
-                                  value={contextDebugSnapshot.agentSessionId}
-                                  emptyText="未生成"
-                                  displayValue={getCompactPathBreadcrumb(contextDebugSnapshot.agentSessionId)}
-                                  copyLabel="Agent session"
-                                />
-                              )}
-                              {contextDebugSnapshot.activeFilePath && (
-                                <CompactPathItem
-                                  label="活动文件（直接读取）"
-                                  value={contextDebugSnapshot.activeFilePath}
-                                  emptyText="无"
-                                  copyLabel="活动文件"
-                                />
-                              )}
-                              {contextDebugSnapshot.referencedFilePaths.length > 0 && (
-                                <DebugPayloadBlock
-                                  label="referenced files"
-                                  sourceLabel="直接读取"
-                                  sourceDescription="来自用户 @ 引用，读取工作区文件内容"
-                                  content={contextDebugSnapshot.referencedFilePaths.join("\n")}
-                                />
-                              )}
-                              {contextDebugSnapshot.activeSkillNames.length > 0 && (
-                                <DebugPayloadBlock
-                                  label="active skills"
-                                  content={contextDebugSnapshot.activeSkillNames.join("\n")}
-                                />
-                              )}
-                            </div>
-                          )}
-
-                          {contextDebugSnapshot.conversationSummary && (
-                            <DebugPayloadBlock
-                              label="conversation summary"
-                              content={contextDebugSnapshot.conversationSummary}
-                            />
-                          )}
-                          <DebugPayloadBlock
-                            label="runtime messages"
-                            content={contextDebugSnapshot.runtimeMessages.length
-                              ? contextDebugSnapshot.runtimeMessages
-                                .map((message, index) => `#${index + 1} ${message.role}\n${message.content}`)
-                                .join("\n\n---\n\n")
-                              : "（空）"}
-                          />
-                          {contextDebugSnapshot.payloads.map((payload) => (
-                            <DebugPayloadBlock
-                              key={payload.label}
-                              label={payload.label}
-                              content={payload.content}
-                              sourceLabel={payload.sourceLabel}
-                              sourceDescription={payload.sourceDescription}
-                            />
-                          ))}
-                        </>
-                      ) : (
-                        <div className="rounded-2xl bg-muted/25 px-3 py-8 text-center text-sm text-muted-foreground">
-                          暂无发送载荷
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      {conversationContext ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-2">
-                            {contextStateMeta.map(([label, value]) => (
-                              <div key={label} className="min-w-0 rounded-2xl bg-muted/25 px-3 py-2">
-                                <div className="text-[11px] text-muted-foreground">{label}</div>
-                                <div className="mt-0.5 truncate text-xs font-medium" title={value}>
-                                  {value}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <DebugPayloadBlock
-                            label="application summary"
-                            content={conversationContext.summary || "（空）"}
-                          />
-                          <DebugPayloadBlock
-                            label="application context state"
-                            content={contextStateToJson(conversationContext)}
-                          />
-                        </>
-                      ) : (
-                        <div className="rounded-2xl bg-muted/25 px-3 py-8 text-center text-sm text-muted-foreground">
-                          暂无应用侧上下文
-                        </div>
-                      )}
-
-                      <div className="rounded-2xl bg-muted/25 p-3">
-                        <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                          <Database className="size-3.5" />
-                          <span>Agent runtime</span>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">实际用量</div>
-                            <div className="mt-0.5 font-medium">{tokenUsageLabel} tokens</div>
-                          </div>
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">用量记录</div>
-                            <div className="mt-0.5 font-medium">{formatCompactNumber(agentSessionStatus?.tokenUsageMessageCount ?? 0)}</div>
-                          </div>
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">输入 / 输出</div>
-                            <div className="mt-0.5 font-medium">
-                              {formatCompactNumber(tokenUsage?.input ?? 0)} / {formatCompactNumber(tokenUsage?.output ?? 0)}
-                            </div>
-                          </div>
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">缓存读 / 写</div>
-                            <div className="mt-0.5 font-medium">
-                              {formatCompactNumber(tokenUsage?.cacheRead ?? 0)} / {formatCompactNumber(tokenUsage?.cacheWrite ?? 0)}
-                            </div>
-                          </div>
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">session 文件</div>
-                            <div className="mt-0.5 font-medium">{formatCompactNumber(agentSessionStatus?.sessionFileCount ?? 0)}</div>
-                          </div>
-                          <div className="rounded-xl bg-background/60 px-2.5 py-2">
-                            <div className="text-muted-foreground">压缩次数</div>
-                            <div className="mt-0.5 font-medium">{formatCompactNumber(agentSessionStatus?.compactionCount ?? 0)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </section>
 
               </div>
             </ScrollArea>

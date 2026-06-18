@@ -1,6 +1,8 @@
+import type { Ref } from "react";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
+import type { ConversationLedgerHandle } from "@/features/ai/components/conversation-ledger/types";
 import type { FileTreeNode } from "../../page-types";
 import type {
-  ChatTraceTurn,
   WorkspaceFile,
   WorkspaceVersion,
   WorkspaceVersionControlStatus,
@@ -36,7 +38,11 @@ export type ContextPanelViewModel = {
   isVersionHistoryLoading: boolean;
   restoringVersionFilePath: string;
   discardingVersionFilePath: string;
-  chatTrace: ChatTraceTurn[];
+  workspacePath: string;
+  chatId: string | null;
+  ledgerRuntimeModel: RuntimeModelInput | null;
+  ledgerAgentId: string | null;
+  conversationLedgerBind: Ref<ConversationLedgerHandle> | null;
   onRefreshFiles: () => void;
   onRefreshVersionControl: () => void;
   onSelectVersionFile: (path: string) => void;
@@ -53,7 +59,6 @@ export type ContextPanelViewModel = {
   onPrepareNewFile: () => void;
   onOpenFile: (path: string) => void;
   onToggleDirectory: (path: string) => void;
-  onClearChatTrace: () => void;
 };
 
 export type VersionFileStatusByPath = Map<string, WorkspaceVersionFileStatus>;

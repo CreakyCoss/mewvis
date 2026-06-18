@@ -3,16 +3,16 @@ import type {
   RuntimeAgentCapability,
   RuntimeAgentDefinition,
 } from "@/ai/runtime-protocol";
-import { getAiAgentSettings } from "@/features/ai/agent/api";
+import { getAiAgentSettings } from "@/features/ai/components/agent-setting/api";
 import type {
   AiAgent,
   CollaborationWorkflow,
-} from "@/features/ai/agent/types";
+} from "@/features/ai/components/agent-setting/types";
 import {
   resolveAgentProfiles,
   resolveCollaborationWorkflowProfiles,
-} from "@/features/ai/agent/utils";
-import { useLlmSettingsStore } from "@/features/ai/llm/store";
+} from "@/features/ai/components/agent-setting/utils";
+import { useLlmSettingsStore } from "@/features/ai/components/llm-setting/store";
 import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
 import { isAgentTaskMode } from "../../utils/chat-mode";
 

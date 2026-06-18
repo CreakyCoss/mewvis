@@ -2,32 +2,23 @@ import type { Workspace } from "@/features/workspace/types";
 import {
   appendAgentRuntimeSessionMessages,
   readAgentRuntimeSession,
-} from "../../api";
+} from "@/features/ai/components/conversation-ledger/api";
 import type {
   ChatContextSummary,
   ConversationMessage,
   PromptContextLimits,
 } from "../../types";
-import type {
-  ChatMode,
-  ContextDebugSnapshot,
-} from "../../page-types";
 import { createBridgeSessionRootDir } from "../../utils/sessions";
 import type {
   AppendVisibleTraceStep,
   FinalizeAssistantTurn,
   PatchVisibleTraceTurn,
-  ReportContextDebugUpdate,
   UpdateMessage,
 } from "./modes/types";
 import { buildApplicationPromptParts } from "./application-system-prompt";
 
 type BridgeCollaborationTurnRuntimeInput = {
   workspace: Workspace;
-  chatMode: ChatMode;
-  runtimeAgentId: string;
-  traceProviderName: string | null;
-  traceModelName: string | null;
   nextSessionId: string | null;
   userMessageId: string;
   assistantMessageId: string;
@@ -47,7 +38,6 @@ type BridgeCollaborationTurnRuntimeInput = {
     contextWindow?: number;
     maxTokens?: number;
   };
-  onDebugSnapshot(snapshot: ContextDebugSnapshot): void;
   appendVisibleTraceStep: AppendVisibleTraceStep;
   patchVisibleTraceTurn: PatchVisibleTraceTurn;
   updateMessage: UpdateMessage;
@@ -60,12 +50,10 @@ type BridgeCollaborationTurnRuntimeInput = {
 export type BridgeCollaborationTurnRuntimeResult = {
   runtimeMessages: ConversationMessage[];
   summaryLimits: PromptContextLimits;
-  conversationSummary: string;
   sessionRootDir: string;
   baseSystemPrompt: string;
   baseRequestContext: string;
   baseRuntimeInstruction: string;
-  reportContextDebugUpdate: ReportContextDebugUpdate;
   finalizeAssistantTurn: FinalizeAssistantTurn;
 };
 
@@ -147,10 +135,6 @@ const toRuntimeMessages = ({
 
 export const prepareBridgeCollaborationTurnRuntime = async ({
   workspace,
-  chatMode,
-  runtimeAgentId,
-  traceProviderName,
-  traceModelName,
   nextSessionId,
   userMessageId,
   assistantMessageId,
@@ -163,7 +147,6 @@ export const prepareBridgeCollaborationTurnRuntime = async ({
   executionMemorySummary,
   contextWindow,
   modelContext,
-  onDebugSnapshot,
   appendVisibleTraceStep,
   patchVisibleTraceTurn,
   updateMessage,
@@ -203,32 +186,6 @@ export const prepareBridgeCollaborationTurnRuntime = async ({
     label: "requestContext",
     content: requestContext,
   }];
-  const buildSnapshot = (
-    payloads = basePayloads,
-    overrides: Partial<ContextDebugSnapshot> = {},
-  ): ContextDebugSnapshot => ({
-    id: traceTurnId,
-    turnId: traceTurnId,
-    chatId: nextSessionId,
-    updatedAt: Date.now(),
-    mode: chatMode,
-    engineId: "bridge-ledger",
-    contextWindow,
-    runtimeAgentId,
-    providerName: traceProviderName,
-    modelName: traceModelName,
-    activeFilePath: activeFile?.path ?? null,
-    referencedFilePaths: referencedFiles.map((file) => file.path),
-    activeSkillNames: activeSkills.map((skill) => skill.name),
-    selectedAgentId: null,
-    selectedAgentName: null,
-    conversationSummary: "",
-    runtimeMessages,
-    knowledgeMatches: [],
-    systemPrompt,
-    payloads,
-    ...overrides,
-  });
 
   patchVisibleTraceTurn(traceTurnId, {
     contextEngineId: "bridge-ledger",
@@ -291,17 +248,6 @@ export const prepareBridgeCollaborationTurnRuntime = async ({
     },
     payloads: basePayloads,
   });
-  onDebugSnapshot(buildSnapshot());
-
-  const reportContextDebugUpdate: ReportContextDebugUpdate = ({
-    payloads,
-    ...overrides
-  }) => {
-    onDebugSnapshot(buildSnapshot([
-      ...basePayloads,
-      ...payloads,
-    ], overrides));
-  };
 
   const finalizeAssistantTurn: FinalizeAssistantTurn = async ({
     assistantText,
@@ -351,12 +297,10 @@ export const prepareBridgeCollaborationTurnRuntime = async ({
   return {
     runtimeMessages,
     summaryLimits,
-    conversationSummary: "",
     sessionRootDir,
     baseSystemPrompt: systemPrompt,
     baseRequestContext: requestContext,
     baseRuntimeInstruction: runtimeInstruction,
-    reportContextDebugUpdate,
     finalizeAssistantTurn,
   };
 };

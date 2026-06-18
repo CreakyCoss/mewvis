@@ -2,19 +2,11 @@ import type {
   PromptContextFile,
 } from "@/ai/context";
 import type { Workspace } from "@/features/workspace/types";
-import type {
-  ChatContextSummary,
-  ConversationMessage,
-} from "../../types";
-import type {
-  ChatMode,
-  ContextDebugSnapshot,
-} from "../../page-types";
+import type { ChatContextSummary } from "../../types";
 import { createBridgeSessionRootDir } from "../../utils/sessions";
 import type {
   AppendVisibleTraceStep,
   PatchVisibleTraceTurn,
-  ReportContextDebugUpdate,
 } from "./modes/types";
 import { buildApplicationPromptParts } from "./application-system-prompt";
 
@@ -28,10 +20,7 @@ export type BridgeAgentPromptPayload = {
 
 type BridgeAgentTurnRuntimeInput = {
   workspace: Workspace;
-  chatMode: ChatMode;
   runtimeAgentId: string;
-  traceProviderName: string | null;
-  traceModelName: string | null;
   nextSessionId: string | null;
   traceTurnId: string;
   text: string;
@@ -46,7 +35,6 @@ type BridgeAgentTurnRuntimeInput = {
   agentInstructions: string;
   executionMemorySummary: string;
   contextWindow: number;
-  onDebugSnapshot(snapshot: ContextDebugSnapshot): void;
   appendVisibleTraceStep: AppendVisibleTraceStep;
   patchVisibleTraceTurn: PatchVisibleTraceTurn;
 };
@@ -54,17 +42,12 @@ type BridgeAgentTurnRuntimeInput = {
 export type BridgeAgentTurnRuntimeResult = {
   agentPromptPayload: BridgeAgentPromptPayload;
   nextConversationContext: ChatContextSummary | null;
-  conversationSummary: string;
   activeFile: PromptContextFile | null;
-  reportContextDebugUpdate: ReportContextDebugUpdate;
 };
 
 export const prepareBridgeAgentTurnRuntime = async ({
   workspace,
-  chatMode,
   runtimeAgentId,
-  traceProviderName,
-  traceModelName,
   nextSessionId,
   traceTurnId,
   text,
@@ -75,7 +58,6 @@ export const prepareBridgeAgentTurnRuntime = async ({
   agentInstructions,
   executionMemorySummary,
   contextWindow,
-  onDebugSnapshot,
   appendVisibleTraceStep,
   patchVisibleTraceTurn,
 }: BridgeAgentTurnRuntimeInput): Promise<BridgeAgentTurnRuntimeResult> => {
@@ -135,8 +117,6 @@ export const prepareBridgeAgentTurnRuntime = async ({
       content: text,
     },
   ];
-  const runtimeMessages: ConversationMessage[] = [];
-
   patchVisibleTraceTurn(traceTurnId, {
     contextEngineId: "bridge-ledger",
     contextWindow,
@@ -154,57 +134,14 @@ export const prepareBridgeAgentTurnRuntime = async ({
       sessionRootDir,
       agentRoleId: bridgeSelectedAgent.id,
       agentSessionId: agentSessionStatusId,
-      runtimeMessageCount: runtimeMessages.length,
       source: "app-request-context",
     },
     payloads: basePayloads,
   });
 
-  const buildSnapshot = (
-    payloads = basePayloads,
-    overrides: Partial<ContextDebugSnapshot> = {},
-  ): ContextDebugSnapshot => ({
-    id: traceTurnId,
-    turnId: traceTurnId,
-    chatId: nextSessionId,
-    updatedAt: Date.now(),
-    mode: chatMode,
-    engineId: "bridge-ledger",
-    contextWindow,
-    runtimeAgentId,
-    agentSessionId: agentSessionStatusId,
-    providerName: traceProviderName,
-    modelName: traceModelName,
-    activeFilePath: activeFile?.path ?? null,
-    referencedFilePaths: referencedFiles.map((file) => file.path),
-    activeSkillNames: activeSkills.map((skill) => skill.name),
-    selectedAgentId: bridgeSelectedAgent.id,
-    selectedAgentName: selectedAgent?.name ?? null,
-    conversationSummary: "",
-    runtimeMessages,
-    knowledgeMatches: [],
-    systemPrompt,
-    payloads,
-    ...overrides,
-  });
-
-  onDebugSnapshot(buildSnapshot());
-
-  const reportContextDebugUpdate: ReportContextDebugUpdate = ({
-    payloads,
-    ...overrides
-  }) => {
-    onDebugSnapshot(buildSnapshot([
-      ...basePayloads,
-      ...payloads,
-    ], overrides));
-  };
-
   return {
     agentPromptPayload,
     nextConversationContext: conversationContext,
-    conversationSummary: "",
     activeFile: null,
-    reportContextDebugUpdate,
   };
 };

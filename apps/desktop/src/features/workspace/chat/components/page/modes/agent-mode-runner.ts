@@ -4,7 +4,7 @@ import {
 import {
   normalizeAllowedRuntimeAgentTools,
 } from "@/ai/runtime-protocol";
-import { requireRuntimeModelInput } from "@/features/ai/llm/store";
+import { requireRuntimeModelInput } from "@/features/ai/components/llm-setting/store";
 import {
   filterChatAgentAllowedTools,
 } from "../../../utils/chat-mode";
@@ -22,8 +22,6 @@ export const runAgentTurn = async (
     nextConversation,
     nextConversationContext,
     nextMessages,
-    conversationSummary,
-    reportContextDebugUpdate,
     agentPromptPayload,
   }: RunAgentTurnInput,
   {
@@ -72,35 +70,6 @@ export const runAgentTurn = async (
       ? filterChatAgentAllowedTools(allowedAgentTools)
       : allowedAgentTools,
   );
-  reportContextDebugUpdate({
-    agentSessionId: agentSessionStatusId,
-    providerName: effectiveRuntimeModel?.provider.name ?? null,
-    modelName: effectiveRuntimeModel?.modelName ?? null,
-    conversationSummary,
-    runtimeMessages: [],
-    payloads: [
-      {
-        label: "systemPrompt",
-        content: agentPromptPayload.systemPrompt,
-      },
-      {
-        label: "requestContext",
-        content: agentPromptPayload.requestContext,
-      },
-      {
-        label: "runtimeInstruction",
-        content: agentPromptPayload.runtimeInstruction,
-      },
-      {
-        label: "bootstrapInstruction",
-        content: agentPromptPayload.bootstrapInstruction ?? "",
-      },
-      {
-        label: "userMessage",
-        content: agentPromptPayload.userMessage,
-      },
-    ],
-  });
   appendVisibleTraceStep(traceTurnId, {
     type: "request",
     label: "Agent bridge 请求",

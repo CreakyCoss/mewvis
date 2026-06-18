@@ -39,8 +39,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   AgentProfile,
   CollaborationWorkflowProfile,
-} from "@/features/ai/agent/types";
-import type { RuntimeModelOption } from "@/features/ai/llm/store";
+} from "@/features/ai/components/agent-setting/types";
+import type { RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import {
   ALL_SKILLS_GROUP_ID,
   NO_SKILLS_GROUP_ID,

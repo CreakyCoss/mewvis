@@ -1,5 +1,7 @@
-import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
-import { MODEL_CATALOG } from "@/ai/llm";
+import {
+  MODEL_CATALOG,
+  type RuntimeApiFormat,
+} from "@/ai/runtime-protocol";
 
 export type ProviderOption = {
   value: string;

@@ -1,17 +1,13 @@
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
-import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/ai/llm/store";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import type { Workspace } from "@/features/workspace/types";
 import {
   readAgentRuntimeSession,
-} from "../../api";
+} from "@/features/ai/components/conversation-ledger/api";
 import type {
   ChatContextSummary,
   ConversationMessage,
 } from "../../types";
-import type {
-  ChatMode,
-  ContextDebugSnapshot,
-} from "../../page-types";
 import type {
   AppendVisibleTraceStep,
   PatchVisibleTraceTurn,
@@ -23,11 +19,8 @@ import { buildApplicationPromptParts } from "./application-system-prompt";
 
 type BridgeDirectTurnRuntimeInput = {
   workspace: Workspace;
-  chatMode: ChatMode;
   runtimeAgentId: string;
   effectiveRuntimeModel: RuntimeModelOption | null;
-  traceProviderName: string | null;
-  traceModelName: string | null;
   nextSessionId: string | null;
   userMessageId: string;
   assistantMessageId: string;
@@ -48,7 +41,6 @@ type BridgeDirectTurnRuntimeInput = {
     contextWindow?: number;
     maxTokens?: number;
   };
-  onDebugSnapshot(snapshot: ContextDebugSnapshot): void;
   appendVisibleTraceStep: AppendVisibleTraceStep;
   patchVisibleTraceTurn: PatchVisibleTraceTurn;
   updateMessage: UpdateMessage;
@@ -73,11 +65,8 @@ const contextFromSummary = (summary: string): ChatContextSummary | null => summa
 
 export const runBridgeDirectChatTurnRuntime = async ({
   workspace,
-  chatMode,
   runtimeAgentId,
   effectiveRuntimeModel,
-  traceProviderName,
-  traceModelName,
   nextSessionId,
   userMessageId,
   assistantMessageId,
@@ -90,7 +79,6 @@ export const runBridgeDirectChatTurnRuntime = async ({
   baseConversation,
   executionMemorySummary,
   contextWindow,
-  onDebugSnapshot,
   appendVisibleTraceStep,
   patchVisibleTraceTurn,
   updateMessage,
@@ -129,38 +117,6 @@ export const runBridgeDirectChatTurnRuntime = async ({
       sessionRootDir,
       source: "app-request-context",
     },
-  });
-
-  onDebugSnapshot({
-    id: traceTurnId,
-    turnId: traceTurnId,
-    chatId: nextSessionId,
-    updatedAt: Date.now(),
-    mode: chatMode,
-    engineId: "bridge-ledger",
-    contextWindow,
-    runtimeAgentId,
-    providerName: traceProviderName,
-    modelName: traceModelName,
-    activeFilePath: activeFile?.path ?? null,
-    referencedFilePaths: referencedFiles.map((file) => file.path),
-    activeSkillNames: activeSkills.map((skill) => skill.name),
-    selectedAgentId: null,
-    selectedAgentName: selectedAgent?.name ?? null,
-    conversationSummary: "",
-    runtimeMessages: [],
-    knowledgeMatches: [],
-    systemPrompt,
-    payloads: [{
-      label: "systemPrompt",
-      content: systemPrompt,
-    }, {
-      label: "runtimeInstruction",
-      content: runtimeInstruction,
-    }, {
-      label: "requestContext",
-      content: requestContext,
-    }],
   });
 
   const runtimeModelInput = effectiveRuntimeModel

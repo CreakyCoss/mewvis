@@ -1,8 +1,9 @@
-import type {
+import {
+  MODEL_CATALOG,
+  type CatalogModel,
   RuntimeModelInput,
   RuntimeThinkingLevel,
 } from "@/ai/runtime-protocol";
-import { MODEL_CATALOG, type CatalogModel } from "@/ai/llm";
 import type {
   LlmProvider,
   LlmSettings,
