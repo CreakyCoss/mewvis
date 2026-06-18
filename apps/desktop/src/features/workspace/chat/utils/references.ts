@@ -3,7 +3,7 @@ import type { WorkspaceFileEntry } from "../types";
 export {
   appendReferencesToPrompt,
   formatReferencesForPrompt,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 
 export const quoteReferencePath = (path: string) =>
   /[\s，。；,;]/.test(path) ? `@"${path}"` : `@${path}`;

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import {
   resolveAppContextWindow,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import {
   resolveRuntimeModelInput,
   type RuntimeModelOption,

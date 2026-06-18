@@ -1,4 +1,4 @@
-import { formatConversationForSummary } from "@/ai/context";
+import { formatConversationForSummary } from "@/features/ai/runtime";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {

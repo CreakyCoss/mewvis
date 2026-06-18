@@ -1,11 +1,11 @@
 import {
-  buildPromptContext,
   loadContextResources,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import type { Workspace } from "@/features/workspace/types";
 import {
   readWorkspaceFile,
 } from "../../api";
+import { buildWorkspacePromptContext } from "./prompt-context";
 
 export type ApplicationPromptAgent = {
   id?: string | null;
@@ -70,7 +70,7 @@ export const buildApplicationPromptParts = async ({
       "你可以帮助用户规划、写作、分析和修改项目文件。",
     ]),
     runtimeInstruction: compactSections(trailingSections),
-    requestContext: buildPromptContext(
+    requestContext: buildWorkspacePromptContext(
       resources.activeFile,
       resources.references,
       activeSkills,

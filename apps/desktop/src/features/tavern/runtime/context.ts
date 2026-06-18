@@ -4,7 +4,7 @@ import {
   type MemoryBackedRuntimeContextStats,
   prepareMemoryBackedRuntimeContext,
   resolveAppContextWindow,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,

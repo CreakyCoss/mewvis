@@ -7,9 +7,6 @@ import {
   type SetStateAction,
   type MutableRefObject,
 } from "react";
-import {
-  getContextEngineDescriptor,
-} from "@/ai/context";
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
   deleteChatSession,
@@ -61,8 +58,6 @@ type UseWorkspaceChatSessionsInput = {
   setConversationContext: Dispatch<SetStateAction<ChatContextSummary | null>>;
   conversationContextRef: MutableRefObject<ChatContextSummary | null>;
   replaceChatTrace: (nextTrace: ChatTraceTurn[]) => void;
-  setContextEngineId: Dispatch<SetStateAction<string>>;
-  preferredContextEngineIdRef: MutableRefObject<string>;
   setAgentRuntimeSessionId: Dispatch<SetStateAction<string | null>>;
   setAgentSessionStatus: Dispatch<SetStateAction<AgentSessionStatus | null>>;
   setAgentSessionError: Dispatch<SetStateAction<string>>;
@@ -100,8 +95,6 @@ export const useWorkspaceChatSessions = ({
   setConversationContext,
   conversationContextRef,
   replaceChatTrace,
-  setContextEngineId,
-  preferredContextEngineIdRef,
   setAgentRuntimeSessionId,
   setAgentSessionStatus,
   setAgentSessionError,
@@ -232,9 +225,6 @@ export const useWorkspaceChatSessions = ({
     setConversation(visibleConversation);
     setConversationContext(hydratedContext);
     replaceChatTrace(hydratedTrace);
-    setContextEngineId(getContextEngineDescriptor(
-      runningTask?.context?.engine?.id ?? preferredContextEngineIdRef.current,
-    ).id);
     const nextSessionId = session?.id ?? null;
     const nextSessionTitle = session?.title || DEFAULT_SESSION_TITLE;
     currentSessionIdRef.current = nextSessionId;
@@ -261,13 +251,11 @@ export const useWorkspaceChatSessions = ({
     currentSessionTitleRef,
     detachActiveAgentTask,
     messagesRef,
-    preferredContextEngineIdRef,
     replaceChatTrace,
     runningAgentTasksRef,
     setAgentRuntimeSessionId,
     setAgentSessionError,
     setAgentSessionStatus,
-    setContextEngineId,
     setConversation,
     setConversationContext,
     setCurrentSessionId,

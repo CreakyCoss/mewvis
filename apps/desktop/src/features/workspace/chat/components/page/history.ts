@@ -5,7 +5,6 @@ import type {
   ChatSessionMeta,
   ConversationMessage,
 } from "../../types";
-import { collaborationConversationContentFromMessage } from "../../utils/collaboration";
 
 export type HydratableChatSession = {
   id: string | null;
@@ -155,7 +154,7 @@ export const rebuildConversationFromVisibleMessages = (
     return {
       id: chatMessage.id,
       role: chatMessage.role,
-      content: collaborationConversationContentFromMessage(chatMessage),
+      content: chatMessage.text,
       timestamp: matchedMessage?.timestamp ?? chatMessage.createdAt,
       metadata: visibleAgentMetadata(matchedMessage?.metadata),
     };

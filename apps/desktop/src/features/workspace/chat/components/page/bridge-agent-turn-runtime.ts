@@ -1,6 +1,6 @@
 import type {
   PromptContextFile,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import type { Workspace } from "@/features/workspace/types";
 import type { ChatContextSummary } from "../../types";
 import { createBridgeSessionRootDir } from "../../utils/sessions";

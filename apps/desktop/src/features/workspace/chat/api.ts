@@ -1,9 +1,4 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import {
-  runSharedRuntimeChat,
-  type RunSharedRuntimeChatInput,
-  type RunSharedRuntimeChatOutput,
-} from "@/features/ai/runtime";
 import type {
   AgentSessionStatus,
   ChatMessage,
@@ -19,9 +14,6 @@ import type {
   WorkspaceFile,
   WorkspaceFileEntry,
 } from "./types";
-
-export type RunAgentRuntimeChatInput = RunSharedRuntimeChatInput;
-export type RunAgentRuntimeChatOutput = RunSharedRuntimeChatOutput;
 
 export async function listWorkspaceFiles(workspacePath: string) {
   if (!isTauri()) {
@@ -257,12 +249,6 @@ export async function restoreWorkspaceVersion(
   return invoke<WorkspaceVersionControlStatus>("restore_workspace_version", {
     input: { workspacePath, versionId },
   });
-}
-
-export async function runAgentRuntimeChat(
-  input: RunAgentRuntimeChatInput,
-): Promise<RunAgentRuntimeChatOutput> {
-  return runSharedRuntimeChat(input);
 }
 
 export async function listChatSessions(workspacePath: string) {

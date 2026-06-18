@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
   formatConversationForSummary,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {

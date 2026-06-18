@@ -4,10 +4,8 @@ import {
   Bot,
   ChevronDown,
   FileText,
-  GitBranch,
   Link,
   Loader2,
-  MessageSquare,
   Orbit,
   Send,
   Sparkles,
@@ -38,7 +36,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   AgentProfile,
-  CollaborationWorkflowProfile,
 } from "@/features/ai/components/agent-setting/types";
 import type { RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import {
@@ -47,17 +44,10 @@ import {
 } from "@/features/skills/constants";
 import type { WorkspaceSkillGroup } from "@/features/skills/types";
 import type {
-  ChatExecutionMode,
-  ChatMode,
   ComposerSubmitInput,
   ModelSource,
 } from "../../page-types";
 import type { WorkspaceFileEntry } from "../../types";
-import {
-  filterChatAgentAllowedTools,
-  isAgentTaskMode,
-  isChatAgentRestrictedTool,
-} from "../../utils/chat-mode";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
@@ -71,8 +61,6 @@ type ComposerProps = {
   isSending: boolean;
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
-  chatMode: ChatMode;
-  chatExecutionMode: ChatExecutionMode;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
   effectiveContextWindow: number;
@@ -85,22 +73,16 @@ type ComposerProps = {
   selectedRuntimeModelId: string;
   selectedRuntimeModel: RuntimeModelOption | null;
   selectedAgent: AgentProfile | null;
-  collaborationWorkflows: CollaborationWorkflowProfile[];
-  selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
-  selectedCollaborationWorkflowId: string;
   allowedAgentTools: RuntimeAgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
-  onChatModeChange: (mode: ChatMode) => void;
-  onChatExecutionModeChange: (mode: ChatExecutionMode) => void;
   onShowThinkingProcessChange: (value: boolean) => void;
   onShowToolCallProcessChange: (value: boolean) => void;
   onModelSourceChange: (source: ModelSource) => void;
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
-  onCollaborationWorkflowChange: (workflowId: string) => void;
   onRuntimeModelChange: (id: string) => void;
   onToggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
   onSkillGroupChange: (skillGroupId: string, checked: boolean) => void;
@@ -150,8 +132,6 @@ export const Composer = memo(({
   isSending,
   activeAgentTaskId,
   isSettingsLoading,
-  chatMode,
-  chatExecutionMode,
   showThinkingProcess,
   showToolCallProcess,
   effectiveContextWindow,
@@ -164,22 +144,16 @@ export const Composer = memo(({
   selectedRuntimeModelId,
   selectedRuntimeModel,
   selectedAgent,
-  collaborationWorkflows,
-  selectedCollaborationWorkflow,
-  selectedCollaborationWorkflowId,
   allowedAgentTools,
   skillGroups,
   defaultSkillGroupId,
   selectedSkillGroupIds,
   selectedSkillGroupLabel,
-  onChatModeChange,
-  onChatExecutionModeChange,
   onShowThinkingProcessChange,
   onShowToolCallProcessChange,
   onModelSourceChange,
   onRuntimeAgentChange,
   onSelectedAgentChange,
-  onCollaborationWorkflowChange,
   onRuntimeModelChange,
   onToggleAllowedAgentTool,
   onSkillGroupChange,
@@ -235,33 +209,24 @@ export const Composer = memo(({
     () => fileReferenceMatches.filter((match) => match.matches.length > 1),
     [fileReferenceMatches],
   );
-  const modeLabel =
-    chatMode === "collab" ? "协作" : chatMode === "agent" ? "Agent" : "聊天";
-  const isAgentExecution = isAgentTaskMode(chatMode, chatExecutionMode);
-  const isRestrictedChatAgent = chatMode === "chat" && chatExecutionMode === "agent";
-  const visibleAllowedAgentTools = isRestrictedChatAgent
-    ? filterChatAgentAllowedTools(allowedAgentTools)
-    : allowedAgentTools;
+  const visibleAllowedAgentTools = allowedAgentTools;
   const runtimeModelGroups = useMemo(
     () => groupRuntimeModelsByProvider(runtimeModels),
     [runtimeModels],
   );
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
-  const selectedModelLabel = chatMode === "collab"
-    ? selectedCollaborationWorkflow?.name ?? "选择协作流程"
-    : modelSource === "agent"
+  const selectedModelLabel = modelSource === "agent"
       ? selectedAgent?.name ?? "选择角色"
       : selectedRuntimeModel
         ? selectedRuntimeModel.modelName
         : "选择模型";
-  const modelLabel = chatMode !== "collab" && !runtimeAgentRequiresModel
+  const modelLabel = !runtimeAgentRequiresModel
     ? "无需模型"
     : selectedModelLabel;
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
   const enabledProcessOptionLabel = [
     showThinkingProcess ? "思考" : "",
     showToolCallProcess ? "工具" : "",
-    chatMode === "chat" && chatExecutionMode === "agent" ? "Agent" : "",
   ].filter(Boolean).join("/");
   const effectiveContextWindowLabel = formatContextWindowLabel(effectiveContextWindow);
   const isAgentRunning = Boolean(activeAgentTaskId);
@@ -418,33 +383,6 @@ export const Composer = memo(({
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                  {chatMode === "collab" ? (
-                    <Sparkles className="size-3.5" />
-                  ) : chatMode === "agent" ? (
-                    <Bot className="size-3.5" />
-                  ) : (
-                    <MessageSquare className="size-3.5" />
-                  )}
-                  <span>{modeLabel}</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-36">
-                <DropdownMenuLabel>模式</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={chatMode} onValueChange={(value) => onChatModeChange(value as ChatMode)}>
-                  <DropdownMenuRadioItem value="chat">聊天</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="agent">Agent</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="collab" disabled={collaborationWorkflows.length === 0}>
-                    协作
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
@@ -534,7 +472,7 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`${chatMode === "collab" ? "协作流程" : "模型"}：${modelLabel} / 上下文：${effectiveContextWindowLabel}`}
+                  title={`模型：${modelLabel} / 上下文：${effectiveContextWindowLabel}`}
                 >
                   <Orbit className="size-3.5 shrink-0" />
                   <span className="min-w-0 truncate">{modelLabel}</span>
@@ -550,117 +488,79 @@ export const Composer = memo(({
               <DropdownMenuContent align="start" className="w-64">
                 <DropdownMenuLabel>模型配置</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {chatMode === "collab" ? (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger
-                      disabled={isSettingsLoading}
-                      title={selectedModelLabel}
-                    >
-                      <GitBranch className="size-3.5" />
-                      <span className="min-w-0 flex-1 truncate">协作流程</span>
-                      <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-64">
-                      {collaborationWorkflows.length === 0 ? (
-                        <DropdownMenuItem disabled>未配置协作流程</DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuRadioGroup
-                          value={selectedCollaborationWorkflowId}
-                          onValueChange={onCollaborationWorkflowChange}
-                        >
-                          {collaborationWorkflows.map((workflow) => (
-                            <DropdownMenuRadioItem
-                              key={workflow.id}
-                              value={workflow.id}
-                              title={workflow.description ?? undefined}
-                            >
-                              <span className="min-w-0">
-                                <span className="block truncate">{workflow.name}</span>
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {workflow.writerAgent.name} + {workflow.reviewerAgent.name}
-                                </span>
-                              </span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                      )}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ) : (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger
-                      disabled={isSettingsLoading}
-                      title={selectedModelLabel}
-                    >
-                      <Orbit className="size-3.5" />
-                      <span className="min-w-0 flex-1 truncate">模型</span>
-                      <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger
+                    disabled={isSettingsLoading}
+                    title={selectedModelLabel}
+                  >
+                    <Orbit className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">模型</span>
+                    <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Orbit className="size-3.5" />
+                        模型
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-52">
+                        {runtimeModelGroups.length === 0 ? (
+                          <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
+                        ) : (
+                          runtimeModelGroups.map((provider) => {
+                            return (
+                              <DropdownMenuSub key={provider.providerId}>
+                                <DropdownMenuSubTrigger>{provider.providerName}</DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent className="w-56">
+                                  {provider.models.length === 0 ? (
+                                    <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuRadioGroup
+                                      value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelId : ""}
+                                      onValueChange={(value) => {
+                                        onModelSourceChange("direct");
+                                        onRuntimeModelChange(value);
+                                      }}
+                                    >
+                                      {provider.models.map((model) => (
+                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
+                                          <span className="truncate">{model.modelName}</span>
+                                        </DropdownMenuRadioItem>
+                                      ))}
+                                    </DropdownMenuRadioGroup>
+                                  )}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            );
+                          })
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    {agentProfiles.length > 0 && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
-                          <Orbit className="size-3.5" />
-                          模型
+                          <Bot className="size-3.5" />
+                          角色
                         </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-52">
-                          {runtimeModelGroups.length === 0 ? (
-                            <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
-                          ) : (
-                            runtimeModelGroups.map((provider) => {
-                              return (
-                                <DropdownMenuSub key={provider.providerId}>
-                                  <DropdownMenuSubTrigger>{provider.providerName}</DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent className="w-56">
-                                    {provider.models.length === 0 ? (
-                                      <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
-                                    ) : (
-                                      <DropdownMenuRadioGroup
-                                        value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelId : ""}
-                                        onValueChange={(value) => {
-                                          onModelSourceChange("direct");
-                                          onRuntimeModelChange(value);
-                                        }}
-                                      >
-                                        {provider.models.map((model) => (
-                                          <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                            <span className="truncate">{model.modelName}</span>
-                                          </DropdownMenuRadioItem>
-                                        ))}
-                                      </DropdownMenuRadioGroup>
-                                    )}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                              );
-                            })
-                          )}
+                        <DropdownMenuSubContent className="w-56">
+                          <DropdownMenuRadioGroup
+                            value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
+                            onValueChange={(value) => {
+                              onModelSourceChange("agent");
+                              onSelectedAgentChange(value);
+                            }}
+                          >
+                            {agentProfiles.map((agent) => (
+                              <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                                <span className="truncate">{agent.name}</span>
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
-                      {agentProfiles.length > 0 && (
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger>
-                            <Bot className="size-3.5" />
-                            角色
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-56">
-                            <DropdownMenuRadioGroup
-                              value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
-                              onValueChange={(value) => {
-                                onModelSourceChange("agent");
-                                onSelectedAgentChange(value);
-                              }}
-                            >
-                              {agentProfiles.map((agent) => (
-                                <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                                  <span className="truncate">{agent.name}</span>
-                                </DropdownMenuRadioItem>
-                              ))}
-                            </DropdownMenuRadioGroup>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger title={runtimeAgentLabel}>
                     <Bot className="size-3.5" />
@@ -722,26 +622,6 @@ export const Composer = memo(({
                         onCheckedChange={onShowToolCallProcessChange}
                       />
                     </DropdownMenuItem>
-                    {chatMode === "chat" && (
-                      <DropdownMenuItem
-                        className={toggleMenuItemClassName}
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          onChatExecutionModeChange(chatExecutionMode === "agent" ? "direct" : "agent");
-                        }}
-                      >
-                        <span className="min-w-0 flex-1">Agent 执行</span>
-                        <Switch
-                          size="sm"
-                          checked={chatExecutionMode === "agent"}
-                          aria-label="Agent 执行"
-                          onClick={(event) => event.stopPropagation()}
-                          onCheckedChange={(checked) =>
-                            onChatExecutionModeChange(checked ? "agent" : "direct")
-                          }
-                        />
-                      </DropdownMenuItem>
-                    )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               </DropdownMenuContent>
@@ -754,7 +634,6 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2 text-xs"
-                  disabled={!isAgentExecution}
                 >
                   <Wrench className="size-3.5" />
                   <span>工具</span>
@@ -765,24 +644,17 @@ export const Composer = memo(({
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuLabel>工具</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {RUNTIME_AGENT_TOOL_DEFINITIONS.map((tool) => {
-                  const isRestrictedTool = isRestrictedChatAgent && isChatAgentRestrictedTool(tool.name);
-
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={tool.name}
-                      checked={!isRestrictedTool && allowedAgentTools.includes(tool.name)}
-                      disabled={isRestrictedTool}
-                      onSelect={(event) => event.preventDefault()}
-                      onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                      title={isRestrictedTool
-                        ? `${tool.description}。聊天 Agent 不允许修改文件或运行命令。`
-                        : tool.description}
-                    >
-                      {tool.label}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
+                {RUNTIME_AGENT_TOOL_DEFINITIONS.map((tool) => (
+                  <DropdownMenuCheckboxItem
+                    key={tool.name}
+                    checked={allowedAgentTools.includes(tool.name)}
+                    onSelect={(event) => event.preventDefault()}
+                    onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
+                    title={tool.description}
+                  >
+                    {tool.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

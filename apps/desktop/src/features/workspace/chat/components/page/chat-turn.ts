@@ -1,11 +1,5 @@
-import type {
-  AgentProfile,
-  CollaborationWorkflowProfile,
-} from "@/features/ai/components/agent-setting/types";
 import type { RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import type {
-  ChatExecutionMode,
-  ChatMode,
   FileReferenceMatch,
   ModelSource,
 } from "../../page-types";
@@ -15,12 +9,9 @@ import type {
   ChatTraceTurn,
   ConversationMessage,
 } from "../../types";
-import { isAgentTaskMode } from "../../utils/chat-mode";
 import { createChatTraceStep } from "./trace";
 
 type ValidateComposerSubmitInput = {
-  chatMode: ChatMode;
-  selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
   runtimeAgentRequiresModel: boolean;
   effectiveRuntimeModel: RuntimeModelOption | null;
   unresolvedFileReferences: FileReferenceMatch[];
@@ -29,9 +20,6 @@ type ValidateComposerSubmitInput = {
 
 type ValidComposerSubmit = {
   ok: true;
-  collaborationWorkflow: CollaborationWorkflowProfile | null;
-  collaborationWriterAgent: AgentProfile | null;
-  collaborationReviewerAgent: AgentProfile | null;
 };
 
 type InvalidComposerSubmit = {
@@ -40,22 +28,12 @@ type InvalidComposerSubmit = {
 };
 
 export const validateComposerSubmit = ({
-  chatMode,
-  selectedCollaborationWorkflow,
   runtimeAgentRequiresModel,
   effectiveRuntimeModel,
   unresolvedFileReferences,
   ambiguousFileReferences,
 }: ValidateComposerSubmitInput): ValidComposerSubmit | InvalidComposerSubmit => {
-  const collaborationWorkflow = chatMode === "collab" ? selectedCollaborationWorkflow : null;
-  const collaborationWriterAgent = collaborationWorkflow?.writerAgent ?? null;
-  const collaborationReviewerAgent = collaborationWorkflow?.reviewerAgent ?? null;
-
-  if (chatMode === "collab" && (!collaborationWorkflow || !collaborationWriterAgent || !collaborationReviewerAgent)) {
-    return { ok: false, error: "请选择协作流程" };
-  }
-
-  if (chatMode !== "collab" && runtimeAgentRequiresModel && !effectiveRuntimeModel) {
+  if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
     return { ok: false, error: "请选择要使用的 LLM 和模型" };
   }
 
@@ -80,17 +58,12 @@ export const validateComposerSubmit = ({
 
   return {
     ok: true,
-    collaborationWorkflow,
-    collaborationWriterAgent,
-    collaborationReviewerAgent,
   };
 };
 
 type CreateChatTurnDraftInput = {
   now: number;
   text: string;
-  chatMode: ChatMode;
-  chatExecutionMode: ChatExecutionMode;
   modelSource: ModelSource;
   referencedFiles: Array<{ path: string }>;
   baseConversation: ConversationMessage[];
@@ -101,7 +74,6 @@ type CreateChatTurnDraftInput = {
   providerName: string | null;
   modelName: string | null;
   runtimeAgentId: string;
-  contextEngineId: string;
   contextWindow: number;
   userMessageId: string;
   assistantMessageId: string;
@@ -120,8 +92,6 @@ export type ChatTurnDraft = {
 export const createChatTurnDraft = ({
   now,
   text,
-  chatMode,
-  chatExecutionMode,
   modelSource,
   referencedFiles,
   baseConversation,
@@ -132,7 +102,6 @@ export const createChatTurnDraft = ({
   providerName,
   modelName,
   runtimeAgentId,
-  contextEngineId,
   contextWindow,
   userMessageId,
   assistantMessageId,
@@ -152,23 +121,22 @@ export const createChatTurnDraft = ({
     createdAt: now,
     referencedFiles: referencedFilePaths.map((path) => ({ path })),
   };
-  const isAgentBackedTurn = isAgentTaskMode(chatMode, chatExecutionMode);
   const assistantUiMessage: ChatMessage = {
     id: assistantMessageId,
     role: "assistant",
-    mode: chatMode,
+    mode: "agent",
     text: "",
     status: "loading",
     createdAt: now,
     agentAvatar: assistantAgentAvatar,
     agentName: assistantAgentName,
-    agentEvents: isAgentBackedTurn ? [] : undefined,
-    agentBlocks: isAgentBackedTurn ? [] : undefined,
+    agentEvents: [],
+    agentBlocks: [],
   };
   const traceTurnId = `${now}-${assistantMessageId}`;
   const traceTurn: ChatTraceTurn = {
     id: traceTurnId,
-    mode: chatMode,
+    mode: "agent",
     status: "running",
     createdAt: now,
     updatedAt: now,
@@ -181,7 +149,7 @@ export const createChatTurnDraft = ({
     modelName,
     runtimeAgentId,
     agentSessionId: null,
-    contextEngineId,
+    contextEngineId: "bridge-ledger",
     contextWindow,
     conversationSummary: baseConversationContext?.summary ?? "",
     steps: [
@@ -191,8 +159,7 @@ export const createChatTurnDraft = ({
         status: "done",
         content: text,
         metadata: {
-          mode: chatMode,
-          chatExecutionMode,
+          mode: "agent",
           modelSource,
           referencedFilePaths,
           activeFilePath,

@@ -3,9 +3,6 @@ import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "settings" | "skills" | "knowledge" | "tavern";
 export type ModelSource = "direct" | "agent";
-export type ChatMode = "chat" | "agent" | "collab";
-export type ChatExecutionMode = "direct" | "agent";
-export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
 
 export type FileReferenceMatch = {
   token: string;
@@ -26,21 +23,6 @@ export type PendingAgentQuestion = {
   question: string;
   context?: string | null;
   input?: AgentRuntimeAgentQuestionInput;
-};
-
-export type CollaborationPlanDecisionStep = {
-  id: string;
-  name: string;
-  agentName: string;
-};
-
-export type CollaborationPlanDecisionRequest = {
-  id: string;
-  messageId: string;
-  workflowName: string;
-  reason: string;
-  configuredSteps: CollaborationPlanDecisionStep[];
-  proposedSteps: CollaborationPlanDecisionStep[];
 };
 
 export type ActiveReferenceToken = {

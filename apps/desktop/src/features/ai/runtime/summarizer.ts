@@ -2,7 +2,7 @@ import {
   formatConversationForSummary,
   type ConversationMessage,
   type ConversationSummarizer,
-} from "@/ai/context";
+} from "./conversation";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "./runtime-chat";
 

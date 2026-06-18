@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
   type ConversationMessage,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 import type {
   TavernCharacter,
   TavernLorebookEntry,

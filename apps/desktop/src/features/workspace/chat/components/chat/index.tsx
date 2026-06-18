@@ -3,16 +3,12 @@ import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/ai/runtime-
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   AgentProfile,
-  CollaborationWorkflowProfile,
 } from "@/features/ai/components/agent-setting/types";
 import type { RuntimeModelOption } from "@/features/ai/components/llm-setting/store";
 import type { WorkspaceSkillGroup } from "@/features/skills/types";
 import type { Workspace } from "@/features/workspace/types";
 import type {
-  ChatExecutionMode,
-  ChatMode,
   ComposerSubmitInput,
-  CollaborationPlanDecisionRequest,
   ModelSource,
   PendingAgentQuestion,
 } from "../../page-types";
@@ -38,7 +34,6 @@ export type ChatPanelViewModel = {
   skillsError: string;
   sessionsError: string;
   pendingAgentQuestion: PendingAgentQuestion | null;
-  collaborationPlanDecision: CollaborationPlanDecisionRequest | null;
   agentQuestionAnswer: string;
   customAgentQuestionAnswer: string;
   isAnsweringAgentQuestion: boolean;
@@ -47,8 +42,6 @@ export type ChatPanelViewModel = {
   isSending: boolean;
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
-  chatMode: ChatMode;
-  chatExecutionMode: ChatExecutionMode;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
   effectiveContextWindow: number;
@@ -59,9 +52,6 @@ export type ChatPanelViewModel = {
   runtimeModels: RuntimeModelOption[];
   selectedRuntimeModelId: string;
   selectedRuntimeModel: RuntimeModelOption | null;
-  collaborationWorkflows: CollaborationWorkflowProfile[];
-  selectedCollaborationWorkflow: CollaborationWorkflowProfile | null;
-  selectedCollaborationWorkflowId: string;
   allowedAgentTools: RuntimeAgentToolName[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
@@ -76,18 +66,14 @@ export type ChatPanelViewModel = {
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
-  resolveCollaborationPlanDecision: (approved: boolean) => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
-  setChatMode: Dispatch<SetStateAction<ChatMode>>;
-  setChatExecutionMode: Dispatch<SetStateAction<ChatExecutionMode>>;
   setShowThinkingProcess: Dispatch<SetStateAction<boolean>>;
   setShowToolCallProcess: Dispatch<SetStateAction<boolean>>;
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
-  setSelectedCollaborationWorkflowId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
   toggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
   toggleSelectedSkillGroup: (skillGroupId: string, checked: boolean) => void;
@@ -116,8 +102,6 @@ export const ChatPanel = () => {
     isSending,
     activeAgentTaskId,
     isSettingsLoading,
-    chatMode,
-    chatExecutionMode,
     showThinkingProcess,
     showToolCallProcess,
     effectiveContextWindow,
@@ -128,9 +112,6 @@ export const ChatPanel = () => {
     runtimeModels,
     selectedRuntimeModelId,
     selectedRuntimeModel,
-    collaborationWorkflows,
-    selectedCollaborationWorkflow,
-    selectedCollaborationWorkflowId,
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,
@@ -141,14 +122,11 @@ export const ChatPanel = () => {
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
-    setChatMode,
-    setChatExecutionMode,
     setShowThinkingProcess,
     setShowToolCallProcess,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
-    setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
     toggleSelectedSkillGroup,
@@ -179,8 +157,6 @@ export const ChatPanel = () => {
       isSending={isSending}
       activeAgentTaskId={activeAgentTaskId}
       isSettingsLoading={isSettingsLoading}
-      chatMode={chatMode}
-      chatExecutionMode={chatExecutionMode}
       showThinkingProcess={showThinkingProcess}
       showToolCallProcess={showToolCallProcess}
       effectiveContextWindow={effectiveContextWindow}
@@ -193,22 +169,16 @@ export const ChatPanel = () => {
       selectedRuntimeModelId={selectedRuntimeModelId}
       selectedRuntimeModel={selectedRuntimeModel}
       selectedAgent={selectedAgent}
-      collaborationWorkflows={collaborationWorkflows}
-      selectedCollaborationWorkflow={selectedCollaborationWorkflow}
-      selectedCollaborationWorkflowId={selectedCollaborationWorkflowId}
       allowedAgentTools={allowedAgentTools}
       skillGroups={skillGroups}
       defaultSkillGroupId={defaultSkillGroupId}
       selectedSkillGroupIds={selectedSkillGroupIds}
       selectedSkillGroupLabel={selectedSkillGroupLabel}
-      onChatModeChange={setChatMode}
-      onChatExecutionModeChange={setChatExecutionMode}
       onShowThinkingProcessChange={setShowThinkingProcess}
       onShowToolCallProcessChange={setShowToolCallProcess}
       onModelSourceChange={setModelSource}
       onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}
-      onCollaborationWorkflowChange={setSelectedCollaborationWorkflowId}
       onRuntimeModelChange={setSelectedRuntimeModelId}
       onToggleAllowedAgentTool={toggleAllowedAgentTool}
       onSkillGroupChange={toggleSelectedSkillGroup}

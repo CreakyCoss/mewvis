@@ -3,8 +3,7 @@ import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 export type {
   ChatContextSummary,
   ConversationMessage,
-  PromptContextLimits,
-} from "@/ai/context";
+} from "@/features/ai/runtime";
 export type {
   AgentSessionStatus,
   CleanupAgentSessionsResult,
@@ -125,39 +124,18 @@ export type AgentMessageBlock =
     isCollapsed?: boolean;
   };
 
-export type ChatMessageCollaboration = {
-  role: "supervisor" | "step";
-  runId: string;
-  workflowId: string;
-  workflowName: string;
-  stepId: string;
-  stepName: string;
-  stepIndex: number;
-  stepCount: number;
-  phase: string;
-  agentId: string;
-  agentName: string;
-  agentAvatar: string;
-  providerName?: string | null;
-  modelName?: string | null;
-  planDecision?: "not_required" | "pending" | "approved" | "rejected";
-  proposedStepIds?: string[];
-  executedStepIds?: string[];
-};
-
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
   createdAt: number;
-  mode?: "chat" | "agent" | "collab";
+  mode?: "agent";
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
   agentEvents?: AgentRuntimeAgentEvent[];
   agentBlocks?: AgentMessageBlock[];
   agentAvatar?: string;
   agentName?: string;
-  collaboration?: ChatMessageCollaboration;
   referencedFiles?: Array<{ path: string }>;
   bridgeMessageRecordId?: string | null;
 };
@@ -206,7 +184,7 @@ export type ChatTraceTurnStatus = "running" | "done" | "error";
 
 export type ChatTraceTurn = {
   id: string;
-  mode: "chat" | "agent" | "collab";
+  mode: "agent";
   status: ChatTraceTurnStatus;
   createdAt: number;
   updatedAt: number;

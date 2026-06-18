@@ -3,7 +3,6 @@ import { ArrowLeft, Database, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ContextEngineDescriptor } from "@/ai/context";
 import {
   CollectionDetailsDialog,
   CollectionFormDialog,
@@ -56,16 +55,10 @@ import {
 
 type KnowledgeBasePageProps = {
   onBack?: () => void;
-  contextEngineId?: string;
-  contextEngines?: ContextEngineDescriptor[];
-  onContextEngineChange?: (engineId: string) => void;
 };
 
 export const KnowledgeBasePage = ({
   onBack,
-  contextEngineId,
-  contextEngines = [],
-  onContextEngineChange,
 }: KnowledgeBasePageProps) => {
   const [library, setLibrary] = useState<KnowledgeLibrary>(emptyLibrary);
   const [settings, setSettings] = useState<KnowledgeSettings>(emptySettings);
@@ -122,15 +115,6 @@ export const KnowledgeBasePage = ({
 
     return namesBySourceId;
   }, [library.collections]);
-  const selectedContextEngine = useMemo(
-    () => contextEngines.find((engine) => engine.id === contextEngineId)
-      ?? contextEngines[0]
-      ?? null,
-    [contextEngineId, contextEngines],
-  );
-  const canConfigureContextEngine = Boolean(
-    contextEngineId && onContextEngineChange && contextEngines.length > 0,
-  );
   const defaultEmbeddingProfile = useMemo(
     () => embeddingProfiles.find((profile) => profile.isDefault)
       ?? embeddingProfiles[0]
@@ -168,7 +152,7 @@ export const KnowledgeBasePage = ({
     collections: "集合管理",
   } as const)[view];
   const viewDescription = ({
-    overview: "管理资料来源、启用集合，以及知识检索使用的上下文引擎。",
+    overview: "管理资料来源、启用集合，以及知识检索使用的向量索引。",
     files: "设置知识库目录，上传文本文件并维护已导入来源。",
     collections: "创建集合，启用参与检索的集合，并分配已上传文件。",
   } as const)[view];
@@ -627,10 +611,6 @@ export const KnowledgeBasePage = ({
                 settings={settings}
                 isSavingSettings={isSavingSettings}
                 isLoading={isLoading}
-                canConfigureContextEngine={canConfigureContextEngine}
-                selectedContextEngine={selectedContextEngine}
-                contextEngineId={contextEngineId}
-                contextEngines={contextEngines}
                 defaultEmbeddingProfile={defaultEmbeddingProfile}
                 embeddingSummary={embeddingSummary}
                 defaultEmbeddingBaseUrl={defaultEmbeddingBaseUrl}
@@ -639,7 +619,6 @@ export const KnowledgeBasePage = ({
                 library={library}
                 enabledCollectionCount={enabledCollectionCount}
                 onChooseStorageDirectory={() => void chooseStorageDirectory()}
-                onContextEngineChange={onContextEngineChange}
                 onOpenEmbeddingDialog={openEmbeddingDialog}
                 onRequestRebuild={requestRebuild}
                 onViewChange={setView}

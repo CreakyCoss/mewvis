@@ -1,15 +1,47 @@
-import type {
-  ContextRagIndex,
-  ContextRagMatch,
-  ContextRagQuery,
-} from "@/ai/context";
 import { getKnowledgeIndexStatus, searchEnabledKnowledge } from "./api";
 
-type KnowledgeRagQuery = ContextRagQuery & {
+type KnowledgeRagIndexSnapshot = {
+  indexId: string;
+  version: number;
+  status: "missing" | "building" | "ready" | "stale" | "error";
+  updatedAt?: number | null;
+  sourceFingerprint?: string | null;
+  documentCount?: number | null;
+  chunkCount?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
+type KnowledgeRagDocument = {
+  id: string;
+  sourceType: "document" | "conversation" | "memory" | "external";
+  content: string;
+  path?: string | null;
+  title?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+type KnowledgeRagMatch = KnowledgeRagDocument & {
+  score?: number | null;
+  chunkId?: string | null;
+};
+
+type KnowledgeRagQuery = {
+  query: string;
+  maxResults?: number;
+  metadata?: Record<string, unknown>;
   workspaceId?: string | null;
 };
 
-export const createGlobalKnowledgeRagIndex = (): ContextRagIndex => ({
+type KnowledgeRagIndex = {
+  id: string;
+  version: number;
+  getSnapshot(): Promise<KnowledgeRagIndexSnapshot | null> | KnowledgeRagIndexSnapshot | null;
+  search(input: KnowledgeRagQuery): Promise<KnowledgeRagMatch[]>;
+  upsert?(documents: KnowledgeRagDocument[]): Promise<void>;
+  invalidate?(reason: "history_changed" | "source_changed" | "strategy_changed"): Promise<void>;
+};
+
+export const createGlobalKnowledgeRagIndex = (): KnowledgeRagIndex => ({
   id: "global-knowledge-enabled-collections",
   version: 1,
   getSnapshot: async () => {
@@ -29,7 +61,7 @@ export const createGlobalKnowledgeRagIndex = (): ContextRagIndex => ({
       },
     };
   },
-  search: async (input: KnowledgeRagQuery): Promise<ContextRagMatch[]> => {
+  search: async (input: KnowledgeRagQuery): Promise<KnowledgeRagMatch[]> => {
     const workspaceId = input.workspaceId ?? asString(input.metadata?.workspaceId);
     if (!input.query.trim()) {
       return [];

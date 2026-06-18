@@ -5,8 +5,8 @@ import {
   snapshotAgentRuntimeOutput,
 } from "@/ai/agent-runtime/output";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { ConversationMessage } from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
+import type { ConversationMessage } from "./conversation";
 
 const sharedAgentRuntime = createAgentRuntime();
 

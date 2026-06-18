@@ -1,15 +1,11 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, Folder } from "lucide-react";
 import {
   DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedRuntimeAgentTools,
-  type RuntimeModelInput,
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
-import {
-  getContextEngineDescriptor,
-  listContextEngineDescriptors,
-} from "@/ai/context";
 import {
   buildAgentConversationContent,
   buildAgentExecutionSummary,
@@ -29,11 +25,13 @@ import {
   readAgentRuntimeSession,
   rebuildAgentRuntimeSession,
 } from "@/features/ai/components/conversation-ledger/api";
+import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import type {
   AgentRuntimeSessionMessageInput,
   AgentRuntimeSessionResult,
   ConversationLedgerHandle,
 } from "@/features/ai/components/conversation-ledger/types";
+import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
 import {
@@ -47,13 +45,10 @@ import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
   cleanupOrphanAgentSessions,
   getAgentSessionStatus,
+  listWorkspaceFiles,
   saveChatSession,
 } from "../../api";
 import type {
-  ChatExecutionMode,
-  ChatMode,
-  CollaborationPhase,
-  CollaborationPlanDecisionRequest,
   ComposerSubmitInput,
   PendingAgentQuestion,
   WorkspaceView,
@@ -64,11 +59,9 @@ import type {
   ChatMessage,
   ChatSessionMeta,
   ConversationMessage,
+  WorkspaceFile,
+  WorkspaceFileEntry,
 } from "../../types";
-import {
-  readPreferredContextEngineId,
-  writePreferredContextEngineId,
-} from "./context-engine-preference";
 import {
   type RunningAgentTaskContext,
 } from "./agent-task";
@@ -94,40 +87,80 @@ import {
   deriveSessionTitle,
 } from "../../utils/sessions";
 import {
-  isAgentTaskMode,
-} from "../../utils/chat-mode";
-import {
   runAgentTurn,
 } from "./modes/agent-mode-runner";
-import {
-  runCollaborationTurn,
-} from "./modes/collaboration-mode-runner";
 import { buildWorkspaceAgentInteractionInstructions } from "./modes/agent-prompts";
 import { prepareBridgeAgentTurnRuntime } from "./bridge-agent-turn-runtime";
-import { prepareBridgeCollaborationTurnRuntime } from "./bridge-collaboration-turn-runtime";
-import { runBridgeDirectChatTurnRuntime } from "./bridge-direct-turn-runtime";
 import { ContextWorkbenchDialog } from "../context-workbench/dialog";
 import { ChatPanel } from "../chat";
 import { useChatPanelStoreBridge } from "../chat/store";
-import { ContextPanel } from "../context-panel";
-import { useContextPanelStoreBridge } from "../context-panel/store";
-import { FilePanel } from "../file-workbench";
 import { useAgentBlockState } from "./use-agent-block-state";
 import { useAgentRuntimeEvents } from "./use-agent-runtime-events";
 import { useContextModeling } from "./use-context-modeling";
-import { useFileWorkbench } from "./use-file-workbench";
 import { useModelSettings } from "./use-model-settings";
 import { useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useChatTraceState } from "./use-chat-trace-state";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
 import { useWorkspaceSkills } from "./use-workspace-skills";
-import { useWorkspaceVersionControl } from "./use-workspace-version-control";
+
+type ContextPanelTool = "files" | "ledger";
 
 type AgentBridgeSessionRef = {
   sessionRootDir: string;
   userMessageRecordId?: string | null;
   assistantMessageRecordId?: string | null;
 } | null | undefined;
+
+const contextPanelTools: Array<{
+  value: ContextPanelTool;
+  label: string;
+  icon: typeof Folder;
+}> = [
+  { value: "files", label: "文件", icon: Folder },
+  { value: "ledger", label: "链路", icon: Activity },
+];
+
+const contextPanelToolButtonClass =
+  "flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
+
+type ContextPanelShellProps = {
+  activeTool: ContextPanelTool;
+  children: ReactNode;
+  onChangeTool: (tool: ContextPanelTool) => void;
+};
+
+const ContextPanelShell = ({
+  activeTool,
+  children,
+  onChangeTool,
+}: ContextPanelShellProps) => (
+  <div className="relative flex min-w-0 shrink-0 overflow-visible">
+    {children}
+    <nav
+      className="flex w-12 shrink-0 flex-col items-center gap-2 border-l border-border/60 bg-muted/35 px-1.5 py-3"
+      aria-label="右侧工具"
+    >
+      {contextPanelTools.map((tool) => {
+        const Icon = tool.icon;
+
+        return (
+          <button
+            key={tool.value}
+            type="button"
+            className={contextPanelToolButtonClass}
+            title={tool.label}
+            aria-label={`显示${tool.label}`}
+            aria-pressed={activeTool === tool.value}
+            data-active={activeTool === tool.value}
+            onClick={() => onChangeTool(tool.value)}
+          >
+            <Icon className="size-5" />
+          </button>
+        );
+      })}
+    </nav>
+  </div>
+);
 
 const contextFromBridgeSessionSummary = (
   summary: string,
@@ -136,10 +169,6 @@ const contextFromBridgeSessionSummary = (
     summary,
     summarizedUntilIndex: 0,
     updatedAt: Date.now(),
-    conversationFingerprint: null,
-    summaryFingerprint: null,
-    historyInvalidatedAt: null,
-    agentSyncs: {},
   }
   : null;
 
@@ -155,13 +184,6 @@ const bridgeMessagesFromChatMessages = (
       uiMessageId: message.id,
       mode: message.mode ?? null,
       agentName: message.agentName ?? null,
-      collaboration: message.collaboration
-        ? {
-          runId: message.collaboration.runId,
-          stepId: message.collaboration.stepId,
-          phase: message.collaboration.phase,
-        }
-        : null,
     },
   }))
   .filter((message) => message.content.length > 0);
@@ -190,12 +212,6 @@ const resolveStringStateAction = (
   action: SetStateAction<string>,
   previous: string,
 ) => typeof action === "function" ? action(previous) : action;
-
-const defaultToolCallProcessByMode: Record<ChatMode, boolean> = {
-  chat: true,
-  agent: true,
-  collab: true,
-};
 
 const specialSkillGroupIds = new Set([
   ALL_SKILLS_GROUP_ID,
@@ -257,9 +273,6 @@ export const WorkspaceChatPage = ({
   renderShell,
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
-  const availableContextEngines = useMemo(() => listContextEngineDescriptors(), []);
-  const [contextEngineId, setContextEngineId] = useState(readPreferredContextEngineId);
-  const preferredContextEngineIdRef = useRef(contextEngineId);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
   const activeAgentTaskIdRef = useRef("");
@@ -273,6 +286,7 @@ export const WorkspaceChatPage = ({
   const messagesRef = useRef<ChatMessage[]>([]);
   const conversationRef = useRef<ConversationMessage[]>([]);
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
+  const fileManageRef = useRef<FileManageHandle>(null);
   const conversationLedgerRef = useRef<ConversationLedgerHandle>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
@@ -280,7 +294,6 @@ export const WorkspaceChatPage = ({
   const agentQuestionAnswerRef = useRef("");
   const customAgentQuestionAnswerRef = useRef("");
   const answeringAgentQuestionIdsRef = useRef<Set<string>>(new Set());
-  const collaborationPlanDecisionResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const chatScrollSnapshotRef = useRef<{
     lastMessageId: string | null;
@@ -292,31 +305,10 @@ export const WorkspaceChatPage = ({
     pendingQuestionId: null,
   });
   const agentSessionStatusRequestIdRef = useRef(0);
-  const loadVersionControlRef = useRef<((historyBranchOverride?: string) => Promise<void>) | null>(null);
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [chatMode, setChatMode] = useState<ChatMode>("agent");
-  const [chatExecutionMode, setChatExecutionMode] = useState<ChatExecutionMode>("agent");
   const [showThinkingProcess, setShowThinkingProcess] = useState(true);
-  const [toolCallProcessByMode, setToolCallProcessByMode] = useState<Record<ChatMode, boolean>>({
-    ...defaultToolCallProcessByMode,
-  });
-  const showToolCallProcess = toolCallProcessByMode[chatMode] ?? defaultToolCallProcessByMode[chatMode];
-  const setShowToolCallProcess = useCallback<Dispatch<SetStateAction<boolean>>>((value) => {
-    setToolCallProcessByMode((current) => {
-      const currentValue = current[chatMode] ?? defaultToolCallProcessByMode[chatMode];
-      const nextValue = typeof value === "function" ? value(currentValue) : value;
-
-      if (currentValue === nextValue) {
-        return current;
-      }
-
-      return {
-        ...current,
-        [chatMode]: nextValue,
-      };
-    });
-  }, [chatMode]);
+  const [showToolCallProcess, setShowToolCallProcess] = useState(true);
   const [allowedAgentTools, setAllowedAgentTools] = useState<RuntimeAgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   ]);
@@ -325,8 +317,9 @@ export const WorkspaceChatPage = ({
   ]);
   const skillGroupSelectionTouchedRef = useRef(false);
   const skillGroupWorkspaceRef = useRef(workspace.id);
-  const [, setCollaborationPhase] = useState<CollaborationPhase>("idle");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
+  const [contextPanelTool, setContextPanelTool] =
+    useState<ContextPanelTool>("files");
   const [isTavernRoomImmersive, setIsTavernRoomImmersive] = useState(false);
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
   const [isContextWorkbenchOpen, setIsContextWorkbenchOpen] = useState(false);
@@ -336,14 +329,14 @@ export const WorkspaceChatPage = ({
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
   const [pendingAgentQuestion, setPendingAgentQuestion] = useState<PendingAgentQuestion | null>(null);
-  const [collaborationPlanDecision, setCollaborationPlanDecision] =
-    useState<CollaborationPlanDecisionRequest | null>(null);
   const [agentQuestionAnswer, setAgentQuestionAnswer] = useState("");
   const [customAgentQuestionAnswer, setCustomAgentQuestionAnswer] = useState("");
   const [isAnsweringAgentQuestion, setIsAnsweringAgentQuestion] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [conversationContext, setConversationContext] = useState<ChatContextSummary | null>(null);
+  const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
+  const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
   const [agentRuntimeSessionId, setAgentRuntimeSessionId] = useState<string | null>(null);
@@ -359,7 +352,6 @@ export const WorkspaceChatPage = ({
     setModelSource,
     setSelectedAgentId,
     settingsError,
-    setSettingsError,
     isSettingsLoading,
     selectedRuntimeModel,
     availableRuntimeAgents,
@@ -368,23 +360,12 @@ export const WorkspaceChatPage = ({
     runtimeAgentId,
     runtimeAgentRequiresModel,
     agentProfiles,
-    collaborationWorkflows,
-    selectedCollaborationWorkflow,
-    selectedCollaborationWorkflowId,
-    setSelectedCollaborationWorkflowId,
     selectedAgent,
     effectiveRuntimeModel,
     loadLlmOptions,
   } = useModelSettings({
     agentRuntime,
-    chatMode,
-    chatExecutionMode,
   });
-  useEffect(() => {
-    if (chatMode === "collab" && collaborationWorkflows.length === 0) {
-      setChatMode("chat");
-    }
-  }, [chatMode, collaborationWorkflows.length, setChatMode]);
   const tavernDefaultRuntimeModel = useMemo(
     () => runtimeModels[0] ?? null,
     [runtimeModels],
@@ -490,88 +471,25 @@ export const WorkspaceChatPage = ({
     resolvedDefaultSkillGroupIds,
     selectedSkillGroupIds,
   ]);
-  const {
-    files,
-    activeFile,
-    setActiveFile,
-    filePath,
-    setFilePath,
-    fileContent,
-    setFileContent,
-    fileError,
-    setFileError,
-    fileViewMode,
-    setFileViewMode,
-    filePreviewMode,
-    setFilePreviewMode,
-    isFilesLoading,
-    expandedFileTreePaths,
-    isFileSaving,
-    isFileDeleting,
-    fileTree,
-    isMarkdownFile,
-    loadFiles,
-    openFile,
-    prepareNewFile,
-    saveFile,
-    deleteFile,
-    toggleFileTreeDirectory,
-  } = useFileWorkbench({
-    workspaceId: workspace.id,
-    workspacePath: workspace.path,
-    loadVersionControlRef,
-    onWorkspaceViewChange: setWorkspaceView,
-  });
+  const refreshWorkspaceFiles = useCallback(async () => {
+    try {
+      const nextFiles = await listWorkspaceFiles(workspace.path);
+      setFiles(nextFiles);
+    } catch {
+      setFiles([]);
+    }
+  }, [workspace.path]);
 
-  const {
-    versionStatus,
-    versions,
-    versionDiff,
-    selectedVersionFilePath,
-    selectedHistoryVersionId,
-    selectedVersionHistoryBranchName,
-    versionFiles,
-    selectedVersionSnapshotFilePath,
-    historyVersionDiff,
-    versionMessage,
-    setVersionMessage,
-    versionError,
-    isVersionControlLoading,
-    isVersionControlInitializing,
-    isVersionDiffLoading,
-    isVersionFilesLoading,
-    isVersionFileContentLoading,
-    isCreatingVersion,
-    isVersionHistoryLoading,
-    restoringVersionFilePath,
-    isCreatingVersionBranch,
-    switchingVersionBranchName,
-    discardingVersionFilePath,
-    loadVersionControl,
-    initializeVersionControl,
-    selectVersionFile,
-    selectHistoryVersion,
-    selectVersionHistoryBranch,
-    selectHistoryVersionFile,
-    createVersion,
-    discardVersionFileChanges,
-    restoreHistoryVersionFile,
-    createVersionBranch,
-    switchVersionBranch,
-  } = useWorkspaceVersionControl({
-    workspaceId: workspace.id,
-    workspacePath: workspace.path,
-    activeFile,
-    loadFiles,
-    loadVersionControlRef,
-    setActiveFile,
-    setFilePath,
-    setFileContent,
-    setFileError,
-    setFileViewMode,
-    setFilePreviewMode,
-    setWorkspaceView,
-  });
+  useEffect(() => {
+    setActiveFile(null);
+    setFiles([]);
+    void refreshWorkspaceFiles();
+  }, [refreshWorkspaceFiles, workspace.id]);
+
+  const refreshFileSurfaces = useCallback(async () => {
+    await refreshWorkspaceFiles();
+    fileManageRef.current?.refresh();
+  }, [refreshWorkspaceFiles]);
 
   const {
     runningAgentTasksRef,
@@ -646,30 +564,6 @@ export const WorkspaceChatPage = ({
       messagesRef.current = next;
       return next;
     });
-  }, []);
-
-  const appendMessage = useCallback((message: ChatMessage) => {
-    setMessages((current) => {
-      const next = [...current, message];
-      messagesRef.current = next;
-      return next;
-    });
-  }, []);
-
-  const requestCollaborationPlanDecision = useCallback((
-    request: Omit<CollaborationPlanDecisionRequest, "id">,
-  ) => new Promise<boolean>((resolve) => {
-    collaborationPlanDecisionResolverRef.current = resolve;
-    setCollaborationPlanDecision({
-      ...request,
-      id: crypto.randomUUID(),
-    });
-  }), []);
-
-  const resolveCollaborationPlanDecision = useCallback((approved: boolean) => {
-    collaborationPlanDecisionResolverRef.current?.(approved);
-    collaborationPlanDecisionResolverRef.current = null;
-    setCollaborationPlanDecision(null);
   }, []);
 
   const applyAgentQuestionDraft = useCallback((
@@ -823,13 +717,9 @@ export const WorkspaceChatPage = ({
     messagesRef.current = task.messages;
     conversationRef.current = task.conversation;
     conversationContextRef.current = task.context;
-    const nextContextEngineId = getContextEngineDescriptor(
-      task.context?.engine?.id ?? preferredContextEngineIdRef.current,
-    ).id;
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
-    setContextEngineId(nextContextEngineId);
     const nextTitle = task.title || deriveSessionTitle(task.messages);
     currentSessionTitleRef.current = nextTitle;
     setCurrentSessionTitle(nextTitle);
@@ -949,19 +839,6 @@ export const WorkspaceChatPage = ({
     });
   }, []);
 
-  const changeContextEngine = useCallback((engineId: string) => {
-    if (visibleActiveAgentTaskId) {
-      setSettingsError("Agent 正在处理，结束后再切换上下文引擎");
-      return;
-    }
-
-    const nextEngine = getContextEngineDescriptor(engineId);
-    setSettingsError("");
-    preferredContextEngineIdRef.current = nextEngine.id;
-    writePreferredContextEngineId(nextEngine.id);
-    setContextEngineId(nextEngine.id);
-  }, [visibleActiveAgentTaskId]);
-
   const {
     allSidebarWorkspaces,
     defaultWorkspace,
@@ -1002,8 +879,6 @@ export const WorkspaceChatPage = ({
     setConversationContext,
     conversationContextRef,
     replaceChatTrace,
-    setContextEngineId,
-    preferredContextEngineIdRef,
     setAgentRuntimeSessionId,
     setAgentSessionStatus,
     setAgentSessionError,
@@ -1028,7 +903,6 @@ export const WorkspaceChatPage = ({
   }, []);
   const startSessionWithDefaultSkillGroup = useCallback(() => {
     resetConversationSkillGroup();
-    setChatMode("agent");
     startSidebarSession();
   }, [resetConversationSkillGroup, startSidebarSession]);
   const loadDefaultSessionWithDefaultSkillGroup = useCallback(async (sessionId: string) => {
@@ -1136,7 +1010,7 @@ export const WorkspaceChatPage = ({
     conversationContextRef.current = conversationContext;
   }, [conversationContext]);
 
-  const conversationLedgerRuntimeModel = useMemo<RuntimeModelInput | null>(() => {
+  const conversationLedgerRuntimeModel = useMemo(() => {
     if (!effectiveRuntimeModel) {
       return null;
     }
@@ -1349,7 +1223,7 @@ export const WorkspaceChatPage = ({
     resetActiveAgentTaskState,
     scheduleAgentBlockCollapse,
     setChatError,
-    loadFiles,
+    loadFiles: refreshFileSurfaces,
     refreshAgentSessionStatus,
   });
 
@@ -1699,55 +1573,6 @@ export const WorkspaceChatPage = ({
     return nextMessages;
   };
 
-  const runDirectChatTurnWithSessionPrompt = async ({
-    userMessageId,
-    assistantMessageId,
-    traceTurnId,
-    text,
-    referencedFiles,
-    baseConversation,
-    currentAgentExecutionSummary,
-    nextSessionId,
-  }: {
-    userMessageId: string;
-    assistantMessageId: string;
-    traceTurnId: string;
-    text: string;
-    referencedFiles: Array<{ path: string }>;
-    baseConversation: ConversationMessage[];
-    currentAgentExecutionSummary: string;
-    nextSessionId: string | null;
-  }) => {
-    const modelContext = contextModelFor(effectiveRuntimeModel);
-    const result = await runBridgeDirectChatTurnRuntime({
-      workspace,
-      runtimeAgentId,
-      effectiveRuntimeModel,
-      nextSessionId,
-      userMessageId,
-      assistantMessageId,
-      traceTurnId,
-      text,
-      referencedFiles,
-      activeFile: activeFile ? { path: activeFile.path } : null,
-      activeSkills,
-      selectedAgent: modelSource === "agent" ? selectedAgent : null,
-      baseConversation,
-      executionMemorySummary: currentAgentExecutionSummary,
-      contextWindow: modelContext.contextWindow ?? effectiveAppContextWindow,
-      modelContext,
-      appendVisibleTraceStep,
-      patchVisibleTraceTurn,
-      updateMessage,
-    });
-
-    conversationRef.current = result.finalConversation;
-    setConversation(result.finalConversation);
-    conversationContextRef.current = result.context;
-    setConversationContext(result.context);
-    refreshConversationLedger();
-  };
-
   const sendMessage = async ({
     text,
     referencedFilePreviews,
@@ -1758,10 +1583,7 @@ export const WorkspaceChatPage = ({
       return;
     }
 
-    const shouldRunAgentTask = isAgentTaskMode(chatMode, chatExecutionMode);
     const submitValidation = validateComposerSubmit({
-      chatMode,
-      selectedCollaborationWorkflow,
       runtimeAgentRequiresModel,
       effectiveRuntimeModel,
       unresolvedFileReferences,
@@ -1771,12 +1593,6 @@ export const WorkspaceChatPage = ({
       setChatError(submitValidation.error);
       return;
     }
-    const {
-      collaborationWorkflow,
-      collaborationWriterAgent,
-      collaborationReviewerAgent,
-    } = submitValidation;
-    const shouldUseSessionPrompt = !shouldRunAgentTask && chatMode !== "collab";
     const referencedFileDescriptors = referencedFilePreviews.map((file) => ({
       path: file.path,
     }));
@@ -1789,12 +1605,8 @@ export const WorkspaceChatPage = ({
     const baseConversation = conversationRef.current;
     const baseConversationContext = conversationContextRef.current;
     const currentAgentExecutionSummary = findLatestAgentExecutionSummary(baseConversation);
-    const traceProviderName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
-      ? `${collaborationWriterAgent.runtimeModel.provider.name} / ${collaborationReviewerAgent.runtimeModel.provider.name}`
-      : effectiveRuntimeModel?.provider.name ?? null;
-    const traceModelName = chatMode === "collab" && collaborationWriterAgent && collaborationReviewerAgent
-      ? `${collaborationWriterAgent.runtimeModel.modelName} / ${collaborationReviewerAgent.runtimeModel.modelName}`
-      : effectiveRuntimeModel?.modelName ?? null;
+    const traceProviderName = effectiveRuntimeModel?.provider.name ?? null;
+    const traceModelName = effectiveRuntimeModel?.modelName ?? null;
     const {
       nextConversation,
       userUiMessage,
@@ -1804,23 +1616,16 @@ export const WorkspaceChatPage = ({
     } = createChatTurnDraft({
       now,
       text,
-      chatMode,
-      chatExecutionMode,
       modelSource,
       referencedFiles: draftReferencedFiles,
       baseConversation,
       baseConversationContext,
       activeFilePath: activeFile?.path ?? null,
-      assistantAgentAvatar: chatMode === "collab"
-        ? collaborationWriterAgent?.avatar
-        : modelSource === "agent" ? selectedAgent?.avatar : undefined,
-      assistantAgentName: chatMode === "collab" && collaborationWorkflow
-        ? collaborationWorkflow.name
-        : modelSource === "agent" ? selectedAgent?.name : undefined,
+      assistantAgentAvatar: modelSource === "agent" ? selectedAgent?.avatar : undefined,
+      assistantAgentName: modelSource === "agent" ? selectedAgent?.name : undefined,
       providerName: traceProviderName,
       modelName: traceModelName,
       runtimeAgentId,
-      contextEngineId,
       contextWindow: effectiveAppContextWindow,
       userMessageId,
       assistantMessageId,
@@ -1830,161 +1635,74 @@ export const WorkspaceChatPage = ({
       nextSessionId,
       nextConversation,
       userUiMessage,
-      assistantUiMessage: chatMode === "collab" ? null : assistantUiMessage,
+      assistantUiMessage,
       traceTurn,
     });
 
     try {
-      const summaryRuntimeModel = chatMode === "collab" && collaborationWriterAgent
-        ? collaborationWriterAgent.runtimeModel
-        : effectiveRuntimeModel;
+      const agentModelContext = contextModelFor(effectiveRuntimeModel);
+      const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
+        workspace,
+        runtimeAgentId,
+        nextSessionId,
+        traceTurnId,
+        text,
+        referencedFiles: referencedFileDescriptors,
+        activeFile: activeFile ? { path: activeFile.path } : null,
+        activeSkills,
+        selectedAgent: modelSource === "agent" ? selectedAgent : null,
+        agentInstructions: buildWorkspaceAgentInteractionInstructions(),
+        executionMemorySummary: currentAgentExecutionSummary,
+        contextWindow: agentModelContext.contextWindow ?? effectiveAppContextWindow,
+        appendVisibleTraceStep,
+        patchVisibleTraceTurn,
+      });
+      conversationContextRef.current = preparedAgentRuntime.nextConversationContext;
+      setConversationContext(preparedAgentRuntime.nextConversationContext);
 
-      if (shouldUseSessionPrompt) {
-        await runDirectChatTurnWithSessionPrompt({
-          userMessageId,
-          assistantMessageId,
-          traceTurnId,
-          text,
-          referencedFiles: referencedFileDescriptors,
-          baseConversation,
-          currentAgentExecutionSummary,
-          nextSessionId,
-        });
+      if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
+        setChatError("请选择要使用的 LLM 和模型");
         return;
       }
-
-      if (shouldRunAgentTask) {
-        const agentModelContext = contextModelFor(effectiveRuntimeModel);
-        const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
-          workspace,
-          runtimeAgentId,
-          nextSessionId,
-          traceTurnId,
-          text,
-          referencedFiles: referencedFileDescriptors,
-          activeFile: activeFile ? { path: activeFile.path } : null,
-          activeSkills,
-          selectedAgent: modelSource === "agent" ? selectedAgent : null,
-          agentInstructions: buildWorkspaceAgentInteractionInstructions(),
-          executionMemorySummary: currentAgentExecutionSummary,
-          contextWindow: agentModelContext.contextWindow ?? effectiveAppContextWindow,
-          appendVisibleTraceStep,
-          patchVisibleTraceTurn,
-        });
-        conversationContextRef.current = preparedAgentRuntime.nextConversationContext;
-        setConversationContext(preparedAgentRuntime.nextConversationContext);
-
-        if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
-          setChatError("请选择要使用的 LLM 和模型");
-          return;
-        }
-        try {
-          const agentSessionStatusId = `${runtimeAgentId}/${preparedAgentRuntime.agentPromptPayload.agentRoleId}`;
-          const status = await getAgentSessionStatus(
-            workspace.path,
-            agentSessionStatusId,
-          );
-          setAgentSessionStatus(status);
-          setAgentSessionError("");
-        } catch (caught) {
-          setAgentSessionError(String(caught));
-        }
-
-        await runAgentTurn({
-          nextSessionId,
-          traceTurnId,
-          assistantMessageId,
-          nextConversation,
-          nextConversationContext: preparedAgentRuntime.nextConversationContext,
-          nextMessages,
-          agentPromptPayload: preparedAgentRuntime.agentPromptPayload,
-        }, {
-          workspace,
-          activeFile: preparedAgentRuntime.activeFile,
-          activeSkills,
-          runtimeAgentId,
-          appendVisibleTraceStep,
-          updateMessage,
-          agentRuntime,
-          setChatError,
-          prepareActiveAgentRun,
-          patchVisibleTraceTurn,
-          addRunningAgentTask,
-          activateAgentTaskId,
-          handledAgentDoneTaskIdsRef,
-          chatTraceRef,
-          effectiveRuntimeModel,
-          chatMode,
-          chatExecutionMode,
-          allowedAgentTools,
-          currentSessionTitle,
-        });
-        return;
+      try {
+        const agentSessionStatusId = `${runtimeAgentId}/${preparedAgentRuntime.agentPromptPayload.agentRoleId}`;
+        const status = await getAgentSessionStatus(
+          workspace.path,
+          agentSessionStatusId,
+        );
+        setAgentSessionStatus(status);
+        setAgentSessionError("");
+      } catch (caught) {
+        setAgentSessionError(String(caught));
       }
 
-      if (chatMode === "collab") {
-        if (!collaborationWorkflow) {
-          setChatError("请选择协作流程");
-          return;
-        }
-        const collabModelContext = contextModelFor(summaryRuntimeModel);
-        const preparedCollaborationRuntime = await prepareBridgeCollaborationTurnRuntime({
-          workspace,
-          nextSessionId,
-          userMessageId,
-          assistantMessageId,
-          traceTurnId,
-          text,
-          referencedFiles: referencedFileDescriptors,
-          nextConversation,
-          activeFile: activeFile ? { path: activeFile.path } : null,
-          activeSkills,
-          executionMemorySummary: currentAgentExecutionSummary,
-          contextWindow: collabModelContext.contextWindow ?? effectiveAppContextWindow,
-          modelContext: collabModelContext,
-          appendVisibleTraceStep,
-          patchVisibleTraceTurn,
-          updateMessage,
-          onFinalized: ({ finalConversation, finalContext }) => {
-            conversationRef.current = finalConversation;
-            setConversation(finalConversation);
-            conversationContextRef.current = finalContext;
-            setConversationContext(finalContext);
-            refreshConversationLedger();
-          },
-        });
-
-        await runCollaborationTurn({
-          collaborationWorkflow,
-          traceTurnId,
-          assistantMessageId,
-          text,
-          nextConversation,
-          runtimeMessages: preparedCollaborationRuntime.runtimeMessages,
-          summaryLimits: preparedCollaborationRuntime.summaryLimits,
-          sessionRootDir: preparedCollaborationRuntime.sessionRootDir,
-          baseSystemPrompt: preparedCollaborationRuntime.baseSystemPrompt,
-          baseRequestContext: preparedCollaborationRuntime.baseRequestContext,
-          baseRuntimeInstruction: preparedCollaborationRuntime.baseRuntimeInstruction,
-          finalizeAssistantTurn: preparedCollaborationRuntime.finalizeAssistantTurn,
-        }, {
-          workspace,
-          activeFile: null,
-          activeSkills,
-          runtimeAgentId,
-          agentRuntime,
-          allowedAgentTools,
-          appendMessage,
-          requestCollaborationPlanDecision,
-          appendVisibleTraceStep,
-          updateMessage,
-          setChatError,
-          setCollaborationPhase,
-        });
-        return;
-      }
-
-      throw new Error("未匹配到可执行的聊天模式");
+      await runAgentTurn({
+        nextSessionId,
+        traceTurnId,
+        assistantMessageId,
+        nextConversation,
+        nextConversationContext: preparedAgentRuntime.nextConversationContext,
+        nextMessages,
+        agentPromptPayload: preparedAgentRuntime.agentPromptPayload,
+      }, {
+        workspace,
+        activeFile: preparedAgentRuntime.activeFile,
+        activeSkills,
+        runtimeAgentId,
+        appendVisibleTraceStep,
+        updateMessage,
+        agentRuntime,
+        setChatError,
+        prepareActiveAgentRun,
+        patchVisibleTraceTurn,
+        addRunningAgentTask,
+        activateAgentTaskId,
+        handledAgentDoneTaskIdsRef,
+        chatTraceRef,
+        effectiveRuntimeModel,
+        allowedAgentTools,
+        currentSessionTitle,
+      });
     } catch (caught) {
       const message = String(caught);
       appendVisibleTraceStep(traceTurnId, {
@@ -1993,7 +1711,7 @@ export const WorkspaceChatPage = ({
         status: "error",
         content: message,
         metadata: {
-          mode: chatMode,
+          mode: "agent",
         },
       });
       patchVisibleTraceTurn(traceTurnId, {
@@ -2002,33 +1720,19 @@ export const WorkspaceChatPage = ({
       setChatError(message);
       resetActiveAgentTaskState({
         clearQuestion: false,
-        clearSession: shouldRunAgentTask,
-        resetTrace: shouldRunAgentTask,
+        clearSession: true,
+        resetTrace: true,
       });
       updateMessage(assistantMessageId, (currentMessage) => ({
         ...currentMessage,
         text: message,
         status: "error",
       }));
-      if (shouldRunAgentTask) {
-        appendAgentConversationResult(message, "error", message);
-      }
+      appendAgentConversationResult(message, "error", message);
     } finally {
-      collaborationPlanDecisionResolverRef.current = null;
-      setCollaborationPlanDecision(null);
       setIsSending(false);
-      setCollaborationPhase("idle");
     }
   };
-
-  const activeFileVersionStatus =
-    versionStatus?.files.find((file) => {
-      const currentPath = activeFile?.path || filePath.trim();
-      return (
-        currentPath &&
-        (file.path === currentPath || file.previousPath === currentPath)
-      );
-    }) ?? null;
 
   useChatPanelStoreBridge({
     chatScrollAreaRef,
@@ -2044,7 +1748,6 @@ export const WorkspaceChatPage = ({
     skillsError,
     sessionsError,
     pendingAgentQuestion,
-    collaborationPlanDecision,
     agentQuestionAnswer,
     customAgentQuestionAnswer,
     isAnsweringAgentQuestion,
@@ -2053,8 +1756,6 @@ export const WorkspaceChatPage = ({
     isSending,
     activeAgentTaskId: visibleActiveAgentTaskId,
     isSettingsLoading,
-    chatMode,
-    chatExecutionMode,
     showThinkingProcess,
     showToolCallProcess,
     effectiveContextWindow: effectiveAppContextWindow,
@@ -2065,9 +1766,6 @@ export const WorkspaceChatPage = ({
     runtimeModels,
     selectedRuntimeModelId,
     selectedRuntimeModel,
-    collaborationWorkflows,
-    selectedCollaborationWorkflow,
-    selectedCollaborationWorkflowId,
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,
@@ -2082,57 +1780,20 @@ export const WorkspaceChatPage = ({
     onMoveHistoryMessage: moveHistoryMessage,
     onOpenWorkspace: openWorkspaceFromCurrentContext,
     onCreateWorkspace,
-    resolveCollaborationPlanDecision,
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
     submitAgentQuestionAnswer,
-    setChatMode,
-    setChatExecutionMode,
     setShowThinkingProcess,
     setShowToolCallProcess,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
-    setSelectedCollaborationWorkflowId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
     toggleSelectedSkillGroup: toggleConversationSkillGroup,
     sendMessage,
     onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
   });
-
-  const filePanel = (
-    <FilePanel
-      activeFile={activeFile}
-      filePath={filePath}
-      fileContent={fileContent}
-      fileError={fileError}
-      fileViewMode={fileViewMode}
-      isMarkdownFile={isMarkdownFile}
-      isFileSaving={isFileSaving}
-      isFileDeleting={isFileDeleting}
-      isFileDiscarding={
-        activeFileVersionStatus
-          ? discardingVersionFilePath === activeFileVersionStatus.path
-          : false
-      }
-      fileVersionStatus={activeFileVersionStatus}
-      previewMode={filePreviewMode === "expanded" ? "expanded" : "side"}
-      onFilePathChange={setFilePath}
-      onFileContentChange={setFileContent}
-      onFileViewModeChange={setFileViewMode}
-      onExpandPreview={() => setFilePreviewMode("expanded")}
-      onCollapsePreview={() => setFilePreviewMode("side")}
-      onClosePreview={() => setFilePreviewMode("closed")}
-      onSaveFile={() => void saveFile()}
-      onDeleteFile={() => void deleteFile()}
-      onDiscardFileChanges={() => {
-        if (activeFileVersionStatus) {
-          void discardVersionFileChanges(activeFileVersionStatus.path);
-        }
-      }}
-    />
-  );
 
   const chatPanel = <ChatPanel />;
 
@@ -2175,10 +1836,7 @@ export const WorkspaceChatPage = ({
 
   const knowledgePanel = (
     <KnowledgeBasePage
-      contextEngineId={contextEngineId}
-      contextEngines={availableContextEngines}
       onBack={() => setWorkspaceView("chat")}
-      onContextEngineChange={changeContextEngine}
     />
   );
 
@@ -2192,50 +1850,26 @@ export const WorkspaceChatPage = ({
     />
   );
 
-  useContextPanelStoreBridge({
-    isFilesLoading,
-    fileTree,
-    expandedFileTreePaths,
-    activeFile,
-    versionStatus,
-    versions,
-    versionDiff,
-    versionFiles,
-    historyVersionDiff,
-    selectedVersionFilePath,
-    selectedHistoryVersionId,
-    selectedVersionHistoryBranchName,
-    selectedVersionSnapshotFilePath,
-    versionMessage,
-    versionError,
-    isVersionControlLoading,
-    isVersionControlInitializing,
-    isVersionDiffLoading,
-    isVersionFilesLoading,
-    isVersionFileContentLoading,
-    isCreatingVersion,
-    isVersionHistoryLoading,
-    restoringVersionFilePath,
-    discardingVersionFilePath,
-    workspacePath: workspace.path,
-    chatId: currentSessionId,
-    ledgerRuntimeModel: conversationLedgerRuntimeModel,
-    ledgerAgentId: runtimeAgentId,
-    conversationLedgerBind: conversationLedgerRef,
-    onRefreshFiles: () => void loadFiles(),
-    onRefreshVersionControl: () => void loadVersionControl(),
-    onSelectVersionFile: (path) => void selectVersionFile(path),
-    onSelectHistoryVersion: (version) => void selectHistoryVersion(version),
-    onSelectVersionHistoryBranch: (branchName) => void selectVersionHistoryBranch(branchName),
-    onSelectHistoryVersionFile: (versionId, path) => void selectHistoryVersionFile(versionId, path),
-    onVersionMessageChange: setVersionMessage,
-    onCreateVersion: (relativePaths) => void createVersion(relativePaths),
-    onDiscardVersionFileChanges: (path, options) => void discardVersionFileChanges(path, options),
-    onRestoreHistoryVersionFile: (file) => void restoreHistoryVersionFile(file),
-    onPrepareNewFile: prepareNewFile,
-    onOpenFile: (path) => void openFile(path),
-    onToggleDirectory: toggleFileTreeDirectory,
-  });
+  const fileManagePanel = (
+    <FileManage
+      bind={fileManageRef}
+      workspacePath={workspace.path}
+      workspaceKey={workspace.id}
+      onFilesChange={setFiles}
+      onActiveFileChange={setActiveFile}
+    />
+  );
+  const ledgerPanel = (
+    <aside className="flex min-w-0 w-[clamp(300px,30vw,460px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
+      <ConversationLedger
+        bind={conversationLedgerRef}
+        workspacePath={workspace.path}
+        chatId={currentSessionId}
+        runtimeModel={conversationLedgerRuntimeModel}
+        agentId={runtimeAgentId}
+      />
+    </aside>
+  );
 
   useEffect(() => {
     if (workspaceView !== "tavern" && isTavernRoomImmersive) {
@@ -2344,16 +1978,7 @@ export const WorkspaceChatPage = ({
     : {
         isContextPanelOpen,
         showToggle: workspaceView === "chat",
-        versionStatus,
-        isVersionControlLoading,
-        isVersionControlInitializing,
-        isCreatingVersionBranch,
-        switchingVersionBranchName,
         onToggleContextPanel: () => setIsContextPanelOpen((current) => !current),
-        onRefreshVersionControl: () => void loadVersionControl(),
-        onInitializeVersionControl: () => void initializeVersionControl(),
-        onCreateVersionBranch: (branchName) => void createVersionBranch(branchName),
-        onSwitchVersionBranch: (branchName) => void switchVersionBranch(branchName),
       };
 
   const content = workspaceView === "settings" ? (
@@ -2364,23 +1989,19 @@ export const WorkspaceChatPage = ({
     knowledgePanel
   ) : workspaceView === "tavern" ? (
     tavernPanel
-  ) : filePreviewMode === "expanded" ? (
-    filePanel
-  ) : filePreviewMode === "side" ? (
-    <div className="grid h-full min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.76fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)]">
-      <div className="min-h-0 overflow-hidden bg-background/95 shadow-[10px_0_28px_-30px_rgb(15_23_42_/_0.32)]">
-        {chatPanel}
-      </div>
-      <div className="min-h-0 overflow-hidden">
-        {filePanel}
-      </div>
-    </div>
   ) : (
     chatPanel
   );
 
   const contextPanel = isContextPanelOpen && workspaceView === "chat"
-    ? <ContextPanel />
+    ? (
+      <ContextPanelShell
+        activeTool={contextPanelTool}
+        onChangeTool={setContextPanelTool}
+      >
+        {contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel}
+      </ContextPanelShell>
+    )
     : null;
 
   return renderShell({

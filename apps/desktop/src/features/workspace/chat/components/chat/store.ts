@@ -1,15 +1,13 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from "react";
 import { create } from "zustand";
 import { ALL_SKILLS_GROUP_ID } from "@/features/skills/constants";
-import type { ChatExecutionMode, ChatMode, ModelSource } from "../../page-types";
+import type { ModelSource } from "../../page-types";
 import type { ChatPanelViewModel } from "./index";
 
 const noop = () => {};
 const noopAsync = async () => {};
 const noopDispatch: Dispatch<SetStateAction<string>> = () => {};
 const noopSkillGroupToggle = () => {};
-const noopChatModeDispatch: Dispatch<SetStateAction<ChatMode>> = () => {};
-const noopChatExecutionModeDispatch: Dispatch<SetStateAction<ChatExecutionMode>> = () => {};
 const noopModelSourceDispatch: Dispatch<SetStateAction<ModelSource>> = () => {};
 const noopBooleanDispatch: Dispatch<SetStateAction<boolean>> = () => {};
 
@@ -40,7 +38,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   skillsError: "",
   sessionsError: "",
   pendingAgentQuestion: null,
-  collaborationPlanDecision: null,
   agentQuestionAnswer: "",
   customAgentQuestionAnswer: "",
   isAnsweringAgentQuestion: false,
@@ -49,8 +46,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   isSending: false,
   activeAgentTaskId: "",
   isSettingsLoading: false,
-  chatMode: "agent",
-  chatExecutionMode: "agent",
   showThinkingProcess: true,
   showToolCallProcess: false,
   effectiveContextWindow: 0,
@@ -61,9 +56,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   runtimeModels: [],
   selectedRuntimeModelId: "",
   selectedRuntimeModel: null,
-  collaborationWorkflows: [],
-  selectedCollaborationWorkflow: null,
-  selectedCollaborationWorkflowId: "",
   allowedAgentTools: [],
   skillGroups: [],
   defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
@@ -78,18 +70,14 @@ const emptyChatPanelState: ChatPanelViewModel = {
   onMoveHistoryMessage: noop,
   onOpenWorkspace: noop,
   onCreateWorkspace: noop,
-  resolveCollaborationPlanDecision: noop,
   setAgentQuestionAnswer: noopDispatch,
   setCustomAgentQuestionAnswer: noopDispatch,
   submitAgentQuestionAnswer: noopAsync,
-  setChatMode: noopChatModeDispatch,
-  setChatExecutionMode: noopChatExecutionModeDispatch,
   setShowThinkingProcess: noopBooleanDispatch,
   setShowToolCallProcess: noopBooleanDispatch,
   setModelSource: noopModelSourceDispatch,
   setSelectedRuntimeAgentId: noopDispatch,
   setSelectedAgentId: noopDispatch,
-  setSelectedCollaborationWorkflowId: noopDispatch,
   setSelectedRuntimeModelId: noop,
   toggleAllowedAgentTool: noop,
   toggleSelectedSkillGroup: noopSkillGroupToggle,

@@ -1,13 +1,20 @@
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import type {
-  PromptKnowledgeReference,
-} from "@/ai/context";
-import type {
   ChatContextSummary,
   ChatTraceStep,
   ChatTraceTurn,
   ConversationMessage,
 } from "../../types";
+
+type PromptKnowledgeReference = {
+  id: string;
+  content: string;
+  path?: string | null;
+  title?: string | null;
+  score?: number | null;
+  chunkId?: string | null;
+  metadata?: Record<string, unknown>;
+};
 
 export type ChatTraceStepInput = Omit<ChatTraceStep, "id" | "startedAt"> & {
   id?: string;
@@ -106,8 +113,7 @@ export const didConversationContextCompress = (
   }
 
   return previousContext?.summarizedUntilIndex !== nextContext.summarizedUntilIndex ||
-    previousContext?.summary !== nextContext.summary ||
-    previousContext?.summaryFingerprint?.contentHash !== nextContext.summaryFingerprint?.contentHash;
+    previousContext?.summary !== nextContext.summary;
 };
 
 export const contextCompressionTraceStep = ({

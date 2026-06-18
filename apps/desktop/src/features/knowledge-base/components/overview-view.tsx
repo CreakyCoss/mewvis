@@ -1,4 +1,3 @@
-import type { ContextEngineDescriptor } from "@/ai/context";
 import type {
   EmbeddingProfile,
   KnowledgeIndexStatus,
@@ -9,9 +8,7 @@ import type { KnowledgeBaseView } from "../ui-state";
 import { formatTime, statusLabel } from "../ui-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
-  BrainCircuit,
   ChevronRight,
   FileText,
   Layers3,
@@ -25,10 +22,6 @@ type OverviewViewProps = {
   settings: KnowledgeSettings;
   isSavingSettings: boolean;
   isLoading: boolean;
-  canConfigureContextEngine: boolean;
-  selectedContextEngine: ContextEngineDescriptor | null;
-  contextEngineId?: string;
-  contextEngines: ContextEngineDescriptor[];
   defaultEmbeddingProfile: EmbeddingProfile | null;
   embeddingSummary: string;
   defaultEmbeddingBaseUrl: string;
@@ -37,7 +30,6 @@ type OverviewViewProps = {
   library: KnowledgeLibrary;
   enabledCollectionCount: number;
   onChooseStorageDirectory: () => void;
-  onContextEngineChange?: (engineId: string) => void;
   onOpenEmbeddingDialog: () => void;
   onRequestRebuild: () => void;
   onViewChange: (view: KnowledgeBaseView) => void;
@@ -47,10 +39,6 @@ export const OverviewView = ({
   settings,
   isSavingSettings,
   isLoading,
-  canConfigureContextEngine,
-  selectedContextEngine,
-  contextEngineId,
-  contextEngines,
   defaultEmbeddingProfile,
   embeddingSummary,
   defaultEmbeddingBaseUrl,
@@ -59,13 +47,12 @@ export const OverviewView = ({
   library,
   enabledCollectionCount,
   onChooseStorageDirectory,
-  onContextEngineChange,
   onOpenEmbeddingDialog,
   onRequestRebuild,
   onViewChange,
 }: OverviewViewProps) => (
   <div className="space-y-4">
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-4">
       <div className="rounded-md bg-card px-4 py-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -100,41 +87,6 @@ export const OverviewView = ({
         </div>
       </div>
 
-      {canConfigureContextEngine && (
-        <div className="rounded-md bg-card px-4 py-4 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
-              <BrainCircuit className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="truncate text-sm font-semibold">上下文引擎</h3>
-                {selectedContextEngine?.experimental && (
-                  <Badge variant="secondary">实验性</Badge>
-                )}
-              </div>
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                {selectedContextEngine?.label ?? "未选择"}
-              </div>
-            </div>
-          </div>
-          <NativeSelect
-            size="sm"
-            className="mt-3 w-full"
-            value={contextEngineId ?? selectedContextEngine?.id ?? ""}
-            onChange={(event) => {
-              const value = event.target.value;
-              onContextEngineChange?.(value);
-            }}
-          >
-            {contextEngines.map((engine) => (
-              <NativeSelectOption key={engine.id} value={engine.id}>
-                {engine.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </div>
-      )}
     </div>
 
     <div className="rounded-md bg-card px-4 py-4 shadow-xs">

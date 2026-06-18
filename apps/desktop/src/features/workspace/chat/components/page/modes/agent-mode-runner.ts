@@ -5,9 +5,6 @@ import {
   normalizeAllowedRuntimeAgentTools,
 } from "@/ai/runtime-protocol";
 import { requireRuntimeModelInput } from "@/features/ai/components/llm-setting/store";
-import {
-  filterChatAgentAllowedTools,
-} from "../../../utils/chat-mode";
 import { createBridgeSessionRootDir } from "../../../utils/sessions";
 import type {
   RunAgentTurnDeps,
@@ -39,8 +36,6 @@ export const runAgentTurn = async (
     handledAgentDoneTaskIdsRef,
     chatTraceRef,
     effectiveRuntimeModel,
-    chatMode,
-    chatExecutionMode,
     allowedAgentTools,
     currentSessionTitle,
   }: RunAgentTurnDeps,
@@ -66,9 +61,7 @@ export const runAgentTurn = async (
     trace: taskTrace,
   });
   const allowedToolsForRun = normalizeAllowedRuntimeAgentTools(
-    chatMode === "chat" && chatExecutionMode === "agent"
-      ? filterChatAgentAllowedTools(allowedAgentTools)
-      : allowedAgentTools,
+    allowedAgentTools,
   );
   appendVisibleTraceStep(traceTurnId, {
     type: "request",
