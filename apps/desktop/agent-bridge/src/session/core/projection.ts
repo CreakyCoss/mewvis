@@ -1,5 +1,4 @@
 import type {
-  BridgeCompactionEntry,
   BridgeLedgerEntry,
   BridgeMessage,
   BridgeSessionContext,
@@ -78,75 +77,26 @@ const appendVisibleEntry = (
   }
 };
 
-const latestCompactionIn = (entries: BridgeLedgerEntry[]): BridgeCompactionEntry | null => {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (entry?.type === "compaction") {
-      return entry;
-    }
-  }
-
-  return null;
-};
-
 export const buildBridgeSessionContext = (
   storage: BridgeLedgerStorage,
   leafId: string | null = storage.getLeafId(),
 ): BridgeSessionContext => {
   const entries = storage.getPathToRoot(leafId);
-  const compaction = latestCompactionIn(entries);
   const messages: BridgeMessage[] = [];
   const requestContexts: BridgeSessionContext["requestContexts"] = [];
   const runtimeInstructions: BridgeSessionContext["runtimeInstructions"] = [];
   const visible = { messages, requestContexts, runtimeInstructions };
 
-  if (!compaction) {
-    for (const entry of entries) {
-      appendVisibleEntry(entry, visible);
-    }
-
-    return {
-      summary: "",
-      messages,
-      requestContexts,
-      runtimeInstructions,
-      leafId,
-      entries,
-      compaction: null,
-    };
-  }
-
-  const compactionIndex = entries.findIndex((entry) => entry.id === compaction.id);
-  let foundFirstKept = false;
-
-  for (let index = 0; index < compactionIndex; index += 1) {
-    const entry = entries[index];
-    if (!entry) {
-      continue;
-    }
-    if (entry.id === compaction.firstKeptEntryId) {
-      foundFirstKept = true;
-    }
-    if (foundFirstKept) {
-      appendVisibleEntry(entry, visible);
-    }
-  }
-
-  for (let index = compactionIndex + 1; index < entries.length; index += 1) {
-    const entry = entries[index];
-    if (!entry) {
-      continue;
-    }
+  for (const entry of entries) {
     appendVisibleEntry(entry, visible);
   }
 
   return {
-    summary: compaction.summary,
+    summary: "",
     messages,
     requestContexts,
     runtimeInstructions,
     leafId,
     entries,
-    compaction,
   };
 };

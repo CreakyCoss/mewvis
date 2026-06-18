@@ -57,6 +57,7 @@ const chatCommandFromSendMessage = (command: SendMessageCommand): RuntimeChatCom
   userMessage: command.input.userMessage,
   requestContext: command.input.requestContext ?? null,
   runtimeInstruction: command.input.runtimeInstruction ?? null,
+  bootstrapInstruction: command.input.bootstrapInstruction ?? null,
   messages: command.input.messages ?? [],
 });
 
@@ -72,6 +73,7 @@ const agentRunCommandFromSendMessage = (command: SendMessageCommand): AgentRunCo
   systemPrompt: command.input.systemPrompt ?? null,
   requestContext: command.input.requestContext ?? null,
   runtimeInstruction: command.input.runtimeInstruction ?? null,
+  bootstrapInstruction: command.input.bootstrapInstruction ?? null,
   runtimeModel: command.runtime?.model ?? null,
   resources: command.runtime?.resources ?? null,
 });
@@ -188,6 +190,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
     userMessage: command.input.userMessage ?? null,
     requestContext: command.input.requestContext ?? null,
     runtimeInstruction: command.input.runtimeInstruction ?? null,
+    bootstrapInstruction: command.input.bootstrapInstruction ?? null,
     messages: command.input.messages ?? [],
   });
 
@@ -243,7 +246,10 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
 
       case BridgeContextCommandType.Compact:
         try {
-          deps.writeJsonLine(await compactBridgeSession(command));
+          deps.writeJsonLine(await compactBridgeSession(command, {
+            askUser: questions.askUser,
+            emit: deps.emit,
+          }));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }

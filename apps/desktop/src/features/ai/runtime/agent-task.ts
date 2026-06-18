@@ -44,6 +44,7 @@ export type RunSharedAgentTaskInput = {
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   abortOnQuestion?: boolean;
   onEvent?: (event: AgentRuntimeAgentEvent) => void;
   onTaskCreated?: (task: SharedAgentTaskCreated) => void;
@@ -77,6 +78,7 @@ export const runSharedAgentTask = async ({
   systemPrompt = null,
   requestContext = null,
   runtimeInstruction = null,
+  bootstrapInstruction = null,
   abortOnQuestion = true,
   onEvent,
   onTaskCreated,
@@ -163,6 +165,7 @@ export const runSharedAgentTask = async ({
       systemPrompt,
       requestContext,
       runtimeInstruction,
+      bootstrapInstruction,
       runtimeModel,
       allowedTools,
       enabledSkills: activeSkillNames,

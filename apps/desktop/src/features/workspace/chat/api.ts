@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import {
   runSharedRuntimeChat,
   type RunSharedRuntimeChatInput,
@@ -328,7 +329,10 @@ export async function readAgentRuntimeSession(input: {
 export async function compactAgentRuntimeSession(input: {
   workspacePath: string;
   sessionRootDir: string;
-  keepRecentMessages?: number | null;
+  agentId?: string | null;
+  agentRoleId: string;
+  compactInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
 }) {
   if (!isTauri()) {
     return null;

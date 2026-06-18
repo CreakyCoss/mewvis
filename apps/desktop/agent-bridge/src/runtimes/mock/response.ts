@@ -64,6 +64,9 @@ export const createMockAgentText = (command: RuntimeAgentCommand) => {
   const bootstrapSummary = command.sessionBootstrapContext?.trim()
     ? compact(command.sessionBootstrapContext)
     : "无";
+  const bootstrapInstructionSummary = command.bootstrapInstruction?.trim()
+    ? compact(command.bootstrapInstruction)
+    : "无";
   const systemPromptSummary = command.systemPrompt?.trim()
     ? compact(command.systemPrompt)
     : "无";
@@ -79,6 +82,7 @@ export const createMockAgentText = (command: RuntimeAgentCommand) => {
     `用户消息：${compact(command.userMessage)}`,
     `请求上下文：${requestContextSummary}`,
     `任务摘要：${compact(command.agentTaskPrompt)}`,
+    `Bootstrap指令：${bootstrapInstructionSummary}`,
     `Bootstrap摘要：${bootstrapSummary}`,
     `允许工具：${enabledTools}`,
     `当前技能：${activeSkills}`,

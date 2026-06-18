@@ -106,6 +106,7 @@ export type BridgeMessageInput = {
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   messages?: ChatMessageInput[];
 };
 
@@ -165,17 +166,20 @@ export type SessionCommandBase = {
 };
 
 export type BridgeCompactTarget = {
-  scope: "shared";
+  scope: "agent";
+  agentId?: string | null;
+  agentRoleId: string;
 };
 
 export type BridgeCompactOptions = {
-  keepRecentMessages?: number | null;
+  compactInstruction?: string | null;
 };
 
 export type CompactCommand = SessionCommandBase & {
   type: BridgeContextCommandType.Compact;
   target: BridgeCompactTarget;
   options?: BridgeCompactOptions | null;
+  runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
 };
 
 export type CreateSessionCommand = SessionCommandBase & {

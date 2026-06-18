@@ -85,14 +85,6 @@ export type BridgeRuntimeInstructionEntry = BridgeLedgerEntryBase & {
   metadata?: BridgeMessageMetadata | null;
 };
 
-export type BridgeCompactionEntry = BridgeLedgerEntryBase & {
-  type: "compaction";
-  summary: string;
-  firstKeptEntryId: string;
-  tokensBefore: number;
-  details?: unknown;
-};
-
 export type BridgeBranchSummaryEntry = BridgeLedgerEntryBase & {
   type: "branch_summary";
   fromId: string;
@@ -115,7 +107,6 @@ export type BridgeLedgerEntry =
   | BridgeMessageEntry
   | BridgeRequestContextEntry
   | BridgeRuntimeInstructionEntry
-  | BridgeCompactionEntry
   | BridgeBranchSummaryEntry
   | BridgeCustomEntry
   | BridgeLeafEntry;
@@ -145,5 +136,4 @@ export type BridgeSessionContext = {
   }>;
   leafId: string | null;
   entries: BridgeLedgerEntry[];
-  compaction: BridgeCompactionEntry | null;
 };

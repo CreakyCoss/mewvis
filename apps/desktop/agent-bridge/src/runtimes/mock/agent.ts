@@ -1,8 +1,10 @@
 import { BridgeEventType } from "../../contracts/protocol.js";
 import type {
+  AgentCompactResult,
   AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
+  RuntimeAgentCompactCommand,
   RuntimeAgentCommand,
 } from "../types.js";
 import { chunkText, createMockAgentText, sleep } from "./response.js";
@@ -51,5 +53,12 @@ export class MockAgent implements AgentRuntime {
     emit({ type: BridgeEventType.Done, taskId: command.taskId, text });
 
     return { text };
+  }
+
+  async compact(command: RuntimeAgentCompactCommand): Promise<AgentCompactResult> {
+    return {
+      compacted: false,
+      message: `mock agent session ${command.agentRoleId ?? "default"} 不需要压缩`,
+    };
   }
 }

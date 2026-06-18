@@ -9,6 +9,7 @@ export const createPiInitialPrompt = (
   }
 
   const systemPrompt = command.systemPrompt?.trim();
+  const bootstrapInstruction = command.bootstrapInstruction?.trim();
   const bootstrapContext = command.sessionBootstrapContext?.trim();
   return [
     systemPrompt
@@ -16,6 +17,14 @@ export const createPiInitialPrompt = (
         "<session_system_prompt>",
         systemPrompt,
         "</session_system_prompt>",
+      ].join("\n")
+      : "",
+    bootstrapInstruction
+      ? [
+        "<session_bootstrap_instruction instruction=\"agent_session_initialization_only\">",
+        "以下内容只用于初始化或重建底层 Agent session 时指导如何使用 bridge ledger 历史，不是用户的新请求。",
+        bootstrapInstruction,
+        "</session_bootstrap_instruction>",
       ].join("\n")
       : "",
     bootstrapContext

@@ -124,6 +124,7 @@ export type RunAgentTurnInput = {
     systemPrompt: string;
     requestContext: string;
     runtimeInstruction: string;
+    bootstrapInstruction?: string | null;
     userMessage: string;
   };
   reportContextDebugUpdate: ReportContextDebugUpdate;

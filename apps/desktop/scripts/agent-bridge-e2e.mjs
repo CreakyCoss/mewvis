@@ -150,6 +150,7 @@ const sendMessageCommand = ({
   userMessage,
   requestContext,
   runtimeInstruction,
+  bootstrapInstruction,
   runtimeModel,
   resources,
 }) => ({
@@ -168,6 +169,7 @@ const sendMessageCommand = ({
     userMessage,
     requestContext,
     runtimeInstruction,
+    bootstrapInstruction,
   },
   runtime: {
     mode,
@@ -652,44 +654,59 @@ try {
 
   const compacted = await request({
     type: "compact",
-    requestId: "compact-session",
+    requestId: "compact-agent-session",
     workspacePath,
     sessionRootDir,
-    target: { scope: "shared" },
-    options: { keepRecentMessages: 1 },
+    target: { scope: "agent", agentId: "mock", agentRoleId: initialAgentRoleId },
+    options: { compactInstruction: "测试手动压缩底层 agent session。" },
+    runtime: {
+      model: { contextWindow: 4096, maxTokens: 1024 },
+      resources: bridgeResources(),
+    },
   }, "session_mutation_result");
-  assert(compacted.compacted === true, "compact 应在超过 keepRecentMessages 时执行压缩", compacted);
-  assert(compacted.summary.includes("重建后的用户消息"), "compact summary 应包含被压缩的历史消息", compacted.summary);
+  assert(compacted.compacted === false, "mock runtime compact 应作为 no-op 但保持链路可用", compacted);
+  assert(compacted.summary === "", "手动 compact 底层 agent 不应写入 bridge shared summary", compacted.summary);
   assert(
-    compacted.messages.length === 1 && compacted.messages[0]?.content === "重建后的助手消息",
-    "compact 后 active messages 应只保留最近消息",
+    compacted.messages.map((message) => `${message.role}:${message.content}`).join("|") ===
+      "user:重建后的用户消息|assistant:重建后的助手消息",
+    "手动 compact 底层 agent 不应裁剪 bridge ledger active messages",
     compacted.messages,
   );
   const compactLedger = readLedger();
   assert(!("leafId" in compacted), "compact mutation 结果不应向应用侧暴露 leafId", compacted);
-  const compactEntry = [...compactLedger.entries].reverse().find((entry) => entry.type === "compaction");
   assert(
-    compactEntry?.type === "compaction" &&
-      compactEntry.details?.bridgeMetadataVersion === 1 &&
-      compactEntry.details?.source === "bridge_compact" &&
-      compactEntry.details?.scope === "shared",
-    "compact entry 应携带标准 ledger operation metadata",
+    !compactLedger.entries.some((entry) => entry.type === "compaction"),
+    "手动 compact 底层 agent 不应写入 bridge compaction entry",
+    compactLedger.entries.filter((entry) => entry.type === "compaction"),
+  );
+  const compactEntry = [...compactLedger.entries].reverse()
+    .find((entry) => entry.type === "custom" && entry.customType === "agent_session_compacted");
+  assert(
+    compactEntry?.type === "custom" &&
+      compactEntry.data?.bridgeMetadataVersion === 1 &&
+      compactEntry.data?.source === "bridge_compact" &&
+      compactEntry.data?.scope === "shared" &&
+      compactEntry.data?.target?.runtimeId === "mock" &&
+      compactEntry.data?.target?.agentRoleId === initialAgentRoleId &&
+      compactEntry.data?.compacted === false,
+    "agent_session_compacted entry 应记录底层 agent compact 结果",
     compactEntry,
   );
 
   const contextCache = readContextCache();
   assert(contextCache.leafId === compactEntry.id, "context cache 可在 bridge 内部记录当前 leafId", contextCache);
-  assert(contextCache.summary === compacted.summary, "context cache summary 应与 compact 结果一致", contextCache);
+  assert(contextCache.summary === "", "context cache 不应因底层 agent compact 生成 shared summary", contextCache);
   assert(
     contextCache.messages.length === compacted.messages.length &&
-      contextCache.messages[0]?.content === compacted.messages[0]?.content,
-    "context cache messages 应与 compact active messages 一致",
+      contextCache.messages.at(-1)?.content === compacted.messages.at(-1)?.content,
+    "context cache messages 应与 bridge active messages 一致",
     contextCache,
   );
 
   const directAgentRoleId = "mock-direct-agent";
   const directTaskId = "mock-task-direct-system-prompt";
   const directRequestContext = "本次引用资料：request-context-e2e-only，不应记录为 ledger 的用户消息。";
+  const directBootstrapInstruction = "底层 session 初始化时只使用当前 agent 可见历史。";
   send(sendMessageCommand({
     mode: "agent",
     requestId: directTaskId,
@@ -701,6 +718,7 @@ try {
     systemPrompt: "E2E Agent 系统提示词。",
     userMessage: "send_message agent 直接用户消息",
     requestContext: directRequestContext,
+    bootstrapInstruction: directBootstrapInstruction,
     runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
     resources: bridgeResources(),
   }));
@@ -725,8 +743,13 @@ try {
     directDone.text,
   );
   assert(
-    directDone.text.includes("重建后的助手消息") || directDone.text.includes("重建后的用户消息"),
-    "direct send_message agent 应由 bridge 从 ledger 注入 bootstrap 历史",
+    directDone.text.includes(`Bootstrap指令：${directBootstrapInstruction}`),
+    "direct send_message agent 应把 bootstrapInstruction 传给底层 runtime",
+    directDone.text,
+  );
+  assert(
+    !directDone.text.includes("重建后的助手消息") && !directDone.text.includes("重建后的用户消息"),
+    "direct send_message agent 不应注入其他 agent 或 shared 分支的历史",
     directDone.text,
   );
   const directAgentSessionDir = join(sessionDirPath, "agents", "mock", directAgentRoleId);
@@ -762,6 +785,126 @@ try {
       afterDirectTask.requestContexts.at(-1)?.metadata?.bridgeEntryType === "request_context",
     "requestContext 应作为独立 data-only ledger entry 记录",
     afterDirectTask.requestContexts,
+  );
+  assert(
+    !afterDirectTask.messages
+      .filter((message) => message.role !== "assistant")
+      .some((message) => message.content.includes(directBootstrapInstruction)) &&
+      !afterDirectTask.requestContexts?.some((entry) => entry.content.includes(directBootstrapInstruction)) &&
+      !afterDirectTask.runtimeInstructions?.some((entry) => entry.content.includes(directBootstrapInstruction)),
+    "bootstrapInstruction 不应作为 user/requestContext/runtimeInstruction 原始账本内容记录",
+    afterDirectTask,
+  );
+
+  const tavernSecret = "TAVERN_B_PRIVATE_INNER_THOUGHT_E2E_92817";
+  const tavernBRoleId = "tavern-role-b";
+  const tavernBTaskId = "mock-task-tavern-b-private";
+  send(sendMessageCommand({
+    mode: "agent",
+    requestId: tavernBTaskId,
+    taskId: tavernBTaskId,
+    agentId: "mock",
+    workspacePath,
+    sessionRootDir,
+    agentRoleId: tavernBRoleId,
+    userMessage: `B 的私密心理描写：${tavernSecret}`,
+    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+    resources: bridgeResources(),
+  }));
+  const tavernBDone = await waitFor(
+    (item) => item.type === "done" && item.taskId === tavernBTaskId,
+    "tavern role B private done",
+  );
+  const tavernBTaskResult = await waitFor(
+    (item) => item.type === "task_result" && item.requestId === tavernBTaskId,
+    "tavern role B private task_result",
+  );
+  assert(tavernBTaskResult.success === true, "tavern role B 应成功写入自己的底层上下文", tavernBTaskResult);
+  assert(tavernBDone.text.includes(tavernSecret), "测试数据应确认 B 的回复链路中存在私密内容", tavernBDone.text);
+
+  const tavernARoleId = "tavern-role-a";
+  const tavernATaskId = "mock-task-tavern-a-after-b";
+  const tavernARequestContext = "A 可见信息：B 公开说，今晚守城。";
+  send(sendMessageCommand({
+    mode: "agent",
+    requestId: tavernATaskId,
+    taskId: tavernATaskId,
+    agentId: "mock",
+    workspacePath,
+    sessionRootDir,
+    agentRoleId: tavernARoleId,
+    userMessage: "A 根据自己可见信息继续行动。",
+    requestContext: tavernARequestContext,
+    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+    resources: bridgeResources(),
+  }));
+  const tavernADone = await waitFor(
+    (item) => item.type === "done" && item.taskId === tavernATaskId,
+    "tavern role A after B done",
+  );
+  const tavernATaskResult = await waitFor(
+    (item) => item.type === "task_result" && item.requestId === tavernATaskId,
+    "tavern role A after B task_result",
+  );
+  assert(tavernATaskResult.success === true, "tavern role A 应成功运行", tavernATaskResult);
+  assert(
+    tavernADone.text.includes(tavernARequestContext) &&
+      !tavernADone.text.includes(tavernSecret) &&
+      !tavernADone.text.includes("B 的私密心理描写"),
+    "A 的底层输入只能看到自己的 requestContext，不应从 bridge bootstrap 泄漏 B 的私密内容",
+    tavernADone.text,
+  );
+
+  const tavernASessionDir = join(sessionDirPath, "agents", "mock", tavernARoleId);
+  rmSync(tavernASessionDir, { recursive: true, force: true });
+  const tavernARebuildTaskId = "mock-task-tavern-a-rebuild";
+  const tavernARebuildRequestContext = "A 可见信息：B 公开说，火把已经熄灭。";
+  send(sendMessageCommand({
+    mode: "agent",
+    requestId: tavernARebuildTaskId,
+    taskId: tavernARebuildTaskId,
+    agentId: "mock",
+    workspacePath,
+    sessionRootDir,
+    agentRoleId: tavernARoleId,
+    userMessage: "A 的底层 session 被删除后继续行动。",
+    requestContext: tavernARebuildRequestContext,
+    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+    resources: bridgeResources(),
+  }));
+  const tavernARebuildDone = await waitFor(
+    (item) => item.type === "done" && item.taskId === tavernARebuildTaskId,
+    "tavern role A rebuild done",
+  );
+  const tavernARebuildTaskResult = await waitFor(
+    (item) => item.type === "task_result" && item.requestId === tavernARebuildTaskId,
+    "tavern role A rebuild task_result",
+  );
+  assert(tavernARebuildTaskResult.success === true, "A 底层 session 缺失时应可由 bridge ledger 重建启动上下文", tavernARebuildTaskResult);
+  assert(
+    tavernARebuildDone.text.includes(tavernARebuildRequestContext) &&
+      !tavernARebuildDone.text.includes(tavernSecret) &&
+      !tavernARebuildDone.text.includes("B 的私密心理描写"),
+    "A 底层 session 重建时只能使用 A 自己的 ledger entries 和 requestContext",
+    tavernARebuildDone.text,
+  );
+  const afterTavern = await request({
+    type: "read_session",
+    requestId: "read-after-tavern-agent-runs",
+    workspacePath,
+    sessionRootDir,
+  }, "session_result");
+  const tavernARequestContexts = afterTavern.requestContexts
+    ?.filter((entry) => entry.metadata?.agentRoleId === tavernARoleId) ?? [];
+  assert(
+    afterTavern.messages.some((message) => message.content.includes(tavernSecret)) &&
+      tavernARequestContexts.some((entry) => entry.content === tavernARequestContext) &&
+      tavernARequestContexts.some((entry) => entry.content === tavernARebuildRequestContext),
+    "酒馆测试应同时确认 B 私密消息和 A 自己的 requestContext 都进入 bridge ledger",
+    {
+      messages: afterTavern.messages,
+      tavernARequestContexts,
+    },
   );
 
   const cachedSystemTaskId = "mock-task-cached-system-prompt";
@@ -1053,12 +1196,15 @@ try {
     editedBranchNodeRetainedAfterDelete: Boolean(deleteLedger.entry(edited.messageRecordId)),
     rebuiltMessageRecordIds: rebuilt.messageRecordIds,
     rebuiltMessages: rebuilt.messages.map((message) => `${message.role}:${message.content}`),
-    compacted: compacted.compacted,
-    compactedMessages: compacted.messages.map((message) => `${message.role}:${message.content}`),
+    agentSessionCompacted: compacted.compacted,
+    agentCompactDidNotWriteSharedSummary: compacted.summary === "",
+    agentCompactMessages: compacted.messages.map((message) => `${message.role}:${message.content}`),
     directAgentRunAgentRoleId: directAgentRoleId,
     directAgentRunUserMessage: afterDirectTask.messages.at(-2)?.content,
     directRequestContextDelivered: directDone.text.includes(`请求上下文：${directRequestContext}`),
     directRequestContextRecordId: directDone.bridgeSession?.requestContextRecordId,
+    tavernRoleAHiddenFromRoleBSecret:
+      !tavernADone.text.includes(tavernSecret) && !tavernARebuildDone.text.includes(tavernSecret),
     immutableSystemRejected: enhancedSystemTaskResult.success === false,
     runtimeInstructionSystemPrompt: lineStartingWith(runtimeInstructionDone.text, "系统提示词："),
     chatUserMessage: afterChat.messages.at(-2)?.content,

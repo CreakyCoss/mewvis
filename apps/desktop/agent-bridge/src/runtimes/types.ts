@@ -22,6 +22,7 @@ export type AgentRunCommand = {
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   resources?: BridgeRuntimeResources | null;
   sessionLink?: RuntimeSessionLink | null;
@@ -39,6 +40,16 @@ export type RuntimeAgentCommand = AgentRunCommand & {
   agentSessionDir?: string | null;
 };
 
+export type RuntimeAgentCompactCommand = RuntimeAgentCommand & {
+  compactInstructions?: string | null;
+};
+
+export type AgentCompactResult = {
+  compacted: boolean;
+  message?: string | null;
+  details?: unknown;
+};
+
 export type RuntimeChatCommand = {
   type: BridgeTaskCommandType.Chat;
   requestId?: string | null;
@@ -52,6 +63,7 @@ export type RuntimeChatCommand = {
   userMessage?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   recordUserMessage?: boolean | null;
   sessionLink?: RuntimeSessionLink | null;
   messages: ChatMessageInput[];
@@ -91,6 +103,10 @@ export type AgentRuntime = {
     command: RuntimeAgentCommand,
     context: AgentRuntimeContext,
   ): Promise<AgentRunResult>;
+  compact?(
+    command: RuntimeAgentCompactCommand,
+    context: AgentRuntimeContext,
+  ): Promise<AgentCompactResult>;
 };
 
 export type ChatRuntime = {

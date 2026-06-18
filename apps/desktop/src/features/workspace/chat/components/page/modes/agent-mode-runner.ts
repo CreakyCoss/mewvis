@@ -92,6 +92,10 @@ export const runAgentTurn = async (
         content: agentPromptPayload.runtimeInstruction,
       },
       {
+        label: "bootstrapInstruction",
+        content: agentPromptPayload.bootstrapInstruction ?? "",
+      },
+      {
         label: "userMessage",
         content: agentPromptPayload.userMessage,
       },
@@ -125,6 +129,10 @@ export const runAgentTurn = async (
         content: agentPromptPayload.runtimeInstruction,
       },
       {
+        label: "bootstrapInstruction",
+        content: agentPromptPayload.bootstrapInstruction ?? "",
+      },
+      {
         label: "userMessage",
         content: agentPromptPayload.userMessage,
       },
@@ -141,6 +149,7 @@ export const runAgentTurn = async (
     systemPrompt: agentPromptPayload.systemPrompt,
     requestContext: agentPromptPayload.requestContext,
     runtimeInstruction: agentPromptPayload.runtimeInstruction,
+    bootstrapInstruction: agentPromptPayload.bootstrapInstruction ?? null,
     runtimeModel: runtimeModelInput ?? undefined,
     allowedTools: allowedToolsForRun,
     enabledSkills: activeSkills.map((skill) => skill.name),

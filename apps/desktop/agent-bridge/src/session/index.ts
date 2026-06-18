@@ -1,6 +1,5 @@
 export * from "./core/types.js";
 export * from "./core/projection.js";
-export * from "./core/compaction.js";
 export * from "./core/prompt-budget.js";
 export * from "./storage/context-cache.js";
 export * from "./storage/jsonl-store.js";

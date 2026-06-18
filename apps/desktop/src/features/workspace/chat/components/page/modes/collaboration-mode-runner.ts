@@ -61,6 +61,7 @@ type RunCollaborationAgentTaskInput = {
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   agent: AgentProfile;
   runtimeModel: RuntimeModelInput;
   allowedTools: RuntimeAgentToolName[];
@@ -427,6 +428,7 @@ const runCollaborationAgentTask = async ({
   systemPrompt,
   requestContext,
   runtimeInstruction,
+  bootstrapInstruction,
   agent,
   runtimeModel,
   allowedTools,
@@ -448,6 +450,7 @@ const runCollaborationAgentTask = async ({
     systemPrompt,
     requestContext,
     runtimeInstruction,
+    bootstrapInstruction,
     runtimeModel,
     allowedTools,
     activeSkillNames,

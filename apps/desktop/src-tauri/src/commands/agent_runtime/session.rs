@@ -1,4 +1,7 @@
-use super::{rpc::call_agent_bridge_rpc, session_paths::resolve_session_root_dir};
+use super::{
+    rpc::call_agent_bridge_rpc, session_paths::resolve_session_root_dir,
+    types::AgentRuntimeModelInput,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::AppHandle;
@@ -24,7 +27,10 @@ pub struct CreateAgentRuntimeSessionInput {
 pub struct CompactAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
-    keep_recent_messages: Option<u64>,
+    agent_id: Option<String>,
+    agent_role_id: String,
+    compact_instruction: Option<String>,
+    runtime_model: Option<AgentRuntimeModelInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,10 +120,15 @@ pub async fn compact_agent_runtime_session(
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "target": {
-                "scope": "shared",
+                "scope": "agent",
+                "agentId": input.agent_id,
+                "agentRoleId": input.agent_role_id,
             },
             "options": {
-                "keepRecentMessages": input.keep_recent_messages,
+                "compactInstruction": input.compact_instruction,
+            },
+            "runtime": {
+                "model": input.runtime_model,
             },
         }),
         &["session_mutation_result"],

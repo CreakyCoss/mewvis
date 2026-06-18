@@ -10,8 +10,14 @@ import {
   type SessionMutationResult,
   type SessionResult,
 } from "../../contracts/protocol.js";
+import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
-import { compactBridgeLedger } from "../core/compaction.js";
+import { resolveRuntime } from "../../runtimes/resolver.js";
+import type {
+  AgentRuntimeContext,
+  RuntimeAgentCompactCommand,
+} from "../../runtimes/types.js";
+import { createAgentSessionPlan } from "../runtime/agent/session-plan.js";
 import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
 import { resolveBridgeSessionPaths } from "../storage/paths.js";
 import { buildBridgeSessionContext } from "../core/projection.js";
@@ -115,24 +121,67 @@ export const createBridgeSession = async (
 
 export const compactBridgeSession = async (
   command: CompactCommand,
+  runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
   const baseLeafId = storage.getLeafId();
-  if (command.target.scope !== "shared") {
-    throw new Error(`compact 暂仅支持 shared bridge ledger：${command.target.scope}`);
-  }
-  const result = await compactBridgeLedger(storage, {
-    contextPath: paths.contextPath,
-    keepRecentMessages: command.options?.keepRecentMessages ?? undefined,
-    metadata: bridgeLedgerOperationMetadata({
+  const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
+  const sessionPlan = await createAgentSessionPlan({
+    workspacePath: command.workspacePath,
+    sessionRootDir: command.sessionRootDir,
+    runtimeId,
+    agentRoleId: command.target.agentRoleId,
+  });
+  const compactCommand: RuntimeAgentCompactCommand = {
+    runtimeMode: "agent",
+    requestId: command.requestId ?? null,
+    agentId: command.target.agentId ?? runtimeId,
+    taskId: command.requestId?.trim() || `bridge-compact-${randomUUID()}`,
+    workspacePath: command.workspacePath,
+    sessionRootDir: command.sessionRootDir,
+    agentRoleId: sessionPlan.agentRoleId,
+    userMessage: "",
+    recordUserMessage: false,
+    systemPrompt: null,
+    requestContext: null,
+    runtimeInstruction: null,
+    runtimeModel: command.runtime?.model ?? null,
+    resources: command.runtime?.resources ?? null,
+    sessionLink: null,
+    agentTaskPrompt: "",
+    sessionBootstrapContext: null,
+    agentSessionDir: sessionPlan.agentSessionDir,
+    compactInstructions: command.options?.compactInstruction ?? null,
+  };
+  const compactResult = implementation.compact
+    ? await implementation.compact(compactCommand, runtimeContext ?? {
+      askUser: async () => "",
+      emit: () => {},
+    })
+    : {
+      compacted: false,
+      message: `${runtimeId} agent runtime 不支持手动压缩`,
+    };
+
+  await storage.appendCustom("agent_session_compacted", {
+    ...bridgeLedgerOperationMetadata({
       source: "bridge_compact",
       baseLeafId,
-      keepRecentMessages: command.options?.keepRecentMessages ?? null,
     }),
+    target: {
+      scope: command.target.scope,
+      runtimeId,
+      agentRoleId: sessionPlan.agentRoleId,
+      agentSessionId: sessionPlan.agentSessionId,
+    },
+    compacted: compactResult.compacted,
+    message: compactResult.message ?? null,
+    details: compactResult.details ?? null,
   });
-
-  return mutationResultFrom(command, result.context, {
-    compacted: result.compacted,
+  const context = buildBridgeSessionContext(storage);
+  await writeBridgeContextCache(paths.contextPath, context);
+  return mutationResultFrom(command, context, {
+    compacted: compactResult.compacted,
   });
 };
 

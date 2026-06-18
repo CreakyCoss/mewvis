@@ -25,6 +25,7 @@ pub struct RunAgentRuntimeAgentInput {
     system_prompt: Option<String>,
     request_context: Option<String>,
     runtime_instruction: Option<String>,
+    bootstrap_instruction: Option<String>,
     runtime_model: Option<AgentRuntimeModelInput>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
@@ -105,6 +106,7 @@ pub fn run_agent_runtime_agent(
             "systemPrompt": input.system_prompt,
             "requestContext": input.request_context,
             "runtimeInstruction": input.runtime_instruction,
+            "bootstrapInstruction": input.bootstrap_instruction,
         },
         "runtime": {
             "mode": "agent",

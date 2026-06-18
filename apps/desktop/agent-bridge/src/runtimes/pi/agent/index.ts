@@ -1,8 +1,10 @@
 import { BridgeEventType } from "../../../contracts/protocol.js";
 import type {
+  AgentCompactResult,
   AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
+  RuntimeAgentCompactCommand,
   RuntimeAgentCommand,
 } from "../../types.js";
 import {
@@ -51,6 +53,34 @@ export class PiAgent implements AgentRuntime {
     } finally {
       unsubscribe?.();
       session?.dispose();
+    }
+  }
+
+  async compact(
+    command: RuntimeAgentCompactCommand,
+    { askUser }: AgentRuntimeContext,
+  ): Promise<AgentCompactResult> {
+    const { session } = await createPiAgentSession(command, askUser);
+    try {
+      const result = await session.compact(command.compactInstructions?.trim() || undefined);
+      return {
+        compacted: true,
+        details: result,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message.includes("Nothing to compact") ||
+        message.includes("Already compacted")
+      ) {
+        return {
+          compacted: false,
+          message,
+        };
+      }
+      throw error;
+    } finally {
+      session.dispose();
     }
   }
 }

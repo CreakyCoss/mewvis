@@ -12,6 +12,7 @@ export type AgentRuntimeAgentTaskInput = {
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   allowedTools?: RuntimeAgentToolName[];
   enabledSkills?: string[];

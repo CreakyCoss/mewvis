@@ -20,6 +20,7 @@ import { CollaborationWorkflowSettingsDialog } from "@/features/ai/workflow/comp
 import { AgentSettingsDialog } from "@/features/ai/agent/components/dialog";
 import { SettingsPanel } from "@/features/app/settings";
 import { LlmSettingsPage } from "@/features/ai/llm";
+import { requireRuntimeModelInput } from "@/features/ai/llm/store";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
 import {
@@ -1337,6 +1338,15 @@ export const WorkspaceChatPage = ({
     if (!bridgeSessionRootDir) {
       return;
     }
+    const activeAgentSessionId = activeAgentSessionIdRef.current;
+    const [activeRuntimeAgentId, activeAgentRoleId] = activeAgentSessionId.split("/");
+    if (!activeRuntimeAgentId || !activeAgentRoleId) {
+      setSessionsError("请先运行一个 Agent，再压缩该 Agent 的底层上下文。");
+      return;
+    }
+    const runtimeModelInput = effectiveRuntimeModel
+      ? requireRuntimeModelInput(effectiveRuntimeModel)
+      : null;
 
     const compressionStartedAt = Date.now();
     const latestTraceTurn = chatTraceRef.current[chatTraceRef.current.length - 1];
@@ -1347,22 +1357,24 @@ export const WorkspaceChatPage = ({
       const result = await compactAgentRuntimeSession({
         workspacePath: workspace.path,
         sessionRootDir: bridgeSessionRootDir,
+        agentId: activeRuntimeAgentId,
+        agentRoleId: activeAgentRoleId,
+        runtimeModel: runtimeModelInput,
       });
-      const nextContext = contextFromBridgeSessionSummary(result?.summary ?? "");
-      conversationContextRef.current = nextContext;
-      setConversationContext(nextContext);
       if (latestTraceTurn) {
         appendVisibleTraceStep(latestTraceTurn.id, {
           type: "context",
-          label: "Bridge 上下文压缩",
+          label: "Agent 上下文压缩",
           startedAt: compressionStartedAt,
           endedAt: Date.now(),
           status: "done",
-          content: result?.summary || "（空）",
+          content: result?.compacted ? "底层 Agent session 已压缩。" : "底层 Agent session 暂无可压缩内容。",
           metadata: {
             mode: "manual",
-            source: "bridge-ledger",
+            source: "agent-session",
             sessionRootDir: bridgeSessionRootDir,
+            agentId: activeRuntimeAgentId,
+            agentRoleId: activeAgentRoleId,
             compacted: result?.compacted ?? false,
           },
         });
@@ -1379,7 +1391,7 @@ export const WorkspaceChatPage = ({
           content: message,
           metadata: {
             mode: "manual",
-            source: "bridge-ledger",
+            source: "agent-session",
             sessionRootDir: bridgeSessionRootDir,
           },
         });
@@ -1391,6 +1403,7 @@ export const WorkspaceChatPage = ({
   }, [
     appendVisibleTraceStep,
     currentSessionId,
+    effectiveRuntimeModel,
     workspace.path,
   ]);
 
