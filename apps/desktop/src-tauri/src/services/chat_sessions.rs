@@ -17,9 +17,9 @@ use std::{
 const CHAT_DIR_NAME: &str = "chats";
 const META_FILE_NAME: &str = "meta.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
-const CONVERSATION_FILE_NAME: &str = "conversation.json";
-const CONTEXT_FILE_NAME: &str = "context.json";
-const TRACE_FILE_NAME: &str = "trace.json";
+const LEGACY_CONVERSATION_FILE_NAME: &str = "conversation.json";
+const LEGACY_CONTEXT_FILE_NAME: &str = "context.json";
+const LEGACY_TRACE_FILE_NAME: &str = "trace.json";
 static SESSION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Deserialize)]
@@ -42,9 +42,6 @@ pub struct SaveChatSessionInput {
     pub session_id: Option<String>,
     pub title: Option<String>,
     pub messages: Value,
-    pub conversation: Value,
-    pub context: Option<Value>,
-    pub trace: Option<Value>,
     #[serde(default)]
     pub is_unread: Option<bool>,
 }
@@ -84,11 +81,6 @@ pub struct ChatSession {
     pub created_at: i64,
     pub updated_at: i64,
     pub messages: Value,
-    pub conversation: Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub context: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub trace: Option<Value>,
     #[serde(default)]
     pub is_unread: bool,
 }
@@ -109,6 +101,10 @@ pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSession
             continue;
         }
         if !path.is_dir() {
+            continue;
+        }
+        if is_legacy_session_dir(&path) {
+            fs::remove_dir_all(&path).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
             continue;
         }
 
@@ -178,9 +174,6 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
         created_at,
         updated_at: now,
         messages: input.messages,
-        conversation: input.conversation,
-        context: input.context,
-        trace: input.trace,
         is_unread: input.is_unread.unwrap_or(false),
     };
     write_session_files(&input.workspace_path, &session)?;
@@ -270,6 +263,10 @@ fn load_session_from_dir(
     if !dir.exists() {
         return Ok(None);
     }
+    if is_legacy_session_dir(&dir) {
+        fs::remove_dir_all(&dir).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
+        return Ok(None);
+    }
 
     let meta_path = dir.join(META_FILE_NAME);
     if !meta_path.exists() {
@@ -280,12 +277,6 @@ fn load_session_from_dir(
         .map_err(|error| format!("无法解析聊天记录元数据：{error}"))?;
     let messages = read_json_file::<Value>(&dir.join(MESSAGES_FILE_NAME))
         .map_err(|error| format!("无法读取聊天消息：{error}"))?;
-    let conversation = read_json_file::<Value>(&dir.join(CONVERSATION_FILE_NAME))
-        .map_err(|error| format!("无法读取对话链路：{error}"))?;
-    let context = read_optional_json_file::<Value>(&dir.join(CONTEXT_FILE_NAME))
-        .map_err(|error| format!("无法读取上下文数据：{error}"))?;
-    let trace = read_optional_json_file::<Value>(&dir.join(TRACE_FILE_NAME))
-        .map_err(|error| format!("无法读取链路追踪数据：{error}"))?;
 
     Ok(Some(ChatSession {
         id: meta.id,
@@ -293,9 +284,6 @@ fn load_session_from_dir(
         created_at: meta.created_at,
         updated_at: meta.updated_at,
         messages,
-        conversation,
-        context,
-        trace,
         is_unread: meta.is_unread,
     }))
 }
@@ -305,10 +293,28 @@ fn write_session_files(workspace_path: &str, session: &ChatSession) -> Result<()
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
 
     write_json_file(&dir.join(MESSAGES_FILE_NAME), &session.messages)?;
-    write_json_file(&dir.join(CONVERSATION_FILE_NAME), &session.conversation)?;
-    write_optional_json_file(&dir.join(CONTEXT_FILE_NAME), session.context.as_ref())?;
-    write_optional_json_file(&dir.join(TRACE_FILE_NAME), session.trace.as_ref())?;
+    remove_legacy_session_files(&dir)?;
     write_json_file(&dir.join(META_FILE_NAME), &session_meta(session))?;
+    Ok(())
+}
+
+fn is_legacy_session_dir(dir: &Path) -> bool {
+    dir.join(LEGACY_CONVERSATION_FILE_NAME).exists()
+        || dir.join(LEGACY_CONTEXT_FILE_NAME).exists()
+        || dir.join(LEGACY_TRACE_FILE_NAME).exists()
+}
+
+fn remove_legacy_session_files(dir: &Path) -> Result<(), String> {
+    for file_name in [
+        LEGACY_CONVERSATION_FILE_NAME,
+        LEGACY_CONTEXT_FILE_NAME,
+        LEGACY_TRACE_FILE_NAME,
+    ] {
+        let path = dir.join(file_name);
+        if path.exists() {
+            fs::remove_file(&path).map_err(|error| format!("无法删除旧聊天上下文文件：{error}"))?;
+        }
+    }
     Ok(())
 }
 
@@ -317,29 +323,10 @@ fn read_json_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_json::from_str::<T>(&content).map_err(|error| format!("无法解析 JSON：{error}"))
 }
 
-fn read_optional_json_file<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    read_json_file::<T>(path).map(Some)
-}
-
 fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value)
         .map_err(|error| format!("无法序列化聊天记录：{error}"))?;
     fs::write(path, content).map_err(|error| format!("无法保存聊天记录：{error}"))
-}
-
-fn write_optional_json_file<T: Serialize>(path: &Path, value: Option<&T>) -> Result<(), String> {
-    if let Some(value) = value {
-        return write_json_file(path, value);
-    }
-
-    if path.exists() {
-        fs::remove_file(path).map_err(|error| format!("无法删除旧上下文文件：{error}"))?;
-    }
-    Ok(())
 }
 
 fn normalize_title(title: Option<&str>, messages: &Value) -> String {
@@ -447,9 +434,6 @@ mod tests {
                     "text": "长期协作者"
                 }
             ]),
-            conversation: json!([]),
-            context: None,
-            trace: None,
             is_unread: None,
         })
         .expect("save chat session")
@@ -464,7 +448,7 @@ mod tests {
         let session_dir = workspace.path.join(chat_dir_display()).join("chat-test");
         assert!(session_dir.join(META_FILE_NAME).exists());
         assert!(session_dir.join(MESSAGES_FILE_NAME).exists());
-        assert!(session_dir.join(CONVERSATION_FILE_NAME).exists());
+        assert!(!session_dir.join(LEGACY_CONVERSATION_FILE_NAME).exists());
     }
 
     #[test]

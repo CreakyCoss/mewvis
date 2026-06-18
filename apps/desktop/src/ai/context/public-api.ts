@@ -23,10 +23,7 @@ import {
   appendReferencesToPrompt as appendReferencesToPromptInternal,
   formatReferencesForPrompt as formatReferencesForPromptInternal,
 } from "./prompt/references";
-import {
-  createAgentContextSession,
-} from "./session";
-import type { AgentContextApi } from "./protocol/session";
+import type { AgentContextApi } from "./protocol/api";
 
 const descriptorFor = (
   engine: ReturnType<typeof getContextEngineInternal>,
@@ -42,14 +39,6 @@ const descriptorFor = (
 const formatConversationForSummary:
   AgentContextApi["formatConversationForSummary"] =
     formatConversationForSummaryInternal;
-
-const createSession:
-  AgentContextApi["createSession"] =
-    createAgentContextSession;
-
-const createSessionManager:
-  AgentContextApi["createSessionManager"] =
-    createAgentContextSession;
 
 const normalizeChatContextSummary:
   AgentContextApi["normalizeChatContextSummary"] =
@@ -97,8 +86,6 @@ const formatReferencesForPrompt:
 
 export const agentContext: AgentContextApi = {
   DEFAULT_CONTEXT_ENGINE_ID,
-  createSessionManager,
-  createSession,
   formatConversationForSummary,
   normalizeChatContextSummary,
   normalizeConversationMessages,

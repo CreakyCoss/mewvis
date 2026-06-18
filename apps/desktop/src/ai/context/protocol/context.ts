@@ -9,6 +9,7 @@ export type ConversationMessageMetadata = {
   executionSummary?: string;
   runStatus?: ConversationRunStatus;
   runtimeSessionId?: string | null;
+  collaboration?: Record<string, unknown>;
 };
 
 export type ConversationMessage = {

@@ -10,7 +10,7 @@ import type {
 } from "../../../contracts/model.js";
 import type {
   RuntimeChatCommand,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
 
 export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
@@ -23,7 +23,7 @@ export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
 };
 
 export const requirePiRuntimeConfig = (
-  command: Pick<RuntimeStartTaskCommand | RuntimeChatCommand, "runtimeModel">,
+  command: Pick<RuntimeAgentCommand | RuntimeChatCommand, "runtimeModel">,
 ): RuntimeModelInput => {
   if (!command.runtimeModel) {
     throw new Error("Pi runtime 需要配置 LLM provider 和模型");

@@ -1,13 +1,10 @@
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
-import type {
-  ChatContextSummary,
-  ConversationMessage,
-} from "@/ai/agent-context";
 
 export type {
   ChatContextSummary,
   ConversationMessage,
-} from "@/ai/agent-context";
+  PromptContextLimits,
+} from "@/ai/context";
 export type {
   AgentSessionStatus,
   CleanupAgentSessionsResult,
@@ -162,6 +159,7 @@ export type ChatMessage = {
   agentName?: string;
   collaboration?: ChatMessageCollaboration;
   referencedFiles?: Array<{ path: string }>;
+  bridgeMessageRecordId?: string | null;
 };
 
 export type ChatSessionMeta = {
@@ -233,8 +231,5 @@ export type ChatSession = {
   createdAt: number;
   updatedAt: number;
   messages: ChatMessage[];
-  conversation: ConversationMessage[];
-  context?: ChatContextSummary | null;
-  trace?: ChatTraceTurn[];
   isUnread?: boolean;
 };

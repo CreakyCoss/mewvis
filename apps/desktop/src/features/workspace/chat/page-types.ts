@@ -1,8 +1,8 @@
 import type { AgentRuntimeAgentQuestionInput } from "@/ai/agent-runtime/contracts";
 import type {
-  AgentContextSessionDebugPayload,
-  AgentContextSessionDebugSnapshot,
-} from "@/ai/agent-context";
+  ContextDebugPayload as BaseContextDebugPayload,
+  ContextDebugSnapshot as BaseContextDebugSnapshot,
+} from "@/ai/context/debug";
 import type { WorkspaceFileEntry } from "./types";
 
 export type WorkspaceView = "chat" | "settings" | "skills" | "knowledge" | "tavern";
@@ -11,10 +11,10 @@ export type ChatMode = "chat" | "agent" | "collab";
 export type ChatExecutionMode = "direct" | "agent";
 export type CollaborationPhase = "idle" | "drafting" | "reviewing" | "revising";
 
-export type ContextDebugPayload = AgentContextSessionDebugPayload;
+export type ContextDebugPayload = BaseContextDebugPayload;
 
 export type ContextDebugSnapshot = Omit<
-  AgentContextSessionDebugSnapshot,
+  BaseContextDebugSnapshot,
   "engineId" | "contextWindow"
 > & {
   mode: ChatMode;

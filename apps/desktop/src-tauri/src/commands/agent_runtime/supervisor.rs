@@ -375,14 +375,14 @@ impl AgentRuntimeWorker {
         };
 
         if should_start {
-            self.start_task(task)
+            self.launch_task(task)
         } else {
             self.emit_task_state(&task.task_id, "queued");
             Ok(())
         }
     }
 
-    fn start_task(self: &Arc<Self>, task: QueuedAgentTask) -> Result<(), String> {
+    fn launch_task(self: &Arc<Self>, task: QueuedAgentTask) -> Result<(), String> {
         self.emit_task_state(&task.task_id, "starting");
 
         if let Err(error) = self.write_command(&task.command) {
@@ -891,7 +891,7 @@ impl AgentRuntimeWorker {
         };
 
         if let Some(task) = next_task {
-            if let Err(error) = self.start_task(task.clone()) {
+            if let Err(error) = self.launch_task(task.clone()) {
                 self.emit_error(&task.task_id, &error);
             }
         }

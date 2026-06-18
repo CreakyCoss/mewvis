@@ -1,14 +1,10 @@
 import {
-  agentContext,
+  formatConversationForSummary,
   type ConversationMessage,
   type ConversationSummarizer,
-} from "@/ai/agent-context";
+} from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "./runtime-chat";
-
-const {
-  formatConversationForSummary,
-} = agentContext;
 
 export type SharedConversationSummaryPromptInput = {
   previousSummary: string;

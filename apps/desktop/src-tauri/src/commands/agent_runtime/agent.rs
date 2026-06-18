@@ -1,5 +1,6 @@
 use super::{
     bridge::append_agent_diagnostic,
+    session_paths::resolve_optional_session_root_dir,
     skills::{
         app_skill_paths_for_bridge, bundled_skills_path_for_bridge,
         workspace_skill_paths_for_bridge,
@@ -18,8 +19,12 @@ pub struct RunAgentRuntimeAgentInput {
     agent_id: Option<String>,
     workspace_path: String,
     chat_session_id: Option<String>,
-    prompt: String,
-    bootstrap_context: Option<String>,
+    session_root_dir: Option<String>,
+    agent_role_id: Option<String>,
+    user_message: String,
+    system_prompt: Option<String>,
+    request_context: Option<String>,
+    runtime_instruction: Option<String>,
     runtime_model: Option<AgentRuntimeModelInput>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
@@ -51,7 +56,11 @@ pub fn run_agent_runtime_agent(
     let bundled_skills_path = bundled_skills_path_for_bridge(&app)?;
     let mut skill_paths = app_skill_paths_for_bridge(&app)?;
     skill_paths.extend(workspace_skill_paths_for_bridge(&input.workspace_path));
-    let session_key = session_key_for_task(&input, &task_id);
+    let session_root_dir = resolve_optional_session_root_dir(
+        Some(&input.workspace_path),
+        input.session_root_dir.as_deref(),
+    )?;
+    let session_key = session_key_for_task(&input, &task_id, session_root_dir.as_deref());
 
     append_agent_diagnostic(
         &app,
@@ -68,30 +77,50 @@ pub fn run_agent_runtime_agent(
         ),
     );
 
+    let allowed_tools = input.allowed_tools.unwrap_or_else(|| {
+        vec![
+            "read".to_string(),
+            "edit".to_string(),
+            "write".to_string(),
+            "ls".to_string(),
+            "find".to_string(),
+            "grep".to_string(),
+            "ask_user".to_string(),
+        ]
+    });
+    let enabled_skills = input.enabled_skills.unwrap_or_default();
     let command = json!({
-        "type": "start_task",
+        "type": "send_message",
         "requestId": task_id.clone(),
-        "agentId": input.agent_id,
-        "taskId": task_id.clone(),
-        "workspacePath": input.workspace_path,
-        "chatSessionId": input.chat_session_id,
-        "prompt": input.prompt,
-        "bootstrapContext": input.bootstrap_context,
-        "runtimeModel": input.runtime_model,
-        "bundledSkillsPath": bundled_skills_path,
-        "skillPaths": skill_paths,
-        "enabledSkills": input.enabled_skills.unwrap_or_default(),
-        "allowedTools": input.allowed_tools.unwrap_or_else(|| {
-            vec![
-                "read".to_string(),
-                "edit".to_string(),
-                "write".to_string(),
-                "ls".to_string(),
-                "find".to_string(),
-                "grep".to_string(),
-                "ask_user".to_string(),
-            ]
-        }),
+        "session": {
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+        },
+        "agent": {
+            "agentId": input.agent_id,
+            "agentRoleId": input.agent_role_id,
+        },
+        "input": {
+            "userMessage": input.user_message,
+            "systemPrompt": input.system_prompt,
+            "requestContext": input.request_context,
+            "runtimeInstruction": input.runtime_instruction,
+        },
+        "runtime": {
+            "mode": "agent",
+            "taskId": task_id.clone(),
+            "model": input.runtime_model,
+            "resources": {
+                "tools": {
+                    "allowed": allowed_tools,
+                },
+                "skills": {
+                    "bundledPath": bundled_skills_path,
+                    "paths": skill_paths,
+                    "enabled": enabled_skills,
+                },
+            },
+        }
     });
 
     state.submit(
@@ -129,15 +158,22 @@ pub fn abort_agent_runtime_agent(
     state.abort(&task_id)
 }
 
-fn session_key_for_task(input: &RunAgentRuntimeAgentInput, task_id: &str) -> String {
+fn session_key_for_task(
+    input: &RunAgentRuntimeAgentInput,
+    task_id: &str,
+    session_root_dir: Option<&str>,
+) -> String {
     let agent_id = input.agent_id.as_deref().unwrap_or("<default>");
-    let chat_session_id = input
-        .chat_session_id
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
+    let session_scope = session_root_dir
+        .or_else(|| {
+            input
+                .chat_session_id
+                .as_deref()
+                .filter(|value| !value.trim().is_empty())
+        })
         .unwrap_or(task_id);
 
-    format!("{}|{}|{}", input.workspace_path, agent_id, chat_session_id)
+    format!("{}|{}|{}", input.workspace_path, agent_id, session_scope)
 }
 
 fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String> {
@@ -145,7 +181,7 @@ fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String>
         return Err("工作区路径不能为空".to_string());
     }
 
-    if input.prompt.trim().is_empty() {
+    if input.user_message.trim().is_empty() {
         return Err("Agent 任务内容不能为空".to_string());
     }
 

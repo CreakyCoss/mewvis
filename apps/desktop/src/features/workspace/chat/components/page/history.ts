@@ -1,10 +1,8 @@
 import { extractAgentExecutionSummary } from "@/ai/agent-runtime/memory";
 import type {
-  ChatContextSummary,
   ChatMessage,
   ChatSession,
   ChatSessionMeta,
-  ChatTraceTurn,
   ConversationMessage,
 } from "../../types";
 import { collaborationConversationContentFromMessage } from "../../utils/collaboration";
@@ -13,9 +11,6 @@ export type HydratableChatSession = {
   id: string | null;
   title: string;
   messages: ChatMessage[];
-  conversation: ConversationMessage[];
-  context?: ChatContextSummary | null;
-  trace?: ChatTraceTurn[];
 };
 
 export const sortChatSessionsByFixedOrder = (sessions: ChatSessionMeta[]) =>
@@ -38,9 +33,6 @@ export const toHydratableSession = (
     id: session.id,
     title: session.title,
     messages: session.messages,
-    conversation: session.conversation,
-    context: session.context,
-    trace: session.trace,
   }
   : null;
 

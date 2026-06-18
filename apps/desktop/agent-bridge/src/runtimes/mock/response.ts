@@ -1,7 +1,11 @@
 import type {
   RuntimeChatCommand,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../types.js";
+import {
+  allowedRuntimeTools,
+  enabledRuntimeSkillNames,
+} from "../resources.js";
 
 const compact = (value: string, maxLength = 180) => {
   const normalized = value.replace(/\s+/g, " ").trim();
@@ -30,29 +34,52 @@ export const createMockChatText = (command: RuntimeChatCommand) => {
   const summary = latestUserMessage?.content
     ? compact(latestUserMessage.content)
     : "没有收到用户消息";
+  const systemPromptSummary = command.systemPrompt?.trim()
+    ? compact(command.systemPrompt)
+    : "无";
+  const requestContextSummary = command.requestContext?.trim()
+    ? compact(command.requestContext)
+    : "无";
 
   return [
     "这是 Mock agent 的模拟回复。",
     "",
+    `系统提示词：${systemPromptSummary}`,
+    `请求上下文：${requestContextSummary}`,
     `收到的最后一条用户消息：${summary}`,
     "",
     "当前没有调用真实模型，也不会读写工作区。这个回复用于验证前端、Tauri、agent-bridge 的链路是否通畅。",
   ].join("\n");
 };
 
-export const createMockAgentText = (command: RuntimeStartTaskCommand) => {
-  const enabledTools = command.allowedTools?.length
-    ? command.allowedTools.join(", ")
+export const createMockAgentText = (command: RuntimeAgentCommand) => {
+  const allowedTools = allowedRuntimeTools(command);
+  const enabledSkillNames = enabledRuntimeSkillNames(command);
+  const enabledTools = allowedTools?.length
+    ? allowedTools.join(", ")
     : "未传入工具列表";
-  const activeSkills = command.enabledSkills?.length
-    ? command.enabledSkills.join(", ")
+  const activeSkills = enabledSkillNames.length
+    ? enabledSkillNames.join(", ")
     : "不使用技能";
+  const bootstrapSummary = command.sessionBootstrapContext?.trim()
+    ? compact(command.sessionBootstrapContext)
+    : "无";
+  const systemPromptSummary = command.systemPrompt?.trim()
+    ? compact(command.systemPrompt)
+    : "无";
+  const requestContextSummary = command.requestContext?.trim()
+    ? compact(command.requestContext)
+    : "无";
 
   return [
     "Mock agent 已完成模拟任务。",
     "",
     `工作区：${command.workspacePath}`,
-    `任务摘要：${compact(command.prompt)}`,
+    `系统提示词：${systemPromptSummary}`,
+    `用户消息：${compact(command.userMessage)}`,
+    `请求上下文：${requestContextSummary}`,
+    `任务摘要：${compact(command.agentTaskPrompt)}`,
+    `Bootstrap摘要：${bootstrapSummary}`,
     `允许工具：${enabledTools}`,
     `当前技能：${activeSkills}`,
     "",

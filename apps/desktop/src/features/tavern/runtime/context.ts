@@ -1,7 +1,10 @@
 import {
-  agentContext,
+  countTextTokens,
+  formatReferencesForPrompt,
   type MemoryBackedRuntimeContextStats,
-} from "@/ai/agent-context";
+  prepareMemoryBackedRuntimeContext,
+  resolveAppContextWindow,
+} from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import {
   requireRuntimeModelInput as requireLlmRuntimeModelInput,
@@ -21,13 +24,6 @@ import {
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
 import type { TavernReplyModel } from "./model-selection";
-
-const {
-  countTextTokens,
-  formatReferencesForPrompt,
-  prepareMemoryBackedRuntimeContext,
-  resolveAppContextWindow,
-} = agentContext;
 
 const TAVERN_MEMORY_OVERFLOW_NOTICE = "（更早的自动记忆已按上下文预算裁剪，保留较新的剧情状态。）";
 

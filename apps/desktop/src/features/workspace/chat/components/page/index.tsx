@@ -6,9 +6,9 @@ import {
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import {
-  agentContext,
-  type AgentContextSessionFileDescriptor,
-} from "@/ai/agent-context";
+  getContextEngineDescriptor,
+  listContextEngineDescriptors,
+} from "@/ai/context";
 import {
   buildAgentConversationContent,
   buildAgentExecutionSummary,
@@ -21,7 +21,6 @@ import { AgentSettingsDialog } from "@/features/ai/agent/components/dialog";
 import { SettingsPanel } from "@/features/app/settings";
 import { LlmSettingsPage } from "@/features/ai/llm";
 import { KnowledgeBasePage } from "@/features/knowledge-base/components/knowledge-base-page";
-import { createGlobalKnowledgeRagIndex } from "@/features/knowledge-base/rag-index";
 import { TavernPage } from "@/features/tavern/components/tavern-page";
 import {
   ALL_SKILLS_GROUP_ID,
@@ -33,10 +32,15 @@ import type { WorkbenchHeaderProps } from "@/features/workspace/shell/workbench-
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
   cleanupOrphanAgentSessions,
+  compactAgentRuntimeSession,
+  deleteAgentRuntimeSessionMessage,
+  editAgentRuntimeSessionMessage,
   getAgentSessionStatus,
-  readWorkspaceFile,
-  resetAgentSessionsForChat,
+  readAgentRuntimeSession,
+  rebuildAgentRuntimeSession,
   saveChatSession,
+  type AgentRuntimeSessionMessageInput,
+  type AgentRuntimeSessionResult,
 } from "../../api";
 import type {
   ChatExecutionMode,
@@ -77,12 +81,7 @@ import {
   validateComposerSubmit,
 } from "./chat-turn";
 import {
-  compressConversationContextRuntime,
-  finalizeAgentRunContextRuntime,
-  invalidateContextAfterHistoryChangeRuntime,
-  rebuildContextAfterHistoryChangeRuntime,
-} from "./conversation-context-runtime";
-import {
+  createBridgeSessionRootDir,
   createChatSessionId,
   createMessageId,
   DEFAULT_SESSION_TITLE,
@@ -98,16 +97,9 @@ import {
   runCollaborationTurn,
 } from "./modes/collaboration-mode-runner";
 import { buildWorkspaceAgentInteractionInstructions } from "./modes/agent-prompts";
-import type {
-  FinalizeAssistantTurn,
-} from "./modes/types";
-import { runDirectChatTurnRuntime } from "./direct-turn-runtime";
-import {
-  createManagedContextDebugReporter,
-  finalizeManagedAssistantTurn,
-  managedPreparationTraceSteps,
-  prepareManagedTurnRuntime,
-} from "./managed-turn-runtime";
+import { prepareBridgeAgentTurnRuntime } from "./bridge-agent-turn-runtime";
+import { prepareBridgeCollaborationTurnRuntime } from "./bridge-collaboration-turn-runtime";
+import { runBridgeDirectChatTurnRuntime } from "./bridge-direct-turn-runtime";
 import { ContextWorkbenchDialog } from "../context-workbench/dialog";
 import { ChatPanel } from "../chat";
 import { useChatPanelStoreBridge } from "../chat/store";
@@ -119,22 +111,54 @@ import { useAgentRuntimeEvents } from "./use-agent-runtime-events";
 import { useContextModeling } from "./use-context-modeling";
 import { useFileWorkbench } from "./use-file-workbench";
 import { useModelSettings } from "./use-model-settings";
-import { useWorkspaceAgentContextSession } from "./use-workspace-agent-context-session";
 import { useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useChatTraceState } from "./use-chat-trace-state";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
 import { useWorkspaceSkills } from "./use-workspace-skills";
 import { useWorkspaceVersionControl } from "./use-workspace-version-control";
 
-const {
-  getContextEngineDescriptor,
-  listContextEngineDescriptors,
-} = agentContext;
+type AgentBridgeSessionRef = {
+  sessionRootDir: string;
+  userMessageRecordId?: string | null;
+  assistantMessageRecordId?: string | null;
+} | null | undefined;
 
-const toPromptFileDescriptor = (
-  file: { path: string; updatedAt?: number | null } | null | undefined,
-): AgentContextSessionFileDescriptor | null =>
-  file ? { path: file.path, updatedAt: file.updatedAt ?? null } : null;
+const contextFromBridgeSessionSummary = (
+  summary: string,
+): ChatContextSummary | null => summary
+  ? {
+    summary,
+    summarizedUntilIndex: 0,
+    updatedAt: Date.now(),
+    conversationFingerprint: null,
+    summaryFingerprint: null,
+    historyInvalidatedAt: null,
+    agentSyncs: {},
+  }
+  : null;
+
+const bridgeMessagesFromChatMessages = (
+  messages: ChatMessage[],
+): AgentRuntimeSessionMessageInput[] => messages
+  .map((message) => ({
+    role: message.role,
+    content: message.text.trim(),
+    timestamp: message.createdAt,
+    metadata: {
+      source: "app-ui-message",
+      uiMessageId: message.id,
+      mode: message.mode ?? null,
+      agentName: message.agentName ?? null,
+      collaboration: message.collaboration
+        ? {
+          runId: message.collaboration.runId,
+          stepId: message.collaboration.stepId,
+          phase: message.collaboration.phase,
+        }
+        : null,
+    },
+  }))
+  .filter((message) => message.content.length > 0);
 
 type WorkspaceChatPageProps = {
   workspace: Workspace;
@@ -229,12 +253,7 @@ export const WorkspaceChatPage = ({
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const availableContextEngines = useMemo(() => listContextEngineDescriptors(), []);
   const [contextEngineId, setContextEngineId] = useState(readPreferredContextEngineId);
-  const contextEngineDescriptor = useMemo(
-    () => getContextEngineDescriptor(contextEngineId),
-    [contextEngineId],
-  );
   const preferredContextEngineIdRef = useRef(contextEngineId);
-  const knowledgeRagIndex = useMemo(() => createGlobalKnowledgeRagIndex(), []);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
   const activeAgentTaskIdRef = useRef("");
@@ -245,29 +264,15 @@ export const WorkspaceChatPage = ({
   const lastAgentStderrRef = useRef("");
   const handledAgentDoneTaskIdsRef = useRef<Set<string>>(new Set());
   const activeAgentTraceRef = useRef<AgentMemoryTrace>(createAgentMemoryTrace());
-  const agentContextInvalidatedRef = useRef(false);
   const messagesRef = useRef<ChatMessage[]>([]);
   const conversationRef = useRef<ConversationMessage[]>([]);
   const conversationContextRef = useRef<ChatContextSummary | null>(null);
-  const loadContextFile = useCallback(async ({ path }: { path: string }) => {
-    const content = await readWorkspaceFile(workspaceRef.current.path, path);
-    return {
-      path: content.path,
-      content: content.content,
-      updatedAt: content.updatedAt,
-    };
-  }, []);
-  const agentContextSession = useWorkspaceAgentContextSession({
-    engineId: contextEngineId,
-    loadFile: loadContextFile,
-  });
   const currentSessionIdRef = useRef<string | null>(null);
   const currentSessionTitleRef = useRef(DEFAULT_SESSION_TITLE);
   const pendingAgentQuestionRef = useRef<PendingAgentQuestion | null>(null);
   const agentQuestionAnswerRef = useRef("");
   const customAgentQuestionAnswerRef = useRef("");
   const answeringAgentQuestionIdsRef = useRef<Set<string>>(new Set());
-  const agentSessionResetPromiseRef = useRef<Promise<boolean> | null>(null);
   const collaborationPlanDecisionResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const chatScrollSnapshotRef = useRef<{
@@ -381,9 +386,7 @@ export const WorkspaceChatPage = ({
   const {
     contextModelFor,
     effectiveAppContextWindow,
-    summarizerFor,
   } = useContextModeling({
-    runtimeAgentRequiresModel,
     effectiveRuntimeModel,
   });
   const {
@@ -819,11 +822,6 @@ export const WorkspaceChatPage = ({
     const nextContextEngineId = getContextEngineDescriptor(
       task.context?.engine?.id ?? preferredContextEngineIdRef.current,
     ).id;
-    agentContextSession.syncState({
-      chatId: task.sessionId,
-      engineId: nextContextEngineId,
-      context: task.context,
-    });
     setMessages(task.messages);
     setConversation(task.conversation);
     setConversationContext(task.context);
@@ -849,7 +847,7 @@ export const WorkspaceChatPage = ({
       currentTask.title = currentSessionTitleRef.current;
       currentTask.messages = messagesRef.current;
       currentTask.conversation = conversationRef.current;
-      currentTask.context = agentContextSession.getContext();
+      currentTask.context = conversationContextRef.current;
       currentTask.pendingQuestion =
         pendingAgentQuestionRef.current?.taskId === currentTaskId
           ? pendingAgentQuestionRef.current
@@ -995,13 +993,10 @@ export const WorkspaceChatPage = ({
     messages,
     setMessages,
     messagesRef,
-    conversation,
     setConversation,
     conversationRef,
-    conversationContext,
     setConversationContext,
     conversationContextRef,
-    chatTrace,
     replaceChatTrace,
     setContextDebugSnapshot,
     setContextEngineId,
@@ -1017,8 +1012,7 @@ export const WorkspaceChatPage = ({
     isAgentTaskRunningForSession,
     pendingAgentQuestion,
     visibleActiveAgentTaskId,
-    agentContextInvalidatedRef,
-  });
+    });
   const resetConversationSkillGroup = useCallback(() => {
     skillGroupSelectionTouchedRef.current = false;
     setSelectedSkillGroupIds(resolvedDefaultSkillGroupIds);
@@ -1137,12 +1131,7 @@ export const WorkspaceChatPage = ({
 
   useEffect(() => {
     conversationContextRef.current = conversationContext;
-    agentContextSession.syncState({
-      chatId: currentSessionId,
-      engineId: contextEngineId,
-      context: conversationContext,
-    });
-  }, [agentContextSession, contextEngineId, conversationContext, currentSessionId]);
+  }, [conversationContext]);
 
   useEffect(() => {
     if (!visibleActiveAgentTaskId) {
@@ -1181,9 +1170,9 @@ export const WorkspaceChatPage = ({
     assistantText: string,
     status: "done" | "error",
     statusMessage?: string,
+    bridgeSession?: AgentBridgeSessionRef,
   ) => {
     const agentSessionId = activeAgentSessionIdRef.current || agentRuntimeSessionId || "";
-    const agentId = activeAgentIdRef.current || "default";
     const activeTask = activeAgentTaskIdRef.current
       ? runningAgentTasksRef.current.get(activeAgentTaskIdRef.current)
       : undefined;
@@ -1213,10 +1202,9 @@ export const WorkspaceChatPage = ({
       conversationRef.current = nextConversation;
 
       void (async () => {
-        let latestAgentSessionStatus = agentSessionStatus;
         if (agentSessionId) {
           try {
-            latestAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
+            const latestAgentSessionStatus = await getAgentSessionStatus(workspace.path, agentSessionId);
             setAgentSessionStatus(latestAgentSessionStatus);
             setAgentSessionError("");
           } catch (caught) {
@@ -1224,27 +1212,38 @@ export const WorkspaceChatPage = ({
           }
         }
 
-        const finalizeContextStartedAt = Date.now();
-        const finalizedContext = await finalizeAgentRunContextRuntime({
-          contextSession: agentContextSession.agentRunFinalizer,
-          chatId: currentSessionId,
-          contextEngineId,
-          conversation: nextConversation,
-          agentSessionId,
-          agentId,
-          runStatus: status,
-          agentSessionStatus: latestAgentSessionStatus,
-          runtimeAgentRequiresModel,
-          startedAt: finalizeContextStartedAt,
-        });
-        const syncedContext = finalizedContext.nextContext;
-        agentContextInvalidatedRef.current = false;
-        conversationContextRef.current = syncedContext;
-        setConversationContext(syncedContext);
-        if (traceTurnId) {
-          for (const step of finalizedContext.traceSteps) {
-            appendVisibleTraceStep(traceTurnId, step);
+        const bridgeSessionRootDir = bridgeSession?.sessionRootDir ??
+          createBridgeSessionRootDir(currentSessionId);
+        if (!bridgeSessionRootDir) {
+          return;
+        }
+
+        const contextReadStartedAt = Date.now();
+        try {
+          const bridgeContext = await readAgentRuntimeSession({
+            workspacePath: workspace.path,
+            sessionRootDir: bridgeSessionRootDir,
+          });
+          const syncedContext = contextFromBridgeSessionSummary(bridgeContext?.summary ?? "");
+          conversationContextRef.current = syncedContext;
+          setConversationContext(syncedContext);
+          if (traceTurnId) {
+            appendVisibleTraceStep(traceTurnId, {
+              type: "context",
+              label: "Bridge 上下文回读",
+              startedAt: contextReadStartedAt,
+              endedAt: Date.now(),
+              status: "done",
+              content: bridgeContext?.summary || "（空）",
+              metadata: {
+                sessionRootDir: bridgeSessionRootDir,
+                source: "bridge-ledger",
+                runStatus: status,
+              },
+            });
           }
+        } catch (caught) {
+          setSessionsError(String(caught));
         }
       })();
 
@@ -1254,11 +1253,8 @@ export const WorkspaceChatPage = ({
     return executionSummary;
   }, [
     agentRuntimeSessionId,
-    agentSessionStatus,
     appendVisibleTraceStep,
-    contextEngineId,
     currentSessionId,
-    runtimeAgentRequiresModel,
     workspace.path,
   ]);
 
@@ -1273,9 +1269,6 @@ export const WorkspaceChatPage = ({
       sessionId: task.sessionId,
       title,
       messages: task.messages,
-      conversation: task.conversation,
-      context: task.context,
-      trace: task.chatTrace,
       isUnread,
     });
 
@@ -1339,16 +1332,9 @@ export const WorkspaceChatPage = ({
     refreshAgentSessionStatus,
   });
 
-  useEffect(() => {
-    if (visibleActiveAgentTaskId) {
-      return;
-    }
-
-    setAgentRuntimeSessionId(agentContextSession.getActiveAgentRuntimeSessionId(runtimeAgentId));
-  }, [agentContextSession, contextEngineId, conversationContext, runtimeAgentId, visibleActiveAgentTaskId]);
-
   const compressConversationContext = useCallback(async () => {
-    if (conversation.length === 0) {
+    const bridgeSessionRootDir = createBridgeSessionRootDir(currentSessionId);
+    if (!bridgeSessionRootDir) {
       return;
     }
 
@@ -1358,29 +1344,28 @@ export const WorkspaceChatPage = ({
     setSessionsError("");
 
     try {
-      const compressedContext = await compressConversationContextRuntime({
-        contextSession: agentContextSession.compressor,
-        chatId: currentSessionId,
-        contextEngineId,
-        fallbackContext: conversationContext,
-        conversation,
-        runtimeModel: effectiveRuntimeModel,
-        contextModelFor,
-        summarizerFor,
-        runtimeAgentRequiresModel,
-        startedAt: compressionStartedAt,
-        mode: "manual",
-        phase: "manual",
-        providerName: effectiveRuntimeModel?.provider.name ?? null,
-        modelName: effectiveRuntimeModel?.modelName ?? null,
+      const result = await compactAgentRuntimeSession({
+        workspacePath: workspace.path,
+        sessionRootDir: bridgeSessionRootDir,
       });
-      const nextContext = compressedContext.nextContext;
+      const nextContext = contextFromBridgeSessionSummary(result?.summary ?? "");
       conversationContextRef.current = nextContext;
       setConversationContext(nextContext);
       if (latestTraceTurn) {
-        for (const step of compressedContext.traceSteps) {
-          appendVisibleTraceStep(latestTraceTurn.id, step);
-        }
+        appendVisibleTraceStep(latestTraceTurn.id, {
+          type: "context",
+          label: "Bridge 上下文压缩",
+          startedAt: compressionStartedAt,
+          endedAt: Date.now(),
+          status: "done",
+          content: result?.summary || "（空）",
+          metadata: {
+            mode: "manual",
+            source: "bridge-ledger",
+            sessionRootDir: bridgeSessionRootDir,
+            compacted: result?.compacted ?? false,
+          },
+        });
       }
     } catch (caught) {
       const message = String(caught);
@@ -1394,8 +1379,8 @@ export const WorkspaceChatPage = ({
           content: message,
           metadata: {
             mode: "manual",
-            engineId: contextEngineId,
-            conversationLength: conversation.length,
+            source: "bridge-ledger",
+            sessionRootDir: bridgeSessionRootDir,
           },
         });
       }
@@ -1405,45 +1390,68 @@ export const WorkspaceChatPage = ({
     }
   }, [
     appendVisibleTraceStep,
-    conversation,
-    conversationContext,
-    contextModelFor,
-    contextEngineId,
     currentSessionId,
-    effectiveRuntimeModel,
-    runtimeAgentRequiresModel,
-    summarizerFor,
+    workspace.path,
   ]);
 
-  const rebuildContextAfterHistoryChange = useCallback(async (
-    nextConversation: ConversationMessage[],
+  const syncBridgeRebuildResult = useCallback((
+    sourceMessages: ChatMessage[],
+    result: AgentRuntimeSessionResult | null,
   ) => {
-    const collaborationSummaryAgent = chatMode === "collab"
-      ? selectedCollaborationWorkflow?.writerAgent ?? null
-      : null;
-    const summaryRuntimeModel = collaborationSummaryAgent?.runtimeModel ?? effectiveRuntimeModel;
-    const nextContext = await rebuildContextAfterHistoryChangeRuntime({
-      contextSession: agentContextSession.historySession,
-      chatId: currentSessionId,
-      contextEngineId,
-      currentContext: conversationContextRef.current,
-      nextConversation,
-      runtimeModel: summaryRuntimeModel,
-      contextModelFor,
-      summarizerFor,
-      runtimeAgentRequiresModel,
+    if (!result) {
+      return;
+    }
+
+    const recordIdsByMessageId = new Map<string, string | null>();
+    let entryIndex = 0;
+    for (const message of sourceMessages) {
+      if (!message.text.trim()) {
+        continue;
+      }
+      recordIdsByMessageId.set(message.id, result.messageRecordIds?.[entryIndex] ?? null);
+      entryIndex += 1;
+    }
+
+    setMessages((currentMessages) => {
+      const nextMessages = currentMessages.map((message) => {
+        if (!recordIdsByMessageId.has(message.id)) {
+          return message;
+        }
+        return {
+          ...message,
+          bridgeMessageRecordId: recordIdsByMessageId.get(message.id) ?? null,
+        };
+      });
+      messagesRef.current = nextMessages;
+      return nextMessages;
     });
+
+    const nextContext = contextFromBridgeSessionSummary(result.summary);
     conversationContextRef.current = nextContext;
     setConversationContext(nextContext);
+  }, []);
+
+  const rebuildBridgeSessionFromMessages = useCallback((
+    nextMessages: ChatMessage[],
+  ) => {
+    const bridgeSessionRootDir = createBridgeSessionRootDir(currentSessionId);
+    if (!bridgeSessionRootDir) {
+      return;
+    }
+
+    void rebuildAgentRuntimeSession({
+      workspacePath: workspace.path,
+      sessionRootDir: bridgeSessionRootDir,
+      messages: bridgeMessagesFromChatMessages(nextMessages),
+    }).then((result) => {
+      syncBridgeRebuildResult(nextMessages, result);
+    }).catch((caught) => {
+      setSessionsError(String(caught));
+    });
   }, [
-    chatMode,
-    contextModelFor,
-    contextEngineId,
     currentSessionId,
-    effectiveRuntimeModel,
-    runtimeAgentRequiresModel,
-    selectedCollaborationWorkflow,
-    summarizerFor,
+    syncBridgeRebuildResult,
+    workspace.path,
   ]);
 
   const applyHistoryChange = useCallback((
@@ -1451,7 +1459,7 @@ export const WorkspaceChatPage = ({
   ) => {
     if (visibleActiveAgentTaskId) {
       setSessionsError("Agent 正在处理，结束后再修改历史记录");
-      return;
+      return false;
     }
 
     setSessionsError("");
@@ -1462,16 +1470,8 @@ export const WorkspaceChatPage = ({
         nextMessages,
       ),
     );
-    agentContextInvalidatedRef.current = true;
-    const invalidatedContext = invalidateContextAfterHistoryChangeRuntime({
-      contextSession: agentContextSession.historySession,
-      chatId: currentSessionId,
-      contextEngineId,
-      currentContext: conversationContextRef.current,
-      conversation: sanitizedConversation,
-    });
-    conversationContextRef.current = invalidatedContext;
-    setConversationContext(invalidatedContext);
+    conversationContextRef.current = null;
+    setConversationContext(null);
     setContextDebugSnapshot(null);
     setAgentRuntimeSessionId(null);
     setAgentSessionStatus(null);
@@ -1480,29 +1480,9 @@ export const WorkspaceChatPage = ({
     conversationRef.current = sanitizedConversation;
     setMessages(nextMessages);
     setConversation(sanitizedConversation);
-    if (currentSessionId) {
-      const resetPromise = resetAgentSessionsForChat(workspace.path, currentSessionId)
-        .then(() => true)
-        .catch((caught) => {
-          setSessionsError(String(caught));
-          return false;
-        })
-        .finally(() => {
-          if (agentSessionResetPromiseRef.current === resetPromise) {
-            agentSessionResetPromiseRef.current = null;
-          }
-        });
-      agentSessionResetPromiseRef.current = resetPromise;
-    }
-    void rebuildContextAfterHistoryChange(sanitizedConversation).catch((caught) => {
-      setSessionsError(String(caught));
-    });
+    return true;
   }, [
-    contextEngineId,
-    currentSessionId,
-    rebuildContextAfterHistoryChange,
     visibleActiveAgentTaskId,
-    workspace.path,
   ]);
 
   const editHistoryMessage = useCallback((messageId: string, nextText: string) => {
@@ -1514,6 +1494,8 @@ export const WorkspaceChatPage = ({
 
     const currentMessages = messagesRef.current;
     const editedMessage = currentMessages.find((message) => message.id === messageId);
+    const bridgeMessageRecordId = editedMessage?.bridgeMessageRecordId ?? null;
+    const bridgeSessionRootDir = createBridgeSessionRootDir(currentSessionId);
     const editedMessages = currentMessages.map((message) =>
       message.id === messageId
         ? {
@@ -1529,19 +1511,98 @@ export const WorkspaceChatPage = ({
       ? keepHistoryThroughMessage(editedMessages, messageId)
       : editedMessages;
 
-    applyHistoryChange(nextMessages);
-  }, [applyHistoryChange]);
+    if (!applyHistoryChange(nextMessages)) {
+      return;
+    }
+
+    if (bridgeMessageRecordId && bridgeSessionRootDir) {
+      void editAgentRuntimeSessionMessage({
+        workspacePath: workspace.path,
+        sessionRootDir: bridgeSessionRootDir,
+        messageRecordId: bridgeMessageRecordId,
+        content,
+      }).then((result) => {
+        if (!result) {
+          return;
+        }
+        const nextContext = contextFromBridgeSessionSummary(result.summary);
+        conversationContextRef.current = nextContext;
+        setConversationContext(nextContext);
+        if (result.messageRecordId) {
+          updateMessage(messageId, (message) => ({
+            ...message,
+            bridgeMessageRecordId: result.messageRecordId ?? message.bridgeMessageRecordId,
+          }));
+        }
+      }).catch(() => {
+        rebuildBridgeSessionFromMessages(nextMessages);
+      });
+    } else {
+      rebuildBridgeSessionFromMessages(nextMessages);
+    }
+  }, [
+    applyHistoryChange,
+    currentSessionId,
+    rebuildBridgeSessionFromMessages,
+    updateMessage,
+    workspace.path,
+  ]);
 
   const deleteHistoryMessage = useCallback((messageId: string) => {
-    applyHistoryChange(removeHistoryMessageSegment(messagesRef.current, messageId));
-  }, [applyHistoryChange]);
+    const currentMessages = messagesRef.current;
+    const deletedIndex = currentMessages.findIndex((message) => message.id === messageId);
+    const deletedMessage = deletedIndex >= 0 ? currentMessages[deletedIndex] : null;
+    if (!deletedMessage) {
+      return;
+    }
+    const segmentStartIndex =
+      deletedMessage.role === "assistant" && currentMessages[deletedIndex - 1]?.role === "user"
+        ? deletedIndex - 1
+        : deletedIndex;
+    const bridgeTargetMessage = currentMessages[segmentStartIndex] ?? deletedMessage;
+    const bridgeMessageRecordId = bridgeTargetMessage.bridgeMessageRecordId ?? null;
+    const bridgeSessionRootDir = createBridgeSessionRootDir(currentSessionId);
+    const nextMessages = removeHistoryMessageSegment(currentMessages, messageId);
+
+    if (!applyHistoryChange(nextMessages)) {
+      return;
+    }
+
+    if (bridgeMessageRecordId && bridgeSessionRootDir) {
+      void deleteAgentRuntimeSessionMessage({
+        workspacePath: workspace.path,
+        sessionRootDir: bridgeSessionRootDir,
+        messageRecordId: bridgeMessageRecordId,
+      }).then((result) => {
+        if (!result) {
+          return;
+        }
+        const nextContext = contextFromBridgeSessionSummary(result.summary);
+        conversationContextRef.current = nextContext;
+        setConversationContext(nextContext);
+      }).catch(() => {
+        rebuildBridgeSessionFromMessages(nextMessages);
+      });
+    } else {
+      rebuildBridgeSessionFromMessages(nextMessages);
+    }
+  }, [
+    applyHistoryChange,
+    currentSessionId,
+    rebuildBridgeSessionFromMessages,
+    workspace.path,
+  ]);
 
   const moveHistoryMessage = useCallback((
     messageId: string,
     direction: "up" | "down",
   ) => {
-    applyHistoryChange(moveHistoryItem(messagesRef.current, messageId, direction));
-  }, [applyHistoryChange]);
+    const nextMessages = moveHistoryItem(messagesRef.current, messageId, direction);
+    if (!applyHistoryChange(nextMessages)) {
+      return;
+    }
+    rebuildBridgeSessionFromMessages(nextMessages);
+  }, [applyHistoryChange, rebuildBridgeSessionFromMessages]);
   const latestAgentExecutionSummary = useMemo(
     () => findLatestAgentExecutionSummary(conversation),
     [conversation],
@@ -1611,7 +1672,6 @@ export const WorkspaceChatPage = ({
     text,
     referencedFiles,
     baseConversation,
-    baseConversationContext,
     currentAgentExecutionSummary,
     traceProviderName,
     traceModelName,
@@ -1623,34 +1683,14 @@ export const WorkspaceChatPage = ({
     text: string;
     referencedFiles: Array<{ path: string }>;
     baseConversation: ConversationMessage[];
-    baseConversationContext: ChatContextSummary | null;
     currentAgentExecutionSummary: string;
     traceProviderName: string | null;
     traceModelName: string | null;
     nextSessionId: string | null;
   }) => {
-    const hasRagIndex = contextEngineDescriptor.capabilities.includes("rag_index");
-    const result = await runDirectChatTurnRuntime({
-      contextSession: agentContextSession.turnSession,
+    const modelContext = contextModelFor(effectiveRuntimeModel);
+    const result = await runBridgeDirectChatTurnRuntime({
       workspace,
-      contextEngineId,
-      effectiveAppContextWindow,
-      runtimeAgentRequiresModel,
-      contextModelFor,
-      summarizerFor,
-      searchKnowledge: hasRagIndex
-        ? ({ query, conversation, references }) =>
-          knowledgeRagIndex.search({
-            query,
-            conversation,
-            references,
-            maxResults: 8,
-            metadata: {
-              workspaceId: workspace.id,
-              workspacePath: workspace.path,
-            },
-          })
-        : undefined,
       chatMode,
       runtimeAgentId,
       effectiveRuntimeModel,
@@ -1662,184 +1702,23 @@ export const WorkspaceChatPage = ({
       traceTurnId,
       text,
       referencedFiles,
-      activeFile: toPromptFileDescriptor(activeFile),
+      activeFile: activeFile ? { path: activeFile.path } : null,
       activeSkills,
       selectedAgent: modelSource === "agent" ? selectedAgent : null,
       baseConversation,
-      baseConversationContext,
       executionMemorySummary: currentAgentExecutionSummary,
-      onPreparedContext: (context) => {
-        conversationContextRef.current = context;
-        setConversationContext(context);
-      },
+      contextWindow: modelContext.contextWindow ?? effectiveAppContextWindow,
+      modelContext,
       onDebugSnapshot: setContextDebugSnapshot,
       appendVisibleTraceStep,
       patchVisibleTraceTurn,
       updateMessage,
     });
 
-    conversationRef.current = result.conversation;
-    setConversation(result.conversation);
+    conversationRef.current = result.finalConversation;
+    setConversation(result.finalConversation);
     conversationContextRef.current = result.context;
     setConversationContext(result.context);
-  };
-
-  const prepareManagedTurnRuntimeWithSessionPrompt = async ({
-    userMessageId,
-    assistantMessageId,
-    traceTurnId,
-    text,
-    referencedFiles,
-    nextConversation,
-    baseConversationContext,
-    traceProviderName,
-    traceModelName,
-    nextSessionId,
-    summaryRuntimeModel,
-    prepareAgentPayload = false,
-  }: {
-    userMessageId: string;
-    assistantMessageId: string;
-    traceTurnId: string;
-    text: string;
-    referencedFiles: Array<{ path: string }>;
-    nextConversation: ConversationMessage[];
-    baseConversationContext: ChatContextSummary | null;
-    traceProviderName: string | null;
-    traceModelName: string | null;
-    nextSessionId: string | null;
-    summaryRuntimeModel: typeof effectiveRuntimeModel;
-    prepareAgentPayload?: boolean;
-  }) => {
-    const hasRagIndex = contextEngineDescriptor.capabilities.includes("rag_index");
-    const {
-      result,
-      agentPromptPayload,
-      limitsFor,
-      contextWindow,
-    } = await prepareManagedTurnRuntime({
-      contextSession: agentContextSession.turnSession,
-      contextEngineId,
-      effectiveAppContextWindow,
-      runtimeAgentRequiresModel,
-      contextModelFor,
-      summarizerFor,
-      searchKnowledge: hasRagIndex
-        ? ({ query, conversation, references }) =>
-          knowledgeRagIndex.search({
-            query,
-            conversation,
-            references,
-            maxResults: 8,
-            metadata: {
-              workspaceId: workspace.id,
-              workspacePath: workspace.path,
-            },
-          })
-        : undefined,
-      nextSessionId,
-      userMessageId,
-      assistantMessageId,
-      text,
-      referencedFiles,
-      activeFile: toPromptFileDescriptor(activeFile),
-      nextConversation,
-      baseConversationContext,
-      summaryRuntimeModel,
-      prepareAgentPayload,
-      runtimeAgentId,
-      agentContextInvalidated: agentContextInvalidatedRef.current,
-      selectedAgent: modelSource === "agent" ? selectedAgent : null,
-      agentInstructions: buildWorkspaceAgentInteractionInstructions(),
-      loadAgentSessionStatus: async (agentSessionId) => {
-        try {
-          const status = await getAgentSessionStatus(workspace.path, agentSessionId);
-          setAgentSessionStatus(status);
-          setAgentSessionError("");
-          return status;
-        } catch (caught) {
-          setAgentSessionError(String(caught));
-          return agentSessionStatus;
-        }
-      },
-    });
-
-    conversationContextRef.current = result.context;
-    setConversationContext(result.context);
-    patchVisibleTraceTurn(traceTurnId, {
-      contextEngineId,
-      contextWindow,
-      conversationSummary: result.conversationSummary,
-    });
-    for (const step of managedPreparationTraceSteps({
-      result,
-      mode: chatMode,
-      contextEngineId,
-      runtimeModel: summaryRuntimeModel,
-      runtimeAgentRequiresModel,
-    })) {
-      appendVisibleTraceStep(traceTurnId, step);
-    }
-
-    const reportContextDebugUpdate = createManagedContextDebugReporter({
-      result,
-      mode: chatMode,
-      contextEngineId,
-      contextWindow,
-      runtimeAgentId,
-      providerName: traceProviderName,
-      modelName: traceModelName,
-      onDebugSnapshot: setContextDebugSnapshot,
-    });
-    const finalizeAssistantTurn: FinalizeAssistantTurn = async ({
-      mode,
-      assistantText,
-      assistantMessages,
-    }) => {
-      const finalized = await finalizeManagedAssistantTurn({
-        contextSession: agentContextSession.chatTurnFinalizer,
-        nextSessionId,
-        contextEngineId,
-        contextBeforeFinalize: conversationContextRef.current,
-        modelContext: contextModelFor(summaryRuntimeModel),
-        runtimeAgentRequiresModel,
-        nextConversation,
-        assistantMessageId,
-        mode,
-        assistantText,
-        assistantMessages,
-        resultConversationSummary: result.conversationSummary,
-        startedAt: Date.now(),
-        providerName: summaryRuntimeModel?.provider.name ?? null,
-        modelName: summaryRuntimeModel?.modelName ?? null,
-      });
-      const { finalConversation, finalContext } = finalized;
-      conversationRef.current = finalConversation;
-      setConversation(finalConversation);
-      conversationContextRef.current = finalContext;
-      setConversationContext(finalContext);
-      for (const step of finalized.traceSteps) {
-        appendVisibleTraceStep(traceTurnId, step);
-      }
-      patchVisibleTraceTurn(traceTurnId, {
-        status: "done",
-        conversationSummary: finalized.conversationSummary,
-      });
-    };
-
-    return {
-      summaryLimits: result.limits,
-      nextConversationContext: result.context,
-      runtimeMessages: result.runtimeMessages,
-      conversationSummary: result.conversationSummary,
-      activeFile: result.activeFile,
-      referencedFiles: result.references,
-      knowledgeMatches: result.knowledgeMatches,
-      agentPromptPayload,
-      limitsFor,
-      reportContextDebugUpdate,
-      finalizeAssistantTurn,
-    };
   };
 
   const sendMessage = async ({
@@ -1941,7 +1820,6 @@ export const WorkspaceChatPage = ({
           text,
           referencedFiles: referencedFileDescriptors,
           baseConversation,
-          baseConversationContext,
           currentAgentExecutionSummary,
           traceProviderName,
           traceModelName,
@@ -1951,28 +1829,44 @@ export const WorkspaceChatPage = ({
       }
 
       if (shouldRunAgentTask) {
-        const preparedAgentRuntime = await prepareManagedTurnRuntimeWithSessionPrompt({
-          userMessageId,
-          assistantMessageId,
-          traceTurnId,
-          text,
-          referencedFiles: referencedFileDescriptors,
-          nextConversation,
-          baseConversationContext,
+        const agentModelContext = contextModelFor(effectiveRuntimeModel);
+        const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
+          workspace,
+          chatMode,
+          runtimeAgentId,
           traceProviderName,
           traceModelName,
           nextSessionId,
-          summaryRuntimeModel,
-          prepareAgentPayload: true,
+          traceTurnId,
+          text,
+          referencedFiles: referencedFileDescriptors,
+          activeFile: activeFile ? { path: activeFile.path } : null,
+          activeSkills,
+          selectedAgent: modelSource === "agent" ? selectedAgent : null,
+          agentInstructions: buildWorkspaceAgentInteractionInstructions(),
+          executionMemorySummary: currentAgentExecutionSummary,
+          contextWindow: agentModelContext.contextWindow ?? effectiveAppContextWindow,
+          onDebugSnapshot: setContextDebugSnapshot,
+          appendVisibleTraceStep,
+          patchVisibleTraceTurn,
         });
+        conversationContextRef.current = preparedAgentRuntime.nextConversationContext;
+        setConversationContext(preparedAgentRuntime.nextConversationContext);
 
         if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
           setChatError("请选择要使用的 LLM 和模型");
           return;
         }
-        if (!preparedAgentRuntime.agentPromptPayload) {
-          setChatError("无法准备 Agent 上下文，请重试");
-          return;
+        try {
+          const agentSessionStatusId = `${runtimeAgentId}/${preparedAgentRuntime.agentPromptPayload.agentRoleId}`;
+          const status = await getAgentSessionStatus(
+            workspace.path,
+            agentSessionStatusId,
+          );
+          setAgentSessionStatus(status);
+          setAgentSessionError("");
+        } catch (caught) {
+          setAgentSessionError(String(caught));
         }
 
         await runAgentTurn({
@@ -1998,7 +1892,6 @@ export const WorkspaceChatPage = ({
           patchVisibleTraceTurn,
           addRunningAgentTask,
           activateAgentTaskId,
-          agentSessionResetPromiseRef,
           handledAgentDoneTaskIdsRef,
           chatTraceRef,
           effectiveRuntimeModel,
@@ -2015,18 +1908,35 @@ export const WorkspaceChatPage = ({
           setChatError("请选择协作流程");
           return;
         }
-        const preparedCollaborationRuntime = await prepareManagedTurnRuntimeWithSessionPrompt({
+        const collabModelContext = contextModelFor(summaryRuntimeModel);
+        const preparedCollaborationRuntime = await prepareBridgeCollaborationTurnRuntime({
+          workspace,
+          chatMode,
+          runtimeAgentId,
+          traceProviderName,
+          traceModelName,
+          nextSessionId,
           userMessageId,
           assistantMessageId,
           traceTurnId,
           text,
           referencedFiles: referencedFileDescriptors,
           nextConversation,
-          baseConversationContext,
-          traceProviderName,
-          traceModelName,
-          nextSessionId,
-          summaryRuntimeModel,
+          activeFile: activeFile ? { path: activeFile.path } : null,
+          activeSkills,
+          executionMemorySummary: currentAgentExecutionSummary,
+          contextWindow: collabModelContext.contextWindow ?? effectiveAppContextWindow,
+          modelContext: collabModelContext,
+          onDebugSnapshot: setContextDebugSnapshot,
+          appendVisibleTraceStep,
+          patchVisibleTraceTurn,
+          updateMessage,
+          onFinalized: ({ finalConversation, finalContext }) => {
+            conversationRef.current = finalConversation;
+            setConversation(finalConversation);
+            conversationContextRef.current = finalContext;
+            setConversationContext(finalContext);
+          },
         });
 
         await runCollaborationTurn({
@@ -2034,23 +1944,21 @@ export const WorkspaceChatPage = ({
           traceTurnId,
           assistantMessageId,
           text,
-          referencedFiles: preparedCollaborationRuntime.referencedFiles,
           nextConversation,
           runtimeMessages: preparedCollaborationRuntime.runtimeMessages,
           summaryLimits: preparedCollaborationRuntime.summaryLimits,
-          conversationSummary: preparedCollaborationRuntime.conversationSummary,
-          currentAgentExecutionSummary,
-          knowledgeMatches: preparedCollaborationRuntime.knowledgeMatches,
-          limitsFor: preparedCollaborationRuntime.limitsFor,
+          sessionRootDir: preparedCollaborationRuntime.sessionRootDir,
+          baseSystemPrompt: preparedCollaborationRuntime.baseSystemPrompt,
+          baseRequestContext: preparedCollaborationRuntime.baseRequestContext,
+          baseRuntimeInstruction: preparedCollaborationRuntime.baseRuntimeInstruction,
           reportContextDebugUpdate: preparedCollaborationRuntime.reportContextDebugUpdate,
           finalizeAssistantTurn: preparedCollaborationRuntime.finalizeAssistantTurn,
         }, {
           workspace,
-          activeFile: preparedCollaborationRuntime.activeFile,
+          activeFile: null,
           activeSkills,
           runtimeAgentId,
           agentRuntime,
-          selectRecentConversation: agentContextSession.selectRecentConversation,
           allowedAgentTools,
           appendMessage,
           requestCollaborationPlanDecision,

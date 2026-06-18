@@ -15,6 +15,13 @@ export type SharedAgentTaskResult = {
   taskId: string;
   text: string;
   thinking?: string;
+  bridgeSession?: {
+    sessionRootDir: string;
+    userMessageRecordId?: string | null;
+    requestContextRecordId?: string | null;
+    runtimeInstructionRecordId?: string | null;
+    assistantMessageRecordId?: string | null;
+  } | null;
 };
 
 export type SharedAgentTaskCreated = {
@@ -31,8 +38,12 @@ export type RunSharedAgentTaskInput = {
   runtimeModel: RuntimeModelInput;
   allowedTools: RuntimeAgentToolName[];
   activeSkillNames: string[];
-  chatSessionId?: string | null;
-  bootstrapContext?: string | null;
+  sessionRootDir?: string | null;
+  agentRoleId?: string | null;
+  userMessage?: string | null;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
   abortOnQuestion?: boolean;
   onEvent?: (event: AgentRuntimeAgentEvent) => void;
   onTaskCreated?: (task: SharedAgentTaskCreated) => void;
@@ -60,8 +71,12 @@ export const runSharedAgentTask = async ({
   runtimeModel,
   allowedTools,
   activeSkillNames,
-  chatSessionId = null,
-  bootstrapContext = null,
+  sessionRootDir = null,
+  agentRoleId = null,
+  userMessage = null,
+  systemPrompt = null,
+  requestContext = null,
+  runtimeInstruction = null,
   abortOnQuestion = true,
   onEvent,
   onTaskCreated,
@@ -69,6 +84,7 @@ export const runSharedAgentTask = async ({
 }: RunSharedAgentTaskInput): Promise<SharedAgentTaskResult> => {
   let taskId = "";
   const output = createAgentRuntimeOutputState();
+  let bridgeSession: SharedAgentTaskResult["bridgeSession"] = null;
   let isSettled = false;
   let resolveTask!: (result: SharedAgentTaskResult) => void;
   let rejectTask!: (error: Error) => void;
@@ -99,6 +115,9 @@ export const runSharedAgentTask = async ({
 
     if (isAgentRuntimeOutputEvent(event)) {
       applyAgentRuntimeOutputEvent(output, event);
+      if (event.type === "done") {
+        bridgeSession = event.bridgeSession ?? null;
+      }
       if (event.type !== "done") {
         return;
       }
@@ -106,6 +125,7 @@ export const runSharedAgentTask = async ({
       resolveTask({
         taskId,
         ...result,
+        bridgeSession,
       });
       return;
     }
@@ -115,6 +135,7 @@ export const runSharedAgentTask = async ({
       resolveTask({
         taskId,
         ...result,
+        bridgeSession,
       });
       return;
     }
@@ -136,9 +157,12 @@ export const runSharedAgentTask = async ({
       type: "agent",
       agentId: runtimeAgentId,
       workspacePath,
-      chatSessionId,
-      bootstrapContext,
-      prompt,
+      sessionRootDir,
+      agentRoleId,
+      userMessage: userMessage ?? prompt,
+      systemPrompt,
+      requestContext,
+      runtimeInstruction,
       runtimeModel,
       allowedTools,
       enabledSkills: activeSkillNames,

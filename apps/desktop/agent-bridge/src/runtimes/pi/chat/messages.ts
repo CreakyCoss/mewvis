@@ -23,7 +23,7 @@ export const createPiChatContext = (
   command: RuntimeChatCommand,
   model: Model<Api>,
 ): Context => ({
-  systemPrompt: command.systemPrompt,
+  systemPrompt: command.systemPrompt ?? undefined,
   messages: command.messages.map((message) => toPiMessage(message, model)),
 });
 

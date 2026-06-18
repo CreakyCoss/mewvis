@@ -167,6 +167,13 @@ const normalizeConversationMessageMetadata = (
   if (typeof runtimeSessionId === "string" || runtimeSessionId === null) {
     normalized.runtimeSessionId = runtimeSessionId;
   }
+  if (
+    candidate.collaboration &&
+    typeof candidate.collaboration === "object" &&
+    !Array.isArray(candidate.collaboration)
+  ) {
+    normalized.collaboration = candidate.collaboration as Record<string, unknown>;
+  }
 
   return Object.keys(normalized).length > 0 ? normalized : null;
 };

@@ -5,7 +5,7 @@ import type {
   AgentRunResult,
   AskUser,
   EmitBridgeEvent,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
 import {
   throwPiSessionError,
@@ -21,7 +21,7 @@ import { parsePiAskUserFunctionCall } from "../tools/ask-user-parser.js";
 const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
 
 type DrivePiAgentSessionInput = {
-  command: RuntimeStartTaskCommand;
+  command: RuntimeAgentCommand;
   session: PiAgentSession;
   askUser: AskUser;
   emit: EmitBridgeEvent;
@@ -54,7 +54,7 @@ export const drivePiAgentSession = async ({
 };
 
 const nextPromptFromAskUser = async (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   askUser: AskUser,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,

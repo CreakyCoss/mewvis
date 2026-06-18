@@ -11,6 +11,7 @@
     "build:agent-bridge:win-arm64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target win-arm64",
     "build:agent-bridge:darwin-arm64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target darwin-arm64",
     "build:agent-bridge:darwin-x64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target darwin-x64",
+    "test:agent-bridge:e2e": "node scripts/agent-bridge-e2e.mjs",
     "build:mac": "node scripts/build-macos.mjs",
     "build:mac:arm64": "node scripts/build-macos.mjs --target darwin-arm64",
     "build:mac:x64": "node scripts/build-macos.mjs --target darwin-x64",

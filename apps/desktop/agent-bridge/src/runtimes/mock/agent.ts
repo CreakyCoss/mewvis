@@ -3,14 +3,14 @@ import type {
   AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../types.js";
 import { chunkText, createMockAgentText, sleep } from "./response.js";
 
 export class MockAgent implements AgentRuntime {
   readonly id = "mock";
 
-  async run(command: RuntimeStartTaskCommand, { emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(command: RuntimeAgentCommand, { emit }: AgentRuntimeContext): Promise<AgentRunResult> {
     const text = createMockAgentText(command);
 
     emit({ type: BridgeEventType.Started, taskId: command.taskId });
@@ -24,7 +24,7 @@ export class MockAgent implements AgentRuntime {
       type: BridgeEventType.ToolStart,
       taskId: command.taskId,
       toolName: "mock_tool",
-      args: { promptLength: command.prompt.length },
+      args: { promptLength: command.agentTaskPrompt.length },
     });
     await sleep(30);
     emit({

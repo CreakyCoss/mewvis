@@ -4,12 +4,12 @@ import {
   useRef,
   useState,
   type Dispatch,
-  type MutableRefObject,
   type SetStateAction,
+  type MutableRefObject,
 } from "react";
 import {
-  agentContext,
-} from "@/ai/agent-context";
+  getContextEngineDescriptor,
+} from "@/ai/context";
 import type { Workspace, WorkspaceSection } from "@/features/workspace/types";
 import {
   deleteChatSession,
@@ -41,12 +41,6 @@ import type { RunningAgentTaskContext } from "./agent-task";
 import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
 import { useSidebarSessions } from "./use-sidebar-sessions";
 
-const {
-  getContextEngineDescriptor,
-  normalizeChatContextSummary,
-  normalizeConversationMessages,
-} = agentContext;
-
 type UseWorkspaceChatSessionsInput = {
   workspace: Workspace;
   workspaceSections: WorkspaceSection[];
@@ -63,13 +57,10 @@ type UseWorkspaceChatSessionsInput = {
   messages: ChatMessage[];
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   messagesRef: MutableRefObject<ChatMessage[]>;
-  conversation: ConversationMessage[];
   setConversation: Dispatch<SetStateAction<ConversationMessage[]>>;
   conversationRef: MutableRefObject<ConversationMessage[]>;
-  conversationContext: ChatContextSummary | null;
   setConversationContext: Dispatch<SetStateAction<ChatContextSummary | null>>;
   conversationContextRef: MutableRefObject<ChatContextSummary | null>;
-  chatTrace: ChatTraceTurn[];
   replaceChatTrace: (nextTrace: ChatTraceTurn[]) => void;
   setContextDebugSnapshot: Dispatch<SetStateAction<ContextDebugSnapshot | null>>;
   setContextEngineId: Dispatch<SetStateAction<string>>;
@@ -88,7 +79,6 @@ type UseWorkspaceChatSessionsInput = {
   isAgentTaskRunningForSession: (targetWorkspacePath: string, sessionId: string) => boolean;
   pendingAgentQuestion: PendingAgentQuestion | null;
   visibleActiveAgentTaskId: string;
-  agentContextInvalidatedRef: MutableRefObject<boolean>;
 };
 
 export const useWorkspaceChatSessions = ({
@@ -107,13 +97,10 @@ export const useWorkspaceChatSessions = ({
   messages,
   setMessages,
   messagesRef,
-  conversation,
   setConversation,
   conversationRef,
-  conversationContext,
   setConversationContext,
   conversationContextRef,
-  chatTrace,
   replaceChatTrace,
   setContextDebugSnapshot,
   setContextEngineId,
@@ -129,7 +116,6 @@ export const useWorkspaceChatSessions = ({
   isAgentTaskRunningForSession,
   pendingAgentQuestion,
   visibleActiveAgentTaskId,
-  agentContextInvalidatedRef,
 }: UseWorkspaceChatSessionsInput) => {
   const pendingNewSessionWorkspaceIdRef = useRef<string | null>(null);
   const saveSessionTimerRef = useRef<number | null>(null);
@@ -225,16 +211,16 @@ export const useWorkspaceChatSessions = ({
     detachActiveAgentTask();
     isHydratingSessionRef.current = true;
     hydratedWorkspacePathRef.current = workspace.path;
-    const normalizedConversation = normalizeConversationMessages(session?.conversation ?? []);
     const runningTask = session?.id
       ? [...runningAgentTasksRef.current.values()].find((task) =>
         task.workspacePath === workspace.path && task.sessionId === session.id
       )
       : null;
     const hydratedMessages = runningTask?.messages ?? session?.messages ?? [];
-    const hydratedConversation = runningTask?.conversation ?? normalizedConversation;
-    const hydratedContext = runningTask?.context ?? normalizeChatContextSummary(session?.context ?? null);
-    const hydratedTrace = runningTask?.chatTrace ?? session?.trace ?? [];
+    const hydratedConversation = runningTask?.conversation ??
+      rebuildConversationFromVisibleMessages([], hydratedMessages, hydratedMessages);
+    const hydratedContext = runningTask?.context ?? null;
+    const hydratedTrace = runningTask?.chatTrace ?? [];
     const visibleConversation = hydratedMessages.length > 0
       ? rebuildConversationFromVisibleMessages(
         hydratedConversation,
@@ -245,7 +231,6 @@ export const useWorkspaceChatSessions = ({
     messagesRef.current = hydratedMessages;
     conversationRef.current = visibleConversation;
     conversationContextRef.current = hydratedContext;
-    agentContextInvalidatedRef.current = false;
     setMessages(hydratedMessages);
     setConversation(visibleConversation);
     setConversationContext(hydratedContext);
@@ -272,7 +257,6 @@ export const useWorkspaceChatSessions = ({
       isHydratingSessionRef.current = false;
     }, 0);
   }, [
-    agentContextInvalidatedRef,
     applyActiveAgentTaskState,
     clearExpandedAgentBlocks,
     conversationContextRef,
@@ -709,9 +693,6 @@ export const useWorkspaceChatSessions = ({
         sessionId: currentSessionId,
         title,
         messages,
-        conversation,
-        context: conversationContext,
-        trace: chatTrace,
         isUnread: false,
       })
         .then((session) => {
@@ -740,9 +721,6 @@ export const useWorkspaceChatSessions = ({
         });
     }, 700);
   }, [
-    chatTrace,
-    conversation,
-    conversationContext,
     currentSessionId,
     currentSessionIdRef,
     currentSessionTitle,

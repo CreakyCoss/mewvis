@@ -1,11 +1,10 @@
-import { agentContext } from "@/ai/agent-context";
+import {
+  DEFAULT_CONTEXT_ENGINE_ID,
+  getContextEngineDescriptor,
+} from "@/ai/context";
 import { appStorageKey } from "@/product-config";
 
 const CONTEXT_ENGINE_STORAGE_KEY = appStorageKey("context-engine");
-const {
-  DEFAULT_CONTEXT_ENGINE_ID,
-  getContextEngineDescriptor,
-} = agentContext;
 
 export const readPreferredContextEngineId = () => {
   try {

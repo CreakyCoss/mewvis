@@ -85,7 +85,7 @@ pub fn get_agent_session_status(
     let root = workspace_root(&input.workspace_path)?;
     let app_root = workspace_app_data_dir(&root);
     let session_path = session_id.map(sanitize_agent_session_path).transpose()?;
-    let session_dir = resolve_agent_session_dir(&app_root, session_path.as_deref());
+    let session_dir = resolve_agent_session_dir(&app_root, session_path.as_deref())?;
     ensure_under_root(&app_root, &session_dir)?;
 
     let mut status = AgentSessionStatus {
@@ -177,17 +177,58 @@ pub fn delete_agent_sessions_for_chat(
     Ok(())
 }
 
-fn resolve_agent_session_dir(app_root: &Path, session_path: Option<&[String]>) -> PathBuf {
+fn resolve_agent_session_dir(
+    app_root: &Path,
+    session_path: Option<&[String]>,
+) -> Result<PathBuf, String> {
     match session_path {
-        None => app_root.join(CHAT_DIR_NAME),
-        Some(segments) if segments.len() == 1 => app_root
+        None => Ok(app_root.join(CHAT_DIR_NAME)),
+        Some(segments) if segments.len() == 1 => Ok(app_root
             .join(CHAT_DIR_NAME)
             .join(&segments[0])
-            .join(SESSIONS_DIR_NAME),
-        Some(segments) => segments
+            .join(SESSIONS_DIR_NAME)),
+        Some(segments) if segments.len() == 2 => Ok(find_bridge_agent_session_dir(
+            app_root, segments,
+        )?
+        .unwrap_or_else(|| {
+            segments
+                .iter()
+                .fold(app_root.to_path_buf(), |path, segment| path.join(segment))
+        })),
+        Some(segments) => Ok(segments
             .iter()
-            .fold(app_root.to_path_buf(), |path, segment| path.join(segment)),
+            .fold(app_root.to_path_buf(), |path, segment| path.join(segment))),
     }
+}
+
+fn find_bridge_agent_session_dir(
+    app_root: &Path,
+    segments: &[String],
+) -> Result<Option<PathBuf>, String> {
+    let chats_dir = app_root.join(CHAT_DIR_NAME);
+    if !chats_dir.exists() {
+        return Ok(None);
+    }
+
+    for entry in fs::read_dir(&chats_dir).map_err(|error| format!("无法读取聊天目录：{error}"))?
+    {
+        let entry = entry.map_err(|error| format!("无法读取聊天目录项：{error}"))?;
+        let chat_dir = entry.path();
+        if !chat_dir.is_dir() {
+            continue;
+        }
+
+        let candidate = chat_dir
+            .join("session")
+            .join("agents")
+            .join(&segments[0])
+            .join(&segments[1]);
+        if candidate.exists() {
+            return Ok(Some(candidate));
+        }
+    }
+
+    Ok(None)
 }
 
 fn sanitize_agent_session_path(session_id: &str) -> Result<Vec<String>, String> {
@@ -430,6 +471,21 @@ mod tests {
                 .join(session_id)
         }
 
+        fn bridge_agent_session_dir(
+            &self,
+            chat_id: &str,
+            runtime_id: &str,
+            agent_id: &str,
+        ) -> PathBuf {
+            self.app_data_dir()
+                .join(CHAT_DIR_NAME)
+                .join(chat_id)
+                .join("session")
+                .join("agents")
+                .join(runtime_id)
+                .join(agent_id)
+        }
+
         fn chat_session_agent_root(&self, chat_id: &str) -> PathBuf {
             self.app_data_dir()
                 .join(CHAT_DIR_NAME)
@@ -656,6 +712,40 @@ mod tests {
         .expect("get nested agent session status");
 
         assert!(status.exists);
+        assert_eq!(status.session_file_count, 1);
+        assert_eq!(status.message_count, 1);
+    }
+
+    #[test]
+    fn get_agent_session_status_reads_short_bridge_agent_session_id() {
+        let workspace = TestWorkspace::new("agent-status-short-bridge");
+        let agent_dir = workspace.bridge_agent_session_dir("chat-stats", "pi", "writer-agent");
+        fs::create_dir_all(&agent_dir).expect("create bridge agent session dir");
+        fs::write(
+            agent_dir.join("session.jsonl"),
+            json!({
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        { "type": "text", "text": "使用短 session id 查询" }
+                    ]
+                }
+            })
+            .to_string(),
+        )
+        .expect("write bridge agent session");
+
+        let status = get_agent_session_status(AgentSessionStatusInput {
+            workspace_path: workspace.path_string(),
+            session_id: Some("pi/writer-agent".to_string()),
+        })
+        .expect("get short bridge agent session status");
+
+        assert!(status.exists);
+        assert!(status
+            .session_dir
+            .ends_with("chats/chat-stats/session/agents/pi/writer-agent"));
         assert_eq!(status.session_file_count, 1);
         assert_eq!(status.message_count, 1);
     }

@@ -6,12 +6,16 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type {
   AskUser,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
+import {
+  enabledRuntimeSkillNames,
+  runtimeSkillSourcePaths,
+} from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
 
 export const createPiResourceLoader = async (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   askUser: AskUser,
 ) => {
   const enabledSkills = loadEnabledPiSkills(command);
@@ -35,9 +39,9 @@ export const createPiResourceLoader = async (
   return loader;
 };
 
-const loadEnabledPiSkills = (command: RuntimeStartTaskCommand): Skill[] => {
-  const enabledNames = new Set(command.enabledSkills ?? []);
-  const paths = piSkillSourcePaths(command);
+const loadEnabledPiSkills = (command: RuntimeAgentCommand): Skill[] => {
+  const enabledNames = new Set(enabledRuntimeSkillNames(command));
+  const paths = runtimeSkillSourcePaths(command);
   if (paths.length === 0 || enabledNames.size === 0) {
     return [];
   }
@@ -50,17 +54,4 @@ const loadEnabledPiSkills = (command: RuntimeStartTaskCommand): Skill[] => {
   );
 
   return skills.filter((skill) => enabledNames.has(skill.name));
-};
-
-const piSkillSourcePaths = (command: RuntimeStartTaskCommand) => {
-  const paths = [
-    ...(Array.isArray(command.bundledSkillsPath)
-      ? command.bundledSkillsPath
-      : command.bundledSkillsPath
-        ? [command.bundledSkillsPath]
-        : []),
-    ...(command.skillPaths ?? []),
-  ];
-
-  return [...new Set(paths.filter(Boolean))];
 };

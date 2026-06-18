@@ -5,8 +5,12 @@ mod services;
 
 use commands::{
     agent_runtime::{
-        abort_agent_runtime_agent, answer_agent_runtime_question, list_agent_runtime_agents,
-        run_agent_runtime_agent, run_agent_runtime_chat, AgentRuntimeSupervisor,
+        abort_agent_runtime_agent, answer_agent_runtime_question,
+        append_agent_runtime_session_messages, compact_agent_runtime_session,
+        create_agent_runtime_session, delete_agent_runtime_session_message,
+        edit_agent_runtime_session_message, list_agent_runtime_agents, read_agent_runtime_session,
+        rebuild_agent_runtime_session, run_agent_runtime_agent, run_agent_runtime_chat,
+        AgentRuntimeSupervisor,
     },
     app::{
         get_config_database_status, initialize_config_database, rebuild_config_database,
@@ -78,6 +82,13 @@ pub fn run() {
             run_agent_runtime_agent,
             answer_agent_runtime_question,
             abort_agent_runtime_agent,
+            create_agent_runtime_session,
+            read_agent_runtime_session,
+            append_agent_runtime_session_messages,
+            rebuild_agent_runtime_session,
+            compact_agent_runtime_session,
+            edit_agent_runtime_session_message,
+            delete_agent_runtime_session_message,
             get_workspace_skills,
             save_workspace_skills,
             search_skill_marketplace,

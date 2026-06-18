@@ -8,10 +8,7 @@ import { requireRuntimeModelInput } from "@/features/ai/llm/store";
 import {
   filterChatAgentAllowedTools,
 } from "../../../utils/chat-mode";
-import {
-  formatAgentInitialPromptPreview,
-  formatDebugMessages,
-} from "../trace";
+import { createBridgeSessionRootDir } from "../../../utils/sessions";
 import type {
   RunAgentTurnDeps,
   RunAgentTurnInput,
@@ -41,7 +38,6 @@ export const runAgentTurn = async (
     patchVisibleTraceTurn,
     addRunningAgentTask,
     activateAgentTaskId,
-    agentSessionResetPromiseRef,
     handledAgentDoneTaskIdsRef,
     chatTraceRef,
     effectiveRuntimeModel,
@@ -59,20 +55,15 @@ export const runAgentTurn = async (
     return;
   }
 
-  if (agentSessionResetPromiseRef.current) {
-    const resetSucceeded = await agentSessionResetPromiseRef.current;
-    if (!resetSucceeded) {
-      throw new Error("无法重置旧 Agent 长期上下文，已停止本次运行以避免复用旧记忆。");
-    }
-  }
-  const agentSessionId = agentPromptPayload.agentSessionId;
+  const agentRoleId = agentPromptPayload.agentRoleId;
+  const agentSessionStatusId = `${runtimeAgentId}/${agentRoleId}`;
   patchVisibleTraceTurn(traceTurnId, {
-    agentSessionId,
+    agentSessionId: agentSessionStatusId,
   });
   const taskTrace = createAgentMemoryTrace();
   prepareActiveAgentRun({
     messageId: assistantMessageId,
-    agentSessionId,
+    agentSessionId: agentSessionStatusId,
     agentId: runtimeAgentId,
     trace: taskTrace,
   });
@@ -82,37 +73,27 @@ export const runAgentTurn = async (
       : allowedAgentTools,
   );
   reportContextDebugUpdate({
-    agentSessionId,
+    agentSessionId: agentSessionStatusId,
     providerName: effectiveRuntimeModel?.provider.name ?? null,
     modelName: effectiveRuntimeModel?.modelName ?? null,
-    conversationSummary: agentPromptPayload.promptHistory.summary ||
-      agentPromptPayload.bootstrapHistory.summary ||
-      conversationSummary,
-    runtimeMessages: agentPromptPayload.promptHistory.recentMessages,
+    conversationSummary,
+    runtimeMessages: [],
     payloads: [
       {
-        label: "bridge initial prompt",
-        content: formatAgentInitialPromptPreview(
-          agentPromptPayload.bootstrapContext,
-          agentPromptPayload.prompt,
-          agentPromptPayload.shouldBootstrapAgentContext,
-        ),
+        label: "systemPrompt",
+        content: agentPromptPayload.systemPrompt,
       },
       {
-        label: "bootstrapContext",
-        content: agentPromptPayload.bootstrapContext || "（空）",
+        label: "requestContext",
+        content: agentPromptPayload.requestContext,
       },
       {
-        label: "prompt",
-        content: agentPromptPayload.prompt,
+        label: "runtimeInstruction",
+        content: agentPromptPayload.runtimeInstruction,
       },
       {
-        label: "prompt recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
-      },
-      {
-        label: "bootstrap recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
+        label: "userMessage",
+        content: agentPromptPayload.userMessage,
       },
     ],
   });
@@ -120,28 +101,32 @@ export const runAgentTurn = async (
     type: "request",
     label: "Agent bridge 请求",
     status: "done",
-    content: agentPromptPayload.prompt,
+    content: agentPromptPayload.userMessage,
     metadata: {
-      agentSessionId,
+      agentRoleId,
+      agentSessionId: agentSessionStatusId,
       agentId: runtimeAgentId,
       providerName: effectiveRuntimeModel?.provider.name ?? null,
       modelName: effectiveRuntimeModel?.modelName ?? null,
-      shouldBootstrapAgentContext: agentPromptPayload.shouldBootstrapAgentContext,
       allowedTools: allowedToolsForRun,
       activeSkills: activeSkills.map((skill) => skill.name),
     },
     payloads: [
       {
-        label: "bootstrapContext",
-        content: agentPromptPayload.bootstrapContext || "（空）",
+        label: "systemPrompt",
+        content: agentPromptPayload.systemPrompt,
       },
       {
-        label: "prompt recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.promptHistory.recentMessages),
+        label: "requestContext",
+        content: agentPromptPayload.requestContext,
       },
       {
-        label: "bootstrap recent_conversation",
-        content: formatDebugMessages(agentPromptPayload.bootstrapHistory.recentMessages),
+        label: "runtimeInstruction",
+        content: agentPromptPayload.runtimeInstruction,
+      },
+      {
+        label: "userMessage",
+        content: agentPromptPayload.userMessage,
       },
     ],
   });
@@ -150,9 +135,12 @@ export const runAgentTurn = async (
     type: "agent",
     agentId: runtimeAgentId,
     workspacePath: workspace.path,
-    chatSessionId: agentSessionId,
-    bootstrapContext: agentPromptPayload.bootstrapContext,
-    prompt: agentPromptPayload.prompt,
+    sessionRootDir: createBridgeSessionRootDir(nextSessionId),
+    agentRoleId,
+    userMessage: agentPromptPayload.userMessage,
+    systemPrompt: agentPromptPayload.systemPrompt,
+    requestContext: agentPromptPayload.requestContext,
+    runtimeInstruction: agentPromptPayload.runtimeInstruction,
     runtimeModel: runtimeModelInput ?? undefined,
     allowedTools: allowedToolsForRun,
     enabledSkills: activeSkills.map((skill) => skill.name),
@@ -166,7 +154,8 @@ export const runAgentTurn = async (
     status: "done",
     metadata: {
       taskId: task.taskId,
-      agentSessionId,
+      agentRoleId,
+      agentSessionId: agentSessionStatusId,
       agentId: runtimeAgentId,
     },
   });
@@ -178,7 +167,7 @@ export const runAgentTurn = async (
     messageId: assistantMessageId,
     traceTurnId,
     chatTrace: chatTraceRef.current,
-    agentSessionId,
+    agentSessionId: agentSessionStatusId,
     agentId: runtimeAgentId,
     trace: taskTrace,
     messages: nextMessages,

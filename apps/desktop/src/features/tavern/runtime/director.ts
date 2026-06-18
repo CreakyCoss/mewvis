@@ -1,6 +1,7 @@
 import {
-  agentContext,
-} from "@/ai/agent-context";
+  appendReferencesToPrompt,
+  formatConversationForSummary,
+} from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {
@@ -15,11 +16,6 @@ import {
   selectTavernLorebookEntries,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
-
-const {
-  appendReferencesToPrompt,
-  formatConversationForSummary,
-} = agentContext;
 
 export type TavernDirectorDecision = {
   speakerIds: string[];

@@ -89,10 +89,15 @@ class TauriAgentRuntime implements AgentRuntime {
     return invoke<AgentRuntimeChatResult>(TAURI_AGENT_RUNTIME_COMMANDS.runChat, {
       input: {
         agentId: input.agentId,
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
         streamId,
         stream: shouldStream,
         runtimeModel: input.runtimeModel,
         systemPrompt: input.systemPrompt,
+        userMessage: input.userMessage,
+        requestContext: input.requestContext,
+        runtimeInstruction: input.runtimeInstruction,
         messages: input.messages,
       },
     }).finally(() => {

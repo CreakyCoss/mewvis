@@ -1,8 +1,7 @@
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
 import type {
-  AgentContextSessionPromptResult,
   PromptKnowledgeReference,
-} from "@/ai/agent-context";
+} from "@/ai/context";
 import type {
   ChatContextSummary,
   ChatTraceStep,
@@ -97,27 +96,6 @@ export const patchTraceTurn = (
     updatedAt: patch.updatedAt ?? Date.now(),
   }
   : turn);
-
-export const mapSessionPromptTraceSteps = (
-  steps: AgentContextSessionPromptResult["traceTurn"]["steps"],
-  labels: Set<string>,
-): ChatTraceStepInput[] => steps.flatMap((step) => {
-  if (!labels.has(step.label)) {
-    return [];
-  }
-
-  return [{
-    type: step.type === "file" ? "context" : step.type,
-    label: step.label === "知识检索" ? "知识库检索" : step.label,
-    startedAt: step.startedAt,
-    endedAt: step.endedAt,
-    durationMs: step.durationMs,
-    status: step.status,
-    content: step.content,
-    metadata: step.metadata,
-    payloads: step.payloads,
-  }];
-});
 
 export const didConversationContextCompress = (
   previousContext: ChatContextSummary | null | undefined,

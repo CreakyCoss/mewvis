@@ -1,15 +1,11 @@
 import type { MutableRefObject } from "react";
 import type {
-  AgentContextConversationSelector,
   ChatContextSummary,
   ConversationMessage,
-  PreparedAgentRunContext,
-  PromptKnowledgeReference,
   PromptContextFile,
   PromptContextLimits,
-  PromptFileReference,
   PromptSkillContext,
-} from "@/ai/agent-context";
+} from "@/ai/context";
 import type { AgentMemoryTrace } from "@/ai/agent-runtime/memory";
 import type {
   RuntimeAgentToolName,
@@ -35,9 +31,6 @@ import type { ChatTraceStepInput } from "../trace";
 export type LimitsForProvider = (
   runtimeModel?: RuntimeModelOption | null,
 ) => PromptContextLimits;
-
-export type SelectRecentConversation =
-  AgentContextConversationSelector["selectRecentConversation"];
 
 export type ContextDebugUpdate = {
   payloads: ContextDebugPayload[];
@@ -98,21 +91,19 @@ export type RunCollaborationTurnInput = {
   traceTurnId: string;
   assistantMessageId: string;
   text: string;
-  referencedFiles: PromptFileReference[];
   nextConversation: ConversationMessage[];
   runtimeMessages: ConversationMessage[];
   summaryLimits: PromptContextLimits;
-  conversationSummary: string;
-  currentAgentExecutionSummary: string;
-  knowledgeMatches: PromptKnowledgeReference[];
-  limitsFor: LimitsForProvider;
+  sessionRootDir: string;
+  baseSystemPrompt: string;
+  baseRequestContext: string;
+  baseRuntimeInstruction: string;
   reportContextDebugUpdate: ReportContextDebugUpdate;
   finalizeAssistantTurn: FinalizeAssistantTurn;
 };
 
 export type RunCollaborationTurnDeps = CommonModeDeps & {
   agentRuntime: AgentRuntime;
-  selectRecentConversation: SelectRecentConversation;
   allowedAgentTools: RuntimeAgentToolName[];
   appendMessage: AppendMessage;
   requestCollaborationPlanDecision: RequestCollaborationPlanDecision;
@@ -128,7 +119,13 @@ export type RunAgentTurnInput = {
   nextConversationContext: ChatContextSummary | null;
   nextMessages: ChatMessage[];
   conversationSummary: string;
-  agentPromptPayload: PreparedAgentRunContext;
+  agentPromptPayload: {
+    agentRoleId: string;
+    systemPrompt: string;
+    requestContext: string;
+    runtimeInstruction: string;
+    userMessage: string;
+  };
   reportContextDebugUpdate: ReportContextDebugUpdate;
 };
 
@@ -139,7 +136,6 @@ export type RunAgentTurnDeps = CommonModeDeps & {
   patchVisibleTraceTurn: PatchVisibleTraceTurn;
   addRunningAgentTask: (task: RunningAgentTaskContext) => void;
   activateAgentTaskId: (taskId: string) => void;
-  agentSessionResetPromiseRef: MutableRefObject<Promise<boolean> | null>;
   handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
   chatTraceRef: MutableRefObject<ChatTraceTurn[]>;
   effectiveRuntimeModel: RuntimeModelOption | null;

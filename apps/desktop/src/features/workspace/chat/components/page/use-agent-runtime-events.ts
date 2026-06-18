@@ -30,6 +30,9 @@ type ResetActiveAgentTaskState = (options?: {
   resetTrace?: boolean;
 }) => void;
 
+type AgentDoneEvent = Extract<AgentRuntimeAgentEvent, { type: "done" }>;
+type AgentBridgeSessionRef = AgentDoneEvent["bridgeSession"];
+
 type UseAgentRuntimeEventsInput = {
   agentRuntime: AgentRuntime;
   workspacePath: string;
@@ -50,6 +53,7 @@ type UseAgentRuntimeEventsInput = {
     assistantText: string,
     status: "done" | "error",
     statusMessage?: string,
+    bridgeSession?: AgentBridgeSessionRef,
   ) => void;
   appendRunningAgentTaskTraceStep: (
     task: RunningAgentTaskContext,
@@ -82,6 +86,44 @@ const updateRunningAgentTaskMessage = (
   task.messages = task.messages.map((message) =>
     message.id === task.messageId ? updater(message) : message
   );
+};
+
+const bridgeMessageRecordIdForMessage = (
+  message: ChatMessage,
+  bridgeSession: NonNullable<AgentBridgeSessionRef>,
+) => message.role === "user"
+  ? bridgeSession.userMessageRecordId ?? null
+  : bridgeSession.assistantMessageRecordId ?? null;
+
+const patchMessagesWithBridgeSession = (
+  messages: ChatMessage[],
+  assistantMessageId: string,
+  bridgeSession?: AgentBridgeSessionRef,
+) => {
+  if (!bridgeSession) {
+    return messages;
+  }
+
+  const assistantIndex = messages.findIndex((message) => message.id === assistantMessageId);
+  const userMessageId = assistantIndex > 0 && messages[assistantIndex - 1]?.role === "user"
+    ? messages[assistantIndex - 1]?.id
+    : null;
+
+  return messages.map((message) => {
+    if (message.id !== assistantMessageId && message.id !== userMessageId) {
+      return message;
+    }
+
+    const bridgeMessageRecordId = bridgeMessageRecordIdForMessage(message, bridgeSession);
+    if (!bridgeMessageRecordId) {
+      return message;
+    }
+
+    return {
+      ...message,
+      bridgeMessageRecordId: bridgeMessageRecordId ?? message.bridgeMessageRecordId,
+    };
+  });
 };
 
 const appendRunningAgentTaskResult = (
@@ -203,6 +245,11 @@ export const useAgentRuntimeEvents = ({
       const conversationText = assistantText || "Agent 任务已完成。";
       updateRunningAgentTaskMessage(task, (message) =>
         applyAgentEventToMessage(message, event).message
+      );
+      task.messages = patchMessagesWithBridgeSession(
+        task.messages,
+        task.messageId,
+        event.bridgeSession,
       );
       appendRunningAgentTaskResult(task, conversationText, "done");
       patchRunningAgentTaskTraceTurn(task, { status: "done" });
@@ -381,8 +428,22 @@ export const useAgentRuntimeEvents = ({
 
         const assistantText = event.text.trim();
         const conversationText = assistantText || "Agent 任务已完成。";
-        updateMessage(messageId, (message) => applyAgentEventToMessage(message, event).message);
-        appendAgentConversationResult(conversationText, "done");
+        updateMessage(messageId, (message) => {
+          const nextMessage = applyAgentEventToMessage(message, event).message;
+          return {
+            ...nextMessage,
+            bridgeMessageRecordId: event.bridgeSession?.assistantMessageRecordId ?? nextMessage.bridgeMessageRecordId,
+          };
+        });
+        const assistantIndex = messagesRef.current.findIndex((message) => message.id === messageId);
+        const userMessage = assistantIndex > 0 ? messagesRef.current[assistantIndex - 1] : null;
+        if (userMessage?.role === "user" && event.bridgeSession?.userMessageRecordId) {
+          updateMessage(userMessage.id, (message) => ({
+            ...message,
+            bridgeMessageRecordId: event.bridgeSession?.userMessageRecordId ?? message.bridgeMessageRecordId,
+          }));
+        }
+        appendAgentConversationResult(conversationText, "done", undefined, event.bridgeSession);
         if (taskContext) {
           patchRunningAgentTaskTraceTurn(taskContext, { status: "done" });
         }

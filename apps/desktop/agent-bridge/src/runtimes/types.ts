@@ -1,15 +1,61 @@
 import type { BridgeAgentDefinition } from "./agents.js";
 import type {
+  BridgeRuntimeResources,
   BridgeEvent,
-  ChatCommand,
+  ChatMessageInput,
   ChatResult,
-  StartTaskCommand,
 } from "../contracts/protocol.js";
+import { BridgeTaskCommandType } from "../contracts/protocol.js";
+import type { RuntimeModelInput } from "../contracts/model.js";
 import type { AskUserInput } from "../tools/types.js";
 
-export type RuntimeStartTaskCommand = StartTaskCommand;
+export type AgentRunCommand = {
+  runtimeMode: "agent";
+  requestId?: string | null;
+  agentId?: string | null;
+  taskId: string;
+  workspacePath: string;
+  sessionRootDir?: string | null;
+  agentRoleId?: string | null;
+  userMessage: string;
+  recordUserMessage?: boolean | null;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  resources?: BridgeRuntimeResources | null;
+  sessionLink?: RuntimeSessionLink | null;
+};
 
-export type RuntimeChatCommand = ChatCommand;
+export type RuntimeSessionLink = {
+  parentEntryId?: string | null;
+  rootUserEntryId?: string | null;
+  turnId?: string | null;
+};
+
+export type RuntimeAgentCommand = AgentRunCommand & {
+  agentTaskPrompt: string;
+  sessionBootstrapContext?: string | null;
+  agentSessionDir?: string | null;
+};
+
+export type RuntimeChatCommand = {
+  type: BridgeTaskCommandType.Chat;
+  requestId?: string | null;
+  agentId?: string | null;
+  workspacePath?: string | null;
+  sessionRootDir?: string | null;
+  streamId?: string | null;
+  stream?: boolean;
+  runtimeModel?: RuntimeModelInput | null;
+  systemPrompt?: string | null;
+  userMessage?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  recordUserMessage?: boolean | null;
+  sessionLink?: RuntimeSessionLink | null;
+  messages: ChatMessageInput[];
+};
 
 export type AgentRunResult = {
   text: string;
@@ -42,7 +88,7 @@ export type RuntimeMode = "agent" | "chat";
 export type AgentRuntime = {
   readonly id: string;
   run(
-    command: RuntimeStartTaskCommand,
+    command: RuntimeAgentCommand,
     context: AgentRuntimeContext,
   ): Promise<AgentRunResult>;
 };

@@ -5,16 +5,21 @@ import {
   snapshotAgentRuntimeOutput,
 } from "@/ai/agent-runtime/output";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { ConversationMessage } from "@/ai/agent-context";
+import type { ConversationMessage } from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 
 const sharedAgentRuntime = createAgentRuntime();
 
 export type RunSharedRuntimeChatInput = {
   agentId?: string;
+  workspacePath?: string | null;
+  sessionRootDir?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   systemPrompt: string;
-  messages: ConversationMessage[];
+  userMessage?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  messages?: ConversationMessage[];
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
@@ -23,6 +28,22 @@ export type RunSharedRuntimeChatInput = {
 export type RunSharedRuntimeChatOutput = {
   text: string;
   thinking?: string | null;
+  bridgeSession?: {
+    sessionRootDir: string;
+    userMessageRecordId?: string | null;
+    requestContextRecordId?: string | null;
+    runtimeInstructionRecordId?: string | null;
+    assistantMessageRecordId?: string | null;
+  } | null;
+};
+
+const latestUserMessageContent = (messages: ConversationMessage[] | undefined) => {
+  for (const message of (messages ?? []).slice().reverse()) {
+    if (message.role === "user" && message.content.trim()) {
+      return message.content.trim();
+    }
+  }
+  return "";
 };
 
 export async function runSharedRuntimeChat(
@@ -47,8 +68,13 @@ export async function runSharedRuntimeChat(
   const result = await sharedAgentRuntime.run({
     type: "chat",
     agentId: input.agentId,
+    workspacePath: input.workspacePath,
+    sessionRootDir: input.sessionRootDir,
     runtimeModel: input.runtimeModel,
     systemPrompt: input.systemPrompt,
+    userMessage: input.userMessage ?? latestUserMessageContent(input.messages),
+    requestContext: input.requestContext,
+    runtimeInstruction: input.runtimeInstruction,
     messages: input.messages,
     stream: input.stream ?? true,
     onTextDelta,
@@ -65,5 +91,8 @@ export async function runSharedRuntimeChat(
     });
   }
 
-  return snapshotAgentRuntimeOutput(output);
+  return {
+    ...snapshotAgentRuntimeOutput(output),
+    bridgeSession: result.bridgeSession ?? null,
+  };
 }

@@ -1,4 +1,4 @@
-import { agentContext } from "@/ai/agent-context";
+import { formatConversationForSummary } from "@/ai/context";
 import type { RuntimeModelInput } from "@/ai/runtime-protocol";
 import { runSharedRuntimeChat } from "@/features/ai/runtime";
 import type {
@@ -7,10 +7,6 @@ import type {
   TavernRoom,
 } from "../types";
 import { tavernMessagesToRuntimeMessages } from "./prompt";
-
-const {
-  formatConversationForSummary,
-} = agentContext;
 
 export type TavernUserReplySuggestionInput = {
   runtimeAgentId: string;

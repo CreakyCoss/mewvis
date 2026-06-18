@@ -3,7 +3,7 @@ import type {
   AgentRunResult,
   AgentRuntime,
   AgentRuntimeContext,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
 import {
   createPiAgentRunState,
@@ -19,7 +19,7 @@ import {
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
-  async run(command: RuntimeStartTaskCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(command: RuntimeAgentCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
     let unsubscribe: (() => void) | null = null;

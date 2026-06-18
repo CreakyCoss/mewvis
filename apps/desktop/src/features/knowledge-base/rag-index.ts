@@ -2,7 +2,7 @@ import type {
   ContextRagIndex,
   ContextRagMatch,
   ContextRagQuery,
-} from "@/ai/agent-context";
+} from "@/ai/context";
 import { getKnowledgeIndexStatus, searchEnabledKnowledge } from "./api";
 
 type KnowledgeRagQuery = ContextRagQuery & {

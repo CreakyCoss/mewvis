@@ -6,11 +6,9 @@ import {
 } from "@/features/ai/runtime";
 import type {
   AgentSessionStatus,
-  ChatContextSummary,
   ChatMessage,
   ChatSession,
   ChatSessionMeta,
-  ChatTraceTurn,
   CleanupAgentSessionsResult,
   CreateWorkspaceVersionResult,
   WorkspaceVersion,
@@ -21,7 +19,6 @@ import type {
   WorkspaceFile,
   WorkspaceFileEntry,
 } from "./types";
-import type { ConversationMessage } from "./types";
 
 export type RunAgentRuntimeChatInput = RunSharedRuntimeChatInput;
 export type RunAgentRuntimeChatOutput = RunSharedRuntimeChatOutput;
@@ -268,6 +265,133 @@ export async function runAgentRuntimeChat(
   return runSharedRuntimeChat(input);
 }
 
+export type AgentRuntimeSessionMessage = {
+  role: string;
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentRuntimeSessionAuxiliaryEntry = {
+  recordId: string;
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentRuntimeSessionMessageInput = {
+  role: string;
+  content: string;
+  timestamp?: number | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type CreateAgentRuntimeSessionInput = {
+  workspacePath: string;
+  sessionRootDir: string;
+  systemPrompt?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentRuntimeSessionResult = {
+  type: "session_result" | "session_mutation_result";
+  requestId?: string | null;
+  sessionRootDir: string;
+  summary: string;
+  messages: AgentRuntimeSessionMessage[];
+  requestContexts?: AgentRuntimeSessionAuxiliaryEntry[];
+  runtimeInstructions?: AgentRuntimeSessionAuxiliaryEntry[];
+  messageRecordId?: string | null;
+  messageRecordIds?: string[];
+  compacted?: boolean;
+};
+
+export async function createAgentRuntimeSession(input: CreateAgentRuntimeSessionInput) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("create_agent_runtime_session", { input });
+}
+
+export async function readAgentRuntimeSession(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("read_agent_runtime_session", { input });
+}
+
+export async function compactAgentRuntimeSession(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  keepRecentMessages?: number | null;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("compact_agent_runtime_session", { input });
+}
+
+export async function editAgentRuntimeSessionMessage(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  messageRecordId: string;
+  content: string;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("edit_agent_runtime_session_message", { input });
+}
+
+export async function deleteAgentRuntimeSessionMessage(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  messageRecordId: string;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>("delete_agent_runtime_session_message", { input });
+}
+
+export async function appendAgentRuntimeSessionMessages(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  messages: AgentRuntimeSessionMessageInput[];
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>(
+    "append_agent_runtime_session_messages",
+    { input },
+  );
+}
+
+export async function rebuildAgentRuntimeSession(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  messages: AgentRuntimeSessionMessageInput[];
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<AgentRuntimeSessionResult>(
+    "rebuild_agent_runtime_session",
+    { input },
+  );
+}
+
 export async function listChatSessions(workspacePath: string) {
   if (!isTauri()) {
     return [];
@@ -296,9 +420,6 @@ export async function saveChatSession(input: {
   sessionId?: string | null;
   title?: string | null;
   messages: ChatMessage[];
-  conversation: ConversationMessage[];
-  context?: ChatContextSummary | null;
-  trace?: ChatTraceTurn[];
   isUnread?: boolean;
 }) {
   if (!isTauri()) {
@@ -309,14 +430,19 @@ export async function saveChatSession(input: {
       createdAt: now,
       updatedAt: now,
       messages: input.messages,
-      conversation: input.conversation,
-      context: input.context,
-      trace: input.trace,
       isUnread: input.isUnread ?? false,
     } satisfies ChatSession;
   }
 
-  return invoke<ChatSession>("save_chat_session", { input });
+  return invoke<ChatSession>("save_chat_session", {
+    input: {
+      workspacePath: input.workspacePath,
+      sessionId: input.sessionId,
+      title: input.title,
+      messages: input.messages,
+      isUnread: input.isUnread,
+    },
+  });
 }
 
 export async function setChatSessionUnread(input: {

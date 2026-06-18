@@ -5,7 +5,7 @@ import type {
 } from "../protocol/context";
 import type {
   TokenBudgetModel,
-} from "../protocol/session";
+} from "../protocol/api";
 
 const encoder = new Tiktoken(o200kBase);
 
@@ -14,7 +14,7 @@ export const DEFAULT_CONVERSATION_TOKEN_BUDGET = 64000;
 export const SUMMARY_TRIGGER_RATIO = 0.85;
 export const SUMMARY_TARGET_RATIO = 0.65;
 
-export type { TokenBudgetModel } from "../protocol/session";
+export type { TokenBudgetModel } from "../protocol/api";
 
 const normalizeContextWindow = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0

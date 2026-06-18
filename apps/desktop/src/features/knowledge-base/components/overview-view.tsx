@@ -1,4 +1,4 @@
-import type { ContextEngineDescriptor } from "@/ai/agent-context";
+import type { ContextEngineDescriptor } from "@/ai/context";
 import type {
   EmbeddingProfile,
   KnowledgeIndexStatus,

@@ -1,6 +1,6 @@
 import type {
-  AgentContextSessionDebugSnapshot,
-} from "@/ai/agent-context";
+  ContextDebugSnapshot as BaseContextDebugSnapshot,
+} from "@/ai/context/debug";
 import type {
   ChatMode,
   ContextDebugPayload,
@@ -19,7 +19,7 @@ export const buildContextDebugSnapshot = ({
   payloads,
   overrides,
 }: {
-  base: AgentContextSessionDebugSnapshot;
+  base: BaseContextDebugSnapshot;
   mode: ChatMode;
   engineId: string;
   contextWindow: number;

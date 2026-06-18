@@ -36,6 +36,13 @@ export type AgentRuntimeThinkingEndEvent = {
 export type AgentRuntimeDoneEvent = {
   type: "done";
   text: string;
+  bridgeSession?: {
+    sessionRootDir: string;
+    userMessageRecordId?: string | null;
+    requestContextRecordId?: string | null;
+    runtimeInstructionRecordId?: string | null;
+    assistantMessageRecordId?: string | null;
+  } | null;
 };
 
 export type AgentRuntimeOutputEvent =

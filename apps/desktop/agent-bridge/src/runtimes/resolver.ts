@@ -9,10 +9,12 @@ import { resolveBridgeAgent } from "./registry.js";
 export type RuntimeResolution =
   | {
     mode: "agent";
+    runtimeId: string;
     implementation: AgentRuntime;
   }
   | {
     mode: "chat";
+    runtimeId: string;
     implementation: ChatRuntime;
   };
 
@@ -32,6 +34,7 @@ const runtimeResolvers = {
 
     return {
       mode: "agent",
+      runtimeId: bridgeAgent.id,
       implementation,
     };
   },
@@ -43,6 +46,7 @@ const runtimeResolvers = {
 
     return {
       mode: "chat",
+      runtimeId: bridgeAgent.id,
       implementation,
     };
   },

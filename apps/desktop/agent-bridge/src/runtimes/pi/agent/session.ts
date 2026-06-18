@@ -5,12 +5,11 @@ import {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
-import productConfig from "../../../../../product.config.json" with { type: "json" };
 import { normalizeAllowedAgentTools } from "../../../tools/definitions.js";
+import { allowedRuntimeTools } from "../../resources.js";
 import type {
   AskUser,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
 import {
   createPiRuntimeModel,
@@ -28,7 +27,7 @@ export type PiAgentSessionCreateResult = {
 };
 
 export const createPiAgentSession = async (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   askUser: AskUser,
 ): Promise<PiAgentSessionCreateResult> => {
   const runtimeModel = requirePiRuntimeConfig(command);
@@ -48,7 +47,7 @@ export const createPiAgentSession = async (
     resourceLoader,
     model,
     ...(thinkingLevel ? { thinkingLevel } : {}),
-    tools: normalizeAllowedAgentTools(command.allowedTools),
+    tools: normalizeAllowedAgentTools(allowedRuntimeTools(command)),
   });
 
   return {
@@ -57,39 +56,19 @@ export const createPiAgentSession = async (
   };
 };
 
-const createPiSessionManager = (command: RuntimeStartTaskCommand) => {
-  const sessionPath = normalizePiAgentSessionPath(command.chatSessionId);
-  if (sessionPath.length === 0) {
-    return SessionManager.inMemory(command.workspacePath);
+const createPiSessionManager = (command: RuntimeAgentCommand) => {
+  const explicitSessionDir = resolvePiExplicitSessionDir(command);
+  if (explicitSessionDir) {
+    mkdirSync(explicitSessionDir, { recursive: true });
+    return SessionManager.continueRecent(command.workspacePath, explicitSessionDir);
   }
 
-  const sessionDir = resolve(
-    command.workspacePath,
-    productConfig.appDataDirName,
-    ...sessionPath,
-  );
-  mkdirSync(sessionDir, { recursive: true });
-  return SessionManager.continueRecent(command.workspacePath, sessionDir);
+  return SessionManager.inMemory(command.workspacePath);
 };
 
-const normalizePiAgentSessionPath = (chatSessionId: string | null | undefined) => {
-  const rawId = chatSessionId?.trim().replace(/\.json$/, "");
-  if (!rawId) {
-    return [];
+const resolvePiExplicitSessionDir = (command: RuntimeAgentCommand) => {
+  if (command.agentSessionDir?.trim()) {
+    return command.agentSessionDir.trim();
   }
-
-  const segments = rawId.split(/[\\/]+/).map((segment) => segment.trim()).filter(Boolean);
-  if (
-    segments.length === 0 ||
-    segments.some((segment) =>
-      segment === "." ||
-      segment === ".." ||
-      segment.includes("..") ||
-      segment.startsWith(".")
-    )
-  ) {
-    throw new Error("Agent session ID 不合法，无法创建长期 Agent session");
-  }
-
-  return segments;
+  return null;
 };

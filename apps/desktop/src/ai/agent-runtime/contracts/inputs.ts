@@ -6,9 +6,12 @@ import type {
 export type AgentRuntimeAgentTaskInput = {
   agentId?: string | null;
   workspacePath: string;
-  chatSessionId?: string | null;
-  prompt: string;
-  bootstrapContext?: string | null;
+  sessionRootDir?: string | null;
+  agentRoleId?: string | null;
+  userMessage: string;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   allowedTools?: RuntimeAgentToolName[];
   enabledSkills?: string[];
@@ -26,9 +29,14 @@ export type AgentRuntimeChatMessage = {
 export type AgentRuntimeChatInput = {
   type: "chat";
   agentId?: string | null;
+  workspacePath?: string | null;
+  sessionRootDir?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   systemPrompt: string;
-  messages: AgentRuntimeChatMessage[];
+  userMessage?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  messages?: AgentRuntimeChatMessage[];
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
@@ -41,4 +49,11 @@ export type AgentRuntimeAgentInput = AgentRuntimeAgentTaskInput & {
 export type AgentRuntimeChatResult = {
   text: string;
   thinking?: string | null;
+  bridgeSession?: {
+    sessionRootDir: string;
+    userMessageRecordId?: string | null;
+    requestContextRecordId?: string | null;
+    runtimeInstructionRecordId?: string | null;
+    assistantMessageRecordId?: string | null;
+  } | null;
 };

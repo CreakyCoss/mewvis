@@ -2,7 +2,7 @@ import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { agentContext } from "@/ai/agent-context";
+import { loadContextResources } from "@/ai/context/resources";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
@@ -533,7 +533,6 @@ export const TavernPage = ({
   const [executionSteps, setExecutionSteps] = useState<TavernExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const workspaceIdRef = useRef(workspace.id);
-  const resourceSessionRef = useRef(agentContext.createSessionManager());
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const managedAutoRunTimerRef = useRef<number | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -1796,7 +1795,7 @@ export const TavernPage = ({
   }, [activeReferenceToken, draftCursor]);
 
   const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
-    const resources = await resourceSessionRef.current.loadResources({
+    const resources = await loadContextResources({
       references: referencedFilePreviews.map((file) => ({ path: file.path })),
       loadFile: async ({ path }) => {
         const workspaceFile = await readWorkspaceFile(workspace.path, path);

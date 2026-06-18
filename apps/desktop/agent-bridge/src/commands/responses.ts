@@ -7,10 +7,9 @@ import {
   type PongResult,
   type ShutdownAckResult,
   type ShutdownCommand,
-  type StartTaskCommand,
   type TaskResult,
 } from "../contracts/protocol.js";
-import type { EmitBridgeEvent } from "../runtimes/types.js";
+import type { AgentRunCommand, EmitBridgeEvent } from "../runtimes/types.js";
 import { bridgeAgentManifest } from "../runtimes/registry.js";
 
 export type WriteBridgeJsonLine = (value: unknown) => void;
@@ -18,6 +17,8 @@ export type WriteBridgeJsonLine = (value: unknown) => void;
 type RequestCommand = {
   requestId?: string | null;
 };
+
+type TaskCommand = Pick<AgentRunCommand, "requestId" | "taskId">;
 
 type TaskResultStatus = { success: true } | { success: false; message: string };
 
@@ -41,7 +42,7 @@ export const createShutdownAckResult = (command: ShutdownCommand): ShutdownAckRe
 });
 
 export const createTaskResult = (
-  command: StartTaskCommand,
+  command: TaskCommand,
   result: TaskResultStatus,
 ): TaskResult => ({
   type: BridgeResultType.TaskResult,
@@ -51,7 +52,7 @@ export const createTaskResult = (
 });
 
 export const writeTaskResult = (
-  command: StartTaskCommand,
+  command: TaskCommand,
   writeJsonLine: WriteBridgeJsonLine,
   result: TaskResultStatus,
 ) => {
@@ -71,4 +72,4 @@ export const emitCommandError = (
 };
 
 const taskIdFromCommand = (command: BridgeCommand) =>
-  "taskId" in command ? command.taskId : undefined;
+  "taskId" in command ? command.taskId ?? undefined : undefined;

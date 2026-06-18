@@ -4,7 +4,7 @@ import {
 } from "../../../contracts/protocol.js";
 import type {
   EmitBridgeEvent,
-  RuntimeStartTaskCommand,
+  RuntimeAgentCommand,
 } from "../../types.js";
 import { messageFromError } from "../../../utils/error.js";
 import type { PiAgentSession } from "./session.js";
@@ -24,7 +24,7 @@ export const createPiAgentRunState = (): PiAgentRunState => ({
 });
 
 export const subscribeToPiAgentSession = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   session: PiAgentSession,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
@@ -40,7 +40,7 @@ export const throwPiSessionError = (state: PiAgentRunState) => {
 };
 
 export const reportPiAgentRunError = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   emit: EmitBridgeEvent,
   error: unknown,
   state: PiAgentRunState,
@@ -58,7 +58,7 @@ export const reportPiAgentRunError = (
 };
 
 const handlePiSessionEvent = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
   event: AgentSessionEvent,
@@ -122,7 +122,7 @@ const handlePiSessionEvent = (
 };
 
 const handlePiMessageUpdate = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
   event: Extract<AgentSessionEvent, { type: "message_update" }>,
@@ -169,7 +169,7 @@ const handlePiMessageUpdate = (
 };
 
 const handlePiMessageEnd = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
   event: Extract<AgentSessionEvent, { type: "message_end" }>,
@@ -229,7 +229,7 @@ const piMessageError = (message: { errorMessage?: string; stopReason?: string })
 };
 
 const setPiSessionError = (
-  command: RuntimeStartTaskCommand,
+  command: RuntimeAgentCommand,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
   message: string,
