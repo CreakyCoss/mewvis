@@ -3073,7 +3073,7 @@ export const TavernManagementPage = ({
                     }}
                   >
                     <FileUp className="size-4" />
-                    导入酒馆
+                    导入酒馆/角色卡/世界书
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

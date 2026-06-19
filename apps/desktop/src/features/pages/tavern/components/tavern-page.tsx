@@ -105,6 +105,7 @@ import {
   runTavernTextFieldAgent,
   type TavernTextFieldAgentRequest,
 } from "../runtime/field-polish-agent";
+import { parseTavernExternalImportJson } from "../import-formats";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -1314,7 +1315,7 @@ export const TavernPage = ({
       };
     });
     setError("");
-  }, [workspace.id]);
+  }, [activeRoom, workspace.id]);
 
   const restoreSystemPresetRoom = useCallback((roomId: string) => {
     const room = state.rooms.find((item) => item.id === roomId);
@@ -1535,26 +1536,123 @@ export const TavernPage = ({
   }, [state]);
 
   const importRoomExport = useCallback((raw: string) => {
-    let parsed: TavernRoomExportV2;
+    let parsed: unknown;
     try {
-      parsed = JSON.parse(raw) as TavernRoomExportV2;
+      parsed = JSON.parse(raw) as unknown;
     } catch {
       return "房间文件不是有效 JSON。";
     }
 
+    const importExternalPayload = () => {
+      try {
+        return parseTavernExternalImportJson(raw);
+      } catch (error) {
+        return getErrorMessage(error);
+      }
+    };
+    const parsedRoomExport = parsed as Partial<TavernRoomExportV2>;
     if (
-      parsed.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
-      parsed.version !== 2 ||
-      !parsed.room ||
-      !Array.isArray(parsed.characters)
+      parsedRoomExport.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
+      parsedRoomExport.version !== 2 ||
+      !parsedRoomExport.room ||
+      !Array.isArray(parsedRoomExport.characters)
     ) {
-      return "房间文件格式不受支持。";
+      const externalPayload = importExternalPayload();
+      if (typeof externalPayload === "string") {
+        return externalPayload;
+      }
+
+      if (
+        externalPayload.kind === "generatedPreset" ||
+        externalPayload.kind === "characterCard"
+      ) {
+        try {
+          const materialized = createTavernRoomFromGeneratedPresetJson(
+            workspace.id,
+            externalPayload.preset,
+            {
+              creationSource: externalPayload.kind === "characterCard"
+                ? "imported"
+                : "agent_generated",
+            },
+          );
+          setState((current) => ({
+            ...current,
+            activeRoomId: materialized.room.id,
+            rooms: [...current.rooms, materialized.room],
+            messagesByScene: {
+              ...current.messagesByScene,
+              [getRoomActiveSceneId(materialized.room)]: materialized.messages,
+            },
+          }));
+          setError("");
+          return null;
+        } catch (error) {
+          return getErrorMessage(error);
+        }
+      }
+
+      if (externalPayload.kind === "worldBook") {
+        if (!activeRoom || activeRoom.locked) {
+          return activeRoom?.locked ? "当前房间已锁定，不能导入世界书。" : "没有可导入世界书的当前房间。";
+        }
+
+        const lorebookEntries = externalPayload.entries.map((entry) => ({
+          ...createTavernLorebookEntry({
+            title: entry.title,
+            content: entry.content,
+            keywords: entry.keywords,
+            alwaysOn: entry.alwaysOn,
+          }),
+          enabled: entry.enabled,
+        }));
+        const importMessage = createTavernMessage({
+          roomId: activeRoom.id,
+          role: "narrator",
+          content: `已导入世界书「${externalPayload.label}」，新增 ${lorebookEntries.length} 条设定。`,
+          status: "done",
+        });
+        setState((current) => {
+          const targetRoom = current.rooms.find((room) => room.id === activeRoom.id);
+          if (!targetRoom || targetRoom.locked) {
+            return current;
+          }
+
+          const sceneId = getRoomActiveSceneId(targetRoom);
+          const nextRoom = syncTavernRoomActiveScene({
+            ...projectTavernSceneOntoRoom(targetRoom),
+            lorebookEntries: [
+              ...targetRoom.lorebookEntries,
+              ...lorebookEntries,
+            ],
+            updatedAt: Date.now(),
+          });
+          return {
+            ...current,
+            rooms: current.rooms.map((room) =>
+              room.id === targetRoom.id ? nextRoom : room
+            ),
+            messagesByScene: {
+              ...current.messagesByScene,
+              [sceneId]: [
+                ...(current.messagesByScene[sceneId] ?? []),
+                importMessage,
+              ],
+            },
+          };
+        });
+        setError("");
+        return null;
+      }
+
+      return "导入文件格式不受支持。";
     }
 
+    const parsedExport = parsed as TavernRoomExportV2;
     const createdAt = Date.now();
     const roomId = createLocalId("room");
     const characterIdMap = new Map<string, string>();
-    const importedCharacters = parsed.characters
+    const importedCharacters = parsedExport.characters
       .flatMap((character) => {
         const name = typeof character.name === "string" ? character.name.trim() : "";
         const description = typeof character.description === "string" ? character.description.trim() : "";
@@ -1584,7 +1682,7 @@ export const TavernPage = ({
       return "房间文件里没有可导入的角色。";
     }
 
-    const importedCharacterIds = parsed.room.characterIds
+    const importedCharacterIds = parsedExport.room.characterIds
       .flatMap((characterId) => {
         const mappedId = characterIdMap.get(characterId);
         return mappedId ? [mappedId] : [];
@@ -1592,9 +1690,9 @@ export const TavernPage = ({
     const characterIds = importedCharacterIds.length > 0
       ? importedCharacterIds
       : importedCharacters.map((character) => character.id);
-    const activeCharacterId = characterIdMap.get(parsed.room.activeCharacterId) ?? characterIds[0] ?? "";
+    const activeCharacterId = characterIdMap.get(parsedExport.room.activeCharacterId) ?? characterIds[0] ?? "";
     const characterMemories = Object.fromEntries(
-      Object.entries(parsed.room.characterMemories ?? {})
+      Object.entries(parsedExport.room.characterMemories ?? {})
         .flatMap(([characterId, memory]) => {
           const mappedId = characterIdMap.get(characterId);
           return mappedId && typeof memory === "string" && memory.trim()
@@ -1603,7 +1701,7 @@ export const TavernPage = ({
         }),
     );
     const characterConfigs = Object.fromEntries(
-      parsed.room.characterIds.flatMap((sourceCharacterId) => {
+      parsedExport.room.characterIds.flatMap((sourceCharacterId) => {
         const mappedId = characterIdMap.get(sourceCharacterId);
         if (!mappedId) {
           return [];
@@ -1617,7 +1715,7 @@ export const TavernPage = ({
         ]];
       }),
     );
-    const importedTimelineEvents = (parsed.room.timelineEvents ?? [])
+    const importedTimelineEvents = (parsedExport.room.timelineEvents ?? [])
       .flatMap((event) => (
         event.title?.trim() && event.summary?.trim()
           ? [createTavernTimelineEvent({
@@ -1626,7 +1724,7 @@ export const TavernPage = ({
             })]
           : []
       ));
-    const importedLorebookEntries = (parsed.room.lorebookEntries ?? [])
+    const importedLorebookEntries = (parsedExport.room.lorebookEntries ?? [])
       .flatMap((entry) => (
         entry.title?.trim() && entry.content?.trim()
           ? [createTavernLorebookEntry({
@@ -1637,7 +1735,7 @@ export const TavernPage = ({
             })]
           : []
       ));
-    const importedAssetDrafts = (parsed.room.assetDrafts ?? [])
+    const importedAssetDrafts = (parsedExport.room.assetDrafts ?? [])
       .flatMap((draft) => {
         const assetDraft = createTavernAssetDraft({
           sourceMessageIds: [],
@@ -1655,7 +1753,7 @@ export const TavernPage = ({
         });
         return hasAssetDraftItems(assetDraft) ? [assetDraft] : [];
       });
-    const importedIllustrationHints = (parsed.room.illustrationHints ?? [])
+    const importedIllustrationHints = (parsedExport.room.illustrationHints ?? [])
       .flatMap((hint) => hint.prompt?.trim()
         ? [createTavernIllustrationHint({
             prompt: hint.prompt,
@@ -1663,17 +1761,17 @@ export const TavernPage = ({
             sourceMessageIds: [],
           })]
         : []);
-    const title = parsed.room.title?.trim() || "导入酒馆";
+    const title = parsedExport.room.title?.trim() || "导入酒馆";
     const importedScene = createTavernScene({
-      title: parsed.room.scenes?.find((scene) => scene.id === parsed.room.activeSceneId)?.title ?? "默认场景",
+      title: parsedExport.room.scenes?.find((scene) => scene.id === parsedExport.room.activeSceneId)?.title ?? "默认场景",
       order: 0,
-      scenePresetId: normalizeVisualPresetId(parsed.room.scenePresetId),
-      scene: parsed.room.scene?.trim() || "一间刚被导入的酒馆房间。",
-      sceneGoal: parsed.room.sceneGoal?.trim() || "",
-      plot: parsed.room.scenePlot?.trim() || "",
-      storyDirection: parsed.room.sceneDirection?.trim() || "",
-      transition: parsed.room.sceneTransition?.trim() || "",
-      memory: parsed.room.memory?.trim() || "",
+      scenePresetId: normalizeVisualPresetId(parsedExport.room.scenePresetId),
+      scene: parsedExport.room.scene?.trim() || "一间刚被导入的酒馆房间。",
+      sceneGoal: parsedExport.room.sceneGoal?.trim() || "",
+      plot: parsedExport.room.scenePlot?.trim() || "",
+      storyDirection: parsedExport.room.sceneDirection?.trim() || "",
+      transition: parsedExport.room.sceneTransition?.trim() || "",
+      memory: parsedExport.room.memory?.trim() || "",
       characterConfigs,
       characterMemories,
       illustrationHints: importedIllustrationHints,
@@ -1687,10 +1785,10 @@ export const TavernPage = ({
       id: roomId,
       workspaceId: workspace.id,
       title: `${title}（导入）`,
-      promptStyleId: normalizeTavernPromptStyleId(parsed.room.promptStyleId),
+      promptStyleId: normalizeTavernPromptStyleId(parsedExport.room.promptStyleId),
       creationSource: "imported",
-      storyOutline: parsed.room.storyOutline?.trim() || "",
-      storyGoal: parsed.room.storyGoal?.trim() || "",
+      storyOutline: parsedExport.room.storyOutline?.trim() || "",
+      storyGoal: parsedExport.room.storyGoal?.trim() || "",
       activeSceneId: importedScene.id,
       scenes: [importedScene],
       scenePresetId: importedScene.scenePresetId,
@@ -1729,16 +1827,16 @@ export const TavernPage = ({
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
       characterIds,
       activeCharacterId,
-      replyMode: parsed.room.replyMode === "round" || parsed.room.replyMode === "director"
-        ? parsed.room.replyMode
+      replyMode: parsedExport.room.replyMode === "round" || parsedExport.room.replyMode === "director"
+        ? parsedExport.room.replyMode
         : "active",
-      userPersonaName: parsed.room.userPersonaName?.trim() || "我",
-      settings: normalizeImportedRoomSettings(parsed.room.settings),
+      userPersonaName: parsedExport.room.userPersonaName?.trim() || "我",
+      settings: normalizeImportedRoomSettings(parsedExport.room.settings),
       createdAt,
       updatedAt: createdAt,
     });
-    const importedMessages = Array.isArray(parsed.messages)
-      ? parsed.messages.flatMap((message) => {
+    const importedMessages = Array.isArray(parsedExport.messages)
+      ? parsedExport.messages.flatMap((message) => {
           if (!message.content?.trim()) {
             return [];
           }

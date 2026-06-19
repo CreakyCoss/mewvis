@@ -10,6 +10,7 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director-decision.ts");
+const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts");
 const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
@@ -63,6 +64,10 @@ writeFileSync(entryPath, `
     parseTavernDirectorDecision,
     shouldOfferTavernDirectorRandomEvent,
   } from ${JSON.stringify(directorDecisionPath)};
+  import {
+    parseSillyTavernWorldBookJson,
+    parseTavernExternalImportJson,
+  } from ${JSON.stringify(importFormatsPath)};
   import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
   import { buildTavernCharacterTurnInstruction } from ${JSON.stringify(turnInstructionPath)};
@@ -932,6 +937,74 @@ writeFileSync(entryPath, `
   );
   const generatedRoom = generatedMaterialized.room;
   const generatedScene = generatedRoom.scenes[0];
+  const sillyWorldBookEntries = parseSillyTavernWorldBookJson({
+    entries: {
+      0: {
+        uid: 0,
+        key: ["铜牌"],
+        keysecondary: ["信使"],
+        comment: "信使铜牌",
+        content: "铜牌用于确认信使身份。",
+        constant: true,
+        disable: false,
+      },
+      1: {
+        uid: 1,
+        key: ["停用"],
+        comment: "停用条目",
+        content: "这条应该以禁用状态导入。",
+        constant: false,
+        disable: true,
+      },
+    },
+  });
+  const sillyWorldBookImport = parseTavernExternalImportJson(JSON.stringify({
+    entries: {
+      0: {
+        uid: 0,
+        key: ["旧灯"],
+        keysecondary: ["雨巷"],
+        comment: "旧灯",
+        content: "雨巷旧灯只会在子夜前后闪烁。",
+        constant: false,
+        disable: false,
+      },
+    },
+  }));
+  const sillyCharacterImport = parseTavernExternalImportJson(JSON.stringify({
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: {
+      name: "铃央",
+      description: "守灯人，记忆力很好。",
+      personality: "冷静，先观察再回答。",
+      scenario: "雨巷旧灯下，信使失踪。",
+      first_mes: "灯刚刚灭过一次。",
+      mes_example: "铃央：我先看灯芯。",
+      system_prompt: "保持守灯人的谨慎，不替用户行动。",
+      post_history_instructions: "只根据可见线索回应。",
+      character_book: {
+        entries: [
+          {
+            key: ["灯芯"],
+            comment: "灯芯",
+            content: "灯芯混入银粉时会发出冷白光。",
+            constant: false,
+            disable: false,
+          },
+        ],
+      },
+    },
+  }));
+  let promptPresetImportError = "";
+  try {
+    parseTavernExternalImportJson(JSON.stringify({
+      chat_completion_source: "openai",
+      prompts: [{ identifier: "main", content: "提示词预设" }],
+    }));
+  } catch (error) {
+    promptPresetImportError = error instanceof Error ? error.message : String(error);
+  }
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -1036,6 +1109,12 @@ writeFileSync(entryPath, `
             "health",
           )
         : null,
+    },
+    imports: {
+      sillyWorldBookEntries,
+      sillyWorldBookImport,
+      sillyCharacterImport,
+      promptPresetImportError,
     },
   };
   globalThis.__checks = {
@@ -1403,6 +1482,36 @@ try {
       ),
     "生成 JSON 导入应创建世界书和映射后的初始角色消息",
     checks.progressChecks.generated,
+  );
+  assert(
+    checks.progressChecks.imports.sillyWorldBookEntries.length === 2 &&
+      checks.progressChecks.imports.sillyWorldBookEntries[0].title === "信使铜牌" &&
+      checks.progressChecks.imports.sillyWorldBookEntries[0].keywords.includes("铜牌") &&
+      checks.progressChecks.imports.sillyWorldBookEntries[0].keywords.includes("信使") &&
+      checks.progressChecks.imports.sillyWorldBookEntries[0].alwaysOn &&
+      checks.progressChecks.imports.sillyWorldBookEntries[1].enabled === false,
+    "SillyTavern 世界书应映射为通用世界书条目，并保留关键词、常驻和禁用状态",
+    checks.progressChecks.imports.sillyWorldBookEntries,
+  );
+  assert(
+    checks.progressChecks.imports.sillyWorldBookImport.kind === "worldBook" &&
+      checks.progressChecks.imports.sillyWorldBookImport.entries[0].title === "旧灯",
+    "外部导入解析器应识别 SillyTavern 世界书",
+    checks.progressChecks.imports.sillyWorldBookImport,
+  );
+  assert(
+    checks.progressChecks.imports.sillyCharacterImport.kind === "characterCard" &&
+      checks.progressChecks.imports.sillyCharacterImport.preset.characters[0].name === "铃央" &&
+      checks.progressChecks.imports.sillyCharacterImport.preset.room.scene.includes("信使失踪") &&
+      checks.progressChecks.imports.sillyCharacterImport.preset.room.lorebookEntries[0].title === "灯芯" &&
+      checks.progressChecks.imports.sillyCharacterImport.preset.messages[0].role === "character",
+    "SillyTavern 角色卡应转换成标准生成预设，包含角色、场景、世界书和开场消息",
+    checks.progressChecks.imports.sillyCharacterImport,
+  );
+  assert(
+    checks.progressChecks.imports.promptPresetImportError.includes("提示词预设"),
+    "提示词预设应被明确拒绝，避免误导入为酒馆数据",
+    checks.progressChecks.imports.promptPresetImportError,
   );
 
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));

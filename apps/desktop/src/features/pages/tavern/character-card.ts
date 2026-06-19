@@ -9,6 +9,8 @@ export type TavernCharacterCard = {
   avatar: string;
   description: string;
   speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
   goals?: string;
   relationships?: string;
 };
@@ -16,6 +18,7 @@ export type TavernCharacterCard = {
 export type TavernCharacterCardInput = Pick<
   TavernCharacter,
   "name" | "avatar" | "description" | "speakingStyle" | "goals" | "relationships"
+  | "writingStyle" | "replyStylePrompt"
 >;
 
 const textValue = (value: unknown) => typeof value === "string" ? value.trim() : "";
@@ -29,6 +32,8 @@ export const tavernCharacterToCard = (
   avatar: character.avatar,
   description: character.description,
   speakingStyle: character.speakingStyle,
+  writingStyle: character.writingStyle,
+  replyStylePrompt: character.replyStylePrompt,
   goals: character.goals,
   relationships: character.relationships,
 });
@@ -54,6 +59,8 @@ export const parseTavernCharacterCard = (raw: string): TavernCharacterCardInput 
     avatar: textValue(parsed.avatar) || "tavern-01",
     description,
     speakingStyle,
+    writingStyle: textValue(parsed.writingStyle) || undefined,
+    replyStylePrompt: textValue(parsed.replyStylePrompt) || undefined,
     goals: textValue(parsed.goals) || undefined,
     relationships: textValue(parsed.relationships) || undefined,
   };
