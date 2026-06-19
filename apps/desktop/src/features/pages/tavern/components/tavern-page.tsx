@@ -57,9 +57,11 @@ import {
 } from "../storage";
 import {
   advanceTavernProgressFromFactEvents,
+  createTavernProgressCheckpoint,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
+  rebuildTavernProgressFromHistory,
   tavernCharacterAgentRoleId,
 } from "../core";
 import {
@@ -475,6 +477,7 @@ export const TavernPage = ({
   const [isManagedAutoRunStarted, setIsManagedAutoRunStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
+  const [isTrackingProgress, setIsTrackingProgress] = useState(false);
   const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
@@ -517,6 +520,7 @@ export const TavernPage = ({
     setIsManagedAutoRunStarted(false);
     setIsSending(false);
     setIsExtractingAssets(false);
+    setIsTrackingProgress(false);
     setCompactingCharacterIds(new Set());
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
@@ -832,6 +836,23 @@ export const TavernPage = ({
     const interval = Math.max(1, room.progressTracker.intervalTurns);
     const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
     return userTurnCount > 0 && userTurnCount % interval === 0;
+  }, []);
+
+  const appendProgressCheckpointToRoom = useCallback((
+    room: TavernRoom,
+    reason: Parameters<typeof createTavernProgressCheckpoint>[0]["reason"],
+    turnId?: string,
+  ): TavernRoom => {
+    const checkpoint = createTavernProgressCheckpoint({
+      room,
+      turnId,
+      reason,
+      createdAt: Date.now(),
+    });
+    return {
+      ...room,
+      statusCheckpoints: [...room.statusCheckpoints, checkpoint].slice(-20),
+    };
   }, []);
 
   const shouldCompactCharacterKnowledgeAfterTurn = useCallback((
@@ -1892,6 +1913,152 @@ export const TavernPage = ({
     workspace.path,
   ]);
 
+  const trackRecentProgress = useCallback(async () => {
+    if (isSending || isTrackingProgress) {
+      return;
+    }
+
+    if (!runtimeModel) {
+      setError("请先在设置中选择模型，再更新状态。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    if (!activeRoom || roomCharacters.length === 0) {
+      setError("当前房间还没有可更新状态的角色。");
+      return;
+    }
+
+    if (activeRoom.statusDefinitions.length === 0 || activeRoom.statusRules.length === 0) {
+      setError("当前房间还没有状态定义或状态规则。");
+      return;
+    }
+
+    const availableMessages = roomMessages.filter((message) =>
+      message.status !== "streaming" && message.status !== "error"
+    );
+    const contextMessages = availableMessages.slice(-30);
+    const sourceMessages = availableMessages.slice(-12);
+    if (sourceMessages.length === 0) {
+      setError("当前房间还没有可更新状态的对话。");
+      return;
+    }
+
+    const progressTurnId = sourceMessages.at(-1)?.turnId ?? sourceMessages.at(-1)?.id ?? `manual-${Date.now()}`;
+    setIsTrackingProgress(true);
+    setError("");
+    if (activeRoom.settings.showExecutionTrace) {
+      setExecutionTraceAnchorMessageId(sourceMessages.at(-1)?.id ?? "");
+      resetExecutionTrace([{
+        id: "manual-progress-tracking",
+        label: "手动更新状态",
+        detail: "从最近对话中抽取事实事件并应用状态规则。",
+        status: "running",
+      }]);
+    }
+
+    try {
+      const factEvents = await runTavernProgressTracking({
+        workspacePath: workspace.path,
+        runtimeAgentId,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: contextMessages,
+        sourceMessages,
+        references: [],
+        currentUserText: "手动更新最近对话中的状态、任务与结局。",
+        turnId: progressTurnId,
+      });
+
+      if (factEvents.length === 0) {
+        patchExecutionStep("manual-progress-tracking", {
+          status: "done",
+          detail: "最近对话没有明确状态事件。",
+        });
+        toast.info("最近对话没有明确状态事件。");
+        return;
+      }
+
+      const progressPatch = advanceTavernProgressFromFactEvents({
+        room: activeRoom,
+        factEvents,
+        turnId: progressTurnId,
+        createdAt: Date.now(),
+      });
+      const progressedRoom = appendProgressCheckpointToRoom(
+        syncTavernRoomActiveScene({
+          ...projectTavernSceneOntoRoom(activeRoom),
+          ...progressPatch,
+          updatedAt: Date.now(),
+        }),
+        "manual",
+        progressTurnId,
+      );
+      patchRoom(activeRoom.id, {
+        ...progressPatch,
+        statusCheckpoints: progressedRoom.statusCheckpoints,
+        updatedAt: Date.now(),
+      });
+      patchExecutionStep("manual-progress-tracking", {
+        status: "done",
+        detail: `已抽取 ${factEvents.length} 个事实事件。`,
+      });
+      toast.success("状态面板已更新。");
+    } catch (progressError) {
+      patchExecutionStep("manual-progress-tracking", {
+        status: "error",
+        detail: getErrorMessage(progressError),
+      });
+      setError(`状态更新失败：${getErrorMessage(progressError)}`);
+    } finally {
+      setIsTrackingProgress(false);
+    }
+  }, [
+    activeRoom,
+    appendProgressCheckpointToRoom,
+    isSending,
+    isTrackingProgress,
+    patchExecutionStep,
+    patchRoom,
+    resetExecutionTrace,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+    runtimeModel,
+    workspace.path,
+  ]);
+
+  const rebuildProgressFromHistory = useCallback(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const rebuiltProgress = rebuildTavernProgressFromHistory({
+      room: activeRoom,
+      createdAt: Date.now(),
+    });
+    const rebuiltRoom = appendProgressCheckpointToRoom(
+      syncTavernRoomActiveScene({
+        ...projectTavernSceneOntoRoom(activeRoom),
+        ...rebuiltProgress,
+        updatedAt: Date.now(),
+      }),
+      "rebuild",
+      rebuiltProgress.statusSnapshot.turnId,
+    );
+    patchRoom(activeRoom.id, {
+      ...rebuiltProgress,
+      statusCheckpoints: rebuiltRoom.statusCheckpoints,
+      updatedAt: Date.now(),
+    });
+    toast.success("状态面板已从 checkpoint 和事件历史重建。");
+  }, [activeRoom, appendProgressCheckpointToRoom, patchRoom]);
+
   const compactCharacterKnowledge = useCallback(async (characterId: string) => {
     if (!activeRoom) {
       return;
@@ -2883,20 +3050,28 @@ export const TavernPage = ({
               turnId: progressTurnId,
               createdAt: Date.now(),
             });
-            runtimeRoom = syncTavernRoomActiveScene({
-              ...projectTavernSceneOntoRoom(runtimeRoom),
-              ...progressPatch,
-              updatedAt: Date.now(),
-            });
+            runtimeRoom = appendProgressCheckpointToRoom(
+              syncTavernRoomActiveScene({
+                ...projectTavernSceneOntoRoom(runtimeRoom),
+                ...progressPatch,
+                updatedAt: Date.now(),
+              }),
+              "after_turn",
+              progressTurnId,
+            );
             setState((current) => ({
               ...current,
               rooms: current.rooms.map((room) =>
                 room.id === activeRoom.id
-                  ? syncTavernRoomActiveScene({
-                      ...projectTavernSceneOntoRoom(room),
-                      ...progressPatch,
-                      updatedAt: Date.now(),
-                    })
+                  ? appendProgressCheckpointToRoom(
+                      syncTavernRoomActiveScene({
+                        ...projectTavernSceneOntoRoom(room),
+                        ...progressPatch,
+                        updatedAt: Date.now(),
+                      }),
+                      "after_turn",
+                      progressTurnId,
+                    )
                   : room
               ),
             }));
@@ -3012,6 +3187,7 @@ export const TavernPage = ({
     activeRoom,
     ambiguousFileReferences,
     appendMessagesToRoom,
+    appendProgressCheckpointToRoom,
     draft,
     isManagedModeEnabled,
     isSending,
@@ -3382,10 +3558,13 @@ export const TavernPage = ({
             roomCharacters={roomCharacters}
             isSending={isSending}
             isExtractingAssets={isExtractingAssets}
+            isTrackingProgress={isTrackingProgress}
             onPatchRoom={patchRoom}
             onApplyAssetDraft={applyAssetDraft}
             onDeleteAssetDraft={deleteAssetDraft}
             onExtractRecentAssets={extractRecentAssets}
+            onTrackRecentProgress={trackRecentProgress}
+            onRebuildProgress={rebuildProgressFromHistory}
             onCompactCharacterKnowledge={compactCharacterKnowledge}
             compactingCharacterIds={compactingCharacterIds}
           />

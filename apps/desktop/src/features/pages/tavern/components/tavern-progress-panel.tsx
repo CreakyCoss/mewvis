@@ -85,6 +85,37 @@ const toneClass = (
   }
 };
 
+const taskStatusLabel = (status: string) => {
+  switch (status) {
+    case "inactive":
+      return "未激活";
+    case "active":
+      return "进行中";
+    case "completed":
+      return "完成";
+    case "failed":
+      return "失败";
+    default:
+      return status;
+  }
+};
+
+const outcomeStatusLabel = (status: string) => {
+  switch (status) {
+    case "pending":
+      return "待确认";
+    case "applied":
+      return "已触发";
+    case "dismissed":
+      return "已忽略";
+    default:
+      return status;
+  }
+};
+
+const shouldShowProgressVisibility = (visibility: string) =>
+  visibility !== "hidden" && visibility !== "debug" && visibility !== "director";
+
 const characterRef = (character: TavernCharacter): TavernEntityRef => ({
   type: "character",
   characterId: character.id,
@@ -229,7 +260,7 @@ const TaskBadge = ({
         <Circle className="size-3.5 shrink-0 opacity-55" />
       )}
       <span className="min-w-0 flex-1 truncate">{title}</span>
-      <span className="shrink-0 opacity-65">{status}</span>
+      <span className="shrink-0 opacity-65">{taskStatusLabel(status)}</span>
     </div>
   );
 };
@@ -255,10 +286,10 @@ export const TavernProgressPanel = ({
   const taskById = new Map(activeRoom.taskDefinitions.map((task) => [task.id, task]));
   const outcomeById = new Map(activeRoom.sceneOutcomes.map((outcome) => [outcome.id, outcome]));
   const renderedViews = views.flatMap((view) => {
-    const rows = view.items.flatMap((item) => {
+    const explicitRows = view.items.flatMap((item) => {
       if (item.type === "status") {
         const definition = definitionById.get(item.statusId);
-        if (!definition) {
+        if (!definition || !shouldShowProgressVisibility(definition.visibility)) {
           return [];
         }
         return resolveStatusTargets({
@@ -319,7 +350,7 @@ export const TavernProgressPanel = ({
       if (item.type === "task") {
         const task = taskById.get(item.taskId);
         const state = activeRoom.taskSnapshot[item.taskId];
-        if (!task || !state) {
+        if (!task || !state || !shouldShowProgressVisibility(task.visibility)) {
           return [];
         }
         return [{
@@ -331,7 +362,7 @@ export const TavernProgressPanel = ({
       const event = activeRoom.outcomeEvents.find((candidate) =>
         candidate.outcomeId === item.outcomeId && candidate.status !== "dismissed"
       );
-      if (!outcome || !event) {
+      if (!outcome || !event || !shouldShowProgressVisibility(outcome.visibility)) {
         return [];
       }
       return [{
@@ -340,11 +371,48 @@ export const TavernProgressPanel = ({
           <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
             <Trophy className="size-3.5 shrink-0 text-amber-500" />
             <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
-            <span className="shrink-0 opacity-65">{event.status}</span>
+            <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
           </div>
         ),
       }];
     });
+    const dynamicTaskRows = view.items.length === 0 && (view.kind === "task" || view.kind === "mixed")
+      ? activeRoom.taskDefinitions.flatMap((task) => {
+          if (!shouldShowProgressVisibility(task.visibility)) {
+            return [];
+          }
+          const state = activeRoom.taskSnapshot[task.id];
+          if (!state || state.status === "inactive") {
+            return [];
+          }
+          return [{
+            key: `${view.id}:dynamic-task:${task.id}`,
+            content: <TaskBadge title={task.title} status={state.status} />,
+          }];
+        })
+      : [];
+    const dynamicOutcomeRows = view.items.length === 0 && (view.kind === "outcome" || view.kind === "mixed")
+      ? activeRoom.outcomeEvents.flatMap((event) => {
+          if (event.status === "dismissed") {
+            return [];
+          }
+          const outcome = outcomeById.get(event.outcomeId);
+          if (!outcome || !shouldShowProgressVisibility(outcome.visibility)) {
+            return [];
+          }
+          return [{
+            key: `${view.id}:dynamic-outcome:${event.outcomeId}:${event.id}`,
+            content: (
+              <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
+                <Trophy className="size-3.5 shrink-0 text-amber-500" />
+                <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
+                <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
+              </div>
+            ),
+          }];
+        })
+      : [];
+    const rows = [...explicitRows, ...dynamicTaskRows, ...dynamicOutcomeRows];
 
     if (rows.length === 0) {
       return [];

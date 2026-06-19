@@ -23,6 +23,7 @@ writeFileSync(entryPath, `
   import {
     applyTavernStatusEventsToSnapshot,
     createEmptyTavernStatusSnapshot,
+    createTavernProgressCheckpoint,
     createTavernRenderableMessages,
     deriveTavernStatusEventsFromFacts,
     evaluateTavernSceneOutcomes,
@@ -31,6 +32,7 @@ writeFileSync(entryPath, `
     getTavernStatusSnapshotValue,
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
+    rebuildTavernProgressFromHistory,
     setTavernStatusSnapshotValue,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
@@ -566,6 +568,39 @@ writeFileSync(entryPath, `
     turnId: "turn-progress",
     createdAt: now + 14,
   });
+  const checkpointRoom = {
+    ...room,
+    factEvents: [],
+    statusEvents: [],
+    statusSnapshot: initialProgressSnapshot,
+    previousStatusSnapshot: undefined,
+    statusCheckpoints: [],
+    taskDefinitions: progressTaskDefinitions,
+    taskEvents: [],
+    taskSnapshot: {},
+    sceneOutcomes: [],
+    outcomeEvents: [],
+  };
+  const progressCheckpoint = createTavernProgressCheckpoint({
+    room: checkpointRoom,
+    turnId: "turn-0",
+    reason: "initial",
+    createdAt: now + 15,
+  });
+  const rebuiltProgress = rebuildTavernProgressFromHistory({
+    room: {
+      ...checkpointRoom,
+      factEvents: progressFactEvents,
+      statusEvents,
+      statusSnapshot: createEmptyTavernStatusSnapshot("lost-current", now + 16),
+      previousStatusSnapshot: undefined,
+      statusCheckpoints: [progressCheckpoint],
+      taskEvents: taskResult.taskEvents,
+      taskSnapshot: {},
+      outcomeEvents,
+    },
+    createdAt: now + 17,
+  });
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -582,6 +617,13 @@ writeFileSync(entryPath, `
     relationshipKey: tavernRelationshipKey(charARef, userRef),
     taskResult,
     outcomeEvents,
+    rebuiltBossHealth: getTavernStatusSnapshotValue(
+      rebuiltProgress.statusSnapshot,
+      { type: "character", characterId: "boss" },
+      "health",
+    ),
+    rebuiltTaskStatus: rebuiltProgress.taskSnapshot["defeat-boss"]?.status,
+    progressCheckpoint,
   };
   globalThis.__checks = {
     contextForA,
@@ -792,6 +834,13 @@ try {
       checks.progressChecks.outcomeEvents[0].status === "applied",
     "场景胜负引擎应在任务完成后触发自动结局",
     checks.progressChecks.outcomeEvents,
+  );
+  assert(
+    checks.progressChecks.progressCheckpoint.includedStatusEventIds.length === 0 &&
+      checks.progressChecks.rebuiltBossHealth === 0 &&
+      checks.progressChecks.rebuiltTaskStatus === "completed",
+    "状态面板应能从 checkpoint 和后续事件历史重建",
+    checks.progressChecks,
   );
 
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));

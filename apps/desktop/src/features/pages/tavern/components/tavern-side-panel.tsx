@@ -50,10 +50,13 @@ type TavernSidePanelProps = {
   roomCharacters: TavernCharacter[];
   isSending: boolean;
   isExtractingAssets: boolean;
+  isTrackingProgress: boolean;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   onApplyAssetDraft: (draftId: string) => void;
   onDeleteAssetDraft: (draftId: string) => void;
   onExtractRecentAssets: () => void;
+  onTrackRecentProgress: () => void;
+  onRebuildProgress: () => void;
   onCompactCharacterKnowledge: (characterId: string) => void;
   compactingCharacterIds?: Set<string>;
 };
@@ -268,15 +271,18 @@ export const TavernSidePanel = ({
   roomCharacters,
   isSending,
   isExtractingAssets,
+  isTrackingProgress,
   onPatchRoom,
   onApplyAssetDraft,
   onDeleteAssetDraft,
   onExtractRecentAssets,
+  onTrackRecentProgress,
+  onRebuildProgress,
   onCompactCharacterKnowledge,
   compactingCharacterIds = new Set(),
 }: TavernSidePanelProps) => {
   const [detailPanel, setDetailPanel] = useState<DetailPanelKey | null>(null);
-  const isBusy = isSending || isExtractingAssets;
+  const isBusy = isSending || isExtractingAssets || isTrackingProgress;
   const userPersonaName = activeRoom.userPersonaName.trim();
   const sceneStatusItems = [
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
@@ -362,6 +368,34 @@ export const TavernSidePanel = ({
             <TextBlock label="场景描述" value={activeRoom.scene} />
             <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
             <TextBlock label="房间记忆" value={activeRoom.memory} />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                disabled={isBusy}
+                onClick={onTrackRecentProgress}
+              >
+                {isTrackingProgress ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3.5" />
+                )}
+                更新状态
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                disabled={isBusy}
+                onClick={onRebuildProgress}
+              >
+                <RefreshCcw className="size-3.5" />
+                重建状态
+              </Button>
+            </div>
             <TavernProgressPanel
               activeRoom={activeRoom}
               roomCharacters={roomCharacters}

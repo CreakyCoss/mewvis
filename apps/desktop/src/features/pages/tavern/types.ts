@@ -396,10 +396,11 @@ export type TavernProgressCheckpoint = {
   turnId: string;
   statusSnapshot: TavernStatusSnapshot;
   taskSnapshot: Record<string, TavernTaskState>;
+  includedFactEventIds: string[];
   includedStatusEventIds: string[];
   includedTaskEventIds: string[];
   includedOutcomeEventIds: string[];
-  reason: "initial" | "before_context_trim" | "manual" | "compaction";
+  reason: "initial" | "after_turn" | "before_context_trim" | "manual" | "compaction" | "rebuild";
   createdAt: number;
 };
 

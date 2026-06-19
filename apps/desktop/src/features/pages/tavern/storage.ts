@@ -549,6 +549,16 @@ export const DEFAULT_TAVERN_PROGRESS_VIEWS: TavernProgressView[] = [
     ],
   },
   {
+    id: "scene-progress",
+    label: "任务与结局",
+    kind: "mixed",
+    placement: "sidePanel",
+    ownerBinding: "scene",
+    layout: "questLog",
+    compareWith: "previousTurn",
+    items: [],
+  },
+  {
     id: "relationship-to-user",
     label: "对你的态度",
     kind: "status",
@@ -929,9 +939,33 @@ const normalizeOutcomeEvents = (value: unknown) => Array.isArray(value)
   : [];
 
 const normalizeProgressCheckpoints = (value: unknown) => Array.isArray(value)
-  ? value.filter((item): item is TavernProgressCheckpoint =>
-      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernProgressCheckpoint>).id === "string")
-    )
+  ? value.flatMap((item): TavernProgressCheckpoint[] => {
+      if (!item || typeof item !== "object" || typeof (item as Partial<TavernProgressCheckpoint>).id !== "string") {
+        return [];
+      }
+
+      const checkpoint = item as Partial<TavernProgressCheckpoint>;
+      const id = (item as { id: string }).id;
+      return [{
+        id,
+        turnId: typeof checkpoint.turnId === "string" ? checkpoint.turnId : "unknown",
+        statusSnapshot: normalizeStatusSnapshot(checkpoint.statusSnapshot, Date.now()),
+        taskSnapshot: normalizeTaskSnapshot(checkpoint.taskSnapshot),
+        includedFactEventIds: normalizeStringArray(checkpoint.includedFactEventIds),
+        includedStatusEventIds: normalizeStringArray(checkpoint.includedStatusEventIds),
+        includedTaskEventIds: normalizeStringArray(checkpoint.includedTaskEventIds),
+        includedOutcomeEventIds: normalizeStringArray(checkpoint.includedOutcomeEventIds),
+        reason: checkpoint.reason === "initial" ||
+          checkpoint.reason === "after_turn" ||
+          checkpoint.reason === "before_context_trim" ||
+          checkpoint.reason === "manual" ||
+          checkpoint.reason === "compaction" ||
+          checkpoint.reason === "rebuild"
+          ? checkpoint.reason
+          : "manual",
+        createdAt: typeof checkpoint.createdAt === "number" ? checkpoint.createdAt : Date.now(),
+      }];
+    })
   : [];
 
 const normalizeSceneStatus = (

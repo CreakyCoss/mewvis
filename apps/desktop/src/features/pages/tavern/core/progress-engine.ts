@@ -4,6 +4,7 @@ import type {
   TavernFactEvent,
   TavernRoom,
   TavernOutcomeEvent,
+  TavernProgressCheckpoint,
   TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusEvent,
@@ -679,6 +680,104 @@ export const evaluateTavernSceneOutcomes = ({
       status: outcome.endScene === "auto" ? "applied" : "pending",
       createdAt,
     }]);
+};
+
+const sortByCreatedAt = <T extends { createdAt: number }>(items: T[]) =>
+  [...items].sort((left, right) => left.createdAt - right.createdAt);
+
+export const createTavernProgressCheckpoint = ({
+  room,
+  turnId = room.statusSnapshot.turnId,
+  reason,
+  createdAt = Date.now(),
+}: {
+  room: Pick<
+    TavernRoom,
+    | "factEvents"
+    | "statusEvents"
+    | "statusSnapshot"
+    | "taskEvents"
+    | "taskSnapshot"
+    | "outcomeEvents"
+  >;
+  turnId?: string;
+  reason: TavernProgressCheckpoint["reason"];
+  createdAt?: number;
+}): TavernProgressCheckpoint => ({
+  id: createProgressId("progress-checkpoint"),
+  turnId,
+  statusSnapshot: room.statusSnapshot,
+  taskSnapshot: room.taskSnapshot,
+  includedFactEventIds: room.factEvents.map((event) => event.id),
+  includedStatusEventIds: room.statusEvents.map((event) => event.id),
+  includedTaskEventIds: room.taskEvents.map((event) => event.id),
+  includedOutcomeEventIds: room.outcomeEvents.map((event) => event.id),
+  reason,
+  createdAt,
+});
+
+const getLatestProgressCheckpoint = (
+  checkpoints: TavernProgressCheckpoint[],
+  checkpointId?: string,
+) => {
+  if (checkpointId) {
+    return checkpoints.find((checkpoint) => checkpoint.id === checkpointId) ?? null;
+  }
+  return sortByCreatedAt(checkpoints).at(-1) ?? null;
+};
+
+export const rebuildTavernProgressFromHistory = ({
+  room,
+  checkpointId,
+  createdAt = Date.now(),
+}: {
+  room: TavernRoom;
+  checkpointId?: string;
+  createdAt?: number;
+}): Pick<
+  TavernRoom,
+  | "previousStatusSnapshot"
+  | "statusSnapshot"
+  | "taskSnapshot"
+> => {
+  const checkpoint = getLatestProgressCheckpoint(room.statusCheckpoints, checkpointId);
+  const includedStatusEventIds = new Set(checkpoint?.includedStatusEventIds ?? []);
+  const includedTaskEventIds = new Set(checkpoint?.includedTaskEventIds ?? []);
+  let previousStatusSnapshot = checkpoint?.statusSnapshot ?? createEmptyTavernStatusSnapshot("rebuild-base", createdAt);
+  let statusSnapshot = previousStatusSnapshot;
+
+  for (const statusEvent of sortByCreatedAt(
+    room.statusEvents.filter((event) => !includedStatusEventIds.has(event.id)),
+  )) {
+    previousStatusSnapshot = statusSnapshot;
+    statusSnapshot = {
+      ...applyTavernStatusEventsToSnapshot({
+        snapshot: statusSnapshot,
+        events: [statusEvent],
+      }),
+      turnId: statusEvent.turnId,
+      updatedAt: statusEvent.createdAt,
+    };
+  }
+
+  let taskSnapshot = { ...(checkpoint?.taskSnapshot ?? {}) };
+  for (const taskEvent of sortByCreatedAt(
+    room.taskEvents.filter((event) => !includedTaskEventIds.has(event.id)),
+  )) {
+    taskSnapshot = {
+      ...taskSnapshot,
+      [taskEvent.taskId]: taskEvent.after,
+    };
+  }
+
+  return {
+    previousStatusSnapshot,
+    statusSnapshot: {
+      ...statusSnapshot,
+      updatedAt: createdAt,
+    },
+    taskSnapshot,
+  };
 };
 
 export const advanceTavernProgressFromFactEvents = ({
