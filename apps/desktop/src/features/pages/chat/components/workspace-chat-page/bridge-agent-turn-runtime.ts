@@ -45,23 +45,17 @@ export const prepareBridgeAgentTurnRuntime = async ({
   if (!sessionRootDir) {
     throw new Error("无法创建 bridge 上下文目录，请重试");
   }
-  const selectedAgentForBridge = selectedAgent;
-  if (!selectedAgentForBridge?.id?.trim()) {
-    throw new Error("Agent 模式必须选择稳定角色 id");
+  const conversationAgentRoleId = nextSessionId?.trim();
+  if (!conversationAgentRoleId) {
+    throw new Error("无法创建稳定的聊天上下文 id，请重试");
   }
-  const bridgeSelectedAgent = {
-    id: selectedAgentForBridge.id.trim(),
-    name: selectedAgentForBridge.name,
-    description: selectedAgentForBridge.description ?? null,
-  };
-
   const { systemPrompt, requestContext, runtimeInstruction } = await buildApplicationPromptParts({
     workspace,
     text,
     activeFile,
     referencedFiles,
     activeSkills,
-    selectedAgent: bridgeSelectedAgent,
+    selectedAgent,
     executionMemorySummary,
     trailingSections: [
       agentInstructions.trim(),
@@ -70,7 +64,7 @@ export const prepareBridgeAgentTurnRuntime = async ({
   });
 
   const agentPromptPayload: BridgeAgentPromptPayload = {
-    agentRoleId: bridgeSelectedAgent.id,
+    agentRoleId: conversationAgentRoleId,
     systemPrompt,
     userMessage: text,
     requestContext,
