@@ -2853,7 +2853,7 @@ export const TavernPage = ({
       <div
         className={[
           "grid h-full min-h-0 w-full grid-cols-1",
-          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_324px]" : "lg:grid-cols-1",
+          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_280px]" : "lg:grid-cols-1",
         ].join(" ")}
       >
         <main className="flex min-h-0 min-w-0 flex-col">

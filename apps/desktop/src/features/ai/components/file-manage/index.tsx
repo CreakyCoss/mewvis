@@ -82,7 +82,7 @@ export const FileManage = ({
   }), [refresh]);
 
   return (
-    <aside className="flex min-w-0 w-[clamp(300px,30vw,460px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
+    <aside className="flex min-w-0 w-[clamp(240px,20vw,340px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
       <VersionControlSection
         bind={versionControlRef}
         workspacePath={workspacePath}
