@@ -103,6 +103,7 @@ import {
 import { TavernHeader } from "./tavern-header";
 import { TavernManagementPage } from "./tavern-management-page";
 import { TavernMessageRow } from "./tavern-message-row";
+import { TavernProgressPanel } from "./tavern-progress-panel";
 import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
@@ -681,6 +682,9 @@ export const TavernPage = ({
       ?? roomCharacters[0]
       ?? null
   ), [activeRoom?.activeCharacterId, roomCharacters]);
+  const hasGlobalHeaderProgress = Boolean(
+    activeRoom?.progressViews.some((view) => view.placement === "globalHeader"),
+  );
 
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
@@ -3434,6 +3438,16 @@ export const TavernPage = ({
             onToggleSidePanel={() => setIsSidePanelOpen((current) => !current)}
           />
 
+          {hasGlobalHeaderProgress && (
+            <TavernProgressPanel
+              activeRoom={activeRoom}
+              roomCharacters={roomCharacters}
+              activeCharacter={activeCharacter}
+              placement="globalHeader"
+              className="mx-auto w-full max-w-3xl px-4 py-2 sm:px-5"
+            />
+          )}
+
           <ScrollArea
             viewportRef={messageViewportRef}
             className={cn(
@@ -3487,6 +3501,13 @@ export const TavernPage = ({
                       </NativeSelect>
                     </div>
                   </div>
+                <TavernProgressPanel
+                  activeRoom={activeRoom}
+                  roomCharacters={roomCharacters}
+                  activeCharacter={activeCharacter}
+                  placement="sceneHeader"
+                  className="mt-3"
+                />
                 {(activeRoom.storyOutline.trim() || activeRoom.storyGoal.trim()) && (
                   <div className="mt-3 grid gap-2 rounded-md border border-current/10 bg-current/[0.03] p-3 text-xs leading-5 opacity-75 md:grid-cols-2">
                     {activeRoom.storyOutline.trim() && (
@@ -3568,6 +3589,14 @@ export const TavernPage = ({
             speakerCount={roomCharacters.length}
             referencedFilePreviews={referencedFilePreviews}
             referenceSuggestions={referenceSuggestions}
+            progressSlot={(
+              <TavernProgressPanel
+                activeRoom={activeRoom}
+                roomCharacters={roomCharacters}
+                activeCharacter={activeCharacter}
+                placement="composerBelow"
+              />
+            )}
             inputRef={draftInputRef}
             onDraftChange={(value, cursor) => {
               setDraft(value);

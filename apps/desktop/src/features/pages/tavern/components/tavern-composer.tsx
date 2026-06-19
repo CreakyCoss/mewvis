@@ -1,4 +1,4 @@
-import type { FormEvent, KeyboardEvent, RefObject } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode, RefObject } from "react";
 import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +21,7 @@ type TavernComposerProps = {
   speakerCount: number;
   referencedFilePreviews: WorkspaceFileEntry[];
   referenceSuggestions: WorkspaceFileEntry[];
+  progressSlot?: ReactNode;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   onDraftChange: (value: string, cursor: number) => void;
   onCursorChange: (cursor: number) => void;
@@ -46,6 +47,7 @@ export const TavernComposer = ({
   speakerCount,
   referencedFilePreviews,
   referenceSuggestions,
+  progressSlot,
   inputRef,
   onDraftChange,
   onCursorChange,
@@ -82,6 +84,7 @@ export const TavernComposer = ({
             {error}
           </div>
         )}
+        {progressSlot}
         {referencedFilePreviews.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {referencedFilePreviews.map((file) => (

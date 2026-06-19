@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowRight,
   BookOpen,
   ChevronDown,
@@ -577,6 +578,21 @@ export const TavernManagementPage = ({
       }`
     : "未选择";
   const editingRoomModelLabel = systemDefaultModelLabel;
+  const editingPendingStatusEventCount = editingRoom
+    ? editingRoom.statusEvents.filter((event) => event.status === "pending").length
+    : 0;
+  const editingAppliedStatusEventCount = editingRoom
+    ? editingRoom.statusEvents.filter((event) => event.status === "applied").length
+    : 0;
+  const editingActiveTaskCount = editingRoom
+    ? Object.values(editingRoom.taskSnapshot).filter((task) => task.status !== "inactive").length
+    : 0;
+  const editingOutcomeEventCount = editingRoom
+    ? editingRoom.outcomeEvents.filter((event) => event.status !== "dismissed").length
+    : 0;
+  const editingProgressPlacementText = editingRoom
+    ? Array.from(new Set(editingRoom.progressViews.map((view) => view.placement))).join("、")
+    : "";
   const areAllTimelineEventsCollapsed = editingRoom && editingRoom.timelineEvents.length > 0
     ? editingRoom.timelineEvents.every((event) => collapsedTimelineEventIds[event.id])
     : false;
@@ -2922,6 +2938,54 @@ export const TavernManagementPage = ({
                           : editingRoom.progressTracker.mode === "afterTurn"
                           ? "每轮"
                           : `${editingRoom.progressTracker.intervalTurns} 轮`}
+                      />
+                    </div>
+                  </TavernEditorSection>
+
+                  <TavernEditorSection
+                    icon={Activity}
+                    title="进度系统"
+                    description="检查状态栏定义、规则引擎、任务目标、结局条件和可重建快照。"
+                    contentClassName="space-y-0 pb-4"
+                  >
+                    <div className="grid gap-2 rounded-md border border-border/70 bg-muted/15 p-2 sm:grid-cols-2 lg:grid-cols-4">
+                      <TavernCompactSummaryItem
+                        label="状态定义"
+                        value={formatCount(editingRoom.statusDefinitions.length, "项")}
+                      />
+                      <TavernCompactSummaryItem
+                        label="状态规则"
+                        value={formatCount(editingRoom.statusRules.length, "条")}
+                      />
+                      <TavernCompactSummaryItem
+                        label="状态面板"
+                        value={formatCount(editingRoom.progressViews.length, "个")}
+                        description={editingProgressPlacementText || "未配置展示位置"}
+                      />
+                      <TavernCompactSummaryItem
+                        label="任务定义"
+                        value={formatCount(editingRoom.taskDefinitions.length, "个")}
+                        description={formatCount(editingActiveTaskCount, "进行中")}
+                      />
+                      <TavernCompactSummaryItem
+                        label="结局条件"
+                        value={formatCount(editingRoom.sceneOutcomes.length, "个")}
+                        description={formatCount(editingOutcomeEventCount, "已触发")}
+                      />
+                      <TavernCompactSummaryItem
+                        label="状态事件"
+                        value={formatCount(editingRoom.statusEvents.length, "条")}
+                        description={`${editingAppliedStatusEventCount} 已应用 / ${editingPendingStatusEventCount} 待确认`}
+                      />
+                      <TavernCompactSummaryItem
+                        label="检查点"
+                        value={formatCount(editingRoom.statusCheckpoints.length, "个")}
+                        description="可用于裁切后重建状态"
+                      />
+                      <TavernCompactSummaryItem
+                        label="应用方式"
+                        value={editingRoom.progressTracker.applyMode === "review" ? "确认后应用" : "自动应用"}
+                        description={`置信阈值 ${editingRoom.progressTracker.factConfidenceThreshold}`}
                       />
                     </div>
                   </TavernEditorSection>
