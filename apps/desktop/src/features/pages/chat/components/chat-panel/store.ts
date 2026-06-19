@@ -43,7 +43,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   isSending: false,
   activeAgentTaskId: "",
   isSettingsLoading: false,
-  effectiveContextWindow: 0,
   availableRuntimeAgents: [],
   selectedRuntimeAgent: null,
   runtimeAgentId: "",

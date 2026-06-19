@@ -1,28 +1,28 @@
-import type { AgentRuntimeOutputEvent } from "./contracts";
+import type { AgentClientOutputEvent } from "./contracts";
 
-export type AgentRuntimeOutputHandlers = {
+export type AgentClientOutputHandlers = {
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
 
-export type AgentRuntimeOutputState = {
+export type AgentClientOutputState = {
   text: string;
   thinking: string;
 };
 
-export type AgentRuntimeOutputSnapshot = {
+export type AgentClientOutputSnapshot = {
   text: string;
   thinking?: string;
 };
 
-export const createAgentRuntimeOutputState = (): AgentRuntimeOutputState => ({
+export const createAgentClientOutputState = (): AgentClientOutputState => ({
   text: "",
   thinking: "",
 });
 
-export const isAgentRuntimeOutputEvent = (
+export const isAgentClientOutputEvent = (
   event: { type: string },
-): event is AgentRuntimeOutputEvent => (
+): event is AgentClientOutputEvent => (
   event.type === "text_delta" ||
   event.type === "thinking_delta" ||
   event.type === "replace_text" ||
@@ -30,9 +30,9 @@ export const isAgentRuntimeOutputEvent = (
   event.type === "done"
 );
 
-export const applyAgentRuntimeOutputEvent = (
-  state: AgentRuntimeOutputState,
-  event: AgentRuntimeOutputEvent,
+export const applyAgentClientOutputEvent = (
+  state: AgentClientOutputState,
+  event: AgentClientOutputEvent,
 ) => {
   if (event.type === "text_delta") {
     state.text += event.delta;
@@ -59,9 +59,9 @@ export const applyAgentRuntimeOutputEvent = (
   }
 };
 
-export const dispatchAgentRuntimeOutputEvent = (
-  event: AgentRuntimeOutputEvent,
-  handlers: AgentRuntimeOutputHandlers,
+export const dispatchAgentClientOutputEvent = (
+  event: AgentClientOutputEvent,
+  handlers: AgentClientOutputHandlers,
 ) => {
   if (event.type === "text_delta") {
     handlers.onTextDelta?.(event.delta);
@@ -73,9 +73,9 @@ export const dispatchAgentRuntimeOutputEvent = (
   }
 };
 
-export const snapshotAgentRuntimeOutput = (
-  state: AgentRuntimeOutputState,
-): AgentRuntimeOutputSnapshot => ({
+export const snapshotAgentClientOutput = (
+  state: AgentClientOutputState,
+): AgentClientOutputSnapshot => ({
   text: state.text.trim(),
   thinking: state.thinking.trim() || undefined,
 });

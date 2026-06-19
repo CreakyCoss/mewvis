@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
-import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/ai/runtime-protocol";
+import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/agent-client/protocol";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,7 +49,6 @@ export type ChatPanelViewModel = {
   isSending: boolean;
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
-  effectiveContextWindow: number;
   availableRuntimeAgents: readonly RuntimeAgentDefinition[];
   selectedRuntimeAgent: RuntimeAgentDefinition | null;
   runtimeAgentId: string;
@@ -247,7 +246,6 @@ export const ChatPanel = () => {
     isSending,
     activeAgentTaskId,
     isSettingsLoading,
-    effectiveContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
     runtimeAgentId,
@@ -300,7 +298,6 @@ export const ChatPanel = () => {
       isSettingsLoading={isSettingsLoading}
       showThinkingProcess={showThinkingProcess}
       showToolCallProcess={showToolCallProcess}
-      effectiveContextWindow={effectiveContextWindow}
       modelSource={modelSource}
       runtimeAgents={availableRuntimeAgents}
       selectedRuntimeAgent={selectedRuntimeAgent}

@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
-  type ConversationMessage,
-} from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
+import type { TavernRuntimeMessage } from "./conversation";
 import type {
   TavernCharacter,
   TavernLorebookEntry,
@@ -28,11 +28,6 @@ const escapePromptXmlText = (text: string) =>
 
 const escapePromptXmlAttribute = (text: string) =>
   escapePromptXmlText(text).replace(/"/g, "&quot;");
-
-export const TAVERN_REFERENCE_PROMPT_LIMITS = {
-  perFileChars: 12000,
-  totalChars: 26000,
-} as const;
 
 const normalizeMatchText = (text: string) => text.toLowerCase();
 
@@ -255,10 +250,7 @@ export const buildTavernSystemPrompt = ({
     "</present_characters>",
   ].join("\n");
 
-  return appendReferencesToPrompt(basePrompt, references, {
-    query: currentUserText,
-    ...TAVERN_REFERENCE_PROMPT_LIMITS,
-  });
+  return appendReferencesToPrompt(basePrompt, references);
 };
 
 export const tavernMessagesToRuntimeMessages = ({
@@ -271,7 +263,7 @@ export const tavernMessagesToRuntimeMessages = ({
   characters: TavernCharacter[];
   userPersonaName: string;
   visibleThoughtCharacterId?: string | null;
-}): ConversationMessage[] => {
+}): TavernRuntimeMessage[] => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
 
   return messages.map((message) => {

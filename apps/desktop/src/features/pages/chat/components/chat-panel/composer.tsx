@@ -16,13 +16,13 @@ import {
   RUNTIME_AGENT_TOOL_DEFINITIONS,
   type RuntimeAgentDefinition,
   type RuntimeAgentToolName,
-} from "@/ai/runtime-protocol";
+} from "@/agent-client/protocol";
 import {
   getActiveReferenceToken,
   quoteReferencePath,
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
-} from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -60,7 +60,6 @@ type ComposerProps = {
   isSettingsLoading: boolean;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  effectiveContextWindow: number;
   modelSource: ModelSource;
   runtimeAgents: readonly RuntimeAgentDefinition[];
   selectedRuntimeAgent: RuntimeAgentDefinition | null;
@@ -114,15 +113,6 @@ const groupRuntimeModelsByProvider = (
   return groups;
 };
 
-const formatContextWindowLabel = (tokens: number) => {
-  if (tokens >= 1000000) {
-    const value = tokens / 1000000;
-    return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}M`;
-  }
-
-  return `${Math.round(tokens / 1000)}k`;
-};
-
 export const Composer = memo(({
   files,
   resetKey,
@@ -131,7 +121,6 @@ export const Composer = memo(({
   isSettingsLoading,
   showThinkingProcess,
   showToolCallProcess,
-  effectiveContextWindow,
   modelSource,
   runtimeAgents,
   selectedRuntimeAgent,
@@ -225,7 +214,6 @@ export const Composer = memo(({
     showThinkingProcess ? "思考" : "",
     showToolCallProcess ? "工具" : "",
   ].filter(Boolean).join("/");
-  const effectiveContextWindowLabel = formatContextWindowLabel(effectiveContextWindow);
   const isAgentRunning = Boolean(activeAgentTaskId);
   const submitButtonLabel = isAgentRunning
     ? "停止"
@@ -469,16 +457,10 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`模型：${modelLabel} / 上下文：${effectiveContextWindowLabel}`}
+                  title={`模型：${modelLabel}`}
                 >
                   <Orbit className="size-3.5 shrink-0" />
                   <span className="min-w-0 truncate">{modelLabel}</span>
-                  {effectiveContextWindow !== 200000 && (
-                    <>
-                      <span className="shrink-0 text-muted-foreground">·</span>
-                      <span className="shrink-0 text-muted-foreground">{effectiveContextWindowLabel}</span>
-                    </>
-                  )}
                   <ChevronDown className="size-3 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>

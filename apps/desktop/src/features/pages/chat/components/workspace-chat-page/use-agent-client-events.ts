@@ -1,6 +1,6 @@
 import { useCallback, useEffect, type MutableRefObject } from "react";
-import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
+import type { AgentClient } from "@/agent-client/runtime";
+import type { AgentClientAgentEvent } from "@/agent-client/contracts";
 import type { ChatMessage, PendingAgentQuestion } from "../../types";
 import {
   applyAgentEventToMessage,
@@ -14,11 +14,11 @@ type ResetActiveAgentTaskState = (options?: {
   clearTerminalState?: boolean;
 }) => void;
 
-type AgentDoneEvent = Extract<AgentRuntimeAgentEvent, { type: "done" }>;
-type AgentBridgeSessionRef = AgentDoneEvent["bridgeSession"];
+type AgentDoneEvent = Extract<AgentClientAgentEvent, { type: "done" }>;
+type AgentSessionRef = AgentDoneEvent["agentSession"];
 
 const pendingQuestionFromEvent = (
-  event: Extract<AgentRuntimeAgentEvent, { type: "question" }>,
+  event: Extract<AgentClientAgentEvent, { type: "question" }>,
 ): PendingAgentQuestion => ({
   taskId: event.taskId,
   questionId: event.questionId,
@@ -27,8 +27,8 @@ const pendingQuestionFromEvent = (
   input: event.input,
 });
 
-type UseAgentRuntimeEventsInput = {
-  agentRuntime: AgentRuntime;
+type UseAgentClientEventsInput = {
+  agentClient: AgentClient;
   workspacePath: string;
   currentSessionIdRef: MutableRefObject<string | null>;
   activeAgentTaskIdRef: MutableRefObject<string>;
@@ -65,19 +65,19 @@ const updateRunningAgentTaskMessage = (
   );
 };
 
-const bridgeMessageRecordIdForMessage = (
+const agentMessageRecordIdForMessage = (
   message: ChatMessage,
-  bridgeSession: NonNullable<AgentBridgeSessionRef>,
+  agentSession: NonNullable<AgentSessionRef>,
 ) => message.role === "user"
-  ? bridgeSession.userMessageRecordId ?? null
-  : bridgeSession.assistantMessageRecordId ?? null;
+  ? agentSession.userMessageRecordId ?? null
+  : agentSession.assistantMessageRecordId ?? null;
 
-const patchMessagesWithBridgeSession = (
+const patchMessagesWithAgentSession = (
   messages: ChatMessage[],
   assistantMessageId: string,
-  bridgeSession?: AgentBridgeSessionRef,
+  agentSession?: AgentSessionRef,
 ) => {
-  if (!bridgeSession) {
+  if (!agentSession) {
     return messages;
   }
 
@@ -91,7 +91,7 @@ const patchMessagesWithBridgeSession = (
       return message;
     }
 
-    const bridgeMessageRecordId = bridgeMessageRecordIdForMessage(message, bridgeSession);
+    const bridgeMessageRecordId = agentMessageRecordIdForMessage(message, agentSession);
     if (!bridgeMessageRecordId) {
       return message;
     }
@@ -103,8 +103,8 @@ const patchMessagesWithBridgeSession = (
   });
 };
 
-export const useAgentRuntimeEvents = ({
-  agentRuntime,
+export const useAgentClientEvents = ({
+  agentClient,
   workspacePath,
   currentSessionIdRef,
   activeAgentTaskIdRef,
@@ -123,8 +123,8 @@ export const useAgentRuntimeEvents = ({
   resetActiveAgentTaskState,
   setChatError,
   loadFiles,
-}: UseAgentRuntimeEventsInput) => {
-  const handleBackgroundAgentEvent = useCallback((task: RunningAgentTaskContext, event: AgentRuntimeAgentEvent) => {
+}: UseAgentClientEventsInput) => {
+  const handleBackgroundAgentEvent = useCallback((task: RunningAgentTaskContext, event: AgentClientAgentEvent) => {
     if (isAgentMessageStreamEvent(event)) {
       updateRunningAgentTaskMessage(task, (message) =>
         applyAgentEventToMessage(message, event).message
@@ -179,10 +179,10 @@ export const useAgentRuntimeEvents = ({
       updateRunningAgentTaskMessage(task, (message) =>
         applyAgentEventToMessage(message, event).message
       );
-      task.messages = patchMessagesWithBridgeSession(
+      task.messages = patchMessagesWithAgentSession(
         task.messages,
         task.messageId,
-        event.bridgeSession,
+        event.agentSession,
       );
       removeRunningAgentTask(task.taskId);
       void persistRunningAgentTask(task);
@@ -216,7 +216,7 @@ export const useAgentRuntimeEvents = ({
     let cleanup: (() => void) | undefined;
     let disposed = false;
     let visibleStreamMessageId = "";
-    let visibleStreamEvents: AgentRuntimeAgentEvent[] = [];
+    let visibleStreamEvents: AgentClientAgentEvent[] = [];
     let visibleStreamFrameId: number | null = null;
 
     const flushVisibleStreamEvents = () => {
@@ -251,7 +251,7 @@ export const useAgentRuntimeEvents = ({
 
     const enqueueVisibleStreamEvent = (
       messageId: string,
-      event: AgentRuntimeAgentEvent,
+      event: AgentClientAgentEvent,
     ) => {
       if (visibleStreamMessageId && visibleStreamMessageId !== messageId) {
         cancelVisibleStreamFlush();
@@ -265,7 +265,7 @@ export const useAgentRuntimeEvents = ({
       }
     };
 
-    void agentRuntime.subscribe((event) => {
+    void agentClient.subscribe((event) => {
       const currentTaskId = activeAgentTaskIdRef.current;
       const eventTaskId = event.taskId ?? currentTaskId;
       const taskContext = eventTaskId
@@ -340,15 +340,15 @@ export const useAgentRuntimeEvents = ({
           const nextMessage = applyAgentEventToMessage(message, event).message;
           return {
             ...nextMessage,
-            bridgeMessageRecordId: event.bridgeSession?.assistantMessageRecordId ?? nextMessage.bridgeMessageRecordId,
+            bridgeMessageRecordId: event.agentSession?.assistantMessageRecordId ?? nextMessage.bridgeMessageRecordId,
           };
         });
         const assistantIndex = messagesRef.current.findIndex((message) => message.id === messageId);
         const userMessage = assistantIndex > 0 ? messagesRef.current[assistantIndex - 1] : null;
-        if (userMessage?.role === "user" && event.bridgeSession?.userMessageRecordId) {
+        if (userMessage?.role === "user" && event.agentSession?.userMessageRecordId) {
           updateMessage(userMessage.id, (message) => ({
             ...message,
-            bridgeMessageRecordId: event.bridgeSession?.userMessageRecordId ?? message.bridgeMessageRecordId,
+            bridgeMessageRecordId: event.agentSession?.userMessageRecordId ?? message.bridgeMessageRecordId,
           }));
         }
         removeRunningAgentTask(event.taskId);
@@ -419,7 +419,7 @@ export const useAgentRuntimeEvents = ({
   }, [
     activeAgentMessageIdRef,
     activeAgentTaskIdRef,
-    agentRuntime,
+    agentClient,
     applyAgentQuestionDraft,
     clearPendingAgentQuestion,
     currentSessionIdRef,

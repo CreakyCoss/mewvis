@@ -19,7 +19,7 @@ const createWorkflowStepId = () => {
   return `workflow-step-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-const findAgentRuntimeModel = (
+const findRuntimeModelForAgent = (
   runtimeModels: RuntimeModelOption[],
   agent: Pick<AiAgent, "providerId" | "modelId">,
 ) => {
@@ -35,7 +35,7 @@ export const resolveAgentProfiles = (
   runtimeModels: RuntimeModelOption[],
 ): AgentProfile[] => {
   return agents.flatMap((agent) => {
-    const runtimeModel = findAgentRuntimeModel(runtimeModels, agent);
+    const runtimeModel = findRuntimeModelForAgent(runtimeModels, agent);
     if (!runtimeModel) {
       return [];
     }
@@ -144,7 +144,7 @@ export const agentToDraft = (
   agent: AiAgent,
   runtimeModels: RuntimeModelOption[],
 ): SaveAiAgentInput => {
-  const runtimeModel = findAgentRuntimeModel(runtimeModels, agent);
+  const runtimeModel = findRuntimeModelForAgent(runtimeModels, agent);
 
   return {
     id: agent.id,

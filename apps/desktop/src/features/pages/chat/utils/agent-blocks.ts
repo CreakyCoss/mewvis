@@ -1,4 +1,4 @@
-import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
+import type { AgentClientAgentEvent } from "@/agent-client/contracts";
 import type { AgentMessageBlock, ChatMessage } from "../types";
 
 export const AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS = 2500;
@@ -7,7 +7,7 @@ export type AgentEventGroup = {
   id: string;
   title: string;
   status: "running" | "done" | "error" | "info";
-  events: AgentRuntimeAgentEvent[];
+  events: AgentClientAgentEvent[];
 };
 
 const createAgentBlockId = () => crypto.randomUUID();
@@ -49,7 +49,7 @@ const describeTaskState = (state: string) => {
   }
 };
 
-export const describeAgentEvent = (event: AgentRuntimeAgentEvent) => {
+export const describeAgentEvent = (event: AgentClientAgentEvent) => {
   if (event.type === "state") {
     return describeTaskState(event.taskState);
   }
@@ -97,7 +97,7 @@ export const describeAgentEvent = (event: AgentRuntimeAgentEvent) => {
   return "";
 };
 
-export const describeAgentGroupEvent = (event: AgentRuntimeAgentEvent) => {
+export const describeAgentGroupEvent = (event: AgentClientAgentEvent) => {
   if (event.type === "tool_start") {
     return `开始：${stringifyBrief(event.args)}`;
   }
@@ -113,7 +113,7 @@ export const describeAgentGroupEvent = (event: AgentRuntimeAgentEvent) => {
   return describeAgentEvent(event);
 };
 
-export const groupAgentEvents = (events: AgentRuntimeAgentEvent[]) => {
+export const groupAgentEvents = (events: AgentClientAgentEvent[]) => {
   const groups: AgentEventGroup[] = [];
   const lastToolGroupByName = new Map<string, AgentEventGroup>();
 
@@ -280,7 +280,7 @@ export const removeEmptyAgentThinkingBlocks = (blocks: AgentMessageBlock[] | und
 
 export const appendAgentToolEventBlock = (
   message: ChatMessage,
-  event: Extract<AgentRuntimeAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
+  event: Extract<AgentClientAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
 ) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const findRunningToolBlockIndex = () => {
@@ -327,7 +327,7 @@ export const appendAgentToolEventBlock = (
   return { blocks, blockId };
 };
 
-export const isTimelineEvent = (event: AgentRuntimeAgentEvent) =>
+export const isTimelineEvent = (event: AgentClientAgentEvent) =>
   event.type !== "text_delta" &&
   event.type !== "thinking_delta" &&
   event.type !== "thinking_end" &&
@@ -341,24 +341,24 @@ export type AppliedAgentMessageEvent = {
 };
 
 type AgentMessageStreamEvent = Extract<
-  AgentRuntimeAgentEvent,
+  AgentClientAgentEvent,
   { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
 >;
 
 type AgentToolEvent = Extract<
-  AgentRuntimeAgentEvent,
+  AgentClientAgentEvent,
   { type: "tool_start" | "tool_update" | "tool_end" }
 >;
 
 export const isAgentMessageStreamEvent = (
-  event: AgentRuntimeAgentEvent,
+  event: AgentClientAgentEvent,
 ): event is AgentMessageStreamEvent =>
   event.type === "text_delta" ||
   event.type === "thinking_delta" ||
   event.type === "thinking_end" ||
   event.type === "replace_text";
 
-const isAgentToolEvent = (event: AgentRuntimeAgentEvent): event is AgentToolEvent =>
+const isAgentToolEvent = (event: AgentClientAgentEvent): event is AgentToolEvent =>
   event.type === "tool_start" ||
   event.type === "tool_update" ||
   event.type === "tool_end";
@@ -375,7 +375,7 @@ const appliedAgentMessageEvent = (
 
 export const applyAgentEventToMessage = (
   message: ChatMessage,
-  event: AgentRuntimeAgentEvent,
+  event: AgentClientAgentEvent,
 ): AppliedAgentMessageEvent => {
   if (event.type === "text_delta") {
     const text = `${message.text}${event.delta}`;

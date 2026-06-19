@@ -1,9 +1,9 @@
 import {
   appendReferencesToPrompt,
-  formatConversationForSummary,
-} from "@/features/ai/runtime";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import { runTavernRuntimeChat } from "./chat";
+import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -13,7 +13,6 @@ import type {
 import {
   formatTavernLorebookEntries,
   formatTavernTimelineEvents,
-  TAVERN_REFERENCE_PROMPT_LIMITS,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
 
@@ -292,14 +291,14 @@ export const runTavernAssetExtraction = async ({
     "</current_user_input>",
     "",
     "<new_turn_to_extract>",
-    formatConversationForSummary(sourceRuntimeMessages),
+    formatTavernRuntimeMessagesForSummary(sourceRuntimeMessages),
     "</new_turn_to_extract>",
     "",
     "<recent_conversation_context>",
-    formatConversationForSummary(runtimeMessages),
+    formatTavernRuntimeMessagesForSummary(runtimeMessages),
     "</recent_conversation_context>",
   ].join("\n");
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,
@@ -311,10 +310,7 @@ export const runTavernAssetExtraction = async ({
     messages: [{
       id: `tavern-asset-extractor-${Date.now()}`,
       role: "user",
-      content: appendReferencesToPrompt(prompt, references, {
-        query: currentUserText,
-        ...TAVERN_REFERENCE_PROMPT_LIMITS,
-      }),
+      content: appendReferencesToPrompt(prompt, references),
       timestamp: Date.now(),
       metadata: null,
     }],

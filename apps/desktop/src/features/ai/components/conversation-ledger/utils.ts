@@ -47,7 +47,7 @@ export const ledgerStatusClasses: Record<NonNullable<LedgerRuntimeLink["status"]
   error: "bg-destructive",
 };
 
-export const compactLedgerId = (value?: string | null) => {
+export const formatLedgerId = (value?: string | null) => {
   if (!value) {
     return "未记录";
   }

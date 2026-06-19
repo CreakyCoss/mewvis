@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
 
 export type LedgerMessage = {
   messageRecordId: string;
@@ -97,13 +97,4 @@ export type ConversationLedgerProps = {
   runtimeModel?: RuntimeModelInput | null;
   agentId?: string | null;
   summaryInstruction?: string | null;
-};
-
-export type {
-  LedgerAuxiliaryEntry as AgentRuntimeSessionAuxiliaryEntry,
-  LedgerDisplaySummary as AgentRuntimeDisplaySummary,
-  LedgerMessage as AgentRuntimeSessionMessage,
-  LedgerMessageInput as AgentRuntimeSessionMessageInput,
-  LedgerResult as AgentRuntimeSessionResult,
-  LedgerRuntimeLink as AgentRuntimeLink,
 };

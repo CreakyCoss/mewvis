@@ -1,6 +1,6 @@
-import { formatConversationForSummary } from "@/features/ai/runtime";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import { runTavernRuntimeChat } from "./chat";
+import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -82,7 +82,7 @@ const buildTavernQuickContext = ({
   const conversationMessages = conversationScope === "full"
     ? runtimeMessages
     : runtimeMessages.slice(-RECENT_MESSAGE_LIMIT);
-  const conversationText = formatConversationForSummary(conversationMessages);
+  const conversationText = formatTavernRuntimeMessagesForSummary(conversationMessages);
   const lorebookText = formatTavernLorebookEntries(
     room.lorebookEntries.filter((entry) => entry.enabled),
   );
@@ -179,7 +179,7 @@ export const runTavernQuickSummary = async ({
     }),
   ].join("\n");
 
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,
@@ -233,7 +233,7 @@ export const runTavernQuickNovel = async ({
     }),
   ].join("\n");
 
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,

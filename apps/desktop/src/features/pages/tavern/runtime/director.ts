@@ -1,9 +1,9 @@
 import {
   appendReferencesToPrompt,
-  formatConversationForSummary,
-} from "@/features/ai/runtime";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import { runTavernRuntimeChat } from "./chat";
+import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -45,11 +45,6 @@ const extractJsonObject = (text: string) => {
 };
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
-const TAVERN_DIRECTOR_REFERENCE_PROMPT_LIMITS = {
-  perFileChars: 2400,
-  totalChars: 4800,
-} as const;
-
 const limitDirectorText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
   return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}...`;
@@ -176,10 +171,10 @@ export const runTavernDirector = async ({
     "</current_user_input>",
     "",
     "<recent_conversation>",
-    formatConversationForSummary(runtimeMessages.slice(-DIRECTOR_RECENT_MESSAGE_LIMIT)),
+    formatTavernRuntimeMessagesForSummary(runtimeMessages.slice(-DIRECTOR_RECENT_MESSAGE_LIMIT)),
     "</recent_conversation>",
   ].join("\n");
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,
@@ -192,10 +187,7 @@ export const runTavernDirector = async ({
     messages: [{
       id: `tavern-director-${Date.now()}`,
       role: "user",
-      content: appendReferencesToPrompt(directorPrompt, references, {
-        query: currentUserText,
-        ...TAVERN_DIRECTOR_REFERENCE_PROMPT_LIMITS,
-      }),
+      content: appendReferencesToPrompt(directorPrompt, references),
       timestamp: Date.now(),
       metadata: null,
     }],

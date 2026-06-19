@@ -3,7 +3,7 @@ import {
   type CatalogModel,
   RuntimeModelInput,
   RuntimeThinkingLevel,
-} from "@/ai/runtime-protocol";
+} from "@/agent-client/protocol";
 import type {
   LlmProvider,
   LlmSettings,

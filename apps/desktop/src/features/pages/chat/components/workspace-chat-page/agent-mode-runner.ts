@@ -2,12 +2,12 @@ import type { MutableRefObject } from "react";
 import {
   normalizeAllowedRuntimeAgentTools,
   type RuntimeAgentToolName,
-} from "@/ai/runtime-protocol";
-import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
+} from "@/agent-client/protocol";
+import type { AgentClient } from "@/agent-client/runtime";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { createBridgeSessionRootDir } from "../../utils/sessions";
+import { createAgentSessionRootDir } from "../../utils/sessions";
 import type { ChatMessage } from "../../types";
 import type { WorkspacePromptSkillContext } from "./prompt-context";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
@@ -40,7 +40,7 @@ type RunAgentTurnDeps = {
   activeSkills: WorkspacePromptSkillContext[];
   runtimeAgentId: string;
   updateMessage: UpdateMessage;
-  agentRuntime: AgentRuntime;
+  agentClient: AgentClient;
   setChatError: (message: string) => void;
   prepareActiveAgentRun: PrepareActiveAgentRun;
   addRunningAgentTask: (task: RunningAgentTaskContext) => void;
@@ -63,7 +63,7 @@ export const runAgentTurn = async (
     activeSkills,
     runtimeAgentId,
     updateMessage,
-    agentRuntime,
+    agentClient,
     setChatError,
     prepareActiveAgentRun,
     addRunningAgentTask,
@@ -90,11 +90,11 @@ export const runAgentTurn = async (
   const allowedToolsForRun = normalizeAllowedRuntimeAgentTools(
     allowedAgentTools,
   );
-  const task = await agentRuntime.run({
+  const task = await agentClient.run({
     type: "agent",
     agentId: runtimeAgentId,
     workspacePath: workspace.path,
-    sessionRootDir: createBridgeSessionRootDir(nextSessionId),
+    sessionRootDir: createAgentSessionRootDir(nextSessionId),
     agentRoleId,
     userMessage: agentPromptPayload.userMessage,
     systemPrompt: agentPromptPayload.systemPrompt,

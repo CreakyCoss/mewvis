@@ -1,16 +1,17 @@
 import {
-  applyAgentRuntimeOutputEvent,
-  createAgentRuntimeOutputState,
-  dispatchAgentRuntimeOutputEvent,
-  snapshotAgentRuntimeOutput,
-} from "@/ai/agent-runtime/output";
-import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import type { ConversationMessage } from "./conversation";
+  applyAgentClientOutputEvent,
+  createAgentClientOutputState,
+  dispatchAgentClientOutputEvent,
+  snapshotAgentClientOutput,
+} from "@/agent-client/output";
+import { createAgentClient } from "@/agent-client/runtime";
+import type { AgentClientSession } from "@/agent-client/contracts";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { TavernRuntimeMessage } from "./conversation";
 
-const sharedAgentRuntime = createAgentRuntime();
+const tavernAgentClient = createAgentClient();
 
-export type RunSharedRuntimeChatInput = {
+export type RunTavernRuntimeChatInput = {
   agentId?: string;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
@@ -19,25 +20,19 @@ export type RunSharedRuntimeChatInput = {
   userMessage?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
-  messages?: ConversationMessage[];
+  messages?: TavernRuntimeMessage[];
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
 
-export type RunSharedRuntimeChatOutput = {
+export type TavernRuntimeChatOutput = {
   text: string;
   thinking?: string | null;
-  bridgeSession?: {
-    sessionRootDir: string;
-    userMessageRecordId?: string | null;
-    requestContextRecordId?: string | null;
-    runtimeInstructionRecordId?: string | null;
-    assistantMessageRecordId?: string | null;
-  } | null;
+  agentSession?: AgentClientSession | null;
 };
 
-const latestUserMessageContent = (messages: ConversationMessage[] | undefined) => {
+const latestUserMessageContent = (messages: TavernRuntimeMessage[] | undefined) => {
   for (const message of (messages ?? []).slice().reverse()) {
     if (message.role === "user" && message.content.trim()) {
       return message.content.trim();
@@ -46,26 +41,26 @@ const latestUserMessageContent = (messages: ConversationMessage[] | undefined) =
   return "";
 };
 
-export async function runSharedRuntimeChat(
-  input: RunSharedRuntimeChatInput,
-): Promise<RunSharedRuntimeChatOutput> {
-  const output = createAgentRuntimeOutputState();
+export async function runTavernRuntimeChat(
+  input: RunTavernRuntimeChatInput,
+): Promise<TavernRuntimeChatOutput> {
+  const output = createAgentClientOutputState();
   const onTextDelta = input.onTextDelta
     ? (delta: string) => {
       const event = { type: "text_delta" as const, delta };
-      applyAgentRuntimeOutputEvent(output, event);
-      dispatchAgentRuntimeOutputEvent(event, input);
+      applyAgentClientOutputEvent(output, event);
+      dispatchAgentClientOutputEvent(event, input);
     }
     : undefined;
   const onThinkingDelta = input.onThinkingDelta
     ? (delta: string) => {
       const event = { type: "thinking_delta" as const, delta };
-      applyAgentRuntimeOutputEvent(output, event);
-      dispatchAgentRuntimeOutputEvent(event, input);
+      applyAgentClientOutputEvent(output, event);
+      dispatchAgentClientOutputEvent(event, input);
     }
     : undefined;
 
-  const result = await sharedAgentRuntime.run({
+  const result = await tavernAgentClient.run({
     type: "chat",
     agentId: input.agentId,
     workspacePath: input.workspacePath,
@@ -80,19 +75,19 @@ export async function runSharedRuntimeChat(
     onTextDelta,
     onThinkingDelta,
   });
-  applyAgentRuntimeOutputEvent(output, {
+  applyAgentClientOutputEvent(output, {
     type: "done",
     text: result.text,
   });
   if (result.thinking?.trim()) {
-    applyAgentRuntimeOutputEvent(output, {
+    applyAgentClientOutputEvent(output, {
       type: "thinking_end",
       content: result.thinking,
     });
   }
 
   return {
-    ...snapshotAgentRuntimeOutput(output),
-    bridgeSession: result.bridgeSession ?? null,
+    ...snapshotAgentClientOutput(output),
+    agentSession: result.agentSession ?? null,
   };
 }

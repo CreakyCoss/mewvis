@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
 import type {
   CreateLedgerInput,
   LedgerMessageInput,
@@ -23,21 +23,6 @@ export async function readLedger(input: {
   }
 
   return invoke<LedgerResult>("read_agent_runtime_session", { input });
-}
-
-export async function compactLedger(input: {
-  workspacePath: string;
-  sessionRootDir: string;
-  agentId?: string | null;
-  agentRoleId: string;
-  compactInstruction?: string | null;
-  runtimeModel?: RuntimeModelInput | null;
-}) {
-  if (!isTauri()) {
-    return null;
-  }
-
-  return invoke<LedgerResult>("compact_agent_runtime_session", { input });
 }
 
 export async function summarizeLedger(input: {
@@ -103,14 +88,3 @@ export async function rebuildLedger(input: {
 
   return invoke<LedgerResult>("rebuild_agent_runtime_session", { input });
 }
-
-export {
-  appendLedgerMessages as appendAgentRuntimeSessionMessages,
-  compactLedger as compactAgentRuntimeSession,
-  createLedger as createAgentRuntimeSession,
-  deleteLedgerMessage as deleteAgentRuntimeSessionMessage,
-  editLedgerMessage as editAgentRuntimeSessionMessage,
-  readLedger as readAgentRuntimeSession,
-  rebuildLedger as rebuildAgentRuntimeSession,
-  summarizeLedger as summarizeAgentRuntimeSession,
-};

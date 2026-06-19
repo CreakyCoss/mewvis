@@ -1,9 +1,10 @@
 import type {
   RuntimeAgentToolName,
   RuntimeModelInput,
-} from "@/ai/runtime-protocol";
+} from "@/agent-client/protocol";
+import type { AgentClientSession } from "./session";
 
-export type AgentRuntimeAgentTaskInput = {
+export type AgentClientAgentTaskInput = {
   agentId?: string | null;
   workspacePath: string;
   sessionRootDir?: string | null;
@@ -18,16 +19,16 @@ export type AgentRuntimeAgentTaskInput = {
   enabledSkills?: string[];
 };
 
-export type AgentRuntimeAgentTask = {
+export type AgentClientAgentTask = {
   taskId: string;
 };
 
-export type AgentRuntimeChatMessage = {
+export type AgentClientChatMessage = {
   role: string;
   content: string;
 };
 
-export type AgentRuntimeChatInput = {
+export type AgentClientChatInput = {
   type: "chat";
   agentId?: string | null;
   workspacePath?: string | null;
@@ -37,24 +38,18 @@ export type AgentRuntimeChatInput = {
   userMessage?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
-  messages?: AgentRuntimeChatMessage[];
+  messages?: AgentClientChatMessage[];
   stream?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
 
-export type AgentRuntimeAgentInput = AgentRuntimeAgentTaskInput & {
+export type AgentClientAgentInput = AgentClientAgentTaskInput & {
   type: "agent";
 };
 
-export type AgentRuntimeChatResult = {
+export type AgentClientChatResult = {
   text: string;
   thinking?: string | null;
-  bridgeSession?: {
-    sessionRootDir: string;
-    userMessageRecordId?: string | null;
-    requestContextRecordId?: string | null;
-    runtimeInstructionRecordId?: string | null;
-    assistantMessageRecordId?: string | null;
-  } | null;
+  agentSession?: AgentClientSession | null;
 };

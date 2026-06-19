@@ -1,4 +1,6 @@
-export type AgentRuntimeAgentQuestionInput = {
+import type { AgentClientSession } from "./session";
+
+export type AgentClientAgentQuestionInput = {
   type: "text" | "select";
   label?: string;
   options?: Array<{
@@ -9,49 +11,43 @@ export type AgentRuntimeAgentQuestionInput = {
   selected?: string;
 };
 
-export type AgentRuntimeTextDeltaEvent = {
+export type AgentClientTextDeltaEvent = {
   type: "text_delta";
   delta: string;
 };
 
-export type AgentRuntimeThinkingDeltaEvent = {
+export type AgentClientThinkingDeltaEvent = {
   type: "thinking_delta";
   delta: string;
 };
 
-export type AgentRuntimeDeltaEvent =
-  | AgentRuntimeTextDeltaEvent
-  | AgentRuntimeThinkingDeltaEvent;
+export type AgentClientDeltaEvent =
+  | AgentClientTextDeltaEvent
+  | AgentClientThinkingDeltaEvent;
 
-export type AgentRuntimeReplaceTextEvent = {
+export type AgentClientReplaceTextEvent = {
   type: "replace_text";
   text: string;
 };
 
-export type AgentRuntimeThinkingEndEvent = {
+export type AgentClientThinkingEndEvent = {
   type: "thinking_end";
   content: string;
 };
 
-export type AgentRuntimeDoneEvent = {
+export type AgentClientDoneEvent = {
   type: "done";
   text: string;
-  bridgeSession?: {
-    sessionRootDir: string;
-    userMessageRecordId?: string | null;
-    requestContextRecordId?: string | null;
-    runtimeInstructionRecordId?: string | null;
-    assistantMessageRecordId?: string | null;
-  } | null;
+  agentSession?: AgentClientSession | null;
 };
 
-export type AgentRuntimeOutputEvent =
-  | AgentRuntimeDeltaEvent
-  | AgentRuntimeReplaceTextEvent
-  | AgentRuntimeThinkingEndEvent
-  | AgentRuntimeDoneEvent;
+export type AgentClientOutputEvent =
+  | AgentClientDeltaEvent
+  | AgentClientReplaceTextEvent
+  | AgentClientThinkingEndEvent
+  | AgentClientDoneEvent;
 
-export type AgentRuntimeAgentEvent =
+export type AgentClientAgentEvent =
   | {
     type: "state";
     taskId: string;
@@ -68,10 +64,10 @@ export type AgentRuntimeAgentEvent =
     questionId: string;
     question: string;
     context?: string | null;
-    input?: AgentRuntimeAgentQuestionInput;
+    input?: AgentClientAgentQuestionInput;
   }
   | { type: "question_answered"; taskId: string; questionId: string; answer: string }
-  | (AgentRuntimeOutputEvent & { taskId: string })
+  | (AgentClientOutputEvent & { taskId: string })
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
@@ -79,6 +75,6 @@ export type AgentRuntimeAgentEvent =
   | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };
 
-export type AgentRuntimeChatEvent = AgentRuntimeDeltaEvent & {
+export type AgentClientChatEvent = AgentClientDeltaEvent & {
   streamId: string;
 };

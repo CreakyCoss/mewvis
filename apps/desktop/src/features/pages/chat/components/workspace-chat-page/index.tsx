@@ -5,12 +5,8 @@ import {
   DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedRuntimeAgentTools,
   type RuntimeAgentToolName,
-} from "@/ai/runtime-protocol";
-import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import {
-  resolveRuntimeModelInput,
-} from "@/features/pages/settings/llm/store";
-import { resolveAppContextWindow } from "@/features/ai/runtime";
+} from "@/agent-client/protocol";
+import { createAgentClient } from "@/agent-client/runtime";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
 import type { WorkspaceFile, WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
@@ -48,10 +44,10 @@ import { ChatLayout } from "../../layout";
 import {
   runAgentTurn,
 } from "./agent-mode-runner";
-import { prepareBridgeAgentTurnRuntime } from "./bridge-agent-turn-runtime";
+import { prepareAgentTurnRuntime } from "./agent-turn-runtime";
 import { ChatPanel } from "../chat-panel";
 import { useChatPanelStoreBridge } from "../chat-panel/store";
-import { useAgentRuntimeEvents } from "./use-agent-runtime-events";
+import { useAgentClientEvents } from "./use-agent-client-events";
 import { useModelSettings } from "./use-model-settings";
 import {
   type RunningAgentTaskContext,
@@ -157,7 +153,7 @@ export const WorkspaceChatPage = ({
   onOpenWorkspace,
   onCreateWorkspace,
 }: WorkspaceChatPageProps) => {
-  const agentRuntime = useMemo(() => createAgentRuntime(), []);
+  const agentClient = useMemo(() => createAgentClient(), []);
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
@@ -231,14 +227,8 @@ export const WorkspaceChatPage = ({
     selectedAgent,
     effectiveRuntimeModel,
   } = useModelSettings({
-    agentRuntime,
+    agentClient,
   });
-  const effectiveAppContextWindow = useMemo(() => {
-    const modelInput = effectiveRuntimeModel
-      ? resolveRuntimeModelInput(effectiveRuntimeModel.id)
-      : null;
-    return resolveAppContextWindow(modelInput);
-  }, [effectiveRuntimeModel]);
   const {
     skills,
     skillGroups,
@@ -747,8 +737,8 @@ export const WorkspaceChatPage = ({
     });
   }, [clearAgentQuestionDraft]);
 
-  useAgentRuntimeEvents({
-    agentRuntime,
+  useAgentClientEvents({
+    agentClient,
     workspacePath: workspace.path,
     currentSessionIdRef,
     activeAgentTaskIdRef,
@@ -850,7 +840,7 @@ export const WorkspaceChatPage = ({
 
     try {
       const answeredQuestionId = pendingAgentQuestion.questionId;
-      await agentRuntime.answerQuestion(
+      await agentClient.answerQuestion(
         pendingAgentQuestion.taskId,
         answeredQuestionId,
         answer,
@@ -949,7 +939,7 @@ export const WorkspaceChatPage = ({
     setSessionRunning(workspace.path, nextSessionId, true);
 
     try {
-      const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
+      const preparedAgentTurn = await prepareAgentTurnRuntime({
         workspace,
         nextSessionId,
         text,
@@ -971,13 +961,13 @@ export const WorkspaceChatPage = ({
         nextSessionId,
         assistantMessageId,
         nextMessages,
-        agentPromptPayload: preparedAgentRuntime.agentPromptPayload,
+        agentPromptPayload: preparedAgentTurn.agentPromptPayload,
       }, {
         workspace,
         activeSkills,
         runtimeAgentId,
         updateMessage,
-        agentRuntime,
+        agentClient,
         setChatError,
         prepareActiveAgentRun,
         addRunningAgentTask: (task) => {
@@ -1029,7 +1019,6 @@ export const WorkspaceChatPage = ({
     isSending,
     activeAgentTaskId: visibleActiveAgentTaskId,
     isSettingsLoading,
-    effectiveContextWindow: effectiveAppContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
     runtimeAgentId,
@@ -1057,7 +1046,7 @@ export const WorkspaceChatPage = ({
     toggleAllowedAgentTool,
     toggleSelectedSkillGroup: toggleConversationSkillGroup,
     sendMessage,
-    onAbortTask: () => void agentRuntime.abortTask(visibleActiveAgentTaskId),
+    onAbortTask: () => void agentClient.abortTask(visibleActiveAgentTaskId),
   });
 
   const chatPanel = <ChatPanel />;

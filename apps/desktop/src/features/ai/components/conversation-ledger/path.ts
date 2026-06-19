@@ -5,4 +5,4 @@ export const resolveLedgerSessionRootDir = (
   return id ? `chats/${id}/session` : null;
 };
 
-export const createBridgeSessionRootDir = resolveLedgerSessionRootDir;
+export const createAgentSessionRootDir = resolveLedgerSessionRootDir;

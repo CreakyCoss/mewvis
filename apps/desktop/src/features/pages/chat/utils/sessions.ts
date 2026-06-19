@@ -23,7 +23,7 @@ export const createChatSessionId = () => {
   return `chat-${formatTimestampId(new Date())}-${suffix}`;
 };
 
-export const createBridgeSessionRootDir = (chatSessionId: string | null | undefined) => {
+export const createAgentSessionRootDir = (chatSessionId: string | null | undefined) => {
   const id = chatSessionId?.trim().replace(/\.json$/, "");
   return id ? `chats/${id}/session` : null;
 };

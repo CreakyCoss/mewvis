@@ -1,8 +1,8 @@
 import type { Workspace } from "@/features/pages/workspace/types";
-import { createBridgeSessionRootDir } from "../../utils/sessions";
+import { createAgentSessionRootDir } from "../../utils/sessions";
 import { buildApplicationPromptParts } from "./application-system-prompt";
 
-export type BridgeAgentPromptPayload = {
+export type AgentPromptPayload = {
   agentRoleId: string;
   systemPrompt: string;
   requestContext: string;
@@ -10,7 +10,7 @@ export type BridgeAgentPromptPayload = {
   userMessage: string;
 };
 
-type BridgeAgentTurnRuntimeInput = {
+type AgentTurnRuntimeInput = {
   workspace: Workspace;
   nextSessionId: string | null;
   text: string;
@@ -26,11 +26,11 @@ type BridgeAgentTurnRuntimeInput = {
   executionMemorySummary: string;
 };
 
-export type BridgeAgentTurnRuntimeResult = {
-  agentPromptPayload: BridgeAgentPromptPayload;
+export type AgentTurnRuntimeResult = {
+  agentPromptPayload: AgentPromptPayload;
 };
 
-export const prepareBridgeAgentTurnRuntime = async ({
+export const prepareAgentTurnRuntime = async ({
   workspace,
   nextSessionId,
   text,
@@ -40,10 +40,10 @@ export const prepareBridgeAgentTurnRuntime = async ({
   selectedAgent,
   agentInstructions,
   executionMemorySummary,
-}: BridgeAgentTurnRuntimeInput): Promise<BridgeAgentTurnRuntimeResult> => {
-  const sessionRootDir = createBridgeSessionRootDir(nextSessionId);
+}: AgentTurnRuntimeInput): Promise<AgentTurnRuntimeResult> => {
+  const sessionRootDir = createAgentSessionRootDir(nextSessionId);
   if (!sessionRootDir) {
-    throw new Error("无法创建 bridge 上下文目录，请重试");
+    throw new Error("无法创建 agent 上下文目录，请重试");
   }
   const conversationAgentRoleId = nextSessionId?.trim();
   if (!conversationAgentRoleId) {
@@ -51,7 +51,6 @@ export const prepareBridgeAgentTurnRuntime = async ({
   }
   const { systemPrompt, requestContext, runtimeInstruction } = await buildApplicationPromptParts({
     workspace,
-    text,
     activeFile,
     referencedFiles,
     activeSkills,
@@ -59,11 +58,11 @@ export const prepareBridgeAgentTurnRuntime = async ({
     executionMemorySummary,
     trailingSections: [
       agentInstructions.trim(),
-      "Bridge 会在 agent 消息中基于 agentRoleId 注入本会话账本历史；这里的 active_file、user_referenced_files 和 active_skills 只作为应用侧资料上下文。",
+      "底层运行环境会在 agent 消息中基于 agentRoleId 注入本会话账本历史；这里的 active_file、user_referenced_files 和 active_skills 只作为应用侧资料上下文。",
     ],
   });
 
-  const agentPromptPayload: BridgeAgentPromptPayload = {
+  const agentPromptPayload: AgentPromptPayload = {
     agentRoleId: conversationAgentRoleId,
     systemPrompt,
     userMessage: text,

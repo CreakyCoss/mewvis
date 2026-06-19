@@ -1,6 +1,6 @@
 import {
   loadContextResources,
-} from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { readWorkspaceFile } from "@/features/pages/workspace/files-api";
 import { buildWorkspacePromptContext } from "./prompt-context";
@@ -13,7 +13,6 @@ export type ApplicationPromptAgent = {
 
 export type BuildApplicationSystemPromptInput = {
   workspace: Workspace;
-  text: string;
   activeFile: { path: string } | null;
   referencedFiles: Array<{ path: string }>;
   activeSkills: Array<{
@@ -31,7 +30,6 @@ const compactSections = (sections: Array<string | null | undefined>) =>
 
 export const buildApplicationPromptParts = async ({
   workspace,
-  text,
   activeFile,
   referencedFiles,
   activeSkills,
@@ -74,7 +72,6 @@ export const buildApplicationPromptParts = async ({
       activeSkills,
       selectedAgentProfile,
       {
-        contextQuery: text,
         executionMemorySummary,
       },
     ),

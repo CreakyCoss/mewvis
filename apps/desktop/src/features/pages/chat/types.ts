@@ -1,24 +1,22 @@
 import type {
-  AgentRuntimeAgentEvent,
-  AgentRuntimeAgentQuestionInput,
-} from "@/ai/agent-runtime/contracts";
+  AgentClientAgentEvent,
+  AgentClientAgentQuestionInput,
+} from "@/agent-client/contracts";
 import type {
-  ActiveReferenceToken as RuntimeActiveReferenceToken,
-  FileReferenceMatch as RuntimeFileReferenceMatch,
-} from "@/features/ai/runtime";
+  FileReferenceMatch as ContextFileReferenceMatch,
+} from "@/features/ai/components/context-tools";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
 export type ModelSource = "direct" | "agent";
 
-export type ActiveReferenceToken = RuntimeActiveReferenceToken;
-export type FileReferenceMatch = RuntimeFileReferenceMatch<WorkspaceFileEntry>;
+export type FileReferenceMatch = ContextFileReferenceMatch<WorkspaceFileEntry>;
 
 export type PendingAgentQuestion = {
   taskId: string;
   questionId: string;
   question: string;
   context?: string | null;
-  input?: AgentRuntimeAgentQuestionInput;
+  input?: AgentClientAgentQuestionInput;
 };
 
 export type ComposerSubmitInput = {
@@ -45,7 +43,7 @@ export type AgentMessageBlock =
     type: "tool";
     toolName: string;
     status: "running" | "done" | "error";
-    events: AgentRuntimeAgentEvent[];
+    events: AgentClientAgentEvent[];
     isCollapsed?: boolean;
   };
 
@@ -57,7 +55,7 @@ export type ChatMessage = {
   mode?: "agent";
   status?: "loading" | "streaming" | "done" | "error";
   thinking?: string;
-  agentEvents?: AgentRuntimeAgentEvent[];
+  agentEvents?: AgentClientAgentEvent[];
   agentBlocks?: AgentMessageBlock[];
   agentAvatar?: string;
   agentName?: string;

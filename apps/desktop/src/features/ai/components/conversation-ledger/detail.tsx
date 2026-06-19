@@ -17,7 +17,7 @@ import type {
   LedgerRuntimeLink,
 } from "./types";
 import {
-  compactLedgerId,
+  formatLedgerId,
   formatLedgerDateTime,
   formatLedgerDuration,
   formatLedgerRole,
@@ -282,7 +282,7 @@ const AuxiliaryEntrySection = ({
                 {formatLedgerDateTime(entry.timestamp)}
               </span>
               <span className="min-w-0 truncate font-mono">
-                {compactLedgerId(entry.recordId)}
+                {formatLedgerId(entry.recordId)}
               </span>
             </div>
             <pre className="max-h-96 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/50 px-3 py-2.5 font-mono text-[11px] leading-5 text-foreground">
@@ -342,7 +342,7 @@ const DebugIdList = ({
       <span>{ids.length}</span>
     </div>
     <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-muted-foreground">
-      {ids.length ? ids.map(compactLedgerId).join("\n") : "（空）"}
+      {ids.length ? ids.map(formatLedgerId).join("\n") : "（空）"}
     </pre>
   </div>
 );

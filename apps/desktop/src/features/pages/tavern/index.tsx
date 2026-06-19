@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router";
-import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
+import { createAgentClient } from "@/agent-client/runtime";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
 import {
@@ -43,7 +43,7 @@ export const TavernPage = () => {
 };
 
 const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
-  const agentRuntime = useMemo(() => createAgentRuntime(), []);
+  const agentClient = useMemo(() => createAgentClient(), []);
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
@@ -77,7 +77,7 @@ const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
   useEffect(() => {
     let isCancelled = false;
 
-    void agentRuntime.listAgents()
+    void agentClient.listAgents()
       .then((result) => {
         if (!isCancelled) {
           setRuntimeAgentId(result.defaultAgentId || result.agents[0]?.id || "");
@@ -92,7 +92,7 @@ const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
     return () => {
       isCancelled = true;
     };
-  }, [agentRuntime]);
+  }, [agentClient]);
 
   return (
     <TavernSurface

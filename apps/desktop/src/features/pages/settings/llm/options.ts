@@ -1,7 +1,7 @@
 import {
   MODEL_CATALOG,
   type RuntimeApiFormat,
-} from "@/ai/runtime-protocol";
+} from "@/agent-client/protocol";
 
 export type ProviderOption = {
   value: string;

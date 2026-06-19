@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   RuntimeAgentCapability,
   RuntimeAgentDefinition,
-} from "@/ai/runtime-protocol";
+} from "@/agent-client/protocol";
 import { getAiAgentSettings } from "@/features/pages/settings/agent/api";
 import type {
   AiAgent,
@@ -21,11 +21,11 @@ type RuntimeAgentSource = {
 };
 
 type UseModelSettingsInput = {
-  agentRuntime: RuntimeAgentSource;
+  agentClient: RuntimeAgentSource;
 };
 
 export const useModelSettings = ({
-  agentRuntime,
+  agentClient,
 }: UseModelSettingsInput) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
@@ -77,7 +77,7 @@ export const useModelSettings = ({
 
   const loadRuntimeAgents = useCallback(async () => {
     try {
-      const definitions = await agentRuntime.listAgents();
+      const definitions = await agentClient.listAgents();
       setRuntimeAgents([...definitions.agents]);
       setDefaultRuntimeAgentId(definitions.defaultAgentId);
       setSelectedRuntimeAgentId((currentAgentId) =>
@@ -88,7 +88,7 @@ export const useModelSettings = ({
     } catch (caught) {
       setSettingsError(String(caught));
     }
-  }, [agentRuntime]);
+  }, [agentClient]);
 
   useEffect(() => {
     void loadLlmOptions();

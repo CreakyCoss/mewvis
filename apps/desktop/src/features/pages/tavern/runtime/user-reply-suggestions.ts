@@ -1,6 +1,6 @@
-import { formatConversationForSummary } from "@/features/ai/runtime";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import { runTavernRuntimeChat } from "./chat";
+import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -144,7 +144,7 @@ export const runTavernUserReplySuggestions = async ({
     characters,
     userPersonaName: room.userPersonaName,
   });
-  const recentConversation = formatConversationForSummary(
+  const recentConversation = formatTavernRuntimeMessagesForSummary(
     runtimeMessages.slice(-RECENT_MESSAGE_LIMIT),
   );
   const characterList = characters.map((character) =>
@@ -214,7 +214,7 @@ export const runTavernUserReplySuggestions = async ({
     "</recent_conversation>",
   ].filter(Boolean).join("\n");
 
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,
@@ -253,7 +253,7 @@ export const runTavernManagedUserReply = async ({
     characters,
     userPersonaName: room.userPersonaName,
   });
-  const recentConversation = formatConversationForSummary(
+  const recentConversation = formatTavernRuntimeMessagesForSummary(
     runtimeMessages.slice(-RECENT_MESSAGE_LIMIT),
   );
   const characterList = characters.map((character) =>
@@ -334,7 +334,7 @@ export const runTavernManagedUserReply = async ({
   ].join("\n");
 
   const runManagedReplyRequest = async (content: string) => {
-    const result = await runSharedRuntimeChat({
+    const result = await runTavernRuntimeChat({
       agentId: runtimeAgentId,
       runtimeModel,
       stream: false,

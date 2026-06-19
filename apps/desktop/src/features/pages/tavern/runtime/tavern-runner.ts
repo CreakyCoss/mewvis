@@ -1,5 +1,5 @@
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
-import { runSharedRuntimeChat } from "@/features/ai/runtime";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import { runTavernRuntimeChat } from "./chat";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -54,7 +54,7 @@ export const runTavernReply = async ({
     visibleThoughtCharacterId: activeCharacter.id,
   });
 
-  return runSharedRuntimeChat({
+  return runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     systemPrompt,
@@ -95,7 +95,7 @@ export const runTavernInnerThought = async ({
   const recentConversation = runtimeMessages
     .map((message) => message.content)
     .join("\n\n");
-  const result = await runSharedRuntimeChat({
+  const result = await runTavernRuntimeChat({
     agentId: runtimeAgentId,
     runtimeModel,
     stream: false,

@@ -8,7 +8,7 @@ import {
   quoteReferencePath,
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
-} from "@/features/ai/runtime";
+} from "@/features/ai/components/context-tools";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
@@ -64,7 +64,6 @@ import type {
 import { runTavernInnerThought, runTavernReply } from "../runtime/tavern-runner";
 import { runTavernDirector } from "../runtime/director";
 import { runTavernAssetExtraction } from "../runtime/asset-extractor";
-import { prepareTavernRuntimeContext } from "../runtime/context";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
 import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import { runTavernQuickNovel, runTavernQuickSummary } from "../runtime/quick-summary";
@@ -2361,14 +2360,14 @@ export const TavernPage = ({
     let activeReplyText = "";
 
     try {
-      setTurnStatus(isDirectorLikeMode ? "导演正在整理上下文与角色状态..." : "正在整理上下文...");
+      setTurnStatus(isDirectorLikeMode ? "导演正在准备角色状态..." : "正在准备对话...");
       if (shouldShowProgressTrace) {
         setExecutionTraceAnchorMessageId(userMessage.id);
         resetExecutionTrace([
           {
             id: "context",
-            label: "整理上下文",
-            detail: "检查上下文窗口、必要时压缩自动记忆。",
+            label: "准备对话",
+            detail: "读取本轮用户输入与引用文件。",
             status: "running",
           },
         ]);
@@ -2380,45 +2379,12 @@ export const TavernPage = ({
       setDraftCursor(0);
       appendMessagesToRoom(activeRoom.id, [userMessage]);
 
-      const preparedContext = await prepareTavernRuntimeContext({
-        runtimeAgentId,
-        runtimeModel,
-        room: activeRoom,
-        messages: runtimeMessages,
-        characters: roomCharacters,
-        references,
-        currentUserText: text,
-        replyModels: resolvedSpeakerModels.map((resolvedModel) => ({
-          runtimeModel: resolvedModel.runtimeModel,
-        })),
-      });
-      runtimeRoom = preparedContext.room;
-      runtimeMessages = preparedContext.messages;
       patchExecutionStep("context", {
         status: "done",
-        detail: preparedContext.didCompress
-          ? `已压缩 ${preparedContext.stats.summarizedMessageCount} 条旧消息。`
-          : "最近上下文在预算内。",
+        detail: references.length
+          ? `已加载 ${references.length} 个引用文件。`
+          : "已准备本轮对话。",
       });
-      if (preparedContext.didCompress) {
-        setState((current) => ({
-          ...current,
-          rooms: current.rooms.map((room) =>
-            room.id === runtimeRoom.id
-              ? syncTavernRoomActiveScene({
-                  ...projectTavernSceneOntoRoom(room),
-                  autoMemory: runtimeRoom.autoMemory,
-                  autoMemoryUpdatedAt: runtimeRoom.autoMemoryUpdatedAt,
-                  summarizedMessageIds: runtimeRoom.summarizedMessageIds,
-                  updatedAt: runtimeRoom.updatedAt,
-                })
-              : room,
-          ),
-        }));
-      }
-      if (preparedContext.warning) {
-        setError(`自动记忆压缩失败，已使用最近上下文继续：${preparedContext.warning}`);
-      }
 
       let directorReason = "";
       const turnNarratorTexts: string[] = [];

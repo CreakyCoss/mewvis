@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { RuntimeModelInput } from "@/ai/runtime-protocol";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
 import { getLlmSettings } from "../api";
 import {
   buildRuntimeModelInputs,

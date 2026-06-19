@@ -1,4 +1,4 @@
-import type { RuntimeApiFormat } from "@/ai/runtime-protocol";
+import type { RuntimeApiFormat } from "@/agent-client/protocol";
 import {
   getApiFormatLabel,
   getProviderApiFormats,
