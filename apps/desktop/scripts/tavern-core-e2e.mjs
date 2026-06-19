@@ -1278,6 +1278,103 @@ writeFileSync(entryPath, `
       },
     },
   }));
+  const interactiveScriptImport = parseTavernExternalImportJson(JSON.stringify({
+    type: "novel-claw:tavern-script",
+    title: "月下议会",
+    mode: "social_deduction",
+    premise: "议会中混入了伪装者。",
+    background: "月下议会只在钟声第三次响起前投票。",
+    userPersonaName: "旅人",
+    characters: [
+      {
+        id: "seer",
+        name: "观星者",
+        description: "能辨认一次谎言。",
+        speakingStyle: "克制而含蓄。",
+      },
+      {
+        id: "guard",
+        name: "守卫",
+        description: "负责维持秩序。",
+        speakingStyle: "短句，直接。",
+      },
+    ],
+    rolePool: [
+      { id: "traitor", label: "伪装者", factionId: "traitors", factionLabel: "伪装者", count: 1 },
+      { id: "council", label: "议员", factionId: "council", factionLabel: "议会", count: 2 },
+    ],
+    privateFacts: [
+      {
+        type: "clue",
+        evidence: "你知道钟声第三次响起前必须完成投票。",
+        visibleToUser: true,
+      },
+    ],
+    statusDefinitions: [
+      {
+        id: "suspicion",
+        label: "怀疑",
+        scope: "scene",
+        valueType: "number",
+        defaultValue: 0,
+        visibility: "public",
+        min: 0,
+        max: 100,
+        updatePolicy: {
+          mode: "eventDrivenWithReview",
+          requireFactEvent: true,
+          allowedEventTypes: ["suspicious"],
+        },
+      },
+    ],
+    statusRules: [],
+    progressViews: [],
+    taskDefinitions: [
+      {
+        id: "find-traitor",
+        title: "找出伪装者",
+        scope: "scene",
+        owner: { type: "scene", sceneId: "current" },
+        visibility: "public",
+        required: true,
+        optional: false,
+        repeatable: false,
+        lifecycle: {
+          initialStatus: "active",
+          completeCondition: {
+            factEvent: "traitor_found",
+            countGte: 1,
+          },
+        },
+      },
+    ],
+    outcomes: [
+      {
+        id: "traitor-found",
+        label: "伪装者被找出",
+        winner: [{ type: "user", userId: "user" }],
+        condition: {
+          task: "find-traitor",
+          status: "completed",
+        },
+        priority: 10,
+        exclusive: true,
+        endScene: "suggest",
+        visibility: "public",
+      },
+    ],
+    openingMessage: "第三声钟响前，每个人都必须说出自己的证词。",
+  }));
+  const interactiveScriptMaterialized = interactiveScriptImport.kind === "generatedPreset"
+    ? createTavernRoomFromGeneratedPresetJson(
+        "workspace",
+        interactiveScriptImport.preset,
+        {
+          roomId: "interactive-script-room",
+          createdAt: now + 60,
+        },
+      )
+    : null;
   let promptPresetImportError = "";
   try {
     parseTavernExternalImportJson(JSON.stringify({
@@ -1397,6 +1494,8 @@ writeFileSync(entryPath, `
       sillyWorldBookEntries,
       sillyWorldBookImport,
       sillyCharacterImport,
+      interactiveScriptImport,
+      interactiveScriptMaterialized,
       promptPresetImportError,
     },
   };
@@ -1876,6 +1975,18 @@ try {
       checks.progressChecks.imports.sillyCharacterImport.preset.messages[0].role === "character",
     "SillyTavern 角色卡应转换成标准生成预设，包含角色、场景、世界书和开场消息",
     checks.progressChecks.imports.sillyCharacterImport,
+  );
+  assert(
+    checks.progressChecks.imports.interactiveScriptImport.kind === "generatedPreset" &&
+      checks.progressChecks.imports.interactiveScriptMaterialized.room.settings.informationPolicy.mode === "social_deduction" &&
+      checks.progressChecks.imports.interactiveScriptMaterialized.room.settings.informationPolicy.roleAssignment.rolePool.length === 2 &&
+      checks.progressChecks.imports.interactiveScriptMaterialized.room.factEvents.some((event) =>
+        event.visibleToUser && event.visibility === "private"
+      ) &&
+      checks.progressChecks.imports.interactiveScriptMaterialized.room.taskDefinitions.length === 1 &&
+      checks.progressChecks.imports.interactiveScriptMaterialized.room.sceneOutcomes.length === 1,
+    "互动剧本 JSON 应转换成新酒馆结构，保留身份池、私有事实、状态、任务和结局",
+    checks.progressChecks.imports.interactiveScriptMaterialized,
   );
   assert(
     checks.progressChecks.imports.promptPresetImportError.includes("提示词预设"),

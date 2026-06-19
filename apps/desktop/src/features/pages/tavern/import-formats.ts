@@ -1,6 +1,8 @@
 import type {
   TavernGeneratedPresetJson,
   TavernGeneratedPresetRoom,
+  TavernProgressVisibility,
+  TavernRoomSettings,
 } from "./types";
 
 export type TavernImportedLorebookEntry = {
@@ -35,6 +37,10 @@ const stringArrayValue = (value: unknown) => Array.isArray(value)
     })
   : [];
 
+const recordArrayValue = (value: unknown) => Array.isArray(value)
+  ? value.filter(isRecord)
+  : [];
+
 const firstNonEmpty = (...values: unknown[]) => {
   for (const value of values) {
     const text = textValue(value);
@@ -44,6 +50,22 @@ const firstNonEmpty = (...values: unknown[]) => {
   }
 
   return "";
+};
+
+const progressVisibilityValue = (
+  value: unknown,
+  fallback: TavernProgressVisibility,
+): TavernProgressVisibility => {
+  const text = textValue(value);
+  return text === "public" ||
+    text === "owner" ||
+    text === "team" ||
+    text === "private" ||
+    text === "director" ||
+    text === "hidden" ||
+    text === "debug"
+    ? text
+    : fallback;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -97,6 +119,18 @@ const normalizeWorldBookEntries = (entries: unknown): TavernImportedLorebookEntr
     }];
   });
 };
+
+const normalizeGeneratedLorebookEntries = (...sources: unknown[]) =>
+  sources.flatMap((source) => {
+    const entries = parseSillyTavernWorldBookJson(source);
+    return entries.map((entry) => ({
+      title: entry.title,
+      content: entry.content,
+      keywords: entry.keywords,
+      enabled: entry.enabled,
+      alwaysOn: entry.alwaysOn,
+    }));
+  });
 
 export const parseSillyTavernWorldBookJson = (
   value: unknown,
@@ -189,6 +223,209 @@ const createCardGeneratedPreset = (
   };
 };
 
+const normalizeScriptCharacters = (characters: unknown) =>
+  recordArrayValue(characters).flatMap((character, index) => {
+    const name = firstNonEmpty(character.name, character.label, character.title);
+    const description = joinSections([
+      ["角色设定", firstNonEmpty(character.description, character.persona, character.profile)],
+      ["性格", character.personality],
+      ["背景", character.background],
+      ["目标", character.goals],
+    ]);
+    if (!name || !description) {
+      return [];
+    }
+
+    return [{
+      id: firstNonEmpty(character.id, character.key, `char-${index + 1}`),
+      name,
+      avatar: textValue(character.avatar),
+      description,
+      speakingStyle: firstNonEmpty(
+        character.speakingStyle,
+        character.replyStyle,
+        character.dialogueStyle,
+        "自然回应，保持人设一致。",
+      ),
+      writingStyle: firstNonEmpty(character.writingStyle, character.narrationStyle) || undefined,
+      replyStylePrompt: firstNonEmpty(character.replyStylePrompt, character.systemPrompt) || undefined,
+      goals: firstNonEmpty(character.goals, character.objective) || undefined,
+      relationships: firstNonEmpty(character.relationships) || undefined,
+      memory: firstNonEmpty(character.memory, character.privateMemory) || undefined,
+    }];
+  });
+
+const normalizeScriptFactEvents = (
+  facts: unknown,
+  defaultVisibility: TavernProgressVisibility = "private",
+) => recordArrayValue(facts).flatMap((fact, index) => {
+  const evidence = firstNonEmpty(fact.evidence, fact.content, fact.text, fact.description, fact.value);
+  if (!evidence) {
+    return [];
+  }
+
+  return [{
+    ...fact,
+    id: firstNonEmpty(fact.id, `import-fact-${index + 1}`),
+    turnId: firstNonEmpty(fact.turnId, "initial"),
+    sourceMessageIds: Array.isArray(fact.sourceMessageIds) ? fact.sourceMessageIds : [],
+    type: firstNonEmpty(fact.type, fact.kind, "hidden_truth"),
+    evidence,
+    confidence: typeof fact.confidence === "number" ? fact.confidence : 1,
+    visibility: progressVisibilityValue(fact.visibility, defaultVisibility),
+  }];
+});
+
+const normalizeScriptInformationPolicy = (script: Record<string, unknown>) => {
+  const settings = isRecord(script.settings) ? script.settings : {};
+  const sourcePolicy = isRecord(script.informationPolicy)
+    ? script.informationPolicy
+    : isRecord(settings.informationPolicy)
+    ? settings.informationPolicy
+    : {};
+  const sourceRoleAssignment = isRecord(sourcePolicy.roleAssignment) ? sourcePolicy.roleAssignment : {};
+  const rolePool = Array.isArray(script.rolePool)
+    ? script.rolePool
+    : Array.isArray(script.roles)
+    ? script.roles
+    : Array.isArray(sourceRoleAssignment.rolePool)
+    ? sourceRoleAssignment.rolePool
+    : [];
+  const mode = firstNonEmpty(script.mode, sourcePolicy.mode);
+  const isDeductionLike = mode === "social_deduction" ||
+    mode === "mystery" ||
+    rolePool.length > 0 ||
+    recordArrayValue(script.privateFacts).length > 0 ||
+    recordArrayValue(script.hiddenFacts).length > 0;
+
+  return {
+    ...sourcePolicy,
+    mode: firstNonEmpty(sourcePolicy.mode, mode, isDeductionLike ? "social_deduction" : "open"),
+    uiDefaultView: firstNonEmpty(sourcePolicy.uiDefaultView, isDeductionLike ? "public" : "reveal"),
+    hideCharacterThoughts: typeof sourcePolicy.hideCharacterThoughts === "boolean"
+      ? sourcePolicy.hideCharacterThoughts
+      : isDeductionLike,
+    revealThoughts: firstNonEmpty(sourcePolicy.revealThoughts, isDeductionLike ? "sceneOutcome" : "manual"),
+    hiddenFacts: {
+      ...(isRecord(sourcePolicy.hiddenFacts) ? sourcePolicy.hiddenFacts : {}),
+      enabled: isDeductionLike,
+      defaultVisibility: firstNonEmpty(
+        isRecord(sourcePolicy.hiddenFacts) ? sourcePolicy.hiddenFacts.defaultVisibility : undefined,
+        "director",
+      ),
+      reveal: firstNonEmpty(
+        isRecord(sourcePolicy.hiddenFacts) ? sourcePolicy.hiddenFacts.reveal : undefined,
+        isDeductionLike ? "sceneOutcome" : "manual",
+      ),
+    },
+    roleAssignment: {
+      ...sourceRoleAssignment,
+      enabled: typeof sourceRoleAssignment.enabled === "boolean"
+        ? sourceRoleAssignment.enabled
+        : rolePool.length > 0,
+      strategy: firstNonEmpty(sourceRoleAssignment.strategy, rolePool.length > 0 ? "director_random" : "manual"),
+      includeUser: sourceRoleAssignment.includeUser !== false,
+      revealToAssignedCharacter: sourceRoleAssignment.revealToAssignedCharacter !== false,
+      revealFactionMembers: sourceRoleAssignment.revealFactionMembers !== false,
+      rolePool,
+    },
+  };
+};
+
+const createScriptGeneratedPreset = (
+  script: Record<string, unknown>,
+): TavernGeneratedPresetJson | null => {
+  const characters = normalizeScriptCharacters(script.characters);
+  if (characters.length === 0) {
+    return null;
+  }
+
+  const background = firstNonEmpty(script.background, script.worldInfo, script.world, script.setting);
+  const title = firstNonEmpty(script.title, script.name, script.label, "导入互动剧本");
+  const lorebookEntries = [
+    ...normalizeGeneratedLorebookEntries(script.lorebookEntries, script.worldBook, script.worldbook),
+    ...(background ? [{
+      title: "背景设定",
+      content: background,
+      keywords: ["背景", "世界观"],
+      enabled: true,
+      alwaysOn: true,
+    }] : []),
+  ];
+  const factEvents = [
+    ...normalizeScriptFactEvents(script.factEvents, "public"),
+    ...normalizeScriptFactEvents(script.privateFacts, "private"),
+    ...normalizeScriptFactEvents(script.hiddenFacts, "director"),
+  ];
+  const settings: Partial<TavernRoomSettings> = {
+    ...(isRecord(script.settings) ? script.settings : {}),
+    informationPolicy: normalizeScriptInformationPolicy(script) as TavernRoomSettings["informationPolicy"],
+  };
+  const firstMessage = firstNonEmpty(script.openingMessage, script.firstMessage, script.opening);
+  const room: TavernGeneratedPresetRoom = {
+    title,
+    promptStyleId: firstNonEmpty(script.promptStyleId, script.promptStyle, "novel"),
+    storyOutline: firstNonEmpty(script.storyOutline, script.premise, script.summary, background),
+    storyGoal: firstNonEmpty(script.storyGoal, script.goal, script.objective),
+    scene: firstNonEmpty(script.scene, script.scenario, script.premise, background, `${title} 的起始场景。`),
+    sceneGoal: firstNonEmpty(script.sceneGoal, script.goal, script.objective),
+    userPersonaName: firstNonEmpty(script.userPersonaName, script.userName, "我"),
+    characterIds: characters.map((character) => character.id),
+    activeCharacterId: characters[0]?.id,
+    lorebookEntries,
+    factEvents,
+    statusDefinitions: Array.isArray(script.statusDefinitions) ? script.statusDefinitions : [],
+    statusRules: Array.isArray(script.statusRules) ? script.statusRules : [],
+    progressViews: Array.isArray(script.progressViews) ? script.progressViews : [],
+    progressTracker: isRecord(script.progressTracker) ? script.progressTracker : undefined,
+    taskDefinitions: Array.isArray(script.taskDefinitions)
+      ? script.taskDefinitions
+      : Array.isArray(script.tasks)
+      ? script.tasks
+      : [],
+    sceneOutcomes: Array.isArray(script.sceneOutcomes)
+      ? script.sceneOutcomes
+      : Array.isArray(script.outcomes)
+      ? script.outcomes
+      : [],
+    settings,
+  };
+
+  return {
+    version: 1,
+    label: title,
+    description: firstNonEmpty(script.description, script.summary, "由互动剧本 JSON 导入。"),
+    room,
+    characters,
+    messages: firstMessage
+      ? [{ role: "narrator", content: firstMessage }]
+      : [{ role: "narrator", content: `已导入互动剧本「${title}」。` }],
+  };
+};
+
+const looksLikeScriptPreset = (value: Record<string, unknown>) => {
+  const marker = firstNonEmpty(value.type, value.spec, value.schema, value.kind);
+  if (
+    marker === "novel-claw:tavern-script" ||
+    marker === "tavern_script" ||
+    marker === "interactive_script"
+  ) {
+    return true;
+  }
+
+  return Array.isArray(value.characters) && (
+    Array.isArray(value.statusDefinitions) ||
+    Array.isArray(value.statusRules) ||
+    Array.isArray(value.taskDefinitions) ||
+    Array.isArray(value.tasks) ||
+    Array.isArray(value.sceneOutcomes) ||
+    Array.isArray(value.outcomes) ||
+    Array.isArray(value.privateFacts) ||
+    Array.isArray(value.hiddenFacts) ||
+    Array.isArray(value.rolePool)
+  );
+};
+
 const looksLikeGeneratedPreset = (value: Record<string, unknown>) =>
   isRecord(value.room) && Array.isArray(value.characters);
 
@@ -224,6 +461,17 @@ export const parseTavernExternalImportJson = (
     return {
       kind: "generatedPreset",
       preset: parsed as TavernGeneratedPresetJson,
+    };
+  }
+
+  if (looksLikeScriptPreset(parsed)) {
+    const preset = createScriptGeneratedPreset(parsed);
+    if (!preset) {
+      throw new Error("互动剧本缺少可导入角色。");
+    }
+    return {
+      kind: "generatedPreset",
+      preset,
     };
   }
 

@@ -75,13 +75,23 @@ import {
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernCondition,
+  TavernEntityRef,
+  TavernFactEvent,
   TavernMessage,
+  TavernOutcomeEvent,
   TavernReferencedFile,
   TavernReplyOption,
   TavernRoom,
   TavernScene,
+  TavernSceneOutcomeDefinition,
   TavernRoomSettings,
+  TavernStatusEvent,
+  TavernStatusTargetRef,
   TavernState,
+  TavernTaskDefinition,
+  TavernTaskEvent,
+  TavernTaskState,
 } from "../types";
 import { runTavernInnerThought, runTavernReply } from "../runtime/tavern-runner";
 import { runTavernDirector } from "../runtime/director";
@@ -472,8 +482,201 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints,
       ...(candidate.illustrationHints ?? {}),
     },
+    informationPolicy: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
+      ...(candidate.informationPolicy ?? {}),
+      hiddenFacts: {
+        ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts,
+        ...(candidate.informationPolicy?.hiddenFacts ?? {}),
+      },
+      roleAssignment: {
+        ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment,
+        ...(candidate.informationPolicy?.roleAssignment ?? {}),
+        rolePool: Array.isArray(candidate.informationPolicy?.roleAssignment?.rolePool)
+          ? candidate.informationPolicy.roleAssignment.rolePool
+          : DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool,
+      },
+    },
   };
 };
+
+const remapImportedEntityRef = (
+  entity: TavernEntityRef | undefined,
+  characterIdMap: Map<string, string>,
+): TavernEntityRef | undefined => {
+  if (!entity) {
+    return undefined;
+  }
+
+  if (entity.type === "character") {
+    const mappedId = characterIdMap.get(entity.characterId);
+    return mappedId ? { ...entity, characterId: mappedId } : entity;
+  }
+
+  return entity;
+};
+
+const remapImportedStatusTarget = (
+  target: TavernStatusTargetRef,
+  characterIdMap: Map<string, string>,
+): TavernStatusTargetRef => {
+  if (target.type === "character") {
+    const mappedId = characterIdMap.get(target.characterId);
+    return mappedId ? { ...target, characterId: mappedId } : target;
+  }
+  if (target.type === "relationship") {
+    return {
+      ...target,
+      subject: remapImportedEntityRef(target.subject, characterIdMap) ?? target.subject,
+      object: remapImportedEntityRef(target.object, characterIdMap) ?? target.object,
+    };
+  }
+  return target;
+};
+
+const remapImportedCondition = (
+  condition: TavernCondition,
+  characterIdMap: Map<string, string>,
+): TavernCondition => {
+  if ("all" in condition) {
+    return { ...condition, all: condition.all.map((item) => remapImportedCondition(item, characterIdMap)) };
+  }
+  if ("any" in condition) {
+    return { ...condition, any: condition.any.map((item) => remapImportedCondition(item, characterIdMap)) };
+  }
+  if ("not" in condition) {
+    return { ...condition, not: remapImportedCondition(condition.not, characterIdMap) };
+  }
+  if ("status" in condition && "target" in condition) {
+    return {
+      ...condition,
+      target: remapImportedStatusTarget(condition.target, characterIdMap),
+    };
+  }
+  if ("factEvent" in condition) {
+    return {
+      ...condition,
+      ...(condition.actor ? { actor: remapImportedEntityRef(condition.actor, characterIdMap) } : {}),
+      ...(condition.target ? { target: remapImportedEntityRef(condition.target, characterIdMap) } : {}),
+    };
+  }
+  if ("task" in condition) {
+    return {
+      ...condition,
+      ...(condition.owner ? { owner: remapImportedEntityRef(condition.owner, characterIdMap) } : {}),
+    };
+  }
+  return condition;
+};
+
+const remapImportedCharacterIds = (
+  ids: string[] | undefined,
+  characterIdMap: Map<string, string>,
+) => ids?.flatMap((id) => {
+  const mappedId = characterIdMap.get(id);
+  return mappedId ? [mappedId] : [];
+});
+
+const remapImportedFactEvents = (
+  factEvents: TavernFactEvent[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(factEvents)
+  ? factEvents.map((event) => ({
+      ...event,
+      ...(event.actor ? { actor: remapImportedEntityRef(event.actor, characterIdMap) } : {}),
+      ...(event.target ? { target: remapImportedEntityRef(event.target, characterIdMap) } : {}),
+      ...(event.visibleToCharacterIds
+        ? { visibleToCharacterIds: remapImportedCharacterIds(event.visibleToCharacterIds, characterIdMap) }
+        : {}),
+    }))
+  : [];
+
+const remapImportedStatusEvents = (
+  statusEvents: TavernStatusEvent[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(statusEvents)
+  ? statusEvents.map((event) => ({
+      ...event,
+      target: remapImportedStatusTarget(event.target, characterIdMap),
+    }))
+  : [];
+
+const remapImportedTaskDefinitions = (
+  tasks: TavernTaskDefinition[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(tasks)
+  ? tasks.map((task) => ({
+      ...task,
+      owner: remapImportedEntityRef(task.owner, characterIdMap) ?? task.owner,
+      ...(task.participants
+        ? { participants: task.participants.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
+        : {}),
+      lifecycle: {
+        ...task.lifecycle,
+        ...(task.lifecycle.startCondition
+          ? { startCondition: remapImportedCondition(task.lifecycle.startCondition, characterIdMap) }
+          : {}),
+        completeCondition: remapImportedCondition(task.lifecycle.completeCondition, characterIdMap),
+        ...(task.lifecycle.failCondition
+          ? { failCondition: remapImportedCondition(task.lifecycle.failCondition, characterIdMap) }
+          : {}),
+      },
+    }))
+  : [];
+
+const remapImportedSceneOutcomes = (
+  outcomes: TavernSceneOutcomeDefinition[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(outcomes)
+  ? outcomes.map((outcome) => ({
+      ...outcome,
+      ...(outcome.winner
+        ? { winner: outcome.winner.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
+        : {}),
+      ...(outcome.loser
+        ? { loser: outcome.loser.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
+        : {}),
+      condition: remapImportedCondition(outcome.condition, characterIdMap),
+    }))
+  : [];
+
+const remapImportedOutcomeEvents = (
+  events: TavernOutcomeEvent[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(events)
+  ? events.map((event) => ({
+      ...event,
+      winners: event.winners.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity),
+      losers: event.losers.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity),
+    }))
+  : [];
+
+const remapImportedTaskSnapshot = (
+  snapshot: Record<string, TavernTaskState> | undefined,
+  characterIdMap: Map<string, string>,
+) => snapshot
+  ? Object.fromEntries(Object.entries(snapshot).map(([taskId, state]) => [
+      taskId,
+      {
+        ...state,
+        owner: remapImportedEntityRef(state.owner, characterIdMap) ?? state.owner,
+      },
+    ]))
+  : {};
+
+const remapImportedTaskEvents = (
+  events: TavernTaskEvent[] | undefined,
+  characterIdMap: Map<string, string>,
+) => Array.isArray(events)
+  ? events.map((event) => ({
+      ...event,
+      owner: remapImportedEntityRef(event.owner, characterIdMap) ?? event.owner,
+      before: event.before
+        ? { ...event.before, owner: remapImportedEntityRef(event.before.owner, characterIdMap) ?? event.before.owner }
+        : undefined,
+      after: { ...event.after, owner: remapImportedEntityRef(event.after.owner, characterIdMap) ?? event.after.owner },
+    }))
+  : [];
 
 export const TavernPage = ({
   workspace,
@@ -1806,20 +2009,26 @@ export const TavernPage = ({
       characterPrivateStatuses: importedScene.characterPrivateStatuses,
       pendingInteractions: importedScene.pendingInteractions,
       replyOptions: importedScene.replyOptions,
-      statusDefinitions: [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
-      statusRules: [...DEFAULT_TAVERN_STATUS_RULES],
-      progressViews: [...DEFAULT_TAVERN_PROGRESS_VIEWS],
-      progressTracker: { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
-      factEvents: importedScene.factEvents,
-      statusEvents: importedScene.statusEvents,
+      statusDefinitions: Array.isArray(parsedExport.room.statusDefinitions)
+        ? parsedExport.room.statusDefinitions
+        : [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
+      statusRules: Array.isArray(parsedExport.room.statusRules)
+        ? parsedExport.room.statusRules
+        : [...DEFAULT_TAVERN_STATUS_RULES],
+      progressViews: Array.isArray(parsedExport.room.progressViews)
+        ? parsedExport.room.progressViews
+        : [...DEFAULT_TAVERN_PROGRESS_VIEWS],
+      progressTracker: parsedExport.room.progressTracker ?? { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
+      factEvents: remapImportedFactEvents(parsedExport.room.factEvents, characterIdMap),
+      statusEvents: remapImportedStatusEvents(parsedExport.room.statusEvents, characterIdMap),
       statusSnapshot: importedScene.statusSnapshot,
       previousStatusSnapshot: importedScene.previousStatusSnapshot,
       statusCheckpoints: importedScene.statusCheckpoints,
-      taskDefinitions: importedScene.taskDefinitions,
-      taskEvents: importedScene.taskEvents,
-      taskSnapshot: importedScene.taskSnapshot,
-      sceneOutcomes: importedScene.sceneOutcomes,
-      outcomeEvents: importedScene.outcomeEvents,
+      taskDefinitions: remapImportedTaskDefinitions(parsedExport.room.taskDefinitions, characterIdMap),
+      taskEvents: remapImportedTaskEvents(parsedExport.room.taskEvents, characterIdMap),
+      taskSnapshot: remapImportedTaskSnapshot(parsedExport.room.taskSnapshot, characterIdMap),
+      sceneOutcomes: remapImportedSceneOutcomes(parsedExport.room.sceneOutcomes, characterIdMap),
+      outcomeEvents: remapImportedOutcomeEvents(parsedExport.room.outcomeEvents, characterIdMap),
       characterConfigs,
       characterMemories,
       localCharacters: importedCharacters,
