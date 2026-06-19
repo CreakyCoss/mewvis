@@ -15,6 +15,9 @@ import type {
   TavernLorebookDraft,
   TavernMessage,
   TavernFactEvent,
+  TavernGeneratedPresetJson,
+  TavernGeneratedPresetRoom,
+  TavernGeneratedPresetScene,
   TavernOutcomeEvent,
   TavernPendingInteraction,
   TavernProgressCheckpoint,
@@ -2389,6 +2392,517 @@ export const createTavernRoomFromSystemPreset = (
             status: "done" as const,
           },
         ],
+  };
+};
+
+const trimGeneratedString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const rememberGeneratedCharacterKey = (
+  characterIdByGeneratedKey: Map<string, string>,
+  key: unknown,
+  characterId: string,
+) => {
+  const text = trimGeneratedString(key);
+  if (!text) {
+    return;
+  }
+
+  characterIdByGeneratedKey.set(text, characterId);
+  characterIdByGeneratedKey.set(text.toLowerCase(), characterId);
+};
+
+const resolveGeneratedCharacterId = (
+  value: unknown,
+  characterIdByGeneratedKey: Map<string, string>,
+) => {
+  const text = trimGeneratedString(value);
+  if (!text) {
+    return undefined;
+  }
+
+  return characterIdByGeneratedKey.get(text) ??
+    characterIdByGeneratedKey.get(text.toLowerCase());
+};
+
+const normalizeGeneratedCharacterIds = (
+  value: unknown,
+  fallback: string[],
+  characterIdByGeneratedKey: Map<string, string>,
+) => {
+  const sourceIds = Array.isArray(value) ? value : [];
+  const ids = sourceIds.flatMap((item) => {
+    const characterId = resolveGeneratedCharacterId(item, characterIdByGeneratedKey);
+    return characterId ? [characterId] : [];
+  });
+
+  return [...new Set(ids.length > 0 ? ids : fallback)];
+};
+
+const normalizeGeneratedStringRecord = (
+  value: unknown,
+  characterIdByGeneratedKey: Map<string, string>,
+) => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => {
+      const characterId = resolveGeneratedCharacterId(key, characterIdByGeneratedKey);
+      const text = trimGeneratedString(item);
+      return characterId && text ? [[characterId, text]] : [];
+    }),
+  );
+};
+
+const normalizeGeneratedCharacterObjectRecord = (
+  value: unknown,
+  characterIdByGeneratedKey: Map<string, string>,
+) => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => {
+      const characterId = resolveGeneratedCharacterId(key, characterIdByGeneratedKey);
+      return characterId && item && typeof item === "object"
+        ? [[characterId, item]]
+        : [];
+    }),
+  );
+};
+
+const normalizeGeneratedStatusSnapshot = (
+  value: unknown,
+  characterIdByGeneratedKey: Map<string, string>,
+) => {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const candidate = value as Partial<TavernStatusSnapshot>;
+  return {
+    ...candidate,
+    characters: normalizeGeneratedCharacterObjectRecord(
+      candidate.characters,
+      characterIdByGeneratedKey,
+    ),
+  };
+};
+
+const firstJsonObjectFromText = (text: string) => {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (start === -1) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+      }
+      continue;
+    }
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = inString;
+      continue;
+    }
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
+};
+
+export const parseTavernGeneratedPresetJsonText = (
+  text: string,
+): TavernGeneratedPresetJson => {
+  const trimmed = text.trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const jsonText = trimmed.startsWith("{")
+    ? trimmed
+    : firstJsonObjectFromText(trimmed);
+  if (!jsonText) {
+    throw new Error("未找到可导入的酒馆 JSON 对象");
+  }
+
+  const parsed = JSON.parse(jsonText) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("酒馆生成结果必须是 JSON 对象");
+  }
+
+  return parsed as TavernGeneratedPresetJson;
+};
+
+const createGeneratedCharacter = (
+  character: NonNullable<TavernGeneratedPresetJson["characters"]>[number],
+  index: number,
+  createdAt: number,
+): TavernCharacter | null => {
+  const name = trimGeneratedString(character.name) || `角色 ${index + 1}`;
+  const description = trimGeneratedString(character.description);
+  const speakingStyle = trimGeneratedString(character.speakingStyle);
+  if (!description && !speakingStyle) {
+    return null;
+  }
+
+  return {
+    id: createId("character"),
+    name,
+    avatar: trimGeneratedString(character.avatar),
+    description,
+    speakingStyle: speakingStyle || "自然回应，保持人设一致。",
+    writingStyle: trimGeneratedString(character.writingStyle) || undefined,
+    replyStylePrompt: trimGeneratedString(character.replyStylePrompt) || undefined,
+    goals: trimGeneratedString(character.goals) || undefined,
+    relationships: trimGeneratedString(character.relationships) || undefined,
+    createdAt,
+    updatedAt: createdAt,
+  };
+};
+
+export const createTavernRoomFromGeneratedPresetJson = (
+  workspaceId: string,
+  generated: TavernGeneratedPresetJson,
+  options: {
+    roomId?: string;
+    roomCreatedAt?: number;
+    createdAt?: number;
+    creationSource?: TavernRoom["creationSource"];
+  } = {},
+) => {
+  const createdAt = options.createdAt ?? now();
+  const roomId = options.roomId ?? createId("room");
+  const roomInput: TavernGeneratedPresetRoom = generated.room ?? {};
+  const sourceCharacters = Array.isArray(generated.characters)
+    ? generated.characters
+    : [];
+  const characterIdByGeneratedKey = new Map<string, string>();
+  const generatedCharacters = sourceCharacters.flatMap((character, index) => {
+    const materialized = createGeneratedCharacter(character, index, createdAt);
+    if (!materialized) {
+      return [];
+    }
+
+    rememberGeneratedCharacterKey(characterIdByGeneratedKey, character.id, materialized.id);
+    rememberGeneratedCharacterKey(characterIdByGeneratedKey, character.name, materialized.id);
+    rememberGeneratedCharacterKey(characterIdByGeneratedKey, materialized.name, materialized.id);
+    return [{
+      source: character,
+      character: materialized,
+    }];
+  });
+  if (generatedCharacters.length === 0) {
+    throw new Error("生成酒馆至少需要一个有效角色");
+  }
+
+  const characters = generatedCharacters.map((item) => item.character);
+  const allCharacterIds = characters.map((character) => character.id);
+  const roomCharacterIds = normalizeGeneratedCharacterIds(
+    roomInput.characterIds,
+    allCharacterIds,
+    characterIdByGeneratedKey,
+  );
+  const roomActiveCharacterId = resolveGeneratedCharacterId(
+    roomInput.activeCharacterId,
+    characterIdByGeneratedKey,
+  ) ?? roomCharacterIds[0] ?? "";
+  const characterMemoryDefaults = Object.fromEntries(
+    generatedCharacters.flatMap(({ source, character }) => {
+      const memory = trimGeneratedString(source.memory);
+      return memory ? [[character.id, memory]] : [];
+    }),
+  );
+  const roomCharacterMemories = {
+    ...characterMemoryDefaults,
+    ...normalizeGeneratedStringRecord(roomInput.characterMemories, characterIdByGeneratedKey),
+  };
+  const roomCharacterConfigs = normalizeRoomCharacterConfigs(undefined, roomCharacterMemories);
+  const characterPublicStatusDefaults = Object.fromEntries(
+    generatedCharacters.flatMap(({ source, character }) =>
+      source.publicStatus && typeof source.publicStatus === "object"
+        ? [[character.id, source.publicStatus]]
+        : []
+    ),
+  );
+  const characterPrivateStatusDefaults = Object.fromEntries(
+    generatedCharacters.flatMap(({ source, character }) =>
+      source.privateStatus && typeof source.privateStatus === "object"
+        ? [[character.id, source.privateStatus]]
+        : []
+    ),
+  );
+  const generatedScenes: TavernGeneratedPresetScene[] = Array.isArray(roomInput.scenes) &&
+      roomInput.scenes.length > 0
+    ? roomInput.scenes
+    : [{
+        title: defaultSceneTitle,
+        scenePresetId: roomInput.scenePresetId,
+        scene: roomInput.scene,
+        sceneGoal: roomInput.sceneGoal,
+        plot: roomInput.plot,
+        storyDirection: roomInput.storyDirection,
+        transition: roomInput.transition,
+        memory: roomInput.memory,
+        sceneStatus: roomInput.sceneStatus,
+        characterPublicStatuses: roomInput.characterPublicStatuses,
+        characterPrivateStatuses: roomInput.characterPrivateStatuses,
+        statusSnapshot: roomInput.statusSnapshot,
+        taskDefinitions: roomInput.taskDefinitions,
+        sceneOutcomes: roomInput.sceneOutcomes,
+        characterMemories: roomInput.characterMemories,
+        lorebookEntries: roomInput.lorebookEntries,
+        timelineEvents: roomInput.timelineEvents,
+        characterIds: roomInput.characterIds,
+        activeCharacterId: roomInput.activeCharacterId,
+      }];
+  const sharedLorebookEntries = mergeLorebookEntries([
+    ...(roomInput.lorebookEntries ?? []),
+    ...generatedScenes.flatMap((scene) => scene.lorebookEntries ?? []),
+  ].map((entry) => createPresetLorebookEntry(entry, createdAt))
+    .filter((entry): entry is TavernLorebookEntry => Boolean(entry)));
+  const sharedTimelineEvents = mergeTimelineEvents([
+    ...(roomInput.timelineEvents ?? []),
+    ...generatedScenes.flatMap((scene) => scene.timelineEvents ?? []),
+  ].map((event) => createPresetTimelineEvent(event, createdAt))
+    .filter((event): event is TavernTimelineEvent => Boolean(event)));
+  const scenes = generatedScenes.map((sceneInput, index) => {
+    const sceneCharacterIds = normalizeGeneratedCharacterIds(
+      sceneInput.characterIds,
+      roomCharacterIds,
+      characterIdByGeneratedKey,
+    );
+    const sceneActiveCharacterId = resolveGeneratedCharacterId(
+      sceneInput.activeCharacterId,
+      characterIdByGeneratedKey,
+    ) ?? (sceneCharacterIds.includes(roomActiveCharacterId)
+      ? roomActiveCharacterId
+      : sceneCharacterIds[0] ?? "");
+    const sceneCharacterMemories = {
+      ...roomCharacterMemories,
+      ...normalizeGeneratedStringRecord(
+        sceneInput.characterMemories,
+        characterIdByGeneratedKey,
+      ),
+    };
+    const scenePublicStatuses = {
+      ...characterPublicStatusDefaults,
+      ...normalizeGeneratedCharacterObjectRecord(
+        roomInput.characterPublicStatuses,
+        characterIdByGeneratedKey,
+      ),
+      ...normalizeGeneratedCharacterObjectRecord(
+        sceneInput.characterPublicStatuses,
+        characterIdByGeneratedKey,
+      ),
+    };
+    const scenePrivateStatuses = {
+      ...characterPrivateStatusDefaults,
+      ...normalizeGeneratedCharacterObjectRecord(
+        roomInput.characterPrivateStatuses,
+        characterIdByGeneratedKey,
+      ),
+      ...normalizeGeneratedCharacterObjectRecord(
+        sceneInput.characterPrivateStatuses,
+        characterIdByGeneratedKey,
+      ),
+    };
+
+    return buildTavernScene({
+      title: trimGeneratedString(sceneInput.title) || defaultSceneTitle,
+      order: typeof sceneInput.order === "number" ? sceneInput.order : index,
+      scenePresetId: sceneInput.scenePresetId ?? roomInput.scenePresetId,
+      scene: trimGeneratedString(sceneInput.scene) ||
+        trimGeneratedString(roomInput.scene) ||
+        "一张空桌、一盏低灯，以及等待被写下的第一句对白。",
+      sceneGoal: trimGeneratedString(sceneInput.sceneGoal) ||
+        trimGeneratedString(roomInput.sceneGoal),
+      plot: trimGeneratedString(sceneInput.plot) || trimGeneratedString(roomInput.plot),
+      storyDirection: trimGeneratedString(sceneInput.storyDirection) ||
+        trimGeneratedString(roomInput.storyDirection),
+      transition: trimGeneratedString(sceneInput.transition) ||
+        trimGeneratedString(roomInput.transition),
+      memory: trimGeneratedString(sceneInput.memory) || trimGeneratedString(roomInput.memory),
+      sceneStatus: normalizeSceneStatus(
+        sceneInput.sceneStatus ?? roomInput.sceneStatus,
+        createdAt,
+      ),
+      characterPublicStatuses: normalizeCharacterPublicStatuses(
+        scenePublicStatuses,
+        sceneCharacterIds,
+        undefined,
+        createdAt,
+      ),
+      characterPrivateStatuses: normalizeCharacterPrivateStatuses(
+        scenePrivateStatuses,
+        sceneCharacterIds,
+        undefined,
+        createdAt,
+      ),
+      pendingInteractions: [],
+      replyOptions: [],
+      factEvents: [],
+      statusEvents: [],
+      statusSnapshot: normalizeStatusSnapshot(
+        normalizeGeneratedStatusSnapshot(
+          sceneInput.statusSnapshot ?? roomInput.statusSnapshot,
+          characterIdByGeneratedKey,
+        ),
+        createdAt,
+      ),
+      previousStatusSnapshot: undefined,
+      statusCheckpoints: [],
+      taskDefinitions: normalizeTaskDefinitions(
+        sceneInput.taskDefinitions ?? roomInput.taskDefinitions,
+      ),
+      taskEvents: [],
+      taskSnapshot: {},
+      sceneOutcomes: normalizeSceneOutcomes(
+        sceneInput.sceneOutcomes ?? roomInput.sceneOutcomes,
+      ),
+      outcomeEvents: [],
+      characterConfigs: normalizeRoomCharacterConfigs(undefined, sceneCharacterMemories),
+      characterMemories: sceneCharacterMemories,
+      illustrationHints: [],
+      assetDrafts: [],
+      characterIds: sceneCharacterIds,
+      activeCharacterId: sceneActiveCharacterId,
+      createdAt,
+      updatedAt: createdAt,
+    });
+  }).sort((left, right) => left.order - right.order)
+    .map((scene, index) => ({ ...scene, order: index }));
+  const scene = scenes[0];
+  const title = trimGeneratedString(roomInput.title) ||
+    trimGeneratedString(generated.label) ||
+    "智能生成酒馆";
+  const room: TavernRoom = projectTavernSceneOntoRoom({
+    id: roomId,
+    workspaceId,
+    locked: false,
+    title,
+    promptStyleId: normalizeTavernPromptStyleId(roomInput.promptStyleId),
+    creationSource: options.creationSource ?? "agent_generated",
+    storyOutline: trimGeneratedString(roomInput.storyOutline),
+    storyGoal: trimGeneratedString(roomInput.storyGoal),
+    activeSceneId: scene.id,
+    scenes,
+    scenePresetId: scene.scenePresetId,
+    scene: scene.scene,
+    sceneGoal: scene.sceneGoal,
+    scenePlot: scene.plot,
+    sceneDirection: scene.storyDirection,
+    sceneTransition: scene.transition,
+    memory: scene.memory,
+    sceneStatus: scene.sceneStatus,
+    characterPublicStatuses: scene.characterPublicStatuses,
+    characterPrivateStatuses: scene.characterPrivateStatuses,
+    pendingInteractions: scene.pendingInteractions,
+    replyOptions: scene.replyOptions,
+    statusDefinitions: normalizeStatusDefinitions(roomInput.statusDefinitions),
+    statusRules: normalizeStatusRules(roomInput.statusRules),
+    progressViews: normalizeProgressViews(roomInput.progressViews),
+    progressTracker: normalizeProgressTracker(roomInput.progressTracker),
+    factEvents: scene.factEvents,
+    statusEvents: scene.statusEvents,
+    statusSnapshot: scene.statusSnapshot,
+    previousStatusSnapshot: scene.previousStatusSnapshot,
+    statusCheckpoints: scene.statusCheckpoints,
+    taskDefinitions: scene.taskDefinitions,
+    taskEvents: scene.taskEvents,
+    taskSnapshot: scene.taskSnapshot,
+    sceneOutcomes: scene.sceneOutcomes,
+    outcomeEvents: scene.outcomeEvents,
+    characterConfigs: roomCharacterConfigs,
+    characterMemories: roomCharacterMemories,
+    localCharacters: characters,
+    lorebookEntries: sharedLorebookEntries,
+    timelineEvents: sharedTimelineEvents,
+    illustrationHints: scene.illustrationHints,
+    assetDrafts: [],
+    characterIds: roomCharacterIds,
+    activeCharacterId: roomActiveCharacterId,
+    replyMode: normalizeReplyMode(roomInput.replyMode),
+    userPersonaName: trimGeneratedString(roomInput.userPersonaName) || "我",
+    settings: normalizeRoomSettings(roomInput.settings),
+    createdAt: options.roomCreatedAt ?? createdAt,
+    updatedAt: createdAt,
+  });
+  const messages = (Array.isArray(generated.messages) ? generated.messages : [])
+    .flatMap((message): TavernMessage[] => {
+      const content = trimGeneratedString(message.content);
+      if (!content) {
+        return [];
+      }
+
+      if (message.role === "character") {
+        const characterId = resolveGeneratedCharacterId(
+          message.characterId,
+          characterIdByGeneratedKey,
+        );
+        return characterId
+          ? [{
+              id: createId("message"),
+              roomId,
+              role: "character" as const,
+              characterId,
+              content,
+              createdAt,
+              status: "done" as const,
+            }]
+          : [];
+      }
+
+      return [{
+        id: createId("message"),
+        roomId,
+        role: message.role === "user" ? "user" as const : "narrator" as const,
+        content,
+        createdAt,
+        status: "done" as const,
+      }];
+    });
+
+  return {
+    room,
+    characters,
+    messages: messages.length > 0
+      ? messages
+      : [{
+          id: createId("message"),
+          roomId,
+          role: "narrator" as const,
+          content: "智能生成酒馆已创建，新的场景已经准备好。",
+          createdAt,
+          status: "done" as const,
+        }],
   };
 };
 

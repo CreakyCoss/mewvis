@@ -51,10 +51,12 @@ writeFileSync(entryPath, `
   } from ${JSON.stringify(corePath)};
   import {
     createTavernRoom,
+    createTavernRoomFromGeneratedPresetJson,
     DEFAULT_TAVERN_SCENE_OUTCOMES,
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
+    parseTavernGeneratedPresetJsonText,
     syncTavernRoomActiveScene,
   } from ${JSON.stringify(storagePath)};
   import {
@@ -850,6 +852,86 @@ writeFileSync(entryPath, `
     turnId: "default-turn-stabilize",
     createdAt: now + 23,
   });
+  const generatedFence = String.fromCharCode(96, 96, 96);
+  const generatedPreset = parseTavernGeneratedPresetJsonText([
+    "生成结果如下：",
+    generatedFence + "json",
+    JSON.stringify({
+    version: 1,
+    label: "雨巷旧灯",
+    room: {
+      title: "雨巷旧灯",
+      promptStyleId: "light-novel",
+      storyOutline: "雨夜里，旧灯会照出每个人隐瞒的目的。",
+      storyGoal: "确认失踪信使留下的线索。",
+      scene: "细雨敲着瓦檐，巷口的旧灯忽明忽暗。",
+      sceneGoal: "确认谁拿走了信使的铜牌。",
+      userPersonaName: "旅人",
+      settings: {
+        directorMaxSpeakers: 4,
+        randomEvents: { enabled: true, probability: 0.25 },
+        illustrationHints: { enabled: true },
+      },
+      characterIds: ["a", "b"],
+      activeCharacterId: "a",
+      characterMemories: {
+        a: "阿洛记得铜牌最后一次出现的位置。",
+      },
+      characterPublicStatuses: {
+        a: { visibleMood: "警惕" },
+      },
+      statusSnapshot: {
+        turnId: "generated-initial",
+        characters: {
+          a: { health: 88 },
+        },
+      },
+      lorebookEntries: [
+        {
+          title: "铜牌",
+          content: "信使铜牌用于证明身份，丢失会引发误判。",
+          keywords: ["铜牌"],
+        },
+      ],
+    },
+    characters: [
+      {
+        id: "a",
+        name: "阿洛",
+        description: "谨慎的巡夜人，讨厌凭空猜测。",
+        speakingStyle: "短句，先确认事实。",
+        writingStyle: "动作简洁，雨声作衬。",
+        replyStylePrompt: "不要自称旁白，不替旅人决定行动。",
+        memory: "阿洛只知道铜牌在雨停前还在桌上。",
+        publicStatus: { posture: "靠在门边" },
+      },
+      {
+        id: "b",
+        name: "贝拉",
+        description: "热心的灯匠，熟悉巷道。",
+        speakingStyle: "轻快但不轻浮。",
+      },
+    ],
+    messages: [
+      { role: "narrator", content: "旧灯在雨里亮了一下。" },
+      { role: "character", characterId: "a", content: "铜牌不该离开这张桌。" },
+    ],
+    }),
+    generatedFence,
+  ].join("\\n"));
+  const generatedMaterialized = createTavernRoomFromGeneratedPresetJson(
+    "workspace-generated",
+    generatedPreset,
+    {
+      creationSource: "quick",
+      createdAt: now + 24,
+    },
+  );
+  const generatedA = generatedMaterialized.characters.find((character) =>
+    character.name === "阿洛"
+  );
+  const generatedRoom = generatedMaterialized.room;
+  const generatedScene = generatedRoom.scenes[0];
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -942,6 +1024,19 @@ writeFileSync(entryPath, `
     defaultOutcomeAfterStabilize: defaultStabilizeAdvance.outcomeEvents.find((event) =>
       event.outcomeId === "scene-stabilized-success"
     )?.status,
+    generated: {
+      room: generatedRoom,
+      scene: generatedScene,
+      a: generatedA,
+      messages: generatedMaterialized.messages,
+      aHealth: generatedA
+        ? getTavernStatusSnapshotValue(
+            generatedScene.statusSnapshot,
+            { type: "character", characterId: generatedA.id },
+            "health",
+          )
+        : null,
+    },
   };
   globalThis.__checks = {
     contextForA,
@@ -1276,6 +1371,38 @@ try {
       checks.progressChecks.defaultOutcomeAfterStabilize === "pending",
     "默认稳定行动应能完成场景任务并触发待确认结局建议",
     checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.generated.room.title === "雨巷旧灯" &&
+      checks.progressChecks.generated.room.promptStyleId === "light-novel" &&
+      checks.progressChecks.generated.room.creationSource === "quick" &&
+      checks.progressChecks.generated.room.settings.randomEvents.enabled &&
+      checks.progressChecks.generated.room.settings.randomEvents.probability === 0.25 &&
+      checks.progressChecks.generated.room.settings.illustrationHints.enabled,
+    "生成 JSON 导入应保留快速创建来源、提示词风格和高级房间设置",
+    checks.progressChecks.generated.room,
+  );
+  assert(
+    checks.progressChecks.generated.a?.writingStyle === "动作简洁，雨声作衬。" &&
+      checks.progressChecks.generated.a?.replyStylePrompt ===
+        "不要自称旁白，不替旅人决定行动。" &&
+      checks.progressChecks.generated.scene.characterMemories[checks.progressChecks.generated.a.id]
+        .includes("铜牌") &&
+      checks.progressChecks.generated.scene.characterPublicStatuses[
+        checks.progressChecks.generated.a.id
+      ]?.visibleMood === "警惕" &&
+      checks.progressChecks.generated.aHealth === 88,
+    "生成 JSON 导入应把临时角色 id/name 映射到真实角色 id，并保留角色级 prompt、记忆和状态快照",
+    checks.progressChecks.generated,
+  );
+  assert(
+    checks.progressChecks.generated.room.lorebookEntries[0]?.title === "铜牌" &&
+      checks.progressChecks.generated.messages.some((message) =>
+        message.role === "character" &&
+        message.characterId === checks.progressChecks.generated.a.id
+      ),
+    "生成 JSON 导入应创建世界书和映射后的初始角色消息",
+    checks.progressChecks.generated,
   );
 
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));

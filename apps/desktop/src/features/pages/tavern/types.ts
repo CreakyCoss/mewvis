@@ -600,6 +600,108 @@ export type TavernMessage = {
   referencedFiles?: Array<{ path: string }>;
 };
 
+export type TavernGeneratedPresetCharacter = {
+  id?: string;
+  name?: string;
+  avatar?: string;
+  description?: string;
+  speakingStyle?: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
+  goals?: string;
+  relationships?: string;
+  memory?: string;
+  publicStatus?: Partial<TavernCharacterPublicStatus>;
+  privateStatus?: Partial<TavernCharacterPrivateStatus>;
+};
+
+export type TavernGeneratedPresetScene = {
+  title?: string;
+  order?: number;
+  scenePresetId?: unknown;
+  scene?: string;
+  sceneGoal?: string;
+  plot?: string;
+  storyDirection?: string;
+  transition?: string;
+  memory?: string;
+  sceneStatus?: Partial<TavernSceneStatus>;
+  characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
+  characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
+  statusSnapshot?: Partial<TavernStatusSnapshot>;
+  taskDefinitions?: TavernTaskDefinition[];
+  sceneOutcomes?: TavernSceneOutcomeDefinition[];
+  characterMemories?: Record<string, string>;
+  lorebookEntries?: Array<{
+    title: string;
+    content: string;
+    keywords?: string[];
+    enabled?: boolean;
+    alwaysOn?: boolean;
+  }>;
+  timelineEvents?: Array<{
+    title: string;
+    summary: string;
+  }>;
+  characterIds?: string[];
+  activeCharacterId?: string;
+};
+
+export type TavernGeneratedPresetRoom = {
+  title?: string;
+  promptStyleId?: unknown;
+  storyOutline?: string;
+  storyGoal?: string;
+  scenePresetId?: unknown;
+  scene?: string;
+  sceneGoal?: string;
+  plot?: string;
+  storyDirection?: string;
+  transition?: string;
+  memory?: string;
+  sceneStatus?: Partial<TavernSceneStatus>;
+  characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
+  characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
+  statusDefinitions?: TavernStatusDefinition[];
+  statusRules?: TavernStatusRule[];
+  progressViews?: TavernProgressView[];
+  progressTracker?: Partial<TavernProgressTrackerSettings>;
+  statusSnapshot?: Partial<TavernStatusSnapshot>;
+  taskDefinitions?: TavernTaskDefinition[];
+  sceneOutcomes?: TavernSceneOutcomeDefinition[];
+  scenes?: TavernGeneratedPresetScene[];
+  characterMemories?: Record<string, string>;
+  lorebookEntries?: Array<{
+    title: string;
+    content: string;
+    keywords?: string[];
+    enabled?: boolean;
+    alwaysOn?: boolean;
+  }>;
+  timelineEvents?: Array<{
+    title: string;
+    summary: string;
+  }>;
+  characterIds?: string[];
+  activeCharacterId?: string;
+  replyMode?: TavernReplyMode;
+  userPersonaName?: string;
+  settings?: Partial<TavernRoomSettings>;
+};
+
+export type TavernGeneratedPresetJson = {
+  version?: 1;
+  label?: string;
+  description?: string;
+  room?: TavernGeneratedPresetRoom;
+  characters?: TavernGeneratedPresetCharacter[];
+  messages?: Array<{
+    role: TavernMessage["role"];
+    characterId?: string;
+    content: string;
+  }>;
+};
+
 export type TavernState = {
   version: 2;
   activeRoomId: string;
