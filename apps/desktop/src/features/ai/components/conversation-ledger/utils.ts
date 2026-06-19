@@ -8,6 +8,13 @@ export const formatLedgerTime = (timestamp: number) =>
     second: "2-digit",
   });
 
+export const formatLedgerDateTime = (timestamp?: number | null) =>
+  timestamp
+    ? new Date(timestamp).toLocaleString("zh-CN", {
+      hour12: false,
+    })
+    : "未记录";
+
 export const formatLedgerDuration = (durationMs?: number | null) => {
   if (typeof durationMs !== "number") {
     return "";
@@ -48,4 +55,33 @@ export const compactLedgerId = (value?: string | null) => {
     return value;
   }
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
+};
+
+export const previewLedgerText = (
+  content?: string | null,
+  maxLength = 72,
+) => {
+  const normalized = (content ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxLength - 1))}...`;
+};
+
+export const formatLedgerRole = (role?: string | null) => {
+  switch (role) {
+    case "user":
+      return "用户";
+    case "assistant":
+      return "助手";
+    case "system":
+      return "系统";
+    case "tool":
+      return "工具";
+    default:
+      return role || "消息";
+  }
 };

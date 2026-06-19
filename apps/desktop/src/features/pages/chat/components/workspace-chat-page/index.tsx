@@ -1,6 +1,6 @@
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Folder } from "lucide-react";
+import { Activity, Folder, PanelRight } from "lucide-react";
 import {
   DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedRuntimeAgentTools,
@@ -71,7 +71,10 @@ const contextPanelTools: Array<{
 ];
 
 const contextPanelToolButtonClass =
-  "flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
+  "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
+
+const contextPanelToggleButtonClass =
+  "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15";
 
 const workspaceAgentInteractionInstructions = [
   "交互规则：",
@@ -80,45 +83,6 @@ const workspaceAgentInteractionInstructions = [
   "- 如果问题有明确候选项，调用 ask_user 时使用 input.type = \"select\"，并提供至少两个 options；可以加入 { value: \"other\", label: \"请输入\" } 让用户自定义。",
   "- 调用 ask_user 后，等待用户回答，再基于回答继续原任务。",
 ].join("\n");
-
-type ContextPanelShellProps = {
-  activeTool: ContextPanelTool;
-  children: ReactNode;
-  onChangeTool: (tool: ContextPanelTool) => void;
-};
-
-const ContextPanelShell = ({
-  activeTool,
-  children,
-  onChangeTool,
-}: ContextPanelShellProps) => (
-  <div className="relative flex min-w-0 shrink-0 overflow-visible">
-    {children}
-    <nav
-      className="flex w-12 shrink-0 flex-col items-center gap-2 border-l border-border/60 bg-muted/35 px-1.5 py-3"
-      aria-label="右侧工具"
-    >
-      {contextPanelTools.map((tool) => {
-        const Icon = tool.icon;
-
-        return (
-          <button
-            key={tool.value}
-            type="button"
-            className={contextPanelToolButtonClass}
-            title={tool.label}
-            aria-label={`显示${tool.label}`}
-            aria-pressed={activeTool === tool.value}
-            data-active={activeTool === tool.value}
-            onClick={() => onChangeTool(tool.value)}
-          >
-            <Icon className="size-5" />
-          </button>
-        );
-      })}
-    </nav>
-  </div>
-);
 
 type WorkspaceChatPageProps = {
   workspace: Workspace;
@@ -1116,27 +1080,58 @@ export const WorkspaceChatPage = ({
     </aside>
   );
 
-  const headerProps = {
-    isContextPanelOpen,
-    onToggleContextPanel: () => setIsContextPanelOpen((current) => !current),
-  };
-
   const contextPanel = isContextPanelOpen
-    ? (
-      <ContextPanelShell
-        activeTool={contextPanelTool}
-        onChangeTool={setContextPanelTool}
-      >
-        {contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel}
-      </ContextPanelShell>
-    )
+    ? contextPanelTool === "ledger"
+      ? ledgerPanel
+      : fileManagePanel
     : null;
+  const contextRail = (
+    <nav
+      className="flex w-10 shrink-0 flex-col items-center gap-1.5 border-l border-border/60 bg-muted/35 px-1 py-2.5"
+      aria-label="右侧工具"
+    >
+      <button
+        type="button"
+        className={contextPanelToggleButtonClass}
+        title={isContextPanelOpen ? "收起右侧面板" : "展开右侧面板"}
+        aria-label={isContextPanelOpen ? "收起右侧面板" : "展开右侧面板"}
+        aria-pressed={isContextPanelOpen}
+        data-active={isContextPanelOpen}
+        onClick={() => setIsContextPanelOpen((current) => !current)}
+      >
+        <PanelRight className="size-4" />
+      </button>
+      <div className="h-px w-5 bg-border/70" />
+      {contextPanelTools.map((tool) => {
+        const Icon = tool.icon;
+        const isActiveTool = isContextPanelOpen && contextPanelTool === tool.value;
+
+        return (
+          <button
+            key={tool.value}
+            type="button"
+            className={contextPanelToolButtonClass}
+            title={tool.label}
+            aria-label={`显示${tool.label}`}
+            aria-pressed={isActiveTool}
+            data-active={isActiveTool}
+            onClick={() => {
+              setContextPanelTool(tool.value);
+              setIsContextPanelOpen(true);
+            }}
+          >
+            <Icon className="size-4" />
+          </button>
+        );
+      })}
+    </nav>
+  );
 
   return (
     <ChatLayout
-      headerProps={headerProps}
       content={chatPanel}
       contextPanel={contextPanel}
+      contextRail={contextRail}
     />
   );
 };
