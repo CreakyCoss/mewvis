@@ -72,6 +72,7 @@ import type {
   TavernLorebookEntry,
   TavernReplyMode,
   TavernMessage,
+  TavernCondition,
   TavernProgressView,
   TavernRoom,
   TavernRoomCharacterConfig,
@@ -249,6 +250,22 @@ const parseProgressJsonArray = <T,>(
     return { ok: false, error: `${label}第 ${invalidIndex + 1} 项缺少必要字段。` };
   }
 
+  const seenIds = new Set<string>();
+  const duplicatedItem = parsed.find((item) => {
+    const id = isRecord(item) && typeof item.id === "string" ? item.id.trim() : "";
+    if (!id) {
+      return false;
+    }
+    if (seenIds.has(id)) {
+      return true;
+    }
+    seenIds.add(id);
+    return false;
+  });
+  if (duplicatedItem && isRecord(duplicatedItem) && typeof duplicatedItem.id === "string") {
+    return { ok: false, error: `${label}存在重复 id：${duplicatedItem.id}` };
+  }
+
   return { ok: true, value: parsed };
 };
 
@@ -285,9 +302,16 @@ const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition => (
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "title") &&
+  hasStringField(item, "scope") &&
   hasRecordField(item, "owner") &&
-  hasRecordField(item, "condition") &&
-  hasStringField(item, "visibility")
+  hasStringField(item, "visibility") &&
+  typeof item.required === "boolean" &&
+  typeof item.optional === "boolean" &&
+  typeof item.repeatable === "boolean" &&
+  hasRecordField(item, "lifecycle") &&
+  isRecord(item.lifecycle) &&
+  hasStringField(item.lifecycle, "initialStatus") &&
+  hasRecordField(item.lifecycle, "completeCondition")
 );
 
 const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinition => (
@@ -300,6 +324,105 @@ const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinitio
   hasStringField(item, "endScene") &&
   hasStringField(item, "visibility")
 );
+
+const collectConditionRefs = (
+  condition: TavernCondition | undefined,
+  refs: { statusIds: Set<string>; taskIds: Set<string> },
+) => {
+  if (!condition) {
+    return;
+  }
+  if ("all" in condition) {
+    condition.all.forEach((item) => collectConditionRefs(item, refs));
+    return;
+  }
+  if ("any" in condition) {
+    condition.any.forEach((item) => collectConditionRefs(item, refs));
+    return;
+  }
+  if ("not" in condition) {
+    collectConditionRefs(condition.not, refs);
+    return;
+  }
+  if ("status" in condition) {
+    if (typeof condition.status === "string") {
+      refs.statusIds.add(condition.status);
+    }
+    return;
+  }
+  if ("task" in condition) {
+    if (typeof condition.task === "string") {
+      refs.taskIds.add(condition.task);
+    }
+  }
+};
+
+const validateProgressConfigReferences = ({
+  statusDefinitions,
+  statusRules,
+  progressViews,
+  taskDefinitions,
+  sceneOutcomes,
+}: {
+  statusDefinitions: TavernStatusDefinition[];
+  statusRules: TavernStatusRule[];
+  progressViews: TavernProgressView[];
+  taskDefinitions: TavernTaskDefinition[];
+  sceneOutcomes: TavernSceneOutcomeDefinition[];
+}) => {
+  const statusIds = new Set(statusDefinitions.map((definition) => definition.id));
+  const taskIds = new Set(taskDefinitions.map((task) => task.id));
+  const outcomeIds = new Set(sceneOutcomes.map((outcome) => outcome.id));
+
+  const invalidRule = statusRules.find((rule) => !statusIds.has(rule.apply.statusId));
+  if (invalidRule) {
+    return `状态规则「${invalidRule.label}」引用了不存在的状态：${invalidRule.apply.statusId}`;
+  }
+
+  for (const view of progressViews) {
+    for (const item of view.items) {
+      if (item.type === "status" && !statusIds.has(item.statusId)) {
+        return `状态面板「${view.label}」引用了不存在的状态：${item.statusId}`;
+      }
+      if (item.type === "task" && !taskIds.has(item.taskId)) {
+        return `状态面板「${view.label}」引用了不存在的任务：${item.taskId}`;
+      }
+      if (item.type === "outcome" && !outcomeIds.has(item.outcomeId)) {
+        return `状态面板「${view.label}」引用了不存在的结局：${item.outcomeId}`;
+      }
+    }
+  }
+
+  for (const task of taskDefinitions) {
+    const refs = { statusIds: new Set<string>(), taskIds: new Set<string>() };
+    collectConditionRefs(task.lifecycle.startCondition, refs);
+    collectConditionRefs(task.lifecycle.completeCondition, refs);
+    collectConditionRefs(task.lifecycle.failCondition, refs);
+    const missingStatusId = Array.from(refs.statusIds).find((statusId) => !statusIds.has(statusId));
+    if (missingStatusId) {
+      return `任务「${task.title}」引用了不存在的状态：${missingStatusId}`;
+    }
+    const missingTaskId = Array.from(refs.taskIds).find((taskId) => !taskIds.has(taskId));
+    if (missingTaskId) {
+      return `任务「${task.title}」引用了不存在的任务：${missingTaskId}`;
+    }
+  }
+
+  for (const outcome of sceneOutcomes) {
+    const refs = { statusIds: new Set<string>(), taskIds: new Set<string>() };
+    collectConditionRefs(outcome.condition, refs);
+    const missingStatusId = Array.from(refs.statusIds).find((statusId) => !statusIds.has(statusId));
+    if (missingStatusId) {
+      return `结局「${outcome.label}」引用了不存在的状态：${missingStatusId}`;
+    }
+    const missingTaskId = Array.from(refs.taskIds).find((taskId) => !taskIds.has(taskId));
+    if (missingTaskId) {
+      return `结局「${outcome.label}」引用了不存在的任务：${missingTaskId}`;
+    }
+  }
+
+  return "";
+};
 
 const TavernEditorField = ({
   label,
@@ -1310,6 +1433,18 @@ export const TavernManagementPage = ({
       );
       if (!sceneOutcomes.ok) {
         setRoomContentEditError(sceneOutcomes.error);
+        return;
+      }
+
+      const referenceError = validateProgressConfigReferences({
+        statusDefinitions: statusDefinitions.value,
+        statusRules: statusRules.value,
+        progressViews: progressViews.value,
+        taskDefinitions: taskDefinitions.value,
+        sceneOutcomes: sceneOutcomes.value,
+      });
+      if (referenceError) {
+        setRoomContentEditError(referenceError);
         return;
       }
 

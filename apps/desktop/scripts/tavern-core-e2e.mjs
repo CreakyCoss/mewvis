@@ -11,6 +11,7 @@ const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts");
 const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
+const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -21,6 +22,7 @@ const assert = (condition, message, details) => {
 
 writeFileSync(entryPath, `
   import {
+    advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
     createEmptyTavernStatusSnapshot,
     createTavernProgressCheckpoint,
@@ -45,6 +47,13 @@ writeFileSync(entryPath, `
     tavernQuickReplyAgentRoleId,
     updateTavernTasks,
   } from ${JSON.stringify(corePath)};
+  import {
+    createTavernRoom,
+    DEFAULT_TAVERN_SCENE_OUTCOMES,
+    DEFAULT_TAVERN_STATUS_DEFINITIONS,
+    DEFAULT_TAVERN_STATUS_RULES,
+    DEFAULT_TAVERN_TASK_DEFINITIONS,
+  } from ${JSON.stringify(storagePath)};
   import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
 
@@ -632,6 +641,52 @@ writeFileSync(entryPath, `
     resolution: "rejected",
     createdAt: now + 19,
   });
+  const rawDefaultRoom = createTavernRoom("workspace-default", 1);
+  const defaultRoom = {
+    ...rawDefaultRoom,
+    progressTracker: {
+      ...rawDefaultRoom.progressTracker,
+      applyMode: "auto",
+    },
+  };
+  const defaultThreatFact = {
+    id: "default-fact-threat",
+    turnId: "default-turn-threat",
+    sourceMessageIds: ["default-message-threat"],
+    type: "threat",
+    target: { type: "scene", sceneId: "current" },
+    intensity: "major",
+    evidence: "场景中出现公开可观察的重大威胁。",
+    confidence: 0.95,
+    createdAt: now + 20,
+  };
+  const defaultThreatAdvance = advanceTavernProgressFromFactEvents({
+    room: defaultRoom,
+    factEvents: [defaultThreatFact],
+    turnId: "default-turn-threat",
+    createdAt: now + 21,
+  });
+  const defaultRoomAfterThreat = {
+    ...defaultRoom,
+    ...defaultThreatAdvance,
+  };
+  const defaultStabilizeFact = {
+    id: "default-fact-stabilize",
+    turnId: "default-turn-stabilize",
+    sourceMessageIds: ["default-message-stabilize"],
+    type: "stabilize",
+    target: { type: "scene", sceneId: "current" },
+    intensity: "major",
+    evidence: "角色合力控制局势，威胁被公开压制。",
+    confidence: 0.95,
+    createdAt: now + 22,
+  };
+  const defaultStabilizeAdvance = advanceTavernProgressFromFactEvents({
+    room: defaultRoomAfterThreat,
+    factEvents: [defaultStabilizeFact],
+    turnId: "default-turn-stabilize",
+    createdAt: now + 23,
+  });
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -677,6 +732,31 @@ writeFileSync(entryPath, `
         )
       : null,
     progressCheckpoint,
+    defaultDefinitions: {
+      statusRuleIds: DEFAULT_TAVERN_STATUS_RULES.map((rule) => rule.id),
+      statusDefinitionIds: DEFAULT_TAVERN_STATUS_DEFINITIONS.map((definition) => definition.id),
+      taskIds: DEFAULT_TAVERN_TASK_DEFINITIONS.map((task) => task.id),
+      outcomeIds: DEFAULT_TAVERN_SCENE_OUTCOMES.map((outcome) => outcome.id),
+      roomTaskIds: defaultRoom.taskDefinitions.map((task) => task.id),
+      roomOutcomeIds: defaultRoom.sceneOutcomes.map((outcome) => outcome.id),
+    },
+    defaultThreatLevelAfterThreat: getTavernStatusSnapshotValue(
+      defaultThreatAdvance.statusSnapshot,
+      { type: "scene" },
+      "threat_level",
+    ),
+    defaultThreatTaskAfterThreat: defaultThreatAdvance.taskSnapshot["stabilize-scene-threat"]?.status,
+    defaultTrustTaskInitialStatus: defaultThreatAdvance.taskSnapshot["earn-trust-through-help"]?.status,
+    defaultThreatLevelAfterStabilize: getTavernStatusSnapshotValue(
+      defaultStabilizeAdvance.statusSnapshot,
+      { type: "scene" },
+      "threat_level",
+    ),
+    defaultThreatTaskAfterStabilize:
+      defaultStabilizeAdvance.taskSnapshot["stabilize-scene-threat"]?.status,
+    defaultOutcomeAfterStabilize: defaultStabilizeAdvance.outcomeEvents.find((event) =>
+      event.outcomeId === "scene-stabilized-success"
+    )?.status,
   };
   globalThis.__checks = {
     contextForA,
@@ -730,6 +810,12 @@ try {
     external: ["react", "react-dom"],
     alias: {
       "@": resolve(workspaceRoot, "src"),
+    },
+    loader: {
+      ".jpg": "dataurl",
+      ".jpeg": "dataurl",
+      ".png": "dataurl",
+      ".webp": "dataurl",
     },
     logLevel: "silent",
   });
@@ -907,6 +993,28 @@ try {
     checks.progressChecks.reviewRejectedStatus === "rejected" &&
       checks.progressChecks.reviewRejectedBossHealth === 25,
     "review 模式下拒绝 pending 状态事件不应改变快照",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.defaultDefinitions.statusRuleIds.includes("threat-to-scene-threat") &&
+      checks.progressChecks.defaultDefinitions.statusRuleIds.includes("stabilize-to-scene-threat") &&
+      checks.progressChecks.defaultDefinitions.roomTaskIds.includes("stabilize-scene-threat") &&
+      checks.progressChecks.defaultDefinitions.roomOutcomeIds.includes("scene-stabilized-success"),
+    "默认酒馆应包含场景威胁规则、任务和结局定义",
+    checks.progressChecks.defaultDefinitions,
+  );
+  assert(
+    checks.progressChecks.defaultThreatLevelAfterThreat === 40 &&
+      checks.progressChecks.defaultThreatTaskAfterThreat === "active" &&
+      checks.progressChecks.defaultTrustTaskInitialStatus === "active",
+    "默认规则应能把威胁事实推进为任务激活，并保留初始 active 的个人任务",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.defaultThreatLevelAfterStabilize === 5 &&
+      checks.progressChecks.defaultThreatTaskAfterStabilize === "completed" &&
+      checks.progressChecks.defaultOutcomeAfterStabilize === "pending",
+    "默认稳定行动应能完成场景任务并触发待确认结局建议",
     checks.progressChecks,
   );
 

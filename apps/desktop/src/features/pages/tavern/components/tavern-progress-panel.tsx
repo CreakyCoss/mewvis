@@ -349,13 +349,17 @@ export const TavernProgressPanel = ({
       }
       if (item.type === "task") {
         const task = taskById.get(item.taskId);
+        if (!task || !shouldShowProgressVisibility(task.visibility)) {
+          return [];
+        }
         const state = activeRoom.taskSnapshot[item.taskId];
-        if (!task || !state || !shouldShowProgressVisibility(task.visibility)) {
+        const status = state?.status ?? task.lifecycle.initialStatus;
+        if (status === "inactive") {
           return [];
         }
         return [{
           key: `${view.id}:task:${item.taskId}`,
-          content: <TaskBadge title={task.title} status={state.status} />,
+          content: <TaskBadge title={task.title} status={status} />,
         }];
       }
       const outcome = outcomeById.get(item.outcomeId);
@@ -382,12 +386,13 @@ export const TavernProgressPanel = ({
             return [];
           }
           const state = activeRoom.taskSnapshot[task.id];
-          if (!state || state.status === "inactive") {
+          const status = state?.status ?? task.lifecycle.initialStatus;
+          if (status === "inactive") {
             return [];
           }
           return [{
             key: `${view.id}:dynamic-task:${task.id}`,
-            content: <TaskBadge title={task.title} status={state.status} />,
+            content: <TaskBadge title={task.title} status={status} />,
           }];
         })
       : [];

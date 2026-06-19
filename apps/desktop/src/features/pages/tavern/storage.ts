@@ -325,6 +325,7 @@ export const DEFAULT_TAVERN_STATUS_DEFINITIONS: TavernStatusDefinition[] = [
     updatePolicy: {
       mode: "eventDrivenWithReview",
       requireFactEvent: true,
+      allowedEventTypes: ["threat", "stabilize"],
       maxDeltaPerTurn: 20,
       confidenceThreshold: 0.75,
     },
@@ -430,6 +431,52 @@ export const DEFAULT_TAVERN_STATUS_RULES: TavernStatusRule[] = [
     },
     safeguards: {
       maxDeltaPerTurn: 30,
+      requireExplicitEvidence: true,
+      manualReviewAboveDelta: 20,
+    },
+  },
+  {
+    id: "threat-to-scene-threat",
+    label: "威胁事件提升场景威胁",
+    when: { eventType: "threat", targetScope: "scene" },
+    apply: {
+      statusId: "threat_level",
+      target: "eventTarget",
+      op: "add",
+      valueByIntensity: {
+        trivial: 2,
+        minor: 5,
+        moderate: 15,
+        major: 40,
+        critical: 70,
+      },
+      clamp: [0, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 40,
+      requireExplicitEvidence: true,
+      manualReviewAboveDelta: 20,
+    },
+  },
+  {
+    id: "stabilize-to-scene-threat",
+    label: "稳定行动降低场景威胁",
+    when: { eventType: "stabilize", targetScope: "scene" },
+    apply: {
+      statusId: "threat_level",
+      target: "eventTarget",
+      op: "add",
+      valueByIntensity: {
+        trivial: -2,
+        minor: -5,
+        moderate: -15,
+        major: -35,
+        critical: -60,
+      },
+      clamp: [0, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 35,
       requireExplicitEvidence: true,
       manualReviewAboveDelta: 20,
     },
@@ -570,6 +617,93 @@ export const DEFAULT_TAVERN_PROGRESS_VIEWS: TavernProgressView[] = [
       { type: "status", statusId: "favorability", display: "meter", showDelta: true },
       { type: "status", statusId: "hostility", display: "meter", showDelta: true },
     ],
+  },
+];
+
+export const DEFAULT_TAVERN_TASK_DEFINITIONS: TavernTaskDefinition[] = [
+  {
+    id: "stabilize-scene-threat",
+    title: "稳定当前局势",
+    description: "当场景威胁升高时，需要通过明确行动把局势重新压回可控范围。",
+    scope: "scene",
+    owner: { type: "scene", sceneId: "current" },
+    visibility: "public",
+    required: true,
+    optional: false,
+    repeatable: false,
+    lifecycle: {
+      initialStatus: "inactive",
+      startCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        gte: 40,
+      },
+      completeCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        lte: 20,
+      },
+      failCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        gte: 90,
+      },
+    },
+  },
+  {
+    id: "earn-trust-through-help",
+    title: "赢得同伴信任",
+    description: "通过两次明确帮助或保护行动，让至少一位同伴建立信任。",
+    scope: "personal",
+    owner: { type: "user", userId: "user" },
+    visibility: "owner",
+    required: false,
+    optional: true,
+    repeatable: false,
+    lifecycle: {
+      initialStatus: "active",
+      completeCondition: {
+        factEvent: "help",
+        actor: { type: "user", userId: "user" },
+        countGte: 2,
+      },
+      failCondition: {
+        factEvent: "betrayal",
+        actor: { type: "user", userId: "user" },
+        countGte: 1,
+      },
+    },
+  },
+];
+
+export const DEFAULT_TAVERN_SCENE_OUTCOMES: TavernSceneOutcomeDefinition[] = [
+  {
+    id: "scene-stabilized-success",
+    label: "局势已稳定",
+    winner: [{ type: "user", userId: "user" }],
+    condition: {
+      task: "stabilize-scene-threat",
+      owner: { type: "scene", sceneId: "current" },
+      status: "completed",
+    },
+    priority: 60,
+    exclusive: false,
+    endScene: "suggest",
+    visibility: "public",
+  },
+  {
+    id: "scene-overwhelmed-failure",
+    label: "局势失控",
+    loser: [{ type: "user", userId: "user" }],
+    condition: {
+      status: "threat_level",
+      target: { type: "scene" },
+      gte: 90,
+    },
+    priority: 100,
+    exclusive: true,
+    endScene: "suggest",
+    visibility: "public",
   },
 ];
 
@@ -900,11 +1034,15 @@ const normalizeStatusEvents = (value: unknown) => Array.isArray(value)
     )
   : [];
 
-const normalizeTaskDefinitions = (value: unknown) => Array.isArray(value)
-  ? value.filter((item): item is TavernTaskDefinition =>
+const normalizeTaskDefinitions = (
+  value: unknown,
+  fallback: TavernTaskDefinition[] = DEFAULT_TAVERN_TASK_DEFINITIONS,
+) => {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.filter((item): item is TavernTaskDefinition =>
       Boolean(item && typeof item === "object" && typeof (item as Partial<TavernTaskDefinition>).id === "string")
-    )
-  : [];
+    );
+};
 
 const normalizeTaskEvents = (value: unknown) => Array.isArray(value)
   ? value.filter((item): item is TavernTaskEvent =>
@@ -926,11 +1064,15 @@ const normalizeTaskSnapshot = (value: unknown): Record<string, TavernTaskState> 
   );
 };
 
-const normalizeSceneOutcomes = (value: unknown) => Array.isArray(value)
-  ? value.filter((item): item is TavernSceneOutcomeDefinition =>
+const normalizeSceneOutcomes = (
+  value: unknown,
+  fallback: TavernSceneOutcomeDefinition[] = DEFAULT_TAVERN_SCENE_OUTCOMES,
+) => {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.filter((item): item is TavernSceneOutcomeDefinition =>
       Boolean(item && typeof item === "object" && typeof (item as Partial<TavernSceneOutcomeDefinition>).id === "string")
-    )
-  : [];
+    );
+};
 
 const normalizeOutcomeEvents = (value: unknown) => Array.isArray(value)
   ? value.filter((item): item is TavernOutcomeEvent =>
