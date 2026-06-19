@@ -1208,6 +1208,29 @@ export const resolveTavernPendingStatusEvent = ({
   };
 };
 
+export const resolveTavernPendingOutcomeEvent = ({
+  room,
+  outcomeEventId,
+  resolution,
+}: {
+  room: TavernRoom;
+  outcomeEventId: string;
+  resolution: "applied" | "dismissed";
+}): Pick<TavernRoom, "outcomeEvents"> | null => {
+  const pendingEvent = room.outcomeEvents.find((event) => event.id === outcomeEventId);
+  if (!pendingEvent || pendingEvent.status !== "pending") {
+    return null;
+  }
+
+  return {
+    outcomeEvents: room.outcomeEvents.map((event) =>
+      event.id === outcomeEventId
+        ? { ...event, status: resolution }
+        : event
+    ),
+  };
+};
+
 export const advanceTavernProgressFromFactEvents = ({
   room,
   factEvents,

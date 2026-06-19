@@ -65,6 +65,7 @@ import {
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
   rebuildTavernProgressFromHistory,
+  resolveTavernPendingOutcomeEvent,
   resolveTavernPendingStatusEvent,
   tavernCharacterAgentRoleId,
 } from "../core";
@@ -2331,6 +2332,41 @@ export const TavernPage = ({
     toast.success(resolution === "applied" ? "状态事件已应用。" : "状态事件已拒绝。");
   }, [activeRoom, appendMessagesToRoom, appendProgressCheckpointToRoom, patchRoom]);
 
+  const resolvePendingOutcomeEvent = useCallback((
+    outcomeEventId: string,
+    resolution: "applied" | "dismissed",
+  ) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const progressPatch = resolveTavernPendingOutcomeEvent({
+      room: activeRoom,
+      outcomeEventId,
+      resolution,
+    });
+    if (!progressPatch) {
+      setError("未找到可处理的待确认结局事件。");
+      return;
+    }
+
+    const progressedRoom = appendProgressCheckpointToRoom(
+      syncTavernRoomActiveScene({
+        ...projectTavernSceneOntoRoom(activeRoom),
+        ...progressPatch,
+        updatedAt: Date.now(),
+      }),
+      "manual",
+      activeRoom.statusSnapshot.turnId,
+    );
+    patchRoom(activeRoom.id, {
+      ...progressPatch,
+      statusCheckpoints: progressedRoom.statusCheckpoints,
+      updatedAt: Date.now(),
+    });
+    toast.success(resolution === "applied" ? "结局已应用，复盘视角可用。" : "结局已忽略。");
+  }, [activeRoom, appendProgressCheckpointToRoom, patchRoom]);
+
   const compactCharacterKnowledge = useCallback(async (characterId: string) => {
     if (!activeRoom) {
       return;
@@ -3920,6 +3956,7 @@ export const TavernPage = ({
             onTrackRecentProgress={trackRecentProgress}
             onRebuildProgress={rebuildProgressFromHistory}
             onResolvePendingStatusEvent={resolvePendingStatusEvent}
+            onResolvePendingOutcomeEvent={resolvePendingOutcomeEvent}
             onClearIllustrationHints={clearIllustrationHints}
             onCompactCharacterKnowledge={compactCharacterKnowledge}
             compactingCharacterIds={compactingCharacterIds}

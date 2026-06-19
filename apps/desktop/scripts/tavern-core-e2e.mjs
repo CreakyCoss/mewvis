@@ -43,6 +43,7 @@ writeFileSync(entryPath, `
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
     resolveTavernInformationView,
+    resolveTavernPendingOutcomeEvent,
     resolveTavernPendingStatusEvent,
     setTavernStatusSnapshotValue,
     tavernCharacterAgentRoleId,
@@ -721,6 +722,42 @@ writeFileSync(entryPath, `
     hidden: isTavernProgressVisibilityVisibleToUser("hidden"),
     debug: isTavernProgressVisibilityVisibleToUser("debug"),
   };
+  const pendingOutcomeRoom = {
+    ...mysteryRoom,
+    outcomeEvents: [{
+      id: "pending-outcome",
+      turnId: "turn-private",
+      outcomeId: "scene-end",
+      winners: [userRef],
+      losers: [],
+      sourceTaskEventIds: [],
+      sourceStatusEventIds: [],
+      status: "pending",
+      createdAt: now + 40,
+    }],
+  };
+  const appliedOutcomePatch = resolveTavernPendingOutcomeEvent({
+    room: pendingOutcomeRoom,
+    outcomeEventId: "pending-outcome",
+    resolution: "applied",
+  });
+  const dismissedOutcomePatch = resolveTavernPendingOutcomeEvent({
+    room: pendingOutcomeRoom,
+    outcomeEventId: "pending-outcome",
+    resolution: "dismissed",
+  });
+  const outcomeResolutionChecks = {
+    appliedStatus: appliedOutcomePatch?.outcomeEvents[0]?.status,
+    dismissedStatus: dismissedOutcomePatch?.outcomeEvents[0]?.status,
+    appliedInformationView: resolveTavernInformationView({
+      policy: mysteryRoom.settings.informationPolicy,
+      outcomeEvents: appliedOutcomePatch?.outcomeEvents ?? [],
+    }),
+    dismissedInformationView: resolveTavernInformationView({
+      policy: mysteryRoom.settings.informationPolicy,
+      outcomeEvents: dismissedOutcomePatch?.outcomeEvents ?? [],
+    }),
+  };
   const bAsksA = {
     id: "m-b-asks-a",
     roomId: room.id,
@@ -1391,6 +1428,7 @@ writeFileSync(entryPath, `
     progressChecks,
     roleAssignmentChecks,
     progressVisibilityChecks,
+    outcomeResolutionChecks,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -1639,6 +1677,14 @@ try {
       !checks.progressVisibilityChecks.debug,
     "状态面板可见性应隐藏 director/hidden/debug，并允许公开或用户相关状态展示",
     checks.progressVisibilityChecks,
+  );
+  assert(
+    checks.outcomeResolutionChecks.appliedStatus === "applied" &&
+      checks.outcomeResolutionChecks.dismissedStatus === "dismissed" &&
+      checks.outcomeResolutionChecks.appliedInformationView === "reveal" &&
+      checks.outcomeResolutionChecks.dismissedInformationView === "public",
+    "待确认结局应支持应用或忽略，只有应用结局会进入复盘视角",
+    checks.outcomeResolutionChecks,
   );
   assert(
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,

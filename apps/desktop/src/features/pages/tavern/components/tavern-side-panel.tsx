@@ -51,9 +51,12 @@ import {
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernCondition,
+  TavernEntityRef,
   TavernFactEvent,
   TavernReplyMode,
   TavernRoom,
+  TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusEvent,
   TavernStatusRule,
@@ -77,6 +80,7 @@ type TavernSidePanelProps = {
   onTrackRecentProgress: () => void;
   onRebuildProgress: () => void;
   onResolvePendingStatusEvent: (statusEventId: string, resolution: "applied" | "rejected") => void;
+  onResolvePendingOutcomeEvent: (outcomeEventId: string, resolution: "applied" | "dismissed") => void;
   onClearIllustrationHints: () => void;
   onCompactCharacterKnowledge: (characterId: string) => void;
   compactingCharacterIds?: Set<string>;
@@ -169,6 +173,33 @@ const statusEventStatusLabels: Record<TavernStatusEvent["status"], string> = {
   rejected: "已拒绝",
 };
 
+const taskStatusLabels = {
+  inactive: "未激活",
+  active: "进行中",
+  completed: "已完成",
+  failed: "已失败",
+} as const;
+
+const outcomeStatusLabels = {
+  pending: "待确认",
+  applied: "已触发",
+  dismissed: "已忽略",
+} as const;
+
+const outcomeEndSceneLabels: Record<TavernSceneOutcomeDefinition["endScene"], string> = {
+  none: "不结束",
+  suggest: "建议结束",
+  auto: "自动结束",
+};
+
+const taskScopeLabels = {
+  personal: "个人",
+  team: "团队",
+  party: "队伍",
+  scene: "场景",
+  global: "全局",
+} as const;
+
 const formatStatusRuleValue = (rule: TavernStatusRule) => {
   if (rule.apply.valueByIntensity) {
     return Object.entries(rule.apply.valueByIntensity)
@@ -201,6 +232,74 @@ const formatStatusTarget = (
       return `${subject} -> ${object}`;
     }
   }
+};
+
+const formatEntityRef = (
+  entity: TavernEntityRef | undefined,
+  characterNameById: Map<string, string>,
+) => {
+  if (!entity) {
+    return "未指定";
+  }
+
+  switch (entity.type) {
+    case "user":
+      return "我";
+    case "character":
+      return characterNameById.get(entity.characterId) ?? entity.characterId;
+    case "team":
+      return `团队 ${entity.teamId}`;
+    case "faction":
+      return `阵营 ${entity.factionId}`;
+    case "party":
+      return `队伍 ${entity.partyId}`;
+    case "scene":
+      return "场景";
+    case "global":
+      return "全局";
+  }
+};
+
+const formatConditionSummary = (
+  condition: TavernCondition | undefined,
+  characterNameById: Map<string, string>,
+): string => {
+  if (!condition) {
+    return "无";
+  }
+
+  if ("all" in condition) {
+    return condition.all.map((item) => formatConditionSummary(item, characterNameById)).join(" 且 ");
+  }
+  if ("any" in condition) {
+    return condition.any.map((item) => formatConditionSummary(item, characterNameById)).join(" 或 ");
+  }
+  if ("not" in condition) {
+    return `非（${formatConditionSummary(condition.not, characterNameById)}）`;
+  }
+  if ("status" in condition && "target" in condition) {
+    const parts = [
+      condition.gte !== undefined ? `>= ${condition.gte}` : "",
+      condition.lte !== undefined ? `<= ${condition.lte}` : "",
+      condition.equals !== undefined ? `= ${formatStatusValue(condition.equals)}` : "",
+      condition.notEquals !== undefined ? `!= ${formatStatusValue(condition.notEquals)}` : "",
+      condition.crossing ? `穿越 ${condition.crossing}` : "",
+    ].filter(Boolean).join(" ");
+    return `状态 ${condition.status} ${parts}`;
+  }
+  if ("factEvent" in condition) {
+    const actor = condition.actor ? `，发起：${formatEntityRef(condition.actor, characterNameById)}` : "";
+    const target = condition.target ? `，目标：${formatEntityRef(condition.target, characterNameById)}` : "";
+    const count = condition.countGte ? `，至少 ${condition.countGte} 次` : "";
+    return `事实 ${condition.factEvent}${actor}${target}${count}`;
+  }
+  if ("task" in condition && "status" in condition) {
+    return `任务 ${condition.task} 为 ${taskStatusLabels[condition.status]}`;
+  }
+  if ("flag" in condition) {
+    return `标记 ${condition.flag} = ${formatStatusValue(condition.equals)}`;
+  }
+  return "未知条件";
 };
 
 const TextBlock = ({
@@ -267,6 +366,7 @@ type DetailPanelKey =
   | "lorebook"
   | "illustration-hints"
   | "progress-rules"
+  | "tasks-outcomes"
   | "script-review"
   | "private-intel"
   | "tips";
@@ -419,6 +519,7 @@ export const TavernSidePanel = ({
   onTrackRecentProgress,
   onRebuildProgress,
   onResolvePendingStatusEvent,
+  onResolvePendingOutcomeEvent,
   onClearIllustrationHints,
   onCompactCharacterKnowledge,
   compactingCharacterIds = new Set(),
@@ -450,10 +551,24 @@ export const TavernSidePanel = ({
     const definition = statusDefinitionById.get(rule.apply.statusId);
     return definition ? isTavernProgressVisibilityVisibleToUser(definition.visibility) : true;
   });
+  const visibleTaskDefinitions = activeRoom.taskDefinitions.filter((task) =>
+    isTavernProgressVisibilityVisibleToUser(task.visibility)
+  );
+  const visibleSceneOutcomes = activeRoom.sceneOutcomes.filter((outcome) =>
+    isTavernProgressVisibilityVisibleToUser(outcome.visibility)
+  );
   const recentStatusEvents = activeRoom.statusEvents
     .filter((event) => isTavernProgressVisibilityVisibleToUser(event.visibility))
     .slice(-12)
     .reverse();
+  const recentTaskEvents = activeRoom.taskEvents
+    .filter((event) => {
+      const task = activeRoom.taskDefinitions.find((definition) => definition.id === event.taskId);
+      return task ? isTavernProgressVisibilityVisibleToUser(task.visibility) : true;
+    })
+    .slice(-8)
+    .reverse();
+  const pendingOutcomeEvents = activeRoom.outcomeEvents.filter((event) => event.status === "pending");
   const recentIllustrationHints = activeRoom.illustrationHints.slice(-4).reverse();
   const privateIntelEvents = filterTavernFactEventsForAudience({
     factEvents: activeRoom.factEvents,
@@ -528,6 +643,7 @@ export const TavernSidePanel = ({
     lorebook: "世界书",
     "illustration-hints": "插图提示",
     "progress-rules": "状态规则",
+    "tasks-outcomes": "任务与结局",
     "script-review": "剧本视角",
     "private-intel": "我的情报",
     tips: "现场提示",
@@ -538,6 +654,7 @@ export const TavernSidePanel = ({
     lorebook: "查看当前房间可引用的世界设定。",
     "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
     "progress-rules": "查看状态定义、触发规则与最近变更。",
+    "tasks-outcomes": "查看个人、团队、全局任务与场景胜负条件。",
     "script-review": "切换公开、复盘和导演视角，管理可揭示事实。",
     "private-intel": "汇总当前用户可知但不公开进入聊天正文的事实。",
     tips: "查看酒馆现场的使用提醒。",
@@ -885,6 +1002,12 @@ export const TavernSidePanel = ({
                 onClick={() => setDetailPanel("progress-rules")}
               />
               <DetailEntry
+                icon={Check}
+                title="任务与结局"
+                summary={`${visibleTaskDefinitions.length} 个任务，${visibleSceneOutcomes.length} 个结局，${pendingOutcomeEvents.length} 个待确认`}
+                onClick={() => setDetailPanel("tasks-outcomes")}
+              />
+              <DetailEntry
                 icon={ShieldCheck}
                 title="剧本视角"
                 summary={`${informationViewLabels[currentInformationView]}，${reviewHiddenFactCount}/${hiddenFactCount} 条隐藏事实可见`}
@@ -1212,6 +1335,187 @@ export const TavernSidePanel = ({
                     ) : (
                       <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
                         暂无状态变更。
+                      </div>
+                    )}
+                  </section>
+                </div>
+              )}
+
+              {detailPanel === "tasks-outcomes" && (
+                <div className="space-y-5">
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">任务</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {visibleTaskDefinitions.length} 个
+                      </span>
+                    </div>
+                    {visibleTaskDefinitions.length > 0 ? (
+                      <div className="space-y-3">
+                        {visibleTaskDefinitions.map((task) => {
+                          const state = activeRoom.taskSnapshot[task.id];
+                          const status = state?.status ?? task.lifecycle.initialStatus;
+                          const progressText = state?.progress
+                            ? `${state.progress.current}/${state.progress.target}`
+                            : task.progress?.target
+                            ? `0/${task.progress.target}`
+                            : "";
+                          return (
+                            <div key={task.id} className="rounded-md border bg-background/60 p-3">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium">{task.title}</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {taskScopeLabels[task.scope]}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {taskStatusLabels[status]}
+                                </span>
+                                {task.required && (
+                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                    必做
+                                  </span>
+                                )}
+                                {task.optional && (
+                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                    支线
+                                  </span>
+                                )}
+                              </div>
+                              {task.description?.trim() && (
+                                <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                                  {task.description}
+                                </div>
+                              )}
+                              {progressText && (
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  进度：{progressText}
+                                </div>
+                              )}
+                              <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
+                                <div>归属：{formatEntityRef(task.owner, characterNameById)}</div>
+                                {task.participants && task.participants.length > 0 && (
+                                  <div>
+                                    参与：{task.participants.map((entity) =>
+                                      formatEntityRef(entity, characterNameById)
+                                    ).join("、")}
+                                  </div>
+                                )}
+                                <div>开始：{formatConditionSummary(task.lifecycle.startCondition, characterNameById)}</div>
+                                <div>完成：{formatConditionSummary(task.lifecycle.completeCondition, characterNameById)}</div>
+                                <div>失败：{formatConditionSummary(task.lifecycle.failCondition, characterNameById)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无可见任务。
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">结局条件</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {visibleSceneOutcomes.length} 个
+                      </span>
+                    </div>
+                    {visibleSceneOutcomes.length > 0 ? (
+                      <div className="space-y-3">
+                        {visibleSceneOutcomes.map((outcome) => {
+                          const event = activeRoom.outcomeEvents.find((candidate) =>
+                            candidate.outcomeId === outcome.id && candidate.status !== "dismissed"
+                          );
+                          return (
+                            <div key={outcome.id} className="space-y-3 rounded-md border bg-background/60 p-3">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium">{outcome.label}</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {outcomeEndSceneLabels[outcome.endScene]}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  优先级 {outcome.priority}
+                                </span>
+                                {event && (
+                                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                    {outcomeStatusLabels[event.status]}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid gap-1.5 text-xs text-muted-foreground">
+                                <div>胜利：{outcome.winner?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") || "未指定"}</div>
+                                <div>失败：{outcome.loser?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") || "未指定"}</div>
+                                <div>条件：{formatConditionSummary(outcome.condition, characterNameById)}</div>
+                              </div>
+                              {event?.status === "pending" && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    disabled={isBusy}
+                                    onClick={() => onResolvePendingOutcomeEvent(event.id, "applied")}
+                                  >
+                                    <Check className="size-3.5" />
+                                    应用结局
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="ghost"
+                                    disabled={isBusy}
+                                    onClick={() => onResolvePendingOutcomeEvent(event.id, "dismissed")}
+                                  >
+                                    <X className="size-3.5" />
+                                    忽略
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无可见结局条件。
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">最近任务事件</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {recentTaskEvents.length} 条
+                      </span>
+                    </div>
+                    {recentTaskEvents.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentTaskEvents.map((event) => {
+                          const task = activeRoom.taskDefinitions.find((definition) => definition.id === event.taskId);
+                          return (
+                            <div key={event.id} className="rounded-md border bg-background/60 p-3">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium">{task?.title ?? event.taskId}</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {event.type}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {taskStatusLabels[event.after.status]}
+                                </span>
+                              </div>
+                              <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                                {event.reason}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无任务事件。
                       </div>
                     )}
                   </section>
