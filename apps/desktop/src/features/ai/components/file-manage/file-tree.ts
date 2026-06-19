@@ -1,6 +1,13 @@
-import type { FileTreeNode } from "../page-types";
-import type { WorkspaceFileEntry } from "../types";
-import { VERSION_RULE_FILE_PATH } from "./version-control";
+import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { VERSION_RULE_FILE_PATH } from "./constants";
+
+export type FileTreeNode = {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  children: FileTreeNode[];
+  entry?: WorkspaceFileEntry;
+};
 
 const compareFileTreeNodes = (left: FileTreeNode, right: FileTreeNode) => {
   const leftIsVersionRule = left.path === VERSION_RULE_FILE_PATH;

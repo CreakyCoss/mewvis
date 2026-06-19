@@ -1,5 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownContent } from "./markdown-content";
+import {
+  getMarkdownInputContent,
+  getMarkdownMessageContent,
+  isMarkdownMessageStreaming,
+} from "./message";
+import type { SmoothMarkdownContentProps, SmoothPlainTextProps } from "./types";
 
 const MIN_CHARS_PER_FRAME = 2;
 const MAX_CHARS_PER_FRAME = 16;
@@ -106,24 +112,20 @@ const useSmoothedStreamText = (content: string, isStreaming: boolean) => {
   return shouldRenderSmoothContent ? visibleContent : content;
 };
 
-type SmoothMarkdownContentProps = {
-  className?: string;
-  content: string;
-  emClassName?: string;
-  inverted?: boolean;
-  isStreaming: boolean;
-  separateEmphasisBlocks?: boolean;
-};
-
-const SmoothMarkdownContentComponent = ({
-  className,
-  content,
-  emClassName,
-  inverted,
-  isStreaming,
-  separateEmphasisBlocks,
-}: SmoothMarkdownContentProps) => {
-  const visibleContent = useSmoothedStreamText(content, isStreaming);
+const SmoothMarkdownContentComponent = (props: SmoothMarkdownContentProps) => {
+  const {
+    className,
+    emClassName,
+    inverted,
+    isStreaming,
+    separateEmphasisBlocks,
+    variant,
+  } = props;
+  const content = getMarkdownInputContent(props);
+  const shouldStream = isStreaming ?? (
+    props.message ? isMarkdownMessageStreaming(props.message) : false
+  );
+  const visibleContent = useSmoothedStreamText(content, shouldStream);
 
   return (
     <MarkdownContent
@@ -132,24 +134,26 @@ const SmoothMarkdownContentComponent = ({
       emClassName={emClassName}
       inverted={inverted}
       separateEmphasisBlocks={separateEmphasisBlocks}
+      variant={variant}
     />
   );
-};
-
-type SmoothPlainTextProps = {
-  content: string;
-  fallback?: string;
-  isStreaming: boolean;
 };
 
 export const SmoothMarkdownContent = memo(SmoothMarkdownContentComponent);
 
 const SmoothPlainTextComponent = ({
   content,
+  message,
   fallback,
   isStreaming,
 }: SmoothPlainTextProps) => {
-  const visibleContent = useSmoothedStreamText(content, isStreaming);
+  const sourceContent = content ?? (
+    message ? getMarkdownMessageContent(message) : ""
+  );
+  const shouldStream = isStreaming ?? (
+    message ? isMarkdownMessageStreaming(message) : false
+  );
+  const visibleContent = useSmoothedStreamText(sourceContent, shouldStream);
   const renderedContent = visibleContent.trim() || fallback || "";
 
   return <>{renderedContent}</>;

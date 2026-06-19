@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { SkillsPage as SkillsSurface } from "@/features/pages/skills/components/page";
-import { useWorkspaceSkills } from "@/features/pages/chat/components/page/use-workspace-skills";
+import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 
 const LoadingState = () => (
   <section className="flex h-full min-h-0 items-center justify-center bg-background text-sm text-muted-foreground">

@@ -4,8 +4,10 @@ import { Navigate, useParams } from "react-router";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
-import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import type { WorkspaceFileEntry } from "@/features/pages/chat/types";
+import {
+  listWorkspaceFiles,
+  type WorkspaceFileEntry,
+} from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { useLlmSettingsStore } from "../settings/llm/store";
 

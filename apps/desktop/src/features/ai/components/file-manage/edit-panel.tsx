@@ -33,14 +33,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
   deleteWorkspaceFile,
+  type WorkspaceFile,
+  type WorkspaceVersionFileStatus,
   writeWorkspaceFile,
 } from "@/features/pages/workspace/files-api";
-import type {
-  WorkspaceFile,
-  WorkspaceVersionFileStatus,
-} from "@/features/pages/chat/types";
-import { MarkdownContent } from "@/features/pages/chat/components/chat/markdown-content";
-import { isMarkdownPath } from "@/features/pages/chat/utils/sessions";
+import { isMarkdownPath, MarkdownContent } from "@/features/ai/components/markdown";
 
 type EditPanelProps = {
   workspacePath: string;

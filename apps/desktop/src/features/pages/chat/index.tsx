@@ -5,7 +5,7 @@ import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import {
   WorkspaceChatPage,
   type WorkspaceChatShellProps,
-} from "@/features/pages/chat/components/page";
+} from "@/features/pages/chat/components/workspace-chat-page";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { APP_DISPLAY_NAME } from "@/product-config";

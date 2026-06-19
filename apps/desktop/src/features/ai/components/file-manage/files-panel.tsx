@@ -1,10 +1,10 @@
 import { ChevronRight, FileText, Folder, FolderOpen, GitBranch, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { FileTreeNode } from "@/features/pages/chat/page-types";
-import type { WorkspaceFile } from "@/features/pages/chat/types";
-import { VERSION_RULE_FILE_PATH } from "@/features/pages/chat/utils/version-control";
+import type { WorkspaceFile } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
+import { VERSION_RULE_FILE_PATH } from "./constants";
+import type { FileTreeNode } from "./file-tree";
 import {
   fileStatusBadgeClasses,
   fileStatusLabels,

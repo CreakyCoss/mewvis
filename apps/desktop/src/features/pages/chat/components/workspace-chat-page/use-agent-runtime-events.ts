@@ -1,17 +1,13 @@
 import { useCallback, useEffect, type MutableRefObject } from "react";
 import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
-import type { PendingAgentQuestion } from "../../page-types";
-import type { ChatMessage } from "../../types";
+import type { ChatMessage, PendingAgentQuestion } from "../../types";
 import {
   applyAgentEventToMessage,
   isAgentMessageStreamEvent,
   isTimelineEvent,
 } from "../../utils/agent-blocks";
-import {
-  pendingQuestionFromEvent,
-  type RunningAgentTaskContext,
-} from "./agent-task";
+import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 
 type ResetActiveAgentTaskState = (options?: {
   clearQuestion?: boolean;
@@ -20,6 +16,16 @@ type ResetActiveAgentTaskState = (options?: {
 
 type AgentDoneEvent = Extract<AgentRuntimeAgentEvent, { type: "done" }>;
 type AgentBridgeSessionRef = AgentDoneEvent["bridgeSession"];
+
+const pendingQuestionFromEvent = (
+  event: Extract<AgentRuntimeAgentEvent, { type: "question" }>,
+): PendingAgentQuestion => ({
+  taskId: event.taskId,
+  questionId: event.questionId,
+  question: event.question,
+  context: event.context,
+  input: event.input,
+});
 
 type UseAgentRuntimeEventsInput = {
   agentRuntime: AgentRuntime;
@@ -46,7 +52,6 @@ type UseAgentRuntimeEventsInput = {
   clearPendingAgentQuestion: (questionId: string) => void;
   restoreRunningAgentTaskView: (task: RunningAgentTaskContext) => boolean;
   resetActiveAgentTaskState: ResetActiveAgentTaskState;
-  scheduleAgentBlockCollapse: (messageId: string, blockId: string) => void;
   setChatError: (message: string) => void;
   loadFiles: () => Promise<void>;
 };
@@ -116,7 +121,6 @@ export const useAgentRuntimeEvents = ({
   clearPendingAgentQuestion,
   restoreRunningAgentTaskView,
   resetActiveAgentTaskState,
-  scheduleAgentBlockCollapse,
   setChatError,
   loadFiles,
 }: UseAgentRuntimeEventsInput) => {
@@ -226,23 +230,15 @@ export const useAgentRuntimeEvents = ({
         return;
       }
 
-      const thinkingBlockIds: string[] = [];
       updateMessage(messageId, (message) => {
         let nextMessage = message;
 
         events.forEach((streamEvent) => {
           const appliedEvent = applyAgentEventToMessage(nextMessage, streamEvent);
           nextMessage = appliedEvent.message;
-          if (appliedEvent.thinkingBlockId) {
-            thinkingBlockIds.push(appliedEvent.thinkingBlockId);
-          }
         });
 
         return nextMessage;
-      });
-
-      thinkingBlockIds.forEach((blockId) => {
-        scheduleAgentBlockCollapse(messageId, blockId);
       });
     };
 
@@ -315,10 +311,7 @@ export const useAgentRuntimeEvents = ({
       flushVisibleStreamEvents();
 
       if (isTimelineEvent(event)) {
-        const appliedEvent = applyVisibleAgentMessageEvent();
-        if (appliedEvent?.completedToolBlockId && event.type === "tool_end" && !event.isError) {
-          scheduleAgentBlockCollapse(messageId, appliedEvent.completedToolBlockId);
-        }
+        applyVisibleAgentMessageEvent();
       }
 
       if (event.type === "question") {
@@ -440,7 +433,6 @@ export const useAgentRuntimeEvents = ({
     resetActiveAgentTaskState,
     restoreRunningAgentTaskView,
     runningAgentTasksRef,
-    scheduleAgentBlockCollapse,
     setChatError,
     updateMessage,
     workspacePath,

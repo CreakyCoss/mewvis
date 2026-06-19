@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
+import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
-import { SmoothMarkdownContent } from "@/features/pages/chat/components/chat/smooth-stream-content";
 import { cn } from "@/lib/utils";
 import { parseTavernReplyText } from "../runtime/reply-cleanup";
 import type {
@@ -171,6 +171,7 @@ export const TavernMessageRow = ({
               emClassName={immersiveDescriptionClassName}
               isStreaming={isStreaming}
               separateEmphasisBlocks={immersiveDescriptionEnabled}
+              variant="tavern"
             />
           </div>
           <MessageControls content={copyContent} disabled={isStreaming} />

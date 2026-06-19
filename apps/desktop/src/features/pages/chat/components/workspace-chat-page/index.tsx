@@ -7,29 +7,28 @@ import {
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
-import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
+import {
+  requireRuntimeModelInput,
+  resolveRuntimeModelInput,
+} from "@/features/pages/settings/llm/store";
+import { resolveAppContextWindow } from "@/features/ai/runtime";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
+import type { WorkspaceFile, WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import {
   ALL_SKILLS_GROUP_ID,
   NO_SKILLS_GROUP_ID,
 } from "@/features/pages/skills/constants";
+import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
 import { saveChatSession } from "../../api";
 import type {
-  ComposerSubmitInput,
-  PendingAgentQuestion,
-} from "../../page-types";
-import type {
   ChatMessage,
   ChatSessionMeta,
-  WorkspaceFile,
-  WorkspaceFileEntry,
+  ComposerSubmitInput,
+  PendingAgentQuestion,
 } from "../../types";
-import {
-  type RunningAgentTaskContext,
-} from "./agent-task";
 import {
   keepHistoryThroughMessage,
   moveHistoryItem,
@@ -49,18 +48,17 @@ import {
 } from "../../utils/sessions";
 import {
   runAgentTurn,
-} from "./modes/agent-mode-runner";
-import { buildWorkspaceAgentInteractionInstructions } from "./modes/agent-prompts";
+} from "./agent-mode-runner";
 import { prepareBridgeAgentTurnRuntime } from "./bridge-agent-turn-runtime";
-import { ChatPanel } from "../chat";
-import { useChatPanelStoreBridge } from "../chat/store";
-import { useAgentBlockState } from "./use-agent-block-state";
+import { ChatPanel } from "../chat-panel";
+import { useChatPanelStoreBridge } from "../chat-panel/store";
 import { useAgentRuntimeEvents } from "./use-agent-runtime-events";
-import { useContextModeling } from "./use-context-modeling";
 import { useModelSettings } from "./use-model-settings";
-import { useRunningAgentTasks } from "./use-running-agent-tasks";
+import {
+  type RunningAgentTaskContext,
+  useRunningAgentTasks,
+} from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
-import { useWorkspaceSkills } from "./use-workspace-skills";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -75,6 +73,14 @@ const contextPanelTools: Array<{
 
 const contextPanelToolButtonClass =
   "flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
+
+const workspaceAgentInteractionInstructions = [
+  "交互规则：",
+  "- 当继续执行前缺少必要信息、需要用户选择方向、需要确认方案，或存在多个合理选项时，必须调用 ask_user 工具询问用户，不要只在正文里提问。",
+  "- 如果问题是开放式回答，调用 ask_user 时使用 input.type = \"text\"。",
+  "- 如果问题有明确候选项，调用 ask_user 时使用 input.type = \"select\"，并提供至少两个 options；可以加入 { value: \"other\", label: \"请输入\" } 让用户自定义。",
+  "- 调用 ask_user 后，等待用户回答，再基于回答继续原任务。",
+].join("\n");
 
 type ContextPanelShellProps = {
   activeTool: ContextPanelTool;
@@ -232,8 +238,6 @@ export const WorkspaceChatPage = ({
   });
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [showThinkingProcess, setShowThinkingProcess] = useState(true);
-  const [showToolCallProcess, setShowToolCallProcess] = useState(true);
   const [allowedAgentTools, setAllowedAgentTools] = useState<RuntimeAgentToolName[]>(() => [
     ...DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   ]);
@@ -277,11 +281,12 @@ export const WorkspaceChatPage = ({
   } = useModelSettings({
     agentRuntime,
   });
-  const {
-    effectiveAppContextWindow,
-  } = useContextModeling({
-    effectiveRuntimeModel,
-  });
+  const effectiveAppContextWindow = useMemo(() => {
+    const modelInput = effectiveRuntimeModel
+      ? resolveRuntimeModelInput(effectiveRuntimeModel.id)
+      : null;
+    return resolveAppContextWindow(modelInput);
+  }, [effectiveRuntimeModel]);
   const {
     skills,
     skillGroups,
@@ -516,20 +521,6 @@ export const WorkspaceChatPage = ({
     lastAgentErrorRef.current = "";
     lastAgentStderrRef.current = "";
   }, []);
-  const {
-    expandedThinkingIds,
-    expandedAgentEventIds,
-    clearExpandedAgentBlocks,
-    toggleThinking,
-    toggleAgentEvents,
-    toggleAgentThinkingBlock,
-    toggleAgentBlock,
-    scheduleAgentBlockCollapse,
-  } = useAgentBlockState({
-    messages,
-    updateMessage,
-  });
-
   const restoreRunningAgentTaskView = useCallback((task: RunningAgentTaskContext) => {
     if (!task.messages.some((message) => message.id === task.messageId)) {
       return false;
@@ -674,7 +665,6 @@ export const WorkspaceChatPage = ({
     },
     ui: {
       setComposerResetKey,
-      clearExpandedAgentBlocks,
       clearAgentQuestionDraft,
     },
     chat: {
@@ -851,7 +841,6 @@ export const WorkspaceChatPage = ({
     clearPendingAgentQuestion,
     restoreRunningAgentTaskView,
     resetActiveAgentTaskState,
-    scheduleAgentBlockCollapse,
     setChatError,
     loadFiles: refreshFileSurfaces,
   });
@@ -1031,7 +1020,7 @@ export const WorkspaceChatPage = ({
         activeFile: activeFile ? { path: activeFile.path } : null,
         activeSkills,
         selectedAgent: modelSource === "agent" ? selectedAgent : null,
-        agentInstructions: buildWorkspaceAgentInteractionInstructions(),
+        agentInstructions: workspaceAgentInteractionInstructions,
         executionMemorySummary: "",
       });
 
@@ -1081,8 +1070,6 @@ export const WorkspaceChatPage = ({
     workspace,
     workspaces: allSidebarWorkspaces,
     messages,
-    expandedThinkingIds,
-    expandedAgentEventIds,
     modelSource,
     selectedAgent,
     chatError,
@@ -1098,8 +1085,6 @@ export const WorkspaceChatPage = ({
     isSending,
     activeAgentTaskId: visibleActiveAgentTaskId,
     isSettingsLoading,
-    showThinkingProcess,
-    showToolCallProcess,
     effectiveContextWindow: effectiveAppContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
@@ -1113,10 +1098,6 @@ export const WorkspaceChatPage = ({
     defaultSkillGroupId,
     selectedSkillGroupIds,
     selectedSkillGroupLabel,
-    toggleThinking,
-    toggleAgentEvents,
-    toggleAgentThinkingBlock,
-    toggleAgentBlock,
     onEditHistoryMessage: editHistoryMessage,
     onDeleteHistoryMessage: deleteHistoryMessage,
     onMoveHistoryMessage: moveHistoryMessage,
@@ -1125,8 +1106,6 @@ export const WorkspaceChatPage = ({
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
     submitAgentQuestionAnswer,
-    setShowThinkingProcess,
-    setShowToolCallProcess,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,

@@ -1,19 +1,33 @@
-import type { AgentRuntimeAgentEvent } from "@/ai/agent-runtime/contracts";
+import type {
+  AgentRuntimeAgentEvent,
+  AgentRuntimeAgentQuestionInput,
+} from "@/ai/agent-runtime/contracts";
+import type {
+  ActiveReferenceToken as RuntimeActiveReferenceToken,
+  FileReferenceMatch as RuntimeFileReferenceMatch,
+} from "@/features/ai/runtime";
+import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
-export type {
-  CreateWorkspaceVersionResult,
-  WorkspaceFile,
-  WorkspaceFileEntry,
-  WorkspaceVersion,
-  WorkspaceVersionBranch,
-  WorkspaceVersionControlStatus,
-  WorkspaceVersionControlStatusCounts,
-  WorkspaceVersionFileContent,
-  WorkspaceVersionFileDiff,
-  WorkspaceVersionFileEntry,
-  WorkspaceVersionFileStatus,
-  WorkspaceVersionFileStatusKind,
-} from "@/features/pages/workspace/files-api";
+export type WorkspaceView = "chat" | "settings" | "skills" | "knowledge" | "tavern";
+export type ModelSource = "direct" | "agent";
+
+export type ActiveReferenceToken = RuntimeActiveReferenceToken;
+export type FileReferenceMatch = RuntimeFileReferenceMatch<WorkspaceFileEntry>;
+
+export type PendingAgentQuestion = {
+  taskId: string;
+  questionId: string;
+  question: string;
+  context?: string | null;
+  input?: AgentRuntimeAgentQuestionInput;
+};
+
+export type ComposerSubmitInput = {
+  text: string;
+  referencedFilePreviews: WorkspaceFileEntry[];
+  unresolvedFileReferences: FileReferenceMatch[];
+  ambiguousFileReferences: FileReferenceMatch[];
+};
 
 export type AgentMessageBlock =
   | {

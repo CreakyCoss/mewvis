@@ -1,6 +1,28 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { RunningAgentTaskContext } from "./agent-task";
-import { getRunningAgentSessionKey } from "./running-agent-session";
+import type {
+  ChatMessage,
+  PendingAgentQuestion,
+} from "../../types";
+
+const getRunningAgentSessionKey = (workspacePath: string, sessionId: string) =>
+  `${workspacePath}\u0000${sessionId}`;
+
+export type RunningAgentTaskContext = {
+  taskId: string;
+  workspacePath: string;
+  sessionId: string;
+  title: string;
+  messageId: string;
+  agentSessionId: string;
+  agentId: string;
+  messages: ChatMessage[];
+  pendingQuestion: PendingAgentQuestion | null;
+  questionAnswer: string;
+  customQuestionAnswer: string;
+  lastError: string;
+  lastStderr: string;
+  handledTerminal: boolean;
+};
 
 type UseRunningAgentTasksInput = {
   workspacePath: string;

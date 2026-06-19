@@ -1,9 +1,7 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type {
-  FileReferenceMatch,
-} from "../../page-types";
-import type {
   ChatMessage,
+  FileReferenceMatch,
 } from "../../types";
 
 type ValidateComposerSubmitInput = {

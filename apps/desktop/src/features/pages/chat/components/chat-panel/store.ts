@@ -1,7 +1,7 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from "react";
 import { create } from "zustand";
 import { ALL_SKILLS_GROUP_ID } from "@/features/pages/skills/constants";
-import type { ModelSource } from "../../page-types";
+import type { ModelSource } from "../../types";
 import type { ChatPanelViewModel } from "./index";
 
 const noop = () => {};
@@ -9,7 +9,6 @@ const noopAsync = async () => {};
 const noopDispatch: Dispatch<SetStateAction<string>> = () => {};
 const noopSkillGroupToggle = () => {};
 const noopModelSourceDispatch: Dispatch<SetStateAction<ModelSource>> = () => {};
-const noopBooleanDispatch: Dispatch<SetStateAction<boolean>> = () => {};
 
 const emptyWorkspace = {
   id: "",
@@ -29,8 +28,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   workspace: emptyWorkspace,
   workspaces: [],
   messages: [],
-  expandedThinkingIds: new Set(),
-  expandedAgentEventIds: new Set(),
   modelSource: "direct",
   selectedAgent: null,
   chatError: "",
@@ -46,8 +43,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   isSending: false,
   activeAgentTaskId: "",
   isSettingsLoading: false,
-  showThinkingProcess: true,
-  showToolCallProcess: false,
   effectiveContextWindow: 0,
   availableRuntimeAgents: [],
   selectedRuntimeAgent: null,
@@ -61,10 +56,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
   selectedSkillGroupIds: [ALL_SKILLS_GROUP_ID],
   selectedSkillGroupLabel: "全部",
-  toggleThinking: noop,
-  toggleAgentEvents: noop,
-  toggleAgentThinkingBlock: noop,
-  toggleAgentBlock: noop,
   onEditHistoryMessage: noop,
   onDeleteHistoryMessage: noop,
   onMoveHistoryMessage: noop,
@@ -73,8 +64,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   setAgentQuestionAnswer: noopDispatch,
   setCustomAgentQuestionAnswer: noopDispatch,
   submitAgentQuestionAnswer: noopAsync,
-  setShowThinkingProcess: noopBooleanDispatch,
-  setShowToolCallProcess: noopBooleanDispatch,
   setModelSource: noopModelSourceDispatch,
   setSelectedRuntimeAgentId: noopDispatch,
   setSelectedAgentId: noopDispatch,

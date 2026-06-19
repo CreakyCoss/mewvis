@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { PendingAgentQuestion } from "../../page-types";
+import type { PendingAgentQuestion } from "../../types";
 
 type PendingAgentQuestionFormProps = {
   pendingAgentQuestion: PendingAgentQuestion;

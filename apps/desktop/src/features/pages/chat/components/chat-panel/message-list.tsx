@@ -24,14 +24,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChatMessage } from "../../types";
+import { SmoothMarkdownContent, SmoothPlainText } from "@/features/ai/components/markdown";
+import type { AgentMessageBlock, ChatMessage } from "../../types";
 import {
+  AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS,
   groupAgentEvents,
   isTimelineEvent,
 } from "../../utils/agent-blocks";
 import { AgentBlockList } from "./agent-block-list";
 import { AgentEventTimeline } from "./agent-event-timeline";
-import { SmoothMarkdownContent, SmoothPlainText } from "./smooth-stream-content";
 import { useChatPanelStore } from "./store";
 
 const getMessageTextForAction = (message: ChatMessage) => {
@@ -43,25 +44,31 @@ const getMessageTextForAction = (message: ChatMessage) => {
   return message.text.trim() || blockText || "";
 };
 
-export const MessageList = () => {
+const getAgentBlockKey = (messageId: string, blockId: string) => `${messageId}:${blockId}`;
+
+type MessageListProps = {
+  showThinkingProcess: boolean;
+  showToolCallProcess: boolean;
+};
+
+export const MessageList = ({
+  showThinkingProcess,
+  showToolCallProcess,
+}: MessageListProps) => {
   const {
     messages,
     isSending,
-    expandedThinkingIds,
-    expandedAgentEventIds,
     modelSource,
     selectedAgent,
     activeAgentTaskId,
-    showThinkingProcess,
-    showToolCallProcess,
-    toggleThinking,
-    toggleAgentEvents,
-    toggleAgentThinkingBlock,
-    toggleAgentBlock,
     onEditHistoryMessage,
     onDeleteHistoryMessage,
     onMoveHistoryMessage,
   } = useChatPanelStore();
+  const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(() => new Set());
+  const [expandedAgentEventIds, setExpandedAgentEventIds] = useState<Set<string>>(() => new Set());
+  const [collapsedAgentBlockIds, setCollapsedAgentBlockIds] = useState<Set<string>>(() => new Set());
+  const [expandedAgentBlockIds, setExpandedAgentBlockIds] = useState<Set<string>>(() => new Set());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState("");
   const [activeHistoryActionsMessageId, setActiveHistoryActionsMessageId] = useState<string | null>(null);
@@ -69,6 +76,68 @@ export const MessageList = () => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [confirmingDeleteMessageId, setConfirmingDeleteMessageId] = useState<string | null>(null);
   const historyActionsCloseTimerRef = useRef<number | null>(null);
+  const agentBlockCollapseTimersRef = useRef<Map<string, number>>(new Map());
+
+  const toggleThinking = (messageId: string) => {
+    setExpandedThinkingIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAgentEvents = (messageId: string) => {
+    setExpandedAgentEventIds((current) => {
+      const next = new Set(current);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const isAgentBlockCollapsed = (messageId: string, block: AgentMessageBlock) => {
+    const key = getAgentBlockKey(messageId, block.id);
+    if (expandedAgentBlockIds.has(key)) {
+      return false;
+    }
+    if (collapsedAgentBlockIds.has(key)) {
+      return true;
+    }
+    return "isCollapsed" in block && Boolean(block.isCollapsed);
+  };
+
+  const toggleAgentBlock = (messageId: string, blockId: string) => {
+    const key = getAgentBlockKey(messageId, blockId);
+    const message = messages.find((item) => item.id === messageId);
+    const block = message?.agentBlocks?.find((item) => item.id === blockId);
+    const isCollapsed = block ? isAgentBlockCollapsed(messageId, block) : false;
+
+    setCollapsedAgentBlockIds((current) => {
+      const next = new Set(current);
+      if (isCollapsed) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+    setExpandedAgentBlockIds((current) => {
+      const next = new Set(current);
+      if (isCollapsed) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
 
   const beginHistoryEdit = (message: ChatMessage) => {
     setConfirmingDeleteMessageId(null);
@@ -139,6 +208,65 @@ export const MessageList = () => {
       window.clearTimeout(historyActionsCloseTimerRef.current);
       historyActionsCloseTimerRef.current = null;
     }
+  }, []);
+
+  useEffect(() => {
+    const messageIds = new Set(messages.map((message) => message.id));
+    const blockKeys = new Set(
+      messages.flatMap((message) =>
+        (message.agentBlocks ?? []).map((block) => getAgentBlockKey(message.id, block.id))
+      ),
+    );
+
+    setExpandedThinkingIds((current) => new Set([...current].filter((id) => messageIds.has(id))));
+    setExpandedAgentEventIds((current) => new Set([...current].filter((id) => messageIds.has(id))));
+    setCollapsedAgentBlockIds((current) => new Set([...current].filter((key) => blockKeys.has(key))));
+    setExpandedAgentBlockIds((current) => new Set([...current].filter((key) => blockKeys.has(key))));
+  }, [messages]);
+
+  useEffect(() => {
+    messages.forEach((message) => {
+      if (message.role !== "assistant" || message.mode !== "agent") {
+        return;
+      }
+
+      message.agentBlocks?.forEach((block) => {
+        if (block.type !== "tool" || block.status !== "done" || isAgentBlockCollapsed(message.id, block)) {
+          return;
+        }
+
+        const key = getAgentBlockKey(message.id, block.id);
+        if (agentBlockCollapseTimersRef.current.has(key)) {
+          return;
+        }
+
+        const timer = window.setTimeout(() => {
+          agentBlockCollapseTimersRef.current.delete(key);
+          setCollapsedAgentBlockIds((current) => {
+            if (current.has(key)) {
+              return current;
+            }
+            const next = new Set(current);
+            next.add(key);
+            return next;
+          });
+          setExpandedAgentBlockIds((current) => {
+            if (!current.has(key)) {
+              return current;
+            }
+            const next = new Set(current);
+            next.delete(key);
+            return next;
+          });
+        }, AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS);
+        agentBlockCollapseTimersRef.current.set(key, timer);
+      });
+    });
+  }, [collapsedAgentBlockIds, expandedAgentBlockIds, messages]);
+
+  useEffect(() => () => {
+    agentBlockCollapseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    agentBlockCollapseTimersRef.current.clear();
   }, []);
 
   return (
@@ -512,7 +640,7 @@ export const MessageList = () => {
                       agentBlocks={agentBlocks}
                       showThinkingProcess={showThinkingProcess}
                       showToolCallProcess={showToolCallProcess}
-                      onToggleThinkingBlock={toggleAgentThinkingBlock}
+                      isBlockCollapsed={isAgentBlockCollapsed}
                       onToggleBlock={toggleAgentBlock}
                     />
                   ) : isAssistantLoading ? (
@@ -522,7 +650,7 @@ export const MessageList = () => {
                     </div>
                   ) : message.role === "assistant" ? (
                     <SmoothMarkdownContent
-                      content={message.text}
+                      message={message}
                       isStreaming={isMessageStreaming}
                     />
                   ) : (

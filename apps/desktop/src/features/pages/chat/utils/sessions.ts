@@ -28,8 +28,6 @@ export const createBridgeSessionRootDir = (chatSessionId: string | null | undefi
   return id ? `chats/${id}/session` : null;
 };
 
-export const isMarkdownPath = (path: string) => /\.(md|markdown|mdown)$/i.test(path);
-
 export const formatSessionTime = (timestamp: number) => {
   const elapsed = Date.now() - timestamp;
   const minute = 60 * 1000;

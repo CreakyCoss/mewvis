@@ -17,6 +17,12 @@ import {
   type RuntimeAgentDefinition,
   type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
+import {
+  getActiveReferenceToken,
+  quoteReferencePath,
+  resolveFileReferenceMatches,
+  summarizeReferenceMatches,
+} from "@/features/ai/runtime";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,17 +49,8 @@ import {
   NO_SKILLS_GROUP_ID,
 } from "@/features/pages/skills/constants";
 import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
-import type {
-  ComposerSubmitInput,
-  ModelSource,
-} from "../../page-types";
-import type { WorkspaceFileEntry } from "../../types";
-import {
-  getActiveReferenceToken,
-  quoteReferencePath,
-  resolveFileReferenceMatches,
-  summarizeReferenceMatches,
-} from "../../utils/references";
+import type { ComposerSubmitInput, ModelSource } from "../../types";
+import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
 type ComposerProps = {
   files: WorkspaceFileEntry[];

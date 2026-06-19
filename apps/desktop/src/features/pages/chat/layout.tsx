@@ -1,7 +1,7 @@
 import { PanelRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import type { WorkspaceChatShellProps } from "@/features/pages/chat/components/page";
+import type { WorkspaceChatShellProps } from "@/features/pages/chat/components/workspace-chat-page";
 
 type LayoutProps = Omit<WorkspaceChatShellProps, "sidebarProps">;
 

@@ -1,32 +1,39 @@
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import { useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
 import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/ai/runtime-protocol";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   AgentProfile,
 } from "@/features/pages/settings/agent/types";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
+import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type {
+  ChatMessage,
   ComposerSubmitInput,
   ModelSource,
   PendingAgentQuestion,
-} from "../../page-types";
-import type { ChatMessage, WorkspaceFileEntry } from "../../types";
+} from "../../types";
+import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 import { PendingAgentQuestionForm } from "./pending-agent-question-form";
-import { StatusBanner } from "./status-banner";
 import { useChatPanelStore } from "./store";
-import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export type ChatPanelViewModel = {
   chatScrollAreaRef: RefObject<HTMLDivElement | null>;
   workspace: Workspace;
   workspaces: Workspace[];
   messages: ChatMessage[];
-  expandedThinkingIds: Set<string>;
-  expandedAgentEventIds: Set<string>;
   modelSource: ModelSource;
   selectedAgent: AgentProfile | null;
   chatError: string;
@@ -42,8 +49,6 @@ export type ChatPanelViewModel = {
   isSending: boolean;
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
-  showThinkingProcess: boolean;
-  showToolCallProcess: boolean;
   effectiveContextWindow: number;
   availableRuntimeAgents: readonly RuntimeAgentDefinition[];
   selectedRuntimeAgent: RuntimeAgentDefinition | null;
@@ -57,10 +62,6 @@ export type ChatPanelViewModel = {
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
-  toggleThinking: (messageId: string) => void;
-  toggleAgentEvents: (messageId: string) => void;
-  toggleAgentThinkingBlock: (messageId: string, blockId: string) => void;
-  toggleAgentBlock: (messageId: string, blockId: string) => void;
   onEditHistoryMessage: (messageId: string, nextText: string) => void;
   onDeleteHistoryMessage: (messageId: string) => void;
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
@@ -69,8 +70,6 @@ export type ChatPanelViewModel = {
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
-  setShowThinkingProcess: Dispatch<SetStateAction<boolean>>;
-  setShowToolCallProcess: Dispatch<SetStateAction<boolean>>;
   setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
@@ -81,7 +80,153 @@ export type ChatPanelViewModel = {
   onAbortTask: () => void;
 };
 
+type StatusBannerProps = {
+  message: string;
+};
+
+const StatusBanner = ({ message }: StatusBannerProps) => {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      {message}
+    </div>
+  );
+};
+
+type WorkspaceSwitcherProps = {
+  workspace: Workspace;
+  workspaces: Workspace[];
+  onOpenWorkspace: (workspace: Workspace) => void;
+  onCreateWorkspace: () => void;
+};
+
+const WorkspaceSwitcher = ({
+  workspace,
+  workspaces,
+  onOpenWorkspace,
+  onCreateWorkspace,
+}: WorkspaceSwitcherProps) => {
+  const [workspaceSearch, setWorkspaceSearch] = useState("");
+  const defaultWorkspace = workspaces.find(isDefaultWorkspace) ?? null;
+  const projectWorkspaces = workspaces.filter((item) => !isDefaultWorkspace(item));
+  const isDefaultWorkspaceSelected = isDefaultWorkspace(workspace);
+  const workspaceSwitcherLabel = isDefaultWorkspaceSelected ? "不使用项目" : workspace.name;
+  const normalizedWorkspaceSearch = workspaceSearch.trim().toLowerCase();
+  const visibleProjectWorkspaces = normalizedWorkspaceSearch
+    ? projectWorkspaces.filter((item) =>
+      item.name.toLowerCase().includes(normalizedWorkspaceSearch) ||
+      item.path.toLowerCase().includes(normalizedWorkspaceSearch)
+    )
+    : projectWorkspaces;
+
+  return (
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (!open) {
+          setWorkspaceSearch("");
+        }
+      }}
+    >
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-9 max-w-full rounded-lg px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+          title={workspace.path}
+        >
+          {isDefaultWorkspaceSelected ? (
+            <span className="relative flex size-4 shrink-0 items-center justify-center">
+              <Folder className="size-4" />
+              <X className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
+            </span>
+          ) : (
+            <Folder className="size-4 shrink-0" />
+          )}
+          <span className="min-w-0 truncate">{workspaceSwitcherLabel}</span>
+          <ChevronDown className="size-3.5 shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-80 rounded-2xl border-border/70 bg-popover p-2 shadow-xl"
+      >
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground/80" />
+          <input
+            type="search"
+            value={workspaceSearch}
+            onChange={(event) => setWorkspaceSearch(event.currentTarget.value)}
+            onKeyDown={(event) => event.stopPropagation()}
+            placeholder="搜索项目"
+            className="h-9 w-full rounded-lg border-0 bg-transparent pr-2 pl-8 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:bg-muted/45 focus:ring-0 focus:outline-none"
+          />
+        </div>
+        <div className="space-y-1">
+          {visibleProjectWorkspaces.length > 0 ? visibleProjectWorkspaces.map((item) => (
+            <DropdownMenuItem
+              key={item.id}
+              className="h-10 gap-3 rounded-lg px-2.5 text-sm font-medium"
+              title={item.path}
+              onSelect={() => {
+                if (item.id !== workspace.id) {
+                  onOpenWorkspace(item);
+                }
+              }}
+            >
+              <Folder className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{item.name}</span>
+              {item.id === workspace.id && (
+                <Check className="size-4 shrink-0 text-foreground" />
+              )}
+            </DropdownMenuItem>
+          )) : (
+            <div className="px-2.5 py-4 text-sm text-muted-foreground">
+              没有匹配的项目
+            </div>
+          )}
+        </div>
+        <DropdownMenuSeparator className="mx-2 my-2" />
+        <DropdownMenuItem
+          className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold"
+          onSelect={onCreateWorkspace}
+        >
+          <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+            <Folder className="size-4" />
+            <Plus className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">新建工作区</span>
+        </DropdownMenuItem>
+        {defaultWorkspace && (
+          <DropdownMenuItem
+            className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold"
+            title={defaultWorkspace.path}
+            onSelect={() => {
+              if (defaultWorkspace.id !== workspace.id) {
+                onOpenWorkspace(defaultWorkspace);
+              }
+            }}
+          >
+            <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+              <Folder className="size-4" />
+              <X className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
+            </span>
+            <span className="min-w-0 flex-1 truncate">不使用项目</span>
+            {defaultWorkspace.id === workspace.id && (
+              <Check className="size-4 shrink-0 text-foreground" />
+            )}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 export const ChatPanel = () => {
+  const [showThinkingProcess, setShowThinkingProcess] = useState(true);
+  const [showToolCallProcess, setShowToolCallProcess] = useState(true);
   const {
     chatScrollAreaRef,
     workspace,
@@ -102,8 +247,6 @@ export const ChatPanel = () => {
     isSending,
     activeAgentTaskId,
     isSettingsLoading,
-    showThinkingProcess,
-    showToolCallProcess,
     effectiveContextWindow,
     availableRuntimeAgents,
     selectedRuntimeAgent,
@@ -122,8 +265,6 @@ export const ChatPanel = () => {
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
-    setShowThinkingProcess,
-    setShowToolCallProcess,
     setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
@@ -214,7 +355,10 @@ export const ChatPanel = () => {
               </div>
             </div>
           ) : (
-            <MessageList />
+            <MessageList
+              showThinkingProcess={showThinkingProcess}
+              showToolCallProcess={showToolCallProcess}
+            />
           )}
         </div>
       </ScrollArea>

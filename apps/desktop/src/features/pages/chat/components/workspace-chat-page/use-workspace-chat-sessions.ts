@@ -25,7 +25,7 @@ import {
   upsertChatSessionMeta,
   type HydratableChatSession,
 } from "./history";
-import type { RunningAgentTaskContext } from "./agent-task";
+import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
 
 type UseWorkspaceChatSessionsInput = {
@@ -42,7 +42,6 @@ type UseWorkspaceChatSessionsInput = {
   };
   ui: {
     setComposerResetKey: Dispatch<SetStateAction<number>>;
-    clearExpandedAgentBlocks: () => void;
     clearAgentQuestionDraft: () => void;
   };
   chat: {
@@ -86,7 +85,6 @@ export const useWorkspaceChatSessions = ({
   } = navigation;
   const {
     setComposerResetKey,
-    clearExpandedAgentBlocks,
     clearAgentQuestionDraft,
   } = ui;
   const {
@@ -172,7 +170,6 @@ export const useWorkspaceChatSessions = ({
     currentSessionTitleRef.current = nextSessionTitle;
     setCurrentSessionId(nextSessionId);
     setCurrentSessionTitle(nextSessionTitle);
-    clearExpandedAgentBlocks();
     if (runningTask) {
       applyActiveAgentTaskState(runningTask, { restoreTerminalState: false });
     }
@@ -181,7 +178,6 @@ export const useWorkspaceChatSessions = ({
     }, 0);
   }, [
     applyActiveAgentTaskState,
-    clearExpandedAgentBlocks,
     currentSessionIdRef,
     currentSessionTitleRef,
     detachActiveAgentTask,

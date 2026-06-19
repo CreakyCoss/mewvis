@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { Brain, ChevronDown, ChevronRight, Loader2, Wrench } from "lucide-react";
+import { SmoothMarkdownContent, SmoothPlainText } from "@/features/ai/components/markdown";
 import type { AgentMessageBlock, ChatMessage } from "../../types";
 import { describeAgentGroupEvent } from "../../utils/agent-blocks";
-import { SmoothMarkdownContent, SmoothPlainText } from "./smooth-stream-content";
 
 type AgentBlockListProps = {
   messageId: string;
@@ -10,7 +10,7 @@ type AgentBlockListProps = {
   agentBlocks: AgentMessageBlock[];
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  onToggleThinkingBlock: (messageId: string, blockId: string) => void;
+  isBlockCollapsed: (messageId: string, block: AgentMessageBlock) => boolean;
   onToggleBlock: (messageId: string, blockId: string) => void;
 };
 
@@ -20,7 +20,7 @@ const AgentBlockListComponent = ({
   agentBlocks,
   showThinkingProcess,
   showToolCallProcess,
-  onToggleThinkingBlock,
+  isBlockCollapsed,
   onToggleBlock,
 }: AgentBlockListProps) => {
   const isMessageStreaming = messageStatus === "loading" || messageStatus === "streaming";
@@ -53,7 +53,7 @@ const AgentBlockListComponent = ({
     <div className="min-w-0 max-w-full space-y-2 overflow-hidden">
       {visibleBlocks.map((block) => {
         if (block.type === "thinking") {
-          const isCollapsed = Boolean(block.isCollapsed);
+          const isCollapsed = isBlockCollapsed(messageId, block);
 
           return (
             <div
@@ -63,7 +63,7 @@ const AgentBlockListComponent = ({
               <button
                 type="button"
                 className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                onClick={() => onToggleThinkingBlock(messageId, block.id)}
+                onClick={() => onToggleBlock(messageId, block.id)}
               >
                 {isCollapsed ? (
                   <ChevronRight className="size-3.5" />
@@ -101,7 +101,7 @@ const AgentBlockListComponent = ({
 
         if (block.type === "tool") {
           const latestEvent = block.events[block.events.length - 1];
-          const isCollapsed = Boolean(block.isCollapsed);
+          const isCollapsed = isBlockCollapsed(messageId, block);
           const statusLabel =
             block.status === "running"
               ? "执行中"

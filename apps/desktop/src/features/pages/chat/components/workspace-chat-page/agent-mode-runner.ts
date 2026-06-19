@@ -1,12 +1,55 @@
+import type { MutableRefObject } from "react";
 import {
   normalizeAllowedRuntimeAgentTools,
+  type RuntimeAgentToolName,
 } from "@/ai/runtime-protocol";
+import type { AgentRuntime } from "@/ai/agent-runtime/runtime";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
-import { createBridgeSessionRootDir } from "../../../utils/sessions";
-import type {
-  RunAgentTurnDeps,
-  RunAgentTurnInput,
-} from "./types";
+import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import type { Workspace } from "@/features/pages/workspace/types";
+import { createBridgeSessionRootDir } from "../../utils/sessions";
+import type { ChatMessage } from "../../types";
+import type { WorkspacePromptSkillContext } from "./prompt-context";
+import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
+
+type UpdateMessage = (
+  messageId: string,
+  updater: (message: ChatMessage) => ChatMessage,
+) => void;
+
+type PrepareActiveAgentRun = (input: {
+  messageId: string;
+}) => void;
+
+type RunAgentTurnInput = {
+  nextSessionId: string | null;
+  assistantMessageId: string;
+  nextMessages: ChatMessage[];
+  agentPromptPayload: {
+    agentRoleId: string;
+    systemPrompt: string;
+    requestContext: string;
+    runtimeInstruction: string;
+    bootstrapInstruction?: string | null;
+    userMessage: string;
+  };
+};
+
+type RunAgentTurnDeps = {
+  workspace: Workspace;
+  activeSkills: WorkspacePromptSkillContext[];
+  runtimeAgentId: string;
+  updateMessage: UpdateMessage;
+  agentRuntime: AgentRuntime;
+  setChatError: (message: string) => void;
+  prepareActiveAgentRun: PrepareActiveAgentRun;
+  addRunningAgentTask: (task: RunningAgentTaskContext) => void;
+  activateAgentTaskId: (taskId: string) => void;
+  handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
+  effectiveRuntimeModel: RuntimeModelOption | null;
+  allowedAgentTools: RuntimeAgentToolName[];
+  currentSessionTitle: string;
+};
 
 export const runAgentTurn = async (
   {

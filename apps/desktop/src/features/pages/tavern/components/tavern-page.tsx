@@ -2,7 +2,13 @@ import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Clapperboard, Download, RefreshCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { loadContextResources } from "@/features/ai/runtime";
+import {
+  getActiveReferenceToken,
+  loadContextResources,
+  quoteReferencePath,
+  resolveFileReferenceMatches,
+  summarizeReferenceMatches,
+} from "@/features/ai/runtime";
 import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
@@ -20,16 +26,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MarkdownContent } from "@/features/pages/chat/components/chat/markdown-content";
-import { readWorkspaceFile } from "@/features/pages/workspace/files-api";
-import type { WorkspaceFileEntry } from "@/features/pages/chat/types";
-import { getVisualPreset, normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
+import { MarkdownContent } from "@/features/ai/components/markdown";
 import {
-  getActiveReferenceToken,
-  quoteReferencePath,
-  resolveFileReferenceMatches,
-  summarizeReferenceMatches,
-} from "@/features/pages/chat/utils/references";
+  readWorkspaceFile,
+  type WorkspaceFileEntry,
+} from "@/features/pages/workspace/files-api";
+import { getVisualPreset, normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
 import {

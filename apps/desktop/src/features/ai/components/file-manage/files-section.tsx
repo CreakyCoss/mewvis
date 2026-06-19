@@ -22,18 +22,16 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   listWorkspaceFiles,
   readWorkspaceFile,
+  type WorkspaceFile,
+  type WorkspaceFileEntry,
+  type WorkspaceVersionControlStatus,
   writeWorkspaceFile,
 } from "@/features/pages/workspace/files-api";
-import type { FileTreeNode } from "@/features/pages/chat/page-types";
-import type {
-  WorkspaceFile,
-  WorkspaceFileEntry,
-  WorkspaceVersionControlStatus,
-} from "@/features/pages/chat/types";
 import {
   buildFileTree,
+  type FileTreeNode,
   getParentDirectoryPaths,
-} from "@/features/pages/chat/utils/file-tree";
+} from "./file-tree";
 import { EditPanel } from "./edit-panel";
 import { FilesPanel } from "./files-panel";
 import type { VersionFileStatusByPath } from "./types";

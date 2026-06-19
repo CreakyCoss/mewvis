@@ -11,7 +11,7 @@ import {
   resolveAgentProfiles,
 } from "@/features/pages/settings/agent/utils";
 import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
-import type { ModelSource } from "../../page-types";
+import type { ModelSource } from "../../types";
 
 type RuntimeAgentSource = {
   listAgents: () => Promise<Readonly<{
