@@ -29,6 +29,15 @@ type ResolvedStatusTarget = {
   target: TavernStatusTargetRef;
 };
 
+type ResolvedStatusItem = {
+  key: string;
+  definition: TavernStatusDefinition;
+  item: Extract<TavernProgressView["items"][number], { type: "status" }>;
+  target: ResolvedStatusTarget;
+  value: TavernStatusValue;
+  delta: number;
+};
+
 const userRef: TavernEntityRef = { type: "user", userId: "user" };
 
 const valueEquals = (left: TavernStatusValue, right: TavernStatusValue) =>
@@ -177,6 +186,20 @@ const resolveStatusTargets = ({
     }));
   }
   if (definition.scope === "relationship") {
+    if (
+      view.ownerBinding === "allCharactersToUser" ||
+      (view.ownerBinding === "activeCharacterToUser" && view.placement === "composerBelow")
+    ) {
+      return roomCharacters.map((character) => ({
+        key: `relationship:${character.id}->user`,
+        label: `${character.name} 对你`,
+        target: {
+          type: "relationship",
+          subject: characterRef(character),
+          object: userRef,
+        },
+      }));
+    }
     if (view.ownerBinding === "activeCharacterToUser" && activeCharacter) {
       return [{
         key: `relationship:${activeCharacter.id}->user`,
@@ -263,6 +286,182 @@ const TaskBadge = ({
   );
 };
 
+const StatusMetric = ({
+  item,
+}: {
+  item: ResolvedStatusItem;
+}) => {
+  const showMeter = item.item.display === "bar" || item.item.display === "meter";
+  return (
+    <div className="min-w-0 flex-1 space-y-1.5">
+      <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate opacity-75">{item.definition.label}</span>
+        <span className="shrink-0 tabular-nums opacity-80">
+          {formatStatusValue(item.value)}
+          {item.item.showDelta && item.delta !== 0 && (
+            <span className={cn("ml-1", item.delta > 0 ? "text-emerald-500" : "text-destructive")}>
+              {item.delta > 0 ? "+" : ""}{item.delta}
+            </span>
+          )}
+        </span>
+      </div>
+      {showMeter && (
+        <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
+          <div
+            className={cn("h-full rounded-full", toneClass(item.value, item.item))}
+            style={{ width: `${numericPercent(item.value, item.definition)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const compactRelationshipLabel = (label: string) => label.replace(/\s*对你$/, "");
+
+const isGroupedRelationshipView = (view: TavernProgressView) =>
+  view.kind === "status" &&
+  view.items.some((item) => item.type === "status") &&
+  (
+    view.ownerBinding === "allCharactersToUser" ||
+    view.ownerBinding === "activeCharacterToUser" ||
+    view.ownerBinding === "currentUser"
+  );
+
+const createGroupedRelationshipRows = ({
+  view,
+  activeRoom,
+  roomCharacters,
+  activeCharacter,
+  ownerCharacter,
+  definitionById,
+}: {
+  view: TavernProgressView;
+  activeRoom: TavernRoom;
+  roomCharacters: TavernCharacter[];
+  activeCharacter: TavernCharacter | null;
+  ownerCharacter?: TavernCharacter;
+  definitionById: Map<string, TavernStatusDefinition>;
+}) => {
+  const grouped = new Map<string, {
+    label: string;
+    metrics: ResolvedStatusItem[];
+  }>();
+
+  for (const item of view.items) {
+    if (item.type !== "status") {
+      continue;
+    }
+
+    const definition = definitionById.get(item.statusId);
+    if (
+      !definition ||
+      definition.scope !== "relationship" ||
+      !isTavernProgressVisibilityVisibleToUser(definition.visibility)
+    ) {
+      continue;
+    }
+
+    const targets = resolveStatusTargets({
+      view,
+      definition,
+      activeRoom,
+      roomCharacters,
+      activeCharacter,
+      ownerCharacter,
+    });
+    for (const target of targets) {
+      const current = getTavernStatusSnapshotValue(
+        activeRoom.statusSnapshot,
+        target.target,
+        definition.id,
+      );
+      const previous = activeRoom.previousStatusSnapshot
+        ? getTavernStatusSnapshotValue(activeRoom.previousStatusSnapshot, target.target, definition.id)
+        : null;
+      const value = current ?? definition.defaultValue;
+      if (item.hiddenWhenDefault && valueEquals(value, definition.defaultValue)) {
+        continue;
+      }
+
+      const delta = typeof value === "number" && typeof previous === "number"
+        ? value - previous
+        : 0;
+      const group = grouped.get(target.key) ?? {
+        label: target.label,
+        metrics: [],
+      };
+      group.metrics.push({
+        key: `${view.id}:${definition.id}:${statusTargetKey(target.target)}`,
+        definition,
+        item,
+        target,
+        value,
+        delta,
+      });
+      grouped.set(target.key, group);
+    }
+  }
+
+  const groups = Array.from(grouped.entries()).filter(([, group]) => group.metrics.length > 0);
+  if (view.placement === "composerBelow") {
+    if (groups.length === 0) {
+      return [];
+    }
+    return [{
+      key: `${view.id}:relationship-compact-strip`,
+      content: (
+        <div className="min-w-0 overflow-x-auto pb-0.5">
+          <div className="flex min-w-max gap-2 pr-1">
+            {groups.map(([key, group]) => (
+              <div
+                key={key}
+                className="flex h-8 shrink-0 items-center gap-2 rounded-md bg-current/5 px-2.5 text-xs text-current"
+              >
+                <span className="max-w-28 truncate font-medium">
+                  {compactRelationshipLabel(group.label)}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {group.metrics.map((metric) => (
+                    <span
+                      key={metric.key}
+                      className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 tabular-nums"
+                    >
+                      <span className="opacity-60">{metric.definition.label}</span>
+                      <span className="font-medium opacity-80">{formatStatusValue(metric.value)}</span>
+                      {metric.item.showDelta && metric.delta !== 0 && (
+                        <span className={cn(metric.delta > 0 ? "text-emerald-500" : "text-destructive")}>
+                          {metric.delta > 0 ? "+" : ""}{metric.delta}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    }];
+  }
+
+  return groups.map(([key, group]) => {
+    return [{
+      key: `${view.id}:relationship-group:${key}`,
+      content: (
+        <div className="rounded-md bg-current/5 px-2.5 py-2 text-current">
+          <div className="mb-2 truncate text-xs font-medium">{group.label}</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {group.metrics.map((metric) => (
+              <StatusMetric key={metric.key} item={metric} />
+            ))}
+          </div>
+        </div>
+      ),
+    }];
+  }).flat();
+};
+
 export const TavernProgressPanel = ({
   activeRoom,
   roomCharacters,
@@ -284,7 +483,17 @@ export const TavernProgressPanel = ({
   const taskById = new Map(activeRoom.taskDefinitions.map((task) => [task.id, task]));
   const outcomeById = new Map(activeRoom.sceneOutcomes.map((outcome) => [outcome.id, outcome]));
   const renderedViews = views.flatMap((view) => {
-    const explicitRows = view.items.flatMap((item) => {
+    const groupedRelationshipRows = isGroupedRelationshipView(view)
+      ? createGroupedRelationshipRows({
+          view,
+          activeRoom,
+          roomCharacters,
+          activeCharacter,
+          ownerCharacter,
+          definitionById,
+        })
+      : [];
+    const explicitRows = groupedRelationshipRows.length > 0 ? [] : view.items.flatMap((item) => {
       if (item.type === "status") {
         const definition = definitionById.get(item.statusId);
         if (!definition || !isTavernProgressVisibilityVisibleToUser(definition.visibility)) {
@@ -415,7 +624,12 @@ export const TavernProgressPanel = ({
           }];
         })
       : [];
-    const rows = [...explicitRows, ...dynamicTaskRows, ...dynamicOutcomeRows];
+    const rows = [
+      ...groupedRelationshipRows,
+      ...explicitRows,
+      ...dynamicTaskRows,
+      ...dynamicOutcomeRows,
+    ];
 
     if (rows.length === 0) {
       return [];

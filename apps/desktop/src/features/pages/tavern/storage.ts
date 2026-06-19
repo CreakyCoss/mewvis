@@ -643,7 +643,7 @@ export const DEFAULT_TAVERN_PROGRESS_VIEWS: TavernProgressView[] = [
     label: "对你的态度",
     kind: "status",
     placement: "composerBelow",
-    ownerBinding: "activeCharacterToUser",
+    ownerBinding: "allCharactersToUser",
     layout: "compact",
     compareWith: "previousTurn",
     items: [

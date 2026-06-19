@@ -59,6 +59,7 @@ writeFileSync(entryPath, `
   import {
     createTavernRoom,
     createTavernRoomFromGeneratedPresetJson,
+    DEFAULT_TAVERN_PROGRESS_VIEWS,
     DEFAULT_TAVERN_SCENE_OUTCOMES,
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
     DEFAULT_TAVERN_STATUS_RULES,
@@ -1455,6 +1456,9 @@ writeFileSync(entryPath, `
     defaultDefinitions: {
       statusRuleIds: DEFAULT_TAVERN_STATUS_RULES.map((rule) => rule.id),
       statusDefinitionIds: DEFAULT_TAVERN_STATUS_DEFINITIONS.map((definition) => definition.id),
+      relationshipViewOwnerBinding: DEFAULT_TAVERN_PROGRESS_VIEWS.find((view) =>
+        view.id === "relationship-to-user"
+      )?.ownerBinding,
       taskIds: DEFAULT_TAVERN_TASK_DEFINITIONS.map((task) => task.id),
       outcomeIds: DEFAULT_TAVERN_SCENE_OUTCOMES.map((outcome) => outcome.id),
       roomTaskIds: defaultRoom.taskDefinitions.map((task) => task.id),
@@ -1900,9 +1904,10 @@ try {
   assert(
     checks.progressChecks.defaultDefinitions.statusRuleIds.includes("threat-to-scene-threat") &&
       checks.progressChecks.defaultDefinitions.statusRuleIds.includes("stabilize-to-scene-threat") &&
+      checks.progressChecks.defaultDefinitions.relationshipViewOwnerBinding === "allCharactersToUser" &&
       checks.progressChecks.defaultDefinitions.roomTaskIds.includes("stabilize-scene-threat") &&
       checks.progressChecks.defaultDefinitions.roomOutcomeIds.includes("scene-stabilized-success"),
-    "默认酒馆应包含场景威胁规则、任务和结局定义",
+    "默认酒馆应包含场景威胁规则、所有角色对用户态度、任务和结局定义",
     checks.progressChecks.defaultDefinitions,
   );
   assert(

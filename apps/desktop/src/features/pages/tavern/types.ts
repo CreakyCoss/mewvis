@@ -472,6 +472,7 @@ export type TavernProgressView = {
     | "activeCharacter"
     | "activeCharacterOutgoing"
     | "activeCharacterToUser"
+    | "allCharactersToUser"
     | "allCharacterPairs"
     | "team"
     | "currentUser";
