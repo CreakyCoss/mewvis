@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   BookOpen,
+  Check,
   ChevronRight,
   Clock,
   Loader2,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +59,7 @@ type TavernSidePanelProps = {
   onExtractRecentAssets: () => void;
   onTrackRecentProgress: () => void;
   onRebuildProgress: () => void;
+  onResolvePendingStatusEvent: (statusEventId: string, resolution: "applied" | "rejected") => void;
   onCompactCharacterKnowledge: (characterId: string) => void;
   compactingCharacterIds?: Set<string>;
 };
@@ -278,6 +281,7 @@ export const TavernSidePanel = ({
   onExtractRecentAssets,
   onTrackRecentProgress,
   onRebuildProgress,
+  onResolvePendingStatusEvent,
   onCompactCharacterKnowledge,
   compactingCharacterIds = new Set(),
 }: TavernSidePanelProps) => {
@@ -292,6 +296,14 @@ export const TavernSidePanel = ({
     `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
   const enabledLorebookCount = activeRoom.lorebookEntries.filter((entry) => entry.enabled).length;
+  const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
+  const pendingStatusEvents = activeRoom.statusEvents
+    .filter((event) => event.status === "pending")
+    .filter((event) => {
+      const visibility = statusDefinitionById.get(event.statusId)?.visibility;
+      return visibility !== "hidden" && visibility !== "debug" && visibility !== "director";
+    })
+    .slice(-6);
   const detailPanelTitle = {
     "asset-drafts": "剧情资产草稿",
     timeline: "剧情时间线",
@@ -396,6 +408,65 @@ export const TavernSidePanel = ({
                 重建状态
               </Button>
             </div>
+            {pendingStatusEvents.length > 0 && (
+              <div className="space-y-2 rounded-md border border-current/10 bg-current/5 p-2.5 text-current">
+                <div className="text-xs font-semibold opacity-80">待确认状态</div>
+                {pendingStatusEvents.map((event) => {
+                  const definition = statusDefinitionById.get(event.statusId);
+                  const before = Array.isArray(event.before) ? event.before.join("、") : String(event.before ?? "未记录");
+                  const after = Array.isArray(event.after) ? event.after.join("、") : String(event.after ?? "未记录");
+                  return (
+                    <div key={event.id} className="space-y-2 rounded-md bg-current/5 px-2.5 py-2">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-medium">
+                            {definition?.label ?? event.statusId}
+                          </div>
+                          <div className="mt-0.5 text-[11px] tabular-nums opacity-70">
+                            {before}{" -> "}{after}
+                            {typeof event.delta === "number" && (
+                              <span className={event.delta > 0 ? "ml-1 text-emerald-500" : "ml-1 text-destructive"}>
+                                {event.delta > 0 ? "+" : ""}{event.delta}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-[11px] opacity-60">
+                          {Math.round(event.confidence * 100)}%
+                        </div>
+                      </div>
+                      <div className="line-clamp-2 text-[11px] leading-4 opacity-65">
+                        {event.reason}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                          disabled={isBusy}
+                          onClick={() => onResolvePendingStatusEvent(event.id, "applied")}
+                        >
+                          <Check className="size-3.5" />
+                          应用
+                        </Button>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="ghost"
+                          className="text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                          disabled={isBusy}
+                          onClick={() => onResolvePendingStatusEvent(event.id, "rejected")}
+                        >
+                          <X className="size-3.5" />
+                          拒绝
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <TavernProgressPanel
               activeRoom={activeRoom}
               roomCharacters={roomCharacters}

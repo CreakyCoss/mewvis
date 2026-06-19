@@ -780,6 +780,93 @@ export const rebuildTavernProgressFromHistory = ({
   };
 };
 
+export const resolveTavernPendingStatusEvent = ({
+  room,
+  statusEventId,
+  resolution,
+  createdAt = Date.now(),
+}: {
+  room: TavernRoom;
+  statusEventId: string;
+  resolution: "applied" | "rejected";
+  createdAt?: number;
+}): Pick<
+  TavernRoom,
+  | "statusEvents"
+  | "previousStatusSnapshot"
+  | "statusSnapshot"
+  | "taskEvents"
+  | "taskSnapshot"
+  | "outcomeEvents"
+> | null => {
+  const pendingEvent = room.statusEvents.find((event) => event.id === statusEventId);
+  if (!pendingEvent || pendingEvent.status !== "pending") {
+    return null;
+  }
+
+  const resolvedEvent: TavernStatusEvent = {
+    ...pendingEvent,
+    status: resolution,
+  };
+  const statusEvents = room.statusEvents.map((event) =>
+    event.id === statusEventId ? resolvedEvent : event
+  );
+
+  if (resolution === "rejected") {
+    return {
+      statusEvents,
+      ...(room.previousStatusSnapshot ? { previousStatusSnapshot: room.previousStatusSnapshot } : {}),
+      statusSnapshot: room.statusSnapshot,
+      taskEvents: room.taskEvents,
+      taskSnapshot: room.taskSnapshot,
+      outcomeEvents: room.outcomeEvents,
+    };
+  }
+
+  const previousStatusSnapshot = room.statusSnapshot;
+  const statusSnapshot = {
+    ...applyTavernStatusEventsToSnapshot({
+      snapshot: previousStatusSnapshot,
+      events: [resolvedEvent],
+    }),
+    turnId: resolvedEvent.turnId,
+    updatedAt: createdAt,
+  };
+  const sourceFactEventIds = new Set(resolvedEvent.sourceFactEventIds);
+  const factEvents = room.factEvents.filter((event) => sourceFactEventIds.has(event.id));
+  const taskResult = updateTavernTasks({
+    taskDefinitions: room.taskDefinitions,
+    taskSnapshot: room.taskSnapshot,
+    snapshot: statusSnapshot,
+    previousSnapshot: previousStatusSnapshot,
+    factEvents,
+    sourceStatusEventIds: [resolvedEvent.id],
+    turnId: resolvedEvent.turnId,
+    createdAt,
+  });
+  const outcomeEvents = evaluateTavernSceneOutcomes({
+    outcomes: room.sceneOutcomes,
+    snapshot: statusSnapshot,
+    previousSnapshot: previousStatusSnapshot,
+    factEvents,
+    taskSnapshot: taskResult.taskSnapshot,
+    sourceTaskEventIds: taskResult.taskEvents.map((event) => event.id),
+    sourceStatusEventIds: [resolvedEvent.id],
+    existingOutcomeEvents: room.outcomeEvents,
+    turnId: resolvedEvent.turnId,
+    createdAt,
+  });
+
+  return {
+    statusEvents,
+    previousStatusSnapshot,
+    statusSnapshot,
+    taskEvents: [...room.taskEvents, ...taskResult.taskEvents],
+    taskSnapshot: taskResult.taskSnapshot,
+    outcomeEvents: [...room.outcomeEvents, ...outcomeEvents],
+  };
+};
+
 export const advanceTavernProgressFromFactEvents = ({
   room,
   factEvents,

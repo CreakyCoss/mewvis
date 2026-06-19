@@ -62,6 +62,7 @@ import {
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
   rebuildTavernProgressFromHistory,
+  resolveTavernPendingStatusEvent,
   tavernCharacterAgentRoleId,
 } from "../core";
 import {
@@ -2059,6 +2060,42 @@ export const TavernPage = ({
     toast.success("状态面板已从 checkpoint 和事件历史重建。");
   }, [activeRoom, appendProgressCheckpointToRoom, patchRoom]);
 
+  const resolvePendingStatusEvent = useCallback((
+    statusEventId: string,
+    resolution: "applied" | "rejected",
+  ) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const progressPatch = resolveTavernPendingStatusEvent({
+      room: activeRoom,
+      statusEventId,
+      resolution,
+      createdAt: Date.now(),
+    });
+    if (!progressPatch) {
+      setError("未找到可处理的待确认状态事件。");
+      return;
+    }
+
+    const progressedRoom = appendProgressCheckpointToRoom(
+      syncTavernRoomActiveScene({
+        ...projectTavernSceneOntoRoom(activeRoom),
+        ...progressPatch,
+        updatedAt: Date.now(),
+      }),
+      "manual",
+      progressPatch.statusSnapshot.turnId,
+    );
+    patchRoom(activeRoom.id, {
+      ...progressPatch,
+      statusCheckpoints: progressedRoom.statusCheckpoints,
+      updatedAt: Date.now(),
+    });
+    toast.success(resolution === "applied" ? "状态事件已应用。" : "状态事件已拒绝。");
+  }, [activeRoom, appendProgressCheckpointToRoom, patchRoom]);
+
   const compactCharacterKnowledge = useCallback(async (characterId: string) => {
     if (!activeRoom) {
       return;
@@ -3565,6 +3602,7 @@ export const TavernPage = ({
             onExtractRecentAssets={extractRecentAssets}
             onTrackRecentProgress={trackRecentProgress}
             onRebuildProgress={rebuildProgressFromHistory}
+            onResolvePendingStatusEvent={resolvePendingStatusEvent}
             onCompactCharacterKnowledge={compactCharacterKnowledge}
             compactingCharacterIds={compactingCharacterIds}
           />

@@ -33,6 +33,7 @@ writeFileSync(entryPath, `
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
+    resolveTavernPendingStatusEvent,
     setTavernStatusSnapshotValue,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
@@ -540,24 +541,25 @@ writeFileSync(entryPath, `
     turnId: "turn-progress",
     createdAt: now + 13,
   });
-  const outcomeEvents = evaluateTavernSceneOutcomes({
-    outcomes: [
-      {
-        id: "boss-defeated-victory",
-        label: "Boss 被击败",
-        winner: [userRef, charARef, charBRef],
-        loser: [bossRef],
-        condition: {
-          task: "defeat-boss",
-          owner: globalRef,
-          status: "completed",
-        },
-        priority: 100,
-        exclusive: true,
-        endScene: "auto",
-        visibility: "public",
+  const progressSceneOutcomes = [
+    {
+      id: "boss-defeated-victory",
+      label: "Boss 被击败",
+      winner: [userRef, charARef, charBRef],
+      loser: [bossRef],
+      condition: {
+        task: "defeat-boss",
+        owner: globalRef,
+        status: "completed",
       },
-    ],
+      priority: 100,
+      exclusive: true,
+      endScene: "auto",
+      visibility: "public",
+    },
+  ];
+  const outcomeEvents = evaluateTavernSceneOutcomes({
+    outcomes: progressSceneOutcomes,
     snapshot: nextProgressSnapshot,
     previousSnapshot: initialProgressSnapshot,
     factEvents: progressFactEvents,
@@ -601,6 +603,35 @@ writeFileSync(entryPath, `
     },
     createdAt: now + 17,
   });
+  const pendingDamageStatusEvent = {
+    ...statusEvents.find((event) => event.statusId === "health"),
+    id: "pending-damage-status",
+    status: "pending",
+  };
+  const reviewRoom = {
+    ...checkpointRoom,
+    factEvents: progressFactEvents,
+    statusEvents: [pendingDamageStatusEvent],
+    statusSnapshot: initialProgressSnapshot,
+    taskDefinitions: progressTaskDefinitions,
+    sceneOutcomes: progressSceneOutcomes,
+    progressTracker: {
+      ...room.progressTracker,
+      applyMode: "review",
+    },
+  };
+  const reviewApplied = resolveTavernPendingStatusEvent({
+    room: reviewRoom,
+    statusEventId: pendingDamageStatusEvent.id,
+    resolution: "applied",
+    createdAt: now + 18,
+  });
+  const reviewRejected = resolveTavernPendingStatusEvent({
+    room: reviewRoom,
+    statusEventId: pendingDamageStatusEvent.id,
+    resolution: "rejected",
+    createdAt: now + 19,
+  });
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -623,6 +654,28 @@ writeFileSync(entryPath, `
       "health",
     ),
     rebuiltTaskStatus: rebuiltProgress.taskSnapshot["defeat-boss"]?.status,
+    reviewInitialBossHealth: getTavernStatusSnapshotValue(
+      reviewRoom.statusSnapshot,
+      { type: "character", characterId: "boss" },
+      "health",
+    ),
+    reviewAppliedBossHealth: reviewApplied
+      ? getTavernStatusSnapshotValue(
+          reviewApplied.statusSnapshot,
+          { type: "character", characterId: "boss" },
+          "health",
+        )
+      : null,
+    reviewAppliedTaskStatus: reviewApplied?.taskSnapshot["defeat-boss"]?.status,
+    reviewAppliedOutcomeStatus: reviewApplied?.outcomeEvents[0]?.status,
+    reviewRejectedStatus: reviewRejected?.statusEvents[0]?.status,
+    reviewRejectedBossHealth: reviewRejected
+      ? getTavernStatusSnapshotValue(
+          reviewRejected.statusSnapshot,
+          { type: "character", characterId: "boss" },
+          "health",
+        )
+      : null,
     progressCheckpoint,
   };
   globalThis.__checks = {
@@ -840,6 +893,20 @@ try {
       checks.progressChecks.rebuiltBossHealth === 0 &&
       checks.progressChecks.rebuiltTaskStatus === "completed",
     "状态面板应能从 checkpoint 和后续事件历史重建",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.reviewInitialBossHealth === 25 &&
+      checks.progressChecks.reviewAppliedBossHealth === 0 &&
+      checks.progressChecks.reviewAppliedTaskStatus === "completed" &&
+      checks.progressChecks.reviewAppliedOutcomeStatus === "applied",
+    "review 模式下确认 pending 状态事件后才应推进快照、任务和结局",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.reviewRejectedStatus === "rejected" &&
+      checks.progressChecks.reviewRejectedBossHealth === 25,
+    "review 模式下拒绝 pending 状态事件不应改变快照",
     checks.progressChecks,
   );
 
