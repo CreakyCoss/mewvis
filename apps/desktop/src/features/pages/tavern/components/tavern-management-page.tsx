@@ -72,10 +72,15 @@ import type {
   TavernLorebookEntry,
   TavernReplyMode,
   TavernMessage,
+  TavernProgressView,
   TavernRoom,
   TavernRoomCharacterConfig,
   TavernRoomSettings,
   TavernProgressTrackerSettings,
+  TavernSceneOutcomeDefinition,
+  TavernStatusDefinition,
+  TavernStatusRule,
+  TavernTaskDefinition,
   TavernTimelineEvent,
   TavernTimelineScope,
 } from "../types";
@@ -207,6 +212,94 @@ const settingsEditorMetricGridClassName =
 
 const getReplyModeLabel = (replyMode: TavernReplyMode) =>
   replyModeOptions.find((option) => option.value === replyMode)?.label ?? "当前角色";
+
+type ProgressJsonParseResult<T> =
+  | { ok: true; value: T[] }
+  | { ok: false; error: string };
+
+const formatProgressJson = (value: unknown) => JSON.stringify(value, null, 2);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === "object" && !Array.isArray(value));
+
+const hasStringField = (value: Record<string, unknown>, field: string) =>
+  typeof value[field] === "string" && value[field].trim().length > 0;
+
+const hasRecordField = (value: Record<string, unknown>, field: string) =>
+  isRecord(value[field]);
+
+const parseProgressJsonArray = <T,>(
+  raw: string,
+  label: string,
+  guard: (item: unknown) => item is T,
+): ProgressJsonParseResult<T> => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: `${label}不是有效 JSON。` };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { ok: false, error: `${label}必须是数组。` };
+  }
+
+  const invalidIndex = parsed.findIndex((item) => !guard(item));
+  if (invalidIndex >= 0) {
+    return { ok: false, error: `${label}第 ${invalidIndex + 1} 项缺少必要字段。` };
+  }
+
+  return { ok: true, value: parsed };
+};
+
+const isStatusDefinitionDraft = (item: unknown): item is TavernStatusDefinition => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "label") &&
+  hasStringField(item, "scope") &&
+  hasStringField(item, "valueType") &&
+  hasStringField(item, "visibility") &&
+  hasRecordField(item, "updatePolicy")
+);
+
+const isStatusRuleDraft = (item: unknown): item is TavernStatusRule => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "label") &&
+  hasRecordField(item, "when") &&
+  hasRecordField(item, "apply")
+);
+
+const isProgressViewDraft = (item: unknown): item is TavernProgressView => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "label") &&
+  hasStringField(item, "kind") &&
+  hasStringField(item, "placement") &&
+  hasStringField(item, "ownerBinding") &&
+  hasStringField(item, "layout") &&
+  Array.isArray(item.items)
+);
+
+const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "title") &&
+  hasRecordField(item, "owner") &&
+  hasRecordField(item, "condition") &&
+  hasStringField(item, "visibility")
+);
+
+const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinition => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "label") &&
+  hasRecordField(item, "condition") &&
+  typeof item.priority === "number" &&
+  typeof item.exclusive === "boolean" &&
+  hasStringField(item, "endScene") &&
+  hasStringField(item, "visibility")
+);
 
 const TavernEditorField = ({
   label,
@@ -408,6 +501,14 @@ type RoomContentEditDraft =
       type: "settings";
       progressTracker: TavernProgressTrackerSettings;
     } & TavernRoomSettings)
+  | {
+      type: "progress";
+      statusDefinitionsJson: string;
+      statusRulesJson: string;
+      progressViewsJson: string;
+      taskDefinitionsJson: string;
+      sceneOutcomesJson: string;
+    }
   | {
       type: "timeline";
       eventId: string | null;
@@ -972,6 +1073,22 @@ export const TavernManagementPage = ({
     });
   };
 
+  const openProgressContentEditor = () => {
+    if (!editingRoom) {
+      return;
+    }
+
+    setRoomContentEditError("");
+    setRoomContentEditDraft({
+      type: "progress",
+      statusDefinitionsJson: formatProgressJson(editingRoom.statusDefinitions),
+      statusRulesJson: formatProgressJson(editingRoom.statusRules),
+      progressViewsJson: formatProgressJson(editingRoom.progressViews),
+      taskDefinitionsJson: formatProgressJson(editingRoom.taskDefinitions),
+      sceneOutcomesJson: formatProgressJson(editingRoom.sceneOutcomes),
+    });
+  };
+
   const openTimelineContentEditor = (event: TavernTimelineEvent | null = null) => {
     setRoomContentEditError("");
     setRoomContentEditDraft({
@@ -1145,6 +1262,68 @@ export const TavernManagementPage = ({
       return;
     }
 
+    if (roomContentEditDraft.type === "progress") {
+      const statusDefinitions = parseProgressJsonArray<TavernStatusDefinition>(
+        roomContentEditDraft.statusDefinitionsJson,
+        "状态定义",
+        isStatusDefinitionDraft,
+      );
+      if (!statusDefinitions.ok) {
+        setRoomContentEditError(statusDefinitions.error);
+        return;
+      }
+
+      const statusRules = parseProgressJsonArray<TavernStatusRule>(
+        roomContentEditDraft.statusRulesJson,
+        "状态规则",
+        isStatusRuleDraft,
+      );
+      if (!statusRules.ok) {
+        setRoomContentEditError(statusRules.error);
+        return;
+      }
+
+      const progressViews = parseProgressJsonArray<TavernProgressView>(
+        roomContentEditDraft.progressViewsJson,
+        "状态面板",
+        isProgressViewDraft,
+      );
+      if (!progressViews.ok) {
+        setRoomContentEditError(progressViews.error);
+        return;
+      }
+
+      const taskDefinitions = parseProgressJsonArray<TavernTaskDefinition>(
+        roomContentEditDraft.taskDefinitionsJson,
+        "任务定义",
+        isTaskDefinitionDraft,
+      );
+      if (!taskDefinitions.ok) {
+        setRoomContentEditError(taskDefinitions.error);
+        return;
+      }
+
+      const sceneOutcomes = parseProgressJsonArray<TavernSceneOutcomeDefinition>(
+        roomContentEditDraft.sceneOutcomesJson,
+        "结局条件",
+        isSceneOutcomeDraft,
+      );
+      if (!sceneOutcomes.ok) {
+        setRoomContentEditError(sceneOutcomes.error);
+        return;
+      }
+
+      patchEditingRoomDraft({
+        statusDefinitions: statusDefinitions.value,
+        statusRules: statusRules.value,
+        progressViews: progressViews.value,
+        taskDefinitions: taskDefinitions.value,
+        sceneOutcomes: sceneOutcomes.value,
+      });
+      closeRoomContentEditor();
+      return;
+    }
+
     if (roomContentEditDraft.type === "timeline") {
       const title = roomContentEditDraft.title.trim();
       const summary = roomContentEditDraft.summary.trim();
@@ -1239,6 +1418,8 @@ export const TavernManagementPage = ({
         return "编辑叙事内容";
       case "settings":
         return "编辑运行设置";
+      case "progress":
+        return "编辑进度系统";
       case "timeline":
         return roomContentEditDraft.eventId ? "编辑剧情事件" : "新增剧情事件";
       case "lore":
@@ -1258,6 +1439,8 @@ export const TavernManagementPage = ({
         return "修改当前故事阶段的描述、剧情、目标、走向、记忆和出场角色。";
       case "settings":
         return "调整执行过程、剧情资产整理和导演调度设置。";
+      case "progress":
+        return "编辑状态栏、规则引擎、任务目标和结局条件。任务与结局作用于当前故事阶段。";
       case "timeline":
         return "剧情事件会进入大故事时间线草稿，保存酒馆后才生效。";
       case "lore":
@@ -1981,6 +2164,94 @@ export const TavernManagementPage = ({
                 </NativeSelect>
               </TavernEditorField>
             </div>
+          </>
+        );
+      case "progress":
+        return (
+          <>
+            <div className="rounded-md border border-border/70 bg-muted/15 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              状态定义、状态规则和状态面板属于房间级配置；任务定义和结局条件属于当前故事阶段。保存房间后配置才会写入本地数据。
+            </div>
+            <TavernEditorField
+              label="状态定义 JSON"
+              htmlFor="tavern-content-status-definitions"
+              description="定义全局、场景、角色、关系等状态栏字段。"
+            >
+              <Textarea
+                id="tavern-content-status-definitions"
+                value={roomContentEditDraft.statusDefinitionsJson}
+                spellCheck={false}
+                className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
+                onChange={(event) => setRoomContentEditDraft({
+                  ...roomContentEditDraft,
+                  statusDefinitionsJson: event.target.value,
+                })}
+              />
+            </TavernEditorField>
+            <TavernEditorField
+              label="状态规则 JSON"
+              htmlFor="tavern-content-status-rules"
+              description="把明确事实事件映射为状态数值变化。"
+            >
+              <Textarea
+                id="tavern-content-status-rules"
+                value={roomContentEditDraft.statusRulesJson}
+                spellCheck={false}
+                className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
+                onChange={(event) => setRoomContentEditDraft({
+                  ...roomContentEditDraft,
+                  statusRulesJson: event.target.value,
+                })}
+              />
+            </TavernEditorField>
+            <TavernEditorField
+              label="状态面板 JSON"
+              htmlFor="tavern-content-progress-views"
+              description="配置 globalHeader、sceneHeader、sidePanel、characterCard、composerBelow 等展示位置。"
+            >
+              <Textarea
+                id="tavern-content-progress-views"
+                value={roomContentEditDraft.progressViewsJson}
+                spellCheck={false}
+                className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
+                onChange={(event) => setRoomContentEditDraft({
+                  ...roomContentEditDraft,
+                  progressViewsJson: event.target.value,
+                })}
+              />
+            </TavernEditorField>
+            <TavernEditorField
+              label="任务定义 JSON"
+              htmlFor="tavern-content-task-definitions"
+              description="配置个人、团队、可选支线等任务目标。"
+            >
+              <Textarea
+                id="tavern-content-task-definitions"
+                value={roomContentEditDraft.taskDefinitionsJson}
+                spellCheck={false}
+                className={cn("min-h-[160px] resize-y font-mono text-xs leading-5", editorControlClassName)}
+                onChange={(event) => setRoomContentEditDraft({
+                  ...roomContentEditDraft,
+                  taskDefinitionsJson: event.target.value,
+                })}
+              />
+            </TavernEditorField>
+            <TavernEditorField
+              label="结局条件 JSON"
+              htmlFor="tavern-content-scene-outcomes"
+              description="配置胜负、阶段结束建议或自动结束条件。"
+            >
+              <Textarea
+                id="tavern-content-scene-outcomes"
+                value={roomContentEditDraft.sceneOutcomesJson}
+                spellCheck={false}
+                className={cn("min-h-[160px] resize-y font-mono text-xs leading-5", editorControlClassName)}
+                onChange={(event) => setRoomContentEditDraft({
+                  ...roomContentEditDraft,
+                  sceneOutcomesJson: event.target.value,
+                })}
+              />
+            </TavernEditorField>
           </>
         );
       case "timeline":
@@ -2946,6 +3217,17 @@ export const TavernManagementPage = ({
                     icon={Activity}
                     title="进度系统"
                     description="检查状态栏定义、规则引擎、任务目标、结局条件和可重建快照。"
+                    action={(
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={openProgressContentEditor}
+                      >
+                        <Pencil className="size-3.5" />
+                        编辑
+                      </Button>
+                    )}
                     contentClassName="space-y-0 pb-4"
                   >
                     <div className="grid gap-2 rounded-md border border-border/70 bg-muted/15 p-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -3438,7 +3720,7 @@ export const TavernManagementPage = ({
             <DialogContent
               className={cn(
                 "flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden",
-                roomContentEditDraft.type === "narrative"
+                roomContentEditDraft.type === "narrative" || roomContentEditDraft.type === "progress"
                   ? "sm:max-w-3xl lg:max-w-4xl"
                   : "sm:max-w-xl",
               )}
