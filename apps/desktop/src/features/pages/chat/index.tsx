@@ -2,14 +2,10 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import {
-  WorkspaceChatPage,
-  type WorkspaceChatShellProps,
-} from "@/features/pages/chat/components/workspace-chat-page";
+import { WorkspaceChatPage } from "@/features/pages/chat/components/workspace-chat-page";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { APP_DISPLAY_NAME } from "@/product-config";
-import { ChatLayout } from "./layout";
 
 const LoadingState = ({ error }: { error: string }) => (
   <main className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-foreground">
@@ -78,18 +74,6 @@ export const ChatPage = () => {
     navigate(`/chat/${targetWorkspace.id}/new`);
   };
 
-  const renderShell = ({
-    headerProps,
-    content,
-    contextPanel,
-  }: WorkspaceChatShellProps) => (
-    <ChatLayout
-      headerProps={headerProps}
-      content={content}
-      contextPanel={contextPanel}
-    />
-  );
-
   return (
     <WorkspaceChatPage
       workspace={workspace}
@@ -109,7 +93,6 @@ export const ChatPage = () => {
       }}
       onOpenWorkspace={openWorkspace}
       onCreateWorkspace={openCreateWorkspace}
-      renderShell={renderShell}
     />
   );
 };

@@ -43,6 +43,7 @@ import {
   DEFAULT_SESSION_TITLE,
   deriveSessionTitle,
 } from "../../utils/sessions";
+import { ChatLayout } from "../../layout";
 import {
   runAgentTurn,
 } from "./agent-mode-runner";
@@ -126,16 +127,6 @@ type WorkspaceChatPageProps = {
   onSessionCreated?: (sessionId: string) => void;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
-  renderShell: (props: WorkspaceChatShellProps) => ReactNode;
-};
-
-export type WorkspaceChatShellProps = {
-  headerProps: {
-    isContextPanelOpen: boolean;
-    onToggleContextPanel: () => void;
-  };
-  content: ReactNode;
-  contextPanel: ReactNode;
 };
 
 const resolveStringStateAction = (
@@ -200,7 +191,6 @@ export const WorkspaceChatPage = ({
   onSessionCreated,
   onOpenWorkspace,
   onCreateWorkspace,
-  renderShell,
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -1114,9 +1104,11 @@ export const WorkspaceChatPage = ({
     )
     : null;
 
-  return renderShell({
-    headerProps,
-    content: chatPanel,
-    contextPanel,
-  });
+  return (
+    <ChatLayout
+      headerProps={headerProps}
+      content={chatPanel}
+      contextPanel={contextPanel}
+    />
+  );
 };

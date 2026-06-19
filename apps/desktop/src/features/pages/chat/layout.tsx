@@ -1,13 +1,21 @@
 import { PanelRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import type { WorkspaceChatShellProps } from "@/features/pages/chat/components/workspace-chat-page";
+
+export type ChatLayoutProps = {
+  headerProps: {
+    isContextPanelOpen: boolean;
+    onToggleContextPanel: () => void;
+  };
+  content: ReactNode;
+  contextPanel: ReactNode;
+};
 
 export const ChatLayout = ({
   headerProps,
   content,
   contextPanel,
-}: WorkspaceChatShellProps) => {
+}: ChatLayoutProps) => {
   const renderToggle = (node: ReactNode) => (
     <div className="absolute top-1.5 right-4 z-30 flex min-w-0 items-center justify-end gap-1.5">
       {node}
