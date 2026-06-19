@@ -263,12 +263,27 @@ writeFileSync(entryPath, `
     ambientActions: [{ characterId: "char-b", action: "擦亮杯沿，望向门口。" }],
     narrator: "灯影往门边偏了一寸。",
     randomEvent: "门外传来两下克制的敲门声。",
+    illustrationHints: [
+      "昏黄灯光下，阿洛站在门边，贝拉在吧台后方擦亮杯沿，构图偏向门口。",
+      "阿洛内心怀疑门外的人在撒谎。",
+    ],
     reason: "门口变化需要阿洛回应。",
   }), characters, 2, true);
   const parsedDirectorRandomEventDisabled = parseTavernDirectorDecision(JSON.stringify({
     speakerIds: ["char-a"],
     randomEvent: "门外传来两下克制的敲门声。",
   }), characters, 2, false);
+  const parsedDirectorIllustrationHintsDisabled = parseTavernDirectorDecision(JSON.stringify({
+    speakerIds: ["char-a"],
+    illustrationHints: ["昏黄灯光下，阿洛站在门边。"],
+  }), characters, 2, true, false);
+  const parsedDirectorIllustrationHintsLoose = parseTavernDirectorDecision(
+    '{"speakerIds":["char-a"],"illustrationHints":["吧台上的铜杯映出门口灯影，阿洛的披风停在画面左侧。"],"reason":"镜头明确"}',
+    characters,
+    2,
+    true,
+    true,
+  );
   const randomEventOpportunityChecks = {
     enabledHit: shouldOfferTavernDirectorRandomEvent({
       settings: {
@@ -872,6 +887,8 @@ writeFileSync(entryPath, `
     interactionsForAnsweredGroup,
     parsedDirectorRandomEvent,
     parsedDirectorRandomEventDisabled,
+    parsedDirectorIllustrationHintsDisabled,
+    parsedDirectorIllustrationHintsLoose,
     randomEventOpportunityChecks,
     progressChecks,
     renderable: createTavernRenderableMessages({
@@ -1046,11 +1063,25 @@ try {
       checks.parsedDirectorRandomEvent.speakerIds[0] === "char-a" &&
       checks.parsedDirectorRandomEvent.ambientActions[0]?.characterId === "char-b" &&
       checks.parsedDirectorRandomEvent.randomEvent === "门外传来两下克制的敲门声。" &&
+      checks.parsedDirectorRandomEvent.illustrationHints.length === 1 &&
       !checks.parsedDirectorRandomEventDisabled.randomEvent,
     "导演随机事件应只在机会开启时被解析，并保留公开可观察事件",
     {
       parsed: checks.parsedDirectorRandomEvent,
       disabled: checks.parsedDirectorRandomEventDisabled,
+    },
+  );
+  assert(
+    checks.parsedDirectorRandomEvent.illustrationHints[0] ===
+      "昏黄灯光下，阿洛站在门边，贝拉在吧台后方擦亮杯沿，构图偏向门口。" &&
+      checks.parsedDirectorIllustrationHintsDisabled.illustrationHints.length === 0 &&
+      checks.parsedDirectorIllustrationHintsLoose.illustrationHints[0] ===
+        "吧台上的铜杯映出门口灯影，阿洛的披风停在画面左侧。",
+    "导演插图提示应只在开关开启时保留公开可见画面，并过滤心理与秘密信息",
+    {
+      parsed: checks.parsedDirectorRandomEvent,
+      disabled: checks.parsedDirectorIllustrationHintsDisabled,
+      loose: checks.parsedDirectorIllustrationHintsLoose,
     },
   );
   assert(

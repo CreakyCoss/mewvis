@@ -304,6 +304,9 @@ export const TavernSidePanel = ({
       return visibility !== "hidden" && visibility !== "debug" && visibility !== "director";
     })
     .slice(-6);
+  const recentIllustrationHints = activeRoom.illustrationHints.slice(-4).reverse();
+  const shouldShowIllustrationHints =
+    activeRoom.settings.illustrationHints.enabled || recentIllustrationHints.length > 0;
   const detailPanelTitle = {
     "asset-drafts": "剧情资产草稿",
     timeline: "剧情时间线",
@@ -474,6 +477,36 @@ export const TavernSidePanel = ({
               placement="sidePanel"
             />
           </section>
+
+          {shouldShowIllustrationHints && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="size-4 text-primary" />
+                  插图提示
+                </div>
+                <span className="rounded-md border border-current/10 bg-current/5 px-2 py-0.5 text-[11px] text-current opacity-70">
+                  {activeRoom.settings.illustrationHints.enabled ? "开启" : "已关闭"}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {recentIllustrationHints.length > 0 ? (
+                  recentIllustrationHints.map((hint) => (
+                    <div
+                      key={hint.id}
+                      className="rounded-md border border-current/10 bg-current/5 px-3 py-2 text-xs leading-5 text-current"
+                    >
+                      {hint.prompt}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-md border border-current/10 bg-current/5 px-3 py-4 text-center text-sm text-current opacity-70">
+                    本场景还没有生成插图提示。
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold">

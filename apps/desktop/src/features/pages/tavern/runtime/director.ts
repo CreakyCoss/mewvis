@@ -91,9 +91,13 @@ export const runTavernDirector = async ({
   const randomEventSchema = canConsiderRandomEvent
     ? `,"randomEvent":"可选；一句公开可观察的随机事件，不触发则留空字符串"`
     : `,"randomEvent":""`;
+  const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
+  const illustrationHintsSchema = canRequestIllustrationHints
+    ? `,"illustrationHints":["可选；1-3 条公开可观察的画面提示"]`
+    : `,"illustrationHints":[]`;
   const directorPrompt = [
     "<output_schema>",
-    `{"speakerIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白"${randomEventSchema},"reason":"可选简短原因"}`,
+    `{"speakerIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白"${randomEventSchema}${illustrationHintsSchema},"reason":"可选简短原因"}`,
     "</output_schema>",
     "",
     `<constraints maxSpeakers="${maxSpeakers}">`,
@@ -111,6 +115,9 @@ export const runTavernDirector = async ({
     canConsiderRandomEvent
       ? "randomEvent 由导演决定是否触发；只能写公开可观察的小事件，例如门外脚步、灯火闪动、远处钟声。不要直接解决主线、不要覆盖用户选择、不要替任何角色做关键行动，不触发则输出空字符串。"
       : "randomEvent 当前不可用，必须输出空字符串。",
+    canRequestIllustrationHints
+      ? "illustrationHints 可选，写 1-3 条适合后续生图的画面提示；只能包含公开可观察的人物、动作、环境、构图和氛围，不写心理、秘密信息、用户未选择的行动或剧情结论。"
+      : "illustrationHints 当前不可用，必须输出空数组。",
     "如果已经输出 narrator，后续 speakerIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",
@@ -180,7 +187,7 @@ export const runTavernDirector = async ({
     agentRoleId: tavernDirectorAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
-    userMessage: "请决定本轮酒馆对话的发言顺序和可选在场动作，并只输出严格合法 JSON。",
+    userMessage: "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
     requestContext: appendReferencesToPrompt(directorPrompt, references),
     runtimeInstruction: [
       "你是酒馆模式的导演 Agent。",
@@ -189,6 +196,9 @@ export const runTavernDirector = async ({
       canConsiderRandomEvent
         ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"
         : "本轮不要触发随机事件，randomEvent 必须为空字符串。",
+      canRequestIllustrationHints
+        ? "本轮可以给出插图提示；插图提示只描述公开可见画面，不参与角色发言。"
+        : "本轮不要生成插图提示，illustrationHints 必须为空数组。",
       "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
       "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
       "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
@@ -197,7 +207,13 @@ export const runTavernDirector = async ({
   });
 
   try {
-    return parseTavernDirectorDecision(result.text, characters, maxSpeakers, canConsiderRandomEvent);
+    return parseTavernDirectorDecision(
+      result.text,
+      characters,
+      maxSpeakers,
+      canConsiderRandomEvent,
+      canRequestIllustrationHints,
+    );
   } catch {
     return {
       speakerIds: [],

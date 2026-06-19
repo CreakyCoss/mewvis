@@ -10,6 +10,7 @@ import type {
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
   TavernCharacterMemoryDraft,
+  TavernIllustrationHint,
   TavernLorebookEntry,
   TavernLorebookDraft,
   TavernMessage,
@@ -1638,6 +1639,39 @@ const normalizeAssetDraft = (
   };
 };
 
+const normalizeIllustrationHint = (
+  value: unknown,
+): TavernIllustrationHint | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernIllustrationHint>;
+  const prompt = typeof candidate.prompt === "string" ? candidate.prompt.trim() : "";
+  if (!candidate.id || !prompt) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    turnId: typeof candidate.turnId === "string" && candidate.turnId.trim()
+      ? candidate.turnId
+      : undefined,
+    source: "director",
+    prompt,
+    sourceMessageIds: Array.isArray(candidate.sourceMessageIds)
+      ? candidate.sourceMessageIds.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [],
+    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : now(),
+  };
+};
+
+const normalizeIllustrationHints = (value: unknown): TavernIllustrationHint[] => Array.isArray(value)
+  ? value
+      .map(normalizeIllustrationHint)
+      .filter((hint): hint is TavernIllustrationHint => Boolean(hint))
+  : [];
+
 const mergeLorebookEntries = (
   ...groups: TavernLorebookEntry[][]
 ) => {
@@ -1941,6 +1975,9 @@ const buildTavernScene = (
     ),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
+    illustrationHints: normalizeIllustrationHints(
+      input.illustrationHints ?? (fallback as Partial<TavernScene>).illustrationHints,
+    ),
     assetDrafts: Array.isArray(input.assetDrafts)
       ? input.assetDrafts
           .map(normalizeAssetDraft)
@@ -2003,6 +2040,7 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     outcomeEvents: activeScene.outcomeEvents,
     characterConfigs: activeScene.characterConfigs ?? {},
     characterMemories: activeScene.characterMemories,
+    illustrationHints: activeScene.illustrationHints,
     assetDrafts: activeScene.assetDrafts,
     characterIds: activeScene.characterIds,
     activeCharacterId: activeScene.activeCharacterId,
@@ -2040,6 +2078,7 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
     outcomeEvents: room.outcomeEvents,
     characterConfigs: room.characterConfigs ?? {},
     characterMemories: room.characterMemories,
+    illustrationHints: room.illustrationHints,
     assetDrafts: room.assetDrafts,
     characterIds: room.characterIds,
     activeCharacterId: room.activeCharacterId,
@@ -2115,7 +2154,7 @@ export const createTavernRoomFromSystemPreset = (
   );
   const characterConfigs = normalizeRoomCharacterConfigs(undefined, characterMemories);
   const markAsSystemPreset = options.markAsSystemPreset !== false;
-  const presetScenes = Array.isArray(preset.room.scenes) && preset.room.scenes.length > 0
+  const presetScenes: TavernSystemPresetScene[] = Array.isArray(preset.room.scenes) && preset.room.scenes.length > 0
     ? preset.room.scenes
     : [{
         title: defaultSceneTitle,
@@ -2210,6 +2249,7 @@ export const createTavernRoomFromSystemPreset = (
       outcomeEvents: [],
       characterConfigs: sceneCharacterConfigs,
       characterMemories: sceneCharacterMemories,
+      illustrationHints: [],
       assetDrafts: (presetScene.assetDrafts ?? preset.room.assetDrafts ?? [])
         .map((draft) => createPresetAssetDraft(draft, characterIdByPresetId, createdAt))
         .filter((draft): draft is TavernAssetDraft => Boolean(draft)),
@@ -2275,6 +2315,7 @@ export const createTavernRoomFromSystemPreset = (
     localCharacters: characters,
     lorebookEntries: sharedLorebookEntries,
     timelineEvents: sharedTimelineEvents,
+    illustrationHints: scene.illustrationHints,
     assetDrafts: scene.assetDrafts,
     characterIds,
     activeCharacterId,
@@ -2516,6 +2557,7 @@ const normalizeTavernState = (
       taskSnapshot: normalizeTaskSnapshot((room as Partial<TavernRoom>).taskSnapshot),
       sceneOutcomes: normalizeSceneOutcomes((room as Partial<TavernRoom>).sceneOutcomes),
       outcomeEvents: normalizeOutcomeEvents((room as Partial<TavernRoom>).outcomeEvents),
+      illustrationHints: normalizeIllustrationHints((room as Partial<TavernRoom>).illustrationHints),
       replyMode: normalizeReplyMode((room as Partial<TavernRoom>).replyMode),
       userPersonaName: room.userPersonaName || "我",
       settings: normalizeRoomSettings((room as Partial<TavernRoom>).settings),
@@ -2684,6 +2726,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     localCharacters: [],
     lorebookEntries: [],
     timelineEvents: [],
+    illustrationHints: scene.illustrationHints,
     assetDrafts: [],
     characterIds: [],
     activeCharacterId: "",
@@ -2770,6 +2813,19 @@ export const createTavernAssetDraft = (input: {
     updatedAt: createdAt,
   };
 };
+
+export const createTavernIllustrationHint = (input: {
+  prompt: string;
+  turnId?: string;
+  sourceMessageIds?: string[];
+}): TavernIllustrationHint => ({
+  id: createId("illustration"),
+  turnId: input.turnId?.trim() || undefined,
+  source: "director",
+  prompt: input.prompt.trim(),
+  sourceMessageIds: input.sourceMessageIds?.filter((item) => item.trim()) ?? [],
+  createdAt: now(),
+});
 
 export const createTavernCharacter = (input: {
   name: string;

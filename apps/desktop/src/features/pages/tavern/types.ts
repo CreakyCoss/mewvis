@@ -457,6 +457,15 @@ export type TavernProgressTrackerSettings = {
   generateCheckpointBeforeContextTrim: boolean;
 };
 
+export type TavernIllustrationHint = {
+  id: string;
+  turnId?: string;
+  source: "director";
+  prompt: string;
+  sourceMessageIds: string[];
+  createdAt: number;
+};
+
 export type TavernTimelineScope = {
   mode: "auto" | "range" | "selected";
   startEventId?: string;
@@ -493,6 +502,7 @@ export type TavernScene = {
   outcomeEvents: TavernOutcomeEvent[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
+  illustrationHints: TavernIllustrationHint[];
   assetDrafts: TavernAssetDraft[];
   characterIds: string[];
   activeCharacterId: string;
@@ -542,6 +552,7 @@ export type TavernRoom = {
   localCharacters?: TavernCharacter[];
   lorebookEntries: TavernLorebookEntry[];
   timelineEvents: TavernTimelineEvent[];
+  illustrationHints: TavernIllustrationHint[];
   assetDrafts: TavernAssetDraft[];
   characterIds: string[];
   activeCharacterId: string;

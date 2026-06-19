@@ -1372,6 +1372,10 @@ export const TavernManagementPage = ({
               Math.max(0, Number(roomContentEditDraft.randomEvents.probability) || 0),
             ),
           },
+          illustrationHints: {
+            ...((editingRoom?.settings ?? activeRoom.settings).illustrationHints),
+            enabled: roomContentEditDraft.illustrationHints.enabled,
+          },
         },
         progressTracker: {
           enabled: roomContentEditDraft.progressTracker.enabled,
@@ -2180,6 +2184,21 @@ export const TavernManagementPage = ({
                   })}
                 />
                 导演随机事件
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.illustrationHints.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    illustrationHints: {
+                      ...roomContentEditDraft.illustrationHints,
+                      enabled: event.target.checked,
+                    },
+                  })}
+                />
+                插图提示
               </label>
             </div>
             <div className={settingsEditorMetricGridClassName}>
@@ -3370,6 +3389,15 @@ export const TavernManagementPage = ({
                             {editingRoom.settings.randomEvents.enabled
                               ? `${Math.round(editingRoom.settings.randomEvents.probability * 100)}%`
                               : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="插图提示"
+                        value={(
+                          <Badge variant={editingRoom.settings.illustrationHints.enabled ? "secondary" : "outline"}>
+                            {editingRoom.settings.illustrationHints.enabled ? "开启" : "关闭"}
                           </Badge>
                         )}
                         valueClassName="flex"

@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import {
   createTavernAssetDraft,
   createDefaultTavernState,
+  createTavernIllustrationHint,
   createTavernLorebookEntry,
   createTavernMessage,
   createTavernRoomFromSystemPreset,
@@ -107,6 +108,7 @@ import { TavernProgressPanel } from "./tavern-progress-panel";
 import { TavernSidePanel } from "./tavern-side-panel";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
+const TAVERN_ILLUSTRATION_HINT_LIMIT = 24;
 const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -1211,6 +1213,15 @@ export const TavernPage = ({
           characterConfigs,
           characterMemories,
           timelineScope: remapTimelineScope(scene.timelineScope),
+          illustrationHints: scene.illustrationHints.map((hint) => ({
+            ...hint,
+            id: createLocalId("illustration"),
+            sourceMessageIds: hint.sourceMessageIds.flatMap((messageId) => {
+              const copiedMessageId = messageIdMap.get(messageId);
+              return copiedMessageId ? [copiedMessageId] : [];
+            }),
+            createdAt,
+          })),
           assetDrafts: scene.assetDrafts.map((draft) => ({
             ...draft,
             id: createLocalId("draft"),
@@ -1604,6 +1615,14 @@ export const TavernPage = ({
         });
         return hasAssetDraftItems(assetDraft) ? [assetDraft] : [];
       });
+    const importedIllustrationHints = (parsed.room.illustrationHints ?? [])
+      .flatMap((hint) => hint.prompt?.trim()
+        ? [createTavernIllustrationHint({
+            prompt: hint.prompt,
+            turnId: hint.turnId,
+            sourceMessageIds: [],
+          })]
+        : []);
     const title = parsed.room.title?.trim() || "导入酒馆";
     const importedScene = createTavernScene({
       title: parsed.room.scenes?.find((scene) => scene.id === parsed.room.activeSceneId)?.title ?? "默认场景",
@@ -1617,6 +1636,7 @@ export const TavernPage = ({
       memory: parsed.room.memory?.trim() || "",
       characterConfigs,
       characterMemories,
+      illustrationHints: importedIllustrationHints,
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
       characterIds,
       activeCharacterId,
@@ -1663,6 +1683,7 @@ export const TavernPage = ({
       localCharacters: importedCharacters,
       lorebookEntries: importedLorebookEntries,
       timelineEvents: importedTimelineEvents,
+      illustrationHints: importedScene.illustrationHints,
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
       characterIds,
       activeCharacterId,
@@ -2769,6 +2790,34 @@ export const TavernPage = ({
           runtimeMessages = [...runtimeMessages, ...ambientActionMessages];
           turnMessages.push(...ambientActionMessages);
           turnNarratorTexts.push(...ambientActionMessages.map((message) => message.content));
+        }
+        const illustrationHints = activeRoom.settings.illustrationHints.enabled
+          ? (directorDecision.illustrationHints ?? [])
+              .map((hint) => hint.trim())
+              .filter(Boolean)
+              .map((prompt) => createTavernIllustrationHint({
+                prompt,
+                turnId: userMessage.turnId ?? userMessage.id,
+                sourceMessageIds: [userMessage.id],
+              }))
+          : [];
+        if (illustrationHints.length > 0) {
+          const nextIllustrationHints = [
+            ...runtimeRoom.illustrationHints,
+            ...illustrationHints,
+          ].slice(-TAVERN_ILLUSTRATION_HINT_LIMIT);
+          runtimeRoom = syncTavernRoomActiveScene({
+            ...projectTavernSceneOntoRoom(runtimeRoom),
+            illustrationHints: nextIllustrationHints,
+            updatedAt: Date.now(),
+          });
+          patchRoom(activeRoom.id, {
+            illustrationHints: nextIllustrationHints,
+          });
+          patchExecutionStep("director", {
+            status: "done",
+            detail: `${speakers.map((speaker) => speaker.name).join(" -> ")}；插图 ${illustrationHints.length} 条`,
+          });
         }
       }
 

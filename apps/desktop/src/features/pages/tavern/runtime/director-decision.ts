@@ -7,6 +7,7 @@ export type TavernDirectorDecision = {
   speakerIds: string[];
   narrator?: string;
   randomEvent?: string;
+  illustrationHints?: string[];
   ambientActions?: Array<{
     characterId: string;
     action: string;
@@ -53,7 +54,7 @@ const extractLooseJsonStringArray = (text: string, fieldName: string) => {
 
 const extractLooseJsonStringField = (text: string, fieldName: string) => {
   const fieldPattern = new RegExp(
-    `"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"\\s*(?=,\\s*"(?:speakerIds|ambientActions|narrator|randomEvent|reason)"\\s*:|\\s*}\\s*$)`,
+    `"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"\\s*(?=,\\s*"(?:speakerIds|ambientActions|narrator|randomEvent|illustrationHints|reason)"\\s*:|\\s*}\\s*$)`,
     "i",
   );
   const fieldMatch = fieldPattern.exec(text);
@@ -63,6 +64,8 @@ const extractLooseJsonStringField = (text: string, fieldName: string) => {
 
 const forbiddenRandomEventPattern =
   /(替用户|代替用户|用户已经决定|你必须|你不得不|直接解决主线|主线直接结束|自动胜利|全体失败)/;
+const forbiddenIllustrationHintPattern =
+  /(心理|内心|秘密|不可见|无人知道|替用户|代替用户|用户已经决定|你必须|你不得不|直接解决主线|主线直接结束|自动胜利|全体失败)/;
 
 const normalizeDirectorRandomEvent = (value: string) => {
   const event = limitDirectorText(value.replace(/^[*_\s]+|[*_\s]+$/g, ""), 160);
@@ -72,11 +75,20 @@ const normalizeDirectorRandomEvent = (value: string) => {
   return event;
 };
 
+const normalizeDirectorIllustrationHint = (value: string) => {
+  const hint = limitDirectorText(value.replace(/^[*_\s-]+|[*_\s]+$/g, ""), 180);
+  if (!hint || forbiddenIllustrationHintPattern.test(hint)) {
+    return "";
+  }
+  return hint;
+};
+
 export const parseTavernDirectorDecision = (
   text: string,
   characters: TavernCharacter[],
   maxSpeakers: number,
   allowRandomEvent = true,
+  allowIllustrationHints = true,
 ): TavernDirectorDecision => {
   const characterIds = new Set(characters.map((character) => character.id));
   const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
@@ -111,6 +123,18 @@ export const parseTavernDirectorDecision = (
           : extractLooseJsonStringField(jsonText, "randomEvent"),
       )
     : "";
+  const rawIllustrationHints = allowIllustrationHints
+    ? Array.isArray(parsed?.illustrationHints)
+      ? parsed.illustrationHints.flatMap((value) => typeof value === "string" ? [value] : [])
+      : typeof parsed?.illustrationHints === "string"
+      ? [parsed.illustrationHints]
+      : extractLooseJsonStringArray(jsonText, "illustrationHints")
+    : [];
+  const illustrationHints = [...new Set(
+    rawIllustrationHints
+      .map(normalizeDirectorIllustrationHint)
+      .filter(Boolean),
+  )].slice(0, 3);
   const ambientActions = Array.isArray(parsed?.ambientActions)
     ? parsed.ambientActions.flatMap((candidate) => {
         if (!candidate || typeof candidate !== "object") {
@@ -143,6 +167,7 @@ export const parseTavernDirectorDecision = (
     speakerIds: uniqueSpeakerIds,
     narrator: narrator || undefined,
     randomEvent: randomEvent || undefined,
+    illustrationHints,
     ambientActions,
     reason: reason || undefined,
   };
