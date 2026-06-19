@@ -8,7 +8,6 @@ import {
 } from "@/ai/runtime-protocol";
 import { createAgentRuntime } from "@/ai/agent-runtime/runtime";
 import {
-  requireRuntimeModelInput,
   resolveRuntimeModelInput,
 } from "@/features/pages/settings/llm/store";
 import { resolveAppContextWindow } from "@/features/ai/runtime";
@@ -204,8 +203,6 @@ export const WorkspaceChatPage = ({
   renderShell,
 }: WorkspaceChatPageProps) => {
   const agentRuntime = useMemo(() => createAgentRuntime(), []);
-  const workspaceRef = useRef(workspace);
-  workspaceRef.current = workspace;
   const activeAgentTaskIdRef = useRef("");
   const activeAgentMessageIdRef = useRef("");
   const lastAgentErrorRef = useRef("");
@@ -724,18 +721,6 @@ export const WorkspaceChatPage = ({
     messagesRef.current = messages;
   }, [messages]);
 
-  const conversationLedgerRuntimeModel = useMemo(() => {
-    if (!effectiveRuntimeModel) {
-      return null;
-    }
-
-    try {
-      return requireRuntimeModelInput(effectiveRuntimeModel);
-    } catch {
-      return null;
-    }
-  }, [effectiveRuntimeModel]);
-
   useEffect(() => {
     if (!visibleActiveAgentTaskId) {
       return;
@@ -1109,8 +1094,6 @@ export const WorkspaceChatPage = ({
       <ConversationLedger
         workspacePath={workspace.path}
         chatId={currentSessionId}
-        runtimeModel={conversationLedgerRuntimeModel}
-        agentId={runtimeAgentId}
       />
     </aside>
   );

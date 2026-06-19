@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import {
+  resolveRuntimeModelInput,
+  useLlmSettingsStore,
+} from "@/features/pages/settings/llm/store";
 import { readLedger, summarizeLedger } from "./api";
 import { LedgerDetail } from "./detail";
 import { LedgerList } from "./list";
@@ -22,6 +26,7 @@ export const ConversationLedger = ({
   agentId,
   summaryInstruction,
 }: ConversationLedgerProps) => {
+  const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
   const [ledger, setLedger] = useState<LedgerResult | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +48,20 @@ export const ConversationLedger = ({
       : null,
     [links, selectedLinkId],
   );
+  const resolveSummaryRuntimeModel = useCallback(async () => {
+    if (runtimeModel) {
+      return runtimeModel;
+    }
+
+    await loadLlmSettings();
+    const settingsState = useLlmSettingsStore.getState();
+    const defaultRuntimeModel = settingsState.runtimeModels[0] ?? null;
+    const runtimeModelInput = resolveRuntimeModelInput(defaultRuntimeModel?.id);
+    if (!runtimeModelInput) {
+      throw new Error(settingsState.error || "请先在设置中配置可用的 LLM 模型。");
+    }
+    return runtimeModelInput;
+  }, [loadLlmSettings, runtimeModel]);
 
   const refresh = useCallback(async () => {
     if (!workspacePath || !sessionRootDir) {
@@ -73,11 +92,12 @@ export const ConversationLedger = ({
 
     setIsSummaryRefreshing(true);
     try {
+      const summaryRuntimeModel = await resolveSummaryRuntimeModel();
       const result = await summarizeLedger({
         workspacePath,
         sessionRootDir,
         agentId,
-        runtimeModel,
+        runtimeModel: summaryRuntimeModel,
         summaryInstruction: summaryInstruction ?? DEFAULT_SUMMARY_INSTRUCTION,
       });
       setLedger(result);
@@ -89,7 +109,7 @@ export const ConversationLedger = ({
     }
   }, [
     agentId,
-    runtimeModel,
+    resolveSummaryRuntimeModel,
     sessionRootDir,
     summaryInstruction,
     workspacePath,
