@@ -46,14 +46,14 @@ import {
   readWorkspaceFile,
   switchWorkspaceVersionBranch,
   writeWorkspaceFile,
-} from "@/features/workspace/chat/api";
+} from "@/features/pages/workspace/files-api";
 import type {
   WorkspaceFile,
   WorkspaceVersion,
   WorkspaceVersionControlStatus,
   WorkspaceVersionFileDiff,
   WorkspaceVersionFileEntry,
-} from "@/features/workspace/chat/types";
+} from "@/features/pages/chat/types";
 import { cn } from "@/lib/utils";
 import type { FileManageTool } from "../types";
 import { VersionControlHistoryPanel } from "./history-panel";

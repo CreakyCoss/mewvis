@@ -18,7 +18,7 @@ pub use files::{
     delete_workspace_file, list_workspace_files, read_workspace_file, write_workspace_file,
 };
 pub use knowledge::search_workspace_knowledge;
-pub use overview::{create_workspace, get_workspace_overview, update_workspace};
+pub use overview::{create_workspace, delete_workspace, get_workspace_overview, update_workspace};
 pub use skills::{
     get_workspace_skills, install_skill_from_marketplace, remove_app_skill, save_workspace_skills,
     search_skill_marketplace,

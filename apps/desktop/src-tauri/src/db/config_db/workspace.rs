@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use super::{
     common::now_millis,
     connection::open_config_connection,
-    inputs::{CreateWorkspaceInput, UpdateWorkspaceInput},
+    inputs::{CreateWorkspaceInput, DeleteWorkspaceInput, UpdateWorkspaceInput},
     models::{Workspace, WorkspaceGroup, WorkspaceOverview},
 };
 use crate::db::{
@@ -125,6 +125,24 @@ pub fn update_workspace(app: &AppHandle, input: UpdateWorkspaceInput) -> Result<
     .map_err(|error| format!("无法保存工作区：{error}"))?;
 
     load_workspace(&conn, id)?.ok_or_else(|| "工作区保存后未能读取".to_string())
+}
+
+pub fn delete_workspace(app: &AppHandle, input: DeleteWorkspaceInput) -> Result<(), String> {
+    let id = input.id.trim();
+    if id.is_empty() {
+        return Err("工作区 ID 不能为空".to_string());
+    }
+
+    let conn = open_config_connection(app)?;
+    let current = load_workspace(&conn, id)?.ok_or_else(|| "工作区不存在".to_string())?;
+    if PathBuf::from(&current.path) == default_workspace_path(app)? {
+        return Err("默认工作区由系统管理，不能删除".to_string());
+    }
+
+    conn.execute("DELETE FROM workspaces WHERE id = ?1", params![id])
+        .map_err(|error| format!("无法删除工作区：{error}"))?;
+
+    Ok(())
 }
 
 pub(super) fn ensure_workspace_exists(conn: &Connection, workspace_id: &str) -> Result<(), String> {

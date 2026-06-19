@@ -9,7 +9,7 @@ import type {
   WorkspaceFile,
   WorkspaceFileEntry,
   WorkspaceVersionControlStatus,
-} from "@/features/workspace/chat/types";
+} from "@/features/pages/chat/types";
 import { FilesSection, type FilesSectionHandle } from "./files-section";
 import type { FileManageTool } from "./types";
 import {

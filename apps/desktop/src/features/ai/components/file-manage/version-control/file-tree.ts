@@ -1,5 +1,5 @@
-import type { WorkspaceVersionFileEntry } from "@/features/workspace/chat/types";
-import { VERSION_RULE_FILE_PATH } from "@/features/workspace/chat/utils/version-control";
+import type { WorkspaceVersionFileEntry } from "@/features/pages/chat/types";
+import { VERSION_RULE_FILE_PATH } from "@/features/pages/chat/utils/version-control";
 import type { VersionFileTreeNode } from "./types";
 
 const compareVersionFileTreeNodes = (

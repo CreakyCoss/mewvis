@@ -259,6 +259,9 @@ importers:
       react-resizable-panels:
         specifier: ^4.11.1
         version: 4.11.1(react-dom@19.1.0)(react@19.1.0)
+      react-router:
+        specifier: ^7.18.0
+        version: 7.18.0(react-dom@19.1.0)(react@19.1.0)
       recharts:
         specifier: 3.8.0
         version: 3.8.0(@types/react@19.1.8)(react-dom@19.1.0)(react-is@19.2.6)(react@19.1.0)(redux@5.0.1)
@@ -7646,6 +7649,22 @@ packages:
       react-dom: 19.1.0(react@19.1.0)
     dev: false
 
+  /react-router@7.18.0(react-dom@19.1.0)(react@19.1.0):
+    resolution: {integrity: sha512-pTTGt8J+ji1NOmYnjzT+bAJy/1zD+Jp4ziO6cL7T3ZLvXKtusO7BpFqlRXitqpcPVqllsIXFHRMt+2/k3Xn6HQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+    dependencies:
+      cookie: 1.1.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      set-cookie-parser: 2.7.2
+    dev: false
+
   /react-style-singleton@2.2.3(@types/react@19.1.8)(react@19.1.0):
     resolution: {integrity: sha512-b6jSvxvVnyptAiLjbkWLE/lOnR4lfTtDAl+eUC7RZy+QQWc6wRzIV2CE6xBuMmDxc2qIihtDCZD5NPOFl7fRBQ==}
     engines: {node: '>=10'}
@@ -7948,6 +7967,10 @@ packages:
       send: 1.2.1
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /set-cookie-parser@2.7.2:
+    resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}
     dev: false
 
   /set-cookie-parser@3.1.0:

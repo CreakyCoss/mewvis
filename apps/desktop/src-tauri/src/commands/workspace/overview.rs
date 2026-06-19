@@ -1,5 +1,6 @@
 use crate::db::config_db::{
-    self, CreateWorkspaceInput, UpdateWorkspaceInput, Workspace, WorkspaceOverview,
+    self, CreateWorkspaceInput, DeleteWorkspaceInput, UpdateWorkspaceInput, Workspace,
+    WorkspaceOverview,
 };
 use tauri::AppHandle;
 
@@ -16,4 +17,9 @@ pub fn create_workspace(app: AppHandle, input: CreateWorkspaceInput) -> Result<W
 #[tauri::command]
 pub fn update_workspace(app: AppHandle, input: UpdateWorkspaceInput) -> Result<Workspace, String> {
     config_db::update_workspace(&app, input)
+}
+
+#[tauri::command]
+pub fn delete_workspace(app: AppHandle, input: DeleteWorkspaceInput) -> Result<(), String> {
+    config_db::delete_workspace(&app, input)
 }

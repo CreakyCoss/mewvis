@@ -23,17 +23,17 @@ import {
   listWorkspaceFiles,
   readWorkspaceFile,
   writeWorkspaceFile,
-} from "@/features/workspace/chat/api";
-import type { FileTreeNode } from "@/features/workspace/chat/page-types";
+} from "@/features/pages/workspace/files-api";
+import type { FileTreeNode } from "@/features/pages/chat/page-types";
 import type {
   WorkspaceFile,
   WorkspaceFileEntry,
   WorkspaceVersionControlStatus,
-} from "@/features/workspace/chat/types";
+} from "@/features/pages/chat/types";
 import {
   buildFileTree,
   getParentDirectoryPaths,
-} from "@/features/workspace/chat/utils/file-tree";
+} from "@/features/pages/chat/utils/file-tree";
 import { EditPanel } from "./edit-panel";
 import { FilesPanel } from "./files-panel";
 import type { VersionFileStatusByPath } from "./types";

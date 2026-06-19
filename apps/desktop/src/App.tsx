@@ -1,4 +1,4 @@
-import { App as FeatureApp } from "@/features/app";
+import FeatureApp from "@/features";
 import "./App.css";
 
 const App = () => {

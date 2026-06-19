@@ -34,13 +34,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   deleteWorkspaceFile,
   writeWorkspaceFile,
-} from "@/features/workspace/chat/api";
+} from "@/features/pages/workspace/files-api";
 import type {
   WorkspaceFile,
   WorkspaceVersionFileStatus,
-} from "@/features/workspace/chat/types";
-import { MarkdownContent } from "@/features/workspace/chat/components/chat/markdown-content";
-import { isMarkdownPath } from "@/features/workspace/chat/utils/sessions";
+} from "@/features/pages/chat/types";
+import { MarkdownContent } from "@/features/pages/chat/components/chat/markdown-content";
+import { isMarkdownPath } from "@/features/pages/chat/utils/sessions";
 
 type EditPanelProps = {
   workspacePath: string;
