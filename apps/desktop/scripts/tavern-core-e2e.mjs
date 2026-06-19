@@ -39,6 +39,7 @@ writeFileSync(entryPath, `
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
+    resolveTavernInformationView,
     resolveTavernPendingStatusEvent,
     setTavernStatusSnapshotValue,
     tavernCharacterAgentRoleId,
@@ -591,6 +592,16 @@ writeFileSync(entryPath, `
     userPersonaName: room.userPersonaName,
     room: revealedMysteryRoom,
   });
+  const directorMysteryRoom = {
+    ...mysteryRoom,
+    settings: {
+      ...mysteryRoom.settings,
+      informationPolicy: {
+        ...mysteryRoom.settings.informationPolicy,
+        uiDefaultView: "director",
+      },
+    },
+  };
   const messageIntelById = Object.fromEntries(
     mysteryRenderable.map((message) => [
       message.id,
@@ -628,6 +639,18 @@ writeFileSync(entryPath, `
       room: revealedMysteryRoom,
       audience: { type: "user" },
     }).map((event) => event.id),
+    publicInformationView: resolveTavernInformationView({
+      policy: mysteryRoom.settings.informationPolicy,
+      outcomeEvents: mysteryRoom.outcomeEvents,
+    }),
+    revealedInformationView: resolveTavernInformationView({
+      policy: revealedMysteryRoom.settings.informationPolicy,
+      outcomeEvents: revealedMysteryRoom.outcomeEvents,
+    }),
+    directorInformationView: resolveTavernInformationView({
+      policy: directorMysteryRoom.settings.informationPolicy,
+      outcomeEvents: directorMysteryRoom.outcomeEvents,
+    }),
     messageIntelById,
   };
   const bAsksA = {
@@ -1483,6 +1506,13 @@ try {
     checks.revealedMysteryRenderable.some((message) => message.thought === checks.bSecret),
     "结局揭示后应恢复展示隐藏心理",
     checks.revealedMysteryRenderable,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.publicInformationView === "public" &&
+      checks.privateFactVisibilityChecks.revealedInformationView === "reveal" &&
+      checks.privateFactVisibilityChecks.directorInformationView === "director",
+    "互动剧本视角应能区分公开、复盘和导演模式",
+    checks.privateFactVisibilityChecks,
   );
   assert(
     checks.privateFactVisibilityChecks.publicFacts.join("|") === "fact-public",

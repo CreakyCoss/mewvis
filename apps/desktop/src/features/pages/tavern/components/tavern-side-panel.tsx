@@ -4,10 +4,13 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Eye,
+  EyeOff,
   Loader2,
   MessageSquare,
   RefreshCcw,
   Save,
+  ShieldCheck,
   Sparkles,
   Trash2,
   UsersRound,
@@ -36,10 +39,15 @@ import {
 } from "@/components/ui/tooltip";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import { filterTavernFactEventsForAudience } from "../core";
+import {
+  filterTavernFactEventsForAudience,
+  resolveTavernInformationView,
+  type TavernInformationView,
+} from "../core";
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernFactEvent,
   TavernReplyMode,
   TavernRoom,
 } from "../types";
@@ -72,9 +80,48 @@ const replyModeDescriptions: Record<TavernReplyMode, string> = {
   director: "由导演选择合适角色发言",
 };
 
+const informationViewLabels: Record<TavernInformationView, string> = {
+  public: "公开视角",
+  reveal: "复盘视角",
+  director: "导演视角",
+};
+
+const informationViewDescriptions: Record<TavernInformationView, string> = {
+  public: "只显示公开可观察事实。",
+  reveal: "显示结局或手动复盘可揭示的事实。",
+  director: "显示导演可见的全部事实。",
+};
+
 const emptyValueText = "未设置";
 
 const compactText = (value: string | undefined) => value?.trim() || emptyValueText;
+
+const formatFactType = (type: string) => type.replace(/[_-]+/g, " ").trim();
+
+const isHiddenFactEvent = (event: TavernFactEvent) =>
+  (event.visibility ?? "public") !== "public";
+
+const isIdentityFactEvent = (event: TavernFactEvent) =>
+  /(?:role|identity|faction|camp|alignment|身份|阵营)/i.test(event.type);
+
+const formatFactAudience = (
+  event: TavernFactEvent,
+  characterNameById: Map<string, string>,
+) => {
+  const audience = [
+    event.visibleToUser ? "我" : "",
+    ...(event.visibleToCharacterIds ?? []).map((characterId) =>
+      characterNameById.get(characterId) ?? characterId
+    ),
+    ...(event.visibleToFactionIds ?? []).map((factionId) => `阵营：${factionId}`),
+  ].filter(Boolean);
+
+  if (audience.length > 0) {
+    return audience.join("、");
+  }
+
+  return (event.visibility ?? "public") === "public" ? "公开" : "导演";
+};
 
 const TextBlock = ({
   label,
@@ -134,7 +181,14 @@ const CharacterProfileTooltip = ({
   </HoverCardContent>
 );
 
-type DetailPanelKey = "asset-drafts" | "timeline" | "lorebook" | "illustration-hints" | "private-intel" | "tips";
+type DetailPanelKey =
+  | "asset-drafts"
+  | "timeline"
+  | "lorebook"
+  | "illustration-hints"
+  | "script-review"
+  | "private-intel"
+  | "tips";
 
 const DetailEntry = ({
   icon: Icon,
@@ -298,6 +352,7 @@ export const TavernSidePanel = ({
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
     `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
+  const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const enabledLorebookCount = activeRoom.lorebookEntries.filter((entry) => entry.enabled).length;
   const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
   const pendingStatusEvents = activeRoom.statusEvents
@@ -313,6 +368,47 @@ export const TavernSidePanel = ({
     room: activeRoom,
     audience: { type: "user" },
   }).filter((event) => event.visibleToUser || event.visibility !== "public");
+  const currentInformationView = resolveTavernInformationView({
+    policy: activeRoom.settings.informationPolicy,
+    outcomeEvents: activeRoom.outcomeEvents,
+  });
+  const reviewFactEvents = filterTavernFactEventsForAudience({
+    factEvents: activeRoom.factEvents,
+    room: activeRoom,
+    audience: currentInformationView === "director" ? { type: "director" } : { type: "user" },
+  });
+  const hiddenFactCount = activeRoom.factEvents.filter(isHiddenFactEvent).length;
+  const reviewHiddenFactCount = reviewFactEvents.filter(isHiddenFactEvent).length;
+  const identityFactEvents = privateIntelEvents.filter(isIdentityFactEvent);
+  const patchInformationView = (view: TavernInformationView) => {
+    onPatchRoom(activeRoom.id, {
+      settings: {
+        ...activeRoom.settings,
+        informationPolicy: {
+          ...activeRoom.settings.informationPolicy,
+          uiDefaultView: view,
+        },
+      },
+    });
+  };
+  const patchFactVisibleToUser = (factEventId: string, visibleToUser: boolean) => {
+    onPatchRoom(activeRoom.id, {
+      factEvents: activeRoom.factEvents.map((event) => {
+        if (event.id !== factEventId) {
+          return event;
+        }
+
+        const nextEvent = { ...event };
+        if (visibleToUser) {
+          nextEvent.visibleToUser = true;
+          nextEvent.revealWhen = nextEvent.revealWhen ?? "manual";
+        } else {
+          delete nextEvent.visibleToUser;
+        }
+        return nextEvent;
+      }),
+    });
+  };
   const shouldShowIllustrationHints =
     activeRoom.settings.illustrationHints.enabled || recentIllustrationHints.length > 0;
   const detailPanelTitle = {
@@ -320,6 +416,7 @@ export const TavernSidePanel = ({
     timeline: "剧情时间线",
     lorebook: "世界书",
     "illustration-hints": "插图提示",
+    "script-review": "剧本视角",
     "private-intel": "我的情报",
     tips: "现场提示",
   }[detailPanel ?? "tips"];
@@ -328,6 +425,7 @@ export const TavernSidePanel = ({
     timeline: "查看已沉淀的剧情事件。",
     lorebook: "查看当前房间可引用的世界设定。",
     "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
+    "script-review": "切换公开、复盘和导演视角，管理可揭示事实。",
     "private-intel": "汇总当前用户可知但不公开进入聊天正文的事实。",
     tips: "查看酒馆现场的使用提醒。",
   }[detailPanel ?? "tips"];
@@ -395,6 +493,27 @@ export const TavernSidePanel = ({
             <TextBlock label="场景描述" value={activeRoom.scene} />
             <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
             <TextBlock label="房间记忆" value={activeRoom.memory} />
+            {identityFactEvents.length > 0 && (
+              <div className="space-y-2 rounded-md border border-primary/20 bg-primary/10 p-3 text-current">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <ShieldCheck className="size-4 text-primary" />
+                  我的身份
+                </div>
+                {identityFactEvents.slice(0, 3).map((event) => (
+                  <div key={event.id} className="rounded-md bg-background/40 px-3 py-2 text-xs leading-5">
+                    <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-[4px] bg-current/10 px-1.5 py-0.5 text-[10px] leading-none opacity-70">
+                        {formatFactType(event.type)}
+                      </span>
+                      <span className="rounded-[4px] bg-current/10 px-1.5 py-0.5 text-[10px] leading-none opacity-70">
+                        仅你可见
+                      </span>
+                    </div>
+                    <div className="line-clamp-3 whitespace-pre-wrap opacity-85">{event.evidence}</div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
@@ -647,11 +766,17 @@ export const TavernSidePanel = ({
                 onClick={() => setDetailPanel("illustration-hints")}
               />
               <DetailEntry
+                icon={ShieldCheck}
+                title="剧本视角"
+                summary={`${informationViewLabels[currentInformationView]}，${reviewHiddenFactCount}/${hiddenFactCount} 条隐藏事实可见`}
+                onClick={() => setDetailPanel("script-review")}
+              />
+              <DetailEntry
                 icon={MessageSquare}
                 title="我的情报"
                 summary={
                   privateIntelEvents.length > 0
-                    ? `${privateIntelEvents.length} 条仅你可知或已揭示事实`
+                    ? `${privateIntelEvents.length} 条事实${identityFactEvents.length > 0 ? `，${identityFactEvents.length} 条身份/阵营` : ""}`
                     : "暂无仅你可知事实"
                 }
                 onClick={() => setDetailPanel("private-intel")}
@@ -806,6 +931,131 @@ export const TavernSidePanel = ({
                 </div>
               )}
 
+              {detailPanel === "script-review" && (
+                <div className="space-y-4">
+                  <div className="rounded-md border bg-background/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium">{informationViewLabels[currentInformationView]}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {informationViewDescriptions[currentInformationView]}
+                        </div>
+                      </div>
+                      {activeRoom.outcomeEvents.some((event) => event.status === "applied") && (
+                        <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                          已结局
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {(["public", "reveal", "director"] as const).map((view) => (
+                        <Button
+                          key={view}
+                          type="button"
+                          size="xs"
+                          variant={currentInformationView === view ? "default" : "outline"}
+                          disabled={isBusy}
+                          onClick={() => patchInformationView(view)}
+                        >
+                          {view === "public" && <EyeOff className="size-3.5" />}
+                          {view === "reveal" && <Eye className="size-3.5" />}
+                          {view === "director" && <ShieldCheck className="size-3.5" />}
+                          {informationViewLabels[view]}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {identityFactEvents.length > 0 && (
+                    <div className="space-y-2 rounded-md border bg-background/60 p-3">
+                      <div className="text-sm font-medium">身份牌</div>
+                      {identityFactEvents.map((event) => (
+                        <div
+                          key={event.id}
+                          className="rounded-md bg-muted/60 px-3 py-2 text-sm leading-6 text-muted-foreground"
+                        >
+                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-md bg-background px-1.5 py-0.5 text-[11px]">
+                              {formatFactType(event.type)}
+                            </span>
+                            <span className="rounded-md bg-background px-1.5 py-0.5 text-[11px]">
+                              仅你可见
+                            </span>
+                          </div>
+                          <div className="whitespace-pre-wrap">{event.evidence}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">
+                        当前可见事实
+                      </div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {reviewFactEvents.length} 条
+                      </span>
+                    </div>
+                    {reviewFactEvents.length > 0 ? (
+                      reviewFactEvents.slice().reverse().map((event) => {
+                        const hidden = isHiddenFactEvent(event);
+                        return (
+                          <div key={event.id} className="space-y-2 rounded-md border bg-background/60 p-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                {formatFactType(event.type)}
+                              </span>
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                {event.visibility ?? "public"}
+                              </span>
+                              {event.visibleToUser && (
+                                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] text-primary">
+                                  我的情报
+                                </span>
+                              )}
+                              {event.revealWhen && (
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {event.revealWhen}
+                                </span>
+                              )}
+                              {hidden && (
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {formatFactAudience(event, characterNameById)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                              {event.evidence}
+                            </div>
+                            {hidden && currentInformationView === "director" && (
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant={event.visibleToUser ? "ghost" : "outline"}
+                                disabled={isBusy}
+                                onClick={() => patchFactVisibleToUser(event.id, !event.visibleToUser)}
+                              >
+                                {event.visibleToUser ? (
+                                  <EyeOff className="size-3.5" />
+                                ) : (
+                                  <Eye className="size-3.5" />
+                                )}
+                                {event.visibleToUser ? "移出我的情报" : "加入我的情报"}
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        当前视角暂无可见事实。
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {detailPanel === "private-intel" && (
                 privateIntelEvents.length > 0 ? (
                   <div className="space-y-3">
@@ -821,6 +1071,11 @@ export const TavernSidePanel = ({
                           {event.revealWhen && (
                             <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
                               {event.revealWhen}
+                            </span>
+                          )}
+                          {isHiddenFactEvent(event) && (
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                              {formatFactAudience(event, characterNameById)}
                             </span>
                           )}
                         </div>
