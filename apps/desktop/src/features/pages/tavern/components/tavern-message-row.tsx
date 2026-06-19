@@ -26,6 +26,7 @@ export const TavernMessageRow = ({
     return (
       <NarratorTavernMessage
         content={message.content}
+        factEvents={message.userVisibleFactEvents}
         isStreaming={message.status === "streaming"}
         visualPreset={visualPreset}
       />
@@ -37,6 +38,7 @@ export const TavernMessageRow = ({
       <UserTavernMessage
         content={message.content}
         createdAt={message.createdAt}
+        factEvents={message.userVisibleFactEvents}
         isSending={isSending}
         isStreaming={message.status === "streaming"}
         referencedFiles={message.referencedFiles}
@@ -51,6 +53,7 @@ export const TavernMessageRow = ({
       character={character}
       content={message.content}
       createdAt={message.createdAt}
+      factEvents={message.userVisibleFactEvents}
       immersiveDescriptionEnabled={room.settings.immersiveDescriptionEnabled !== false}
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}

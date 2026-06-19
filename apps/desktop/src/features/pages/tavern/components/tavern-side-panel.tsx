@@ -328,7 +328,7 @@ export const TavernSidePanel = ({
     timeline: "查看已沉淀的剧情事件。",
     lorebook: "查看当前房间可引用的世界设定。",
     "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
-    "private-intel": "只展示当前用户可知但不公开进入聊天流的事实。",
+    "private-intel": "汇总当前用户可知但不公开进入聊天正文的事实。",
     tips: "查看酒馆现场的使用提醒。",
   }[detailPanel ?? "tips"];
 

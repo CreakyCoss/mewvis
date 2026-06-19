@@ -508,8 +508,9 @@ writeFileSync(entryPath, `
     {
       id: "fact-user-only",
       turnId: "turn-private",
-      sourceMessageIds: ["m-user-1"],
+      sourceMessageIds: ["m-b", "m-a"],
       type: "user_secret_note",
+      actor: charARef,
       evidence: "USER_ONLY_SECRET_SHOULD_SHOW_IN_MY_INTEL",
       confidence: 1,
       visibility: "private",
@@ -590,6 +591,12 @@ writeFileSync(entryPath, `
     userPersonaName: room.userPersonaName,
     room: revealedMysteryRoom,
   });
+  const messageIntelById = Object.fromEntries(
+    mysteryRenderable.map((message) => [
+      message.id,
+      message.userVisibleFactEvents?.map((event) => event.id) ?? [],
+    ]),
+  );
   const privateFactVisibilityChecks = {
     publicFacts: filterTavernFactEventsForAudience({
       factEvents: privateFactEvents,
@@ -621,6 +628,7 @@ writeFileSync(entryPath, `
       room: revealedMysteryRoom,
       audience: { type: "user" },
     }).map((event) => event.id),
+    messageIntelById,
   };
   const bAsksA = {
     id: "m-b-asks-a",
@@ -1487,6 +1495,12 @@ try {
       !checks.privateFactVisibilityChecks.userFacts.includes("fact-wolves"),
     "我的情报只能展示 visibleToUser 命中的私有事实",
     checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.messageIntelById["m-a"]?.join("|") === "fact-user-only" &&
+      (checks.privateFactVisibilityChecks.messageIntelById["m-b"]?.length ?? 0) === 0,
+    "visibleToUser 私有事实应只挂到最相关的来源消息下，不应在同轮其他消息重复展示",
+    checks.privateFactVisibilityChecks.messageIntelById,
   );
   assert(
     checks.privateFactVisibilityChecks.characterAFacts.includes("fact-a-only") &&

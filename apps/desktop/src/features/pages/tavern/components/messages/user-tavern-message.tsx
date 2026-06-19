@@ -4,13 +4,18 @@ import {
 } from "lucide-react";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernMessage } from "../../types";
+import type {
+  TavernFactEvent,
+  TavernMessage,
+} from "../../types";
 import { MessageControls } from "./message-controls";
+import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";
 
 type UserTavernMessageProps = {
   content: string;
   createdAt: number;
+  factEvents?: TavernFactEvent[];
   isSending: boolean;
   isStreaming: boolean;
   referencedFiles?: TavernMessage["referencedFiles"];
@@ -20,6 +25,7 @@ type UserTavernMessageProps = {
 export const UserTavernMessage = ({
   content,
   createdAt,
+  factEvents,
   isSending,
   isStreaming,
   referencedFiles,
@@ -64,6 +70,7 @@ export const UserTavernMessage = ({
       <span className="text-[11px] text-current opacity-70">
         {formatTavernMessageTime(createdAt)}
       </span>
+      <MessagePrivateIntel align="right" factEvents={factEvents} />
       <MessageControls content={content} disabled={isSending || isStreaming} />
     </div>
   </div>

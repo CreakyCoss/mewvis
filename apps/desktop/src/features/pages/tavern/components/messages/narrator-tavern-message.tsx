@@ -1,14 +1,18 @@
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
+import type { TavernFactEvent } from "../../types";
 import { MessageControls } from "./message-controls";
+import { MessagePrivateIntel } from "./message-private-intel";
 
 type NarratorTavernMessageProps = {
   content: string;
+  factEvents?: TavernFactEvent[];
   isStreaming: boolean;
   visualPreset: VisualPresetDefinition;
 };
 export const NarratorTavernMessage = ({
   content,
+  factEvents,
   isStreaming,
   visualPreset,
 }: NarratorTavernMessageProps) => (
@@ -21,6 +25,7 @@ export const NarratorTavernMessage = ({
     >
       {content}
     </div>
+    <MessagePrivateIntel align="center" factEvents={factEvents} />
     <MessageControls content={content} disabled={isStreaming} />
   </div>
 );

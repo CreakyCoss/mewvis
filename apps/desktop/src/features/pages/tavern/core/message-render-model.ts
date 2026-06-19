@@ -1,5 +1,6 @@
 import type {
   TavernCharacter,
+  TavernFactEvent,
   TavernMessage,
   TavernRoom,
 } from "../types";
@@ -7,10 +8,108 @@ import {
   normalizeTavernMessageForAudience,
   type TavernVisibleMessage,
 } from "./message-visibility";
-import { shouldShowTavernCharacterThoughts } from "./information-policy";
+import {
+  filterTavernFactEventsForAudience,
+  shouldShowTavernCharacterThoughts,
+} from "./information-policy";
 
 export type TavernRenderableMessage = TavernVisibleMessage & {
   source: TavernMessage;
+  userVisibleFactEvents?: TavernFactEvent[];
+};
+
+const sortByMessageOrder = (
+  a: TavernMessage,
+  b: TavernMessage,
+  messageOrderById: Map<string, number>,
+) => (messageOrderById.get(a.id) ?? 0) - (messageOrderById.get(b.id) ?? 0);
+
+const getEntityCharacterId = (entity: TavernFactEvent["actor"]) =>
+  entity?.type === "character" ? entity.characterId : undefined;
+
+const entityIsUser = (entity: TavernFactEvent["actor"]) => entity?.type === "user";
+
+const resolveFactEventAnchorMessageId = ({
+  factEvent,
+  messageById,
+  messageOrderById,
+}: {
+  factEvent: TavernFactEvent;
+  messageById: Map<string, TavernMessage>;
+  messageOrderById: Map<string, number>;
+}) => {
+  const sourceMessages = factEvent.sourceMessageIds
+    .flatMap((messageId) => {
+      const message = messageById.get(messageId);
+      return message ? [message] : [];
+    })
+    .sort((a, b) => sortByMessageOrder(a, b, messageOrderById));
+
+  if (sourceMessages.length === 0) {
+    return null;
+  }
+
+  const actorCharacterId = getEntityCharacterId(factEvent.actor);
+  const targetCharacterId = getEntityCharacterId(factEvent.target);
+  const preferredCharacterId = actorCharacterId ?? targetCharacterId;
+  const characterMessage = preferredCharacterId
+    ? sourceMessages.find((message) =>
+        message.role === "character" && message.characterId === preferredCharacterId
+      )
+    : undefined;
+  if (characterMessage) {
+    return characterMessage.id;
+  }
+
+  const userMessage = entityIsUser(factEvent.actor) || entityIsUser(factEvent.target)
+    ? sourceMessages.find((message) => message.role === "user")
+    : undefined;
+  if (userMessage) {
+    return userMessage.id;
+  }
+
+  return sourceMessages[0]?.id ?? null;
+};
+
+const createUserVisibleFactEventsByMessageId = ({
+  messages,
+  room,
+}: {
+  messages: TavernMessage[];
+  room?: Pick<TavernRoom, "settings" | "outcomeEvents" | "factEvents">;
+}) => {
+  const factsByMessageId = new Map<string, TavernFactEvent[]>();
+  if (!room) {
+    return factsByMessageId;
+  }
+
+  const messageById = new Map(messages.map((message) => [message.id, message]));
+  const messageOrderById = new Map(messages.map((message, index) => [message.id, index]));
+  const userVisibleFactEvents = filterTavernFactEventsForAudience({
+    factEvents: room.factEvents,
+    room,
+    audience: { type: "user" },
+  })
+    .filter((factEvent) => factEvent.visibleToUser === true)
+    .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+
+  for (const factEvent of userVisibleFactEvents) {
+    const anchorMessageId = resolveFactEventAnchorMessageId({
+      factEvent,
+      messageById,
+      messageOrderById,
+    });
+    if (!anchorMessageId) {
+      continue;
+    }
+
+    factsByMessageId.set(anchorMessageId, [
+      ...(factsByMessageId.get(anchorMessageId) ?? []),
+      factEvent,
+    ]);
+  }
+
+  return factsByMessageId;
 };
 const normalizeNarratorEchoText = (text: string) =>
   text
@@ -86,7 +185,7 @@ export const createTavernRenderableMessages = ({
   messages: TavernMessage[];
   characters: TavernCharacter[];
   userPersonaName: string;
-  room?: Pick<TavernRoom, "settings" | "outcomeEvents">;
+  room?: Pick<TavernRoom, "settings" | "outcomeEvents" | "factEvents">;
 }): TavernRenderableMessage[] => {
   const turnNarratorTexts: string[] = [];
   const includeAllThoughts = room
@@ -95,6 +194,10 @@ export const createTavernRenderableMessages = ({
       outcomeEvents: room.outcomeEvents,
     })
     : true;
+  const userVisibleFactEventsByMessageId = createUserVisibleFactEventsByMessageId({
+    messages,
+    room,
+  });
   const renderableMessages = messages.map((message) => ({
     ...normalizeTavernMessageForAudience({
       message,
@@ -103,6 +206,9 @@ export const createTavernRenderableMessages = ({
       audience: { type: "ui", includeAllThoughts },
     }),
     source: message,
+    ...(userVisibleFactEventsByMessageId.has(message.id)
+      ? { userVisibleFactEvents: userVisibleFactEventsByMessageId.get(message.id) }
+      : {}),
   }));
 
   return renderableMessages.flatMap((message) => {
