@@ -21,22 +21,122 @@ const assert = (condition, message, details) => {
 
 writeFileSync(entryPath, `
   import {
+    applyTavernStatusEventsToSnapshot,
+    createEmptyTavernStatusSnapshot,
     createTavernRenderableMessages,
+    deriveTavernStatusEventsFromFacts,
+    evaluateTavernSceneOutcomes,
     extractTavernPendingInteractionsFromMessages,
     formatTavernVisibleMessagesForRequestContext,
+    getTavernStatusSnapshotValue,
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
+    setTavernStatusSnapshotValue,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
     tavernDirectorAgentRoleId,
     tavernManagedUserAgentRoleId,
+    tavernRelationshipKey,
+    tavernProgressTrackerAgentRoleId,
     tavernQuickNovelAgentRoleId,
     tavernQuickReplyAgentRoleId,
+    updateTavernTasks,
   } from ${JSON.stringify(corePath)};
   import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
 
   const now = Date.now();
+  const userRef = { type: "user", userId: "user" };
+  const charARef = { type: "character", characterId: "char-a" };
+  const charBRef = { type: "character", characterId: "char-b" };
+  const bossRef = { type: "character", characterId: "boss" };
+  const globalRef = { type: "global" };
+  const statusDefinitions = [
+    {
+      id: "health",
+      label: "健康",
+      scope: "character",
+      valueType: "number",
+      defaultValue: 100,
+      visibility: "public",
+      min: 0,
+      max: 100,
+      updatePolicy: {
+        mode: "eventDriven",
+        requireFactEvent: true,
+        allowedEventTypes: ["damage", "healing"],
+        maxDeltaPerTurn: 40,
+        confidenceThreshold: 0.7,
+      },
+    },
+    {
+      id: "favorability",
+      label: "好感",
+      scope: "relationship",
+      valueType: "number",
+      defaultValue: 0,
+      visibility: "private",
+      min: -100,
+      max: 100,
+      relationship: {
+        directed: true,
+        allowedSubjectTypes: ["character", "user"],
+        allowedObjectTypes: ["character", "user"],
+      },
+      updatePolicy: {
+        mode: "eventDriven",
+        requireFactEvent: true,
+        allowedEventTypes: ["help"],
+        maxDeltaPerTurn: 10,
+        confidenceThreshold: 0.7,
+      },
+    },
+  ];
+  const statusRules = [
+    {
+      id: "damage-to-health",
+      label: "伤害降低健康",
+      when: { eventType: "damage", targetScope: "character" },
+      apply: {
+        statusId: "health",
+        target: "eventTarget",
+        op: "add",
+        valueByIntensity: { moderate: -15, major: -30 },
+        clamp: [0, 100],
+      },
+      safeguards: {
+        maxDeltaPerTurn: 40,
+        requireExplicitEvidence: true,
+      },
+    },
+    {
+      id: "help-to-favorability",
+      label: "帮助提升被帮助者对行动者的好感",
+      when: { eventType: "help", targetScope: "relationship" },
+      apply: {
+        statusId: "favorability",
+        target: "relationshipTargetToActor",
+        op: "add",
+        valueByIntensity: { moderate: 3, major: 5 },
+        clamp: [-100, 100],
+      },
+      safeguards: {
+        maxDeltaPerTurn: 10,
+        requireExplicitEvidence: true,
+      },
+    },
+  ];
+  const initialProgressSnapshot = [
+    { target: { type: "character", characterId: "boss" }, statusId: "health", value: 25 },
+    {
+      target: { type: "relationship", subject: charARef, object: userRef },
+      statusId: "favorability",
+      value: 55,
+    },
+  ].reduce(
+    (snapshot, patch) => setTavernStatusSnapshotValue(snapshot, patch.target, patch.statusId, patch.value),
+    createEmptyTavernStatusSnapshot("turn-0", now),
+  );
   const room = {
     id: "room-alpha",
     workspaceId: "workspace",
@@ -53,6 +153,31 @@ writeFileSync(entryPath, `
     sceneDirection: "",
     sceneTransition: "",
     memory: "",
+    sceneStatus: undefined,
+    characterPublicStatuses: {},
+    characterPrivateStatuses: {},
+    pendingInteractions: [],
+    replyOptions: [],
+    statusDefinitions,
+    statusRules,
+    progressViews: [],
+    progressTracker: {
+      enabled: true,
+      mode: "afterTurn",
+      intervalTurns: 1,
+      applyMode: "auto",
+      factConfidenceThreshold: 0.7,
+      generateCheckpointBeforeContextTrim: true,
+    },
+    factEvents: [],
+    statusEvents: [],
+    statusSnapshot: initialProgressSnapshot,
+    statusCheckpoints: [],
+    taskDefinitions: [],
+    taskEvents: [],
+    taskSnapshot: {},
+    sceneOutcomes: [],
+    outcomeEvents: [],
     characterConfigs: {},
     characterMemories: {},
     localCharacters: [],
@@ -326,6 +451,138 @@ writeFileSync(entryPath, `
     userPersonaName: room.userPersonaName,
     turnId: "turn-group-answered",
   });
+  const progressFactEvents = [
+    {
+      id: "fact-boss-damage",
+      turnId: "turn-progress",
+      sourceMessageIds: ["m-user-progress"],
+      type: "damage",
+      actor: userRef,
+      target: bossRef,
+      intensity: "major",
+      evidence: "旅人明确击中 Boss，使其退到墙边。",
+      confidence: 0.96,
+      createdAt: now + 10,
+    },
+    {
+      id: "fact-help-a",
+      turnId: "turn-progress",
+      sourceMessageIds: ["m-user-progress"],
+      type: "help",
+      actor: userRef,
+      target: charARef,
+      intensity: "major",
+      evidence: "旅人为阿洛挡下致命一击。",
+      confidence: 0.95,
+      createdAt: now + 11,
+    },
+  ];
+  const statusEvents = deriveTavernStatusEventsFromFacts({
+    factEvents: progressFactEvents,
+    rules: statusRules,
+    definitions: statusDefinitions,
+    snapshot: initialProgressSnapshot,
+    turnId: "turn-progress",
+    createdAt: now + 12,
+  });
+  const nextProgressSnapshot = applyTavernStatusEventsToSnapshot({
+    snapshot: initialProgressSnapshot,
+    events: statusEvents,
+  });
+  const progressTaskDefinitions = [
+    {
+      id: "defeat-boss",
+      title: "击败 Boss",
+      scope: "scene",
+      owner: globalRef,
+      visibility: "public",
+      required: true,
+      optional: false,
+      repeatable: false,
+      lifecycle: {
+        initialStatus: "active",
+        completeCondition: {
+          status: "health",
+          target: { type: "character", characterId: "boss" },
+          lte: 0,
+        },
+      },
+    },
+    {
+      id: "earn-a-trust",
+      title: "获得阿洛信任",
+      scope: "personal",
+      owner: userRef,
+      participants: [charARef],
+      visibility: "private",
+      required: false,
+      optional: true,
+      repeatable: false,
+      lifecycle: {
+        initialStatus: "active",
+        completeCondition: {
+          status: "favorability",
+          target: { type: "relationship", subject: charARef, object: userRef },
+          gte: 60,
+        },
+      },
+    },
+  ];
+  const taskResult = updateTavernTasks({
+    taskDefinitions: progressTaskDefinitions,
+    taskSnapshot: {},
+    snapshot: nextProgressSnapshot,
+    previousSnapshot: initialProgressSnapshot,
+    factEvents: progressFactEvents,
+    sourceStatusEventIds: statusEvents.map((event) => event.id),
+    turnId: "turn-progress",
+    createdAt: now + 13,
+  });
+  const outcomeEvents = evaluateTavernSceneOutcomes({
+    outcomes: [
+      {
+        id: "boss-defeated-victory",
+        label: "Boss 被击败",
+        winner: [userRef, charARef, charBRef],
+        loser: [bossRef],
+        condition: {
+          task: "defeat-boss",
+          owner: globalRef,
+          status: "completed",
+        },
+        priority: 100,
+        exclusive: true,
+        endScene: "auto",
+        visibility: "public",
+      },
+    ],
+    snapshot: nextProgressSnapshot,
+    previousSnapshot: initialProgressSnapshot,
+    factEvents: progressFactEvents,
+    taskSnapshot: taskResult.taskSnapshot,
+    sourceTaskEventIds: taskResult.taskEvents.map((event) => event.id),
+    sourceStatusEventIds: statusEvents.map((event) => event.id),
+    existingOutcomeEvents: [],
+    turnId: "turn-progress",
+    createdAt: now + 14,
+  });
+  const progressChecks = {
+    statusEvents,
+    nextProgressSnapshot,
+    bossHealth: getTavernStatusSnapshotValue(
+      nextProgressSnapshot,
+      { type: "character", characterId: "boss" },
+      "health",
+    ),
+    aToUserFavorability: getTavernStatusSnapshotValue(
+      nextProgressSnapshot,
+      { type: "relationship", subject: charARef, object: userRef },
+      "favorability",
+    ),
+    relationshipKey: tavernRelationshipKey(charARef, userRef),
+    taskResult,
+    outcomeEvents,
+  };
   globalThis.__checks = {
     contextForA,
     currentTurnContextForA,
@@ -344,6 +601,7 @@ writeFileSync(entryPath, `
     continuationForUser,
     interactionsForAnsweredA,
     interactionsForAnsweredGroup,
+    progressChecks,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -357,6 +615,7 @@ writeFileSync(entryPath, `
       quick: tavernQuickReplyAgentRoleId(room),
       novel: tavernQuickNovelAgentRoleId(room),
       archivist: tavernArchivistAgentRoleId(room),
+      progress: tavernProgressTrackerAgentRoleId(room),
     },
     bSecret,
     bSecondSecret,
@@ -503,6 +762,36 @@ try {
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,
     "导演、角色、快捷回复、托管用户、小说写作、资产整理都应有独立 agentRoleId",
     checks.roleIds,
+  );
+  assert(
+    checks.progressChecks.statusEvents.length === 2 &&
+      checks.progressChecks.statusEvents.every((event) => event.status === "applied"),
+    "规则引擎应从明确事实事件生成可应用的状态事件",
+    checks.progressChecks.statusEvents,
+  );
+  assert(
+    checks.progressChecks.bossHealth === 0,
+    "Boss 受到明确 major damage 后健康应被扣到 0",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.aToUserFavorability === 60 &&
+      checks.progressChecks.relationshipKey === "relationship:character:char-a->user:user",
+    "有向关系状态应正确维护阿洛对用户的好感",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.taskResult.taskSnapshot["defeat-boss"]?.status === "completed" &&
+      checks.progressChecks.taskResult.taskSnapshot["earn-a-trust"]?.status === "completed",
+    "任务引擎应根据状态快照完成场景任务和个人任务",
+    checks.progressChecks.taskResult,
+  );
+  assert(
+    checks.progressChecks.outcomeEvents.length === 1 &&
+      checks.progressChecks.outcomeEvents[0].outcomeId === "boss-defeated-victory" &&
+      checks.progressChecks.outcomeEvents[0].status === "applied",
+    "场景胜负引擎应在任务完成后触发自动结局",
+    checks.progressChecks.outcomeEvents,
   );
 
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));

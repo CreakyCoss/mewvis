@@ -41,6 +41,7 @@ import type {
   TavernRoom,
 } from "../types";
 import { CharacterButton } from "./character-button";
+import { TavernProgressPanel } from "./tavern-progress-panel";
 
 type TavernSidePanelProps = {
   activeRoom: TavernRoom;
@@ -361,6 +362,12 @@ export const TavernSidePanel = ({
             <TextBlock label="场景描述" value={activeRoom.scene} />
             <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
             <TextBlock label="房间记忆" value={activeRoom.memory} />
+            <TavernProgressPanel
+              activeRoom={activeRoom}
+              roomCharacters={roomCharacters}
+              activeCharacter={activeCharacter}
+              placement="sidePanel"
+            />
           </section>
 
           <section className="space-y-3">
@@ -372,39 +379,49 @@ export const TavernSidePanel = ({
               {roomCharacters.map((character) => {
                 const isCompacting = compactingCharacterIds.has(character.id);
                 return (
-                  <div key={character.id} className="flex items-center gap-2">
-                    <HoverCard openDelay={120} closeDelay={120}>
-                      <HoverCardTrigger asChild>
-                        <div className="min-w-0 flex-1">
-                          <CharacterButton
-                            character={character}
-                            isActive={character.id === activeCharacter?.id}
-                            disabled={isSending}
-                            onClick={() => onPatchRoom(activeRoom.id, { activeCharacterId: character.id })}
-                          />
-                        </div>
-                      </HoverCardTrigger>
-                      <CharacterProfileTooltip
-                        character={character}
-                        memory={activeRoom.characterMemories[character.id] ?? ""}
-                      />
-                    </HoverCard>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="outline"
-                      className="shrink-0 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                      title="压缩角色知识"
-                      aria-label={`压缩${character.name}的角色知识`}
-                      disabled={isBusy || isCompacting}
-                      onClick={() => onCompactCharacterKnowledge(character.id)}
-                    >
-                      {isCompacting ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCcw className="size-3.5" />
-                      )}
-                    </Button>
+                  <div key={character.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <HoverCard openDelay={120} closeDelay={120}>
+                        <HoverCardTrigger asChild>
+                          <div className="min-w-0 flex-1">
+                            <CharacterButton
+                              character={character}
+                              isActive={character.id === activeCharacter?.id}
+                              disabled={isSending}
+                              onClick={() => onPatchRoom(activeRoom.id, { activeCharacterId: character.id })}
+                            />
+                          </div>
+                        </HoverCardTrigger>
+                        <CharacterProfileTooltip
+                          character={character}
+                          memory={activeRoom.characterMemories[character.id] ?? ""}
+                        />
+                      </HoverCard>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        className="shrink-0 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                        title="压缩角色知识"
+                        aria-label={`压缩${character.name}的角色知识`}
+                        disabled={isBusy || isCompacting}
+                        onClick={() => onCompactCharacterKnowledge(character.id)}
+                      >
+                        {isCompacting ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCcw className="size-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                    <TavernProgressPanel
+                      activeRoom={activeRoom}
+                      roomCharacters={roomCharacters}
+                      activeCharacter={activeCharacter}
+                      ownerCharacter={character}
+                      placement="characterCard"
+                      className="pl-1"
+                    />
                   </div>
                 );
               })}

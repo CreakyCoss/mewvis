@@ -43,7 +43,11 @@ import {
   createTavernRoom,
   createTavernScene,
   createTavernTimelineEvent,
+  DEFAULT_TAVERN_PROGRESS_TRACKER,
+  DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_ROOM_SETTINGS,
+  DEFAULT_TAVERN_STATUS_DEFINITIONS,
+  DEFAULT_TAVERN_STATUS_RULES,
   getTavernSystemPreset,
   loadTavernState,
   projectTavernSceneOntoRoom,
@@ -52,6 +56,7 @@ import {
   syncTavernRoomActiveScene,
 } from "../storage";
 import {
+  advanceTavernProgressFromFactEvents,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
@@ -85,6 +90,7 @@ import {
   runTavernManagedUserReply,
   runTavernUserReplySuggestions,
 } from "../runtime/user-reply-suggestions";
+import { runTavernProgressTracking } from "../runtime/progress-tracker";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -803,6 +809,29 @@ export const TavernPage = ({
     const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
     return userTurnCount > 0 &&
       userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
+  }, []);
+
+  const shouldAutoTrackProgress = useCallback((
+    room: TavernRoom,
+    messagesAfterUser: TavernMessage[],
+  ) => {
+    if (
+      !room.settings.statusTracking.enabled ||
+      !room.progressTracker.enabled ||
+      room.progressTracker.mode === "manual" ||
+      room.statusDefinitions.length === 0 ||
+      room.statusRules.length === 0
+    ) {
+      return false;
+    }
+
+    if (room.progressTracker.mode === "afterTurn") {
+      return true;
+    }
+
+    const interval = Math.max(1, room.progressTracker.intervalTurns);
+    const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
+    return userTurnCount > 0 && userTurnCount % interval === 0;
   }, []);
 
   const shouldCompactCharacterKnowledgeAfterTurn = useCallback((
@@ -1589,6 +1618,20 @@ export const TavernPage = ({
       characterPrivateStatuses: importedScene.characterPrivateStatuses,
       pendingInteractions: importedScene.pendingInteractions,
       replyOptions: importedScene.replyOptions,
+      statusDefinitions: [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
+      statusRules: [...DEFAULT_TAVERN_STATUS_RULES],
+      progressViews: [...DEFAULT_TAVERN_PROGRESS_VIEWS],
+      progressTracker: { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
+      factEvents: importedScene.factEvents,
+      statusEvents: importedScene.statusEvents,
+      statusSnapshot: importedScene.statusSnapshot,
+      previousStatusSnapshot: importedScene.previousStatusSnapshot,
+      statusCheckpoints: importedScene.statusCheckpoints,
+      taskDefinitions: importedScene.taskDefinitions,
+      taskEvents: importedScene.taskEvents,
+      taskSnapshot: importedScene.taskSnapshot,
+      sceneOutcomes: importedScene.sceneOutcomes,
+      outcomeEvents: importedScene.outcomeEvents,
       characterConfigs,
       characterMemories,
       localCharacters: importedCharacters,
@@ -2382,6 +2425,7 @@ export const TavernPage = ({
     let runtimeMessages = [...roomMessages, userMessage];
     const turnMessages: TavernMessage[] = [userMessage];
     const shouldRunAssetExtraction = shouldAutoExtractAssets(activeRoom, runtimeMessages);
+    const shouldRunProgressTracking = shouldAutoTrackProgress(activeRoom, runtimeMessages);
     const shouldShowProgressTrace = activeRoom.settings.showExecutionTrace || isDirectorLikeMode;
     let activeReplyMessage: TavernMessage | null = null;
     let activeReplyText = "";
@@ -2806,6 +2850,77 @@ export const TavernPage = ({
         ),
       }));
 
+      if (shouldRunProgressTracking) {
+        setTurnStatus("正在更新状态面板...");
+        if (shouldShowProgressTrace) {
+          appendExecutionStep({
+            id: "progress-tracking",
+            label: "状态更新",
+            detail: "抽取本轮事实事件并应用状态规则。",
+            status: "running",
+          });
+        }
+
+        try {
+          const progressTurnId = userMessage.turnId ?? userMessage.id;
+          const progressFactEvents = await runTavernProgressTracking({
+            workspacePath: workspace.path,
+            runtimeAgentId,
+            runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+            room: runtimeRoom,
+            characters: roomCharacters,
+            messages: runtimeMessages,
+            sourceMessages: turnMessages,
+            references,
+            currentUserText: text,
+            turnId: progressTurnId,
+          });
+
+          if (progressFactEvents.length > 0) {
+            const progressPatch = advanceTavernProgressFromFactEvents({
+              room: runtimeRoom,
+              factEvents: progressFactEvents,
+              turnId: progressTurnId,
+              createdAt: Date.now(),
+            });
+            runtimeRoom = syncTavernRoomActiveScene({
+              ...projectTavernSceneOntoRoom(runtimeRoom),
+              ...progressPatch,
+              updatedAt: Date.now(),
+            });
+            setState((current) => ({
+              ...current,
+              rooms: current.rooms.map((room) =>
+                room.id === activeRoom.id
+                  ? syncTavernRoomActiveScene({
+                      ...projectTavernSceneOntoRoom(room),
+                      ...progressPatch,
+                      updatedAt: Date.now(),
+                    })
+                  : room
+              ),
+            }));
+          }
+
+          if (shouldShowProgressTrace) {
+            patchExecutionStep("progress-tracking", {
+              status: "done",
+              detail: progressFactEvents.length > 0
+                ? `已抽取 ${progressFactEvents.length} 个事实事件。`
+                : "本轮没有明确状态事件。",
+            });
+          }
+        } catch (progressError) {
+          if (shouldShowProgressTrace) {
+            patchExecutionStep("progress-tracking", {
+              status: "error",
+              detail: getErrorMessage(progressError),
+            });
+          }
+          setError(`状态更新失败：${getErrorMessage(progressError)}`);
+        }
+      }
+
       if (shouldRunAssetExtraction) {
         setTurnStatus("正在整理本轮剧情资产...");
         appendExecutionStep({
@@ -2913,6 +3028,7 @@ export const TavernPage = ({
     roomMessages,
     runtimeAgentId,
     shouldAutoExtractAssets,
+    shouldAutoTrackProgress,
     shouldCompactCharacterKnowledgeAfterTurn,
     unresolvedFileReferences,
     workspace.path,

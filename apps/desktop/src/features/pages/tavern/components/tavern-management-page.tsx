@@ -74,6 +74,7 @@ import type {
   TavernRoom,
   TavernRoomCharacterConfig,
   TavernRoomSettings,
+  TavernProgressTrackerSettings,
   TavernTimelineEvent,
   TavernTimelineScope,
 } from "../types";
@@ -404,6 +405,7 @@ type RoomContentEditDraft =
     }
   | ({
       type: "settings";
+      progressTracker: TavernProgressTrackerSettings;
     } & TavernRoomSettings)
   | {
       type: "timeline";
@@ -950,6 +952,7 @@ export const TavernManagementPage = ({
     setRoomContentEditDraft({
       type: "settings",
       ...editingRoom.settings,
+      progressTracker: { ...editingRoom.progressTracker },
     });
   };
 
@@ -1101,6 +1104,25 @@ export const TavernManagementPage = ({
             50,
             Math.max(0, Number(roomContentEditDraft.agentKnowledgeCompactIntervalTurns) || 0),
           ),
+          statusTracking: {
+            ...((editingRoom?.settings ?? activeRoom.settings).statusTracking),
+            ...roomContentEditDraft.statusTracking,
+          },
+        },
+        progressTracker: {
+          enabled: roomContentEditDraft.progressTracker.enabled,
+          mode: roomContentEditDraft.progressTracker.mode,
+          intervalTurns: Math.min(
+            50,
+            Math.max(1, Number(roomContentEditDraft.progressTracker.intervalTurns) || 1),
+          ),
+          applyMode: roomContentEditDraft.progressTracker.applyMode,
+          factConfidenceThreshold: Math.min(
+            1,
+            Math.max(0, Number(roomContentEditDraft.progressTracker.factConfidenceThreshold) || 0),
+          ),
+          generateCheckpointBeforeContextTrim:
+            roomContentEditDraft.progressTracker.generateCheckpointBeforeContextTrim,
         },
       });
       closeRoomContentEditor();
@@ -1771,6 +1793,37 @@ export const TavernManagementPage = ({
                 />
                 自动整理剧情资产
               </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.statusTracking.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    statusTracking: {
+                      ...roomContentEditDraft.statusTracking,
+                      enabled: event.target.checked,
+                      visibleToUser: event.target.checked,
+                    },
+                  })}
+                />
+                显示状态栏
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.progressTracker.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    progressTracker: {
+                      ...roomContentEditDraft.progressTracker,
+                      enabled: event.target.checked,
+                    },
+                  })}
+                />
+                自动追踪状态
+              </label>
             </div>
             <div className={settingsEditorMetricGridClassName}>
               <TavernEditorField label="整理间隔" htmlFor="tavern-content-asset-interval">
@@ -1834,6 +1887,82 @@ export const TavernManagementPage = ({
                     ),
                   })}
                 />
+              </TavernEditorField>
+              <TavernEditorField label="状态更新模式" htmlFor="tavern-content-progress-mode">
+                <NativeSelect
+                  id="tavern-content-progress-mode"
+                  value={roomContentEditDraft.progressTracker.mode}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    progressTracker: {
+                      ...roomContentEditDraft.progressTracker,
+                      mode: event.target.value as TavernProgressTrackerSettings["mode"],
+                    },
+                  })}
+                >
+                  <NativeSelectOption value="manual">手动</NativeSelectOption>
+                  <NativeSelectOption value="afterTurn">每轮</NativeSelectOption>
+                  <NativeSelectOption value="fixedTurns">固定轮次</NativeSelectOption>
+                </NativeSelect>
+              </TavernEditorField>
+              <TavernEditorField label="状态间隔" htmlFor="tavern-content-progress-interval">
+                <Input
+                  id="tavern-content-progress-interval"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={roomContentEditDraft.progressTracker.intervalTurns}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    progressTracker: {
+                      ...roomContentEditDraft.progressTracker,
+                      intervalTurns: Math.min(
+                        50,
+                        Math.max(1, Number(event.target.value) || 1),
+                      ),
+                    },
+                  })}
+                />
+              </TavernEditorField>
+              <TavernEditorField label="事实置信度" htmlFor="tavern-content-progress-confidence">
+                <Input
+                  id="tavern-content-progress-confidence"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={roomContentEditDraft.progressTracker.factConfidenceThreshold}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    progressTracker: {
+                      ...roomContentEditDraft.progressTracker,
+                      factConfidenceThreshold: Math.min(
+                        1,
+                        Math.max(0, Number(event.target.value) || 0),
+                      ),
+                    },
+                  })}
+                />
+              </TavernEditorField>
+              <TavernEditorField label="应用方式" htmlFor="tavern-content-progress-apply-mode">
+                <NativeSelect
+                  id="tavern-content-progress-apply-mode"
+                  value={roomContentEditDraft.progressTracker.applyMode}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    progressTracker: {
+                      ...roomContentEditDraft.progressTracker,
+                      applyMode: event.target.value as TavernProgressTrackerSettings["applyMode"],
+                    },
+                  })}
+                >
+                  <NativeSelectOption value="review">需确认</NativeSelectOption>
+                  <NativeSelectOption value="auto">自动</NativeSelectOption>
+                </NativeSelect>
               </TavernEditorField>
             </div>
           </>
@@ -2751,6 +2880,24 @@ export const TavernManagementPage = ({
                         valueClassName="flex"
                       />
                       <TavernCompactSummaryItem
+                        label="状态栏"
+                        value={(
+                          <Badge variant={editingRoom.settings.statusTracking.enabled ? "secondary" : "outline"}>
+                            {editingRoom.settings.statusTracking.enabled ? "显示" : "隐藏"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="自动追踪状态"
+                        value={(
+                          <Badge variant={editingRoom.progressTracker.enabled ? "secondary" : "outline"}>
+                            {editingRoom.progressTracker.enabled ? "开启" : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
                         label="整理间隔"
                         value={`${editingRoom.settings.assetExtractionIntervalTurns} 轮`}
                       />
@@ -2767,6 +2914,14 @@ export const TavernManagementPage = ({
                         value={editingRoom.settings.agentKnowledgeCompactIntervalTurns > 0
                           ? `${editingRoom.settings.agentKnowledgeCompactIntervalTurns} 轮`
                           : "关闭"}
+                      />
+                      <TavernCompactSummaryItem
+                        label="状态追踪"
+                        value={editingRoom.progressTracker.mode === "manual"
+                          ? "手动"
+                          : editingRoom.progressTracker.mode === "afterTurn"
+                          ? "每轮"
+                          : `${editingRoom.progressTracker.intervalTurns} 轮`}
                       />
                     </div>
                   </TavernEditorSection>

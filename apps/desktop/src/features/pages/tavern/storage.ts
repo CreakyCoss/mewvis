@@ -13,15 +13,28 @@ import type {
   TavernLorebookEntry,
   TavernLorebookDraft,
   TavernMessage,
+  TavernFactEvent,
+  TavernOutcomeEvent,
   TavernPendingInteraction,
+  TavernProgressCheckpoint,
+  TavernProgressTrackerSettings,
+  TavernProgressView,
   TavernReplyMode,
   TavernReplyOption,
   TavernRoom,
   TavernRoomCharacterConfig,
+  TavernSceneOutcomeDefinition,
   TavernSceneStatus,
   TavernScene,
   TavernRoomSettings,
   TavernState,
+  TavernStatusDefinition,
+  TavernStatusEvent,
+  TavernStatusRule,
+  TavernStatusSnapshot,
+  TavernTaskDefinition,
+  TavernTaskEvent,
+  TavernTaskState,
   TavernTimelineDraft,
   TavernTimelineEvent,
   TavernTimelineScope,
@@ -81,6 +94,9 @@ type TavernSystemPresetScene = {
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
+  statusSnapshot?: Partial<TavernStatusSnapshot>;
+  taskDefinitions?: TavernTaskDefinition[];
+  sceneOutcomes?: TavernSceneOutcomeDefinition[];
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{
     title: string;
@@ -128,6 +144,13 @@ type TavernSystemPresetRoom = {
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
+  statusDefinitions?: TavernStatusDefinition[];
+  statusRules?: TavernStatusRule[];
+  progressViews?: TavernProgressView[];
+  progressTracker?: Partial<TavernProgressTrackerSettings>;
+  statusSnapshot?: Partial<TavernStatusSnapshot>;
+  taskDefinitions?: TavernTaskDefinition[];
+  sceneOutcomes?: TavernSceneOutcomeDefinition[];
   scenes?: TavernSystemPresetScene[];
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{
@@ -268,6 +291,278 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   },
 };
 
+export const DEFAULT_TAVERN_PROGRESS_TRACKER: TavernProgressTrackerSettings = {
+  enabled: false,
+  mode: "manual",
+  intervalTurns: 1,
+  applyMode: "review",
+  factConfidenceThreshold: 0.75,
+  generateCheckpointBeforeContextTrim: true,
+};
+
+export const DEFAULT_TAVERN_STATUS_DEFINITIONS: TavernStatusDefinition[] = [
+  {
+    id: "scene_phase",
+    label: "阶段",
+    scope: "scene",
+    valueType: "text",
+    defaultValue: "",
+    visibility: "public",
+    updatePolicy: {
+      mode: "manualOnly",
+      requireFactEvent: false,
+    },
+  },
+  {
+    id: "threat_level",
+    label: "威胁",
+    scope: "scene",
+    valueType: "number",
+    defaultValue: 0,
+    visibility: "public",
+    min: 0,
+    max: 100,
+    updatePolicy: {
+      mode: "eventDrivenWithReview",
+      requireFactEvent: true,
+      maxDeltaPerTurn: 20,
+      confidenceThreshold: 0.75,
+    },
+  },
+  {
+    id: "health",
+    label: "健康",
+    scope: "character",
+    valueType: "number",
+    defaultValue: 100,
+    visibility: "public",
+    min: 0,
+    max: 100,
+    updatePolicy: {
+      mode: "eventDrivenWithReview",
+      requireFactEvent: true,
+      allowedEventTypes: ["damage", "healing"],
+      maxDeltaPerTurn: 30,
+      confidenceThreshold: 0.75,
+    },
+  },
+  {
+    id: "san",
+    label: "理智",
+    scope: "character",
+    valueType: "number",
+    defaultValue: 100,
+    visibility: "private",
+    min: 0,
+    max: 100,
+    updatePolicy: {
+      mode: "eventDrivenWithReview",
+      requireFactEvent: true,
+      allowedEventTypes: ["sanityShock", "comfort", "rest"],
+      maxDeltaPerTurn: 15,
+      confidenceThreshold: 0.75,
+    },
+  },
+  {
+    id: "favorability",
+    label: "好感",
+    scope: "relationship",
+    valueType: "number",
+    defaultValue: 0,
+    visibility: "private",
+    min: -100,
+    max: 100,
+    relationship: {
+      directed: true,
+      allowedSubjectTypes: ["character", "user"],
+      allowedObjectTypes: ["character", "user"],
+    },
+    updatePolicy: {
+      mode: "eventDrivenWithReview",
+      requireFactEvent: true,
+      allowedEventTypes: ["help", "gift", "betrayal", "promiseKept", "promiseBroken", "dateAccepted", "dateRejected"],
+      maxDeltaPerTurn: 5,
+      confidenceThreshold: 0.8,
+      manualReviewAboveDelta: 3,
+    },
+  },
+  {
+    id: "hostility",
+    label: "敌对",
+    scope: "relationship",
+    valueType: "number",
+    defaultValue: 0,
+    visibility: "private",
+    min: 0,
+    max: 100,
+    relationship: {
+      directed: true,
+      allowedSubjectTypes: ["character", "user"],
+      allowedObjectTypes: ["character", "user"],
+    },
+    updatePolicy: {
+      mode: "eventDrivenWithReview",
+      requireFactEvent: true,
+      allowedEventTypes: ["betrayal", "threat", "attack", "insult"],
+      maxDeltaPerTurn: 10,
+      confidenceThreshold: 0.8,
+    },
+  },
+];
+
+export const DEFAULT_TAVERN_STATUS_RULES: TavernStatusRule[] = [
+  {
+    id: "damage-to-health",
+    label: "伤害降低健康",
+    when: { eventType: "damage", targetScope: "character" },
+    apply: {
+      statusId: "health",
+      target: "eventTarget",
+      op: "add",
+      valueByIntensity: {
+        trivial: -1,
+        minor: -5,
+        moderate: -15,
+        major: -30,
+        critical: -60,
+      },
+      clamp: [0, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 30,
+      requireExplicitEvidence: true,
+      manualReviewAboveDelta: 20,
+    },
+  },
+  {
+    id: "healing-to-health",
+    label: "治疗恢复健康",
+    when: { eventType: "healing", targetScope: "character" },
+    apply: {
+      statusId: "health",
+      target: "eventTarget",
+      op: "add",
+      valueByIntensity: {
+        trivial: 1,
+        minor: 5,
+        moderate: 15,
+        major: 30,
+        critical: 60,
+      },
+      clamp: [0, 100],
+    },
+  },
+  {
+    id: "shock-to-san",
+    label: "冲击降低理智",
+    when: { eventType: "sanityShock", targetScope: "character" },
+    apply: {
+      statusId: "san",
+      target: "eventTarget",
+      op: "add",
+      valueByIntensity: {
+        trivial: -1,
+        minor: -2,
+        moderate: -5,
+        major: -15,
+        critical: -30,
+      },
+      clamp: [0, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 15,
+      requireExplicitEvidence: true,
+      manualReviewAboveDelta: 10,
+    },
+  },
+  {
+    id: "help-to-favorability",
+    label: "帮助提升被帮助者好感",
+    when: { eventType: "help", targetScope: "relationship" },
+    apply: {
+      statusId: "favorability",
+      target: "relationshipTargetToActor",
+      op: "add",
+      valueByIntensity: {
+        trivial: 1,
+        minor: 1,
+        moderate: 3,
+        major: 5,
+        critical: 8,
+      },
+      clamp: [-100, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 5,
+      requireExplicitEvidence: true,
+      manualReviewAboveDelta: 3,
+    },
+  },
+  {
+    id: "betrayal-to-hostility",
+    label: "背叛提升受害者敌对",
+    when: { eventType: "betrayal", targetScope: "relationship" },
+    apply: {
+      statusId: "hostility",
+      target: "relationshipTargetToActor",
+      op: "add",
+      valueByIntensity: {
+        minor: 5,
+        moderate: 10,
+        major: 20,
+        critical: 35,
+      },
+      clamp: [0, 100],
+    },
+    safeguards: {
+      maxDeltaPerTurn: 20,
+      requireExplicitEvidence: true,
+    },
+  },
+];
+
+export const DEFAULT_TAVERN_PROGRESS_VIEWS: TavernProgressView[] = [
+  {
+    id: "scene-overview",
+    label: "全局状态",
+    kind: "status",
+    placement: "sidePanel",
+    ownerBinding: "scene",
+    layout: "compact",
+    compareWith: "previousTurn",
+    items: [
+      { type: "status", statusId: "scene_phase", display: "text", hiddenWhenDefault: true },
+      { type: "status", statusId: "threat_level", display: "meter", showDelta: true },
+    ],
+  },
+  {
+    id: "character-vitals",
+    label: "角色状态",
+    kind: "status",
+    placement: "characterCard",
+    ownerBinding: "allCharacters",
+    layout: "bars",
+    compareWith: "previousTurn",
+    items: [
+      { type: "status", statusId: "health", display: "bar", showDelta: true },
+      { type: "status", statusId: "san", display: "bar", showDelta: true },
+    ],
+  },
+  {
+    id: "relationship-to-user",
+    label: "对你的态度",
+    kind: "status",
+    placement: "composerBelow",
+    ownerBinding: "activeCharacterToUser",
+    layout: "compact",
+    compareWith: "previousTurn",
+    items: [
+      { type: "status", statusId: "favorability", display: "meter", showDelta: true },
+      { type: "status", statusId: "hostility", display: "meter", showDelta: true },
+    ],
+  },
+];
+
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
   value === "round" || value === "director" ? value : "active";
 
@@ -395,8 +690,248 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
   );
 };
 
+const normalizeStatusValue = (value: unknown): string | number | boolean | string[] | null => {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  ) {
+    return value;
+  }
+
+  return normalizeStringArray(value);
+};
+
 const normalizeStringArray = (value: unknown) => Array.isArray(value)
   ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
+  : [];
+
+const createEmptyStatusSnapshot = (
+  turnId = "initial",
+  updatedAt = now(),
+): TavernStatusSnapshot => ({
+  turnId,
+  global: {},
+  scene: {},
+  parties: {},
+  characters: {},
+  relationships: {},
+  updatedAt,
+});
+
+const normalizeStatusValueRecord = (value: unknown): Record<string, string | number | boolean | string[] | null> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      normalizeStatusValue(item),
+    ]),
+  );
+};
+
+const normalizeNestedStatusValueRecord = (
+  value: unknown,
+): Record<string, Record<string, string | number | boolean | string[] | null>> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      normalizeStatusValueRecord(item),
+    ]),
+  );
+};
+
+const normalizeStatusSnapshot = (
+  value: unknown,
+  updatedAt: number,
+  fallbackTurnId = "initial",
+): TavernStatusSnapshot => {
+  if (!value || typeof value !== "object") {
+    return createEmptyStatusSnapshot(fallbackTurnId, updatedAt);
+  }
+
+  const candidate = value as Partial<TavernStatusSnapshot>;
+  return {
+    turnId: typeof candidate.turnId === "string" && candidate.turnId.trim()
+      ? candidate.turnId
+      : fallbackTurnId,
+    global: normalizeStatusValueRecord(candidate.global),
+    scene: normalizeStatusValueRecord(candidate.scene),
+    parties: normalizeNestedStatusValueRecord(candidate.parties),
+    characters: normalizeNestedStatusValueRecord(candidate.characters),
+    relationships: normalizeNestedStatusValueRecord(candidate.relationships),
+    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+  };
+};
+
+const normalizeStatusDefinitions = (
+  value: unknown,
+  fallback: TavernStatusDefinition[] = DEFAULT_TAVERN_STATUS_DEFINITIONS,
+) => {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.flatMap((item): TavernStatusDefinition[] => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const candidate = item as Partial<TavernStatusDefinition>;
+    const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+    const label = typeof candidate.label === "string" ? candidate.label.trim() : "";
+    if (!id || !label) {
+      return [];
+    }
+
+    return [{
+      ...candidate,
+      id,
+      label,
+      scope: candidate.scope === "global" ||
+          candidate.scope === "scene" ||
+          candidate.scope === "party" ||
+          candidate.scope === "character" ||
+          candidate.scope === "relationship"
+        ? candidate.scope
+        : "scene",
+      valueType: candidate.valueType === "number" ||
+          candidate.valueType === "text" ||
+          candidate.valueType === "enum" ||
+          candidate.valueType === "boolean" ||
+          candidate.valueType === "tags"
+        ? candidate.valueType
+        : "text",
+      defaultValue: normalizeStatusValue(candidate.defaultValue),
+      visibility: candidate.visibility ?? "public",
+      updatePolicy: {
+        mode: candidate.updatePolicy?.mode ?? "manualOnly",
+        requireFactEvent: Boolean(candidate.updatePolicy?.requireFactEvent),
+        allowedEventTypes: Array.isArray(candidate.updatePolicy?.allowedEventTypes)
+          ? candidate.updatePolicy.allowedEventTypes
+          : undefined,
+        maxDeltaPerTurn: typeof candidate.updatePolicy?.maxDeltaPerTurn === "number"
+          ? candidate.updatePolicy.maxDeltaPerTurn
+          : undefined,
+        confidenceThreshold: typeof candidate.updatePolicy?.confidenceThreshold === "number"
+          ? candidate.updatePolicy.confidenceThreshold
+          : undefined,
+        manualReviewAboveDelta: typeof candidate.updatePolicy?.manualReviewAboveDelta === "number"
+          ? candidate.updatePolicy.manualReviewAboveDelta
+          : undefined,
+      },
+    }];
+  });
+};
+
+const normalizeStatusRules = (
+  value: unknown,
+  fallback: TavernStatusRule[] = DEFAULT_TAVERN_STATUS_RULES,
+) => {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.filter((item): item is TavernStatusRule =>
+    Boolean(
+      item &&
+      typeof item === "object" &&
+      typeof (item as Partial<TavernStatusRule>).id === "string" &&
+      typeof (item as Partial<TavernStatusRule>).label === "string" &&
+      (item as Partial<TavernStatusRule>).when &&
+      (item as Partial<TavernStatusRule>).apply,
+    )
+  );
+};
+
+const normalizeProgressViews = (
+  value: unknown,
+  fallback: TavernProgressView[] = DEFAULT_TAVERN_PROGRESS_VIEWS,
+) => {
+  const source = Array.isArray(value) ? value : fallback;
+  return source.filter((item): item is TavernProgressView =>
+    Boolean(
+      item &&
+      typeof item === "object" &&
+      typeof (item as Partial<TavernProgressView>).id === "string" &&
+      typeof (item as Partial<TavernProgressView>).label === "string" &&
+      Array.isArray((item as Partial<TavernProgressView>).items),
+    )
+  );
+};
+
+const normalizeProgressTracker = (value: unknown): TavernProgressTrackerSettings => {
+  const candidate = value && typeof value === "object"
+    ? value as Partial<TavernProgressTrackerSettings>
+    : {};
+  return {
+    enabled: Boolean(candidate.enabled),
+    mode: candidate.mode === "afterTurn" || candidate.mode === "fixedTurns"
+      ? candidate.mode
+      : "manual",
+    intervalTurns: clampInteger(candidate.intervalTurns, DEFAULT_TAVERN_PROGRESS_TRACKER.intervalTurns, 1, 50),
+    applyMode: candidate.applyMode === "auto" ? "auto" : "review",
+    factConfidenceThreshold: typeof candidate.factConfidenceThreshold === "number"
+      ? Math.min(1, Math.max(0, candidate.factConfidenceThreshold))
+      : DEFAULT_TAVERN_PROGRESS_TRACKER.factConfidenceThreshold,
+    generateCheckpointBeforeContextTrim: candidate.generateCheckpointBeforeContextTrim !== false,
+  };
+};
+
+const normalizeFactEvents = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernFactEvent =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernFactEvent>).id === "string")
+    )
+  : [];
+
+const normalizeStatusEvents = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernStatusEvent =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernStatusEvent>).id === "string")
+    )
+  : [];
+
+const normalizeTaskDefinitions = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernTaskDefinition =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernTaskDefinition>).id === "string")
+    )
+  : [];
+
+const normalizeTaskEvents = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernTaskEvent =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernTaskEvent>).id === "string")
+    )
+  : [];
+
+const normalizeTaskSnapshot = (value: unknown): Record<string, TavernTaskState> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => (
+      item && typeof item === "object"
+        ? [[key, item as TavernTaskState]]
+        : []
+    )),
+  );
+};
+
+const normalizeSceneOutcomes = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernSceneOutcomeDefinition =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernSceneOutcomeDefinition>).id === "string")
+    )
+  : [];
+
+const normalizeOutcomeEvents = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernOutcomeEvent =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernOutcomeEvent>).id === "string")
+    )
+  : [];
+
+const normalizeProgressCheckpoints = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is TavernProgressCheckpoint =>
+      Boolean(item && typeof item === "object" && typeof (item as Partial<TavernProgressCheckpoint>).id === "string")
+    )
   : [];
 
 const normalizeSceneStatus = (
@@ -1139,6 +1674,40 @@ const buildTavernScene = (
           .map(normalizeReplyOption)
           .filter((option): option is TavernReplyOption => Boolean(option))
       : [],
+    factEvents: normalizeFactEvents(
+      input.factEvents ?? (fallback as Partial<TavernScene>).factEvents,
+    ),
+    statusEvents: normalizeStatusEvents(
+      input.statusEvents ?? (fallback as Partial<TavernScene>).statusEvents,
+    ),
+    statusSnapshot: normalizeStatusSnapshot(
+      input.statusSnapshot ?? (fallback as Partial<TavernScene>).statusSnapshot,
+      updatedAt,
+    ),
+    previousStatusSnapshot: (input.previousStatusSnapshot ?? (fallback as Partial<TavernScene>).previousStatusSnapshot)
+      ? normalizeStatusSnapshot(
+          input.previousStatusSnapshot ?? (fallback as Partial<TavernScene>).previousStatusSnapshot,
+          updatedAt,
+        )
+      : undefined,
+    statusCheckpoints: normalizeProgressCheckpoints(
+      input.statusCheckpoints ?? (fallback as Partial<TavernScene>).statusCheckpoints,
+    ),
+    taskDefinitions: normalizeTaskDefinitions(
+      input.taskDefinitions ?? (fallback as Partial<TavernScene>).taskDefinitions,
+    ),
+    taskEvents: normalizeTaskEvents(
+      input.taskEvents ?? (fallback as Partial<TavernScene>).taskEvents,
+    ),
+    taskSnapshot: normalizeTaskSnapshot(
+      input.taskSnapshot ?? (fallback as Partial<TavernScene>).taskSnapshot,
+    ),
+    sceneOutcomes: normalizeSceneOutcomes(
+      input.sceneOutcomes ?? (fallback as Partial<TavernScene>).sceneOutcomes,
+    ),
+    outcomeEvents: normalizeOutcomeEvents(
+      input.outcomeEvents ?? (fallback as Partial<TavernScene>).outcomeEvents,
+    ),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     assetDrafts: Array.isArray(input.assetDrafts)
@@ -1191,6 +1760,16 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     characterPrivateStatuses: activeScene.characterPrivateStatuses,
     pendingInteractions: activeScene.pendingInteractions,
     replyOptions: activeScene.replyOptions,
+    factEvents: activeScene.factEvents,
+    statusEvents: activeScene.statusEvents,
+    statusSnapshot: activeScene.statusSnapshot,
+    previousStatusSnapshot: activeScene.previousStatusSnapshot,
+    statusCheckpoints: activeScene.statusCheckpoints,
+    taskDefinitions: activeScene.taskDefinitions,
+    taskEvents: activeScene.taskEvents,
+    taskSnapshot: activeScene.taskSnapshot,
+    sceneOutcomes: activeScene.sceneOutcomes,
+    outcomeEvents: activeScene.outcomeEvents,
     characterConfigs: activeScene.characterConfigs ?? {},
     characterMemories: activeScene.characterMemories,
     assetDrafts: activeScene.assetDrafts,
@@ -1218,6 +1797,16 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
     characterPrivateStatuses: room.characterPrivateStatuses,
     pendingInteractions: room.pendingInteractions,
     replyOptions: room.replyOptions,
+    factEvents: room.factEvents,
+    statusEvents: room.statusEvents,
+    statusSnapshot: room.statusSnapshot,
+    previousStatusSnapshot: room.previousStatusSnapshot,
+    statusCheckpoints: room.statusCheckpoints,
+    taskDefinitions: room.taskDefinitions,
+    taskEvents: room.taskEvents,
+    taskSnapshot: room.taskSnapshot,
+    sceneOutcomes: room.sceneOutcomes,
+    outcomeEvents: room.outcomeEvents,
     characterConfigs: room.characterConfigs ?? {},
     characterMemories: room.characterMemories,
     assetDrafts: room.assetDrafts,
@@ -1310,6 +1899,9 @@ export const createTavernRoomFromSystemPreset = (
         sceneStatus: preset.room.sceneStatus,
         characterPublicStatuses: preset.room.characterPublicStatuses,
         characterPrivateStatuses: preset.room.characterPrivateStatuses,
+        statusSnapshot: preset.room.statusSnapshot,
+        taskDefinitions: preset.room.taskDefinitions,
+        sceneOutcomes: preset.room.sceneOutcomes,
         characterMemories: preset.room.characterMemories,
         assetDrafts: preset.room.assetDrafts,
         characterIds: preset.room.characterIds,
@@ -1355,6 +1947,10 @@ export const createTavernRoomFromSystemPreset = (
       characterIdByPresetId,
       createdAt,
     );
+    const statusSnapshot = normalizeStatusSnapshot(
+      presetScene.statusSnapshot ?? preset.room.statusSnapshot,
+      createdAt,
+    );
 
     return buildTavernScene({
       title: presetScene.title?.trim() || defaultSceneTitle,
@@ -1371,6 +1967,16 @@ export const createTavernRoomFromSystemPreset = (
       characterPrivateStatuses,
       pendingInteractions: [],
       replyOptions: [],
+      factEvents: [],
+      statusEvents: [],
+      statusSnapshot,
+      previousStatusSnapshot: undefined,
+      statusCheckpoints: [],
+      taskDefinitions: normalizeTaskDefinitions(presetScene.taskDefinitions ?? preset.room.taskDefinitions),
+      taskEvents: [],
+      taskSnapshot: {},
+      sceneOutcomes: normalizeSceneOutcomes(presetScene.sceneOutcomes ?? preset.room.sceneOutcomes),
+      outcomeEvents: [],
       characterConfigs: sceneCharacterConfigs,
       characterMemories: sceneCharacterMemories,
       assetDrafts: (presetScene.assetDrafts ?? preset.room.assetDrafts ?? [])
@@ -1419,6 +2025,20 @@ export const createTavernRoomFromSystemPreset = (
     characterPrivateStatuses: scene.characterPrivateStatuses,
     pendingInteractions: scene.pendingInteractions,
     replyOptions: scene.replyOptions,
+    statusDefinitions: normalizeStatusDefinitions(preset.room.statusDefinitions),
+    statusRules: normalizeStatusRules(preset.room.statusRules),
+    progressViews: normalizeProgressViews(preset.room.progressViews),
+    progressTracker: normalizeProgressTracker(preset.room.progressTracker),
+    factEvents: scene.factEvents,
+    statusEvents: scene.statusEvents,
+    statusSnapshot: scene.statusSnapshot,
+    previousStatusSnapshot: scene.previousStatusSnapshot,
+    statusCheckpoints: scene.statusCheckpoints,
+    taskDefinitions: scene.taskDefinitions,
+    taskEvents: scene.taskEvents,
+    taskSnapshot: scene.taskSnapshot,
+    sceneOutcomes: scene.sceneOutcomes,
+    outcomeEvents: scene.outcomeEvents,
     characterConfigs,
     characterMemories,
     localCharacters: characters,
@@ -1649,6 +2269,22 @@ const normalizeTavernState = (
             .map(normalizeReplyOption)
             .filter((option): option is TavernReplyOption => Boolean(option))
         : [],
+      statusDefinitions: normalizeStatusDefinitions((room as Partial<TavernRoom>).statusDefinitions),
+      statusRules: normalizeStatusRules((room as Partial<TavernRoom>).statusRules),
+      progressViews: normalizeProgressViews((room as Partial<TavernRoom>).progressViews),
+      progressTracker: normalizeProgressTracker((room as Partial<TavernRoom>).progressTracker),
+      factEvents: normalizeFactEvents((room as Partial<TavernRoom>).factEvents),
+      statusEvents: normalizeStatusEvents((room as Partial<TavernRoom>).statusEvents),
+      statusSnapshot: normalizeStatusSnapshot((room as Partial<TavernRoom>).statusSnapshot, Date.now()),
+      previousStatusSnapshot: (room as Partial<TavernRoom>).previousStatusSnapshot
+        ? normalizeStatusSnapshot((room as Partial<TavernRoom>).previousStatusSnapshot, Date.now())
+        : undefined,
+      statusCheckpoints: normalizeProgressCheckpoints((room as Partial<TavernRoom>).statusCheckpoints),
+      taskDefinitions: normalizeTaskDefinitions((room as Partial<TavernRoom>).taskDefinitions),
+      taskEvents: normalizeTaskEvents((room as Partial<TavernRoom>).taskEvents),
+      taskSnapshot: normalizeTaskSnapshot((room as Partial<TavernRoom>).taskSnapshot),
+      sceneOutcomes: normalizeSceneOutcomes((room as Partial<TavernRoom>).sceneOutcomes),
+      outcomeEvents: normalizeOutcomeEvents((room as Partial<TavernRoom>).outcomeEvents),
       replyMode: normalizeReplyMode((room as Partial<TavernRoom>).replyMode),
       userPersonaName: room.userPersonaName || "我",
       settings: normalizeRoomSettings((room as Partial<TavernRoom>).settings),
@@ -1798,6 +2434,20 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     characterPrivateStatuses: scene.characterPrivateStatuses,
     pendingInteractions: scene.pendingInteractions,
     replyOptions: scene.replyOptions,
+    statusDefinitions: [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
+    statusRules: [...DEFAULT_TAVERN_STATUS_RULES],
+    progressViews: [...DEFAULT_TAVERN_PROGRESS_VIEWS],
+    progressTracker: { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
+    factEvents: scene.factEvents,
+    statusEvents: scene.statusEvents,
+    statusSnapshot: scene.statusSnapshot,
+    previousStatusSnapshot: scene.previousStatusSnapshot,
+    statusCheckpoints: scene.statusCheckpoints,
+    taskDefinitions: scene.taskDefinitions,
+    taskEvents: scene.taskEvents,
+    taskSnapshot: scene.taskSnapshot,
+    sceneOutcomes: scene.sceneOutcomes,
+    outcomeEvents: scene.outcomeEvents,
     characterConfigs: {},
     characterMemories: {},
     localCharacters: [],
