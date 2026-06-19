@@ -1364,6 +1364,14 @@ export const TavernManagementPage = ({
             ...((editingRoom?.settings ?? activeRoom.settings).statusTracking),
             ...roomContentEditDraft.statusTracking,
           },
+          randomEvents: {
+            ...((editingRoom?.settings ?? activeRoom.settings).randomEvents),
+            enabled: roomContentEditDraft.randomEvents.enabled,
+            probability: Math.min(
+              1,
+              Math.max(0, Number(roomContentEditDraft.randomEvents.probability) || 0),
+            ),
+          },
         },
         progressTracker: {
           enabled: roomContentEditDraft.progressTracker.enabled,
@@ -2158,6 +2166,21 @@ export const TavernManagementPage = ({
                 />
                 自动追踪状态
               </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.randomEvents.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    randomEvents: {
+                      ...roomContentEditDraft.randomEvents,
+                      enabled: event.target.checked,
+                    },
+                  })}
+                />
+                导演随机事件
+              </label>
             </div>
             <div className={settingsEditorMetricGridClassName}>
               <TavernEditorField label="整理间隔" htmlFor="tavern-content-asset-interval">
@@ -2297,6 +2320,27 @@ export const TavernManagementPage = ({
                   <NativeSelectOption value="review">需确认</NativeSelectOption>
                   <NativeSelectOption value="auto">自动</NativeSelectOption>
                 </NativeSelect>
+              </TavernEditorField>
+              <TavernEditorField label="随机事件概率" htmlFor="tavern-content-random-event-probability">
+                <Input
+                  id="tavern-content-random-event-probability"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={roomContentEditDraft.randomEvents.probability}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    randomEvents: {
+                      ...roomContentEditDraft.randomEvents,
+                      probability: Math.min(
+                        1,
+                        Math.max(0, Number(event.target.value) || 0),
+                      ),
+                    },
+                  })}
+                />
               </TavernEditorField>
             </div>
           </>
@@ -3315,6 +3359,17 @@ export const TavernManagementPage = ({
                         value={(
                           <Badge variant={editingRoom.progressTracker.enabled ? "secondary" : "outline"}>
                             {editingRoom.progressTracker.enabled ? "开启" : "关闭"}
+                          </Badge>
+                        )}
+                        valueClassName="flex"
+                      />
+                      <TavernCompactSummaryItem
+                        label="导演随机事件"
+                        value={(
+                          <Badge variant={editingRoom.settings.randomEvents.enabled ? "secondary" : "outline"}>
+                            {editingRoom.settings.randomEvents.enabled
+                              ? `${Math.round(editingRoom.settings.randomEvents.probability * 100)}%`
+                              : "关闭"}
                           </Badge>
                         )}
                         valueClassName="flex"

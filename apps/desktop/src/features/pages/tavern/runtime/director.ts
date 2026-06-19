@@ -18,6 +18,13 @@ import {
 import {
   buildTavernBridgeSystemPrompt,
 } from "./bridge-session";
+import type {
+  TavernDirectorDecision,
+} from "./director-decision";
+import {
+  parseTavernDirectorDecision,
+  shouldOfferTavernDirectorRandomEvent,
+} from "./director-decision";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -26,15 +33,11 @@ import {
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
 
-export type TavernDirectorDecision = {
-  speakerIds: string[];
-  narrator?: string;
-  ambientActions?: Array<{
-    characterId: string;
-    action: string;
-  }>;
-  reason?: string;
-};
+export {
+  parseTavernDirectorDecision,
+  shouldOfferTavernDirectorRandomEvent,
+} from "./director-decision";
+export type { TavernDirectorDecision } from "./director-decision";
 
 export type RunTavernDirectorInput = {
   workspacePath: string;
@@ -46,122 +49,10 @@ export type RunTavernDirectorInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   maxSpeakers?: number;
-};
-
-const extractJsonObject = (text: string) => {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return trimmed;
-  }
-
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  return match?.[0] ?? "{}";
+  randomEventOpportunity?: boolean;
 };
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
-const limitDirectorText = (text: string, maxChars: number) => {
-  const trimmed = text.trim();
-  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}...`;
-};
-
-const unescapeLooseJsonString = (value: string) =>
-  value
-    .replace(/\\n/g, "\n")
-    .replace(/\\"/g, "\"")
-    .replace(/\\\\/g, "\\")
-    .trim();
-
-const extractLooseJsonStringArray = (text: string, fieldName: string) => {
-  const fieldPattern = new RegExp(
-    `"${fieldName}"\\s*:\\s*\\[([\\s\\S]*?)\\]`,
-    "i",
-  );
-  const fieldMatch = fieldPattern.exec(text);
-  if (!fieldMatch) {
-    return [];
-  }
-
-  return [...(fieldMatch[1] ?? "").matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"/g)]
-    .map((match) => unescapeLooseJsonString(match[1] ?? ""))
-    .filter(Boolean);
-};
-
-const extractLooseJsonStringField = (text: string, fieldName: string) => {
-  const fieldPattern = new RegExp(
-    `"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"\\s*(?=,\\s*"(?:speakerIds|narrator|reason)"\\s*:|\\s*}\\s*$)`,
-    "i",
-  );
-  const fieldMatch = fieldPattern.exec(text);
-
-  return fieldMatch ? unescapeLooseJsonString(fieldMatch[1] ?? "") : "";
-};
-
-const parseDirectorDecision = (
-  text: string,
-  characters: TavernCharacter[],
-  maxSpeakers: number,
-): TavernDirectorDecision => {
-  const characterIds = new Set(characters.map((character) => character.id));
-  const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
-  const jsonText = extractJsonObject(text);
-  let parsed: Record<string, unknown> | null = null;
-  try {
-    parsed = JSON.parse(jsonText) as Record<string, unknown>;
-  } catch {
-    parsed = null;
-  }
-  const parsedSpeakerIds: unknown[] | null = Array.isArray(parsed?.speakerIds)
-    ? parsed.speakerIds
-    : null;
-  const speakerIds: string[] = parsedSpeakerIds
-    ? parsedSpeakerIds
-        .flatMap((value: unknown) => typeof value === "string" ? [value] : [])
-        .filter((id) => characterIds.has(id))
-    : extractLooseJsonStringArray(jsonText, "speakerIds")
-        .filter((id) => characterIds.has(id));
-  const uniqueSpeakerIds = [...new Set(speakerIds)].slice(0, maxSpeakers);
-  const speakerIdSet = new Set(uniqueSpeakerIds);
-  const narrator = typeof parsed?.narrator === "string"
-    ? limitDirectorText(parsed.narrator, 280)
-    : limitDirectorText(extractLooseJsonStringField(jsonText, "narrator"), 280);
-  const reason = typeof parsed?.reason === "string"
-    ? limitDirectorText(parsed.reason, 180)
-    : limitDirectorText(extractLooseJsonStringField(jsonText, "reason"), 180);
-  const ambientActions = Array.isArray(parsed?.ambientActions)
-    ? parsed.ambientActions.flatMap((candidate) => {
-        if (!candidate || typeof candidate !== "object") {
-          return [];
-        }
-        const record = candidate as Record<string, unknown>;
-        const characterId = typeof record.characterId === "string" ? record.characterId.trim() : "";
-        const rawAction = typeof record.action === "string" ? record.action.trim() : "";
-        const characterName = characterNameById.get(characterId);
-        if (
-          !characterIds.has(characterId) ||
-          speakerIdSet.has(characterId) ||
-          !characterName ||
-          !rawAction
-        ) {
-          return [];
-        }
-        const action = rawAction.includes(characterName)
-          ? rawAction
-          : `${characterName}${rawAction.replace(/^他(?:们)?|^她(?:们)?|^它(?:们)?/, "")}`;
-
-        return [{
-          characterId,
-          action: limitDirectorText(action.replace(/^[*_\s]+|[*_\s]+$/g, ""), 120),
-        }];
-      }).slice(0, 2)
-    : [];
-
-  return {
-    speakerIds: uniqueSpeakerIds,
-    narrator: narrator || undefined,
-    ambientActions,
-    reason: reason || undefined,
-  };
-};
 
 export const runTavernDirector = async ({
   workspacePath,
@@ -173,6 +64,7 @@ export const runTavernDirector = async ({
   references,
   currentUserText,
   maxSpeakers = 3,
+  randomEventOpportunity,
 }: RunTavernDirectorInput): Promise<TavernDirectorDecision> => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
@@ -195,9 +87,13 @@ export const runTavernDirector = async ({
       : "",
   ].filter(Boolean).join("\n")).join("\n\n---\n\n");
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
+  const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
+  const randomEventSchema = canConsiderRandomEvent
+    ? `,"randomEvent":"可选；一句公开可观察的随机事件，不触发则留空字符串"`
+    : `,"randomEvent":""`;
   const directorPrompt = [
     "<output_schema>",
-    `{"speakerIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白","reason":"可选简短原因"}`,
+    `{"speakerIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白"${randomEventSchema},"reason":"可选简短原因"}`,
     "</output_schema>",
     "",
     `<constraints maxSpeakers="${maxSpeakers}">`,
@@ -212,6 +108,9 @@ export const runTavernDirector = async ({
     `ambientActions 可选，最多 ${ambientActionMax} 条，只能选择未出现在 speakerIds 里的角色；只写可被观察到的动作/状态，不写对白、心理、意图或新剧情结果。`,
     "ambientActions 用来让未发言角色保持在场感，例如“莉娜把托盘放回吧台”“莫尔侧身让开门口”；不要为了凑数而生成。",
     "narrator 只能写已发生状态、环境过渡或镜头提示，不要新增关键事实、行动结果或替角色做决定；可为空，建议 40 字内。",
+    canConsiderRandomEvent
+      ? "randomEvent 由导演决定是否触发；只能写公开可观察的小事件，例如门外脚步、灯火闪动、远处钟声。不要直接解决主线、不要覆盖用户选择、不要替任何角色做关键行动，不触发则输出空字符串。"
+      : "randomEvent 当前不可用，必须输出空字符串。",
     "如果已经输出 narrator，后续 speakerIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",
@@ -287,6 +186,9 @@ export const runTavernDirector = async ({
       "你是酒馆模式的导演 Agent。",
       "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
+      canConsiderRandomEvent
+        ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"
+        : "本轮不要触发随机事件，randomEvent 必须为空字符串。",
       "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
       "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
       "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
@@ -295,7 +197,7 @@ export const runTavernDirector = async ({
   });
 
   try {
-    return parseDirectorDecision(result.text, characters, maxSpeakers);
+    return parseTavernDirectorDecision(result.text, characters, maxSpeakers, canConsiderRandomEvent);
   } catch {
     return {
       speakerIds: [],

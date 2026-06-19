@@ -2735,6 +2735,19 @@ export const TavernPage = ({
           turnMessages.push(narratorMessage);
           turnNarratorTexts.push(narratorText);
         }
+        const randomEventText = directorDecision.randomEvent?.trim();
+        if (randomEventText) {
+          const randomEventMessage = createTavernMessage({
+            roomId: activeRoom.id,
+            role: "narrator",
+            content: randomEventText,
+            status: "done",
+          });
+          appendMessagesToRoom(activeRoom.id, [randomEventMessage]);
+          runtimeMessages = [...runtimeMessages, randomEventMessage];
+          turnMessages.push(randomEventMessage);
+          turnNarratorTexts.push(randomEventText);
+        }
         const ambientActionMessages = (directorDecision.ambientActions ?? [])
           .map((action) => {
             const actionText = action.action.trim();

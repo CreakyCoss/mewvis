@@ -9,6 +9,7 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-core-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
+const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director-decision.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts");
 const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
@@ -54,6 +55,10 @@ writeFileSync(entryPath, `
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
   } from ${JSON.stringify(storagePath)};
+  import {
+    parseTavernDirectorDecision,
+    shouldOfferTavernDirectorRandomEvent,
+  } from ${JSON.stringify(directorDecisionPath)};
   import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
 
@@ -253,6 +258,37 @@ writeFileSync(entryPath, `
       updatedAt: now,
     },
   ];
+  const parsedDirectorRandomEvent = parseTavernDirectorDecision(JSON.stringify({
+    speakerIds: ["char-a", "missing-character"],
+    ambientActions: [{ characterId: "char-b", action: "擦亮杯沿，望向门口。" }],
+    narrator: "灯影往门边偏了一寸。",
+    randomEvent: "门外传来两下克制的敲门声。",
+    reason: "门口变化需要阿洛回应。",
+  }), characters, 2, true);
+  const parsedDirectorRandomEventDisabled = parseTavernDirectorDecision(JSON.stringify({
+    speakerIds: ["char-a"],
+    randomEvent: "门外传来两下克制的敲门声。",
+  }), characters, 2, false);
+  const randomEventOpportunityChecks = {
+    enabledHit: shouldOfferTavernDirectorRandomEvent({
+      settings: {
+        ...room.settings,
+        randomEvents: { enabled: true, probability: 0.5 },
+      },
+    }, () => 0.1),
+    enabledMiss: shouldOfferTavernDirectorRandomEvent({
+      settings: {
+        ...room.settings,
+        randomEvents: { enabled: true, probability: 0.5 },
+      },
+    }, () => 0.9),
+    disabled: shouldOfferTavernDirectorRandomEvent({
+      settings: {
+        ...room.settings,
+        randomEvents: { enabled: false, probability: 1 },
+      },
+    }, () => 0),
+  };
   const bSecret = "B_PRIVATE_SECRET_SHOULD_NOT_LEAK";
   const bSecondSecret = "B_SECOND_PRIVATE_SECRET_SHOULD_NOT_LEAK";
   const aSecret = "A_PRIVATE_SECRET_VISIBLE_TO_A";
@@ -834,6 +870,9 @@ writeFileSync(entryPath, `
     continuationForUser,
     interactionsForAnsweredA,
     interactionsForAnsweredGroup,
+    parsedDirectorRandomEvent,
+    parsedDirectorRandomEventDisabled,
+    randomEventOpportunityChecks,
     progressChecks,
     renderable: createTavernRenderableMessages({
       messages,
@@ -1001,6 +1040,25 @@ try {
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,
     "导演、角色、快捷回复、托管用户、小说写作、资产整理都应有独立 agentRoleId",
     checks.roleIds,
+  );
+  assert(
+    checks.parsedDirectorRandomEvent.speakerIds.length === 1 &&
+      checks.parsedDirectorRandomEvent.speakerIds[0] === "char-a" &&
+      checks.parsedDirectorRandomEvent.ambientActions[0]?.characterId === "char-b" &&
+      checks.parsedDirectorRandomEvent.randomEvent === "门外传来两下克制的敲门声。" &&
+      !checks.parsedDirectorRandomEventDisabled.randomEvent,
+    "导演随机事件应只在机会开启时被解析，并保留公开可观察事件",
+    {
+      parsed: checks.parsedDirectorRandomEvent,
+      disabled: checks.parsedDirectorRandomEventDisabled,
+    },
+  );
+  assert(
+    checks.randomEventOpportunityChecks.enabledHit &&
+      !checks.randomEventOpportunityChecks.enabledMiss &&
+      !checks.randomEventOpportunityChecks.disabled,
+    "导演随机事件概率开关应只提供机会，不直接生成事件",
+    checks.randomEventOpportunityChecks,
   );
   assert(
     checks.progressChecks.statusEvents.length === 2 &&
