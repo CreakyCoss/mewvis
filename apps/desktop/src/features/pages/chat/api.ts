@@ -69,23 +69,3 @@ export async function setChatSessionUnread(input: {
 
   return invoke<ChatSessionMeta>("set_chat_session_unread", { input });
 }
-
-export async function deleteChatSession(workspacePath: string, sessionId: string) {
-  if (!isTauri()) {
-    return [];
-  }
-
-  return invoke<ChatSessionMeta[]>("delete_chat_session", {
-    input: { workspacePath, sessionId },
-  });
-}
-
-export async function resetAgentSessionsForChat(workspacePath: string, chatSessionId: string) {
-  if (!isTauri()) {
-    return undefined;
-  }
-
-  return invoke<void>("reset_agent_sessions_for_chat", {
-    input: { workspacePath, chatSessionId },
-  });
-}

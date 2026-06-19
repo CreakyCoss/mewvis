@@ -10,24 +10,12 @@ export const ChatLayout = ({
   headerProps,
   content,
   contextPanel,
-  isTavernImmersive,
 }: LayoutProps) => {
   const renderToggle = (node: ReactNode) => (
     <div className="absolute top-1.5 right-4 z-30 flex min-w-0 items-center justify-end gap-1.5">
       {node}
     </div>
   );
-
-  if (isTavernImmersive) {
-    return (
-      <section className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-background">
-        {dialogs}
-        <div className="min-w-0 flex-1 overflow-hidden bg-background">
-          {content}
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">

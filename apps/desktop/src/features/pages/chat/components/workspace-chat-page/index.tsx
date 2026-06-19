@@ -25,7 +25,6 @@ import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
 import { saveChatSession } from "../../api";
 import type {
   ChatMessage,
-  ChatSessionMeta,
   ComposerSubmitInput,
   PendingAgentQuestion,
 } from "../../types";
@@ -33,7 +32,6 @@ import {
   keepHistoryThroughMessage,
   moveHistoryItem,
   removeHistoryMessageSegment,
-  upsertChatSessionMeta,
 } from "./history";
 import {
   type ChatTurnDraft,
@@ -143,7 +141,6 @@ export type WorkspaceChatShellProps = {
   } | null;
   content: ReactNode;
   contextPanel: ReactNode;
-  isTavernImmersive: boolean;
 };
 
 const resolveStringStateAction = (
@@ -260,6 +257,10 @@ export const WorkspaceChatPage = ({
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
+  const workspaceOptions = useMemo(
+    () => workspaceSections.flatMap((section) => section.workspaces),
+    [workspaceSections],
+  );
   const {
     runtimeModels,
     selectedRuntimeModelId,
@@ -646,21 +647,16 @@ export const WorkspaceChatPage = ({
   }, []);
 
   const {
-    allSidebarWorkspaces,
-    setChatSessions,
     sessionsError,
     setSessionsError,
-    openWorkspaceFromCurrentContext,
   } = useWorkspaceChatSessions({
     workspace,
-    workspaceSections,
     route: {
       sessionId: routeSessionId,
       isNewSession: isRouteNewSession,
       onSessionCreated,
     },
     navigation: {
-      onOpenWorkspace,
       closePanels: closeContextPanels,
     },
     ui: {
@@ -783,28 +779,13 @@ export const WorkspaceChatPage = ({
       task.workspacePath !== workspace.path ||
       task.sessionId !== currentSessionIdRef.current;
     task.title = title;
-    const session = await saveChatSession({
+    await saveChatSession({
       workspacePath: task.workspacePath,
       sessionId: task.sessionId,
       title,
       messages: task.messages,
       isUnread,
     });
-
-    if (task.workspacePath === workspace.path) {
-      setChatSessions((current) => {
-        const nextMeta: ChatSessionMeta = {
-          id: session.id,
-          title: session.title,
-          path: "",
-          createdAt: session.createdAt,
-          updatedAt: session.updatedAt,
-          messageCount: session.messages.length,
-          isUnread,
-        };
-        return upsertChatSessionMeta(current, nextMeta);
-      });
-    }
   }, [workspace.path]);
 
   const clearPendingAgentQuestion = useCallback((questionId: string) => {
@@ -1068,7 +1049,7 @@ export const WorkspaceChatPage = ({
   useChatPanelStoreBridge({
     chatScrollAreaRef,
     workspace,
-    workspaces: allSidebarWorkspaces,
+    workspaces: workspaceOptions,
     messages,
     modelSource,
     selectedAgent,
@@ -1101,7 +1082,7 @@ export const WorkspaceChatPage = ({
     onEditHistoryMessage: editHistoryMessage,
     onDeleteHistoryMessage: deleteHistoryMessage,
     onMoveHistoryMessage: moveHistoryMessage,
-    onOpenWorkspace: openWorkspaceFromCurrentContext,
+    onOpenWorkspace,
     onCreateWorkspace,
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
@@ -1160,6 +1141,5 @@ export const WorkspaceChatPage = ({
     headerProps,
     content: chatPanel,
     contextPanel,
-    isTavernImmersive: false,
   });
 };

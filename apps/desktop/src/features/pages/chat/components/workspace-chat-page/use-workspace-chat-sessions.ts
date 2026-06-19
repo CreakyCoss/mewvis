@@ -1,14 +1,13 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type Dispatch,
   type SetStateAction,
   type MutableRefObject,
 } from "react";
-import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
+import type { Workspace } from "@/features/pages/workspace/types";
 import {
   listChatSessions,
   loadChatSession,
@@ -17,12 +16,9 @@ import {
 } from "../../api";
 import type {
   ChatMessage,
-  ChatSessionMeta,
 } from "../../types";
 import {
-  sortChatSessionsByFixedOrder,
   toHydratableSession,
-  upsertChatSessionMeta,
   type HydratableChatSession,
 } from "./history";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
@@ -30,14 +26,12 @@ import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions"
 
 type UseWorkspaceChatSessionsInput = {
   workspace: Workspace;
-  workspaceSections: WorkspaceSection[];
   route: {
     sessionId: string | null;
     isNewSession: boolean;
     onSessionCreated?: (sessionId: string) => void;
   };
   navigation: {
-    onOpenWorkspace: (workspace: Workspace) => void;
     closePanels: () => void;
   };
   ui: {
@@ -67,7 +61,6 @@ type UseWorkspaceChatSessionsInput = {
 
 export const useWorkspaceChatSessions = ({
   workspace,
-  workspaceSections,
   route,
   navigation,
   ui,
@@ -80,7 +73,6 @@ export const useWorkspaceChatSessions = ({
     onSessionCreated,
   } = route;
   const {
-    onOpenWorkspace,
     closePanels,
   } = navigation;
   const {
@@ -107,36 +99,9 @@ export const useWorkspaceChatSessions = ({
   const sessionsRequestIdRef = useRef(0);
   const isHydratingSessionRef = useRef(false);
   const hydratedWorkspacePathRef = useRef(workspace.path);
-  const [, setChatSessions] = useState<ChatSessionMeta[]>([]);
-  const [, setIsSessionsLoading] = useState(false);
-  const [, setIsSessionSaving] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
-  const allSidebarWorkspaces = useMemo(
-    () => workspaceSections.flatMap((section) => section.workspaces),
-    [workspaceSections],
-  );
-
-  const updateSessionUnreadState = useCallback((
-    workspacePath: string,
-    sessionId: string,
-    isUnread: boolean,
-  ) => {
-    if (workspace.path !== workspacePath) {
-      return;
-    }
-
-    const updateSessions = (sessions: ChatSessionMeta[]) =>
-      sessions.map((session) =>
-        session.id === sessionId
-          ? { ...session, isUnread }
-          : session,
-      );
-
-    setChatSessions(updateSessions);
-  }, [workspace.path]);
 
   const markSessionRead = useCallback((workspacePath: string, sessionId: string) => {
-    updateSessionUnreadState(workspacePath, sessionId, false);
     void setChatSessionUnread({
       workspacePath,
       sessionId,
@@ -144,7 +109,7 @@ export const useWorkspaceChatSessions = ({
     }).catch((caught) => {
       setSessionsError(String(caught));
     });
-  }, [updateSessionUnreadState]);
+  }, []);
 
   const hydrateSession = useCallback((
     session: HydratableChatSession | null,
@@ -198,7 +163,6 @@ export const useWorkspaceChatSessions = ({
     }
     isHydratingSessionRef.current = true;
     hydratedWorkspacePathRef.current = "";
-    setIsSessionsLoading(true);
     setSessionsError("");
     const routeSessionIdToLoad = isRouteNewSession ? null : routeSessionId;
     const sessionIdToLoad = routeSessionIdToLoad;
@@ -213,7 +177,6 @@ export const useWorkspaceChatSessions = ({
       if (sessionsRequestIdRef.current !== requestId) {
         return;
       }
-      setChatSessions(sortChatSessionsByFixedOrder(sessions));
       if (shouldStartEmptySession) {
         closePanels();
         setSessionsError("");
@@ -233,7 +196,6 @@ export const useWorkspaceChatSessions = ({
       }
     } finally {
       if (sessionsRequestIdRef.current === requestId) {
-        setIsSessionsLoading(false);
         window.setTimeout(() => {
           if (sessionsRequestIdRef.current === requestId && hydratedWorkspacePathRef.current !== workspace.path) {
             isHydratingSessionRef.current = false;
@@ -251,10 +213,6 @@ export const useWorkspaceChatSessions = ({
     setComposerResetKey,
     workspace.path,
   ]);
-
-  const openWorkspaceFromCurrentContext = useCallback((targetWorkspace: Workspace) => {
-    onOpenWorkspace(targetWorkspace);
-  }, [onOpenWorkspace]);
 
   useEffect(() => {
     void loadSessions();
@@ -292,7 +250,6 @@ export const useWorkspaceChatSessions = ({
     const wasNewSession = !currentSessionId;
 
     saveSessionTimerRef.current = window.setTimeout(() => {
-      setIsSessionSaving(true);
       setSessionsError("");
 
       void saveChatSession({
@@ -310,24 +267,9 @@ export const useWorkspaceChatSessions = ({
           if (wasNewSession) {
             onSessionCreated?.(session.id);
           }
-          setChatSessions((current) => {
-            const nextMeta: ChatSessionMeta = {
-              id: session.id,
-              title: session.title,
-              path: "",
-              createdAt: session.createdAt,
-              updatedAt: session.updatedAt,
-              messageCount: session.messages.length,
-              isUnread: false,
-            };
-            return upsertChatSessionMeta(current, nextMeta);
-          });
         })
         .catch((caught) => {
           setSessionsError(String(caught));
-        })
-        .finally(() => {
-          setIsSessionSaving(false);
         });
     }, 700);
   }, [
@@ -343,10 +285,7 @@ export const useWorkspaceChatSessions = ({
   ]);
 
   return {
-    allSidebarWorkspaces,
-    setChatSessions,
     sessionsError,
     setSessionsError,
-    openWorkspaceFromCurrentContext,
   };
 };

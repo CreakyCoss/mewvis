@@ -83,14 +83,12 @@ export const ChatPage = () => {
     headerProps,
     content,
     contextPanel,
-    isTavernImmersive,
   }: WorkspaceChatShellProps) => (
     <ChatLayout
       dialogs={dialogs}
       headerProps={headerProps}
       content={content}
       contextPanel={contextPanel}
-      isTavernImmersive={isTavernImmersive}
     />
   );
 

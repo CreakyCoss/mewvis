@@ -1,7 +1,6 @@
 import type {
   ChatMessage,
   ChatSession,
-  ChatSessionMeta,
 } from "../../types";
 
 export type HydratableChatSession = {
@@ -9,19 +8,6 @@ export type HydratableChatSession = {
   title: string;
   messages: ChatMessage[];
 };
-
-export const sortChatSessionsByFixedOrder = (sessions: ChatSessionMeta[]) =>
-  [...sessions].sort((left, right) =>
-    right.createdAt - left.createdAt || right.id.localeCompare(left.id)
-  );
-
-export const upsertChatSessionMeta = (
-  sessions: ChatSessionMeta[],
-  session: ChatSessionMeta,
-) => sortChatSessionsByFixedOrder([
-  session,
-  ...sessions.filter((item) => item.id !== session.id),
-]);
 
 export const toHydratableSession = (
   session: ChatSession | null | undefined,

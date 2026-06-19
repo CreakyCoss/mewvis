@@ -8,7 +8,6 @@ import type {
 } from "@/features/ai/runtime";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
-export type WorkspaceView = "chat" | "settings" | "skills" | "knowledge" | "tavern";
 export type ModelSource = "direct" | "agent";
 
 export type ActiveReferenceToken = RuntimeActiveReferenceToken;

@@ -53,10 +53,6 @@ export const useRunningAgentTasks = ({
       : "";
   }, [activeAgentTaskId, currentSessionId, runningAgentSessionKeys, workspacePath]);
 
-  const isAgentTaskRunningForSession = useCallback((targetWorkspacePath: string, sessionId: string) => {
-    return runningAgentSessionKeys.has(getRunningAgentSessionKey(targetWorkspacePath, sessionId));
-  }, [runningAgentSessionKeys]);
-
   const addRunningAgentTask = useCallback((task: RunningAgentTaskContext) => {
     runningAgentTasksRef.current.set(task.taskId, task);
     const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
@@ -102,7 +98,6 @@ export const useRunningAgentTasks = ({
   return {
     runningAgentTasksRef,
     visibleActiveAgentTaskId,
-    isAgentTaskRunningForSession,
     addRunningAgentTask,
     removeRunningAgentTask,
   };
