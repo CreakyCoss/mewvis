@@ -68,6 +68,7 @@ writeFileSync(entryPath, `
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
     parseTavernGeneratedPresetJsonText,
+    saveTavernState,
     syncTavernRoomActiveScene,
     tavernSystemPresets,
   } from ${JSON.stringify(storagePath)};
@@ -1540,6 +1541,46 @@ writeFileSync(entryPath, `
     turnId: "system-wuxia-turn",
     createdAt: now + 82,
   });
+  const legacyCleanupWorkspaceId = "workspace-legacy-cleanup";
+  const legacyManualRoom = {
+    ...createTavernRoom(legacyCleanupWorkspaceId, 1),
+    id: "legacy-cleanup-manual",
+    title: "手动保留房间",
+  };
+  const legacySystemRoom = {
+    ...createTavernRoom(legacyCleanupWorkspaceId, 2),
+    id: "legacy-cleanup-system",
+    title: "雾港失物馆",
+    systemPresetId: "mist-harbor-lost-and-found",
+  };
+  const legacyManualizedRoom = {
+    ...createTavernRoom(legacyCleanupWorkspaceId, 3),
+    id: "legacy-cleanup-manualized",
+    title: "竹雨驿馆",
+    systemPresetId: undefined,
+  };
+  const previousWindow = globalThis.window;
+  const localStorageStub = {
+    getItem: () => null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+  };
+  globalThis.window = previousWindow ?? { localStorage: localStorageStub };
+  const legacyCleanupState = await saveTavernState("", legacyCleanupWorkspaceId, {
+    version: 2,
+    activeRoomId: legacySystemRoom.id,
+    rooms: [legacySystemRoom, legacyManualizedRoom, legacyManualRoom],
+    messagesByScene: {
+      [legacySystemRoom.activeSceneId ?? legacySystemRoom.id]: [],
+      [legacyManualizedRoom.activeSceneId ?? legacyManualizedRoom.id]: [],
+      [legacyManualRoom.activeSceneId ?? legacyManualRoom.id]: [],
+    },
+  });
+  if (previousWindow === undefined) {
+    delete globalThis.window;
+  } else {
+    globalThis.window = previousWindow;
+  }
   let promptPresetImportError = "";
   try {
     parseTavernExternalImportJson(JSON.stringify({
@@ -1732,6 +1773,11 @@ writeFileSync(entryPath, `
         outcomeStatus: wuxiaAdvance.outcomeEvents.find((event) =>
           event.outcomeId === "xuan-ya-defeated"
         )?.status,
+      },
+      legacyCleanup: {
+        activeRoomId: legacyCleanupState.activeRoomId,
+        roomTitles: legacyCleanupState.rooms.map((item) => item.title),
+        roomIds: legacyCleanupState.rooms.map((item) => item.id),
       },
     },
     imports: {
@@ -2203,6 +2249,16 @@ try {
       !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆"),
     "系统预设应只包含新的四个互动剧本，并移除旧预设房间",
     checks.progressChecks.systemPresets,
+  );
+  assert(
+    checks.progressChecks.systemPresets.legacyCleanup.activeRoomId === "legacy-cleanup-manual" &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("手动保留房间") &&
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("雾港失物馆") &&
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("竹雨驿馆") &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("月下圆桌狼人杀") &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("刀雨驿站"),
+    "加载旧酒馆状态时应清理旧系统预设残留，同时保留手动房间并补齐新预设",
+    checks.progressChecks.systemPresets.legacyCleanup,
   );
   assert(
     checks.progressChecks.systemPresets.werewolf.room.settings.informationPolicy.mode === "social_deduction" &&

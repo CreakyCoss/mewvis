@@ -229,12 +229,32 @@ const tavernSystemPresetById = new Map(
 export const getTavernSystemPreset = (presetId: string | null | undefined) =>
   tavernSystemPresetById.get(presetId ?? "") ?? null;
 
+const LEGACY_TAVERN_SYSTEM_PRESET_TITLES = new Set([
+  "雾港失物馆",
+  "竹雨驿馆",
+  "星坠补给吧",
+  "灰月商队馆",
+  "万象问命馆",
+]);
+
 const normalizeSystemPresetId = (presetId: unknown) => {
   if (typeof presetId !== "string") {
     return undefined;
   }
 
   return getTavernSystemPreset(presetId)?.id;
+};
+
+const shouldDiscardLegacyTavernRoom = (room: Partial<TavernRoom>) => {
+  const rawSystemPresetId = typeof room.systemPresetId === "string"
+    ? room.systemPresetId.trim()
+    : "";
+  if (rawSystemPresetId && !getTavernSystemPreset(rawSystemPresetId)) {
+    return true;
+  }
+
+  const title = typeof room.title === "string" ? room.title.trim() : "";
+  return LEGACY_TAVERN_SYSTEM_PRESET_TITLES.has(title);
 };
 
 const normalizeSystemPresetCharacterId = (
@@ -3532,7 +3552,8 @@ const normalizeTavernState = (
 
   const sourceMessagesByScene = candidate.messagesByScene as Record<string, unknown>;
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
-    Boolean(room?.id && room.workspaceId === workspaceId && room.title)
+    Boolean(room?.id && room.workspaceId === workspaceId && room.title) &&
+    !shouldDiscardLegacyTavernRoom(room)
   ).map((room) => {
     const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId);
     const systemPreset = getTavernSystemPreset(systemPresetId);
