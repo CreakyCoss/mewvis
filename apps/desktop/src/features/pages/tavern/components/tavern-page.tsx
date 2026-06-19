@@ -41,6 +41,7 @@ import {
   createTavernIllustrationHint,
   createTavernLorebookEntry,
   createTavernMessage,
+  createTavernRoomFromGeneratedPresetJson,
   createTavernRoomFromSystemPreset,
   createTavernRoom,
   createTavernScene,
@@ -96,6 +97,14 @@ import {
   runTavernUserReplySuggestions,
 } from "../runtime/user-reply-suggestions";
 import { runTavernProgressTracking } from "../runtime/progress-tracker";
+import {
+  runTavernGeneratedPresetAgent,
+  type TavernGeneratedPresetAgentDraft,
+} from "../runtime/generated-preset-agent";
+import {
+  runTavernTextFieldAgent,
+  type TavernTextFieldAgentRequest,
+} from "../runtime/field-polish-agent";
 import { uniqueFilesByPath } from "../utils";
 import { TavernComposer } from "./tavern-composer";
 import {
@@ -1810,6 +1819,66 @@ export const TavernPage = ({
     });
   }, [workspace.id]);
 
+  const handleQuickCreateRoom = useCallback(async (
+    quickDraft: TavernGeneratedPresetAgentDraft,
+  ) => {
+    if (!runtimeModel) {
+      return TAVERN_RUNTIME_MODEL_UNAVAILABLE;
+    }
+
+    if (!runtimeAgentId) {
+      return "当前 Agent 运行时不可用，请稍后重试。";
+    }
+
+    try {
+      const result = await runTavernGeneratedPresetAgent({
+        workspacePath: workspace.path,
+        agentId: runtimeAgentId,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        draft: quickDraft,
+      });
+      const materialized = createTavernRoomFromGeneratedPresetJson(
+        workspace.id,
+        result.preset,
+        {
+          creationSource: "quick",
+        },
+      );
+      setState((current) => ({
+        ...current,
+        activeRoomId: materialized.room.id,
+        rooms: [...current.rooms, materialized.room],
+        messagesByScene: {
+          ...current.messagesByScene,
+          [getRoomActiveSceneId(materialized.room)]: materialized.messages,
+        },
+      }));
+      setError("");
+      return null;
+    } catch (quickCreateError) {
+      return getErrorMessage(quickCreateError);
+    }
+  }, [runtimeAgentId, runtimeModel, workspace.id, workspace.path]);
+
+  const handleRunTextFieldAgent = useCallback(async (
+    request: TavernTextFieldAgentRequest,
+  ) => {
+    if (!runtimeModel) {
+      throw new Error(TAVERN_RUNTIME_MODEL_UNAVAILABLE);
+    }
+
+    if (!runtimeAgentId) {
+      throw new Error("当前 Agent 运行时不可用，请稍后重试。");
+    }
+
+    return runTavernTextFieldAgent({
+      ...request,
+      workspacePath: workspace.path,
+      agentId: runtimeAgentId,
+      runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+    });
+  }, [runtimeAgentId, runtimeModel, workspace.path]);
+
   const selectRoomScene = useCallback((roomId: string, sceneId: string) => {
     setState((current) => {
       const targetRoom = current.rooms.find((room) => room.id === roomId);
@@ -3462,6 +3531,8 @@ export const TavernPage = ({
         globalRuntimeModel={runtimeModel}
         canDeleteRoom={state.rooms.length > 1}
         onCreateRoom={handleCreateRoom}
+        onQuickCreateRoom={handleQuickCreateRoom}
+        onRunTextFieldAgent={handleRunTextFieldAgent}
         onSelectRoom={(roomId) => setState((current) => ({
           ...current,
           activeRoomId: roomId,

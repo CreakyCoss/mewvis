@@ -1,5 +1,6 @@
+import type { MouseEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Save } from "lucide-react";
+import { Check, Pencil, Save, Sparkles } from "lucide-react";
 import {
   defaultTavernAvatar,
   normalizeTavernAvatarId,
@@ -20,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "../types";
+import type { TavernTextFieldAgentRequest } from "../runtime/field-polish-agent";
 
 export type TavernCharacterFormValue = {
   name: string;
@@ -36,6 +38,7 @@ type TavernCharacterFormDialogProps = {
   open: boolean;
   character: TavernCharacter | null;
   roomModelLabel?: string;
+  onRunTextFieldAgent?: (request: TavernTextFieldAgentRequest) => Promise<string>;
   onOpenChange: (open: boolean) => void;
   onSubmit: (value: TavernCharacterFormValue) => void;
 };
@@ -44,6 +47,7 @@ export const TavernCharacterFormDialog = ({
   open,
   character,
   roomModelLabel = "未选择",
+  onRunTextFieldAgent,
   onOpenChange,
   onSubmit,
 }: TavernCharacterFormDialogProps) => {
@@ -57,6 +61,7 @@ export const TavernCharacterFormDialog = ({
   const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
   const [formError, setFormError] = useState("");
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
 
   const selectedAvatar = useMemo(
     () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
@@ -114,6 +119,119 @@ export const TavernCharacterFormDialog = ({
     </div>
   );
 
+  const buildCharacterTextFieldContext = () => ({
+    character: {
+      name,
+      description,
+      speakingStyle,
+      writingStyle,
+      replyStylePrompt,
+      goals,
+      relationships,
+    },
+  });
+
+  const runTextFieldAgent = async ({
+    mode,
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+  }: {
+    mode: "polish" | "inspire";
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+  }) => {
+    if (!onRunTextFieldAgent) {
+      return;
+    }
+
+    setActiveTextFieldAgentKey(`${fieldKey}:${mode}`);
+    setFormError("");
+    try {
+      const text = await onRunTextFieldAgent({
+        mode,
+        fieldLabel,
+        currentText,
+        context: buildCharacterTextFieldContext(),
+      });
+      if (text.trim()) {
+        applyText(text);
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "操作失败，请稍后重试。");
+    } finally {
+      setActiveTextFieldAgentKey("");
+    }
+  };
+
+  const renderTextFieldHeader = ({
+    label,
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+  }: {
+    label: string;
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+  }): ReactNode => {
+    if (!onRunTextFieldAgent) {
+      return <span className="text-xs font-medium text-muted-foreground">{label}</span>;
+    }
+
+    const isPolishing = activeTextFieldAgentKey === `${fieldKey}:polish`;
+    const isInspiring = activeTextFieldAgentKey === `${fieldKey}:inspire`;
+    const isBusy = Boolean(activeTextFieldAgentKey);
+    const run = (mode: "polish" | "inspire") => (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void runTextFieldAgent({
+        mode,
+        fieldKey,
+        fieldLabel,
+        currentText,
+        applyText,
+      });
+    };
+
+    return (
+      <span className="flex min-h-5 items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[11px]"
+            disabled={isBusy}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={run("polish")}
+          >
+            <Pencil className="size-3" />
+            {isPolishing ? "处理中" : "润色"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[11px]"
+            disabled={isBusy}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={run("inspire")}
+          >
+            <Sparkles className="size-3" />
+            {isInspiring ? "处理中" : "灵感"}
+          </Button>
+        </span>
+      </span>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
@@ -162,7 +280,13 @@ export const TavernCharacterFormDialog = ({
             </div>
 
             <label className="block space-y-1.5" htmlFor="tavern-character-description">
-              <span className="text-xs font-medium text-muted-foreground">角色设定</span>
+              {renderTextFieldHeader({
+                label: "角色设定",
+                fieldKey: "characterDescription",
+                fieldLabel: "角色设定",
+                currentText: description,
+                applyText: setDescription,
+              })}
               <Textarea
                 id="tavern-character-description"
                 value={description}
@@ -172,7 +296,13 @@ export const TavernCharacterFormDialog = ({
             </label>
 
             <label className="block space-y-1.5" htmlFor="tavern-character-style">
-              <span className="text-xs font-medium text-muted-foreground">说话方式</span>
+              {renderTextFieldHeader({
+                label: "说话方式",
+                fieldKey: "characterSpeakingStyle",
+                fieldLabel: "角色说话方式",
+                currentText: speakingStyle,
+                applyText: setSpeakingStyle,
+              })}
               <Textarea
                 id="tavern-character-style"
                 value={speakingStyle}
@@ -183,7 +313,13 @@ export const TavernCharacterFormDialog = ({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5" htmlFor="tavern-character-writing-style">
-                <span className="text-xs font-medium text-muted-foreground">写作风格</span>
+                {renderTextFieldHeader({
+                  label: "写作风格",
+                  fieldKey: "characterWritingStyle",
+                  fieldLabel: "角色写作风格",
+                  currentText: writingStyle,
+                  applyText: setWritingStyle,
+                })}
                 <Textarea
                   id="tavern-character-writing-style"
                   value={writingStyle}
@@ -192,7 +328,13 @@ export const TavernCharacterFormDialog = ({
                 />
               </label>
               <label className="block space-y-1.5" htmlFor="tavern-character-reply-style-prompt">
-                <span className="text-xs font-medium text-muted-foreground">回复规则</span>
+                {renderTextFieldHeader({
+                  label: "回复规则",
+                  fieldKey: "characterReplyStylePrompt",
+                  fieldLabel: "角色回复规则",
+                  currentText: replyStylePrompt,
+                  applyText: setReplyStylePrompt,
+                })}
                 <Textarea
                   id="tavern-character-reply-style-prompt"
                   value={replyStylePrompt}
@@ -204,7 +346,13 @@ export const TavernCharacterFormDialog = ({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5" htmlFor="tavern-character-goals">
-                <span className="text-xs font-medium text-muted-foreground">目标</span>
+                {renderTextFieldHeader({
+                  label: "目标",
+                  fieldKey: "characterGoals",
+                  fieldLabel: "角色目标",
+                  currentText: goals,
+                  applyText: setGoals,
+                })}
                 <Textarea
                   id="tavern-character-goals"
                   value={goals}
@@ -213,7 +361,13 @@ export const TavernCharacterFormDialog = ({
                 />
               </label>
               <label className="block space-y-1.5" htmlFor="tavern-character-relationships">
-                <span className="text-xs font-medium text-muted-foreground">关系</span>
+                {renderTextFieldHeader({
+                  label: "关系",
+                  fieldKey: "characterRelationships",
+                  fieldLabel: "角色关系",
+                  currentText: relationships,
+                  applyText: setRelationships,
+                })}
                 <Textarea
                   id="tavern-character-relationships"
                   value={relationships}

@@ -18,13 +18,14 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  Sparkles,
   Trash2,
   TriangleAlertIcon,
   UnlockKeyhole,
   UsersRound,
   Wine,
 } from "lucide-react";
-import type { ComponentType, FormEvent, ReactNode } from "react";
+import type { ComponentType, FormEvent, MouseEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -89,6 +90,8 @@ import type {
   TavernTimelineEvent,
   TavernTimelineScope,
 } from "../types";
+import type { TavernGeneratedPresetAgentDraft } from "../runtime/generated-preset-agent";
+import type { TavernTextFieldAgentRequest } from "../runtime/field-polish-agent";
 import { compactScene } from "../utils";
 import {
   TavernCharacterFormDialog,
@@ -103,6 +106,8 @@ type TavernManagementPageProps = {
   globalRuntimeModel: RuntimeModelOption | null;
   canDeleteRoom: boolean;
   onCreateRoom: () => void;
+  onQuickCreateRoom: (draft: TavernGeneratedPresetAgentDraft) => Promise<string | null>;
+  onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
   onSelectRoom: (roomId: string) => void;
   onOpenRoom: (roomId: string) => void;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
@@ -127,6 +132,18 @@ const replyModeOptions: Array<{
 const formatCount = (value: number, label: string) => `${value} ${label}`;
 
 const emptyValueText = "未设置";
+
+const getUnknownErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "操作失败，请稍后重试。";
+};
 
 const parseKeywords = (value: string) =>
   value.split(/[,，\n]/)
@@ -433,16 +450,21 @@ const TavernEditorField = ({
   htmlFor,
   children,
   description,
+  action,
   className,
 }: {
   label: string;
   htmlFor: string;
   children: ReactNode;
   description?: string;
+  action?: ReactNode;
   className?: string;
 }) => (
   <label className={cn("block space-y-1.5", className)} htmlFor={htmlFor}>
-    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <span className="flex min-h-5 items-center justify-between gap-2">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {action && <span className="shrink-0">{action}</span>}
+    </span>
     {children}
     {description && (
       <span className="block text-xs leading-5 text-muted-foreground">
@@ -653,6 +675,78 @@ type RoomContentEditDraft =
       alwaysOn: boolean;
     };
 
+type QuickCreateRoomDraft = {
+  title: string;
+  premise: string;
+  background: string;
+  worldInfo: string;
+  storyGoal: string;
+  userPersonaName: string;
+  promptStyleId: string;
+  characterSeeds: string;
+  characterCount: string;
+  statusTrackingEnabled: boolean;
+  randomEventsEnabled: boolean;
+  randomEventProbability: string;
+  illustrationHintsEnabled: boolean;
+  advancedOpen: boolean;
+};
+
+const createEmptyQuickCreateRoomDraft = (): QuickCreateRoomDraft => ({
+  title: "",
+  premise: "",
+  background: "",
+  worldInfo: "",
+  storyGoal: "",
+  userPersonaName: "我",
+  promptStyleId: "novel",
+  characterSeeds: "",
+  characterCount: "3",
+  statusTrackingEnabled: true,
+  randomEventsEnabled: false,
+  randomEventProbability: "15",
+  illustrationHintsEnabled: false,
+  advancedOpen: false,
+});
+
+const parseQuickCreateCharacterSeeds = (value: string) =>
+  value.split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((line) => {
+      const parts = line.split(/[:：\-—]/);
+      const name = parts[0]?.trim() ?? "";
+      const description = parts.slice(1).join(" - ").trim();
+      return {
+        name: name || undefined,
+        description: description || line,
+      };
+    });
+
+const clampQuickCreateInteger = (
+  value: string,
+  fallback: number,
+  min: number,
+  max: number,
+) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+};
+
+const clampQuickCreateProbability = (value: string) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0.15;
+  }
+
+  return Math.min(1, Math.max(0, parsed / 100));
+};
+
 const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
   ...settings,
   continuation: { ...settings.continuation },
@@ -751,6 +845,8 @@ export const TavernManagementPage = ({
   globalRuntimeModel,
   canDeleteRoom,
   onCreateRoom,
+  onQuickCreateRoom,
+  onRunTextFieldAgent,
   onSelectRoom,
   onOpenRoom,
   onPatchRoom,
@@ -767,6 +863,13 @@ export const TavernManagementPage = ({
   const [roomContentEditDraft, setRoomContentEditDraft] =
     useState<RoomContentEditDraft | null>(null);
   const [roomContentEditError, setRoomContentEditError] = useState("");
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  const [quickCreateDraft, setQuickCreateDraft] = useState<QuickCreateRoomDraft>(
+    createEmptyQuickCreateRoomDraft,
+  );
+  const [quickCreateError, setQuickCreateError] = useState("");
+  const [isQuickCreatingRoom, setIsQuickCreatingRoom] = useState(false);
+  const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
@@ -895,6 +998,219 @@ export const TavernManagementPage = ({
     setRoomContentEditError("");
     setEditingCharacterId(null);
     setIsCreatingRoomCharacter(false);
+  };
+
+  const openQuickCreateDialog = () => {
+    setQuickCreateDraft(createEmptyQuickCreateRoomDraft());
+    setQuickCreateError("");
+    setIsQuickCreateOpen(true);
+  };
+
+  const closeQuickCreateDialog = () => {
+    if (isQuickCreatingRoom) {
+      return;
+    }
+
+    setIsQuickCreateOpen(false);
+    setQuickCreateError("");
+  };
+
+  const submitQuickCreateRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = quickCreateDraft.title.trim();
+    const premise = quickCreateDraft.premise.trim();
+    if (!title && !premise) {
+      setQuickCreateError("请至少填写标题或核心设想。");
+      return;
+    }
+
+    setIsQuickCreatingRoom(true);
+    setQuickCreateError("");
+    const characterCount = clampQuickCreateInteger(quickCreateDraft.characterCount, 3, 1, 8);
+    const randomEventProbability = clampQuickCreateProbability(
+      quickCreateDraft.randomEventProbability,
+    );
+    const error = await onQuickCreateRoom({
+      title,
+      premise,
+      background: quickCreateDraft.background.trim(),
+      worldInfo: quickCreateDraft.worldInfo.trim(),
+      storyGoal: quickCreateDraft.storyGoal.trim(),
+      userPersonaName: quickCreateDraft.userPersonaName.trim() || "我",
+      promptStyleId: normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId),
+      characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
+      advanced: {
+        characterCount,
+        enableStatusTracking: quickCreateDraft.statusTrackingEnabled,
+        enableRandomEvents: quickCreateDraft.randomEventsEnabled,
+        randomEventProbability,
+        enableIllustrationHints: quickCreateDraft.illustrationHintsEnabled,
+        settings: {
+          directorMaxSpeakers: Math.min(4, Math.max(1, characterCount)),
+          statusTracking: {
+            enabled: quickCreateDraft.statusTrackingEnabled,
+            visibleToUser: true,
+          },
+          randomEvents: {
+            enabled: quickCreateDraft.randomEventsEnabled,
+            probability: randomEventProbability,
+          },
+          illustrationHints: {
+            enabled: quickCreateDraft.illustrationHintsEnabled,
+          },
+        },
+      },
+    });
+    setIsQuickCreatingRoom(false);
+
+    if (error) {
+      setQuickCreateError(error);
+      return;
+    }
+
+    setRoomOperationStatus("已创建快捷酒馆。");
+    setIsQuickCreateOpen(false);
+  };
+
+  const buildTextFieldAgentContext = () => {
+    const room = editingRoom ?? activeRoom;
+    const scene = editingActiveScene ?? getActiveTavernScene(room);
+    return {
+      room: {
+        title: room.title,
+        promptStyleId: room.promptStyleId,
+        storyOutline: room.storyOutline,
+        storyGoal: room.storyGoal,
+        userPersonaName: room.userPersonaName,
+      },
+      scene: scene
+        ? {
+            title: scene.title,
+            scene: scene.scene,
+            sceneGoal: scene.sceneGoal,
+            plot: scene.plot,
+            storyDirection: scene.storyDirection,
+            transition: scene.transition,
+            memory: scene.memory,
+          }
+        : null,
+      characters: (room.localCharacters ?? []).map((character) => ({
+        name: character.name,
+        description: character.description,
+        speakingStyle: character.speakingStyle,
+        writingStyle: character.writingStyle,
+        replyStylePrompt: character.replyStylePrompt,
+        goals: character.goals,
+        relationships: character.relationships,
+      })),
+      lorebookEntries: room.lorebookEntries.map((entry) => ({
+        title: entry.title,
+        content: entry.content,
+        keywords: entry.keywords,
+      })),
+      timelineEvents: room.timelineEvents.map((event) => ({
+        title: event.title,
+        summary: event.summary,
+      })),
+    };
+  };
+
+  const runTextFieldAgentForDraft = async ({
+    mode,
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+    context,
+  }: {
+    mode: "polish" | "inspire";
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+    context?: Record<string, unknown>;
+  }) => {
+    const room = editingRoom ?? activeRoom;
+    setActiveTextFieldAgentKey(`${fieldKey}:${mode}`);
+    setRoomContentEditError("");
+    try {
+      const text = await onRunTextFieldAgent({
+        mode,
+        fieldLabel,
+        currentText,
+        promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
+        context: {
+          ...buildTextFieldAgentContext(),
+          ...(context ?? {}),
+        },
+      });
+      if (text.trim()) {
+        applyText(text);
+      }
+    } catch (error) {
+      setRoomContentEditError(getUnknownErrorMessage(error));
+    } finally {
+      setActiveTextFieldAgentKey("");
+    }
+  };
+
+  const renderTextFieldAgentActions = ({
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+    context,
+  }: {
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+    context?: Record<string, unknown>;
+  }) => {
+    const isPolishing = activeTextFieldAgentKey === `${fieldKey}:polish`;
+    const isInspiring = activeTextFieldAgentKey === `${fieldKey}:inspire`;
+    const isBusy = Boolean(activeTextFieldAgentKey);
+    const run = (mode: "polish" | "inspire") => (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void runTextFieldAgentForDraft({
+        mode,
+        fieldKey,
+        fieldLabel,
+        currentText,
+        applyText,
+        context,
+      });
+    };
+
+    return (
+      <span className="flex items-center gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("polish")}
+        >
+          <Pencil className="size-3" />
+          {isPolishing ? "处理中" : "润色"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("inspire")}
+        >
+          <Sparkles className="size-3" />
+          {isInspiring ? "处理中" : "灵感"}
+        </Button>
+      </span>
+    );
   };
 
   const patchEditingRoomDraft = (patch: Partial<TavernRoom>) => {
@@ -1647,7 +1963,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="大故事总纲" htmlFor="tavern-content-story-outline">
+            <TavernEditorField
+              label="大故事总纲"
+              htmlFor="tavern-content-story-outline"
+              action={renderTextFieldAgentActions({
+                fieldKey: "storyOutline",
+                fieldLabel: "大故事总纲",
+                currentText: roomContentEditDraft.storyOutline,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "basic" ? { ...current, storyOutline: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-story-outline"
                 value={roomContentEditDraft.storyOutline}
@@ -1658,7 +1985,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="大故事终局目标" htmlFor="tavern-content-story-goal">
+            <TavernEditorField
+              label="大故事终局目标"
+              htmlFor="tavern-content-story-goal"
+              action={renderTextFieldAgentActions({
+                fieldKey: "storyGoal",
+                fieldLabel: "大故事终局目标",
+                currentText: roomContentEditDraft.storyGoal,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "basic" ? { ...current, storyGoal: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-story-goal"
                 value={roomContentEditDraft.storyGoal}
@@ -1800,7 +2138,18 @@ export const TavernManagementPage = ({
                 ))}
               </NativeSelect>
             </TavernEditorField>
-            <TavernEditorField label="场景描述" htmlFor="tavern-content-scene">
+            <TavernEditorField
+              label="场景描述"
+              htmlFor="tavern-content-scene"
+              action={renderTextFieldAgentActions({
+                fieldKey: "scene",
+                fieldLabel: "场景描述",
+                currentText: roomContentEditDraft.scene,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, scene: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-scene"
                 value={roomContentEditDraft.scene}
@@ -1811,7 +2160,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="阶段剧情" htmlFor="tavern-content-scene-plot">
+            <TavernEditorField
+              label="阶段剧情"
+              htmlFor="tavern-content-scene-plot"
+              action={renderTextFieldAgentActions({
+                fieldKey: "scenePlot",
+                fieldLabel: "阶段剧情",
+                currentText: roomContentEditDraft.scenePlot,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, scenePlot: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-scene-plot"
                 value={roomContentEditDraft.scenePlot}
@@ -1822,7 +2182,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="场景目标" htmlFor="tavern-content-goal">
+            <TavernEditorField
+              label="场景目标"
+              htmlFor="tavern-content-goal"
+              action={renderTextFieldAgentActions({
+                fieldKey: "sceneGoal",
+                fieldLabel: "场景目标",
+                currentText: roomContentEditDraft.sceneGoal,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, sceneGoal: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-goal"
                 value={roomContentEditDraft.sceneGoal}
@@ -1833,7 +2204,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="剧情走向" htmlFor="tavern-content-scene-direction">
+            <TavernEditorField
+              label="剧情走向"
+              htmlFor="tavern-content-scene-direction"
+              action={renderTextFieldAgentActions({
+                fieldKey: "sceneDirection",
+                fieldLabel: "剧情走向",
+                currentText: roomContentEditDraft.sceneDirection,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, sceneDirection: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-scene-direction"
                 value={roomContentEditDraft.sceneDirection}
@@ -1844,7 +2226,18 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="承接关系" htmlFor="tavern-content-scene-transition">
+            <TavernEditorField
+              label="承接关系"
+              htmlFor="tavern-content-scene-transition"
+              action={renderTextFieldAgentActions({
+                fieldKey: "sceneTransition",
+                fieldLabel: "承接关系",
+                currentText: roomContentEditDraft.sceneTransition,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, sceneTransition: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-scene-transition"
                 value={roomContentEditDraft.sceneTransition}
@@ -1973,7 +2366,18 @@ export const TavernManagementPage = ({
                 </div>
               )}
             </div>
-            <TavernEditorField label="阶段记忆" htmlFor="tavern-content-memory">
+            <TavernEditorField
+              label="阶段记忆"
+              htmlFor="tavern-content-memory"
+              action={renderTextFieldAgentActions({
+                fieldKey: "sceneMemory",
+                fieldLabel: "阶段记忆",
+                currentText: roomContentEditDraft.memory,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "narrative" ? { ...current, memory: text } : current
+                ),
+              })}
+            >
               <Textarea
                 id="tavern-content-memory"
                 value={roomContentEditDraft.memory}
@@ -2556,7 +2960,22 @@ export const TavernManagementPage = ({
                 })}
               />
             </TavernEditorField>
-            <TavernEditorField label="设定内容" htmlFor="tavern-content-lore-content">
+            <TavernEditorField
+              label="设定内容"
+              htmlFor="tavern-content-lore-content"
+              action={renderTextFieldAgentActions({
+                fieldKey: "loreContent",
+                fieldLabel: "世界书设定内容",
+                currentText: roomContentEditDraft.content,
+                applyText: (text) => setRoomContentEditDraft((current) =>
+                  current?.type === "lore" ? { ...current, content: text } : current
+                ),
+                context: {
+                  loreTitle: roomContentEditDraft.title,
+                  loreKeywords: roomContentEditDraft.keywords,
+                },
+              })}
+            >
               <Textarea
                 id="tavern-content-lore-content"
                 value={roomContentEditDraft.content}
@@ -2624,9 +3043,13 @@ export const TavernManagementPage = ({
                 className="hidden"
                 onChange={handleImportRoomFile}
               />
-              <Button type="button" onClick={onCreateRoom}>
+              <Button type="button" onClick={openQuickCreateDialog}>
+                <Sparkles className="size-4" />
+                快捷创建
+              </Button>
+              <Button type="button" variant="outline" onClick={onCreateRoom}>
                 <Plus className="size-4" />
-                新建酒馆
+                普通创建
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -2853,6 +3276,257 @@ export const TavernManagementPage = ({
           </section>
         </div>
       </ScrollArea>
+
+      <Dialog
+        open={isQuickCreateOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            openQuickCreateDialog();
+            return;
+          }
+          closeQuickCreateDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <form className="flex max-h-[82vh] flex-col" onSubmit={submitQuickCreateRoom}>
+            <DialogHeader>
+              <DialogTitle>快捷创建酒馆</DialogTitle>
+              <DialogDescription>
+                输入最少设想后生成可编辑酒馆预设。
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="mt-4 min-h-0 flex-1 pr-3">
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TavernEditorField label="标题" htmlFor="tavern-quick-title">
+                    <Input
+                      id="tavern-quick-title"
+                      value={quickCreateDraft.title}
+                      className={editorControlClassName}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        title: event.target.value,
+                      })}
+                    />
+                  </TavernEditorField>
+                  <TavernEditorField label="系统风格" htmlFor="tavern-quick-prompt-style">
+                    <NativeSelect
+                      id="tavern-quick-prompt-style"
+                      value={quickCreateDraft.promptStyleId}
+                      className={editorControlClassName}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        promptStyleId: event.target.value,
+                      })}
+                    >
+                      {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
+                        <NativeSelectOption key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </TavernEditorField>
+                </div>
+
+                <TavernEditorField label="核心设想" htmlFor="tavern-quick-premise">
+                  <Textarea
+                    id="tavern-quick-premise"
+                    value={quickCreateDraft.premise}
+                    className={cn("min-h-[96px] resize-none text-sm leading-6", editorControlClassName)}
+                    disabled={isQuickCreatingRoom}
+                    onChange={(event) => setQuickCreateDraft({
+                      ...quickCreateDraft,
+                      premise: event.target.value,
+                    })}
+                  />
+                </TavernEditorField>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TavernEditorField label="背景故事" htmlFor="tavern-quick-background">
+                    <Textarea
+                      id="tavern-quick-background"
+                      value={quickCreateDraft.background}
+                      className={cn("min-h-[88px] resize-none text-sm leading-6", editorControlClassName)}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        background: event.target.value,
+                      })}
+                    />
+                  </TavernEditorField>
+                  <TavernEditorField label="世界书线索" htmlFor="tavern-quick-world">
+                    <Textarea
+                      id="tavern-quick-world"
+                      value={quickCreateDraft.worldInfo}
+                      className={cn("min-h-[88px] resize-none text-sm leading-6", editorControlClassName)}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        worldInfo: event.target.value,
+                      })}
+                    />
+                  </TavernEditorField>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+                  <TavernEditorField label="角色线索" htmlFor="tavern-quick-characters">
+                    <Textarea
+                      id="tavern-quick-characters"
+                      value={quickCreateDraft.characterSeeds}
+                      className={cn("min-h-[92px] resize-none text-sm leading-6", editorControlClassName)}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        characterSeeds: event.target.value,
+                      })}
+                    />
+                  </TavernEditorField>
+                  <div className="grid gap-3">
+                    <TavernEditorField label="用户称呼" htmlFor="tavern-quick-user">
+                      <Input
+                        id="tavern-quick-user"
+                        value={quickCreateDraft.userPersonaName}
+                        className={editorControlClassName}
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          userPersonaName: event.target.value,
+                        })}
+                      />
+                    </TavernEditorField>
+                    <TavernEditorField label="角色数量" htmlFor="tavern-quick-character-count">
+                      <Input
+                        id="tavern-quick-character-count"
+                        type="number"
+                        min={1}
+                        max={8}
+                        value={quickCreateDraft.characterCount}
+                        className={editorControlClassName}
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          characterCount: event.target.value,
+                        })}
+                      />
+                    </TavernEditorField>
+                  </div>
+                </div>
+
+                <TavernEditorField label="场景目标" htmlFor="tavern-quick-goal">
+                  <Input
+                    id="tavern-quick-goal"
+                    value={quickCreateDraft.storyGoal}
+                    className={editorControlClassName}
+                    disabled={isQuickCreatingRoom}
+                    onChange={(event) => setQuickCreateDraft({
+                      ...quickCreateDraft,
+                      storyGoal: event.target.value,
+                    })}
+                  />
+                </TavernEditorField>
+
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm font-medium"
+                  disabled={isQuickCreatingRoom}
+                  onClick={() => setQuickCreateDraft({
+                    ...quickCreateDraft,
+                    advancedOpen: !quickCreateDraft.advancedOpen,
+                  })}
+                >
+                  <span>高级内容</span>
+                  {quickCreateDraft.advancedOpen
+                    ? <ChevronDown className="size-4 text-muted-foreground" />
+                    : <ChevronRight className="size-4 text-muted-foreground" />}
+                </button>
+
+                {quickCreateDraft.advancedOpen && (
+                  <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
+                    <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={quickCreateDraft.statusTrackingEnabled}
+                        className="accent-primary"
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          statusTrackingEnabled: event.target.checked,
+                        })}
+                      />
+                      状态栏
+                    </label>
+                    <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={quickCreateDraft.illustrationHintsEnabled}
+                        className="accent-primary"
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          illustrationHintsEnabled: event.target.checked,
+                        })}
+                      />
+                      插图提示
+                    </label>
+                    <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={quickCreateDraft.randomEventsEnabled}
+                        className="accent-primary"
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          randomEventsEnabled: event.target.checked,
+                        })}
+                      />
+                      随机事件
+                    </label>
+                    <TavernEditorField label="随机事件概率" htmlFor="tavern-quick-random-probability">
+                      <Input
+                        id="tavern-quick-random-probability"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={quickCreateDraft.randomEventProbability}
+                        className={editorControlClassName}
+                        disabled={isQuickCreatingRoom || !quickCreateDraft.randomEventsEnabled}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          randomEventProbability: event.target.value,
+                        })}
+                      />
+                    </TavernEditorField>
+                  </div>
+                )}
+
+                {quickCreateError && (
+                  <div className="rounded-md border border-destructive/35 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {quickCreateError}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isQuickCreatingRoom}
+                onClick={closeQuickCreateDialog}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isQuickCreatingRoom}>
+                <Sparkles className="size-4" />
+                {isQuickCreatingRoom ? "生成中" : "创建"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(deletingRoom)}
@@ -4059,6 +4733,16 @@ export const TavernManagementPage = ({
         open={isCreatingRoomCharacter || Boolean(editingCharacter)}
         character={editingCharacter}
         roomModelLabel={editingRoomModelLabel}
+        onRunTextFieldAgent={editingRoom
+          ? (request) => onRunTextFieldAgent({
+              ...request,
+              promptStyleId: normalizeTavernPromptStyleId(editingRoom.promptStyleId),
+              context: {
+                ...buildTextFieldAgentContext(),
+                ...request.context,
+              },
+            })
+          : undefined}
         onOpenChange={(open) => {
           if (!open) {
             setIsCreatingRoomCharacter(false);
