@@ -1072,6 +1072,136 @@ export const TavernManagementPage = ({
     setIsQuickCreateOpen(false);
   };
 
+  const buildQuickCreateTextFieldAgentContext = () => {
+    const promptStyleId = normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId);
+    const characterCount = clampQuickCreateInteger(quickCreateDraft.characterCount, 3, 1, 8);
+    const randomEventProbability = clampQuickCreateProbability(
+      quickCreateDraft.randomEventProbability,
+    );
+    return {
+      creationMode: "quick_create",
+      quickCreateDraft: {
+        title: quickCreateDraft.title,
+        premise: quickCreateDraft.premise,
+        background: quickCreateDraft.background,
+        worldInfo: quickCreateDraft.worldInfo,
+        storyGoal: quickCreateDraft.storyGoal,
+        userPersonaName: quickCreateDraft.userPersonaName,
+        promptStyleId,
+        characterSeedsText: quickCreateDraft.characterSeeds,
+        characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
+        advanced: {
+          characterCount,
+          statusTrackingEnabled: quickCreateDraft.statusTrackingEnabled,
+          randomEventsEnabled: quickCreateDraft.randomEventsEnabled,
+          randomEventProbability,
+          illustrationHintsEnabled: quickCreateDraft.illustrationHintsEnabled,
+        },
+      },
+      existingRooms: rooms.map((room) => ({
+        title: room.title,
+        promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
+        characterCount: room.localCharacters?.length ?? 0,
+      })),
+    };
+  };
+
+  const runQuickCreateTextFieldAgent = async ({
+    mode,
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+  }: {
+    mode: "polish" | "inspire";
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+  }) => {
+    const activeKey = `quick:${fieldKey}:${mode}`;
+    setActiveTextFieldAgentKey(activeKey);
+    setQuickCreateError("");
+    try {
+      const text = await onRunTextFieldAgent({
+        mode,
+        fieldLabel,
+        currentText,
+        promptStyleId: normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId),
+        context: {
+          ...buildQuickCreateTextFieldAgentContext(),
+          targetField: {
+            key: fieldKey,
+            label: fieldLabel,
+          },
+        },
+      });
+      if (text.trim()) {
+        applyText(text);
+      }
+    } catch (error) {
+      setQuickCreateError(getUnknownErrorMessage(error));
+    } finally {
+      setActiveTextFieldAgentKey((current) => current === activeKey ? "" : current);
+    }
+  };
+
+  const renderQuickCreateTextFieldAgentActions = ({
+    fieldKey,
+    fieldLabel,
+    currentText,
+    applyText,
+  }: {
+    fieldKey: string;
+    fieldLabel: string;
+    currentText: string;
+    applyText: (text: string) => void;
+  }) => {
+    const isPolishing = activeTextFieldAgentKey === `quick:${fieldKey}:polish`;
+    const isInspiring = activeTextFieldAgentKey === `quick:${fieldKey}:inspire`;
+    const isBusy = isQuickCreatingRoom || Boolean(activeTextFieldAgentKey);
+    const run = (mode: "polish" | "inspire") => (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void runQuickCreateTextFieldAgent({
+        mode,
+        fieldKey,
+        fieldLabel,
+        currentText,
+        applyText,
+      });
+    };
+
+    return (
+      <span className="flex items-center gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("polish")}
+        >
+          <Pencil className="size-3" />
+          {isPolishing ? "处理中" : "润色"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("inspire")}
+        >
+          <Sparkles className="size-3" />
+          {isInspiring ? "处理中" : "灵感"}
+        </Button>
+      </span>
+    );
+  };
+
   const buildTextFieldAgentContext = () => {
     const room = editingRoom ?? activeRoom;
     const scene = editingActiveScene ?? getActiveTavernScene(room);
@@ -3331,7 +3461,19 @@ export const TavernManagementPage = ({
                   </TavernEditorField>
                 </div>
 
-                <TavernEditorField label="核心设想" htmlFor="tavern-quick-premise">
+                <TavernEditorField
+                  label="核心设想"
+                  htmlFor="tavern-quick-premise"
+                  action={renderQuickCreateTextFieldAgentActions({
+                    fieldKey: "premise",
+                    fieldLabel: "快捷创建核心设想",
+                    currentText: quickCreateDraft.premise,
+                    applyText: (text) => setQuickCreateDraft((current) => ({
+                      ...current,
+                      premise: text,
+                    })),
+                  })}
+                >
                   <Textarea
                     id="tavern-quick-premise"
                     value={quickCreateDraft.premise}
@@ -3345,7 +3487,19 @@ export const TavernManagementPage = ({
                 </TavernEditorField>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <TavernEditorField label="背景故事" htmlFor="tavern-quick-background">
+                  <TavernEditorField
+                    label="背景故事"
+                    htmlFor="tavern-quick-background"
+                    action={renderQuickCreateTextFieldAgentActions({
+                      fieldKey: "background",
+                      fieldLabel: "快捷创建背景故事",
+                      currentText: quickCreateDraft.background,
+                      applyText: (text) => setQuickCreateDraft((current) => ({
+                        ...current,
+                        background: text,
+                      })),
+                    })}
+                  >
                     <Textarea
                       id="tavern-quick-background"
                       value={quickCreateDraft.background}
@@ -3357,7 +3511,19 @@ export const TavernManagementPage = ({
                       })}
                     />
                   </TavernEditorField>
-                  <TavernEditorField label="世界书线索" htmlFor="tavern-quick-world">
+                  <TavernEditorField
+                    label="世界书线索"
+                    htmlFor="tavern-quick-world"
+                    action={renderQuickCreateTextFieldAgentActions({
+                      fieldKey: "worldInfo",
+                      fieldLabel: "快捷创建世界书线索",
+                      currentText: quickCreateDraft.worldInfo,
+                      applyText: (text) => setQuickCreateDraft((current) => ({
+                        ...current,
+                        worldInfo: text,
+                      })),
+                    })}
+                  >
                     <Textarea
                       id="tavern-quick-world"
                       value={quickCreateDraft.worldInfo}
@@ -3372,7 +3538,19 @@ export const TavernManagementPage = ({
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
-                  <TavernEditorField label="角色线索" htmlFor="tavern-quick-characters">
+                  <TavernEditorField
+                    label="角色线索"
+                    htmlFor="tavern-quick-characters"
+                    action={renderQuickCreateTextFieldAgentActions({
+                      fieldKey: "characterSeeds",
+                      fieldLabel: "快捷创建角色线索",
+                      currentText: quickCreateDraft.characterSeeds,
+                      applyText: (text) => setQuickCreateDraft((current) => ({
+                        ...current,
+                        characterSeeds: text,
+                      })),
+                    })}
+                  >
                     <Textarea
                       id="tavern-quick-characters"
                       value={quickCreateDraft.characterSeeds}
@@ -3415,7 +3593,19 @@ export const TavernManagementPage = ({
                   </div>
                 </div>
 
-                <TavernEditorField label="场景目标" htmlFor="tavern-quick-goal">
+                <TavernEditorField
+                  label="场景目标"
+                  htmlFor="tavern-quick-goal"
+                  action={renderQuickCreateTextFieldAgentActions({
+                    fieldKey: "storyGoal",
+                    fieldLabel: "快捷创建场景目标",
+                    currentText: quickCreateDraft.storyGoal,
+                    applyText: (text) => setQuickCreateDraft((current) => ({
+                      ...current,
+                      storyGoal: text,
+                    })),
+                  })}
+                >
                   <Input
                     id="tavern-quick-goal"
                     value={quickCreateDraft.storyGoal}
