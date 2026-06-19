@@ -648,9 +648,18 @@ type RoomContentEditDraft =
       alwaysOn: boolean;
     };
 
+const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
+  ...settings,
+  continuation: { ...settings.continuation },
+  replyOptions: { ...settings.replyOptions },
+  statusTracking: { ...settings.statusTracking },
+  randomEvents: { ...settings.randomEvents },
+  illustrationHints: { ...settings.illustrationHints },
+});
+
 const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   ...room,
-  settings: { ...room.settings },
+  settings: cloneTavernRoomSettings(room.settings),
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
   scenes: room.scenes?.map((scene) => ({
@@ -668,6 +677,10 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
         ...entry,
         keywords: [...entry.keywords],
       })),
+    })),
+    illustrationHints: scene.illustrationHints.map((hint) => ({
+      ...hint,
+      sourceMessageIds: [...hint.sourceMessageIds],
     })),
   })) ?? [],
   localCharacters: room.localCharacters?.map((character) => ({
@@ -688,6 +701,10 @@ const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
       ...entry,
       keywords: [...entry.keywords],
     })),
+  })),
+  illustrationHints: room.illustrationHints.map((hint) => ({
+    ...hint,
+    sourceMessageIds: [...hint.sourceMessageIds],
   })),
 });
 

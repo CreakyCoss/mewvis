@@ -60,6 +60,7 @@ type TavernSidePanelProps = {
   onTrackRecentProgress: () => void;
   onRebuildProgress: () => void;
   onResolvePendingStatusEvent: (statusEventId: string, resolution: "applied" | "rejected") => void;
+  onClearIllustrationHints: () => void;
   onCompactCharacterKnowledge: (characterId: string) => void;
   compactingCharacterIds?: Set<string>;
 };
@@ -132,7 +133,7 @@ const CharacterProfileTooltip = ({
   </HoverCardContent>
 );
 
-type DetailPanelKey = "asset-drafts" | "timeline" | "lorebook" | "tips";
+type DetailPanelKey = "asset-drafts" | "timeline" | "lorebook" | "illustration-hints" | "tips";
 
 const DetailEntry = ({
   icon: Icon,
@@ -282,6 +283,7 @@ export const TavernSidePanel = ({
   onTrackRecentProgress,
   onRebuildProgress,
   onResolvePendingStatusEvent,
+  onClearIllustrationHints,
   onCompactCharacterKnowledge,
   compactingCharacterIds = new Set(),
 }: TavernSidePanelProps) => {
@@ -311,12 +313,14 @@ export const TavernSidePanel = ({
     "asset-drafts": "剧情资产草稿",
     timeline: "剧情时间线",
     lorebook: "世界书",
+    "illustration-hints": "插图提示",
     tips: "现场提示",
   }[detailPanel ?? "tips"];
   const detailPanelDescription = {
     "asset-drafts": "确认或忽略系统整理出的剧情资产。",
     timeline: "查看已沉淀的剧情事件。",
     lorebook: "查看当前房间可引用的世界设定。",
+    "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
     tips: "查看酒馆现场的使用提醒。",
   }[detailPanel ?? "tips"];
 
@@ -625,6 +629,16 @@ export const TavernSidePanel = ({
                 onClick={() => setDetailPanel("lorebook")}
               />
               <DetailEntry
+                icon={Sparkles}
+                title="插图提示"
+                summary={
+                  activeRoom.illustrationHints.length > 0
+                    ? `${activeRoom.illustrationHints.length} 条画面提示`
+                    : activeRoom.settings.illustrationHints.enabled ? "等待导演生成" : "未开启"
+                }
+                onClick={() => setDetailPanel("illustration-hints")}
+              />
+              <DetailEntry
                 icon={MessageSquare}
                 title="现场提示"
                 summary="内页只保留现场信息，更多配置在首页编辑"
@@ -732,6 +746,46 @@ export const TavernSidePanel = ({
                     暂无世界书。
                   </div>
                 )
+              )}
+
+              {detailPanel === "illustration-hints" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-medium">
+                      {activeRoom.illustrationHints.length} 条提示
+                    </div>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      disabled={isBusy || activeRoom.illustrationHints.length === 0}
+                      onClick={onClearIllustrationHints}
+                    >
+                      <Trash2 className="size-3.5" />
+                      清空
+                    </Button>
+                  </div>
+                  {activeRoom.illustrationHints.length > 0 ? (
+                    <div className="space-y-3">
+                      {activeRoom.illustrationHints.slice().reverse().map((hint, index) => (
+                        <div key={hint.id} className="rounded-md border bg-background/60 p-3">
+                          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span>#{activeRoom.illustrationHints.length - index}</span>
+                            <span>{new Date(hint.createdAt).toLocaleString()}</span>
+                          </div>
+                          <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                            {hint.prompt}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                      暂无插图提示。
+                    </div>
+                  )}
+                </div>
               )}
 
               {detailPanel === "tips" && (

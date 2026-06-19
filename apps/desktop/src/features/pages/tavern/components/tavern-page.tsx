@@ -1453,6 +1453,23 @@ export const TavernPage = ({
     }));
   }, [activeRoom]);
 
+  const clearIllustrationHints = useCallback(() => {
+    if (!activeRoom || activeRoom.illustrationHints.length === 0) {
+      return;
+    }
+
+    if (!confirmDangerousAction(
+      "清空当前场景的插图提示？",
+      "再次确认清空插图提示？这些导演生成的画面提示会从当前场景中移除。",
+    )) {
+      return;
+    }
+
+    patchRoom(activeRoom.id, {
+      illustrationHints: [],
+    });
+  }, [activeRoom, patchRoom]);
+
   const exportRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
     if (!targetRoom) {
@@ -3717,6 +3734,7 @@ export const TavernPage = ({
             onTrackRecentProgress={trackRecentProgress}
             onRebuildProgress={rebuildProgressFromHistory}
             onResolvePendingStatusEvent={resolvePendingStatusEvent}
+            onClearIllustrationHints={clearIllustrationHints}
             onCompactCharacterKnowledge={compactCharacterKnowledge}
             compactingCharacterIds={compactingCharacterIds}
           />
