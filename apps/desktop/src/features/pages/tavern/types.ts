@@ -196,6 +196,15 @@ export type TavernEventIntensity = "trivial" | "minor" | "moderate" | "major" | 
 export type TavernInformationPolicyMode = "open" | "mystery" | "social_deduction" | "custom";
 export type TavernInformationRevealMode = "manual" | "sceneOutcome" | "never";
 
+export type TavernRoleAssignmentDefinition = {
+  id: string;
+  label: string;
+  description?: string;
+  factionId?: string;
+  factionLabel?: string;
+  count: number;
+};
+
 export type TavernInformationPolicy = {
   mode: TavernInformationPolicyMode;
   uiDefaultView: "public" | "reveal" | "director";
@@ -209,8 +218,10 @@ export type TavernInformationPolicy = {
   roleAssignment: {
     enabled: boolean;
     strategy: "manual" | "director_random";
+    includeUser: boolean;
     revealToAssignedCharacter: boolean;
     revealFactionMembers: boolean;
+    rolePool: TavernRoleAssignmentDefinition[];
   };
 };
 

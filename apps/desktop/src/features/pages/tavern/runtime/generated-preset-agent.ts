@@ -77,8 +77,12 @@ const generatedPresetSchema = `{
         "roleAssignment": {
           "enabled": false,
           "strategy": "manual | director_random",
+          "includeUser": true,
           "revealToAssignedCharacter": true,
-          "revealFactionMembers": true
+          "revealFactionMembers": true,
+          "rolePool": [
+            { "id": "wolf", "label": "狼人", "description": "夜间同阵营行动", "factionId": "wolves", "factionLabel": "狼人阵营", "count": 1 }
+          ]
         }
       }
     },
@@ -143,7 +147,7 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "如果 request_context.advanced.enableStatusTracking 为 true，可以生成少量通用状态面板，但每个可变数值状态都必须有明确事件驱动的 statusRules。",
   "如果 request_context.advanced.enableIllustrationHints 为 false，room.settings.illustrationHints.enabled 必须为 false；为 true 时只开启配置，不要生成与当前公开场景矛盾的插图内容。",
   "如果 request_context.advanced.enableRandomEvents 为 false，room.settings.randomEvents.enabled 必须为 false；为 true 时使用 request_context.advanced.randomEventProbability，随机事件仍只由导演运行时决定。",
-  "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达。",
+  "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达；需要每局随机身份时，填写 roleAssignment.rolePool，由运行时生成本局身份事实。",
   "仅部分人可知的事实不能写进开场旁白或公开消息；只能写入 factEvents/status 初始数据或角色私有记忆，并设置可见性。",
   "随机事件只由导演触发，必须是公开可观察事件，不能直接解决主线，不能覆盖用户选择。",
   "状态栏、任务和结局可为空数组；如果设计数值状态，必须同时给出可由明确事件驱动的 statusRules。",

@@ -5,3 +5,4 @@ export * from "./interaction-extractor";
 export * from "./message-render-model";
 export * from "./message-visibility";
 export * from "./progress-engine";
+export * from "./role-assignment";

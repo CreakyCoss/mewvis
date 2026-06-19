@@ -79,6 +79,7 @@ import type {
   TavernMessage,
   TavernCondition,
   TavernProgressView,
+  TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomCharacterConfig,
   TavernRoomSettings,
@@ -317,6 +318,13 @@ const isProgressViewDraft = (item: unknown): item is TavernProgressView => (
   hasStringField(item, "ownerBinding") &&
   hasStringField(item, "layout") &&
   Array.isArray(item.items)
+);
+
+const isRoleAssignmentDefinitionDraft = (item: unknown): item is TavernRoleAssignmentDefinition => (
+  isRecord(item) &&
+  hasStringField(item, "id") &&
+  hasStringField(item, "label") &&
+  (item.count === undefined || typeof item.count === "number")
 );
 
 const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition => (
@@ -650,6 +658,7 @@ type RoomContentEditDraft =
   | ({
       type: "settings";
       progressTracker: TavernProgressTrackerSettings;
+      rolePoolJson: string;
     } & TavernRoomSettings)
   | {
       type: "progress";
@@ -759,7 +768,10 @@ const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettin
   informationPolicy: {
     ...settings.informationPolicy,
     hiddenFacts: { ...settings.informationPolicy.hiddenFacts },
-    roleAssignment: { ...settings.informationPolicy.roleAssignment },
+    roleAssignment: {
+      ...settings.informationPolicy.roleAssignment,
+      rolePool: settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
+    },
   },
 });
 
@@ -1235,6 +1247,7 @@ export const TavernManagementPage = ({
           ...current.roleAssignment,
           enabled: false,
           strategy: "manual",
+          rolePool: current.roleAssignment.rolePool.map((role) => ({ ...role })),
         },
       };
     }
@@ -1255,6 +1268,8 @@ export const TavernManagementPage = ({
         ...current.roleAssignment,
         enabled: mode === "social_deduction" ? true : current.roleAssignment.enabled,
         strategy: mode === "social_deduction" ? "director_random" : current.roleAssignment.strategy,
+        includeUser: mode === "social_deduction" ? true : current.roleAssignment.includeUser,
+        rolePool: current.roleAssignment.rolePool.map((role) => ({ ...role })),
       },
     };
   };
@@ -1726,6 +1741,7 @@ export const TavernManagementPage = ({
       type: "settings",
       ...cloneTavernRoomSettings(editingRoom.settings),
       progressTracker: { ...editingRoom.progressTracker },
+      rolePoolJson: formatProgressJson(editingRoom.settings.informationPolicy.roleAssignment.rolePool),
     });
   };
 
@@ -1872,6 +1888,16 @@ export const TavernManagementPage = ({
     }
 
     if (roomContentEditDraft.type === "settings") {
+      const rolePool = parseProgressJsonArray<TavernRoleAssignmentDefinition>(
+        roomContentEditDraft.rolePoolJson,
+        "身份池",
+        isRoleAssignmentDefinitionDraft,
+      );
+      if (!rolePool.ok) {
+        setRoomContentEditError(rolePool.error);
+        return;
+      }
+
       patchEditingRoomDraft({
         settings: {
           ...(editingRoom?.settings ?? activeRoom.settings),
@@ -1913,7 +1939,10 @@ export const TavernManagementPage = ({
           informationPolicy: {
             ...roomContentEditDraft.informationPolicy,
             hiddenFacts: { ...roomContentEditDraft.informationPolicy.hiddenFacts },
-            roleAssignment: { ...roomContentEditDraft.informationPolicy.roleAssignment },
+            roleAssignment: {
+              ...roomContentEditDraft.informationPolicy.roleAssignment,
+              rolePool: rolePool.value.map((role) => ({ ...role })),
+            },
           },
         },
         progressTracker: {
@@ -2940,6 +2969,24 @@ export const TavernManagementPage = ({
                 />
                 剧本身份分配
               </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.roleAssignment.includeUser}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      roleAssignment: {
+                        ...roomContentEditDraft.informationPolicy.roleAssignment,
+                        includeUser: event.target.checked,
+                      },
+                    },
+                  })}
+                />
+                用户参与身份池
+              </label>
               <TavernEditorField label="心理揭示" htmlFor="tavern-content-thought-reveal">
                 <NativeSelect
                   id="tavern-content-thought-reveal"
@@ -2958,6 +3005,53 @@ export const TavernManagementPage = ({
                   <NativeSelectOption value="never">不揭示</NativeSelectOption>
                 </NativeSelect>
               </TavernEditorField>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.roleAssignment.revealToAssignedCharacter}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      roleAssignment: {
+                        ...roomContentEditDraft.informationPolicy.roleAssignment,
+                        revealToAssignedCharacter: event.target.checked,
+                      },
+                    },
+                  })}
+                />
+                本人可知身份
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.roleAssignment.revealFactionMembers}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      roleAssignment: {
+                        ...roomContentEditDraft.informationPolicy.roleAssignment,
+                        revealFactionMembers: event.target.checked,
+                      },
+                    },
+                  })}
+                />
+                同阵营互知
+              </label>
+              <div className="space-y-2 sm:col-span-2">
+                <div className="text-sm font-medium">身份池 JSON</div>
+                <Textarea
+                  value={roomContentEditDraft.rolePoolJson}
+                  className="min-h-32 font-mono text-xs"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    rolePoolJson: event.target.value,
+                  })}
+                />
+              </div>
             </div>
             <div className={settingsEditorMetricGridClassName}>
               <TavernEditorField label="整理间隔" htmlFor="tavern-content-asset-interval">

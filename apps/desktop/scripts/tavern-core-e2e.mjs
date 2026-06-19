@@ -27,6 +27,7 @@ writeFileSync(entryPath, `
   import {
     advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
+    assignTavernRoleFacts,
     createEmptyTavernStatusSnapshot,
     createTavernProgressCheckpoint,
     createTavernRenderableMessages,
@@ -36,6 +37,7 @@ writeFileSync(entryPath, `
     filterTavernFactEventsForAudience,
     formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
+    isGeneratedTavernRoleAssignmentFactEvent,
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
@@ -653,6 +655,63 @@ writeFileSync(entryPath, `
     }),
     messageIntelById,
   };
+  const roleAssignmentRoom = {
+    ...mysteryRoom,
+    userPersonaName: "来客",
+    settings: {
+      ...mysteryRoom.settings,
+      informationPolicy: {
+        ...mysteryRoom.settings.informationPolicy,
+        roleAssignment: {
+          ...mysteryRoom.settings.informationPolicy.roleAssignment,
+          enabled: true,
+          strategy: "director_random",
+          includeUser: true,
+          revealToAssignedCharacter: true,
+          revealFactionMembers: true,
+          rolePool: [
+            {
+              id: "wolf",
+              label: "狼人",
+              factionId: "wolves",
+              factionLabel: "狼人阵营",
+              count: 1,
+            },
+            {
+              id: "villager",
+              label: "村民",
+              factionId: "village",
+              factionLabel: "村民阵营",
+              count: 2,
+            },
+          ],
+        },
+      },
+    },
+  };
+  const assignedRoleFacts = assignTavernRoleFacts({
+    room: roleAssignmentRoom,
+    characters,
+    random: () => 0,
+    turnId: "role-test",
+    createdAt: now + 30,
+  });
+  const roleAssignmentChecks = {
+    count: assignedRoleFacts.length,
+    generated: assignedRoleFacts.every(isGeneratedTavernRoleAssignmentFactEvent),
+    userFacts: assignedRoleFacts.filter((event) =>
+      event.target?.type === "user" && event.visibleToUser
+    ).map((event) => event.id),
+    characterFacts: assignedRoleFacts.filter((event) =>
+      event.target?.type === "character" &&
+        event.visibleToCharacterIds?.includes(event.target.characterId)
+    ).map((event) => event.id),
+    privateFacts: assignedRoleFacts.every((event) =>
+      event.type === "role_assignment" &&
+        event.visibility === "private" &&
+        event.revealWhen === "sceneOutcome"
+    ),
+  };
   const bAsksA = {
     id: "m-b-asks-a",
     roomId: room.id,
@@ -1249,6 +1308,7 @@ writeFileSync(entryPath, `
       "health",
     ),
     rebuiltFromTrimTaskStatus: rebuiltFromTrimCheckpoint.taskSnapshot["defeat-boss"]?.status,
+    roleAssignmentChecks,
     defaultDefinitions: {
       statusRuleIds: DEFAULT_TAVERN_STATUS_RULES.map((rule) => rule.id),
       statusDefinitionIds: DEFAULT_TAVERN_STATUS_DEFINITIONS.map((definition) => definition.id),
@@ -1320,6 +1380,7 @@ writeFileSync(entryPath, `
     parsedDirectorIllustrationHintsLoose,
     randomEventOpportunityChecks,
     progressChecks,
+    roleAssignmentChecks,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -1549,6 +1610,15 @@ try {
       checks.privateFactVisibilityChecks.revealedUserFacts.includes("fact-director"),
     "导演应全知，结局揭示后隐藏事实可进入复盘视角",
     checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.roleAssignmentChecks.count === 3 &&
+      checks.roleAssignmentChecks.generated &&
+      checks.roleAssignmentChecks.userFacts.length === 1 &&
+      checks.roleAssignmentChecks.characterFacts.length === 2 &&
+      checks.roleAssignmentChecks.privateFacts,
+    "身份池应能为用户和角色生成私有身份事实，并可被运行时识别为可替换的本局分配",
+    checks.roleAssignmentChecks,
   );
   assert(
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,

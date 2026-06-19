@@ -40,7 +40,9 @@ import {
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
 import {
+  assignTavernRoleFacts,
   filterTavernFactEventsForAudience,
+  isGeneratedTavernRoleAssignmentFactEvent,
   resolveTavernInformationView,
   type TavernInformationView,
 } from "../core";
@@ -380,6 +382,8 @@ export const TavernSidePanel = ({
   const hiddenFactCount = activeRoom.factEvents.filter(isHiddenFactEvent).length;
   const reviewHiddenFactCount = reviewFactEvents.filter(isHiddenFactEvent).length;
   const identityFactEvents = privateIntelEvents.filter(isIdentityFactEvent);
+  const roleAssignment = activeRoom.settings.informationPolicy.roleAssignment;
+  const generatedRoleAssignmentCount = activeRoom.factEvents.filter(isGeneratedTavernRoleAssignmentFactEvent).length;
   const patchInformationView = (view: TavernInformationView) => {
     onPatchRoom(activeRoom.id, {
       settings: {
@@ -407,6 +411,23 @@ export const TavernSidePanel = ({
         }
         return nextEvent;
       }),
+    });
+  };
+  const assignRoles = () => {
+    const roleFacts = assignTavernRoleFacts({
+      room: activeRoom,
+      characters: roomCharacters,
+    });
+    if (roleFacts.length === 0) {
+      return;
+    }
+
+    onPatchRoom(activeRoom.id, {
+      factEvents: [
+        ...activeRoom.factEvents.filter((event) => !isGeneratedTavernRoleAssignmentFactEvent(event)),
+        ...roleFacts,
+      ],
+      updatedAt: Date.now(),
     });
   };
   const shouldShowIllustrationHints =
@@ -965,6 +986,42 @@ export const TavernSidePanel = ({
                       ))}
                     </div>
                   </div>
+
+                  {roleAssignment.enabled && (
+                    <div className="rounded-md border bg-background/60 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">身份分配</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            {roleAssignment.rolePool.length} 种身份，已生成 {generatedRoleAssignmentCount} 条身份事实
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          disabled={isBusy || roleAssignment.rolePool.length === 0}
+                          onClick={assignRoles}
+                        >
+                          <ShieldCheck className="size-3.5" />
+                          随机分配
+                        </Button>
+                      </div>
+                      {roleAssignment.rolePool.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {roleAssignment.rolePool.map((role) => (
+                            <span
+                              key={role.id}
+                              className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground"
+                            >
+                              {role.label} x{role.count}
+                              {role.factionId ? ` / ${role.factionLabel || role.factionId}` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {identityFactEvents.length > 0 && (
                     <div className="space-y-2 rounded-md border bg-background/60 p-3">

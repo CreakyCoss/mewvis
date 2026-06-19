@@ -316,8 +316,10 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
     roleAssignment: {
       enabled: false,
       strategy: "manual",
+      includeUser: true,
       revealToAssignedCharacter: true,
       revealFactionMembers: true,
+      rolePool: [],
     },
   },
 };
@@ -815,7 +817,10 @@ const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   informationPolicy: {
     ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
     hiddenFacts: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts },
-    roleAssignment: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment },
+    roleAssignment: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment,
+      rolePool: DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
+    },
   },
 });
 
@@ -823,6 +828,49 @@ const normalizeInformationRevealMode = (value: unknown) =>
   value === "sceneOutcome" || value === "never" || value === "manual"
     ? value
     : "manual";
+
+const normalizeRoleAssignmentPool = (
+  value: unknown,
+): TavernRoomSettings["informationPolicy"]["roleAssignment"]["rolePool"] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+
+    const candidate = item as Record<string, unknown>;
+    const label = typeof candidate.label === "string" ? candidate.label.trim() : "";
+    if (!label) {
+      return [];
+    }
+
+    const rawId = typeof candidate.id === "string" ? candidate.id.trim() : "";
+    const count = typeof candidate.count === "number" && Number.isFinite(candidate.count)
+      ? Math.min(20, Math.max(1, Math.round(candidate.count)))
+      : 1;
+    const description = typeof candidate.description === "string"
+      ? candidate.description.trim()
+      : "";
+    const factionId = typeof candidate.factionId === "string"
+      ? candidate.factionId.trim()
+      : "";
+    const factionLabel = typeof candidate.factionLabel === "string"
+      ? candidate.factionLabel.trim()
+      : "";
+
+    return [{
+      id: rawId || `role-${index + 1}`,
+      label,
+      ...(description ? { description } : {}),
+      ...(factionId ? { factionId } : {}),
+      ...(factionLabel ? { factionLabel } : {}),
+      count,
+    }];
+  });
+};
 
 const normalizeInformationPolicy = (
   value: unknown,
@@ -869,8 +917,10 @@ const normalizeInformationPolicy = (
     roleAssignment: {
       enabled: Boolean(roleAssignment.enabled),
       strategy: roleAssignment.strategy === "director_random" ? "director_random" : "manual",
+      includeUser: roleAssignment.includeUser !== false,
       revealToAssignedCharacter: roleAssignment.revealToAssignedCharacter !== false,
       revealFactionMembers: roleAssignment.revealFactionMembers !== false,
+      rolePool: normalizeRoleAssignmentPool(roleAssignment.rolePool),
     },
   };
 };
