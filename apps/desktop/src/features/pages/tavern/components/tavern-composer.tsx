@@ -5,14 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernReplyMode } from "../types";
+import type { TavernCharacter, TavernReplyMode, TavernReplyOption } from "../types";
 
 type TavernComposerProps = {
   draft: string;
   error: string;
   isSending: boolean;
   isGeneratingReplySuggestions: boolean;
-  replySuggestions: string[];
+  replySuggestions: TavernReplyOption[];
   visualPreset: VisualPresetDefinition;
   activeCharacter: TavernCharacter | null;
   replyMode: TavernReplyMode;
@@ -26,8 +26,8 @@ type TavernComposerProps = {
   onCursorChange: (cursor: number) => void;
   onInsertReference: (file: WorkspaceFileEntry) => void;
   onGenerateReplySuggestions: () => void;
-  onSelectReplySuggestion: (suggestion: string) => void;
-  onFillReplySuggestion: (suggestion: string) => void;
+  onSelectReplySuggestion: (suggestion: TavernReplyOption) => void;
+  onFillReplySuggestion: (suggestion: TavernReplyOption) => void;
   onSubmit: (event?: FormEvent) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
@@ -117,18 +117,18 @@ export const TavernComposer = ({
               <div className="grid gap-1.5">
                 {replySuggestions.map((suggestion) => (
                   <div
-                    key={suggestion}
+                    key={suggestion.id}
                     className="flex min-h-10 overflow-hidden rounded-md border border-current/10 bg-current/5 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-ring"
                   >
                     <button
                       type="button"
                       className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
                       title="直接发送"
-                      aria-label={`直接发送候选回复：${suggestion}`}
+                      aria-label={`直接发送候选回复：${suggestion.text}`}
                       disabled={isSending || isGeneratingReplySuggestions}
                       onClick={() => onSelectReplySuggestion(suggestion)}
                     >
-                      {suggestion}
+                      {suggestion.text}
                     </button>
                     <Button
                       type="button"
@@ -136,7 +136,7 @@ export const TavernComposer = ({
                       variant="outline"
                       className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
                       title="填入输入框后编辑"
-                      aria-label={`填入输入框编辑候选回复：${suggestion}`}
+                      aria-label={`填入输入框编辑候选回复：${suggestion.text}`}
                       disabled={isSending || isGeneratingReplySuggestions}
                       onClick={() => onFillReplySuggestion(suggestion)}
                     >

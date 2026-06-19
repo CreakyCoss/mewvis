@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "presets": [
     {
       "id": "mist-harbor-lost-and-found",
@@ -52,6 +52,14 @@
         "scene": "海雾压在码头尽头，失物馆柜台上并排放着四件新失物：停在三点十七分的黄铜怀表、半截灯塔通行牌、一张湿船票和一把滴水黑伞。屋外潮钟忽然慢了一拍。",
         "sceneGoal": "从四件失物里选一件先查，确认黑伞客是否是白鸥号旧案见证人，并决定是宵禁前追去灯塔、打开怀表，还是把线索交给港务局。",
         "memory": "雾港每逢潮钟三响就会封锁码头。昨夜灯塔熄灭七分钟，清晨黑伞客把四件失物放到柜台上，却没有在登记簿留下姓名。",
+        "sceneStatus": {
+          "location": "雾港失物馆柜台",
+          "timeLabel": "清晨，潮钟刚慢了一拍",
+          "weather": "海雾压低，潮风带水",
+          "atmosphere": "谨慎、疑云初起",
+          "scenePhase": "四件失物刚被发现",
+          "immediateThreat": "雾潮封港和港务局巡夜队"
+        },
         "scenes": [
           {
             "title": "柜台四件失物",
@@ -222,7 +230,29 @@
           "autoAssetExtractionEnabled": false,
           "assetExtractionIntervalTurns": 3,
           "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3
+          "directorMaxSpeakers": 3,
+          "agentKnowledgeCompactIntervalTurns": 0,
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.15
+          },
+          "illustrationHints": {
+            "enabled": false
+          }
         }
       },
       "messages": [
@@ -293,6 +323,14 @@
         "scene": "连夜山雨打弯竹林，驿馆门外拴着三匹无主湿马。大厅火盆将熄未熄，桌上摆着一只未开封的青漆镖盒。",
         "sceneGoal": "查清失踪镖队在三更换马时发生了什么，决定是护送镖盒上路，还是当场打开它。",
         "memory": "青箓门镖队本该在昨夜抵达竹雨驿馆，却只留下三匹湿马和一只青漆镖盒。官道旁的无名断碑被雨水冲出新字，写着“借道者归”。",
+        "sceneStatus": {
+          "location": "竹雨驿馆大厅",
+          "timeLabel": "雨夜三更后",
+          "weather": "山雨未停，湿马在檐下喘息",
+          "atmosphere": "压抑、江湖疑案初现",
+          "scenePhase": "镖队未归，青漆镖盒未开启",
+          "immediateThreat": "青箓门追兵可能循旧官道逼近"
+        },
         "scenes": [
           {
             "title": "三更湿马入店",
@@ -463,7 +501,29 @@
           "autoAssetExtractionEnabled": false,
           "assetExtractionIntervalTurns": 3,
           "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3
+          "directorMaxSpeakers": 3,
+          "agentKnowledgeCompactIntervalTurns": 0,
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.15
+          },
+          "illustrationHints": {
+            "enabled": false
+          }
         }
       },
       "messages": [
@@ -534,6 +594,14 @@
         "scene": "外环补给站的人工重力忽明忽暗，吧台上的倒计时停在二十分钟。舷窗外，星坠核心被磁缆拖到泊位，旧收讯器、氧债账本和审计封箱同时亮起红灯。",
         "sceneGoal": "在封站倒计时归零前决定先做哪一步：把核心接上旧收讯器、广播第七频段、藏进医疗舱，或交给审计官换取补给站赦免。",
         "memory": "补给站夹在内环财团、外环商队和自由船员之间。昨夜防御网捕获星坠核心后，氧债账本多出四个已死亡船员的欠款，核心却在旧收讯器里求救。",
+        "sceneStatus": {
+          "location": "外环补给站吧台",
+          "timeLabel": "封站倒计时二十分钟",
+          "weather": "舷窗外是碎星带磁暴",
+          "atmosphere": "紧迫、资源濒临失控",
+          "scenePhase": "星坠核心刚靠泊",
+          "immediateThreat": "审计封箱和氧债倒计时"
+        },
         "scenes": [
           {
             "title": "核心靠泊二十分钟",
@@ -704,7 +772,29 @@
           "autoAssetExtractionEnabled": false,
           "assetExtractionIntervalTurns": 3,
           "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3
+          "directorMaxSpeakers": 3,
+          "agentKnowledgeCompactIntervalTurns": 0,
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.15
+          },
+          "illustrationHints": {
+            "enabled": false
+          }
         }
       },
       "messages": [
@@ -775,6 +865,14 @@
         "scene": "沙暴停在门外，灰月照进商队馆。中央铜盘里放着裹盐布的失落王印，旁边摊开一页新添税目、半枚缺口盐秤和一支带血的验印针，地窖镜砂井低低作响。",
         "sceneGoal": "先选择一种验法：对照灰月账册、称量盐秤缺口、用验印针取血，或把王印带到镜砂井；再决定交给骑士、封入账册，还是揭穿持印者。",
         "memory": "灰月之夜，所有盐风商约都必须重新宣读。今夜无旗商队把王印押在柜台后消失，灰月账册却多出一页三十年前的王印税目，墨迹仍是湿的。",
+        "sceneStatus": {
+          "location": "灰月商队馆账房",
+          "timeLabel": "灰月升起之夜",
+          "weather": "盐暴刚停，沙粒仍敲窗",
+          "atmosphere": "庄严、契约与旧债交锋",
+          "scenePhase": "王印刚入馆，真伪未定",
+          "immediateThreat": "镜砂井鸣响和王都密令施压"
+        },
         "scenes": [
           {
             "title": "铜盘验契",
@@ -945,7 +1043,29 @@
           "autoAssetExtractionEnabled": false,
           "assetExtractionIntervalTurns": 3,
           "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3
+          "directorMaxSpeakers": 3,
+          "agentKnowledgeCompactIntervalTurns": 0,
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.15
+          },
+          "illustrationHints": {
+            "enabled": false
+          }
         }
       },
       "messages": [
@@ -1016,6 +1136,14 @@
         "scene": "旧城拱廊尽头的问命馆灯火通明。圆桌四角分别放着缺一张的银盐塔罗、沾金粉的青铜蓍筒、页码错乱的回声档案和贴满金线符的木匣。门外第十三位来客握着一张空白命帖。",
         "sceneGoal": "先查四件器具之一：空牌套、蓍筒金粉、错页档案或金线木匣；判断谁在制造无名命帖，并保护真正的第十三位来客不被替换。",
         "memory": "三日前，问命馆收到第一张无名命帖，帖上写着“第十三问命者会在四扇门之间失踪”。此后每晚都有来客带着相同命帖进门，但第十三张背面一片空白，像是在等现场某个人落笔。",
+        "sceneStatus": {
+          "location": "旧城万象问命馆圆桌",
+          "timeLabel": "今夜，第十三位来客到门前",
+          "weather": "拱廊外夜风潮冷",
+          "atmosphere": "神秘、互相试探",
+          "scenePhase": "空白命帖即将上桌",
+          "immediateThreat": "第十三问命者可能在四扇门之间失踪"
+        },
         "scenes": [
           {
             "title": "空白命帖上桌",
@@ -1197,7 +1325,29 @@
           "autoAssetExtractionEnabled": false,
           "assetExtractionIntervalTurns": 3,
           "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3
+          "directorMaxSpeakers": 3,
+          "agentKnowledgeCompactIntervalTurns": 0,
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.15
+          },
+          "illustrationHints": {
+            "enabled": false
+          }
         }
       },
       "messages": [

@@ -87,7 +87,7 @@ type TavernManagementPageProps = {
   rooms: TavernRoom[];
   activeRoom: TavernRoom;
   characterById: Map<string, TavernCharacter>;
-  messagesByRoom: Record<string, TavernMessage[]>;
+  messagesByRoomId: Record<string, TavernMessage[]>;
   globalRuntimeModel: RuntimeModelOption | null;
   canDeleteRoom: boolean;
   onCreateRoom: () => void;
@@ -498,7 +498,7 @@ export const TavernManagementPage = ({
   rooms,
   activeRoom,
   characterById,
-  messagesByRoom,
+  messagesByRoomId,
   globalRuntimeModel,
   canDeleteRoom,
   onCreateRoom,
@@ -549,7 +549,7 @@ export const TavernManagementPage = ({
   const editingCharacter = editingRoom && editingCharacterId
     ? editingRoom.localCharacters?.find((character) => character.id === editingCharacterId) ?? null
     : null;
-  const activeRoomMessages = messagesByRoom[activeRoom.id] ?? [];
+  const activeRoomMessages = messagesByRoomId[activeRoom.id] ?? [];
   const totalRoomCharacterCount = rooms.reduce(
     (sum, room) => sum + (room.localCharacters?.length ?? 0),
     0,
@@ -567,7 +567,7 @@ export const TavernManagementPage = ({
     ? TAVERN_SCENE_PRESET_OPTIONS.find((preset) => preset.id === editingRoom.scenePresetId)
     : null;
   const editingRoomMessageCount = editingRoom
-    ? messagesByRoom[editingRoom.id]?.length ?? 0
+    ? messagesByRoomId[editingRoom.id]?.length ?? 0
     : 0;
   const systemDefaultModelLabel = globalRuntimeModel
     ? `${globalRuntimeModel.provider.name} / ${
@@ -1081,6 +1081,7 @@ export const TavernManagementPage = ({
     if (roomContentEditDraft.type === "settings") {
       patchEditingRoomDraft({
         settings: {
+          ...(editingRoom?.settings ?? activeRoom.settings),
           immersiveDescriptionEnabled: roomContentEditDraft.immersiveDescriptionEnabled,
           showExecutionTrace: roomContentEditDraft.showExecutionTrace,
           autoAssetExtractionEnabled: roomContentEditDraft.autoAssetExtractionEnabled,
@@ -2013,7 +2014,7 @@ export const TavernManagementPage = ({
                 const roomCharacters = room.characterIds
                   .map((characterId) => characterById.get(characterId))
                   .filter((character): character is TavernCharacter => Boolean(character));
-                const messages = messagesByRoom[room.id] ?? [];
+                const messages = messagesByRoomId[room.id] ?? [];
                 const draftCount = room.assetDrafts.length;
 
                 return (
@@ -2214,7 +2215,7 @@ export const TavernManagementPage = ({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              {formatCount(messagesByRoom[deletingRoom.id]?.length ?? 0, "消息")}
+              {formatCount(messagesByRoomId[deletingRoom.id]?.length ?? 0, "消息")}
               {" / "}
               {formatCount(deletingRoom.characterIds.length, "入席角色")}
               {" / "}
@@ -2265,7 +2266,7 @@ export const TavernManagementPage = ({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              {formatCount(messagesByRoom[restoringRoom.id]?.length ?? 0, "消息")}
+              {formatCount(messagesByRoomId[restoringRoom.id]?.length ?? 0, "消息")}
               {" / "}
               {formatCount(restoringRoom.timelineEvents.length, "剧情事件")}
               {" / "}
@@ -2329,7 +2330,7 @@ export const TavernManagementPage = ({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-              {formatCount(messagesByRoom[lockingRoom.id]?.length ?? 0, "消息")}
+              {formatCount(messagesByRoomId[lockingRoom.id]?.length ?? 0, "消息")}
               {" / "}
               {formatCount(lockingRoom.timelineEvents.length, "剧情事件")}
               {" / "}

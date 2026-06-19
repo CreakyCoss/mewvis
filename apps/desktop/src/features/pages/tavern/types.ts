@@ -79,6 +79,85 @@ export type TavernRoomSettings = {
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
   agentKnowledgeCompactIntervalTurns: number;
+  continuation: {
+    enabled: boolean;
+    maxAutoContinuationRounds: number;
+    maxSpeakersPerContinuation: number;
+    stopWhenUserTargeted: boolean;
+  };
+  replyOptions: {
+    enabled: boolean;
+    count: number;
+  };
+  statusTracking: {
+    enabled: boolean;
+    visibleToUser: boolean;
+  };
+  randomEvents: {
+    enabled: boolean;
+    probability: number;
+  };
+  illustrationHints: {
+    enabled: boolean;
+  };
+};
+
+export type TavernSceneStatus = {
+  location?: string;
+  timeLabel?: string;
+  weather?: string;
+  atmosphere?: string;
+  scenePhase?: string;
+  immediateThreat?: string;
+  updatedAt: number;
+};
+
+export type TavernCharacterPublicStatus = {
+  characterId: string;
+  location?: string;
+  posture?: string;
+  visibleMood?: string;
+  outfit?: string;
+  visibleInjury?: string;
+  holding?: string[];
+  publicGoal?: string;
+  updatedAt: number;
+};
+
+export type TavernCharacterPrivateStatus = {
+  characterId: string;
+  privateMood?: string;
+  suspicion?: string;
+  hiddenGoal?: string;
+  privateKnowledge?: string[];
+  relationshipNotes?: Record<string, string>;
+  updatedAt: number;
+};
+
+export type TavernPendingInteraction = {
+  id: string;
+  sourceMessageId: string;
+  source: {
+    type: "user" | "character";
+    characterId?: string;
+  };
+  target: {
+    type: "user" | "character" | "group" | "unknown";
+    characterIds?: string[];
+  };
+  kind: "question" | "request" | "challenge" | "invitation" | "answer";
+  text: string;
+  requiresResponse: boolean;
+  status: "open" | "answered" | "expired";
+  createdTurnId: string;
+};
+
+export type TavernReplyOption = {
+  id: string;
+  text: string;
+  respondsToInteractionId?: string;
+  targetCharacterIds: string[];
+  intent: "answer" | "ask" | "act" | "interrupt" | "wait" | "inspect";
 };
 
 export type TavernTimelineScope = {
@@ -100,6 +179,11 @@ export type TavernScene = {
   transition: string;
   timelineScope: TavernTimelineScope;
   memory: string;
+  sceneStatus?: TavernSceneStatus;
+  characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
+  characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
+  pendingInteractions: TavernPendingInteraction[];
+  replyOptions: TavernReplyOption[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   assetDrafts: TavernAssetDraft[];
@@ -127,6 +211,11 @@ export type TavernRoom = {
   sceneDirection: string;
   sceneTransition: string;
   memory: string;
+  sceneStatus?: TavernSceneStatus;
+  characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
+  characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
+  pendingInteractions: TavernPendingInteraction[];
+  replyOptions: TavernReplyOption[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   localCharacters?: TavernCharacter[];
@@ -145,21 +234,25 @@ export type TavernRoom = {
 export type TavernMessage = {
   id: string;
   roomId: string;
+  sceneId?: string;
+  turnId?: string;
   role: "user" | "character" | "narrator";
   characterId?: string;
   content: string;
   thought?: string;
+  targetCharacterIds?: string[];
+  respondsToInteractionIds?: string[];
+  generatedInteractionIds?: string[];
   createdAt: number;
   status?: "streaming" | "done" | "error";
   referencedFiles?: Array<{ path: string }>;
 };
 
 export type TavernState = {
-  version: 1;
+  version: 2;
   activeRoomId: string;
   rooms: TavernRoom[];
-  messagesByRoom: Record<string, TavernMessage[]>;
-  messagesByScene?: Record<string, TavernMessage[]>;
+  messagesByScene: Record<string, TavernMessage[]>;
 };
 
 export type TavernReferencedFile = {

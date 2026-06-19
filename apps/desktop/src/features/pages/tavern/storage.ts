@@ -7,13 +7,18 @@ import systemPresetData from "./system-presets/default-taverns.json";
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernCharacterPrivateStatus,
+  TavernCharacterPublicStatus,
   TavernCharacterMemoryDraft,
   TavernLorebookEntry,
   TavernLorebookDraft,
   TavernMessage,
+  TavernPendingInteraction,
   TavernReplyMode,
+  TavernReplyOption,
   TavernRoom,
   TavernRoomCharacterConfig,
+  TavernSceneStatus,
   TavernScene,
   TavernRoomSettings,
   TavernState,
@@ -73,6 +78,9 @@ type TavernSystemPresetScene = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  sceneStatus?: Partial<TavernSceneStatus>;
+  characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
+  characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{
     title: string;
@@ -117,6 +125,9 @@ type TavernSystemPresetRoom = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  sceneStatus?: Partial<TavernSceneStatus>;
+  characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
+  characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
   scenes?: TavernSystemPresetScene[];
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{
@@ -165,7 +176,7 @@ export type TavernSystemPreset = {
 };
 
 type TavernSystemPresetCollection = {
-  version: 1;
+  version: 2;
   presets: TavernSystemPreset[];
 };
 
@@ -234,6 +245,27 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
   agentKnowledgeCompactIntervalTurns: 0,
+  continuation: {
+    enabled: true,
+    maxAutoContinuationRounds: 1,
+    maxSpeakersPerContinuation: 1,
+    stopWhenUserTargeted: true,
+  },
+  replyOptions: {
+    enabled: true,
+    count: 3,
+  },
+  statusTracking: {
+    enabled: true,
+    visibleToUser: true,
+  },
+  randomEvents: {
+    enabled: false,
+    probability: 0.15,
+  },
+  illustrationHints: {
+    enabled: false,
+  },
 };
 
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
@@ -254,6 +286,24 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
   }
 
   const candidate = value as Partial<TavernRoomSettings>;
+  const continuation = candidate.continuation && typeof candidate.continuation === "object"
+    ? candidate.continuation as Partial<TavernRoomSettings["continuation"]>
+    : {};
+  const replyOptions = candidate.replyOptions && typeof candidate.replyOptions === "object"
+    ? candidate.replyOptions as Partial<TavernRoomSettings["replyOptions"]>
+    : {};
+  const statusTracking = candidate.statusTracking && typeof candidate.statusTracking === "object"
+    ? candidate.statusTracking as Partial<TavernRoomSettings["statusTracking"]>
+    : {};
+  const randomEvents = candidate.randomEvents && typeof candidate.randomEvents === "object"
+    ? candidate.randomEvents as Partial<TavernRoomSettings["randomEvents"]>
+    : {};
+  const illustrationHints = candidate.illustrationHints && typeof candidate.illustrationHints === "object"
+    ? candidate.illustrationHints as Partial<TavernRoomSettings["illustrationHints"]>
+    : {};
+  const probability = typeof randomEvents.probability === "number"
+    ? randomEvents.probability
+    : DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents.probability;
   return {
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
@@ -282,6 +332,42 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    continuation: {
+      enabled: continuation.enabled !== false,
+      maxAutoContinuationRounds: clampInteger(
+        continuation.maxAutoContinuationRounds,
+        DEFAULT_TAVERN_ROOM_SETTINGS.continuation.maxAutoContinuationRounds,
+        0,
+        3,
+      ),
+      maxSpeakersPerContinuation: clampInteger(
+        continuation.maxSpeakersPerContinuation,
+        DEFAULT_TAVERN_ROOM_SETTINGS.continuation.maxSpeakersPerContinuation,
+        1,
+        3,
+      ),
+      stopWhenUserTargeted: continuation.stopWhenUserTargeted !== false,
+    },
+    replyOptions: {
+      enabled: replyOptions.enabled !== false,
+      count: clampInteger(
+        replyOptions.count,
+        DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions.count,
+        1,
+        6,
+      ),
+    },
+    statusTracking: {
+      enabled: statusTracking.enabled !== false,
+      visibleToUser: statusTracking.visibleToUser !== false,
+    },
+    randomEvents: {
+      enabled: Boolean(randomEvents.enabled),
+      probability: Math.min(1, Math.max(0, probability)),
+    },
+    illustrationHints: {
+      enabled: Boolean(illustrationHints.enabled),
+    },
   };
 };
 
@@ -307,6 +393,223 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
         return key && valueText ? [[key, valueText]] : [];
       }),
   );
+};
+
+const normalizeStringArray = (value: unknown) => Array.isArray(value)
+  ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
+  : [];
+
+const normalizeSceneStatus = (
+  value: unknown,
+  updatedAt: number,
+): TavernSceneStatus | undefined => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as Partial<TavernSceneStatus>;
+  const status: TavernSceneStatus = {
+    location: typeof candidate.location === "string" && candidate.location.trim()
+      ? candidate.location.trim()
+      : undefined,
+    timeLabel: typeof candidate.timeLabel === "string" && candidate.timeLabel.trim()
+      ? candidate.timeLabel.trim()
+      : undefined,
+    weather: typeof candidate.weather === "string" && candidate.weather.trim()
+      ? candidate.weather.trim()
+      : undefined,
+    atmosphere: typeof candidate.atmosphere === "string" && candidate.atmosphere.trim()
+      ? candidate.atmosphere.trim()
+      : undefined,
+    scenePhase: typeof candidate.scenePhase === "string" && candidate.scenePhase.trim()
+      ? candidate.scenePhase.trim()
+      : undefined,
+    immediateThreat: typeof candidate.immediateThreat === "string" && candidate.immediateThreat.trim()
+      ? candidate.immediateThreat.trim()
+      : undefined,
+    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+  };
+
+  return Object.values(status).some((item) => typeof item === "string" && item.trim())
+    ? status
+    : undefined;
+};
+
+const normalizeCharacterPublicStatuses = (
+  value: unknown,
+  characterIds: string[],
+  characterIdMap: Map<string, string> | undefined,
+  updatedAt: number,
+): Record<string, TavernCharacterPublicStatus> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const allowedIds = new Set(characterIds);
+  const statuses: Record<string, TavernCharacterPublicStatus> = {};
+  for (const [sourceCharacterId, item] of Object.entries(value as Record<string, unknown>)) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const characterId = characterIdMap?.get(sourceCharacterId) ?? sourceCharacterId;
+    if (!allowedIds.has(characterId)) {
+      continue;
+    }
+
+    const candidate = item as Partial<TavernCharacterPublicStatus>;
+    statuses[characterId] = {
+      characterId,
+      location: typeof candidate.location === "string" && candidate.location.trim()
+        ? candidate.location.trim()
+        : undefined,
+      posture: typeof candidate.posture === "string" && candidate.posture.trim()
+        ? candidate.posture.trim()
+        : undefined,
+      visibleMood: typeof candidate.visibleMood === "string" && candidate.visibleMood.trim()
+        ? candidate.visibleMood.trim()
+        : undefined,
+      outfit: typeof candidate.outfit === "string" && candidate.outfit.trim()
+        ? candidate.outfit.trim()
+        : undefined,
+      visibleInjury: typeof candidate.visibleInjury === "string" && candidate.visibleInjury.trim()
+        ? candidate.visibleInjury.trim()
+        : undefined,
+      holding: normalizeStringArray(candidate.holding),
+      publicGoal: typeof candidate.publicGoal === "string" && candidate.publicGoal.trim()
+        ? candidate.publicGoal.trim()
+        : undefined,
+      updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+    };
+  }
+
+  return statuses;
+};
+
+const normalizeCharacterPrivateStatuses = (
+  value: unknown,
+  characterIds: string[],
+  characterIdMap: Map<string, string> | undefined,
+  updatedAt: number,
+): Record<string, TavernCharacterPrivateStatus> => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const allowedIds = new Set(characterIds);
+  const statuses: Record<string, TavernCharacterPrivateStatus> = {};
+  for (const [sourceCharacterId, item] of Object.entries(value as Record<string, unknown>)) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const characterId = characterIdMap?.get(sourceCharacterId) ?? sourceCharacterId;
+    if (!allowedIds.has(characterId)) {
+      continue;
+    }
+
+    const candidate = item as Partial<TavernCharacterPrivateStatus>;
+    statuses[characterId] = {
+      characterId,
+      privateMood: typeof candidate.privateMood === "string" && candidate.privateMood.trim()
+        ? candidate.privateMood.trim()
+        : undefined,
+      suspicion: typeof candidate.suspicion === "string" && candidate.suspicion.trim()
+        ? candidate.suspicion.trim()
+        : undefined,
+      hiddenGoal: typeof candidate.hiddenGoal === "string" && candidate.hiddenGoal.trim()
+        ? candidate.hiddenGoal.trim()
+        : undefined,
+      privateKnowledge: normalizeStringArray(candidate.privateKnowledge),
+      relationshipNotes: normalizeStringRecord(candidate.relationshipNotes),
+      updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+    };
+  }
+
+  return statuses;
+};
+
+const normalizePendingInteraction = (
+  value: unknown,
+): TavernPendingInteraction | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernPendingInteraction>;
+  const source = candidate.source && typeof candidate.source === "object" ? candidate.source : null;
+  const target = candidate.target && typeof candidate.target === "object" ? candidate.target : null;
+  const kind = candidate.kind === "request" ||
+      candidate.kind === "challenge" ||
+      candidate.kind === "invitation" ||
+      candidate.kind === "answer"
+    ? candidate.kind
+    : "question";
+  const status = candidate.status === "answered" || candidate.status === "expired"
+    ? candidate.status
+    : "open";
+  const text = typeof candidate.text === "string" ? candidate.text.trim() : "";
+  if (!candidate.id || !candidate.sourceMessageId || !source || !target || !text) {
+    return null;
+  }
+
+  const sourceType = source.type === "character" ? "character" : "user";
+  const targetType = target.type === "user" ||
+      target.type === "character" ||
+      target.type === "group"
+    ? target.type
+    : "unknown";
+
+  return {
+    id: candidate.id,
+    sourceMessageId: candidate.sourceMessageId,
+    source: {
+      type: sourceType,
+      characterId: typeof source.characterId === "string" ? source.characterId : undefined,
+    },
+    target: {
+      type: targetType,
+      characterIds: normalizeStringArray(target.characterIds),
+    },
+    kind,
+    text,
+    requiresResponse: candidate.requiresResponse !== false,
+    status,
+    createdTurnId: typeof candidate.createdTurnId === "string" && candidate.createdTurnId.trim()
+      ? candidate.createdTurnId
+      : candidate.sourceMessageId,
+  };
+};
+
+const normalizeReplyOption = (value: unknown): TavernReplyOption | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernReplyOption>;
+  const text = typeof candidate.text === "string" ? candidate.text.trim() : "";
+  if (!candidate.id || !text) {
+    return null;
+  }
+
+  const intent = candidate.intent === "ask" ||
+      candidate.intent === "act" ||
+      candidate.intent === "interrupt" ||
+      candidate.intent === "wait" ||
+      candidate.intent === "inspect"
+    ? candidate.intent
+    : "answer";
+
+  return {
+    id: candidate.id,
+    text,
+    respondsToInteractionId: typeof candidate.respondsToInteractionId === "string" &&
+        candidate.respondsToInteractionId.trim()
+      ? candidate.respondsToInteractionId
+      : undefined,
+    targetCharacterIds: normalizeStringArray(candidate.targetCharacterIds),
+    intent,
+  };
 };
 
 const normalizeRoomCharacterConfigs = (
@@ -804,6 +1107,38 @@ const buildTavernScene = (
     transition: input.transition?.trim() || fallback.sceneTransition?.trim() || "",
     timelineScope: normalizeTimelineScope(input.timelineScope),
     memory: input.memory?.trim() || fallback.memory?.trim() || "",
+    sceneStatus: normalizeSceneStatus(input.sceneStatus, updatedAt) ??
+      normalizeSceneStatus((fallback as Partial<TavernScene>).sceneStatus, updatedAt),
+    characterPublicStatuses: normalizeCharacterPublicStatuses(
+      input.characterPublicStatuses ?? (fallback as Partial<TavernScene>).characterPublicStatuses,
+      characterIds,
+      undefined,
+      updatedAt,
+    ),
+    characterPrivateStatuses: normalizeCharacterPrivateStatuses(
+      input.characterPrivateStatuses ?? (fallback as Partial<TavernScene>).characterPrivateStatuses,
+      characterIds,
+      undefined,
+      updatedAt,
+    ),
+    pendingInteractions: Array.isArray(input.pendingInteractions)
+      ? input.pendingInteractions
+          .map(normalizePendingInteraction)
+          .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
+      : Array.isArray((fallback as Partial<TavernScene>).pendingInteractions)
+      ? ((fallback as Partial<TavernScene>).pendingInteractions ?? [])
+          .map(normalizePendingInteraction)
+          .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
+      : [],
+    replyOptions: Array.isArray(input.replyOptions)
+      ? input.replyOptions
+          .map(normalizeReplyOption)
+          .filter((option): option is TavernReplyOption => Boolean(option))
+      : Array.isArray((fallback as Partial<TavernScene>).replyOptions)
+      ? ((fallback as Partial<TavernScene>).replyOptions ?? [])
+          .map(normalizeReplyOption)
+          .filter((option): option is TavernReplyOption => Boolean(option))
+      : [],
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     assetDrafts: Array.isArray(input.assetDrafts)
@@ -851,6 +1186,11 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     sceneDirection: activeScene.storyDirection,
     sceneTransition: activeScene.transition,
     memory: activeScene.memory,
+    sceneStatus: activeScene.sceneStatus,
+    characterPublicStatuses: activeScene.characterPublicStatuses,
+    characterPrivateStatuses: activeScene.characterPrivateStatuses,
+    pendingInteractions: activeScene.pendingInteractions,
+    replyOptions: activeScene.replyOptions,
     characterConfigs: activeScene.characterConfigs ?? {},
     characterMemories: activeScene.characterMemories,
     assetDrafts: activeScene.assetDrafts,
@@ -873,6 +1213,11 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
     storyDirection: room.sceneDirection,
     transition: room.sceneTransition,
     memory: room.memory,
+    sceneStatus: room.sceneStatus,
+    characterPublicStatuses: room.characterPublicStatuses,
+    characterPrivateStatuses: room.characterPrivateStatuses,
+    pendingInteractions: room.pendingInteractions,
+    replyOptions: room.replyOptions,
     characterConfigs: room.characterConfigs ?? {},
     characterMemories: room.characterMemories,
     assetDrafts: room.assetDrafts,
@@ -962,6 +1307,9 @@ export const createTavernRoomFromSystemPreset = (
         storyDirection: preset.room.storyDirection,
         transition: preset.room.transition,
         memory: preset.room.memory,
+        sceneStatus: preset.room.sceneStatus,
+        characterPublicStatuses: preset.room.characterPublicStatuses,
+        characterPrivateStatuses: preset.room.characterPrivateStatuses,
         characterMemories: preset.room.characterMemories,
         assetDrafts: preset.room.assetDrafts,
         characterIds: preset.room.characterIds,
@@ -994,6 +1342,19 @@ export const createTavernRoomFromSystemPreset = (
         }),
     );
     const sceneCharacterConfigs = normalizeRoomCharacterConfigs(undefined, sceneCharacterMemories);
+    const sceneStatus = normalizeSceneStatus(presetScene.sceneStatus, createdAt);
+    const characterPublicStatuses = normalizeCharacterPublicStatuses(
+      presetScene.characterPublicStatuses,
+      sceneCharacterIds,
+      characterIdByPresetId,
+      createdAt,
+    );
+    const characterPrivateStatuses = normalizeCharacterPrivateStatuses(
+      presetScene.characterPrivateStatuses,
+      sceneCharacterIds,
+      characterIdByPresetId,
+      createdAt,
+    );
 
     return buildTavernScene({
       title: presetScene.title?.trim() || defaultSceneTitle,
@@ -1005,6 +1366,11 @@ export const createTavernRoomFromSystemPreset = (
       storyDirection: presetScene.storyDirection?.trim() || preset.room.storyDirection?.trim() || "",
       transition: presetScene.transition?.trim() || preset.room.transition?.trim() || "",
       memory: presetScene.memory?.trim() || preset.room.memory?.trim() || "",
+      sceneStatus,
+      characterPublicStatuses,
+      characterPrivateStatuses,
+      pendingInteractions: [],
+      replyOptions: [],
       characterConfigs: sceneCharacterConfigs,
       characterMemories: sceneCharacterMemories,
       assetDrafts: (presetScene.assetDrafts ?? preset.room.assetDrafts ?? [])
@@ -1048,6 +1414,11 @@ export const createTavernRoomFromSystemPreset = (
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
+    sceneStatus: scene.sceneStatus,
+    characterPublicStatuses: scene.characterPublicStatuses,
+    characterPrivateStatuses: scene.characterPrivateStatuses,
+    pendingInteractions: scene.pendingInteractions,
+    replyOptions: scene.replyOptions,
     characterConfigs,
     characterMemories,
     localCharacters: characters,
@@ -1120,12 +1491,9 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
   const firstRoom = materializedPresets[0]?.room;
 
   return {
-    version: 1,
+    version: 2,
     activeRoomId: firstRoom?.id ?? "",
     rooms: materializedPresets.map((preset) => preset.room),
-    messagesByRoom: Object.fromEntries(
-      materializedPresets.map((preset) => [preset.room.id, preset.messages]),
-    ),
     messagesByScene: Object.fromEntries(
       materializedPresets.map((preset) => [preset.room.activeSceneId ?? preset.room.id, preset.messages]),
     ),
@@ -1137,8 +1505,7 @@ const ensureSystemPresetRooms = (
   state: TavernState,
 ): TavernState => {
   let nextRooms = [...state.rooms];
-  let nextMessagesByRoom = { ...state.messagesByRoom };
-  let nextMessagesByScene = { ...(state.messagesByScene ?? {}) };
+  let nextMessagesByScene = { ...state.messagesByScene };
   const existingPresetIds = new Set(
     nextRooms.flatMap((room) => room.systemPresetId ? [room.systemPresetId] : []),
   );
@@ -1154,10 +1521,6 @@ const ensureSystemPresetRooms = (
     });
 
     nextRooms = [...nextRooms, materialized.room];
-    nextMessagesByRoom = {
-      ...nextMessagesByRoom,
-      [materialized.room.id]: materialized.messages,
-    };
     nextMessagesByScene = {
       ...nextMessagesByScene,
       [materialized.room.activeSceneId ?? materialized.room.id]: materialized.messages,
@@ -1171,7 +1534,6 @@ const ensureSystemPresetRooms = (
       ? state.activeRoomId
       : nextRooms[0]?.id ?? "",
     rooms: nextRooms,
-    messagesByRoom: nextMessagesByRoom,
     messagesByScene: nextMessagesByScene,
   };
 };
@@ -1186,18 +1548,15 @@ const normalizeTavernState = (
 
   const candidate = value as Partial<TavernState>;
   if (
-    candidate.version !== 1 ||
+    candidate.version !== 2 ||
     !Array.isArray(candidate.rooms) ||
-    !candidate.messagesByRoom ||
-    typeof candidate.messagesByRoom !== "object"
+    !candidate.messagesByScene ||
+    typeof candidate.messagesByScene !== "object"
   ) {
     return null;
   }
 
-  const sourceMessagesByRoom = candidate.messagesByRoom as Record<string, unknown>;
-  const sourceMessagesByScene = candidate.messagesByScene && typeof candidate.messagesByScene === "object"
-    ? candidate.messagesByScene as Record<string, unknown>
-    : {};
+  const sourceMessagesByScene = candidate.messagesByScene as Record<string, unknown>;
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
     Boolean(room?.id && room.workspaceId === workspaceId && room.title)
   ).map((room) => {
@@ -1267,6 +1626,29 @@ const normalizeTavernState = (
             .map(normalizeAssetDraft)
             .filter((draft): draft is TavernAssetDraft => Boolean(draft))
         : [],
+      sceneStatus: normalizeSceneStatus((room as Partial<TavernRoom>).sceneStatus, Date.now()),
+      characterPublicStatuses: normalizeCharacterPublicStatuses(
+        (room as Partial<TavernRoom>).characterPublicStatuses,
+        Array.isArray(room.characterIds) ? room.characterIds : [],
+        undefined,
+        Date.now(),
+      ),
+      characterPrivateStatuses: normalizeCharacterPrivateStatuses(
+        (room as Partial<TavernRoom>).characterPrivateStatuses,
+        Array.isArray(room.characterIds) ? room.characterIds : [],
+        undefined,
+        Date.now(),
+      ),
+      pendingInteractions: Array.isArray((room as Partial<TavernRoom>).pendingInteractions)
+        ? ((room as Partial<TavernRoom>).pendingInteractions ?? [])
+            .map(normalizePendingInteraction)
+            .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
+        : [],
+      replyOptions: Array.isArray((room as Partial<TavernRoom>).replyOptions)
+        ? ((room as Partial<TavernRoom>).replyOptions ?? [])
+            .map(normalizeReplyOption)
+            .filter((option): option is TavernReplyOption => Boolean(option))
+        : [],
       replyMode: normalizeReplyMode((room as Partial<TavernRoom>).replyMode),
       userPersonaName: room.userPersonaName || "我",
       settings: normalizeRoomSettings((room as Partial<TavernRoom>).settings),
@@ -1302,18 +1684,10 @@ const normalizeTavernState = (
     normalizedRooms.flatMap((room) => (room.scenes ?? []).map((scene) => {
       const sceneMessages = Array.isArray(sourceMessagesByScene[scene.id])
         ? sourceMessagesByScene[scene.id] as TavernMessage[]
-        : scene.id === room.activeSceneId && Array.isArray(sourceMessagesByRoom[room.id])
-        ? sourceMessagesByRoom[room.id] as TavernMessage[]
         : [];
 
       return [scene.id, sceneMessages] as const;
     })),
-  );
-  const messagesByRoom = Object.fromEntries(
-    normalizedRooms.map((room) => [
-      room.id,
-      room.activeSceneId ? messagesByScene[room.activeSceneId] ?? [] : [],
-    ]),
   );
 
   const activeRoomId = normalizedRooms.some((room) => room.id === candidate.activeRoomId)
@@ -1321,10 +1695,9 @@ const normalizeTavernState = (
     : normalizedRooms[0].id;
 
   return ensureSystemPresetRooms(workspaceId, {
-    version: 1,
+    version: 2,
     activeRoomId,
     rooms: normalizedRooms,
-    messagesByRoom,
     messagesByScene,
   });
 };
@@ -1420,6 +1793,11 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
+    sceneStatus: scene.sceneStatus,
+    characterPublicStatuses: scene.characterPublicStatuses,
+    characterPrivateStatuses: scene.characterPrivateStatuses,
+    pendingInteractions: scene.pendingInteractions,
+    replyOptions: scene.replyOptions,
     characterConfigs: {},
     characterMemories: {},
     localCharacters: [],

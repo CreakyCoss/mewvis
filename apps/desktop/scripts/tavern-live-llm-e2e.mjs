@@ -161,8 +161,10 @@ writeFileSync(helperEntryPath, `
     parseTavernReplyText,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts"))};
   import {
+    extractTavernPendingInteractionsFromMessages,
     formatTavernVisibleMessagesForRequestContext,
     normalizeTavernMessagesForAudience,
+    planTavernContinuation,
     tavernBridgeSessionRootDir,
     tavernDirectorAgentRoleId,
     tavernManagedUserAgentRoleId,
@@ -212,6 +214,27 @@ writeFileSync(helperEntryPath, `
         agentKnowledgeCompactIntervalTurns: 0,
         maxAssetDrafts: 5,
         directorMaxSpeakers: 4,
+        continuation: {
+          enabled: true,
+          maxAutoContinuationRounds: 1,
+          maxSpeakersPerContinuation: 1,
+          stopWhenUserTargeted: true,
+        },
+        replyOptions: {
+          enabled: true,
+          count: 3,
+        },
+        statusTracking: {
+          enabled: true,
+          visibleToUser: true,
+        },
+        randomEvents: {
+          enabled: false,
+          probability: 0.15,
+        },
+        illustrationHints: {
+          enabled: false,
+        },
       },
       createdAt: now,
       updatedAt: now,
@@ -663,6 +686,32 @@ writeFileSync(helperEntryPath, `
   });
 
   export const hasCharacterDialogueText = hasTavernReplyDialogueText;
+
+  export const extractPendingInteractions = ({
+    room,
+    characters,
+    messages,
+    turnId,
+  }) => extractTavernPendingInteractionsFromMessages({
+    messages,
+    characters,
+    userPersonaName: room.userPersonaName,
+    turnId,
+  });
+
+  export const planContinuation = ({
+    room,
+    characters,
+    pendingInteractions,
+    continuationRound,
+  }) => planTavernContinuation({
+    pendingInteractions,
+    characters,
+    continuationRound,
+    maxAutoContinuationRounds: room.settings.continuation.maxAutoContinuationRounds,
+    maxSpeakersPerContinuation: room.settings.continuation.maxSpeakersPerContinuation,
+    stopWhenUserTargeted: room.settings.continuation.stopWhenUserTargeted,
+  });
 `, "utf8");
 
 await build({
@@ -1304,61 +1353,137 @@ try {
       });
     }
 
-    for (const [speakerIndex, speakerId] of decision.speakerIds.entries()) {
-      const activeName = characterNameById.get(speakerId) ?? speakerId;
-      const otherTurnSecrets = privateSecrets
-        .filter((item) => item.characterId !== speakerId && turnMessages.some((message) => message.id === item.messageId))
-        .map((item) => item.secret);
-      const forbiddenContentFragments = characterContents
-        .filter((item) => item.characterId !== speakerId)
-        .map((item) => item.content);
-      const characterRun = await runCharacter({
-        activeCharacterId: speakerId,
-        activeName,
-        turnMessages,
-        currentUserText: userText,
-        speakerIndex,
-        speakerCount: decision.speakerIds.length,
-        directorReason: decision.reason ?? "",
-        forbiddenMarkers: [],
-        forbiddenSecrets: otherTurnSecrets,
-        forbiddenContentFragments,
-        label: `tavern-round-${roundIndex + 1}-${activeName}`,
-      });
-      for (const prior of turnMessages) {
-        if (
-          prior.role === "character" &&
-          prior.characterId !== speakerId &&
-          prior.content.trim()
-        ) {
-          assert(characterRun.requestContext.includes(prior.content), `${activeName} request_context 应包含本轮前序角色公开回复`, {
-            prior,
-            requestContext: characterRun.requestContext,
-          });
+    let speakerQueue = decision.speakerIds;
+    let continuationRound = 0;
+    let speakerRunIndex = 0;
+    let currentContinuationInteractionIds = [];
+    const closedInteractionIds = new Set();
+    const continuationInstructionBySpeakerId = new Map();
+
+    while (speakerQueue.length > 0) {
+      const activeSpeakerIds = speakerQueue;
+      speakerQueue = [];
+      const activeContinuationInteractionIds = currentContinuationInteractionIds;
+      currentContinuationInteractionIds = [];
+
+      for (const [speakerIndex, speakerId] of activeSpeakerIds.entries()) {
+        const activeName = characterNameById.get(speakerId) ?? speakerId;
+        const continuationInstruction = continuationInstructionBySpeakerId.get(speakerId);
+        const otherTurnSecrets = privateSecrets
+          .filter((item) => item.characterId !== speakerId && turnMessages.some((message) => message.id === item.messageId))
+          .map((item) => item.secret);
+        const forbiddenContentFragments = characterContents
+          .filter((item) => item.characterId !== speakerId)
+          .map((item) => item.content);
+        const characterRun = await runCharacter({
+          activeCharacterId: speakerId,
+          activeName,
+          turnMessages,
+          currentUserText: userText,
+          speakerIndex,
+          speakerCount: activeSpeakerIds.length,
+          directorReason: [
+            decision.reason ?? "",
+            continuationInstruction
+              ? `自动续调度：${continuationInstruction}`
+              : "",
+          ].filter(Boolean).join("\n"),
+          forbiddenMarkers: [],
+          forbiddenSecrets: otherTurnSecrets,
+          forbiddenContentFragments,
+          label: continuationRound > 0
+            ? `tavern-round-${roundIndex + 1}-continuation-${continuationRound}-${activeName}`
+            : `tavern-round-${roundIndex + 1}-${activeName}`,
+        });
+        for (const prior of turnMessages) {
+          if (
+            prior.role === "character" &&
+            prior.characterId !== speakerId &&
+            prior.content.trim()
+          ) {
+            assert(characterRun.requestContext.includes(prior.content), `${activeName} request_context 应包含本轮前序角色公开回复`, {
+              prior,
+              requestContext: characterRun.requestContext,
+            });
+          }
         }
+        const secret = `${runMarker}_ROUND_${roundIndex + 1}_${speakerId}_PRIVATE_SECRET`;
+        const messageId = `c-${roundIndex + 1}-${speakerId}-${speakerRunIndex}`;
+        speakerRunIndex += 1;
+        const message = {
+          id: messageId,
+          roomId: room.id,
+          role: "character",
+          characterId: speakerId,
+          content: characterRun.parsed.content,
+          thought: [characterRun.parsed.thought ?? "", secret].filter(Boolean).join("\n"),
+          respondsToInteractionIds: activeContinuationInteractionIds.length > 0
+            ? activeContinuationInteractionIds
+            : undefined,
+          createdAt: Date.now(),
+          status: "done",
+        };
+        allMessages.push(message);
+        turnMessages.push(message);
+        characterContents.push({
+          characterId: speakerId,
+          content: characterRun.parsed.content,
+        });
+        privateSecrets.push({
+          messageId,
+          characterId: speakerId,
+          secret,
+        });
       }
-      const secret = `${runMarker}_ROUND_${roundIndex + 1}_${speakerId}_PRIVATE_SECRET`;
-      const messageId = `c-${roundIndex + 1}-${speakerId}-${speakerIndex}`;
-      const message = {
-        id: messageId,
-        roomId: room.id,
-        role: "character",
-        characterId: speakerId,
-        content: characterRun.parsed.content,
-        thought: [characterRun.parsed.thought ?? "", secret].filter(Boolean).join("\n"),
-        createdAt: Date.now(),
-        status: "done",
-      };
-      allMessages.push(message);
-      turnMessages.push(message);
-      characterContents.push({
-        characterId: speakerId,
-        content: characterRun.parsed.content,
-      });
-      privateSecrets.push({
-        messageId,
-        characterId: speakerId,
-        secret,
+
+      const latestPendingInteractions = helper.extractPendingInteractions({
+        room,
+        characters,
+        messages: turnMessages,
+        turnId: userMessage.id,
+      }).filter((interaction) => !closedInteractionIds.has(interaction.id));
+      const continuationPlan = room.settings.continuation.enabled
+        ? helper.planContinuation({
+            room,
+            characters,
+            pendingInteractions: latestPendingInteractions,
+            continuationRound,
+          })
+        : {
+            shouldContinue: false,
+            speakerIds: [],
+            interactionIds: [],
+            reason: "none",
+          };
+
+      if (!continuationPlan.shouldContinue) {
+        break;
+      }
+
+      continuationRound += 1;
+      currentContinuationInteractionIds = continuationPlan.interactionIds;
+      for (const interactionId of continuationPlan.interactionIds) {
+        closedInteractionIds.add(interactionId);
+      }
+      const interactionText = latestPendingInteractions.find((interaction) =>
+        continuationPlan.interactionIds.includes(interaction.id)
+      )?.text;
+      speakerQueue = continuationPlan.speakerIds.filter((speakerId) =>
+        characterNameById.has(speakerId)
+      );
+      for (const speakerId of speakerQueue) {
+        continuationInstructionBySpeakerId.set(
+          speakerId,
+          interactionText
+            ? `回应刚才指向你的待回应事项：「${interactionText}」。`
+            : "回应刚才指向你的待回应事项。",
+        );
+      }
+      flowRuns.push({
+        label: `tavern-continuation-${roundIndex + 1}-${continuationRound}`,
+        kind: "continuation",
+        decision: continuationPlan,
+        pendingInteractions: latestPendingInteractions,
       });
     }
   }

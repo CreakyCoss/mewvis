@@ -15,6 +15,7 @@ const META_FILE_NAME: &str = "meta.json";
 const ROOM_FILE_NAME: &str = "room.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
 const CONVERSATION_FILE_NAME: &str = "conversation.json";
+const TAVERN_STATE_VERSION: u8 = 2;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,11 +66,10 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
 
     let index = read_json_file::<TavernIndex>(&index_path)
         .map_err(|error| format!("无法解析酒馆索引：{error}"))?;
-    if index.version != 1 {
+    if index.version != TAVERN_STATE_VERSION {
         return Ok(None);
     }
     let mut rooms = Vec::new();
-    let mut messages_by_room = Map::new();
     let mut messages_by_scene = Map::new();
 
     for room_id in index.room_ids {
@@ -82,13 +82,9 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
             Ok(room) => room,
             Err(_) => continue,
         };
-        let Some(id) = value_string(&room, "id") else {
+        if value_string(&room, "id").is_none() {
             continue;
-        };
-
-        let messages = read_optional_json_file::<Value>(&room_dir.join(MESSAGES_FILE_NAME))?
-            .unwrap_or_else(|| Value::Array(Vec::new()));
-        messages_by_room.insert(id.clone(), messages);
+        }
 
         if let Some(Value::Object(scene_messages)) =
             read_optional_json_file::<Value>(&room_dir.join(CONVERSATION_FILE_NAME))?
@@ -115,13 +111,9 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
     };
 
     let mut state = Map::new();
-    state.insert("version".to_string(), Value::from(1));
+    state.insert("version".to_string(), Value::from(TAVERN_STATE_VERSION));
     state.insert("activeRoomId".to_string(), Value::from(active_room_id));
     state.insert("rooms".to_string(), Value::Array(rooms));
-    state.insert(
-        "messagesByRoom".to_string(),
-        Value::Object(messages_by_room),
-    );
     state.insert(
         "messagesByScene".to_string(),
         Value::Object(messages_by_scene),
@@ -145,11 +137,11 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    let messages_by_room = input.state.get("messagesByRoom").and_then(Value::as_object);
     let messages_by_scene = input
         .state
         .get("messagesByScene")
-        .and_then(Value::as_object);
+        .and_then(Value::as_object)
+        .ok_or_else(|| "酒馆状态缺少 messagesByScene".to_string())?;
 
     let mut room_ids = Vec::new();
     let mut room_id_set = HashSet::new();
@@ -164,10 +156,7 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         let room_dir = tavern_session_dir(&input.workspace_path, &room_id)?;
         fs::create_dir_all(&room_dir).map_err(|error| format!("无法创建酒馆会话目录：{error}"))?;
 
-        let messages = messages_by_room
-            .and_then(|items| items.get(&room_id))
-            .cloned()
-            .unwrap_or_else(|| Value::Array(Vec::new()));
+        let messages = active_scene_messages(room, messages_by_scene);
         let conversation = collect_room_scene_messages(room, messages_by_scene);
         write_json_file(&room_dir.join(ROOM_FILE_NAME), room)?;
         write_json_file(&room_dir.join(MESSAGES_FILE_NAME), &messages)?;
@@ -182,8 +171,8 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
 
     write_json_file(
         &dir.join(INDEX_FILE_NAME),
-        &TavernIndex {
-            version: 1,
+            &TavernIndex {
+            version: TAVERN_STATE_VERSION,
             active_room_id,
             room_ids,
         },
@@ -209,12 +198,8 @@ fn tavern_session_meta(room_id: &str, room: &Value, messages: &Value) -> TavernS
 
 fn collect_room_scene_messages(
     room: &Value,
-    messages_by_scene: Option<&Map<String, Value>>,
+    messages_by_scene: &Map<String, Value>,
 ) -> Value {
-    let Some(messages_by_scene) = messages_by_scene else {
-        return Value::Object(Map::new());
-    };
-
     let mut scene_ids = HashSet::new();
     if let Some(active_scene_id) = value_string(room, "activeSceneId") {
         scene_ids.insert(active_scene_id);
@@ -235,6 +220,12 @@ fn collect_room_scene_messages(
     }
 
     Value::Object(conversation)
+}
+
+fn active_scene_messages(room: &Value, messages_by_scene: &Map<String, Value>) -> Value {
+    value_string(room, "activeSceneId")
+        .and_then(|scene_id| messages_by_scene.get(&scene_id).cloned())
+        .unwrap_or_else(|| Value::Array(Vec::new()))
 }
 
 fn tavern_dir(workspace_path: &str) -> Result<PathBuf, String> {
@@ -371,13 +362,11 @@ mod tests {
             "createdAt": 3,
             "status": "done"
         });
-        let mut messages_by_room = Map::new();
-        messages_by_room.insert(room_id.to_string(), Value::Array(vec![message.clone()]));
         let mut messages_by_scene = Map::new();
         messages_by_scene.insert(scene_id.to_string(), Value::Array(vec![message]));
 
         let mut state = Map::new();
-        state.insert("version".to_string(), Value::from(1));
+        state.insert("version".to_string(), Value::from(TAVERN_STATE_VERSION));
         state.insert("activeRoomId".to_string(), Value::from(room_id));
         state.insert(
             "rooms".to_string(),
@@ -394,10 +383,6 @@ mod tests {
                 "createdAt": 1,
                 "updatedAt": 2
             }]),
-        );
-        state.insert(
-            "messagesByRoom".to_string(),
-            Value::Object(messages_by_room),
         );
         state.insert(
             "messagesByScene".to_string(),
@@ -444,11 +429,34 @@ mod tests {
             Some(room_id)
         );
         assert!(loaded
-            .get("messagesByRoom")
+            .get("messagesByScene")
             .and_then(Value::as_object)
-            .and_then(|items| items.get(room_id))
+            .and_then(|items| items.get("scene-main"))
             .and_then(Value::as_array)
             .is_some_and(|messages| messages.len() == 1));
+    }
+
+    #[test]
+    fn load_tavern_state_discards_v1_index() {
+        let workspace = TestWorkspace::new("tavern-v1-discard");
+        let dir = workspace.app_data_dir().join(TAVERN_DIR_NAME);
+        fs::create_dir_all(&dir).expect("create tavern dir");
+        write_json_file(
+            &dir.join(INDEX_FILE_NAME),
+            &TavernIndex {
+                version: 1,
+                active_room_id: "room-old".to_string(),
+                room_ids: vec!["room-old".to_string()],
+            },
+        )
+        .expect("write v1 index");
+
+        let loaded = load_tavern_state(LoadTavernStateInput {
+            workspace_path: workspace.path_string(),
+        })
+        .expect("load tavern state");
+
+        assert!(loaded.is_none());
     }
 
     #[test]

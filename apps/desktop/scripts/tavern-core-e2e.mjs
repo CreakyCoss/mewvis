@@ -22,8 +22,10 @@ const assert = (condition, message, details) => {
 writeFileSync(entryPath, `
   import {
     createTavernRenderableMessages,
+    extractTavernPendingInteractionsFromMessages,
     formatTavernVisibleMessagesForRequestContext,
     normalizeTavernMessagesForAudience,
+    planTavernContinuation,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
     tavernDirectorAgentRoleId,
@@ -69,6 +71,27 @@ writeFileSync(entryPath, `
       agentKnowledgeCompactIntervalTurns: 0,
       maxAssetDrafts: 5,
       directorMaxSpeakers: 3,
+      continuation: {
+        enabled: true,
+        maxAutoContinuationRounds: 1,
+        maxSpeakersPerContinuation: 1,
+        stopWhenUserTargeted: true,
+      },
+      replyOptions: {
+        enabled: true,
+        count: 3,
+      },
+      statusTracking: {
+        enabled: true,
+        visibleToUser: true,
+      },
+      randomEvents: {
+        enabled: false,
+        probability: 0.15,
+      },
+      illustrationHints: {
+        enabled: false,
+      },
     },
     createdAt: now,
     updatedAt: now,
@@ -228,6 +251,81 @@ writeFileSync(entryPath, `
     characters,
     userPersonaName: room.userPersonaName,
   });
+  const bAsksA = {
+    id: "m-b-asks-a",
+    roomId: room.id,
+    role: "character",
+    characterId: "char-b",
+    content: "阿洛，你听见门外那声铃了吗？",
+    createdAt: now + 6,
+    status: "done",
+  };
+  const bAsksUser = {
+    id: "m-b-asks-user",
+    roomId: room.id,
+    role: "character",
+    characterId: "char-b",
+    content: "来客，你要先查怀表吗？",
+    createdAt: now + 7,
+    status: "done",
+  };
+  const aAnswersB = {
+    id: "m-a-answers-b",
+    roomId: room.id,
+    role: "character",
+    characterId: "char-a",
+    content: "我听见了，铃声从门外左侧传来。",
+    createdAt: now + 8,
+    status: "done",
+  };
+  const userAsksGroup = {
+    id: "m-user-asks-group",
+    roomId: room.id,
+    role: "user",
+    content: "你们谁能先确认门外情况？",
+    createdAt: now + 9,
+    status: "done",
+  };
+  const interactionsForA = extractTavernPendingInteractionsFromMessages({
+    messages: [bAsksA],
+    characters,
+    userPersonaName: room.userPersonaName,
+    turnId: "turn-a",
+  });
+  const continuationForA = planTavernContinuation({
+    pendingInteractions: interactionsForA,
+    characters,
+    continuationRound: 0,
+    maxAutoContinuationRounds: 1,
+    maxSpeakersPerContinuation: 1,
+    stopWhenUserTargeted: true,
+  });
+  const interactionsForUser = extractTavernPendingInteractionsFromMessages({
+    messages: [bAsksUser],
+    characters,
+    userPersonaName: room.userPersonaName,
+    turnId: "turn-user",
+  });
+  const continuationForUser = planTavernContinuation({
+    pendingInteractions: interactionsForUser,
+    characters,
+    continuationRound: 0,
+    maxAutoContinuationRounds: 1,
+    maxSpeakersPerContinuation: 1,
+    stopWhenUserTargeted: true,
+  });
+  const interactionsForAnsweredA = extractTavernPendingInteractionsFromMessages({
+    messages: [bAsksA, aAnswersB],
+    characters,
+    userPersonaName: room.userPersonaName,
+    turnId: "turn-a-answered",
+  });
+  const interactionsForAnsweredGroup = extractTavernPendingInteractionsFromMessages({
+    messages: [userAsksGroup, aAnswersB],
+    characters,
+    userPersonaName: room.userPersonaName,
+    turnId: "turn-group-answered",
+  });
   globalThis.__checks = {
     contextForA,
     currentTurnContextForA,
@@ -240,6 +338,12 @@ writeFileSync(entryPath, `
     unclosedThoughtWithReply,
     unclosedThoughtWithLooseContent,
     unclosedActionMarkdown,
+    interactionsForA,
+    continuationForA,
+    interactionsForUser,
+    continuationForUser,
+    interactionsForAnsweredA,
+    interactionsForAnsweredGroup,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -353,6 +457,42 @@ try {
     checks.unclosedActionMarkdown.content === "东边灯影还亮着。阿洛把披风拢紧。",
     "解析器应移除未配对的动作 Markdown 标记",
     checks.unclosedActionMarkdown,
+  );
+  assert(
+    checks.interactionsForA.length === 1 &&
+      checks.interactionsForA[0].target.type === "character" &&
+      checks.interactionsForA[0].target.characterIds[0] === "char-a",
+    "B 问 A 时应抽取为指向 A 的待回应事项",
+    checks.interactionsForA,
+  );
+  assert(
+    checks.continuationForA.shouldContinue &&
+      checks.continuationForA.speakerIds[0] === "char-a" &&
+      checks.continuationForA.reason === "character_targeted",
+    "B 问 A 后应自动续调度 A 回应",
+    checks.continuationForA,
+  );
+  assert(
+    checks.interactionsForUser.length === 1 &&
+      checks.interactionsForUser[0].target.type === "user",
+    "角色问用户时应抽取为指向用户的待回应事项",
+    checks.interactionsForUser,
+  );
+  assert(
+    !checks.continuationForUser.shouldContinue &&
+      checks.continuationForUser.reason === "user_targeted",
+    "角色问用户时应停止自动续调度并等待用户",
+    checks.continuationForUser,
+  );
+  assert(
+    checks.interactionsForAnsweredA.length === 0,
+    "B 问 A 后如果 A 已在同轮后续回应，不应残留 pending",
+    checks.interactionsForAnsweredA,
+  );
+  assert(
+    checks.interactionsForAnsweredGroup.length === 0,
+    "用户面向全场提问后如果已有角色回应，不应残留 pending",
+    checks.interactionsForAnsweredGroup,
   );
   assert(
     checks.renderable.some((message) => message.thought === checks.bSecret),

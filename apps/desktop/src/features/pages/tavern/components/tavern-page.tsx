@@ -53,6 +53,8 @@ import {
 } from "../storage";
 import {
   createTavernRenderableMessages,
+  extractTavernPendingInteractionsFromMessages,
+  planTavernContinuation,
   tavernCharacterAgentRoleId,
 } from "../core";
 import {
@@ -63,6 +65,7 @@ import type {
   TavernCharacter,
   TavernMessage,
   TavernReferencedFile,
+  TavernReplyOption,
   TavernRoom,
   TavernScene,
   TavernRoomSettings,
@@ -167,14 +170,14 @@ const hasAssetDraftItems = (draft: TavernAssetDraft) =>
 const confirmDangerousAction = (message: string, secondMessage: string) =>
   window.confirm(message) && window.confirm(secondMessage);
 
-type TavernRoomExportV1 = {
+type TavernRoomExportV2 = {
   schema: typeof TAVERN_ROOM_EXPORT_SCHEMA;
-  version: 1;
+  version: 2;
   exportedAt: string;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
-  messagesByScene?: Record<string, TavernMessage[]>;
+  messagesByScene: Record<string, TavernMessage[]>;
 };
 
 type QuickSummaryCache = {
@@ -272,11 +275,21 @@ const getRoomActiveSceneId = (room: TavernRoom) =>
 
 const getSceneMessages = (
   room: TavernRoom,
-  state: Pick<TavernState, "messagesByRoom" | "messagesByScene">,
+  state: Pick<TavernState, "messagesByScene">,
 ) => {
   const sceneId = getRoomActiveSceneId(room);
-  return state.messagesByScene?.[sceneId] ?? state.messagesByRoom[room.id] ?? [];
+  return state.messagesByScene[sceneId] ?? [];
 };
+
+const createMessagesByRoomIndex = (
+  rooms: TavernRoom[],
+  messagesByScene: Record<string, TavernMessage[]>,
+) => Object.fromEntries(
+  rooms.map((room) => [
+    room.id,
+    messagesByScene[getRoomActiveSceneId(room)] ?? [],
+  ]),
+);
 
 const sanitizeFileName = (value: string) =>
   value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80) || "tavern-room";
@@ -387,6 +400,7 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
 
   const candidate = value as Partial<TavernRoomSettings>;
   return {
+    ...DEFAULT_TAVERN_ROOM_SETTINGS,
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
@@ -414,6 +428,26 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    continuation: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation,
+      ...(candidate.continuation ?? {}),
+    },
+    replyOptions: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions,
+      ...(candidate.replyOptions ?? {}),
+    },
+    statusTracking: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking,
+      ...(candidate.statusTracking ?? {}),
+    },
+    randomEvents: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents,
+      ...(candidate.randomEvents ?? {}),
+    },
+    illustrationHints: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints,
+      ...(candidate.illustrationHints ?? {}),
+    },
   };
 };
 
@@ -437,7 +471,7 @@ export const TavernPage = ({
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
-  const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
   const [isQuickSummaryOpen, setIsQuickSummaryOpen] = useState(false);
   const [quickSummaryTab, setQuickSummaryTab] = useState<"summary" | "novel">("summary");
   const [isGeneratingQuickSummary, setIsGeneratingQuickSummary] = useState(false);
@@ -573,6 +607,10 @@ export const TavernPage = ({
       ),
     ])
   ), [state.rooms]);
+  const messagesByRoomId = useMemo(
+    () => createMessagesByRoomIndex(state.rooms, state.messagesByScene),
+    [state.messagesByScene, state.rooms],
+  );
   const roomCharacters = useMemo(() => {
     if (!activeRoom) {
       return [];
@@ -635,7 +673,7 @@ export const TavernPage = ({
 
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
-    setReplySuggestions([]);
+    setReplySuggestions(activeRoom?.replyOptions ?? []);
     setIsQuickSummaryOpen(false);
     setIsGeneratingQuickSummary(false);
     setQuickSummaryError("");
@@ -807,14 +845,9 @@ export const TavernPage = ({
         return current;
       }
 
-      const sceneId = getRoomActiveSceneId(patchedRoom);
       return {
         ...current,
         rooms: nextRooms,
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [roomId]: current.messagesByScene?.[sceneId] ?? current.messagesByRoom[roomId] ?? [],
-        },
       };
     });
   }, []);
@@ -824,7 +857,7 @@ export const TavernPage = ({
       const room = current.rooms.find((item) => item.id === roomId);
       const sceneId = room ? getRoomActiveSceneId(room) : roomId;
       const nextSceneMessages = [
-        ...(current.messagesByScene?.[sceneId] ?? current.messagesByRoom[roomId] ?? []),
+        ...(current.messagesByScene[sceneId] ?? []),
         ...messages,
       ];
 
@@ -833,12 +866,8 @@ export const TavernPage = ({
         rooms: current.rooms.map((room) =>
           room.id === roomId ? { ...room, updatedAt: Date.now() } : room,
         ),
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [roomId]: nextSceneMessages,
-        },
         messagesByScene: {
-          ...(current.messagesByScene ?? {}),
+          ...current.messagesByScene,
           [sceneId]: nextSceneMessages,
         },
       };
@@ -848,7 +877,7 @@ export const TavernPage = ({
   const patchMessage = useCallback((messageId: string, patch: Partial<TavernMessage>) => {
     setState((current) => {
       let patchedSceneId = "";
-      const sourceMessagesByScene = current.messagesByScene ?? {};
+      const sourceMessagesByScene = current.messagesByScene;
       const nextMessagesByScene = Object.fromEntries(
         Object.entries(sourceMessagesByScene).map(([sceneId, messages]) => {
           const nextMessages = messages.map((message) => {
@@ -869,16 +898,8 @@ export const TavernPage = ({
       if (!patchedSceneId) {
         return current;
       }
-      const patchedRoom = current.rooms.find((room) => getRoomActiveSceneId(room) === patchedSceneId);
-
       return {
         ...current,
-        messagesByRoom: patchedRoom
-          ? {
-              ...current.messagesByRoom,
-              [patchedRoom.id]: nextMessagesByScene[patchedSceneId] ?? [],
-            }
-          : current.messagesByRoom,
         messagesByScene: nextMessagesByScene,
       };
     });
@@ -887,7 +908,7 @@ export const TavernPage = ({
   const removeMessage = useCallback((messageId: string) => {
     setState((current) => {
       let removedSceneId = "";
-      const sourceMessagesByScene = current.messagesByScene ?? {};
+      const sourceMessagesByScene = current.messagesByScene;
       const nextMessagesByScene = Object.fromEntries(
         Object.entries(sourceMessagesByScene).map(([sceneId, messages]) => {
           const nextMessages = messages.filter((message) => {
@@ -913,12 +934,6 @@ export const TavernPage = ({
         rooms: current.rooms.map((room) =>
           removedRoom && room.id === removedRoom.id ? { ...room, updatedAt: Date.now() } : room
         ),
-        messagesByRoom: removedRoom
-          ? {
-              ...current.messagesByRoom,
-              [removedRoom.id]: nextMessagesByScene[removedSceneId] ?? [],
-            }
-          : current.messagesByRoom,
         messagesByScene: nextMessagesByScene,
       };
     });
@@ -946,12 +961,8 @@ export const TavernPage = ({
       rooms: current.rooms.map((room) =>
         room.id === targetRoom.id ? touchTavernRoomActiveScene(room) : room,
       ),
-      messagesByRoom: {
-        ...current.messagesByRoom,
-        [targetRoom.id]: [resetMessage],
-      },
       messagesByScene: {
-        ...(current.messagesByScene ?? {}),
+        ...current.messagesByScene,
         [sceneId]: [resetMessage],
       },
     }));
@@ -970,9 +981,7 @@ export const TavernPage = ({
       }
 
       const nextRooms = current.rooms.filter((room) => room.id !== roomId);
-      const nextMessagesByRoom = { ...current.messagesByRoom };
-      const nextMessagesByScene = { ...(current.messagesByScene ?? {}) };
-      delete nextMessagesByRoom[roomId];
+      const nextMessagesByScene = { ...current.messagesByScene };
       for (const scene of currentTargetRoom.scenes ?? []) {
         delete nextMessagesByScene[scene.id];
       }
@@ -984,7 +993,6 @@ export const TavernPage = ({
         ...current,
         activeRoomId,
         rooms: nextRooms,
-        messagesByRoom: nextMessagesByRoom,
         messagesByScene: nextMessagesByScene,
       };
     });
@@ -1072,9 +1080,7 @@ export const TavernPage = ({
       const copiedScenes = sourceScenes.map((scene) => {
         const copiedSceneId = createLocalId("scene");
         sceneIdMap.set(scene.id, copiedSceneId);
-        const sourceMessages = current.messagesByScene?.[scene.id] ??
-          (scene.id === sourceRoom.activeSceneId ? current.messagesByRoom[sourceRoom.id] : []) ??
-          [];
+        const sourceMessages = current.messagesByScene[scene.id] ?? [];
         const messageIdMap = new Map<string, string>();
         const copiedMessages = sourceMessages.flatMap((message) => {
           const copiedMessageId = createLocalId("message");
@@ -1214,12 +1220,8 @@ export const TavernPage = ({
         ...current,
         activeRoomId: copiedRoomId,
         rooms: [...current.rooms, copiedRoom],
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [copiedRoomId]: copiedMessagesByScene[activeSceneId] ?? [],
-        },
         messagesByScene: {
-          ...(current.messagesByScene ?? {}),
+          ...current.messagesByScene,
           ...copiedMessagesByScene,
         },
       };
@@ -1258,12 +1260,8 @@ export const TavernPage = ({
         rooms: current.rooms.map((item) =>
           item.id === sourceRoom.id ? restored.room : item
         ),
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [sourceRoom.id]: restored.messages,
-        },
         messagesByScene: {
-          ...(current.messagesByScene ?? {}),
+          ...current.messagesByScene,
           [restored.room.activeSceneId ?? sourceRoom.id]: restored.messages,
         },
       };
@@ -1402,13 +1400,13 @@ export const TavernPage = ({
       const messagesByScene = Object.fromEntries(
         (projectedTargetRoom.scenes ?? []).map((scene) => [
           scene.id,
-          state.messagesByScene?.[scene.id] ??
+          state.messagesByScene[scene.id] ??
             (scene.id === projectedTargetRoom.activeSceneId ? targetMessages : []),
         ]),
       );
-      const payload: TavernRoomExportV1 = {
+      const payload: TavernRoomExportV2 = {
         schema: TAVERN_ROOM_EXPORT_SCHEMA,
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
         room: projectedTargetRoom,
         characters: targetCharacters,
@@ -1433,16 +1431,16 @@ export const TavernPage = ({
   }, [state]);
 
   const importRoomExport = useCallback((raw: string) => {
-    let parsed: TavernRoomExportV1;
+    let parsed: TavernRoomExportV2;
     try {
-      parsed = JSON.parse(raw) as TavernRoomExportV1;
+      parsed = JSON.parse(raw) as TavernRoomExportV2;
     } catch {
       return "房间文件不是有效 JSON。";
     }
 
     if (
       parsed.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
-      parsed.version !== 1 ||
+      parsed.version !== 2 ||
       !parsed.room ||
       !Array.isArray(parsed.characters)
     ) {
@@ -1586,6 +1584,11 @@ export const TavernPage = ({
       sceneTransition: importedScene.transition,
       locked: false,
       memory: importedScene.memory,
+      sceneStatus: importedScene.sceneStatus,
+      characterPublicStatuses: importedScene.characterPublicStatuses,
+      characterPrivateStatuses: importedScene.characterPrivateStatuses,
+      pendingInteractions: importedScene.pendingInteractions,
+      replyOptions: importedScene.replyOptions,
       characterConfigs,
       characterMemories,
       localCharacters: importedCharacters,
@@ -1650,12 +1653,8 @@ export const TavernPage = ({
       ...current,
       activeRoomId: roomId,
       rooms: [...current.rooms, importedRoom],
-      messagesByRoom: {
-        ...current.messagesByRoom,
-        [roomId]: messages,
-      },
       messagesByScene: {
-        ...(current.messagesByScene ?? {}),
+        ...current.messagesByScene,
         [importedScene.id]: messages,
       },
     }));
@@ -1680,12 +1679,8 @@ export const TavernPage = ({
         ...current,
         activeRoomId: nextRoom.id,
         rooms: [...current.rooms, nextRoom],
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [nextRoom.id]: [openingMessage],
-        },
         messagesByScene: {
-          ...(current.messagesByScene ?? {}),
+          ...current.messagesByScene,
           [getRoomActiveSceneId(nextRoom)]: [openingMessage],
         },
       };
@@ -1703,10 +1698,6 @@ export const TavernPage = ({
       return {
         ...current,
         rooms: current.rooms.map((room) => room.id === roomId ? nextRoom : room),
-        messagesByRoom: {
-          ...current.messagesByRoom,
-          [roomId]: current.messagesByScene?.[sceneId] ?? [],
-        },
       };
     });
     setReplySuggestions([]);
@@ -1934,6 +1925,11 @@ export const TavernPage = ({
       return;
     }
 
+    if (!activeRoom.settings.replyOptions.enabled) {
+      setError("当前房间已关闭候选回复。");
+      return;
+    }
+
     setError("");
     setIsGeneratingReplySuggestions(true);
     try {
@@ -1947,6 +1943,9 @@ export const TavernPage = ({
         currentDraft: draft,
       });
       setReplySuggestions(suggestions);
+      patchRoom(activeRoom.id, {
+        replyOptions: suggestions,
+      });
       if (suggestions.length === 0) {
         setError("暂时没有生成可用候选回复，请再试一次。");
       }
@@ -1960,6 +1959,7 @@ export const TavernPage = ({
     draft,
     isGeneratingReplySuggestions,
     isSending,
+    patchRoom,
     roomCharacters,
     roomMessages,
     runtimeModel,
@@ -1967,8 +1967,8 @@ export const TavernPage = ({
     workspace.path,
   ]);
 
-  const handleFillReplySuggestion = useCallback((suggestion: string) => {
-    const nextDraft = suggestion.trim();
+  const handleFillReplySuggestion = useCallback((suggestion: TavernReplyOption) => {
+    const nextDraft = suggestion.text.trim();
     if (!nextDraft) {
       return;
     }
@@ -1976,11 +1976,16 @@ export const TavernPage = ({
     setDraft(nextDraft);
     setDraftCursor(nextDraft.length);
     setReplySuggestions([]);
+    if (activeRoom) {
+      patchRoom(activeRoom.id, {
+        replyOptions: [],
+      });
+    }
     window.setTimeout(() => {
       draftInputRef.current?.focus();
       draftInputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
     }, 0);
-  }, []);
+  }, [activeRoom, patchRoom]);
 
   const handleOpenQuickSummary = useCallback(async ({
     force = false,
@@ -2226,7 +2231,11 @@ export const TavernPage = ({
     quickNovelExportFormat,
   ]);
 
-  const handleSubmit = useCallback(async (event?: FormEvent, submittedText?: string) => {
+  const handleSubmit = useCallback(async (
+    event?: FormEvent,
+    submittedText?: string,
+    selectedReplyOption?: TavernReplyOption,
+  ) => {
     event?.preventDefault();
     const draftText = (submittedText ?? draft).trim();
     if (isSending) {
@@ -2274,7 +2283,15 @@ export const TavernPage = ({
       return;
     }
     let speakers = candidateSpeakers;
-    let resolvedSpeakerModels = candidateSpeakerModels.map((item) => item.resolvedModel!);
+    const requireSpeakerRuntimeModel = (speaker: TavernCharacter) => {
+      const resolvedModel = resolveTavernCharacterModel({
+        fallbackRuntimeModel: runtimeModel,
+      });
+      if (!resolvedModel) {
+        throw new Error(`角色 ${speaker.name} 还没有可用模型。`);
+      }
+      return resolvedModel.runtimeModel;
+    };
 
     const shouldUseDraftReferences = submittedText === undefined;
     const currentReferencedFilePreviews = shouldUseDraftReferences ? referencedFilePreviews : [];
@@ -2295,6 +2312,9 @@ export const TavernPage = ({
     setIsSending(true);
     setError("");
     setReplySuggestions([]);
+    patchRoom(activeRoom.id, {
+      replyOptions: [],
+    });
     setTurnStatus(isManagedMode
       ? "导演正在调度你的回复..."
       : isDirectorLikeMode
@@ -2353,6 +2373,10 @@ export const TavernPage = ({
       content: text,
       status: "done",
       referencedFiles,
+      targetCharacterIds: selectedReplyOption?.targetCharacterIds,
+      respondsToInteractionIds: selectedReplyOption?.respondsToInteractionId
+        ? [selectedReplyOption.respondsToInteractionId]
+        : undefined,
     });
     let runtimeRoom = activeRoom;
     let runtimeMessages = [...roomMessages, userMessage];
@@ -2430,7 +2454,6 @@ export const TavernPage = ({
         if (missingDirectedModel) {
           throw new Error(`角色 ${missingDirectedModel.speaker.name} 还没有可用模型。`);
         }
-        resolvedSpeakerModels = directedSpeakerModels.map((item) => item.resolvedModel!);
         directorReason = directorDecision.reason ?? "";
         setTurnStatus(`导演安排 ${speakers.map((speaker) => speaker.name).join("、")} 发言。`);
         patchExecutionStep("director", {
@@ -2475,8 +2498,24 @@ export const TavernPage = ({
         }
       }
 
+      let speakerQueue = speakers;
+      let continuationRound = 0;
+      let speakerRunIndex = 0;
+      let latestPendingInteractions = activeRoom.pendingInteractions ?? [];
+      let currentContinuationInteractionIds: string[] = [];
+      const closedInteractionIds = new Set<string>();
+      const continuationInstructionBySpeakerId = new Map<string, string>();
+
+      while (speakerQueue.length > 0) {
+        speakers = speakerQueue;
+        speakerQueue = [];
+        const activeContinuationInteractionIds = currentContinuationInteractionIds;
+        currentContinuationInteractionIds = [];
+
       for (const [speakerIndex, speaker] of speakers.entries()) {
-        const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
+        const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
+        const currentSpeakerRunIndex = speakerRunIndex++;
+        const speakerStepId = `speaker-${speaker.id}-${currentSpeakerRunIndex}`;
         setTurnStatus(isDirectorLikeMode
           ? `${speaker.name} 正在按导演调度回应...`
           : `${speaker.name} 正在回应...`);
@@ -2492,6 +2531,9 @@ export const TavernPage = ({
           characterId: speaker.id,
           content: "",
           status: "streaming",
+          respondsToInteractionIds: activeContinuationInteractionIds.length > 0
+            ? activeContinuationInteractionIds
+            : undefined,
         });
         activeReplyMessage = replyMessage;
         activeReplyText = "";
@@ -2508,6 +2550,17 @@ export const TavernPage = ({
           isManagedMode,
           directorReason,
         });
+        const continuationInstruction = continuationInstructionBySpeakerId.get(speaker.id);
+        const effectiveTurnInstruction = continuationInstruction
+          ? [
+              turnInstruction,
+              "",
+              "<continuation_instruction>",
+              continuationInstruction,
+              "这是一次自动续调度，只回应对应待回应事项；不要替其他角色或用户发言，回答后把控制权留给现场。",
+              "</continuation_instruction>",
+            ].join("\n")
+          : turnInstruction;
         const handleReplyTextDelta = (delta: string) => {
           streamedText += delta;
           const streamedReply = parseTavernReplyText({
@@ -2528,7 +2581,7 @@ export const TavernPage = ({
           workspacePath: workspace.path,
           runtimeAgentId,
           runtimeModel: requireTavernRuntimeModelInput(
-            resolvedSpeakerModels[speakerIndex].runtimeModel,
+            speakerRuntimeModel,
           ),
           room: runtimeRoom,
           activeCharacter: speaker,
@@ -2536,7 +2589,7 @@ export const TavernPage = ({
           messages: turnMessages,
           references,
           currentUserText: text,
-          turnInstruction,
+          turnInstruction: effectiveTurnInstruction,
           onTextDelta: handleReplyTextDelta,
         });
         let finalReply = parseTavernReplyText({
@@ -2558,7 +2611,7 @@ export const TavernPage = ({
             status: "streaming",
           });
           const retryTurnInstruction = [
-            turnInstruction,
+            effectiveTurnInstruction,
             "",
             "<retry_instruction>",
             "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
@@ -2570,7 +2623,7 @@ export const TavernPage = ({
             workspacePath: workspace.path,
             runtimeAgentId,
             runtimeModel: requireTavernRuntimeModelInput(
-              resolvedSpeakerModels[speakerIndex].runtimeModel,
+              speakerRuntimeModel,
             ),
             room: runtimeRoom,
             activeCharacter: speaker,
@@ -2608,7 +2661,7 @@ export const TavernPage = ({
               workspacePath: workspace.path,
               runtimeAgentId,
               runtimeModel: requireTavernRuntimeModelInput(
-                resolvedSpeakerModels[speakerIndex].runtimeModel,
+                speakerRuntimeModel,
               ),
               room: runtimeRoom,
               activeCharacter: speaker,
@@ -2640,7 +2693,7 @@ export const TavernPage = ({
           detail: finalText.slice(0, 120),
         });
         if (shouldCompactCharacterKnowledgeAfterTurn(activeRoom, runtimeMessages, speaker.id)) {
-          const compactStepId = `compact-${speaker.id}-${speakerIndex}`;
+          const compactStepId = `compact-${speaker.id}-${currentSpeakerRunIndex}`;
           setTurnStatus(`${speaker.name} 正在压缩角色知识...`);
           appendExecutionStep({
             id: compactStepId,
@@ -2654,7 +2707,7 @@ export const TavernPage = ({
               room: activeRoom,
               runtimeAgentId,
               runtimeModel: requireTavernRuntimeModelInput(
-                resolvedSpeakerModels[speakerIndex].runtimeModel,
+                speakerRuntimeModel,
               ),
               agentRoleId: tavernCharacterAgentRoleId(activeRoom, speaker),
               compactInstruction: [
@@ -2680,6 +2733,78 @@ export const TavernPage = ({
         activeReplyMessage = null;
         activeReplyText = "";
       }
+
+        latestPendingInteractions = extractTavernPendingInteractionsFromMessages({
+          messages: turnMessages,
+          characters: roomCharacters,
+          userPersonaName: runtimeRoom.userPersonaName,
+          turnId: userMessage.turnId ?? userMessage.id,
+        }).filter((interaction) => !closedInteractionIds.has(interaction.id));
+        const continuationPlan = activeRoom.settings.continuation.enabled
+          ? planTavernContinuation({
+              pendingInteractions: latestPendingInteractions,
+              characters: roomCharacters,
+              continuationRound,
+              maxAutoContinuationRounds: activeRoom.settings.continuation.maxAutoContinuationRounds,
+              maxSpeakersPerContinuation: activeRoom.settings.continuation.maxSpeakersPerContinuation,
+              stopWhenUserTargeted: activeRoom.settings.continuation.stopWhenUserTargeted,
+            })
+          : {
+              shouldContinue: false,
+              speakerIds: [],
+              interactionIds: [],
+              reason: "none" as const,
+            };
+
+        if (!continuationPlan.shouldContinue) {
+          break;
+        }
+
+        continuationRound += 1;
+        currentContinuationInteractionIds = continuationPlan.interactionIds;
+        for (const interactionId of continuationPlan.interactionIds) {
+          closedInteractionIds.add(interactionId);
+        }
+        const interactionText = latestPendingInteractions.find((interaction) =>
+          continuationPlan.interactionIds.includes(interaction.id)
+        )?.text;
+        speakerQueue = continuationPlan.speakerIds
+          .map((characterId) => roomCharacters.find((character) => character.id === characterId))
+          .filter((character): character is TavernCharacter => Boolean(character));
+        for (const speaker of speakerQueue) {
+          continuationInstructionBySpeakerId.set(
+            speaker.id,
+            interactionText
+              ? `回应刚才指向你的待回应事项：「${interactionText}」。`
+              : "回应刚才指向你的待回应事项。",
+          );
+        }
+        if (speakerQueue.length > 0) {
+          setTurnStatus(`自动续调度 ${speakerQueue.map((speaker) => speaker.name).join("、")} 回应待回应事项...`);
+          appendExecutionStep({
+            id: `continuation-${continuationRound}`,
+            label: "自动续调度",
+            detail: speakerQueue.map((speaker) => speaker.name).join("、"),
+            status: "done",
+          });
+        }
+      }
+
+      const openPendingInteractions = latestPendingInteractions.filter((interaction) =>
+        !closedInteractionIds.has(interaction.id)
+      );
+      setState((current) => ({
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === activeRoom.id
+            ? syncTavernRoomActiveScene({
+                ...projectTavernSceneOntoRoom(room),
+                pendingInteractions: openPendingInteractions,
+                updatedAt: Date.now(),
+              })
+            : room
+        ),
+      }));
 
       if (shouldRunAssetExtraction) {
         setTurnStatus("正在整理本轮剧情资产...");
@@ -2776,6 +2901,7 @@ export const TavernPage = ({
     isManagedModeEnabled,
     isSending,
     patchMessage,
+    patchRoom,
     removeMessage,
     runtimeModel,
     resetExecutionTrace,
@@ -2881,7 +3007,7 @@ export const TavernPage = ({
         rooms={state.rooms}
         activeRoom={activeRoom}
         characterById={characterById}
-        messagesByRoom={state.messagesByRoom}
+        messagesByRoomId={messagesByRoomId}
         globalRuntimeModel={runtimeModel}
         canDeleteRoom={state.rooms.length > 1}
         onCreateRoom={handleCreateRoom}
@@ -3122,7 +3248,7 @@ export const TavernPage = ({
             onInsertReference={insertReference}
             onGenerateReplySuggestions={handleGenerateReplySuggestions}
             onSelectReplySuggestion={(suggestion) => {
-              void handleSubmit(undefined, suggestion);
+              void handleSubmit(undefined, suggestion.text, suggestion);
             }}
             onFillReplySuggestion={handleFillReplySuggestion}
             onSubmit={(event) => {

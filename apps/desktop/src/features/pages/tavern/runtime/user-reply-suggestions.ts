@@ -3,6 +3,7 @@ import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
   TavernMessage,
+  TavernReplyOption,
   TavernRoom,
 } from "../types";
 import { tavernMessagesToRuntimeMessages } from "./prompt";
@@ -30,6 +31,14 @@ export type TavernUserReplySuggestionInput = {
 
 const SUGGESTION_COUNT = 3;
 const RECENT_MESSAGE_LIMIT = 12;
+const replyOptionIntents = new Set<TavernReplyOption["intent"]>([
+  "answer",
+  "ask",
+  "act",
+  "interrupt",
+  "wait",
+  "inspect",
+]);
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -56,13 +65,88 @@ const stripUserLabel = (text: string, userPersonaName: string) => {
   return text.replace(new RegExp(`^\\s*(?:${labels})\\s*[:：]\\s*`), "").trim();
 };
 
-const parseSuggestions = (text: string) => {
+const createReplyOptionId = (text: string, index: number) => {
+  let hash = 0;
+  for (let offset = 0; offset < text.length; offset += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(offset)) | 0;
+  }
+
+  return `reply-option-${index}-${Math.abs(hash).toString(36)}`;
+};
+
+const normalizeReplyOptionIntent = (value: unknown): TavernReplyOption["intent"] =>
+  typeof value === "string" && replyOptionIntents.has(value as TavernReplyOption["intent"])
+    ? value as TavernReplyOption["intent"]
+    : "ask";
+
+const normalizeReplyOptionTargetCharacterIds = (
+  value: unknown,
+  characterIds: Set<string>,
+) => Array.isArray(value)
+  ? [...new Set(value.flatMap((item) =>
+      typeof item === "string" && characterIds.has(item) ? [item] : []
+    ))]
+  : [];
+
+const parseSuggestions = (
+  text: string,
+  {
+    characters,
+    room,
+  }: {
+    characters: TavernCharacter[];
+    room: TavernRoom;
+  },
+): TavernReplyOption[] => {
+  const characterIds = new Set(characters.map((character) => character.id));
+  const pendingUserInteraction = room.pendingInteractions.find((interaction) =>
+    interaction.status === "open" &&
+    interaction.requiresResponse &&
+    interaction.target.type === "user"
+  );
+  const fallbackTargetCharacterIds = pendingUserInteraction?.source.type === "character" &&
+    pendingUserInteraction.source.characterId &&
+    characterIds.has(pendingUserInteraction.source.characterId)
+    ? [pendingUserInteraction.source.characterId]
+    : [];
+
   try {
     const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
     if (Array.isArray(parsed.replies)) {
-      return parsed.replies.flatMap((item) =>
-        typeof item === "string" ? [item] : []
-      );
+      return parsed.replies.flatMap((item, index) => {
+        const record = item && typeof item === "object"
+          ? item as Record<string, unknown>
+          : {};
+        const rawText = typeof item === "string"
+          ? item
+          : typeof record.text === "string"
+          ? record.text
+          : "";
+        const replyText = stripUserLabel(rawText, room.userPersonaName)
+          .replace(/^["“”]+|["“”]+$/g, "")
+          .trim();
+        if (!replyText) {
+          return [];
+        }
+        const targetCharacterIds = normalizeReplyOptionTargetCharacterIds(
+          record.targetCharacterIds,
+          characterIds,
+        );
+        const respondsToInteractionId = typeof record.respondsToInteractionId === "string" &&
+          room.pendingInteractions.some((interaction) => interaction.id === record.respondsToInteractionId)
+          ? record.respondsToInteractionId
+          : pendingUserInteraction?.id;
+
+        return [{
+          id: createReplyOptionId(replyText, index),
+          text: replyText,
+          ...(respondsToInteractionId ? { respondsToInteractionId } : {}),
+          targetCharacterIds: targetCharacterIds.length > 0
+            ? targetCharacterIds
+            : fallbackTargetCharacterIds,
+          intent: normalizeReplyOptionIntent(record.intent),
+        }];
+      });
     }
   } catch {
     // Fall through to the line parser for models that ignored the JSON instruction.
@@ -70,7 +154,24 @@ const parseSuggestions = (text: string) => {
 
   return text
     .split(/\n+/)
-    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""));
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""))
+    .flatMap((replyText, index): TavernReplyOption[] => {
+      const cleaned = stripUserLabel(replyText, room.userPersonaName)
+        .replace(/^["“”]+|["“”]+$/g, "")
+        .trim();
+
+      return cleaned
+        ? [{
+            id: createReplyOptionId(cleaned, index),
+            text: cleaned,
+            ...(pendingUserInteraction?.id
+              ? { respondsToInteractionId: pendingUserInteraction.id }
+              : {}),
+            targetCharacterIds: fallbackTargetCharacterIds,
+            intent: "ask" as const,
+          }]
+        : [];
+    });
 };
 
 const toolCallArtifactPattern =
@@ -142,6 +243,39 @@ const createManagedReplyFallback = (room: TavernRoom) =>
     ? `我先顺着当前目标继续推进：${room.sceneGoal.trim().slice(0, 80)}`
     : "我先顺着眼前的线索继续追问，看看还有没有被忽略的细节。";
 
+const formatPendingInteractionsForPrompt = (
+  room: TavernRoom,
+  characters: TavernCharacter[],
+) => {
+  const characterById = new Map(characters.map((character) => [character.id, character]));
+  const openInteractions = room.pendingInteractions.filter((interaction) =>
+    interaction.status === "open" && interaction.requiresResponse
+  );
+
+  if (openInteractions.length === 0) {
+    return "（无）";
+  }
+
+  return openInteractions.map((interaction) => {
+    const source = interaction.source.type === "character"
+      ? characterById.get(interaction.source.characterId ?? "")?.name ?? "角色"
+      : room.userPersonaName || "我";
+    const target = interaction.target.type === "character"
+      ? (interaction.target.characterIds ?? [])
+          .map((characterId) => characterById.get(characterId)?.name ?? characterId)
+          .join("、")
+      : interaction.target.type;
+
+    return [
+      `id: ${interaction.id}`,
+      `source: ${source}`,
+      `target: ${target || interaction.target.type}`,
+      `kind: ${interaction.kind}`,
+      `text: ${interaction.text}`,
+    ].join("\n");
+  }).join("\n\n---\n\n");
+};
+
 export const runTavernUserReplySuggestions = async ({
   workspacePath,
   runtimeAgentId,
@@ -160,11 +294,16 @@ export const runTavernUserReplySuggestions = async ({
     runtimeMessages.slice(-RECENT_MESSAGE_LIMIT),
   );
   const characterList = characters.map((character) =>
-    `${character.name}: ${character.description}`
+    `id: ${character.id}\nname: ${character.name}\ndescription: ${character.description}`
   ).join("\n");
+  const suggestionCount = Math.max(1, Math.min(
+    room.settings.replyOptions.count || SUGGESTION_COUNT,
+    5,
+  ));
+  const pendingInteractions = formatPendingInteractionsForPrompt(room, characters);
   const prompt = [
     "<task>",
-    `为酒馆用户「${room.userPersonaName || "我"}」生成 ${SUGGESTION_COUNT} 个下一句回复候选。`,
+    `为酒馆用户「${room.userPersonaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
     "</task>",
     "",
     "<rules>",
@@ -172,6 +311,9 @@ export const runTavernUserReplySuggestions = async ({
     "不要替角色说话，不要写角色动作，不要输出角色名加冒号。",
     "每个候选都要能推动当前场景，但风格可以不同：追问、试探、行动决定。",
     "每条候选建议 12 到 60 个中文字符；字符串内容不要自带引号、编号或列表符号。",
+    "如果 pending_interactions 中有 target=user 的事项，优先生成回应它的候选，respondsToInteractionId 填对应 id，targetCharacterIds 填提问角色 id。",
+    "如果用户是在主动询问某些角色，targetCharacterIds 填这些角色 id；如果是面向全场或行动决定，可填空数组。",
+    "intent 只能是 answer、ask、act、interrupt、wait、inspect 之一。",
     currentDraft?.trim()
       ? "已有用户草稿时，以补全、改写或延展草稿意图为主，不要完全偏离草稿。"
       : "",
@@ -179,7 +321,7 @@ export const runTavernUserReplySuggestions = async ({
     "</rules>",
     "",
     "<output_schema>",
-    `{"replies":["候选 1","候选 2","候选 3"]}`,
+    `{"replies":[{"text":"候选 1","targetCharacterIds":["character-id"],"respondsToInteractionId":"可选 pending id","intent":"ask"}]}`,
     "</output_schema>",
     "",
     room.storyOutline.trim() || room.storyGoal.trim()
@@ -213,6 +355,10 @@ export const runTavernUserReplySuggestions = async ({
     characterList,
     "</characters>",
     "",
+    "<pending_interactions>",
+    pendingInteractions,
+    "</pending_interactions>",
+    "",
     currentDraft?.trim()
       ? `<current_user_draft>\n${currentDraft.trim()}\n</current_user_draft>`
       : "",
@@ -240,7 +386,7 @@ export const runTavernUserReplySuggestions = async ({
     agentRoleId: tavernQuickReplyAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
-    userMessage: `为酒馆用户「${room.userPersonaName || "我"}」生成 ${SUGGESTION_COUNT} 个下一句回复候选。`,
+    userMessage: `为酒馆用户「${room.userPersonaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
     requestContext: prompt,
     runtimeInstruction: [
       "你是酒馆模式的用户回复建议助手。",
@@ -249,12 +395,16 @@ export const runTavernUserReplySuggestions = async ({
     ].join("\n"),
   });
 
-  return [
-    ...new Set(parseSuggestions(result.text)
-      .map((item) => stripUserLabel(item, room.userPersonaName))
-      .map((item) => item.replace(/^["“”]+|["“”]+$/g, "").trim())
-    .filter(Boolean)),
-  ].slice(0, SUGGESTION_COUNT);
+  const seenTexts = new Set<string>();
+  return parseSuggestions(result.text, { characters, room })
+    .filter((option) => {
+      if (seenTexts.has(option.text)) {
+        return false;
+      }
+      seenTexts.add(option.text);
+      return true;
+    })
+    .slice(0, suggestionCount);
 };
 
 export const runTavernManagedUserReply = async ({
