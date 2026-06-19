@@ -38,6 +38,7 @@ writeFileSync(entryPath, `
     formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
     isGeneratedTavernRoleAssignmentFactEvent,
+    isTavernProgressVisibilityVisibleToUser,
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
@@ -709,8 +710,16 @@ writeFileSync(entryPath, `
     privateFacts: assignedRoleFacts.every((event) =>
       event.type === "role_assignment" &&
         event.visibility === "private" &&
-        event.revealWhen === "sceneOutcome"
+      event.revealWhen === "sceneOutcome"
     ),
+  };
+  const progressVisibilityChecks = {
+    public: isTavernProgressVisibilityVisibleToUser("public"),
+    private: isTavernProgressVisibilityVisibleToUser("private"),
+    owner: isTavernProgressVisibilityVisibleToUser("owner"),
+    director: isTavernProgressVisibilityVisibleToUser("director"),
+    hidden: isTavernProgressVisibilityVisibleToUser("hidden"),
+    debug: isTavernProgressVisibilityVisibleToUser("debug"),
   };
   const bAsksA = {
     id: "m-b-asks-a",
@@ -1381,6 +1390,7 @@ writeFileSync(entryPath, `
     randomEventOpportunityChecks,
     progressChecks,
     roleAssignmentChecks,
+    progressVisibilityChecks,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -1619,6 +1629,16 @@ try {
       checks.roleAssignmentChecks.privateFacts,
     "身份池应能为用户和角色生成私有身份事实，并可被运行时识别为可替换的本局分配",
     checks.roleAssignmentChecks,
+  );
+  assert(
+    checks.progressVisibilityChecks.public &&
+      checks.progressVisibilityChecks.private &&
+      checks.progressVisibilityChecks.owner &&
+      !checks.progressVisibilityChecks.director &&
+      !checks.progressVisibilityChecks.hidden &&
+      !checks.progressVisibilityChecks.debug,
+    "状态面板可见性应隐藏 director/hidden/debug，并允许公开或用户相关状态展示",
+    checks.progressVisibilityChecks,
   );
   assert(
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,

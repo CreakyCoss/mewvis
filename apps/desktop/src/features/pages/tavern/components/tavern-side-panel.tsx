@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Activity,
   BookOpen,
   Check,
   ChevronRight,
@@ -43,6 +44,7 @@ import {
   assignTavernRoleFacts,
   filterTavernFactEventsForAudience,
   isGeneratedTavernRoleAssignmentFactEvent,
+  isTavernProgressVisibilityVisibleToUser,
   resolveTavernInformationView,
   type TavernInformationView,
 } from "../core";
@@ -52,6 +54,10 @@ import type {
   TavernFactEvent,
   TavernReplyMode,
   TavernRoom,
+  TavernStatusDefinition,
+  TavernStatusEvent,
+  TavernStatusRule,
+  TavernStatusValue,
 } from "../types";
 import { CharacterButton } from "./character-button";
 import { TavernProgressPanel } from "./tavern-progress-panel";
@@ -125,6 +131,78 @@ const formatFactAudience = (
   return (event.visibility ?? "public") === "public" ? "公开" : "导演";
 };
 
+const formatStatusValue = (value: TavernStatusValue) => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.join("、") : "无";
+  }
+  if (typeof value === "boolean") {
+    return value ? "是" : "否";
+  }
+  return value === null || value === "" ? "未记录" : String(value);
+};
+
+const statusScopeLabels: Record<TavernStatusDefinition["scope"], string> = {
+  global: "全局",
+  scene: "场景",
+  party: "队伍",
+  character: "角色",
+  relationship: "关系",
+};
+
+const updatePolicyModeLabels: Record<TavernStatusDefinition["updatePolicy"]["mode"], string> = {
+  manualOnly: "手动",
+  eventDriven: "事件驱动",
+  eventDrivenWithReview: "事件驱动/可审核",
+  llmSuggestedWithReview: "LLM 建议/审核",
+};
+
+const ruleTargetLabels: Record<NonNullable<TavernStatusRule["apply"]["target"]>, string> = {
+  eventTarget: "事件目标",
+  eventActor: "事件发起者",
+  relationshipActorToTarget: "发起者对目标",
+  relationshipTargetToActor: "目标对发起者",
+};
+
+const statusEventStatusLabels: Record<TavernStatusEvent["status"], string> = {
+  applied: "已应用",
+  pending: "待确认",
+  rejected: "已拒绝",
+};
+
+const formatStatusRuleValue = (rule: TavernStatusRule) => {
+  if (rule.apply.valueByIntensity) {
+    return Object.entries(rule.apply.valueByIntensity)
+      .map(([intensity, value]) => `${intensity}:${value}`)
+      .join(" / ");
+  }
+  return formatStatusValue(rule.apply.value ?? null);
+};
+
+const formatStatusTarget = (
+  event: TavernStatusEvent,
+  characterNameById: Map<string, string>,
+) => {
+  switch (event.target.type) {
+    case "global":
+      return "全局";
+    case "scene":
+      return "场景";
+    case "party":
+      return `队伍 ${event.target.partyId}`;
+    case "character":
+      return characterNameById.get(event.target.characterId) ?? event.target.characterId;
+    case "relationship": {
+      const subject = event.target.subject.type === "character"
+        ? characterNameById.get(event.target.subject.characterId) ?? event.target.subject.characterId
+        : "我";
+      const object = event.target.object.type === "character"
+        ? characterNameById.get(event.target.object.characterId) ?? event.target.object.characterId
+        : "我";
+      return `${subject} -> ${object}`;
+    }
+  }
+};
+
 const TextBlock = ({
   label,
   value,
@@ -188,6 +266,7 @@ type DetailPanelKey =
   | "timeline"
   | "lorebook"
   | "illustration-hints"
+  | "progress-rules"
   | "script-review"
   | "private-intel"
   | "tips";
@@ -361,9 +440,20 @@ export const TavernSidePanel = ({
     .filter((event) => event.status === "pending")
     .filter((event) => {
       const visibility = statusDefinitionById.get(event.statusId)?.visibility;
-      return visibility !== "hidden" && visibility !== "debug" && visibility !== "director";
+      return isTavernProgressVisibilityVisibleToUser(visibility ?? "public");
     })
     .slice(-6);
+  const visibleStatusDefinitions = activeRoom.statusDefinitions.filter((definition) =>
+    isTavernProgressVisibilityVisibleToUser(definition.visibility)
+  );
+  const visibleStatusRules = activeRoom.statusRules.filter((rule) => {
+    const definition = statusDefinitionById.get(rule.apply.statusId);
+    return definition ? isTavernProgressVisibilityVisibleToUser(definition.visibility) : true;
+  });
+  const recentStatusEvents = activeRoom.statusEvents
+    .filter((event) => isTavernProgressVisibilityVisibleToUser(event.visibility))
+    .slice(-12)
+    .reverse();
   const recentIllustrationHints = activeRoom.illustrationHints.slice(-4).reverse();
   const privateIntelEvents = filterTavernFactEventsForAudience({
     factEvents: activeRoom.factEvents,
@@ -437,6 +527,7 @@ export const TavernSidePanel = ({
     timeline: "剧情时间线",
     lorebook: "世界书",
     "illustration-hints": "插图提示",
+    "progress-rules": "状态规则",
     "script-review": "剧本视角",
     "private-intel": "我的情报",
     tips: "现场提示",
@@ -446,6 +537,7 @@ export const TavernSidePanel = ({
     timeline: "查看已沉淀的剧情事件。",
     lorebook: "查看当前房间可引用的世界设定。",
     "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
+    "progress-rules": "查看状态定义、触发规则与最近变更。",
     "script-review": "切换公开、复盘和导演视角，管理可揭示事实。",
     "private-intel": "汇总当前用户可知但不公开进入聊天正文的事实。",
     tips: "查看酒馆现场的使用提醒。",
@@ -787,6 +879,12 @@ export const TavernSidePanel = ({
                 onClick={() => setDetailPanel("illustration-hints")}
               />
               <DetailEntry
+                icon={Activity}
+                title="状态规则"
+                summary={`${visibleStatusDefinitions.length} 项状态，${visibleStatusRules.length} 条规则，${pendingStatusEvents.length} 条待确认`}
+                onClick={() => setDetailPanel("progress-rules")}
+              />
+              <DetailEntry
                 icon={ShieldCheck}
                 title="剧本视角"
                 summary={`${informationViewLabels[currentInformationView]}，${reviewHiddenFactCount}/${hiddenFactCount} 条隐藏事实可见`}
@@ -949,6 +1047,174 @@ export const TavernSidePanel = ({
                       暂无插图提示。
                     </div>
                   )}
+                </div>
+              )}
+
+              {detailPanel === "progress-rules" && (
+                <div className="space-y-5">
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">状态定义</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {visibleStatusDefinitions.length} 项
+                      </span>
+                    </div>
+                    {visibleStatusDefinitions.length > 0 ? (
+                      <div className="space-y-3">
+                        {visibleStatusDefinitions.map((definition) => (
+                          <div key={definition.id} className="rounded-md border bg-background/60 p-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-sm font-medium">{definition.label}</span>
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                {statusScopeLabels[definition.scope]}
+                              </span>
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                {definition.valueType}
+                              </span>
+                              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                {updatePolicyModeLabels[definition.updatePolicy.mode]}
+                              </span>
+                            </div>
+                            {definition.description?.trim() && (
+                              <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                                {definition.description}
+                              </div>
+                            )}
+                            <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                              <div>默认：{formatStatusValue(definition.defaultValue)}</div>
+                              <div>
+                                范围：{
+                                  typeof definition.min === "number" || typeof definition.max === "number"
+                                    ? `${definition.min ?? "-∞"} - ${definition.max ?? "+∞"}`
+                                    : "不限"
+                                }
+                              </div>
+                              <div>
+                                事件：{definition.updatePolicy.allowedEventTypes?.join("、") || "不限"}
+                              </div>
+                              <div>
+                                置信度：{typeof definition.updatePolicy.confidenceThreshold === "number"
+                                  ? `${Math.round(definition.updatePolicy.confidenceThreshold * 100)}%`
+                                  : "默认"}
+                              </div>
+                              <div>
+                                每轮上限：{definition.updatePolicy.maxDeltaPerTurn ?? "不限"}
+                              </div>
+                              <div>
+                                审核阈值：{definition.updatePolicy.manualReviewAboveDelta ?? "未设置"}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无可见状态定义。
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">事件规则</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {visibleStatusRules.length} 条
+                      </span>
+                    </div>
+                    {visibleStatusRules.length > 0 ? (
+                      <div className="space-y-3">
+                        {visibleStatusRules.map((rule) => {
+                          const definition = statusDefinitionById.get(rule.apply.statusId);
+                          return (
+                            <div key={rule.id} className="rounded-md border bg-background/60 p-3">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium">{rule.label}</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {rule.when.eventType}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {definition?.label ?? rule.apply.statusId}
+                                </span>
+                              </div>
+                              <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                                <div>目标：{ruleTargetLabels[rule.apply.target ?? "eventTarget"]}</div>
+                                <div>操作：{rule.apply.op === "add" ? "增减" : "设为"}</div>
+                                <div className="sm:col-span-2">数值：{formatStatusRuleValue(rule)}</div>
+                                <div>
+                                  限制：{rule.apply.clamp ? `${rule.apply.clamp[0]} - ${rule.apply.clamp[1]}` : "不限"}
+                                </div>
+                                <div>
+                                  每轮上限：{rule.safeguards?.maxDeltaPerTurn ?? "不限"}
+                                </div>
+                                <div>
+                                  审核阈值：{rule.safeguards?.manualReviewAboveDelta ?? "未设置"}
+                                </div>
+                                <div>
+                                  证据：{rule.safeguards?.requireExplicitEvidence ? "必须明确" : "默认"}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无可见事件规则。
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">最近变更</div>
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {recentStatusEvents.length} 条
+                      </span>
+                    </div>
+                    {recentStatusEvents.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentStatusEvents.map((event) => {
+                          const definition = statusDefinitionById.get(event.statusId);
+                          const deltaText = typeof event.delta === "number" && event.delta !== 0
+                            ? `${event.delta > 0 ? "+" : ""}${event.delta}`
+                            : "";
+                          return (
+                            <div key={event.id} className="rounded-md border bg-background/60 p-3">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-sm font-medium">
+                                  {definition?.label ?? event.statusId}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {statusEventStatusLabels[event.status]}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {formatStatusTarget(event, characterNameById)}
+                                </span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                  {Math.round(event.confidence * 100)}%
+                                </span>
+                              </div>
+                              <div className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {formatStatusValue(event.before)}{" -> "}{formatStatusValue(event.after)}
+                                {deltaText && (
+                                  <span className={cn("ml-2", event.delta && event.delta > 0 ? "text-emerald-500" : "text-destructive")}>
+                                    {deltaText}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                                {event.reason}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        暂无状态变更。
+                      </div>
+                    )}
+                  </section>
                 </div>
               )}
 

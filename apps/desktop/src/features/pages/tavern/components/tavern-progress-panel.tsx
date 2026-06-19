@@ -2,6 +2,7 @@ import { Activity, CheckCircle2, Circle, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   getTavernStatusSnapshotValue,
+  isTavernProgressVisibilityVisibleToUser,
 } from "../core";
 import type {
   TavernCharacter,
@@ -112,9 +113,6 @@ const outcomeStatusLabel = (status: string) => {
       return status;
   }
 };
-
-const shouldShowProgressVisibility = (visibility: string) =>
-  visibility !== "hidden" && visibility !== "debug" && visibility !== "director";
 
 const characterRef = (character: TavernCharacter): TavernEntityRef => ({
   type: "character",
@@ -289,7 +287,7 @@ export const TavernProgressPanel = ({
     const explicitRows = view.items.flatMap((item) => {
       if (item.type === "status") {
         const definition = definitionById.get(item.statusId);
-        if (!definition || !shouldShowProgressVisibility(definition.visibility)) {
+        if (!definition || !isTavernProgressVisibilityVisibleToUser(definition.visibility)) {
           return [];
         }
         return resolveStatusTargets({
@@ -349,7 +347,7 @@ export const TavernProgressPanel = ({
       }
       if (item.type === "task") {
         const task = taskById.get(item.taskId);
-        if (!task || !shouldShowProgressVisibility(task.visibility)) {
+        if (!task || !isTavernProgressVisibilityVisibleToUser(task.visibility)) {
           return [];
         }
         const state = activeRoom.taskSnapshot[item.taskId];
@@ -366,7 +364,7 @@ export const TavernProgressPanel = ({
       const event = activeRoom.outcomeEvents.find((candidate) =>
         candidate.outcomeId === item.outcomeId && candidate.status !== "dismissed"
       );
-      if (!outcome || !event || !shouldShowProgressVisibility(outcome.visibility)) {
+      if (!outcome || !event || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
         return [];
       }
       return [{
@@ -382,7 +380,7 @@ export const TavernProgressPanel = ({
     });
     const dynamicTaskRows = view.items.length === 0 && (view.kind === "task" || view.kind === "mixed")
       ? activeRoom.taskDefinitions.flatMap((task) => {
-          if (!shouldShowProgressVisibility(task.visibility)) {
+          if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
             return [];
           }
           const state = activeRoom.taskSnapshot[task.id];
@@ -402,7 +400,7 @@ export const TavernProgressPanel = ({
             return [];
           }
           const outcome = outcomeById.get(event.outcomeId);
-          if (!outcome || !shouldShowProgressVisibility(outcome.visibility)) {
+          if (!outcome || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
             return [];
           }
           return [{
