@@ -14,6 +14,7 @@ import {
   saveChatSession,
   setChatSessionUnread,
 } from "../../api";
+import { useChatSessionsStore } from "../../session-store";
 import type {
   ChatMessage,
 } from "../../types";
@@ -100,8 +101,12 @@ export const useWorkspaceChatSessions = ({
   const isHydratingSessionRef = useRef(false);
   const hydratedWorkspacePathRef = useRef(workspace.path);
   const [sessionsError, setSessionsError] = useState("");
+  const setWorkspaceSessions = useChatSessionsStore((store) => store.setWorkspaceSessions);
+  const upsertSession = useChatSessionsStore((store) => store.upsertSession);
+  const setSessionUnread = useChatSessionsStore((store) => store.setSessionUnread);
 
   const markSessionRead = useCallback((workspacePath: string, sessionId: string) => {
+    setSessionUnread(workspace.id, sessionId, false);
     void setChatSessionUnread({
       workspacePath,
       sessionId,
@@ -109,7 +114,7 @@ export const useWorkspaceChatSessions = ({
     }).catch((caught) => {
       setSessionsError(String(caught));
     });
-  }, []);
+  }, [setSessionUnread, workspace.id]);
 
   const hydrateSession = useCallback((
     session: HydratableChatSession | null,
@@ -177,6 +182,7 @@ export const useWorkspaceChatSessions = ({
       if (sessionsRequestIdRef.current !== requestId) {
         return;
       }
+      setWorkspaceSessions(workspace.id, sessions);
       if (shouldStartEmptySession) {
         closePanels();
         setSessionsError("");
@@ -211,6 +217,8 @@ export const useWorkspaceChatSessions = ({
     markSessionRead,
     routeSessionId,
     setComposerResetKey,
+    setWorkspaceSessions,
+    workspace.id,
     workspace.path,
   ]);
 
@@ -264,6 +272,7 @@ export const useWorkspaceChatSessions = ({
           currentSessionTitleRef.current = session.title;
           setCurrentSessionId(session.id);
           setCurrentSessionTitle(session.title);
+          upsertSession(workspace.id, session);
           if (wasNewSession) {
             onSessionCreated?.(session.id);
           }
@@ -281,6 +290,8 @@ export const useWorkspaceChatSessions = ({
     onSessionCreated,
     setCurrentSessionId,
     setCurrentSessionTitle,
+    upsertSession,
+    workspace.id,
     workspace.path,
   ]);
 

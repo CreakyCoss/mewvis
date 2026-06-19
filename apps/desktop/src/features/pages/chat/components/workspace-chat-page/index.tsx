@@ -27,6 +27,7 @@ import type {
   ComposerSubmitInput,
   PendingAgentQuestion,
 } from "../../types";
+import { useChatSessionsStore } from "../../session-store";
 import {
   keepHistoryThroughMessage,
   moveHistoryItem,
@@ -240,6 +241,9 @@ export const WorkspaceChatPage = ({
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
+  const upsertSession = useChatSessionsStore((store) => store.upsertSession);
+  const upsertSessionMeta = useChatSessionsStore((store) => store.upsertSessionMeta);
+  const setSessionRunning = useChatSessionsStore((store) => store.setSessionRunning);
   const workspaceOptions = useMemo(
     () => workspaceSections.flatMap((section) => section.workspaces),
     [workspaceSections],
@@ -750,14 +754,18 @@ export const WorkspaceChatPage = ({
       task.workspacePath !== workspace.path ||
       task.sessionId !== currentSessionIdRef.current;
     task.title = title;
-    await saveChatSession({
+    const session = await saveChatSession({
       workspacePath: task.workspacePath,
       sessionId: task.sessionId,
       title,
       messages: task.messages,
       isUnread,
     });
-  }, [workspace.path]);
+    const taskWorkspace = workspaceOptions.find((item) => item.path === task.workspacePath);
+    if (taskWorkspace) {
+      upsertSession(taskWorkspace.id, session);
+    }
+  }, [upsertSession, workspace.path, workspaceOptions]);
 
   const clearPendingAgentQuestion = useCallback((questionId: string) => {
     const currentQuestion = pendingAgentQuestionRef.current;
@@ -909,6 +917,17 @@ export const WorkspaceChatPage = ({
       : [...messagesRef.current, userUiMessage];
     messagesRef.current = nextMessages;
     setMessages(nextMessages);
+    if (nextSessionId) {
+      upsertSessionMeta(workspace.id, {
+        id: nextSessionId,
+        title: deriveSessionTitle(nextMessages),
+        path: "",
+        createdAt: userUiMessage.createdAt,
+        updatedAt: Date.now(),
+        messageCount: nextMessages.length,
+        isUnread: false,
+      });
+    }
     setIsSending(true);
     setChatError("");
 
@@ -962,6 +981,8 @@ export const WorkspaceChatPage = ({
       userUiMessage,
       assistantUiMessage,
     });
+    let didStartAgentTask = false;
+    setSessionRunning(workspace.path, nextSessionId, true);
 
     try {
       const preparedAgentRuntime = await prepareBridgeAgentTurnRuntime({
@@ -978,6 +999,7 @@ export const WorkspaceChatPage = ({
 
       if (runtimeAgentRequiresModel && !effectiveRuntimeModel) {
         setChatError("请选择要使用的 LLM 和模型");
+        setSessionRunning(workspace.path, nextSessionId, false);
         return;
       }
 
@@ -994,7 +1016,10 @@ export const WorkspaceChatPage = ({
         agentRuntime,
         setChatError,
         prepareActiveAgentRun,
-        addRunningAgentTask,
+        addRunningAgentTask: (task) => {
+          didStartAgentTask = true;
+          addRunningAgentTask(task);
+        },
         activateAgentTaskId,
         handledAgentDoneTaskIdsRef,
         effectiveRuntimeModel,
@@ -1012,6 +1037,9 @@ export const WorkspaceChatPage = ({
         text: message,
         status: "error",
       }));
+      if (!didStartAgentTask) {
+        setSessionRunning(workspace.path, nextSessionId, false);
+      }
     } finally {
       setIsSending(false);
     }

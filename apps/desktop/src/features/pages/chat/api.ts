@@ -69,3 +69,13 @@ export async function setChatSessionUnread(input: {
 
   return invoke<ChatSessionMeta>("set_chat_session_unread", { input });
 }
+
+export async function deleteChatSession(workspacePath: string, sessionId: string) {
+  if (!isTauri()) {
+    return [];
+  }
+
+  return invoke<ChatSessionMeta[]>("delete_chat_session", {
+    input: { workspacePath, sessionId },
+  });
+}

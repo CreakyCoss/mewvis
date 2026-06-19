@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useChatSessionsStore } from "../../session-store";
 import type {
   ChatMessage,
   PendingAgentQuestion,
@@ -37,6 +38,7 @@ export const useRunningAgentTasks = ({
 }: UseRunningAgentTasksInput) => {
   const runningAgentTasksRef = useRef<Map<string, RunningAgentTaskContext>>(new Map());
   const [runningAgentSessionKeys, setRunningAgentSessionKeys] = useState<Set<string>>(() => new Set());
+  const setSessionRunning = useChatSessionsStore((store) => store.setSessionRunning);
 
   const visibleActiveAgentTaskId = useMemo(() => {
     if (!activeAgentTaskId) {
@@ -55,6 +57,7 @@ export const useRunningAgentTasks = ({
 
   const addRunningAgentTask = useCallback((task: RunningAgentTaskContext) => {
     runningAgentTasksRef.current.set(task.taskId, task);
+    setSessionRunning(task.workspacePath, task.sessionId, true);
     const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
     setRunningAgentSessionKeys((current) => {
       if (current.has(key)) {
@@ -64,7 +67,7 @@ export const useRunningAgentTasks = ({
       next.add(key);
       return next;
     });
-  }, []);
+  }, [setSessionRunning]);
 
   const removeRunningAgentTask = useCallback((taskId?: string) => {
     if (!taskId) {
@@ -85,6 +88,7 @@ export const useRunningAgentTasks = ({
       return;
     }
 
+    setSessionRunning(task.workspacePath, task.sessionId, false);
     setRunningAgentSessionKeys((current) => {
       if (!current.has(key)) {
         return current;
@@ -93,7 +97,7 @@ export const useRunningAgentTasks = ({
       next.delete(key);
       return next;
     });
-  }, []);
+  }, [setSessionRunning]);
 
   return {
     runningAgentTasksRef,
