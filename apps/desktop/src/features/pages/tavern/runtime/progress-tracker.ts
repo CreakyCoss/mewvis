@@ -14,6 +14,7 @@ import type {
   TavernEventIntensity,
   TavernFactEvent,
   TavernMessage,
+  TavernProgressVisibility,
   TavernReferencedFile,
   TavernRoom,
 } from "../types";
@@ -46,6 +47,16 @@ const EVENT_INTENSITIES = new Set<TavernEventIntensity>([
   "moderate",
   "major",
   "critical",
+]);
+
+const FACT_VISIBILITIES = new Set<TavernProgressVisibility>([
+  "public",
+  "owner",
+  "team",
+  "private",
+  "director",
+  "hidden",
+  "debug",
 ]);
 
 const extractJsonObject = (text: string) => {
@@ -104,6 +115,22 @@ const normalizeEntityRef = (
   }
   return undefined;
 };
+
+const normalizeStringArray = (value: unknown) => Array.isArray(value)
+  ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
+  : [];
+
+const normalizeFactVisibility = (
+  value: unknown,
+  fallback: TavernProgressVisibility,
+) => typeof value === "string" && FACT_VISIBILITIES.has(value as TavernProgressVisibility)
+  ? value as TavernProgressVisibility
+  : fallback;
+
+const normalizeFactRevealWhen = (value: unknown) =>
+  value === "sceneOutcome" || value === "never" || value === "manual"
+    ? value
+    : undefined;
 
 const formatAllowedEvents = (room: TavernRoom) => {
   const lines = room.statusRules.map((rule) => {
@@ -178,6 +205,16 @@ const parseFactEvents = ({
               typeof id === "string" && sourceMessageIds.has(id) ? [id] : []
             ))
           : [];
+        const fallbackVisibility = room.settings.informationPolicy.hiddenFacts.enabled
+          ? room.settings.informationPolicy.hiddenFacts.defaultVisibility
+          : "public";
+        const visibility = normalizeFactVisibility(candidate.visibility, fallbackVisibility);
+        const visibleToUser = candidate.visibleToUser === true;
+        const visibleToCharacterIds = normalizeStringArray(candidate.visibleToCharacterIds)
+          .filter((characterId) => characterIds.has(characterId));
+        const visibleToFactionIds = normalizeStringArray(candidate.visibleToFactionIds);
+        const revealWhen = normalizeFactRevealWhen(candidate.revealWhen) ??
+          (visibility === "public" ? undefined : room.settings.informationPolicy.hiddenFacts.reveal);
 
         return [{
           id: `${turnId}-fact-${index + 1}-${type}`,
@@ -192,6 +229,11 @@ const parseFactEvents = ({
           ...(typeof valueNumber === "number" ? { value: valueNumber } : {}),
           evidence,
           confidence,
+          visibility,
+          ...(revealWhen ? { revealWhen } : {}),
+          ...(visibleToUser ? { visibleToUser } : {}),
+          ...(visibleToCharacterIds.length > 0 ? { visibleToCharacterIds } : {}),
+          ...(visibleToFactionIds.length > 0 ? { visibleToFactionIds } : {}),
           createdAt: Date.now(),
         }];
       }).slice(0, 12)
@@ -243,6 +285,11 @@ export const runTavernProgressTracking = async ({
       "\"value\":0,",
       "\"sourceMessageIds\":[\"message id\"],",
       "\"evidence\":\"本轮公开可观察证据\",",
+      "\"visibility\":\"public|private|director|hidden\",",
+      "\"revealWhen\":\"manual|sceneOutcome|never\",",
+      "\"visibleToUser\":false,",
+      "\"visibleToCharacterIds\":[\"character id\"],",
+      "\"visibleToFactionIds\":[\"faction id\"],",
       "\"confidence\":0.0",
       "}]}",
     ].join(""),
@@ -252,6 +299,10 @@ export const runTavernProgressTracking = async ({
     "只抽取本轮明确发生、被用户明确选择、或被角色公开承认的事实事件。",
     "不要根据角色心理、暗示、猜测、气氛描写或未完成意图生成事实事件。",
     "不要直接输出状态值，例如“health=70”；只能输出事件 type、actor、target、intensity/value 和证据。",
+    "visibleToCharacterIds/visibleToFactionIds 只表示哪些角色的上下文可知道该事实，不表示界面公开展示。",
+    "visibleToUser=true 表示用户本人可在私密情报面板查看，不表示公共对话区可见。",
+    "狼人杀、推理和悬疑场景中，身份、凶手、验人结果、真实动机、密谋信息默认不是 public。",
+    "如果事实不是所有人都应知道，visibility 必须是 private/director/hidden，并填写可知角色或阵营；evidence 只写可作为记录的简短证据。",
     "actor/target 只能使用用户、角色 id、global 或 scene；角色 id 必须来自角色列表。",
     "如果事件会改变有向关系，actor 是行动者，target 是受影响者。例如用户帮助阿洛：actor=user，target=char-a。",
     "如果没有明确事件，输出 {\"factEvents\":[]}。",

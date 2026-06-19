@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
+import { filterTavernFactEventsForAudience } from "../core";
 import type {
   TavernAssetDraft,
   TavernCharacter,
@@ -133,7 +134,7 @@ const CharacterProfileTooltip = ({
   </HoverCardContent>
 );
 
-type DetailPanelKey = "asset-drafts" | "timeline" | "lorebook" | "illustration-hints" | "tips";
+type DetailPanelKey = "asset-drafts" | "timeline" | "lorebook" | "illustration-hints" | "private-intel" | "tips";
 
 const DetailEntry = ({
   icon: Icon,
@@ -307,6 +308,11 @@ export const TavernSidePanel = ({
     })
     .slice(-6);
   const recentIllustrationHints = activeRoom.illustrationHints.slice(-4).reverse();
+  const privateIntelEvents = filterTavernFactEventsForAudience({
+    factEvents: activeRoom.factEvents,
+    room: activeRoom,
+    audience: { type: "user" },
+  }).filter((event) => event.visibleToUser || event.visibility !== "public");
   const shouldShowIllustrationHints =
     activeRoom.settings.illustrationHints.enabled || recentIllustrationHints.length > 0;
   const detailPanelTitle = {
@@ -314,6 +320,7 @@ export const TavernSidePanel = ({
     timeline: "剧情时间线",
     lorebook: "世界书",
     "illustration-hints": "插图提示",
+    "private-intel": "我的情报",
     tips: "现场提示",
   }[detailPanel ?? "tips"];
   const detailPanelDescription = {
@@ -321,6 +328,7 @@ export const TavernSidePanel = ({
     timeline: "查看已沉淀的剧情事件。",
     lorebook: "查看当前房间可引用的世界设定。",
     "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
+    "private-intel": "只展示当前用户可知但不公开进入聊天流的事实。",
     tips: "查看酒馆现场的使用提醒。",
   }[detailPanel ?? "tips"];
 
@@ -640,6 +648,16 @@ export const TavernSidePanel = ({
               />
               <DetailEntry
                 icon={MessageSquare}
+                title="我的情报"
+                summary={
+                  privateIntelEvents.length > 0
+                    ? `${privateIntelEvents.length} 条仅你可知或已揭示事实`
+                    : "暂无仅你可知事实"
+                }
+                onClick={() => setDetailPanel("private-intel")}
+              />
+              <DetailEntry
+                icon={MessageSquare}
                 title="现场提示"
                 summary="内页只保留现场信息，更多配置在首页编辑"
                 onClick={() => setDetailPanel("tips")}
@@ -786,6 +804,37 @@ export const TavernSidePanel = ({
                     </div>
                   )}
                 </div>
+              )}
+
+              {detailPanel === "private-intel" && (
+                privateIntelEvents.length > 0 ? (
+                  <div className="space-y-3">
+                    {privateIntelEvents.slice().reverse().map((event) => (
+                      <div key={event.id} className="rounded-md border bg-background/60 p-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            {event.type}
+                          </span>
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            {event.visibility ?? "public"}
+                          </span>
+                          {event.revealWhen && (
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                              {event.revealWhen}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                          {event.evidence}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                    暂无仅你可知事实。
+                  </div>
+                )
               )}
 
               {detailPanel === "tips" && (

@@ -10,6 +10,7 @@ import type {
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
   TavernCharacterMemoryDraft,
+  TavernEntityRef,
   TavernIllustrationHint,
   TavernLorebookEntry,
   TavernLorebookDraft,
@@ -301,6 +302,23 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   },
   illustrationHints: {
     enabled: false,
+  },
+  informationPolicy: {
+    mode: "open",
+    uiDefaultView: "reveal",
+    hideCharacterThoughts: false,
+    revealThoughts: "manual",
+    hiddenFacts: {
+      enabled: false,
+      defaultVisibility: "director",
+      reveal: "manual",
+    },
+    roleAssignment: {
+      enabled: false,
+      strategy: "manual",
+      revealToAssignedCharacter: true,
+      revealFactionMembers: true,
+    },
   },
 };
 
@@ -787,9 +805,79 @@ const clampInteger = (value: unknown, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, Math.round(numberValue)));
 };
 
+const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
+  ...DEFAULT_TAVERN_ROOM_SETTINGS,
+  continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
+  replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
+  statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
+  randomEvents: { ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents },
+  illustrationHints: { ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints },
+  informationPolicy: {
+    ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
+    hiddenFacts: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts },
+    roleAssignment: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment },
+  },
+});
+
+const normalizeInformationRevealMode = (value: unknown) =>
+  value === "sceneOutcome" || value === "never" || value === "manual"
+    ? value
+    : "manual";
+
+const normalizeInformationPolicy = (
+  value: unknown,
+): TavernRoomSettings["informationPolicy"] => {
+  const defaults = cloneDefaultRoomSettings().informationPolicy;
+  if (!value || typeof value !== "object") {
+    return defaults;
+  }
+
+  const candidate = value as Partial<TavernRoomSettings["informationPolicy"]>;
+  const hiddenFacts = candidate.hiddenFacts && typeof candidate.hiddenFacts === "object"
+    ? candidate.hiddenFacts as Partial<TavernRoomSettings["informationPolicy"]["hiddenFacts"]>
+    : {};
+  const roleAssignment = candidate.roleAssignment && typeof candidate.roleAssignment === "object"
+    ? candidate.roleAssignment as Partial<TavernRoomSettings["informationPolicy"]["roleAssignment"]>
+    : {};
+  const mode = candidate.mode === "mystery" ||
+      candidate.mode === "social_deduction" ||
+      candidate.mode === "custom" ||
+      candidate.mode === "open"
+    ? candidate.mode
+    : defaults.mode;
+  const uiDefaultView = candidate.uiDefaultView === "public" ||
+      candidate.uiDefaultView === "director" ||
+      candidate.uiDefaultView === "reveal"
+    ? candidate.uiDefaultView
+    : defaults.uiDefaultView;
+  const defaultVisibility = hiddenFacts.defaultVisibility === "hidden" ||
+      hiddenFacts.defaultVisibility === "debug" ||
+      hiddenFacts.defaultVisibility === "director"
+    ? hiddenFacts.defaultVisibility
+    : defaults.hiddenFacts.defaultVisibility;
+
+  return {
+    mode,
+    uiDefaultView,
+    hideCharacterThoughts: Boolean(candidate.hideCharacterThoughts),
+    revealThoughts: normalizeInformationRevealMode(candidate.revealThoughts),
+    hiddenFacts: {
+      enabled: Boolean(hiddenFacts.enabled),
+      defaultVisibility,
+      reveal: normalizeInformationRevealMode(hiddenFacts.reveal),
+    },
+    roleAssignment: {
+      enabled: Boolean(roleAssignment.enabled),
+      strategy: roleAssignment.strategy === "director_random" ? "director_random" : "manual",
+      revealToAssignedCharacter: roleAssignment.revealToAssignedCharacter !== false,
+      revealFactionMembers: roleAssignment.revealFactionMembers !== false,
+    },
+  };
+};
+
 const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
   if (!value || typeof value !== "object") {
-    return { ...DEFAULT_TAVERN_ROOM_SETTINGS };
+    return cloneDefaultRoomSettings();
   }
 
   const candidate = value as Partial<TavernRoomSettings>;
@@ -875,6 +963,7 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
     illustrationHints: {
       enabled: Boolean(illustrationHints.enabled),
     },
+    informationPolicy: normalizeInformationPolicy(candidate.informationPolicy),
   };
 };
 
@@ -2492,6 +2581,118 @@ const normalizeGeneratedStatusSnapshot = (
   };
 };
 
+const normalizeGeneratedEntityRef = (
+  value: unknown,
+  characterIdByGeneratedKey: Map<string, string>,
+): TavernEntityRef | undefined => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const candidate = value as Partial<TavernEntityRef> & Record<string, unknown>;
+  if (candidate.type === "user") {
+    return { type: "user", userId: "user" };
+  }
+  if (candidate.type === "character") {
+    const characterId = resolveGeneratedCharacterId(candidate.characterId, characterIdByGeneratedKey);
+    return characterId ? { type: "character", characterId } : undefined;
+  }
+  if (candidate.type === "global") {
+    return { type: "global" };
+  }
+  if (candidate.type === "scene") {
+    const sceneId = trimGeneratedString(candidate.sceneId);
+    return sceneId ? { type: "scene", sceneId } : { type: "scene", sceneId: "current" };
+  }
+  if (candidate.type === "team") {
+    const teamId = trimGeneratedString(candidate.teamId);
+    return teamId ? { type: "team", teamId } : undefined;
+  }
+  if (candidate.type === "faction") {
+    const factionId = trimGeneratedString(candidate.factionId);
+    return factionId ? { type: "faction", factionId } : undefined;
+  }
+  if (candidate.type === "party") {
+    const partyId = trimGeneratedString(candidate.partyId);
+    return partyId ? { type: "party", partyId } : undefined;
+  }
+  return undefined;
+};
+
+const createGeneratedFactEvent = (
+  value: unknown,
+  index: number,
+  createdAt: number,
+  characterIdByGeneratedKey: Map<string, string>,
+): TavernFactEvent | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<TavernFactEvent>;
+  const type = trimGeneratedString(candidate.type);
+  const evidence = trimGeneratedString(candidate.evidence);
+  if (!type || !evidence) {
+    return null;
+  }
+
+  const visibility = candidate.visibility === "owner" ||
+      candidate.visibility === "team" ||
+      candidate.visibility === "private" ||
+      candidate.visibility === "director" ||
+      candidate.visibility === "hidden" ||
+      candidate.visibility === "debug" ||
+      candidate.visibility === "public"
+    ? candidate.visibility
+    : "public";
+  const revealWhen = candidate.revealWhen === "sceneOutcome" ||
+      candidate.revealWhen === "never" ||
+      candidate.revealWhen === "manual"
+    ? candidate.revealWhen
+    : undefined;
+  const visibleToCharacterIds = Array.isArray(candidate.visibleToCharacterIds)
+    ? candidate.visibleToCharacterIds.flatMap((id) => {
+        const characterId = resolveGeneratedCharacterId(id, characterIdByGeneratedKey);
+        return characterId ? [characterId] : [];
+      })
+    : [];
+  const visibleToFactionIds = Array.isArray(candidate.visibleToFactionIds)
+    ? candidate.visibleToFactionIds.flatMap((id) => {
+        const factionId = trimGeneratedString(id);
+        return factionId ? [factionId] : [];
+      })
+    : [];
+  const confidence = typeof candidate.confidence === "number" && Number.isFinite(candidate.confidence)
+    ? Math.min(1, Math.max(0, candidate.confidence))
+    : 1;
+
+  return {
+    id: trimGeneratedString(candidate.id) || createId("fact"),
+    turnId: trimGeneratedString(candidate.turnId) || "initial",
+    sourceMessageIds: Array.isArray(candidate.sourceMessageIds)
+      ? candidate.sourceMessageIds.flatMap((id) => {
+          const text = trimGeneratedString(id);
+          return text ? [text] : [];
+        })
+      : [],
+    type,
+    ...(normalizeGeneratedEntityRef(candidate.actor, characterIdByGeneratedKey)
+      ? { actor: normalizeGeneratedEntityRef(candidate.actor, characterIdByGeneratedKey) }
+      : {}),
+    ...(normalizeGeneratedEntityRef(candidate.target, characterIdByGeneratedKey)
+      ? { target: normalizeGeneratedEntityRef(candidate.target, characterIdByGeneratedKey) }
+      : {}),
+    ...(candidate.intensity ? { intensity: candidate.intensity } : {}),
+    ...(typeof candidate.value === "number" && Number.isFinite(candidate.value) ? { value: candidate.value } : {}),
+    evidence,
+    confidence,
+    visibility,
+    ...(revealWhen ? { revealWhen } : {}),
+    ...(candidate.visibleToUser ? { visibleToUser: true } : {}),
+    ...(visibleToCharacterIds.length > 0 ? { visibleToCharacterIds } : {}),
+    ...(visibleToFactionIds.length > 0 ? { visibleToFactionIds } : {}),
+    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : createdAt + index,
+  };
+};
+
 const firstJsonObjectFromText = (text: string) => {
   let start = -1;
   let depth = 0;
@@ -2675,6 +2876,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
         characterPublicStatuses: roomInput.characterPublicStatuses,
         characterPrivateStatuses: roomInput.characterPrivateStatuses,
         statusSnapshot: roomInput.statusSnapshot,
+        factEvents: roomInput.factEvents,
         taskDefinitions: roomInput.taskDefinitions,
         sceneOutcomes: roomInput.sceneOutcomes,
         characterMemories: roomInput.characterMemories,
@@ -2734,6 +2936,17 @@ export const createTavernRoomFromGeneratedPresetJson = (
         characterIdByGeneratedKey,
       ),
     };
+    const sceneFactEvents = [
+      ...(roomInput.factEvents ?? []),
+      ...(sceneInput.factEvents ?? []),
+    ].map((factEvent, factIndex) =>
+      createGeneratedFactEvent(
+        factEvent,
+        index * 100 + factIndex,
+        createdAt,
+        characterIdByGeneratedKey,
+      )
+    ).filter((factEvent): factEvent is TavernFactEvent => Boolean(factEvent));
 
     return buildTavernScene({
       title: trimGeneratedString(sceneInput.title) || defaultSceneTitle,
@@ -2768,7 +2981,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
       ),
       pendingInteractions: [],
       replyOptions: [],
-      factEvents: [],
+      factEvents: sceneFactEvents,
       statusEvents: [],
       statusSnapshot: normalizeStatusSnapshot(
         normalizeGeneratedStatusSnapshot(
@@ -3272,7 +3485,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     activeCharacterId: "",
     replyMode: "active",
     userPersonaName: "我",
-    settings: { ...DEFAULT_TAVERN_ROOM_SETTINGS },
+    settings: cloneDefaultRoomSettings(),
     createdAt,
     updatedAt: createdAt,
   });

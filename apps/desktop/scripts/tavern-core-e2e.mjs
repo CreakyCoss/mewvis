@@ -33,6 +33,7 @@ writeFileSync(entryPath, `
     deriveTavernStatusEventsFromFacts,
     evaluateTavernSceneOutcomes,
     extractTavernPendingInteractionsFromMessages,
+    filterTavernFactEventsForAudience,
     formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
     normalizeTavernMessagesForAudience,
@@ -476,6 +477,151 @@ writeFileSync(entryPath, `
     characters,
     userPersonaName: room.userPersonaName,
   });
+  const mysteryInformationPolicy = {
+    mode: "social_deduction",
+    uiDefaultView: "public",
+    hideCharacterThoughts: true,
+    revealThoughts: "sceneOutcome",
+    hiddenFacts: {
+      enabled: true,
+      defaultVisibility: "director",
+      reveal: "sceneOutcome",
+    },
+    roleAssignment: {
+      enabled: true,
+      strategy: "director_random",
+      revealToAssignedCharacter: true,
+      revealFactionMembers: true,
+    },
+  };
+  const privateFactEvents = [
+    {
+      id: "fact-public",
+      turnId: "turn-private",
+      sourceMessageIds: ["m-user-1"],
+      type: "public_observation",
+      evidence: "门口有两道脚印。",
+      confidence: 1,
+      visibility: "public",
+      createdAt: now + 20,
+    },
+    {
+      id: "fact-user-only",
+      turnId: "turn-private",
+      sourceMessageIds: ["m-user-1"],
+      type: "user_secret_note",
+      evidence: "USER_ONLY_SECRET_SHOULD_SHOW_IN_MY_INTEL",
+      confidence: 1,
+      visibility: "private",
+      visibleToUser: true,
+      revealWhen: "sceneOutcome",
+      createdAt: now + 21,
+    },
+    {
+      id: "fact-a-only",
+      turnId: "turn-private",
+      sourceMessageIds: ["m-a-1"],
+      type: "role_assignment",
+      target: charARef,
+      evidence: "A_ONLY_SECRET_SHOULD_SHOW_TO_A",
+      confidence: 1,
+      visibility: "private",
+      visibleToCharacterIds: ["char-a"],
+      revealWhen: "sceneOutcome",
+      createdAt: now + 22,
+    },
+    {
+      id: "fact-wolves",
+      turnId: "turn-private",
+      sourceMessageIds: ["m-b-1"],
+      type: "faction_knowledge",
+      target: charBRef,
+      evidence: "WOLF_FACTION_SECRET_SHOULD_SHOW_TO_WOLVES",
+      confidence: 1,
+      visibility: "private",
+      visibleToFactionIds: ["wolves"],
+      revealWhen: "sceneOutcome",
+      createdAt: now + 23,
+    },
+    {
+      id: "fact-director",
+      turnId: "turn-private",
+      sourceMessageIds: ["m-b-1"],
+      type: "director_hidden_truth",
+      evidence: "DIRECTOR_SECRET_SHOULD_ONLY_REVEAL_AT_END",
+      confidence: 1,
+      visibility: "director",
+      revealWhen: "sceneOutcome",
+      createdAt: now + 24,
+    },
+  ];
+  const mysteryRoom = {
+    ...room,
+    settings: {
+      ...room.settings,
+      informationPolicy: mysteryInformationPolicy,
+    },
+    factEvents: privateFactEvents,
+    outcomeEvents: [],
+  };
+  const revealedMysteryRoom = {
+    ...mysteryRoom,
+    outcomeEvents: [{
+      id: "outcome-private",
+      turnId: "turn-private",
+      outcomeId: "game-over",
+      winners: [],
+      losers: [],
+      sourceTaskEventIds: [],
+      sourceStatusEventIds: [],
+      status: "applied",
+      createdAt: now + 25,
+    }],
+  };
+  const mysteryRenderable = createTavernRenderableMessages({
+    messages,
+    characters,
+    userPersonaName: room.userPersonaName,
+    room: mysteryRoom,
+  });
+  const revealedMysteryRenderable = createTavernRenderableMessages({
+    messages,
+    characters,
+    userPersonaName: room.userPersonaName,
+    room: revealedMysteryRoom,
+  });
+  const privateFactVisibilityChecks = {
+    publicFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: mysteryRoom,
+      audience: { type: "ui" },
+    }).map((event) => event.id),
+    userFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: mysteryRoom,
+      audience: { type: "user" },
+    }).map((event) => event.id),
+    characterAFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: mysteryRoom,
+      audience: { type: "character", characterId: "char-a" },
+    }).map((event) => event.id),
+    wolfFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: mysteryRoom,
+      audience: { type: "character", characterId: "char-b", factionIds: ["wolves"] },
+    }).map((event) => event.id),
+    directorFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: mysteryRoom,
+      audience: { type: "director" },
+    }).map((event) => event.id),
+    revealedUserFacts: filterTavernFactEventsForAudience({
+      factEvents: privateFactEvents,
+      room: revealedMysteryRoom,
+      audience: { type: "user" },
+    }).map((event) => event.id),
+  };
   const bAsksA = {
     id: "m-b-asks-a",
     roomId: room.id,
@@ -1148,6 +1294,9 @@ writeFileSync(entryPath, `
       characters,
       userPersonaName: room.userPersonaName,
     }),
+    mysteryRenderable,
+    revealedMysteryRenderable,
+    privateFactVisibilityChecks,
     roleIds: {
       a: tavernCharacterAgentRoleId(room, characters[0]),
       b: tavernCharacterAgentRoleId(room, characters[1]),
@@ -1316,6 +1465,46 @@ try {
     checks.renderable.some((message) => message.thought === checks.bSecret),
     "UI 渲染模型应保留角色心理用于展示",
     checks.renderable,
+  );
+  assert(
+    checks.mysteryRenderable.every((message) => !message.thought),
+    "推理/狼人杀公开视角不应在公共界面展示角色心理",
+    checks.mysteryRenderable,
+  );
+  assert(
+    checks.revealedMysteryRenderable.some((message) => message.thought === checks.bSecret),
+    "结局揭示后应恢复展示隐藏心理",
+    checks.revealedMysteryRenderable,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.publicFacts.join("|") === "fact-public",
+    "公共界面只能看到 public 事实，不能展示仅我或部分角色可知的私有事实",
+    checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.userFacts.includes("fact-user-only") &&
+      !checks.privateFactVisibilityChecks.userFacts.includes("fact-a-only") &&
+      !checks.privateFactVisibilityChecks.userFacts.includes("fact-wolves"),
+    "我的情报只能展示 visibleToUser 命中的私有事实",
+    checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.characterAFacts.includes("fact-a-only") &&
+      !checks.privateFactVisibilityChecks.characterAFacts.includes("fact-user-only"),
+    "角色上下文只能看到分配给该角色的私有事实",
+    checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.wolfFacts.includes("fact-wolves") &&
+      !checks.privateFactVisibilityChecks.wolfFacts.includes("fact-a-only"),
+    "阵营事实只应给对应阵营上下文",
+    checks.privateFactVisibilityChecks,
+  );
+  assert(
+    checks.privateFactVisibilityChecks.directorFacts.length === 5 &&
+      checks.privateFactVisibilityChecks.revealedUserFacts.includes("fact-director"),
+    "导演应全知，结局揭示后隐藏事实可进入复盘视角",
+    checks.privateFactVisibilityChecks,
   );
   assert(
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,

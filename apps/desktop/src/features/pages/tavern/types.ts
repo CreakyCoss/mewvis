@@ -118,6 +118,7 @@ export type TavernRoomSettings = {
   illustrationHints: {
     enabled: boolean;
   };
+  informationPolicy: TavernInformationPolicy;
 };
 
 export type TavernSceneStatus = {
@@ -192,6 +193,26 @@ export type TavernStatusValueType = "number" | "text" | "enum" | "boolean" | "ta
 export type TavernStatusValue = number | string | boolean | string[] | null;
 export type TavernProgressVisibility = "public" | "owner" | "team" | "private" | "director" | "hidden" | "debug";
 export type TavernEventIntensity = "trivial" | "minor" | "moderate" | "major" | "critical";
+export type TavernInformationPolicyMode = "open" | "mystery" | "social_deduction" | "custom";
+export type TavernInformationRevealMode = "manual" | "sceneOutcome" | "never";
+
+export type TavernInformationPolicy = {
+  mode: TavernInformationPolicyMode;
+  uiDefaultView: "public" | "reveal" | "director";
+  hideCharacterThoughts: boolean;
+  revealThoughts: TavernInformationRevealMode;
+  hiddenFacts: {
+    enabled: boolean;
+    defaultVisibility: Extract<TavernProgressVisibility, "director" | "hidden" | "debug">;
+    reveal: TavernInformationRevealMode;
+  };
+  roleAssignment: {
+    enabled: boolean;
+    strategy: "manual" | "director_random";
+    revealToAssignedCharacter: boolean;
+    revealFactionMembers: boolean;
+  };
+};
 
 export type TavernStatusTargetRef =
   | { type: "global" }
@@ -241,6 +262,11 @@ export type TavernFactEvent = {
   value?: number;
   evidence: string;
   confidence: number;
+  visibility?: TavernProgressVisibility;
+  revealWhen?: TavernInformationRevealMode;
+  visibleToUser?: boolean;
+  visibleToCharacterIds?: string[];
+  visibleToFactionIds?: string[];
   createdAt: number;
 };
 
@@ -629,6 +655,10 @@ export type TavernGeneratedPresetScene = {
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
   statusSnapshot?: Partial<TavernStatusSnapshot>;
+  factEvents?: Array<Partial<TavernFactEvent> & {
+    type: string;
+    evidence: string;
+  }>;
   taskDefinitions?: TavernTaskDefinition[];
   sceneOutcomes?: TavernSceneOutcomeDefinition[];
   characterMemories?: Record<string, string>;
@@ -667,6 +697,10 @@ export type TavernGeneratedPresetRoom = {
   progressViews?: TavernProgressView[];
   progressTracker?: Partial<TavernProgressTrackerSettings>;
   statusSnapshot?: Partial<TavernStatusSnapshot>;
+  factEvents?: Array<Partial<TavernFactEvent> & {
+    type: string;
+    evidence: string;
+  }>;
   taskDefinitions?: TavernTaskDefinition[];
   sceneOutcomes?: TavernSceneOutcomeDefinition[];
   scenes?: TavernGeneratedPresetScene[];

@@ -656,6 +656,7 @@ export const TavernPage = ({
           messages: roomMessages,
           characters: roomCharacters,
           userPersonaName: activeRoom.userPersonaName,
+          room: activeRoom,
         })
       : []
   ), [activeRoom, roomCharacters, roomMessages]);

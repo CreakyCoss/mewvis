@@ -683,6 +683,7 @@ type QuickCreateRoomDraft = {
   storyGoal: string;
   userPersonaName: string;
   promptStyleId: string;
+  informationMode: TavernRoomSettings["informationPolicy"]["mode"];
   characterSeeds: string;
   characterCount: string;
   statusTrackingEnabled: boolean;
@@ -700,6 +701,7 @@ const createEmptyQuickCreateRoomDraft = (): QuickCreateRoomDraft => ({
   storyGoal: "",
   userPersonaName: "我",
   promptStyleId: "novel",
+  informationMode: "open",
   characterSeeds: "",
   characterCount: "3",
   statusTrackingEnabled: true,
@@ -754,6 +756,11 @@ const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettin
   statusTracking: { ...settings.statusTracking },
   randomEvents: { ...settings.randomEvents },
   illustrationHints: { ...settings.illustrationHints },
+  informationPolicy: {
+    ...settings.informationPolicy,
+    hiddenFacts: { ...settings.informationPolicy.hiddenFacts },
+    roleAssignment: { ...settings.informationPolicy.roleAssignment },
+  },
 });
 
 const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
@@ -1030,6 +1037,10 @@ export const TavernManagementPage = ({
     const randomEventProbability = clampQuickCreateProbability(
       quickCreateDraft.randomEventProbability,
     );
+    const informationPolicy = applyInformationPolicyModePreset(
+      quickCreateDraft.informationMode,
+      activeRoom.settings.informationPolicy,
+    );
     const error = await onQuickCreateRoom({
       title,
       premise,
@@ -1058,6 +1069,7 @@ export const TavernManagementPage = ({
           illustrationHints: {
             enabled: quickCreateDraft.illustrationHintsEnabled,
           },
+          informationPolicy,
         },
       },
     });
@@ -1092,6 +1104,7 @@ export const TavernManagementPage = ({
         characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
         advanced: {
           characterCount,
+          informationMode: quickCreateDraft.informationMode,
           statusTrackingEnabled: quickCreateDraft.statusTrackingEnabled,
           randomEventsEnabled: quickCreateDraft.randomEventsEnabled,
           randomEventProbability,
@@ -1200,6 +1213,50 @@ export const TavernManagementPage = ({
         </Button>
       </span>
     );
+  };
+
+  const applyInformationPolicyModePreset = (
+    mode: TavernRoomSettings["informationPolicy"]["mode"],
+    current: TavernRoomSettings["informationPolicy"],
+  ): TavernRoomSettings["informationPolicy"] => {
+    if (mode === "open") {
+      return {
+        ...current,
+        mode,
+        uiDefaultView: "reveal",
+        hideCharacterThoughts: false,
+        revealThoughts: "manual",
+        hiddenFacts: {
+          ...current.hiddenFacts,
+          enabled: false,
+          reveal: "manual",
+        },
+        roleAssignment: {
+          ...current.roleAssignment,
+          enabled: false,
+          strategy: "manual",
+        },
+      };
+    }
+
+    return {
+      ...current,
+      mode,
+      uiDefaultView: "public",
+      hideCharacterThoughts: true,
+      revealThoughts: "sceneOutcome",
+      hiddenFacts: {
+        ...current.hiddenFacts,
+        enabled: true,
+        defaultVisibility: "director",
+        reveal: "sceneOutcome",
+      },
+      roleAssignment: {
+        ...current.roleAssignment,
+        enabled: mode === "social_deduction" ? true : current.roleAssignment.enabled,
+        strategy: mode === "social_deduction" ? "director_random" : current.roleAssignment.strategy,
+      },
+    };
   };
 
   const buildTextFieldAgentContext = () => {
@@ -1667,7 +1724,7 @@ export const TavernManagementPage = ({
     setRoomContentEditError("");
     setRoomContentEditDraft({
       type: "settings",
-      ...editingRoom.settings,
+      ...cloneTavernRoomSettings(editingRoom.settings),
       progressTracker: { ...editingRoom.progressTracker },
     });
   };
@@ -1852,6 +1909,11 @@ export const TavernManagementPage = ({
           illustrationHints: {
             ...((editingRoom?.settings ?? activeRoom.settings).illustrationHints),
             enabled: roomContentEditDraft.illustrationHints.enabled,
+          },
+          informationPolicy: {
+            ...roomContentEditDraft.informationPolicy,
+            hiddenFacts: { ...roomContentEditDraft.informationPolicy.hiddenFacts },
+            roleAssignment: { ...roomContentEditDraft.informationPolicy.roleAssignment },
           },
         },
         progressTracker: {
@@ -2783,6 +2845,120 @@ export const TavernManagementPage = ({
                 插图提示
               </label>
             </div>
+            <div className="grid gap-3 rounded-md border border-border/70 bg-muted/15 p-3 sm:grid-cols-2">
+              <TavernEditorField label="互动剧本模式" htmlFor="tavern-content-information-mode">
+                <NativeSelect
+                  id="tavern-content-information-mode"
+                  value={roomContentEditDraft.informationPolicy.mode}
+                  className={editorControlClassName}
+                  onChange={(event) => {
+                    const mode = event.target.value as TavernRoomSettings["informationPolicy"]["mode"];
+                    setRoomContentEditDraft({
+                      ...roomContentEditDraft,
+                      informationPolicy: applyInformationPolicyModePreset(
+                        mode,
+                        roomContentEditDraft.informationPolicy,
+                      ),
+                    });
+                  }}
+                >
+                  <NativeSelectOption value="open">开放演绎</NativeSelectOption>
+                  <NativeSelectOption value="mystery">推理悬疑</NativeSelectOption>
+                  <NativeSelectOption value="social_deduction">狼人杀阵营</NativeSelectOption>
+                  <NativeSelectOption value="custom">自定义</NativeSelectOption>
+                </NativeSelect>
+              </TavernEditorField>
+              <TavernEditorField label="界面视角" htmlFor="tavern-content-information-view">
+                <NativeSelect
+                  id="tavern-content-information-view"
+                  value={roomContentEditDraft.informationPolicy.uiDefaultView}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      uiDefaultView: event.target.value as TavernRoomSettings["informationPolicy"]["uiDefaultView"],
+                    },
+                  })}
+                >
+                  <NativeSelectOption value="public">公开视角</NativeSelectOption>
+                  <NativeSelectOption value="reveal">复盘视角</NativeSelectOption>
+                  <NativeSelectOption value="director">导演视角</NativeSelectOption>
+                </NativeSelect>
+              </TavernEditorField>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.hideCharacterThoughts}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      hideCharacterThoughts: event.target.checked,
+                    },
+                  })}
+                />
+                隐藏角色心理
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.hiddenFacts.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      hiddenFacts: {
+                        ...roomContentEditDraft.informationPolicy.hiddenFacts,
+                        enabled: event.target.checked,
+                      },
+                    },
+                  })}
+                />
+                启用隐藏事实
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={roomContentEditDraft.informationPolicy.roleAssignment.enabled}
+                  className="accent-primary"
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      roleAssignment: {
+                        ...roomContentEditDraft.informationPolicy.roleAssignment,
+                        enabled: event.target.checked,
+                        strategy: event.target.checked
+                          ? roomContentEditDraft.informationPolicy.roleAssignment.strategy
+                          : "manual",
+                      },
+                    },
+                  })}
+                />
+                剧本身份分配
+              </label>
+              <TavernEditorField label="心理揭示" htmlFor="tavern-content-thought-reveal">
+                <NativeSelect
+                  id="tavern-content-thought-reveal"
+                  value={roomContentEditDraft.informationPolicy.revealThoughts}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    informationPolicy: {
+                      ...roomContentEditDraft.informationPolicy,
+                      revealThoughts: event.target.value as TavernRoomSettings["informationPolicy"]["revealThoughts"],
+                    },
+                  })}
+                >
+                  <NativeSelectOption value="manual">手动</NativeSelectOption>
+                  <NativeSelectOption value="sceneOutcome">结局后</NativeSelectOption>
+                  <NativeSelectOption value="never">不揭示</NativeSelectOption>
+                </NativeSelect>
+              </TavernEditorField>
+            </div>
             <div className={settingsEditorMetricGridClassName}>
               <TavernEditorField label="整理间隔" htmlFor="tavern-content-asset-interval">
                 <Input
@@ -3635,6 +3811,23 @@ export const TavernManagementPage = ({
 
                 {quickCreateDraft.advancedOpen && (
                   <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
+                    <TavernEditorField label="剧本模式" htmlFor="tavern-quick-information-mode">
+                      <NativeSelect
+                        id="tavern-quick-information-mode"
+                        value={quickCreateDraft.informationMode}
+                        className={editorControlClassName}
+                        disabled={isQuickCreatingRoom}
+                        onChange={(event) => setQuickCreateDraft({
+                          ...quickCreateDraft,
+                          informationMode: event.target.value as QuickCreateRoomDraft["informationMode"],
+                        })}
+                      >
+                        <NativeSelectOption value="open">开放演绎</NativeSelectOption>
+                        <NativeSelectOption value="mystery">推理悬疑</NativeSelectOption>
+                        <NativeSelectOption value="social_deduction">狼人杀阵营</NativeSelectOption>
+                        <NativeSelectOption value="custom">自定义</NativeSelectOption>
+                      </NativeSelect>
+                    </TavernEditorField>
                     <label className="flex min-h-11 items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm">
                       <input
                         type="checkbox"
