@@ -1013,17 +1013,28 @@ export const TavernPage = ({
       content: "这个场景的桌面被重新擦亮，旧谈话暂时收进抽屉。",
       status: "done",
     });
-    setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) =>
-        room.id === targetRoom.id ? touchTavernRoomActiveScene(room) : room,
-      ),
-      messagesByScene: {
-        ...current.messagesByScene,
-        [sceneId]: [resetMessage],
-      },
-    }));
-  }, [state.rooms]);
+    setState((current) => {
+      const currentRoom = current.rooms.find((room) => room.id === targetRoom.id);
+      const currentSceneId = currentRoom ? getRoomActiveSceneId(currentRoom) : sceneId;
+
+      return {
+        ...current,
+        rooms: current.rooms.map((room) =>
+          room.id === targetRoom.id
+            ? appendProgressCheckpointToRoom(
+                touchTavernRoomActiveScene(room),
+                "before_context_trim",
+                resetMessage.id,
+              )
+            : room,
+        ),
+        messagesByScene: {
+          ...current.messagesByScene,
+          [currentSceneId]: [resetMessage],
+        },
+      };
+    });
+  }, [appendProgressCheckpointToRoom, state.rooms]);
 
   const deleteRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);

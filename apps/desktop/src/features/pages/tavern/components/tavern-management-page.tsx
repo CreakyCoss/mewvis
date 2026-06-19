@@ -2775,7 +2775,7 @@ export const TavernManagementPage = ({
                             onSelect={() => requestDangerAction({
                               title: "清空对话",
                               description: `清空「${room.title}」的对话记录？`,
-                              secondDescription: "再次确认清空对话？当前房间现有消息会被替换为一条重置提示。",
+                              secondDescription: "再次确认清空对话？系统会先保存状态检查点，再把当前房间现有消息替换为一条重置提示。",
                               confirmLabel: "清空对话",
                               summary: formatCount(messages.length, "消息"),
                               onConfirm: () => onClearRoomMessages(room.id),

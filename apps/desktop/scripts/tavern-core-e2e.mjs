@@ -710,6 +710,36 @@ writeFileSync(entryPath, `
     },
     createdAt: now + 17,
   });
+  const trimCheckpoint = createTavernProgressCheckpoint({
+    room: {
+      ...checkpointRoom,
+      factEvents: progressFactEvents,
+      statusEvents,
+      statusSnapshot: nextProgressSnapshot,
+      previousStatusSnapshot: initialProgressSnapshot,
+      statusCheckpoints: [progressCheckpoint],
+      taskEvents: taskResult.taskEvents,
+      taskSnapshot: taskResult.taskSnapshot,
+      outcomeEvents,
+    },
+    turnId: "trim-before-clear",
+    reason: "before_context_trim",
+    createdAt: now + 18,
+  });
+  const rebuiltFromTrimCheckpoint = rebuildTavernProgressFromHistory({
+    room: {
+      ...checkpointRoom,
+      factEvents: progressFactEvents,
+      statusEvents,
+      statusSnapshot: createEmptyTavernStatusSnapshot("lost-after-trim", now + 19),
+      previousStatusSnapshot: undefined,
+      statusCheckpoints: [trimCheckpoint],
+      taskEvents: taskResult.taskEvents,
+      taskSnapshot: {},
+      outcomeEvents,
+    },
+    createdAt: now + 20,
+  });
   const pendingDamageStatusEvent = {
     ...statusEvents.find((event) => event.statusId === "health"),
     id: "pending-damage-status",
@@ -841,6 +871,13 @@ writeFileSync(entryPath, `
         )
       : null,
     progressCheckpoint,
+    trimCheckpoint,
+    rebuiltFromTrimBossHealth: getTavernStatusSnapshotValue(
+      rebuiltFromTrimCheckpoint.statusSnapshot,
+      { type: "character", characterId: "boss" },
+      "health",
+    ),
+    rebuiltFromTrimTaskStatus: rebuiltFromTrimCheckpoint.taskSnapshot["defeat-boss"]?.status,
     defaultDefinitions: {
       statusRuleIds: DEFAULT_TAVERN_STATUS_RULES.map((rule) => rule.id),
       statusDefinitionIds: DEFAULT_TAVERN_STATUS_DEFINITIONS.map((definition) => definition.id),
@@ -1126,6 +1163,15 @@ try {
       checks.progressChecks.rebuiltBossHealth === 0 &&
       checks.progressChecks.rebuiltTaskStatus === "completed",
     "状态面板应能从 checkpoint 和后续事件历史重建",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.trimCheckpoint.reason === "before_context_trim" &&
+      checks.progressChecks.trimCheckpoint.includedStatusEventIds.length ===
+        checks.progressChecks.statusEvents.length &&
+      checks.progressChecks.rebuiltFromTrimBossHealth === 0 &&
+      checks.progressChecks.rebuiltFromTrimTaskStatus === "completed",
+    "裁切前检查点应包含当前状态历史，并可作为清空对话后的重建基线",
     checks.progressChecks,
   );
   assert(
