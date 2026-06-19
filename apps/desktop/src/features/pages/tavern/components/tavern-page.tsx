@@ -856,10 +856,10 @@ export const TavernPage = ({
       reason,
       createdAt: Date.now(),
     });
-    return {
+    return syncTavernRoomActiveScene({
       ...room,
       statusCheckpoints: [...room.statusCheckpoints, checkpoint].slice(-20),
-    };
+    });
   }, []);
 
   const shouldCompactCharacterKnowledgeAfterTurn = useCallback((

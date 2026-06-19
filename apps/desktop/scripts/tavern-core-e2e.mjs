@@ -54,6 +54,7 @@ writeFileSync(entryPath, `
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
+    syncTavernRoomActiveScene,
   } from ${JSON.stringify(storagePath)};
   import {
     parseTavernDirectorDecision,
@@ -726,6 +727,11 @@ writeFileSync(entryPath, `
     reason: "before_context_trim",
     createdAt: now + 18,
   });
+  const syncedTrimCheckpointRoom = syncTavernRoomActiveScene({
+    ...checkpointRoom,
+    statusCheckpoints: [trimCheckpoint],
+    updatedAt: now + 19,
+  });
   const rebuiltFromTrimCheckpoint = rebuildTavernProgressFromHistory({
     room: {
       ...checkpointRoom,
@@ -872,6 +878,10 @@ writeFileSync(entryPath, `
       : null,
     progressCheckpoint,
     trimCheckpoint,
+    syncedTrimSceneCheckpointIds:
+      syncedTrimCheckpointRoom.scenes?.find((scene) =>
+        scene.id === syncedTrimCheckpointRoom.activeSceneId
+      )?.statusCheckpoints.map((checkpoint) => checkpoint.id) ?? [],
     rebuiltFromTrimBossHealth: getTavernStatusSnapshotValue(
       rebuiltFromTrimCheckpoint.statusSnapshot,
       { type: "character", characterId: "boss" },
@@ -1169,6 +1179,9 @@ try {
     checks.progressChecks.trimCheckpoint.reason === "before_context_trim" &&
       checks.progressChecks.trimCheckpoint.includedStatusEventIds.length ===
         checks.progressChecks.statusEvents.length &&
+      checks.progressChecks.syncedTrimSceneCheckpointIds.includes(
+        checks.progressChecks.trimCheckpoint.id,
+      ) &&
       checks.progressChecks.rebuiltFromTrimBossHealth === 0 &&
       checks.progressChecks.rebuiltFromTrimTaskStatus === "completed",
     "裁切前检查点应包含当前状态历史，并可作为清空对话后的重建基线",
