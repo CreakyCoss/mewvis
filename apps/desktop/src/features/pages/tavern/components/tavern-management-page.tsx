@@ -59,6 +59,10 @@ import {
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
 import {
+  TAVERN_PROMPT_STYLE_PRESETS,
+  normalizeTavernPromptStyleId,
+} from "../prompt-styles";
+import {
   createTavernCharacter,
   createTavernLorebookEntry,
   createTavernScene,
@@ -600,6 +604,7 @@ type RoomContentEditDraft =
       title: string;
       storyOutline: string;
       storyGoal: string;
+      promptStyleId: TavernRoom["promptStyleId"];
       replyMode: TavernReplyMode;
       userPersonaName: string;
     }
@@ -780,6 +785,11 @@ export const TavernManagementPage = ({
   const editingRoom = editingRoomDraft;
   const editingActiveScene = editingRoom ? getActiveTavernScene(editingRoom) : null;
   const editingRoomScenes = editingRoom?.scenes ?? [];
+  const editingPromptStyle = editingRoom
+    ? TAVERN_PROMPT_STYLE_PRESETS.find((preset) =>
+        preset.id === normalizeTavernPromptStyleId(editingRoom.promptStyleId)
+      )
+    : null;
   const deletingRoom = deletingRoomId
     ? rooms.find((room) => room.id === deletingRoomId) ?? null
     : null;
@@ -1038,6 +1048,8 @@ export const TavernManagementPage = ({
               avatar: value.avatar,
               description: value.description,
               speakingStyle: value.speakingStyle,
+              writingStyle: value.writingStyle?.trim() || undefined,
+              replyStylePrompt: value.replyStylePrompt?.trim() || undefined,
               goals: value.goals?.trim() || undefined,
               relationships: value.relationships?.trim() || undefined,
               updatedAt: Date.now(),
@@ -1165,6 +1177,7 @@ export const TavernManagementPage = ({
       title: editingRoom.title,
       storyOutline: editingRoom.storyOutline,
       storyGoal: editingRoom.storyGoal,
+      promptStyleId: normalizeTavernPromptStyleId(editingRoom.promptStyleId),
       replyMode: editingRoom.replyMode ?? "active",
       userPersonaName: editingRoom.userPersonaName,
     });
@@ -1262,6 +1275,7 @@ export const TavernManagementPage = ({
         title: roomContentEditDraft.title,
         storyOutline: roomContentEditDraft.storyOutline,
         storyGoal: roomContentEditDraft.storyGoal,
+        promptStyleId: normalizeTavernPromptStyleId(roomContentEditDraft.promptStyleId),
         replyMode: roomContentEditDraft.replyMode,
         userPersonaName: roomContentEditDraft.userPersonaName,
       });
@@ -1656,6 +1670,23 @@ export const TavernManagementPage = ({
               />
             </TavernEditorField>
             <div className="grid gap-3 sm:grid-cols-2">
+              <TavernEditorField label="提示词风格" htmlFor="tavern-content-prompt-style">
+                <NativeSelect
+                  id="tavern-content-prompt-style"
+                  value={roomContentEditDraft.promptStyleId}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    promptStyleId: normalizeTavernPromptStyleId(event.target.value),
+                  })}
+                >
+                  {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
+                    <NativeSelectOption key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </TavernEditorField>
               <TavernEditorField label="发言模式" htmlFor="tavern-content-reply-mode">
                 <NativeSelect
                   id="tavern-content-reply-mode"
@@ -3355,6 +3386,11 @@ export const TavernManagementPage = ({
                         className="sm:col-span-2 lg:col-span-1"
                       />
                       <TavernCompactSummaryItem
+                        label="提示词风格"
+                        value={editingPromptStyle?.label ?? "小说风格"}
+                        className="sm:col-span-2 lg:col-span-1"
+                      />
+                      <TavernCompactSummaryItem
                         label="沉浸描写"
                         value={(
                           <Badge variant={editingRoom.settings.immersiveDescriptionEnabled ? "secondary" : "outline"}>
@@ -3598,6 +3634,22 @@ export const TavernManagementPage = ({
                                       </div>
                                       <div className="mt-0.5 whitespace-pre-wrap text-background/80">
                                         {character.speakingStyle || emptyValueText}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-background/90">
+                                        写作风格
+                                      </div>
+                                      <div className="mt-0.5 whitespace-pre-wrap text-background/80">
+                                        {character.writingStyle || emptyValueText}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-background/90">
+                                        回复规则
+                                      </div>
+                                      <div className="mt-0.5 whitespace-pre-wrap text-background/80">
+                                        {character.replyStylePrompt || emptyValueText}
                                       </div>
                                     </div>
                                     <div>

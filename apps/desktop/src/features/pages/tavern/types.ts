@@ -2,6 +2,22 @@ import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
 
 export type TavernReplyMode = "active" | "round" | "director";
 
+export type TavernPromptStyleId =
+  | "novel"
+  | "wuxia"
+  | "light-novel"
+  | "dramatic"
+  | "grounded";
+
+export type TavernPromptStylePreset = {
+  id: TavernPromptStyleId;
+  label: string;
+  description: string;
+  bridgeSystemAddendum: string;
+  directorAddendum: string;
+  characterAddendum: string;
+};
+
 export type TavernRoomCharacterConfig = {
   characterId: string;
   memory?: string;
@@ -16,6 +32,8 @@ export type TavernCharacter = {
   avatar: string;
   description: string;
   speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
   goals?: string;
   relationships?: string;
   createdAt: number;
@@ -517,6 +535,8 @@ export type TavernRoom = {
   systemPresetVersion?: number;
   locked: boolean;
   title: string;
+  promptStyleId?: TavernPromptStyleId;
+  creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   storyOutline: string;
   storyGoal: string;
   activeSceneId?: string;

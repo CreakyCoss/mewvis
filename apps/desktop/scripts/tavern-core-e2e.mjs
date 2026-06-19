@@ -13,6 +13,7 @@ const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/r
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts");
 const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const turnInstructionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/turn-instruction.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -62,6 +63,7 @@ writeFileSync(entryPath, `
   } from ${JSON.stringify(directorDecisionPath)};
   import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
+  import { buildTavernCharacterTurnInstruction } from ${JSON.stringify(turnInstructionPath)};
 
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
@@ -391,6 +393,33 @@ writeFileSync(entryPath, `
     references: [],
     currentUserText: "第二轮，先确认各自位置。",
     turnInstruction: "本轮只测试身份约束。",
+  });
+  const styledCharacter = {
+    ...characters[0],
+    writingStyle: "用冷峻短句写可观察动作。",
+    replyStylePrompt: "每次回复保留江湖身份分寸，不自称旁白。",
+  };
+  const styledRoom = {
+    ...room,
+    promptStyleId: "wuxia",
+    localCharacters: [styledCharacter, characters[1]],
+  };
+  const styledPromptForA = buildTavernSystemPrompt({
+    room: styledRoom,
+    activeCharacter: styledCharacter,
+    characters: [styledCharacter, characters[1]],
+    references: [],
+    currentUserText: "山雨要来了。",
+  });
+  const styledTurnInstructionForA = buildTavernCharacterTurnInstruction({
+    room: styledRoom,
+    speaker: styledCharacter,
+    speakerIndex: 0,
+    speakerCount: 1,
+    replyMode: "director",
+    isDirectorLikeMode: true,
+    isManagedMode: false,
+    directorReason: "测试武侠风格。",
   });
   const mixedSpeakerReply = parseTavernReplyText({
     text: "<inner_thought>我得继续盯住高处。</inner_thought><reply>我先留在屋顶。\\n贝拉：门口交给我。</reply>",
@@ -918,6 +947,8 @@ writeFileSync(entryPath, `
     contextForA,
     currentTurnContextForA,
     promptForA,
+    styledPromptForA,
+    styledTurnInstructionForA,
     mixedSpeakerReply,
     activeSegmentReply,
     wrongRoleReply,
@@ -1008,6 +1039,18 @@ try {
       !checks.promptForA.includes("这轮只允许以「贝拉」的身份发言"),
     "A 的角色 prompt 必须锁定 A 身份",
     checks.promptForA,
+  );
+  assert(
+    checks.styledPromptForA.includes("prompt_style id=\"wuxia\"") &&
+      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
+      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
+      checks.styledTurnInstructionForA.includes("房间提示词风格：武侠风格") &&
+      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
+    "系统提示词风格和角色级 prompt 必须进入角色请求上下文与 turn instruction",
+    {
+      prompt: checks.styledPromptForA,
+      turnInstruction: checks.styledTurnInstructionForA,
+    },
   );
   assert(
     checks.promptForA.includes("不要代替用户说话") &&

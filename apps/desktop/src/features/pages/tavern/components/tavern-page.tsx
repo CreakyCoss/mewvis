@@ -34,6 +34,7 @@ import {
 import { getVisualPreset, normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
+import { normalizeTavernPromptStyleId } from "../prompt-styles";
 import {
   createTavernAssetDraft,
   createDefaultTavernState,
@@ -1561,6 +1562,8 @@ export const TavernPage = ({
           avatar: character.avatar || tavernAvatarOptions[0]?.id || "",
           description,
           speakingStyle,
+          writingStyle: character.writingStyle?.trim() || undefined,
+          replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
           goals: character.goals?.trim() || undefined,
           relationships: character.relationships?.trim() || undefined,
           createdAt,
@@ -1675,6 +1678,8 @@ export const TavernPage = ({
       id: roomId,
       workspaceId: workspace.id,
       title: `${title}（导入）`,
+      promptStyleId: normalizeTavernPromptStyleId(parsed.room.promptStyleId),
+      creationSource: "imported",
       storyOutline: parsed.room.storyOutline?.trim() || "",
       storyGoal: parsed.room.storyGoal?.trim() || "",
       activeSceneId: importedScene.id,

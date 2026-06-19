@@ -40,6 +40,10 @@ import type {
   TavernTimelineEvent,
   TavernTimelineScope,
 } from "./types";
+import {
+  DEFAULT_TAVERN_PROMPT_STYLE_ID,
+  normalizeTavernPromptStyleId,
+} from "./prompt-styles";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
 
@@ -72,6 +76,8 @@ type TavernSystemPresetCharacter = {
   avatar: string;
   description: string;
   speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
   goals?: string;
   relationships?: string;
 };
@@ -133,6 +139,7 @@ type TavernSystemPresetScene = {
 
 type TavernSystemPresetRoom = {
   title: string;
+  promptStyleId?: unknown;
   storyOutline?: string;
   storyGoal?: string;
   scenePresetId?: unknown;
@@ -252,6 +259,8 @@ const createTavernCharacterFromSystemPresetCharacter = (
     avatar: character.avatar,
     description: character.description.trim(),
     speakingStyle: character.speakingStyle.trim(),
+    writingStyle: character.writingStyle?.trim() || undefined,
+    replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
     goals: character.goals?.trim() || undefined,
     relationships: character.relationships?.trim() || undefined,
     createdAt,
@@ -1461,6 +1470,12 @@ const normalizeTavernCharacter = (
         ? (character as Partial<TavernCharacter>).systemPresetVersion
         : systemPreset.version
       : undefined,
+    writingStyle: typeof character.writingStyle === "string" && character.writingStyle.trim()
+      ? character.writingStyle.trim()
+      : undefined,
+    replyStylePrompt: typeof character.replyStylePrompt === "string" && character.replyStylePrompt.trim()
+      ? character.replyStylePrompt.trim()
+      : undefined,
   };
 };
 
@@ -2280,6 +2295,8 @@ export const createTavernRoomFromSystemPreset = (
       : {}),
     locked: false,
     title: preset.room.title.trim(),
+    promptStyleId: normalizeTavernPromptStyleId(preset.room.promptStyleId),
+    creationSource: markAsSystemPreset ? "imported" : "manual",
     storyOutline: preset.room.storyOutline?.trim() || "",
     storyGoal: preset.room.storyGoal?.trim() || "",
     activeSceneId: scene.id,
@@ -2478,6 +2495,13 @@ const normalizeTavernState = (
           : systemPreset.version
         : undefined,
       locked: Boolean((room as Partial<TavernRoom>).locked),
+      promptStyleId: normalizeTavernPromptStyleId((room as Partial<TavernRoom>).promptStyleId),
+      creationSource:
+        (room as Partial<TavernRoom>).creationSource === "quick" ||
+        (room as Partial<TavernRoom>).creationSource === "imported" ||
+        (room as Partial<TavernRoom>).creationSource === "agent_generated"
+          ? (room as Partial<TavernRoom>).creationSource
+          : "manual",
       storyOutline: typeof (room as Partial<TavernRoom>).storyOutline === "string"
         ? (room as Partial<TavernRoom>).storyOutline ?? ""
         : "",
@@ -2691,6 +2715,8 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     workspaceId,
     locked: false,
     title: `新酒馆 ${index}`,
+    promptStyleId: DEFAULT_TAVERN_PROMPT_STYLE_ID,
+    creationSource: "manual",
     storyOutline: "",
     storyGoal: "",
     activeSceneId: scene.id,
@@ -2832,6 +2858,8 @@ export const createTavernCharacter = (input: {
   avatar: string;
   description: string;
   speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
   goals?: string;
   relationships?: string;
 }): TavernCharacter => {
@@ -2842,6 +2870,8 @@ export const createTavernCharacter = (input: {
     avatar: input.avatar,
     description: input.description,
     speakingStyle: input.speakingStyle,
+    writingStyle: input.writingStyle?.trim() || undefined,
+    replyStylePrompt: input.replyStylePrompt?.trim() || undefined,
     goals: input.goals?.trim() || undefined,
     relationships: input.relationships?.trim() || undefined,
     createdAt,

@@ -32,6 +32,7 @@ import {
   tavernDirectorAgentRoleId,
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
+import { getTavernPromptStylePreset } from "../prompt-styles";
 
 export {
   parseTavernDirectorDecision,
@@ -80,6 +81,8 @@ export const runTavernDirector = async ({
     `id: ${character.id}`,
     `name: ${character.name}`,
     `description: ${character.description}`,
+    character.writingStyle ? `writingStyle: ${character.writingStyle}` : "",
+    character.replyStylePrompt ? `replyStylePrompt: ${character.replyStylePrompt}` : "",
     character.goals ? `goals: ${character.goals}` : "",
     character.relationships ? `relationships: ${character.relationships}` : "",
     room.characterMemories[character.id]?.trim()
@@ -87,6 +90,7 @@ export const runTavernDirector = async ({
       : "",
   ].filter(Boolean).join("\n")).join("\n\n---\n\n");
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
+  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const randomEventSchema = canConsiderRandomEvent
     ? `,"randomEvent":"可选；一句公开可观察的随机事件，不触发则留空字符串"`
@@ -121,6 +125,10 @@ export const runTavernDirector = async ({
     "如果已经输出 narrator，后续 speakerIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",
+    "",
+    `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="director">`,
+    promptStyle.directorAddendum,
+    "</prompt_style>",
     "",
     room.storyOutline.trim() || room.storyGoal.trim()
       ? `<story_arc>\n${[
@@ -192,6 +200,7 @@ export const runTavernDirector = async ({
     runtimeInstruction: [
       "你是酒馆模式的导演 Agent。",
       "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+      `当前房间提示词风格：${promptStyle.label}。${promptStyle.directorAddendum}`,
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
       canConsiderRandomEvent
         ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"

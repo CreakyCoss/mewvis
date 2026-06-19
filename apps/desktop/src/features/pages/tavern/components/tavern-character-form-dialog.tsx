@@ -26,6 +26,8 @@ export type TavernCharacterFormValue = {
   avatar: string;
   description: string;
   speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
   goals?: string;
   relationships?: string;
 };
@@ -48,6 +50,8 @@ export const TavernCharacterFormDialog = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [speakingStyle, setSpeakingStyle] = useState("");
+  const [writingStyle, setWritingStyle] = useState("");
+  const [replyStylePrompt, setReplyStylePrompt] = useState("");
   const [goals, setGoals] = useState("");
   const [relationships, setRelationships] = useState("");
   const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
@@ -67,6 +71,8 @@ export const TavernCharacterFormDialog = ({
     setName(character?.name ?? "");
     setDescription(character?.description ?? "");
     setSpeakingStyle(character?.speakingStyle ?? "");
+    setWritingStyle(character?.writingStyle ?? "");
+    setReplyStylePrompt(character?.replyStylePrompt ?? "");
     setGoals(character?.goals ?? "");
     setRelationships(character?.relationships ?? "");
     setAvatar(normalizeTavernAvatarId(character?.avatar ?? tavernAvatarOptions[0]?.id));
@@ -94,6 +100,8 @@ export const TavernCharacterFormDialog = ({
       avatar,
       description: nextDescription,
       speakingStyle: nextSpeakingStyle,
+      writingStyle: writingStyle.trim() || undefined,
+      replyStylePrompt: replyStylePrompt.trim() || undefined,
       goals: goals.trim() || undefined,
       relationships: relationships.trim() || undefined,
     });
@@ -172,6 +180,27 @@ export const TavernCharacterFormDialog = ({
                 onChange={(event) => setSpeakingStyle(event.target.value)}
               />
             </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1.5" htmlFor="tavern-character-writing-style">
+                <span className="text-xs font-medium text-muted-foreground">写作风格</span>
+                <Textarea
+                  id="tavern-character-writing-style"
+                  value={writingStyle}
+                  className="min-h-[76px] resize-none text-sm leading-6"
+                  onChange={(event) => setWritingStyle(event.target.value)}
+                />
+              </label>
+              <label className="block space-y-1.5" htmlFor="tavern-character-reply-style-prompt">
+                <span className="text-xs font-medium text-muted-foreground">回复规则</span>
+                <Textarea
+                  id="tavern-character-reply-style-prompt"
+                  value={replyStylePrompt}
+                  className="min-h-[76px] resize-none text-sm leading-6"
+                  onChange={(event) => setReplyStylePrompt(event.target.value)}
+                />
+              </label>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1.5" htmlFor="tavern-character-goals">

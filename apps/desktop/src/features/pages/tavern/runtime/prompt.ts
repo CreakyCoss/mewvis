@@ -11,6 +11,7 @@ import type {
   TavernTimelineEvent,
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
+import { getTavernPromptStylePreset } from "../prompt-styles";
 
 const limitPromptText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
@@ -35,6 +36,8 @@ const formatCharacter = (
       `name: ${character.name}`,
       `description: ${limitPromptText(character.description, 700)}`,
       `speakingStyle: ${limitPromptText(character.speakingStyle, 260)}`,
+      character.writingStyle ? `writingStyle: ${limitPromptText(character.writingStyle, 260)}` : "",
+      character.replyStylePrompt ? `replyStylePrompt: ${limitPromptText(character.replyStylePrompt, 320)}` : "",
       character.goals ? `goals: ${limitPromptText(character.goals, 260)}` : "",
       character.relationships ? `relationships: ${limitPromptText(character.relationships, 320)}` : "",
     ].filter(Boolean).join("\n");
@@ -183,6 +186,7 @@ export const buildTavernSystemPrompt = ({
     maxSummaryChars: 280,
   });
   const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
+  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const coreRules = [
     `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
     "- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <reply>...</reply>，不要代码块、解释或标签外文字。",
@@ -202,6 +206,14 @@ export const buildTavernSystemPrompt = ({
         "- 优先直接回应用户或上一位角色；动作仅在必要时简短使用，不能承载主要信息。",
         "- 不要主动加入独立氛围描写段；本次只写当前角色的一段回应。",
       ];
+  const characterPromptRules = [
+    activeCharacter.writingStyle
+      ? `- 角色写作风格：${limitPromptText(activeCharacter.writingStyle, 240)}`
+      : "",
+    activeCharacter.replyStylePrompt
+      ? `- 角色级回复规则：${limitPromptText(activeCharacter.replyStylePrompt, 320)}`
+      : "",
+  ].filter(Boolean);
   const compactCharacters = characters
     .filter((character) => character.id !== activeCharacter.id)
     .map((character) => formatCharacter(character, { compact: true }))
@@ -212,8 +224,13 @@ export const buildTavernSystemPrompt = ({
     "硬性规则：",
     ...coreRules,
     ...styleRules,
+    ...characterPromptRules,
     "- 如果引用文件或设定信息不足，不要编造引用内容；可以基于已知场景推进或在角色语气中承认未知，但不要要求用户补充系统上下文。",
     "- 输出中文，保持角色语气和现场连续性，避免解释你是模型或系统。",
+    "",
+    `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="character">`,
+    promptStyle.characterAddendum,
+    "</prompt_style>",
     "",
     room.storyOutline.trim() || room.storyGoal.trim() ? "<story_arc instruction=\"overall_story_continuity\">" : "",
     room.storyOutline.trim() ? limitPromptText(room.storyOutline, 900) : "",

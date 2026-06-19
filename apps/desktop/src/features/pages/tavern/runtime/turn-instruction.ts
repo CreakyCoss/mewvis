@@ -2,6 +2,7 @@ import type {
   TavernCharacter,
   TavernRoom,
 } from "../types";
+import { getTavernPromptStylePreset } from "../prompt-styles";
 
 export type TavernCharacterPromptVariant =
   | "xml_contract"
@@ -69,13 +70,19 @@ export const buildTavernCharacterTurnInstruction = ({
   promptVariant?: TavernCharacterPromptVariant;
 }) => {
   const replyFormatInstruction = buildReplyFormatInstruction(speaker, promptVariant);
+  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const replyPerspectiveInstruction =
     `公开回复必须以${speaker.name}直接说出口的话为主，至少包含一句当前角色说出口的对白；不要写第三人称小说正文；对白不要包在引号里，也不要写“他说/声音很轻/似乎后悔”等作者叙述。动作标注最多 1 段，必须用 Markdown 单星号独立成段，且只能写可观察小动作；只输出动作标注视为无效回复。`;
   const nonEmptyReplyInstruction =
     `被调度发言就表示${speaker.name}必须公开回应一句，不能用空 <reply></reply>、沉默、不答、无话可说来完成本轮；不能只点头、只写动作或用动作替代对白。如果没有新信息，就用角色口吻说一句“我这边暂时没有新动静，继续守着”这类短状态。`;
+  const styleInstruction = [
+    `房间提示词风格：${promptStyle.label}。${promptStyle.characterAddendum}`,
+    speaker.writingStyle ? `当前角色写作风格：${speaker.writingStyle}` : "",
+    speaker.replyStylePrompt ? `当前角色回复规则：${speaker.replyStylePrompt}` : "",
+  ].filter(Boolean).join("\n");
   const ownReplyInstruction = room.settings.immersiveDescriptionEnabled !== false
-    ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
-    : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
+    ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
+    : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
 
   if (replyMode === "round") {
     return [
