@@ -122,8 +122,6 @@ const ContextPanelShell = ({
 type WorkspaceChatPageProps = {
   workspace: Workspace;
   workspaceSections: WorkspaceSection[];
-  isWorkspaceOverviewLoading: boolean;
-  workspaceOverviewError: string;
   routeSessionId?: string | null;
   isRouteNewSession?: boolean;
   onSessionCreated?: (sessionId: string) => void;
@@ -133,12 +131,10 @@ type WorkspaceChatPageProps = {
 };
 
 export type WorkspaceChatShellProps = {
-  dialogs: ReactNode;
   headerProps: {
     isContextPanelOpen: boolean;
-    showToggle?: boolean;
     onToggleContextPanel: () => void;
-  } | null;
+  };
   content: ReactNode;
   contextPanel: ReactNode;
 };
@@ -1121,7 +1117,6 @@ export const WorkspaceChatPage = ({
 
   const headerProps = {
     isContextPanelOpen,
-    showToggle: true,
     onToggleContextPanel: () => setIsContextPanelOpen((current) => !current),
   };
 
@@ -1137,7 +1132,6 @@ export const WorkspaceChatPage = ({
     : null;
 
   return renderShell({
-    dialogs: null,
     headerProps,
     content: chatPanel,
     contextPanel,

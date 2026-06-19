@@ -79,13 +79,11 @@ export const ChatPage = () => {
   };
 
   const renderShell = ({
-    dialogs,
     headerProps,
     content,
     contextPanel,
   }: WorkspaceChatShellProps) => (
     <ChatLayout
-      dialogs={dialogs}
       headerProps={headerProps}
       content={content}
       contextPanel={contextPanel}
@@ -96,8 +94,6 @@ export const ChatPage = () => {
     <WorkspaceChatPage
       workspace={workspace}
       workspaceSections={sections}
-      isWorkspaceOverviewLoading={isLoading}
-      workspaceOverviewError={error}
       routeSessionId={sessionId ?? null}
       isRouteNewSession={isRouteNewSession}
       onSessionCreated={(nextSessionId) => {
