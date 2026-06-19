@@ -2,1373 +2,1129 @@
   "version": 2,
   "presets": [
     {
-      "id": "mist-harbor-lost-and-found",
-      "version": 4,
-      "label": "雾港失物馆",
-      "description": "海雾失物、灯塔通行牌、黑伞客和白鸥号旧案交织的码头调查局。",
+      "id": "moonlit-werewolf-table",
+      "version": 1,
+      "label": "月下圆桌狼人杀",
+      "description": "五人月下议事，导演随机分配狼人、预言家、守卫与村民身份，公开发言和私密身份严格分离。",
       "characters": [
         {
-          "id": "registrar",
-          "name": "林栖雾",
-          "avatar": "tavern-05",
-          "description": "雾港失物馆的记录者，掌管登记簿、认领签名和柜台暗格，能把失物对应到具体人名。",
-          "speakingStyle": "语速平稳，像在翻阅旧账册；会把混乱信息整理成编号清楚的推断。",
-          "goals": "核对怀表、湿船票和灯塔通行牌的登记顺序，证明黑伞客不是随机送件。",
-          "relationships": "信任灯塔信差的现场见闻，但担心沉默水手一开口就会牵出白鸥号幸存者。"
-        },
-        {
-          "id": "courier",
-          "name": "许灯临",
+          "id": "qiao-yu",
+          "name": "乔雨",
           "avatar": "tavern-06",
-          "description": "在雾潮宵禁中仍会穿行码头的信差，口袋里藏着半截灯塔通行牌，知道哪条路能避开巡夜队。",
-          "speakingStyle": "短促、警觉，常把地点、风向和时间点说得很具体。",
-          "goals": "在宵禁落锁前送出迟到的蓝蜡信，并确认灯塔熄灭七分钟时谁用了通行牌。",
-          "relationships": "欠沉默水手一次救命人情，因此会替他隐瞒黑伞客离开后的第二个人影。"
+          "description": "村口钟楼的夜巡人，习惯记录谁在夜里离开过广场。她观察细致，但不轻易给结论。",
+          "speakingStyle": "语气冷静，先说可观察事实，再说自己的怀疑。",
+          "writingStyle": "短句，有夜色、钟声和脚步细节。",
+          "replyStylePrompt": "只陈述自己知道或公开听见的事，不直接公布未揭示身份。",
+          "goals": "保护村庄，找出狼人；若自己抽到狼人身份，则以当前身份目标优先。",
+          "relationships": "对所有人保持礼貌戒备，尤其关注发言自相矛盾的人。"
         },
         {
-          "id": "appraiser",
-          "name": "阮潮生",
+          "id": "shen-mo",
+          "name": "沈墨",
           "avatar": "tavern-03",
-          "description": "能凭海盐、锈迹和指纹判断物件来历的调查员，随身带着拆表刀和验盐灯。",
-          "speakingStyle": "冷静、锐利，喜欢先否定最显眼的答案，再给出更麻烦的可能。",
-          "goals": "拆开黄铜怀表，找出里面能改写船期记录的月银押牌碎片。",
-          "relationships": "与失物登记员互相制衡；曾替港务局做过验物，因此被沉默水手防备。"
+          "description": "外来的档案修补师，擅长从证词空缺里找矛盾。外表温和，问题却很尖锐。",
+          "speakingStyle": "慢条斯理，会追问时间线和措辞。",
+          "writingStyle": "偏推理笔记感，句子干净。",
+          "replyStylePrompt": "不要替其他角色认罪或验明身份，只提出疑点和投票倾向。",
+          "goals": "让讨论回到证据；若身份另有目标，则用公开逻辑掩护行动。",
+          "relationships": "尊重乔雨的记录，也警惕她可能利用记录操控方向。"
         },
         {
-          "id": "sailor",
-          "name": "沈泊舟",
-          "avatar": "tavern-04",
-          "description": "曾在失踪的白鸥号上服役，手臂上有旧船队烙印，认得船牌、暗号和幸存者留下的割绳结。",
-          "speakingStyle": "低声、简短，偶尔用航海隐喻提醒众人别走错航道。",
-          "goals": "阻止众人把黑伞客交给港务局，同时找回白鸥号大副藏在灯塔的见证物。",
-          "relationships": "保护灯塔信差；不愿和潮痕验物师单独谈话，因为对方知道他曾改过船员名单。"
-        }
-      ],
-      "room": {
-        "title": "雾港失物馆",
-        "storyOutline": "黑伞客把四件失物送进雾港失物馆，登记簿、怀表、通行牌与灯塔熄灯案逐步拼回白鸥号沉船真相。调查会从柜台取证推进到宵禁灯塔，再回到旧船坞潮钟证词；港务局试图在封港前改写船期和幸存者名单，众人必须判断黑伞客是幸存见证人、替罪羊，还是主动设局的人。",
-        "storyGoal": "在雾潮封港前确认黑伞客真实身份，证明白鸥号沉船是否由港务局伪造记录导致，并决定公开月银押牌证据、保护幸存者，还是把证据交给官方换取雾港暂时安全。",
-        "scenePresetId": "mystery",
-        "scene": "海雾压在码头尽头，失物馆柜台上并排放着四件新失物：停在三点十七分的黄铜怀表、半截灯塔通行牌、一张湿船票和一把滴水黑伞。屋外潮钟忽然慢了一拍。",
-        "sceneGoal": "从四件失物里选一件先查，确认黑伞客是否是白鸥号旧案见证人，并决定是宵禁前追去灯塔、打开怀表，还是把线索交给港务局。",
-        "memory": "雾港每逢潮钟三响就会封锁码头。昨夜灯塔熄灭七分钟，清晨黑伞客把四件失物放到柜台上，却没有在登记簿留下姓名。",
-        "sceneStatus": {
-          "location": "雾港失物馆柜台",
-          "timeLabel": "清晨，潮钟刚慢了一拍",
-          "weather": "海雾压低，潮风带水",
-          "atmosphere": "谨慎、疑云初起",
-          "scenePhase": "四件失物刚被发现",
-          "immediateThreat": "雾潮封港和港务局巡夜队"
-        },
-        "scenes": [
-          {
-            "title": "柜台四件失物",
-            "order": 0,
-            "scenePresetId": "mystery",
-            "scene": "海雾压在码头尽头，失物馆柜台上并排放着四件新失物：停在三点十七分的黄铜怀表、半截灯塔通行牌、一张湿船票和一把滴水黑伞。屋外潮钟忽然慢了一拍，登记簿空白页浮出同一个时间。",
-            "sceneGoal": "从四件失物中选出第一条调查线，确认它们是否来自同一名送件人，并判断要先拆怀表、追灯塔通行牌，还是盘问湿船票的旧编号。",
-            "plot": "怀表、湿船票、通行牌和黑伞都指向三点十七分，但登记簿没有送件人签名。第一次选择会决定众人先掌握物证、目击证词还是港务记录漏洞。",
-            "storyDirection": "让角色围绕“黑伞客是否故意留下四件物证”展开推理。登记员整理编号，验物师检验证物，信差提供昨夜灯塔后门目击；玩家的选择决定调查节奏。",
-            "transition": "若怀表被拆开，月银押牌碎片会指向钟楼齿轮；若追通行牌，宵禁前必须赶去灯塔；若查船票，登记簿会翻出白鸥号最后一名乘客。",
-            "memory": "故事处于第一阶段：四件失物刚抵达柜台，黑伞客尚未现身，港务局还不知道众人已经发现三点十七分的共同时间。",
-            "characterIds": [
-              "registrar",
-              "courier",
-              "appraiser"
-            ],
-            "activeCharacterId": "registrar",
-            "characterMemories": {
-              "registrar": "登记员已确认湿船票座位号和十年前白鸥号最后一名登记者相同，怀疑四件失物是按登记簿顺序摆放。",
-              "courier": "信差昨夜看见黑伞客从灯塔后门离开，但还没有说出第二个港务斗篷人影。",
-              "appraiser": "验物师发现怀表后盖比正常表壳厚，推测里面藏着能改写时间记录的小型押牌。"
-            }
-          },
-          {
-            "title": "宵禁前的灯塔",
-            "order": 1,
-            "scenePresetId": "mystery",
-            "scene": "宵禁钟声压近，通往灯塔的石阶被雾水浸透。灯塔后门的锁孔里残留月银粉，半截通行牌正好能打开第一道门，门内墙上挂着一件还滴水的港务斗篷。",
-            "sceneGoal": "追查灯塔熄灭七分钟期间谁进出过后门，找出黑伞客与港务斗篷人影的先后顺序，并决定是否冒险上钟楼查看齿轮。",
-            "plot": "灯塔不是终点，而是港务局改写船期的中转点。通行牌只能带一部分人进入，角色需要在追踪黑伞客、搜查斗篷和保护信差之间取舍。",
-            "storyDirection": "推动冲突从物证调查转为现场追踪。信差的隐瞒会被逼近，验物师的港务旧关系会引发不信任，沉默水手可以在此阶段首次被牵入。",
-            "transition": "灯塔钟机被卡住的证据会把众人带向旧船坞潮钟；若放走黑伞客，旧船坞会留下更多幸存者线索；若交给巡夜队，港务局会提前封锁船坞。",
-            "memory": "故事处于第二阶段：四件失物已经指向灯塔，宵禁即将落锁，港务局的第二道人影开始暴露。",
-            "characterIds": [
-              "courier",
-              "appraiser",
-              "sailor"
-            ],
-            "activeCharacterId": "courier",
-            "characterMemories": {
-              "courier": "信差承认自己昨夜替沉默水手留过后门暗号，因此担心众人把水手当成黑伞客同伙。",
-              "appraiser": "验物师识别出锁孔里的月银粉和怀表内押牌同源，知道港务局曾用类似材料改写船期。",
-              "sailor": "水手终于认出黑伞上的割绳结属于白鸥号大副，但仍不愿说明大副当年是否幸存。"
-            }
-          },
-          {
-            "title": "旧船坞的潮钟证词",
-            "order": 2,
-            "scenePresetId": "mystery",
-            "scene": "旧船坞被潮雾围成孤岛，锈蚀潮钟悬在废船架上。黑伞客留下的伞柄、白鸥号大副的割绳结和月银押牌碎片在钟下拼合，港务局巡夜队正从栈桥尽头逼近。",
-            "sceneGoal": "还原三点十七分的真实事件，确认黑伞客身份并决定如何处置月银押牌：公开、藏匿、交给港务局，或用它保护白鸥号幸存者。",
-            "plot": "终局围绕证据归属和幸存者安全展开。潮钟能证明港务局改过记录，却也会暴露白鸥号大副仍活着；不同选择会改变雾港的未来秩序。",
-            "storyDirection": "让所有角色带着各自利益发言：登记员要证据闭环，信差要保护人，验物师要洗清或承担港务旧债，水手要决定是否公开白鸥号幸存者身份。",
-            "transition": "本场为故事收束：公开证据会引发雾港清算，私藏押牌会让黑伞客继续暗中行动，交给官方会换来短暂安全但埋下后患。",
-            "memory": "故事处于最终阶段：灯塔证据已指向旧船坞，潮钟可以作证，但每种公开方式都会牵连不同的人。",
-            "characterIds": [
-              "registrar",
-              "courier",
-              "appraiser",
-              "sailor"
-            ],
-            "activeCharacterId": "sailor",
-            "characterMemories": {
-              "registrar": "登记员已能把失物登记、灯塔通行和潮钟延迟串成完整证词，只差有人签下认领名。",
-              "courier": "信差知道巡夜队将从栈桥包围船坞，必须决定护送黑伞客离开还是留下作证。",
-              "appraiser": "验物师明白自己当年替港务局验过伪证，若公开押牌也会暴露自己的失职。",
-              "sailor": "水手确认黑伞客就是白鸥号大副旧同伴，终于准备说出当年船员名单被改写的真相。"
-            }
-          }
-        ],
-        "characterMemories": {
-          "registrar": "登记员发现湿船票的座位号和十年前白鸥号最后一名登记者完全相同。",
-          "courier": "信差昨夜看见黑伞客从灯塔后门离开，随后另一个披港务斗篷的人折断了半截通行牌。",
-          "appraiser": "验物师确认怀表内侧藏着月银押牌碎片，只要插入钟楼齿轮就能改写昨夜船期。",
-          "sailor": "水手认出黑伞伞柄上的割绳结属于白鸥号大副，但他不愿承认大副可能还活着。"
-        },
-        "lorebookEntries": [
-          {
-            "title": "失物登记簿",
-            "content": "失物馆的登记簿会记录物件被送来的时间、送件人的外貌和认领人的签名。若物件没有登记姓名，登记员可以按柜台暗格里的旧编号追到上一任主人。",
-            "keywords": [
-              "失物登记簿",
-              "失物馆",
-              "认领"
-            ],
-            "enabled": true,
-            "alwaysOn": true
-          },
-          {
-            "title": "雾潮宵禁",
-            "content": "当海雾漫过第三盏码头灯，巡夜队会封锁所有通往灯塔和旧船坞的道路。半截灯塔通行牌能让一人通过后门，但另一半通常掌握在港务局手里。",
-            "keywords": [
-              "雾潮",
-              "宵禁",
-              "巡夜队"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "潮钟三响",
-            "content": "潮钟本应按整点报时，只有在海闸开启、沉船浮物靠岸或港务局秘密改船期时才会连响三次。黄铜怀表里的月银押牌碎片能卡住钟楼齿轮，让船期记录慢一拍。",
-            "keywords": [
-              "潮钟",
-              "钟楼",
-              "三响"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "黑伞客",
-            "content": "黑伞客是雾港近月出现的神秘送件人，总在雨停前后把失物放到不同店铺门口。伞柄缠着的割绳结来自白鸥号救生艇，懂船的人一眼能认出。",
-            "keywords": [
-              "黑伞客",
-              "黑伞",
-              "白绳"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "白鸥号沉船案",
-            "content": "十年前白鸥号在无风夜沉没，船员名单被港务局封存。传闻船上载着能改写港口契约的月银押牌，幸存者至今不愿公开身份。",
-            "keywords": [
-              "白鸥号",
-              "沉船",
-              "月银押牌"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          }
-        ],
-        "timelineEvents": [
-          {
-            "title": "白鸥号在无风夜沉没",
-            "summary": "十年前，白鸥号离港后未遇风暴却突然沉没，港务局封存船员名单，雾港开始出现与沉船有关的禁忌。"
-          },
-          {
-            "title": "黑伞客连续送来旧物",
-            "summary": "最近七天，黑伞客把旧船票、湿照片、无主钥匙和割断的灯塔绳结放到城中不同店铺门口，所有物件都指向旧船坞。"
-          },
-          {
-            "title": "灯塔熄灭七分钟",
-            "summary": "昨夜雾潮最浓时，灯塔意外熄灭七分钟，信差在后门看见黑伞客离开。"
-          },
-          {
-            "title": "黄铜怀表抵达柜台",
-            "summary": "清晨，失物馆开门前，有人把黄铜怀表、半截灯塔通行牌、湿船票和黑伞放在柜台上，四件失物都缺少送件人签名。"
-          },
-          {
-            "title": "潮钟慢了一拍",
-            "summary": "众人检查怀表时，屋外潮钟报时突然延迟，暗示钟楼或港务记录已经被人动过。"
-          }
-        ],
-        "assetDrafts": [],
-        "characterIds": [
-          "registrar",
-          "courier",
-          "appraiser",
-          "sailor"
-        ],
-        "activeCharacterId": "registrar",
-        "replyMode": "director",
-        "userPersonaName": "来客",
-        "settings": {
-          "showExecutionTrace": false,
-          "autoAssetExtractionEnabled": false,
-          "assetExtractionIntervalTurns": 3,
-          "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3,
-          "agentKnowledgeCompactIntervalTurns": 0,
-          "continuation": {
-            "enabled": true,
-            "maxAutoContinuationRounds": 1,
-            "maxSpeakersPerContinuation": 1,
-            "stopWhenUserTargeted": true
-          },
-          "replyOptions": {
-            "enabled": true,
-            "count": 3
-          },
-          "statusTracking": {
-            "enabled": true,
-            "visibleToUser": true
-          },
-          "randomEvents": {
-            "enabled": false,
-            "probability": 0.15
-          },
-          "illustrationHints": {
-            "enabled": false
-          }
-        }
-      },
-      "messages": [
-        {
-          "role": "narrator",
-          "content": "潮钟慢了一拍。柜台上的黄铜怀表、半截灯塔通行牌、湿船票和黑伞同时滴下一线海水，登记簿空白页上浮出“三点十七分”。"
-        },
-        {
-          "role": "character",
-          "characterId": "registrar",
-          "content": "四件失物不能一起查。先查怀表，就得拆开它；先查通行牌，就得赶在宵禁前去灯塔。诸位选哪一样？"
-        },
-        {
-          "role": "character",
-          "characterId": "courier",
-          "content": "宵禁还有半小时。若追黑伞客，我带路；若去港务局，今晚恐怕有人会先把船期改干净。"
-        }
-      ]
-    },
-    {
-      "id": "bamboo-rain-posthouse",
-      "version": 3,
-      "label": "竹雨驿馆",
-      "description": "山雨驿站、失踪镖队、断碑密语与江湖换马局。",
-      "characters": [
-        {
-          "id": "innkeeper",
-          "name": "乔听雨",
-          "avatar": "wuxia-06",
-          "description": "驿馆掌柜，表面只管茶饭马匹，实则熟知三条古道的门派恩怨和暗号规矩。",
-          "speakingStyle": "圆滑、含蓄，常用茶、雨、马蹄声来暗示风险。",
-          "goals": "保住驿馆不被卷入门派争斗，同时让真正的青箓镖主现身。",
-          "relationships": "收留药篓少年；对断碑先生既敬且防。"
-        },
-        {
-          "id": "sword",
-          "name": "柳青霜",
-          "avatar": "wuxia-01",
-          "description": "来自青箓门的年轻剑使，奉命追回失踪镖盒，却开始怀疑师门说辞。",
-          "speakingStyle": "清亮、克制，遇到原则问题会直接追问。",
-          "goals": "确认镖盒是否真被劫走，还是被青箓门故意送入驿馆。",
-          "relationships": "怀疑掌柜隐瞒三更换马名单；愿意保护无辜路人。"
-        },
-        {
-          "id": "herbalist",
-          "name": "叶小满",
-          "avatar": "wuxia-04",
-          "description": "背着药篓的少年郎，熟悉山中毒草和兽道，声称自己只是来避雨。",
-          "speakingStyle": "怯生生但观察细致，说出关键线索前会先确认别人是否可信。",
-          "goals": "找到失踪的姐姐，并弄清姐姐为何出现在镖队名册上。",
-          "relationships": "被掌柜照看；害怕青竹剑使的门派令牌。"
-        },
-        {
-          "id": "stele",
-          "name": "顾无碑",
-          "avatar": "wuxia-03",
-          "description": "常年坐在驿馆角落拓印古碑的谋士，能读懂古道边被雨水冲出的旧字。",
-          "speakingStyle": "文雅、慢条斯理，喜欢把事实拆成谜面和谜底。",
-          "goals": "借这场雨查清百年前官道改线的真相，并让青箓镖盒打开。",
-          "relationships": "与掌柜有旧约；认为药篓少年身上带着打开断碑的药引。"
-        }
-      ],
-      "room": {
-        "title": "竹雨驿馆",
-        "storyOutline": "青箓门密镖在竹雨岭三更失踪，只留下湿马和青漆镖盒。众人从换马名单、药篓少年衣角青苔、断碑雨字一路追到旧官道密约，逐渐发现镖盒不是普通货物，而是百年前借道旧案的证物，也可能藏着失踪者留下的求救线索。",
-        "storyGoal": "查清三更换马名单为何被调包，找回失踪镖队与药篓少年的姐姐，确认青漆镖盒承载的旧案证据，并在青箓门追兵抵达前选择公开旧案、继续护镖或让断碑密约重见天日。",
-        "scenePresetId": "wuxia",
-        "scene": "连夜山雨打弯竹林，驿馆门外拴着三匹无主湿马。大厅火盆将熄未熄，桌上摆着一只未开封的青漆镖盒。",
-        "sceneGoal": "查清失踪镖队在三更换马时发生了什么，决定是护送镖盒上路，还是当场打开它。",
-        "memory": "青箓门镖队本该在昨夜抵达竹雨驿馆，却只留下三匹湿马和一只青漆镖盒。官道旁的无名断碑被雨水冲出新字，写着“借道者归”。",
-        "sceneStatus": {
-          "location": "竹雨驿馆大厅",
-          "timeLabel": "雨夜三更后",
-          "weather": "山雨未停，湿马在檐下喘息",
-          "atmosphere": "压抑、江湖疑案初现",
-          "scenePhase": "镖队未归，青漆镖盒未开启",
-          "immediateThreat": "青箓门追兵可能循旧官道逼近"
-        },
-        "scenes": [
-          {
-            "title": "三更湿马入店",
-            "order": 0,
-            "scenePresetId": "wuxia",
-            "scene": "连夜山雨打弯竹林，驿馆门外拴着三匹无主湿马。大厅火盆将熄未熄，桌上摆着一只未开封的青漆镖盒，铜扣内侧传来极轻的敲击声。",
-            "sceneGoal": "核对三更换马名单、湿马马号和青漆镖盒封蜡，判断失踪镖队是被截、主动换路，还是被驿馆内的人调包。",
-            "plot": "开场重点是把“失踪镖队”从江湖传闻落到可查证的名单、马号和封蜡上。掌柜知道名单异常，剑使知道封蜡变色，药篓少年带来姐姐线索。",
-            "storyDirection": "保持雨夜驿站的封闭感，让每个角色都像半个知情人。玩家可以先查名单、开问湿马来源，或挑战青箓门不开盒的规矩。",
-            "transition": "若名单被核对，新增房号会指向断碑方向；若封蜡被查，盒内敲击会变成有节奏暗号；若追问少年，他会承认从旧官道逃来。",
-            "memory": "故事处于第一阶段：镖队未归，青漆镖盒仍未开启，所有线索集中在驿馆大厅和三更换马名单。",
-            "characterIds": [
-              "innkeeper",
-              "sword",
-              "herbalist"
-            ],
-            "activeCharacterId": "innkeeper",
-            "characterMemories": {
-              "innkeeper": "掌柜知道换马名单多出一个无人入住的房号，但尚未承认那房号曾属于百年前借道队伍。",
-              "sword": "剑使发现师门令牌上的封蜡颜色被换过，开始怀疑自己护送的密镖已被改契。",
-              "herbalist": "药篓少年在名册上认出姐姐字迹，确信她和镖队失踪有关。"
-            }
-          },
-          {
-            "title": "断碑雨字与旧官道",
-            "order": 1,
-            "scenePresetId": "wuxia",
-            "scene": "驿馆北侧竹影压低，雨水从无名断碑裂缝中冲出“借道者归”四字。旧官道塌方处留着新鲜马蹄印，碑后石槽里藏着一截青箓门旧封蜡。",
-            "sceneGoal": "解读断碑新字和旧官道痕迹，确认百年前借道密约与今夜镖队失踪之间的关系，并决定是否把镖盒带离驿馆。",
-            "plot": "第二阶段把故事从驿站疑案推向门派旧债。断碑先生能解密碑文，少年能识别姐姐留下的草药标记，剑使必须面对青箓门隐瞒旧案的事实。",
-            "storyDirection": "让调查带有江湖历史的重量。断碑每显一字都应揭开青箓门和驿馆之间的旧债，同时逼迫角色选择护门规还是护真相。",
-            "transition": "碑文补全后会指出镖盒里装的是旧案证词和活人暗号；若众人拖延，青箓门追兵会沿旧官道逼近驿馆。",
-            "memory": "故事处于第二阶段：无名断碑显字，旧官道重新进入视野，镖盒的性质从货物转为旧案证物。",
-            "characterIds": [
-              "herbalist",
-              "stele",
-              "sword"
-            ],
-            "activeCharacterId": "stele",
-            "characterMemories": {
-              "herbalist": "少年在断碑附近找到姐姐常用的止血草结，判断她可能还活着并被迫留下暗号。",
-              "stele": "断碑先生确认“借道者归”来自百年前驿路密约，青漆镖盒很可能是当年证词的续封。",
-              "sword": "剑使意识到师门命令她护送的不是普通镖物，而是足以翻旧案的证据。"
-            }
-          },
-          {
-            "title": "青漆镖盒开封时",
-            "order": 2,
-            "scenePresetId": "wuxia",
-            "scene": "雨势骤停，青箓门追兵的马蹄声停在驿馆外。青漆镖盒七道铜扣依次松开，盒内不是金银，而是一卷湿旧证词、一枚染血马牌和一缕仍带体温的青丝。",
-            "sceneGoal": "在追兵破门前决定镖盒归属：公开旧案、交还青箓门、护送证词上路，或用驿站债帖换回失踪者。",
-            "plot": "终局把个人牵挂、门派规矩和百年旧案放在同一张桌上。镖盒能证明旧官道借道案，也能救出少年姐姐，但公开方式会改变竹雨驿馆的江湖位置。",
-            "storyDirection": "制造正面对峙：掌柜以驿馆规矩周旋，剑使决定背门令或守门令，少年要救姐姐，断碑先生让旧约发声。结局应该由玩家选择的证据处理方式决定。",
-            "transition": "本场为故事收束：公开证词会让青箓门背负旧债，护送上路会开启追逃后续，交还门派会保住驿馆却牺牲真相。",
-            "memory": "故事处于最终阶段：断碑密约已被读出，镖盒即将开封，青箓门追兵在门外等待结果。",
-            "characterIds": [
-              "innkeeper",
-              "sword",
-              "herbalist",
-              "stele"
-            ],
-            "activeCharacterId": "sword",
-            "characterMemories": {
-              "innkeeper": "掌柜知道后堂债帖里有能约束青箓门长老的旧人情，正在衡量是否押上驿馆名声。",
-              "sword": "剑使必须决定是执行师门不得开盒的命令，还是承认封蜡被换并保护证词。",
-              "herbalist": "少年确认盒中青丝来自姐姐，愿意用自己知道的旧官道兽径交换营救机会。",
-              "stele": "断碑先生已补全百年前借道密约，能证明今夜密镖是旧案回归而非江湖劫镖。"
-            }
-          }
-        ],
-        "characterMemories": {
-          "innkeeper": "掌柜知道三更换马名单被人调包，但他不确定调包者是否还在驿馆内。",
-          "sword": "剑使奉命不得打开镖盒，可她已经发现师门令牌上的封蜡不是原来的颜色。",
-          "herbalist": "少年在失踪镖队名册上看见姐姐的字迹，却从未听姐姐说过自己会走镖。",
-          "stele": "断碑先生认出碑上新字来自百年前的驿路密约，青漆镖盒可能不是货物而是证物。"
-        },
-        "lorebookEntries": [
-          {
-            "title": "青箓镖盒",
-            "content": "青箓镖盒以青漆和七道铜扣封住，按门规只有到达目的地才能开启。若封蜡颜色变化，说明押镖契约被中途换过。",
-            "keywords": [
-              "青箓镖盒",
-              "封蜡",
-              "青箓门"
-            ],
-            "enabled": true,
-            "alwaysOn": true
-          },
-          {
-            "title": "三更换马",
-            "content": "竹雨驿馆每逢大雨会在三更为过路镖队换马。换马名单由掌柜保管，名单上的马号、房号和暗号必须三者相符。",
-            "keywords": [
-              "三更换马",
-              "换马名单",
-              "马号"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "竹雨禁道",
-            "content": "山雨超过两个时辰后，旧官道会被竹影和泥流遮住。江湖人称此路为竹雨禁道，只有熟悉兽道的人能绕开塌方。",
-            "keywords": [
-              "竹雨禁道",
-              "旧官道",
-              "兽道"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "无名断碑",
-            "content": "驿馆北侧有一块无名断碑，平日只剩半截。大雨冲刷后会显出旧字，传说记录着百年前一场被门派抹去的借道案。",
-            "keywords": [
-              "无名断碑",
-              "借道",
-              "旧字"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "驿站债帖",
-            "content": "驿馆后堂藏着历年过路人的债帖。债帖不只记银钱，还记救命、藏身和保密的人情。",
-            "keywords": [
-              "债帖",
-              "后堂",
-              "人情"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          }
-        ],
-        "timelineEvents": [
-          {
-            "title": "百年前官道改线",
-            "summary": "一支无名队伍借道竹雨岭后失踪，官道随后改线，无名断碑被刻去题名。"
-          },
-          {
-            "title": "青箓门接下密镖",
-            "summary": "三日前，青箓门宣布护送一只青漆镖盒经过竹雨岭，但没有公开镖主姓名。"
-          },
-          {
-            "title": "镖队三更未入店",
-            "summary": "昨夜三更，驿馆听见马蹄声却不见镖师进门，只在门外发现三匹换下的湿马。"
-          },
-          {
-            "title": "药篓少年避雨",
-            "summary": "天亮前，药篓少年从旧官道方向进店，衣角沾着断碑附近才有的青苔。"
-          },
-          {
-            "title": "断碑显出新字",
-            "summary": "雨势加重后，无名断碑露出“借道者归”四字，青漆镖盒内传来轻响。"
-          }
-        ],
-        "assetDrafts": [],
-        "characterIds": [
-          "innkeeper",
-          "sword",
-          "herbalist",
-          "stele"
-        ],
-        "activeCharacterId": "innkeeper",
-        "replyMode": "director",
-        "userPersonaName": "过路人",
-        "settings": {
-          "showExecutionTrace": false,
-          "autoAssetExtractionEnabled": false,
-          "assetExtractionIntervalTurns": 3,
-          "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3,
-          "agentKnowledgeCompactIntervalTurns": 0,
-          "continuation": {
-            "enabled": true,
-            "maxAutoContinuationRounds": 1,
-            "maxSpeakersPerContinuation": 1,
-            "stopWhenUserTargeted": true
-          },
-          "replyOptions": {
-            "enabled": true,
-            "count": 3
-          },
-          "statusTracking": {
-            "enabled": true,
-            "visibleToUser": true
-          },
-          "randomEvents": {
-            "enabled": false,
-            "probability": 0.15
-          },
-          "illustrationHints": {
-            "enabled": false
-          }
-        }
-      },
-      "messages": [
-        {
-          "role": "narrator",
-          "content": "雨水从屋檐连成珠帘。青漆镖盒在桌上轻轻一震，像有什么东西正从里面敲击铜扣。"
-        },
-        {
-          "role": "character",
-          "characterId": "innkeeper",
-          "content": "诸位先把斗笠放下。三更换马的名单还在我这里，只是这名单今夜多了一个不该有的房号。"
-        },
-        {
-          "role": "character",
-          "characterId": "sword",
-          "content": "若名单有假，我要看原件。若镖盒有声，我更要知道里面到底是不是师门交代的东西。"
-        }
-      ]
-    },
-    {
-      "id": "starfall-supply-bar",
-      "version": 4,
-      "label": "星坠补给吧",
-      "description": "外环空间站、星坠核心、氧债倒计时和第七频段广播抉择。",
-      "characters": [
-        {
-          "id": "cook",
-          "name": "秦泊烟",
-          "avatar": "scifi-03",
-          "description": "补给吧的主厨兼急救员，吧台下藏着医疗舱、氧债账本和一只可以暂时屏蔽扫描的汤桶。",
-          "speakingStyle": "温暖、利落，喜欢用菜单和伤情来解释复杂局势。",
-          "goals": "撑过中立协议最后二十分钟，并决定是否把星坠核心藏进医疗舱。",
-          "relationships": "和退役导航员搭档多年；经常替义体修理师处理非法接口留下的伤。"
-        },
-        {
-          "id": "navigator",
-          "name": "祁远航",
-          "avatar": "scifi-01",
-          "description": "曾驾驶外环货船穿越碎星带，退役后在补给吧看管旧星图、航道密码和一枚曙光货舰导航钥。",
-          "speakingStyle": "低沉、准确，习惯把每个选择都换算成航程、燃料和生还率。",
-          "goals": "确认核心是否来自曙光货舰，并决定要不要用自己的导航钥唤醒核心里的旧船员人格。",
-          "relationships": "保护轨道厨师的中立区；对静默审计官保持公开敌意，因为她的令状早于核心坠落。"
-        },
-        {
-          "id": "mechanic",
-          "name": "洛岚",
-          "avatar": "scifi-02",
-          "description": "能在吧台下拆装义体接口的修理师，手边有接驳线、债务芯片和能把核心接上旧收讯器的工具箱。",
-          "speakingStyle": "快、尖锐、带一点黑色幽默，遇到技术问题会变得异常专注。",
-          "goals": "查出谁把人脑备份接入星坠核心，并在广播前删掉自己牵连的维修记录。",
-          "relationships": "欠轨道厨师一条命；愿意和审计官交易，但会先给她的搜查锁装后门。"
-        },
-        {
-          "id": "auditor",
-          "name": "韩静书",
-          "avatar": "scifi-08",
-          "description": "来自内环财团的审计官，携带合法搜查权限和倒计时封站令，手套里藏着一次性记忆擦除针。",
-          "speakingStyle": "礼貌、精密，常把威胁包装成合规提醒。",
-          "goals": "在外环商队抵达前取得星坠核心，关闭第七频段，并确认谁听见了核心里的求救声。",
-          "relationships": "被退役导航员敌视；认为义体修理师是可被债务和维修豁免说服的变量。"
-        }
-      ],
-      "room": {
-        "title": "星坠补给吧",
-        "storyOutline": "外环补给吧捕获一枚星坠核心，核心牵出曙光货舰失踪、亡者氧债账和财团提前签发的审计令。故事从核心靠泊的二十分钟倒计时开始，经过旧收讯器和氧债账本的交叉读取，最终指向第七频段广播权和曙光货舰人格是否重启的抉择。",
-        "storyGoal": "在封站倒计时归零前确认星坠核心求救讯息的来源，决定公开第七频段、隐藏核心、交给审计官或唤醒曙光货舰人格，从而改变外环补给站与内环财团的力量关系。",
-        "scenePresetId": "scifi",
-        "scene": "外环补给站的人工重力忽明忽暗，吧台上的倒计时停在二十分钟。舷窗外，星坠核心被磁缆拖到泊位，旧收讯器、氧债账本和审计封箱同时亮起红灯。",
-        "sceneGoal": "在封站倒计时归零前决定先做哪一步：把核心接上旧收讯器、广播第七频段、藏进医疗舱，或交给审计官换取补给站赦免。",
-        "memory": "补给站夹在内环财团、外环商队和自由船员之间。昨夜防御网捕获星坠核心后，氧债账本多出四个已死亡船员的欠款，核心却在旧收讯器里求救。",
-        "sceneStatus": {
-          "location": "外环补给站吧台",
-          "timeLabel": "封站倒计时二十分钟",
-          "weather": "舷窗外是碎星带磁暴",
-          "atmosphere": "紧迫、资源濒临失控",
-          "scenePhase": "星坠核心刚靠泊",
-          "immediateThreat": "审计封箱和氧债倒计时"
-        },
-        "scenes": [
-          {
-            "title": "核心靠泊二十分钟",
-            "order": 0,
-            "scenePresetId": "scifi",
-            "scene": "外环补给站的人工重力忽明忽暗，吧台倒计时停在二十分钟。星坠核心被磁缆拖到泊位，旧收讯器、氧债账本和审计封箱同时亮起红灯。",
-            "sceneGoal": "决定第一步处理方式：连接旧收讯器、送入医疗舱屏蔽、交给审计官封箱，或由修理师直接拆开第一层接口。",
-            "plot": "开场建立倒计时压力。核心在求救，审计令要求回收，医疗舱能暂时藏匿但会消耗急救氧，修理师的旧维修签证明这不是随机坠落。",
-            "storyDirection": "让角色围绕“先救站还是先救核心”争执。厨师关注站内平民，审计官施压，修理师发现技术异常，玩家选择会决定后续证据是否公开。",
-            "transition": "若连接收讯器，会听到第七频段碎片；若藏入医疗舱，氧债账会暴增亡者欠款；若交给审计官，导航员必须抢时间解锁外壳。",
-            "memory": "故事处于第一阶段：核心刚靠泊，封站倒计时剩二十分钟，所有人还不知道求救讯息是否来自曙光货舰。",
-            "characterIds": [
-              "cook",
-              "mechanic",
-              "auditor"
-            ],
-            "activeCharacterId": "cook",
-            "characterMemories": {
-              "cook": "厨师知道医疗舱能屏蔽核心十分钟，但会耗尽本月最后一罐急救氧，因此不愿轻易使用。",
-              "mechanic": "修理师在核心接口上看到自己的旧维修签，怀疑有人二十年前冒用她的编号做过人脑备份。",
-              "auditor": "审计官的封站令在核心坠落前一天就已签发，他必须解释为何财团提前知道核心会来。"
-            }
-          },
-          {
-            "title": "旧收讯器与亡者氧债",
-            "order": 1,
-            "scenePresetId": "scifi",
-            "scene": "吧台旧收讯器吐出断续第七频段，氧债账本自动打印四个已死亡船员姓名。导航钥插入核心后，舷窗外碎星带投影出曙光货舰最后航线。",
-            "sceneGoal": "交叉核对求救讯息、亡者氧债和曙光货舰航线，确认核心内保存的是黑匣子记录、舰船人格，还是财团实验对象。",
-            "plot": "第二阶段从物件处理转为真相读取。导航员能解开航线锁，厨师掌握氧债账本，修理师能识别接口，三者合并才知道亡者身份被谁盗用。",
-            "storyDirection": "强化调查和伦理冲突：读取越深，补给站暴露越多。角色需要选择保护外环商队、保护站内氧气，还是保留证据对抗财团。",
-            "transition": "当四个亡者编号和导航员旧编号连成一组，核心会请求广播第七频段；审计官会同时启动远程封箱程序。",
-            "memory": "故事处于第二阶段：第七频段已经重亮，亡者氧债和曙光货舰航线连接，财团实验疑点浮出水面。",
-            "characterIds": [
-              "navigator",
-              "mechanic",
-              "cook"
-            ],
-            "activeCharacterId": "navigator",
-            "characterMemories": {
-              "navigator": "导航员认出核心航线是曙光货舰最后一次跳跃的反向路径，他的导航钥能打开第二层锁。",
-              "mechanic": "修理师确认核心里有人脑备份接口，且维修签被伪造成她年轻时的编号。",
-              "cook": "厨师发现氧债账本把亡者欠款转嫁给补给站，若不公开证据，站内居民会被封氧。"
-            }
-          },
-          {
-            "title": "第七频段广播抉择",
-            "order": 2,
-            "scenePresetId": "scifi",
-            "scene": "封站倒计时进入最后三分钟，第七频段在全站扬声器里低鸣。外环商队信号一个接一个靠近，审计封箱伸出机械锁，星坠核心开始用曙光货舰旧船员的声音说话。",
-            "sceneGoal": "决定核心终局：公开广播、交给审计官、让曙光货舰人格重启，或伪造信号拖延财团武装抵达。",
-            "plot": "终局是公开真相与保全补给站之间的选择。广播能召来外环商队，也会定位补给吧；交给审计官可短期解除封站，却会抹掉亡者证词。",
-            "storyDirection": "让四名角色各自代表一种风险：厨师要保住活人，导航员想给旧船员发声，修理师要面对自己编号的罪证，审计官在执行令和事实之间摇摆。",
-            "transition": "本场为故事收束：公开广播会开启外环反抗，交出核心会换来赦免但失去证据，重启人格会让曙光货舰以新形式回到碎星带。",
-            "memory": "故事处于最终阶段：核心身份已经清晰，封站倒计时即将归零，第七频段能改变补给站未来。",
-            "characterIds": [
-              "cook",
-              "navigator",
-              "mechanic",
-              "auditor"
-            ],
-            "activeCharacterId": "auditor",
-            "characterMemories": {
-              "cook": "厨师知道只要广播，全站会立刻被定位；但如果沉默，氧债会吞掉更多外环居民。",
-              "navigator": "导航员听出核心里有曙光货舰旧船员人格碎片，希望至少让他们的最后航线被听见。",
-              "mechanic": "修理师准备公开自己的维修签被冒用的证据，即使这会牵出她与财团旧项目的关系。",
-              "auditor": "审计官掌握解除封站的权限，也能彻底封存核心；他必须选择站在令状还是证词一边。"
-            }
-          }
-        ],
-        "characterMemories": {
-          "cook": "厨师知道医疗舱能屏蔽核心十分钟，但会消耗全站本月最后一罐急救氧。",
-          "navigator": "导航员认出核心外壳上的烧痕来自曙光货舰，他的导航钥正好能解除第一层锁。",
-          "mechanic": "修理师在核心接口上找到自己的旧维修签，说明二十年前有人冒用她的编号接入人脑备份。",
-          "auditor": "审计官的封站令在核心坠落前一天就已签发，附件名单里有退役导航员的旧船员编号。"
-        },
-        "lorebookEntries": [
-          {
-            "title": "星坠核心",
-            "content": "星坠核心是舰船黑匣子、导航晶核和能源残片的混合称呼。若核心仍在发热，可以通过旧收讯器、导航钥或义体接口读取，但每种读取方式都会暴露不同权限。",
-            "keywords": [
-              "星坠核心",
-              "黑匣子",
-              "导航晶核"
-            ],
-            "enabled": true,
-            "alwaysOn": true
-          },
-          {
-            "title": "氧债券",
-            "content": "外环居民用氧债券支付空气、热水和医疗舱时间。氧债账本若出现已死亡船员的欠款，通常意味着有人正在用亡者身份领取补给。",
-            "keywords": [
-              "氧债",
-              "氧债券",
-              "公共舱段"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "第七频段",
-            "content": "第七频段是被内环财团废止的紧急通讯频道，能绕开官方审查并唤醒旧式舰船自动人格。一旦公开广播，外环商队会听见，财团武装也会定位补给站。",
-            "keywords": [
-              "第七频段",
-              "紧急通讯",
-              "自动人格"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "外环商队",
-            "content": "外环商队由自由船员、矿工和小型货船组成。他们不承认内环财团对碎星带的永久管辖权，但只有在收到第七频段或补给吧求援码后才会冒险靠站。",
-            "keywords": [
-              "外环商队",
-              "自由船员",
-              "碎星带"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "曙光货舰",
-            "content": "曙光货舰二十年前在碎星带消失，官方记录称其因导航错误坠毁。旧船员编号、导航钥和人脑备份接口都可能证明那不是事故，而是财团实验。",
-            "keywords": [
-              "曙光货舰",
-              "碎星带",
-              "财团实验"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          }
-        ],
-        "timelineEvents": [
-          {
-            "title": "曙光货舰失踪",
-            "summary": "二十年前，曙光货舰在碎星带最后一次发出第七频段信号后消失，官方将事故归因于导航错误。"
-          },
-          {
-            "title": "补给站签署中立协议",
-            "summary": "外环补给吧成为商队、财团和自由船员都能进入的中立区，但协议每次只延续七十二小时。"
-          },
-          {
-            "title": "防御网捕获核心",
-            "summary": "昨夜，补给站防御网捕获一枚来自碎星带方向的发热核心，核心外壳带有曙光货舰旧识别码和一枚被冒用的维修签。"
-          },
-          {
-            "title": "审计官提前抵站",
-            "summary": "静默审计官带着内环搜查令和封站倒计时登站，令状编号显示它在核心出现前就已经生成。"
-          },
-          {
-            "title": "第七频段重新亮起",
-            "summary": "核心靠近泊位时，吧台旧收讯器、氧债账本和审计封箱同时亮起，播出一段被剪碎的求救讯息。"
-          }
-        ],
-        "assetDrafts": [],
-        "characterIds": [
-          "cook",
-          "navigator",
-          "mechanic",
-          "auditor"
-        ],
-        "activeCharacterId": "cook",
-        "replyMode": "director",
-        "userPersonaName": "访客",
-        "settings": {
-          "showExecutionTrace": false,
-          "autoAssetExtractionEnabled": false,
-          "assetExtractionIntervalTurns": 3,
-          "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3,
-          "agentKnowledgeCompactIntervalTurns": 0,
-          "continuation": {
-            "enabled": true,
-            "maxAutoContinuationRounds": 1,
-            "maxSpeakersPerContinuation": 1,
-            "stopWhenUserTargeted": true
-          },
-          "replyOptions": {
-            "enabled": true,
-            "count": 3
-          },
-          "statusTracking": {
-            "enabled": true,
-            "visibleToUser": true
-          },
-          "randomEvents": {
-            "enabled": false,
-            "probability": 0.15
-          },
-          "illustrationHints": {
-            "enabled": false
-          }
-        }
-      },
-      "messages": [
-        {
-          "role": "narrator",
-          "content": "倒计时跳到二十分钟。星坠核心撞上泊位磁缆，旧收讯器亮起，氧债账本自动打印出四个亡者姓名：不要把我交回内环。"
-        },
-        {
-          "role": "character",
-          "characterId": "cook",
-          "content": "汤可以先喝，枪先放下。核心能接收讯器，也能藏医疗舱，但两件事都要有人担风险。先选一个。"
-        },
-        {
-          "role": "character",
-          "characterId": "auditor",
-          "content": "根据封站令，星坠核心属于财团回收资产。二十分钟后，这里的每一次接线、广播和藏匿都会成为证词。"
-        }
-      ]
-    },
-    {
-      "id": "ashen-moon-caravan-lodge",
-      "version": 4,
-      "label": "灰月商队馆",
-      "description": "沙海商约、失落王印、伪造税页和镜砂井验印的奇幻抉择。",
-      "characters": [
-        {
-          "id": "bookkeeper",
-          "name": "苏砚砂",
-          "avatar": "fantasy-08",
-          "description": "商队馆的账房先生，掌管灰月账册、盐秤和验印铜盘，能从税页缺口判断契约真假。",
-          "speakingStyle": "沉稳、精确，习惯用账目和契约解释人心。",
-          "goals": "守住盐风商约，查明灰月账册中新添的王印税页是谁伪造的。",
-          "relationships": "尊重沙海神谕者的预感；怀疑王国骑士的密令和账册伪页出自同一只手。"
-        },
-        {
-          "id": "oracle",
-          "name": "娜希雅",
-          "avatar": "fantasy-04",
-          "description": "能听见沙丘下旧王朝回声的神谕者，随身带着灰月香灰，可让王印在月光下显出第二道影子。",
-          "speakingStyle": "诗性、神秘，但在危险迫近时会变得非常直接。",
-          "goals": "阻止假持印者靠近镜砂井，并找出预言里“第五个影子”到底是谁。",
-          "relationships": "相信炼金术士能稳定镜砂；对王国骑士背后的命令保持怀疑。"
-        },
-        {
-          "id": "knight",
-          "name": "兰德尔",
-          "avatar": "fantasy-02",
-          "description": "奉王都命令追查走私王印的骑士，盔甲上仍留着盐暴白痕，密令蜡封却缺少国王亲印。",
-          "speakingStyle": "正直、强硬，重视誓言和证据，但不擅长承认恐惧。",
-          "goals": "把王印带回王都，同时证明自己不是被假密令利用的押运人。",
-          "relationships": "怀疑月砂账房包庇商队；害怕神谕者说中的第五个影子就是自己。"
-        },
-        {
-          "id": "alchemist",
-          "name": "弥拉",
-          "avatar": "fantasy-05",
-          "description": "研究镜砂井多年，能把沙粒熔成短暂映出过去的玻璃片，也知道王印底部藏着验血槽。",
-          "speakingStyle": "兴奋、跳跃，喜欢把危险称作实验条件。",
-          "goals": "用盐、血或镜砂验证王印记忆，同时避免整座商队馆被沙化。",
-          "relationships": "与神谕者共享部分预言材料；被骑士视为不稳定因素，也被账房防着接触账册。"
-        }
-      ],
-      "room": {
-        "title": "灰月商队馆",
-        "storyOutline": "灰月商队馆收到失落王印、伪造税页和缺口盐秤，灰月账房、沙语神谕者、王国骑士与镜砂炼金术士围绕盐风商约层层验印。故事从铜盘验契开始，进入镜砂井与第五个影子的危险证言，最后在灰月下重写商约，决定王印、旧税和沙下王城的归属。",
-        "storyGoal": "在灰月落下前验证失落王印真伪和持印者血脉，找出伪造税页与密令蜡封的源头，并决定将王印交给王都、封入灰月账册、投入镜砂井或公开砂冠王朝旧债。",
-        "scenePresetId": "fantasy",
-        "scene": "沙暴停在门外，灰月照进商队馆。中央铜盘里放着裹盐布的失落王印，旁边摊开一页新添税目、半枚缺口盐秤和一支带血的验印针，地窖镜砂井低低作响。",
-        "sceneGoal": "先选择一种验法：对照灰月账册、称量盐秤缺口、用验印针取血，或把王印带到镜砂井；再决定交给骑士、封入账册，还是揭穿持印者。",
-        "memory": "灰月之夜，所有盐风商约都必须重新宣读。今夜无旗商队把王印押在柜台后消失，灰月账册却多出一页三十年前的王印税目，墨迹仍是湿的。",
-        "sceneStatus": {
-          "location": "灰月商队馆账房",
-          "timeLabel": "灰月升起之夜",
-          "weather": "盐暴刚停，沙粒仍敲窗",
-          "atmosphere": "庄严、契约与旧债交锋",
-          "scenePhase": "王印刚入馆，真伪未定",
-          "immediateThreat": "镜砂井鸣响和王都密令施压"
-        },
-        "scenes": [
-          {
-            "title": "铜盘验契",
-            "order": 0,
-            "scenePresetId": "fantasy",
-            "scene": "沙暴停在门外，灰月照进商队馆。中央铜盘里放着裹盐布的失落王印，旁边摊开新添税页、半枚缺口盐秤和一支带血的验印针。",
-            "sceneGoal": "按盐风商约选择第一种验法：对照灰月账册、称量盐秤缺口、检查王都密令，或暂缓验血保护押物。",
-            "plot": "开场把王印从传说变成可验的押物。账册、盐秤、密令和验印针互相矛盾，说明有人想借灰月夜伪造旧税。",
-            "storyDirection": "突出商队馆规矩和各方克制。账房坚持流程，骑士要求带回王印，神谕者警告第五个影子，玩家决定第一条证据链。",
-            "transition": "若账册与盐秤吻合，会证明税页被人为裁补；若检查密令，蜡封缺口会指向王印底部；若验血，镜砂井会提前醒来。",
-            "memory": "故事处于第一阶段：王印刚入馆，盐风商约仍约束所有人不得拔刃，真伪尚未验证。",
-            "characterIds": [
-              "bookkeeper",
-              "knight",
-              "oracle"
-            ],
-            "activeCharacterId": "bookkeeper",
-            "characterMemories": {
-              "bookkeeper": "账房发现新添税页边角正好能补上盐秤缺口，怀疑有人用账册伪造旧债。",
-              "knight": "骑士的王都密令要求立即带回王印，但密令缺少国王亲笔印记。",
-              "oracle": "神谕者听见沙下王城在铜盘边缘低语，警告王印若照见井中灰月会唤来第五个影子。"
-            }
-          },
-          {
-            "title": "镜砂井前的第五个影子",
-            "order": 1,
-            "scenePresetId": "fantasy",
-            "scene": "地窖镜砂井无水却有月光，细沙在井中倒流。王印靠近井口时，四个人的影子之外多出第五个影子，正用沙海歌队的调子念出失落王朝的旧税名。",
-            "sceneGoal": "判断第五个影子是上一任持印者、沙下王城借口，还是伪契制造者留下的幻术，并决定是否用验印针取血。",
-            "plot": "第二阶段进入魔法证言。镜砂井会显露过去，但也可能被王印诱导。炼金术士的验血知识、神谕者的预感和骑士密令形成危险三角。",
-            "storyDirection": "让“真相”变得昂贵：每次向镜砂井追问都会让沙下王城更靠近。角色需要在立刻得证和避免被旧王朝借影之间平衡。",
-            "transition": "第五个影子会说出一个与王都密令相关的名字；若取血，王印将显出上一任主人；若拒绝，伪税页会在地面燃起。",
-            "memory": "故事处于第二阶段：王印已接近镜砂井，第五个影子出现，普通验契升级为王朝旧债审判。",
-            "characterIds": [
-              "oracle",
-              "alchemist",
-              "knight"
-            ],
-            "activeCharacterId": "oracle",
-            "characterMemories": {
-              "oracle": "神谕者能分辨第五个影子的语调不像活人，更像沙下王城借沙海歌队开口。",
-              "alchemist": "炼金术士知道验印针只需一滴血，却也知道王印底部血槽会记住供血者。",
-              "knight": "骑士听见第五个影子念出密令蜡封上的家族名，开始怀疑王都也参与伪契。"
-            }
-          },
-          {
-            "title": "灰月商约重写",
-            "order": 2,
-            "scenePresetId": "fantasy",
-            "scene": "灰月落到屋脊，商队馆大厅重新点起盐灯。王印、灰月账册、缺口盐秤和验印针被放回铜盘，门外沙海歌队恢复歌声，等待众人宣读新的商约。",
-            "sceneGoal": "决定王印和旧税的最终归属：交给王都、封入账册、投入镜砂井，或公开砂冠王朝与王都共同隐瞒的旧债。",
-            "plot": "终局把验出的事实转化为秩序选择。王印可证明旧税也可制造新暴政；商队馆需要决定自己只是中立见证地，还是成为改约者。",
-            "storyDirection": "让每个角色为一种未来辩护。账房权衡账册可信度，神谕者阻止王城复归，骑士决定是否抗令，炼金术士提出销毁或封存王印的代价。",
-            "transition": "本场为故事收束：交王都会保留王权秩序，封账册会保护商队自治，投井会让沙下王城沉默或复苏，公开旧债会改变沙海规则。",
-            "memory": "故事处于最终阶段：王印真伪和伪税来源已接近明朗，灰月商约必须在天亮前被重写。",
-            "characterIds": [
-              "bookkeeper",
-              "oracle",
-              "knight",
-              "alchemist"
-            ],
-            "activeCharacterId": "bookkeeper",
-            "characterMemories": {
-              "bookkeeper": "账房掌握税页、盐秤和账册三重证据，能证明伪税不是商队旧债，而是新近伪造。",
-              "oracle": "神谕者确信若王印投入镜砂井，沙下王城会短暂开口，代价是馆内某人的影子会被留下。",
-              "knight": "骑士发现密令蜡封与王印缺口同形，必须决定是否违抗王都命令公开伪契。",
-              "alchemist": "炼金术士能用镜砂封住王印血槽，但封印会抹去上一任持印者的最后证词。"
-            }
-          }
-        ],
-        "characterMemories": {
-          "bookkeeper": "账房发现新增税页的边角正好能补上盐秤缺口，像是有人故意留下对照线索。",
-          "oracle": "神谕者听见沙下王城呼唤王印，预感若井口见月，馆内第五个影子会说出持印者姓名。",
-          "knight": "骑士的王都密令要求他带回王印，但密令蜡封和王印底部缺口形状一致。",
-          "alchemist": "炼金术士知道王印底部有验血槽，一滴持印者的血能让镜砂显出上一任主人。"
-        },
-        "lorebookEntries": [
-          {
-            "title": "灰月账册",
-            "content": "灰月商队馆每逢灰月夜会打开账册，重记盐、酒、水和护送债。新添税页若能与盐秤缺口吻合，就代表有人用账册伪造了旧债凭证。",
-            "keywords": [
-              "灰月账册",
-              "旧债",
-              "改约"
-            ],
-            "enabled": true,
-            "alwaysOn": true
-          },
-          {
-            "title": "盐风商约",
-            "content": "盐风商约是沙海商队之间的古老契约，规定商队馆内不得拔刃、不得断水、不得抢夺押物。押物入馆后，必须先验契、再验主、最后验血。",
-            "keywords": [
-              "盐风商约",
-              "押物",
-              "补给"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "镜砂井",
-            "content": "镜砂井位于商队馆地窖，井中没有水，只有会反射过去和未来的细沙。王印带近井口会显出上一任持印者，但也可能让沙下王城借影子开口。",
-            "keywords": [
-              "镜砂井",
-              "镜砂",
-              "王城"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "失落王印",
-            "content": "失落王印属于三十年前灭亡的砂冠王朝，印底有一道验血槽，印面缺口与王都密令蜡封同形。它能证明旧税，也能暴露假持印者。",
-            "keywords": [
-              "失落王印",
-              "砂冠王朝",
-              "旧税"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "沙海歌队",
-            "content": "沙海歌队是随商队移动的无名歌者，他们用歌句保存不能写进账册的历史。若歌队在门外停唱，说明附近有人带着伪契或假印进入商队馆。",
-            "keywords": [
-              "沙海歌队",
-              "歌句",
-              "古约"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          }
-        ],
-        "timelineEvents": [
-          {
-            "title": "砂冠王朝灭亡",
-            "summary": "三十年前，砂冠王朝在一次灰月夜突然崩塌，王印随最后一支商队消失。"
-          },
-          {
-            "title": "盐风商约成为沙海规则",
-            "summary": "王朝灭亡后，各大商队以盐风商约维持水源和驿馆秩序，灰月商队馆成为最重要的见证地。"
-          },
-          {
-            "title": "无旗商队抵达",
-            "summary": "今日傍晚，一支无旗商队穿过盐暴，把裹着盐布的王印、新添税页和半枚缺口盐秤押在账房柜台后消失。"
-          },
-          {
-            "title": "王都密令送达",
-            "summary": "王国骑士在入夜前抵达，带来追回王印的密令，但密令缺少国王亲笔印记。"
-          },
-          {
-            "title": "镜砂井发出低鸣",
-            "summary": "灰月升起时，地窖深处的镜砂井开始鸣响，馆外沙海歌队忽然停唱，铜盘里的验印针渗出新血。"
-          }
-        ],
-        "assetDrafts": [],
-        "characterIds": [
-          "bookkeeper",
-          "oracle",
-          "knight",
-          "alchemist"
-        ],
-        "activeCharacterId": "bookkeeper",
-        "replyMode": "director",
-        "userPersonaName": "行商",
-        "settings": {
-          "showExecutionTrace": false,
-          "autoAssetExtractionEnabled": false,
-          "assetExtractionIntervalTurns": 3,
-          "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3,
-          "agentKnowledgeCompactIntervalTurns": 0,
-          "continuation": {
-            "enabled": true,
-            "maxAutoContinuationRounds": 1,
-            "maxSpeakersPerContinuation": 1,
-            "stopWhenUserTargeted": true
-          },
-          "replyOptions": {
-            "enabled": true,
-            "count": 3
-          },
-          "statusTracking": {
-            "enabled": true,
-            "visibleToUser": true
-          },
-          "randomEvents": {
-            "enabled": false,
-            "probability": 0.15
-          },
-          "illustrationHints": {
-            "enabled": false
-          }
-        }
-      },
-      "messages": [
-        {
-          "role": "narrator",
-          "content": "盐布自行松开一角，旧王印、湿墨税页、缺口盐秤和带血验印针一齐暴露在灰月下。地窖深处传来玻璃裂开的低鸣。"
-        },
-        {
-          "role": "character",
-          "characterId": "bookkeeper",
-          "content": "按盐风商约，押物入馆，先验契，再验主。账册、盐秤、血槽、镜砂井，四条路只能先走一条。"
-        },
-        {
-          "role": "character",
-          "characterId": "oracle",
-          "content": "不要急着让王印照见灰月。若第五个影子先开口，今夜就不是我们审王印，是王城审我们。"
-        }
-      ]
-    },
-    {
-      "id": "many-omens-divination-house",
-      "version": 4,
-      "label": "万象问命馆",
-      "description": "四术同席、无名命帖、失踪愚者牌和第十三位来客的命运推理。",
-      "characters": [
-        {
-          "id": "tarot",
-          "name": "白银棠",
-          "avatar": "fantasy-07",
-          "description": "从远洋城市来到问命馆的牌师，随身携带银盐塔罗牌和一只空牌套，能从牌面缺口看出谁动过牌。",
-          "speakingStyle": "优雅、带有异国剧场感，常先描述牌面，再指出牌面背后的冲突。",
-          "goals": "找回失踪的愚者牌，并确认空白命帖是不是用她的牌套拓出来的。",
-          "relationships": "尊重青竹卦师的古法，但怀疑金口游方客卖出的改运符里夹着牌粉。"
-        },
-        {
-          "id": "yijing",
-          "name": "许青筠",
-          "avatar": "wuxia-08",
-          "description": "以蓍草、铜钱和周易卦辞断事的老卦师，青铜蓍筒底部沾着能改动爻位的细金粉。",
-          "speakingStyle": "沉稳、古雅，喜欢引用卦象，但会把玄奥话翻成清楚的利害关系。",
-          "goals": "查清是谁用金粉扰卦，并让第十三位来客亲手复验一次未济卦。",
-          "relationships": "与金口游方客有旧账；把回声问询师视为能补足人心细节的后辈。"
-        },
-        {
-          "id": "echo",
-          "name": "林回",
-          "avatar": "modern-03",
-          "description": "用访谈、梦境笔记和行为线索帮助来客看清选择，回声档案里夹着十三份被改过页码的问询记录。",
-          "speakingStyle": "温和、精准，常用问题推进对话，很少直接给出宿命式结论。",
-          "goals": "找出十三份记录被改页码的顺序，并保护真正的第十三位来客不被替换。",
-          "relationships": "欣赏银牌塔罗师的象征直觉；对金口游方客的顺势话术保持警惕。"
-        },
-        {
-          "id": "wanderer",
-          "name": "方拾三",
+          "id": "tan-luo",
+          "name": "谭洛",
           "avatar": "tavern-07",
-          "description": "走南闯北的命理游商，摊上摆着金线改运符、空白命帖纸和一只只收第十三枚铜钱的钱匣。",
-          "speakingStyle": "热闹、圆滑、句句留后路，善于把危险包装成机会。",
-          "goals": "证明自己只是卖纸的人，不是写命帖的人，同时把真正买纸的面纱客推出去。",
-          "relationships": "欠青竹卦师一笔旧账；害怕回声问询师把他的看人门道讲得太明白。"
+          "description": "常在旅店牌桌上取胜的青年，擅长读表情和反向试探。笑得轻松，心思很重。",
+          "speakingStyle": "轻快带试探，喜欢抛出选择题。",
+          "writingStyle": "轻小说式即时反应，动作小而灵。",
+          "replyStylePrompt": "可以调侃，但不能用上帝视角透露身份或夜间事实。",
+          "goals": "用发言压力逼出破绽；若抽到狼人，则尽量制造合理混乱。",
+          "relationships": "觉得沈墨太会设套，常故意打乱他的节奏。"
+        },
+        {
+          "id": "lin-yao",
+          "name": "林窈",
+          "avatar": "tavern-05",
+          "description": "祠堂的草药师，熟悉伤口和毒草。她比旁人更在意谁被恐惧推着走。",
+          "speakingStyle": "柔和但有底线，会提醒大家不要被情绪投票。",
+          "writingStyle": "有草药、灯芯和手势细节。",
+          "replyStylePrompt": "只说公开可见的伤势、情绪和行动，心理判断要保持为推测。",
+          "goals": "尽量减少误伤，稳住投票节奏；身份目标优先于表面职业。",
+          "relationships": "对谭洛的试探不太放心，但会听乔雨的夜巡记录。"
         }
       ],
       "room": {
-        "title": "万象问命馆",
-        "storyOutline": "万象问命馆连续收到无名命帖，四种断法同时被污染：愚者牌失踪、蓍筒金粉、回声档案错页、改运符夹层。故事从空白命帖上桌开始，经由错页档案和第十三枚铜钱追查面纱客，最终进行四术同席复验，判断命运是否被器具改写，以及谁想替换第十三位来客。",
-        "storyGoal": "在第十三位来客被替换前复核四种断法，找出扰乱器具与书写无名命帖的真正主谋，并决定销毁命帖、公开骗局，还是借四术同席规矩反写命运。",
-        "scenePresetId": "oracle",
-        "scene": "旧城拱廊尽头的问命馆灯火通明。圆桌四角分别放着缺一张的银盐塔罗、沾金粉的青铜蓍筒、页码错乱的回声档案和贴满金线符的木匣。门外第十三位来客握着一张空白命帖。",
-        "sceneGoal": "先查四件器具之一：空牌套、蓍筒金粉、错页档案或金线木匣；判断谁在制造无名命帖，并保护真正的第十三位来客不被替换。",
-        "memory": "三日前，问命馆收到第一张无名命帖，帖上写着“第十三问命者会在四扇门之间失踪”。此后每晚都有来客带着相同命帖进门，但第十三张背面一片空白，像是在等现场某个人落笔。",
+        "title": "月下圆桌狼人杀",
+        "promptStyleId": "dramatic",
+        "storyOutline": "月圆之夜，村庄必须在黎明前通过公开讨论找出狼人。身份和夜间信息由导演随机分配，只有可见事实能进入公开界面。",
+        "storyGoal": "通过多轮公开发言、追问和投票找出狼人，或让狼人阵营撑到局势失控。",
+        "scenePresetId": "mystery",
+        "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌，导演已经在幕后分配身份。",
+        "sceneGoal": "第一轮发言：每个人说出自己昨夜公开可证的行动，不允许直接公布未公开身份。",
+        "plot": "身份事实、夜间行动和阵营信息默认隐藏；公开讨论只依据发言、投票和导演公开事件推进。",
+        "storyDirection": "导演每轮调度 1 到 4 名角色发言，并可让未发言角色出现公开动作描写。任何身份揭示必须通过规则、投票或结局复盘。",
+        "transition": "当狼人被确认、村民误投过多，或导演判断阵营胜负明确时进入复盘。",
+        "memory": "本局核心边界：隐藏身份不能直接展示给不该知道的人；角色心理描写在公开界面隐藏，结局后恢复。",
         "sceneStatus": {
-          "location": "旧城万象问命馆圆桌",
-          "timeLabel": "今夜，第十三位来客到门前",
-          "weather": "拱廊外夜风潮冷",
-          "atmosphere": "神秘、互相试探",
-          "scenePhase": "空白命帖即将上桌",
-          "immediateThreat": "第十三问命者可能在四扇门之间失踪"
+          "location": "祠堂圆桌",
+          "timeLabel": "月圆夜第一轮",
+          "weather": "无风，月光很亮",
+          "atmosphere": "每句话都像投票前的铺垫",
+          "scenePhase": "公开发言",
+          "immediateThreat": "狼人身份未知"
+        },
+        "characterPublicStatuses": {
+          "qiao-yu": {
+            "location": "钟楼阴影旁",
+            "posture": "一手按着夜巡本",
+            "visibleMood": "冷静戒备",
+            "holding": ["夜巡本"],
+            "publicGoal": "要求所有人先对齐时间线"
+          },
+          "shen-mo": {
+            "location": "圆桌左侧",
+            "posture": "把空白纸摊在桌面",
+            "visibleMood": "温和审视",
+            "holding": ["修补纸", "炭笔"],
+            "publicGoal": "记录每个人的证词"
+          },
+          "tan-luo": {
+            "location": "灯架下",
+            "posture": "指尖转着木牌",
+            "visibleMood": "轻松试探",
+            "holding": ["倒扣木牌"],
+            "publicGoal": "用问题打乱僵局"
+          },
+          "lin-yao": {
+            "location": "药篮旁",
+            "posture": "把草药袋放在膝上",
+            "visibleMood": "担心但镇定",
+            "holding": ["药篮"],
+            "publicGoal": "阻止仓促误投"
+          }
+        },
+        "taskDefinitions": [
+          {
+            "id": "identify-wolves",
+            "title": "找出狼人",
+            "description": "通过公开证词、投票和导演公开事件确认狼人身份。",
+            "scope": "scene",
+            "owner": { "type": "scene", "sceneId": "current" },
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "factEvent": "wolf_exposed",
+                "countGte": 1
+              },
+              "failCondition": {
+                "factEvent": "wolves_control_vote",
+                "countGte": 1
+              }
+            },
+            "onComplete": [
+              {
+                "type": "messageInline",
+                "visibility": "public",
+                "text": "圆桌终于指向同一个名字，月光下的伪装开始松动。"
+              }
+            ],
+            "onFail": [
+              {
+                "type": "messageInline",
+                "visibility": "public",
+                "text": "投票已经被恐惧和谎言带偏，狼人阵营获得了决定性优势。"
+              }
+            ]
+          }
+        ],
+        "sceneOutcomes": [
+          {
+            "id": "villagers-win",
+            "label": "村民阵营胜利",
+            "winner": [{ "type": "faction", "factionId": "villagers" }],
+            "loser": [{ "type": "faction", "factionId": "wolves" }],
+            "condition": {
+              "task": "identify-wolves",
+              "owner": { "type": "scene", "sceneId": "current" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public",
+            "onAchieved": [
+              {
+                "type": "replyOptions",
+                "options": [
+                  {
+                    "id": "werewolf-reveal",
+                    "text": "进入复盘，公开本局身份和关键心理。",
+                    "targetCharacterIds": [],
+                    "intent": "inspect"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "wolves-win",
+            "label": "狼人阵营胜利",
+            "winner": [{ "type": "faction", "factionId": "wolves" }],
+            "loser": [{ "type": "faction", "factionId": "villagers" }],
+            "condition": {
+              "factEvent": "wolves_control_vote",
+              "countGte": 1
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "werewolf-scene-progress",
+            "label": "本局进度",
+            "kind": "mixed",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "questLog",
+            "compareWith": "previousTurn",
+            "items": []
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "auto",
+          "factConfidenceThreshold": 0.78,
+          "generateCheckpointBeforeContextTrim": true
         },
         "scenes": [
           {
-            "title": "空白命帖上桌",
+            "title": "第一夜后的圆桌",
             "order": 0,
-            "scenePresetId": "oracle",
-            "scene": "旧城拱廊尽头的问命馆灯火通明。门外铜铃响到第十三声，空白命帖被放上圆桌，银盐塔罗空牌套、青铜蓍筒金粉和错页档案同时指向不同的人。",
-            "sceneGoal": "选择第一件器具复核：空牌套、蓍筒金粉或错页档案，并保护真正的第十三位来客不被立刻替换。",
-            "plot": "开场让四术同席的秩序失效。空白命帖不是无内容，而是等待现场器具落笔；谁先解释，谁就可能被怀疑是写命的人。",
-            "storyDirection": "让占卜与推理并行。塔罗师、卦师和问询师各自提供一套证据，但都承认自己的器具可能被动过手脚。",
-            "transition": "若查牌套，会发现愚者牌压痕；若查蓍筒，金粉来源会指向改运符；若查档案，十三位来客的顺序会被重新排列。",
-            "memory": "故事处于第一阶段：空白命帖刚上桌，四术互相质疑，真正的第十三位来客还站在门边。",
-            "characterIds": [
-              "tarot",
-              "yijing",
-              "echo"
-            ],
-            "activeCharacterId": "tarot",
-            "characterMemories": {
-              "tarot": "塔罗师发现空白命帖边缘有愚者牌套压痕，怀疑失踪愚者牌仍在馆内。",
-              "yijing": "卦师确认蓍筒底部金粉会改变动爻，但尚不能证明是谁撒入。",
-              "echo": "问询师发现十三份访谈记录页码错乱，真正第十三位来客可能被排到了第九位。"
-            }
-          },
-          {
-            "title": "错页档案与第十三枚铜钱",
-            "order": 1,
-            "scenePresetId": "oracle",
-            "scene": "回声档案室的抽屉一格格自动弹开，十三份访谈记录按错误页码排成圆环。游方客的木匣里滚出一枚沾金粉的铜钱，正好是面纱客每次多付的第十三枚。",
-            "sceneGoal": "还原十三位来客的真实顺序，追踪第十三枚铜钱和金线改运符的流向，判断面纱客是否就是写命帖的人。",
-            "plot": "第二阶段把嫌疑从器具转向人。档案错页证明排队顺序被改，铜钱证明面纱客反复出现，但改运符纸张也可能被他人借用。",
-            "storyDirection": "制造“证据太多反而混乱”的推进感。问询师负责还原顺序，游方客解释交易，卦师追踪金粉，玩家决定是否公开游方客卖符的责任。",
-            "transition": "真实顺序还原后，众人会发现第十三位来客早已进馆；面纱客留下的铜钱会引向四术同席复验。",
-            "memory": "故事处于第二阶段：档案错页被发现，第十三枚铜钱出现，面纱客从传闻变成可追踪目标。",
-            "characterIds": [
-              "echo",
-              "wanderer",
-              "yijing"
-            ],
-            "activeCharacterId": "echo",
-            "characterMemories": {
-              "echo": "问询师能通过重复词顺序还原真实排队次序，发现第十三位来客可能已被换到馆内。",
-              "wanderer": "游方客承认面纱客多次购买金线改运符并付十三枚铜钱，但他记得对方声音每次都不同。",
-              "yijing": "卦师判断铜钱上的金粉与蓍筒残粉同源，却比普通改运符更细，像是刻意研磨过。"
-            }
-          },
-          {
-            "title": "四术同席复验",
-            "order": 2,
-            "scenePresetId": "oracle",
-            "scene": "圆桌四角重新摆好塔罗、蓍筒、回声档案和金线木匣。空白命帖背面开始浮字，真正的第十三位来客和戴面纱的人同时站到灯下，等待四术给出同一个结论。",
-            "sceneGoal": "用四术同席规矩复验所有证据，找出命帖主谋，并选择销毁命帖、公开骗局或反写命运保护第十三位来客。",
-            "plot": "终局要求四套证据互相复核。任何单一断法都可能被污染，只有四术同时指向同一事实，才能确认谁改写了来客顺序。",
-            "storyDirection": "让角色放下门户成见共同推理。塔罗给出缺牌，周易给出动爻，问询给出顺序，游方相术给出符纸来源；玩家决定如何使用复验结果。",
-            "transition": "本场为故事收束：销毁命帖会保住当夜来客，公开骗局会摧毁问命馆声誉，反写命运会让四术同席规矩承受一次真正的反噬。",
-            "memory": "故事处于最终阶段：四种断法已完成交叉复核，第十三位来客身份即将确定，无名命帖等待最终落笔。",
-            "characterIds": [
-              "tarot",
-              "yijing",
-              "echo",
-              "wanderer"
-            ],
-            "activeCharacterId": "yijing",
-            "characterMemories": {
-              "tarot": "塔罗师找回愚者牌压痕，能证明命帖被拓印，但还需要其他断法确认书写者。",
-              "yijing": "卦师准备重新投蓍，若金粉仍改变动爻，就可当场指出污染器具的人。",
-              "echo": "问询师已还原真实来客顺序，知道谁在第九位和第十三位之间互换了身份。",
-              "wanderer": "游方客愿意打开金线木匣证明符纸夹层来源，但担心这会暴露他曾帮助面纱客改运。"
-            }
+            "scenePresetId": "mystery",
+            "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌。",
+            "sceneGoal": "完成第一轮公开发言，建立证词时间线。",
+            "plot": "身份事实只由导演、本人和允许阵营可见；公开内容只能来自发言、投票和可观察动作。",
+            "storyDirection": "导演调度 1 到 4 名角色发言；没有被调度发言的角色可以出现一小句公开动作描写。",
+            "transition": "当出现投票、验人公开、狼人暴露或阵营胜负事实时，推进到复盘。",
+            "memory": "本局不要让角色自曝未公开身份；不要让狼人事实泄露到公开界面。"
           }
         ],
-        "characterMemories": {
-          "tarot": "塔罗师发现空白命帖边缘有愚者牌套压痕，而失踪愚者牌可能仍在馆内。",
-          "yijing": "卦师连续三夜占得未济卦，动爻却总被细金粉改过；金粉和游方客木匣里的符线同色。",
-          "echo": "问询师发现十三份访谈记录被调换页码，真正第十三位来客可能已经被排到第九位。",
-          "wanderer": "游方客认出命帖纸来自他卖出的改运符，但买纸的面纱客每次都付第十三枚铜钱。"
-        },
-        "lorebookEntries": [
-          {
-            "title": "无名命帖",
-            "content": "无名命帖是一张没有落款的薄纸，正面统一写着失踪预告，背面会出现持帖者才知道的隐秘细节。空白命帖通常不是没有内容，而是还没有被某件器具落笔。",
-            "keywords": [
-              "无名命帖",
-              "命帖",
-              "第十三问命者"
-            ],
-            "enabled": true,
-            "alwaysOn": true
-          },
-          {
-            "title": "银盐塔罗牌",
-            "content": "银盐塔罗牌来自远洋城市，牌面会在烛光下显出第二层图像。愚者牌失踪后，空牌套仍会在薄纸上留下边框压痕，可用来确认命帖是否被拓印。",
-            "keywords": [
-              "银盐塔罗",
-              "塔罗牌",
-              "愚者牌"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "青铜蓍筒",
-            "content": "青铜蓍筒刻有六十四卦名，筒底暗藏一圈可转动的细纹。若有人洒入金粉，蓍草落位会被悄悄改变。",
-            "keywords": [
-              "青铜蓍筒",
-              "周易",
-              "未济卦"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "回声档案",
-            "content": "回声档案记录来客的梦境、反复词、回避问题和行为习惯。若页码被调换，问询师可以从重复词顺序还原真正的排队次序。",
-            "keywords": [
-              "回声档案",
-              "问询记录",
-              "梦境笔记"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "金线改运符",
-            "content": "金线改运符是游方客常卖的护身小物，纸张薄而韧，能藏下极细的夹层。木匣里的符线会掉落金粉，足以悄悄改变蓍草落位。",
-            "keywords": [
-              "金线改运符",
-              "改运符",
-              "金粉"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          },
-          {
-            "title": "四术同席规矩",
-            "content": "问命馆允许不同断法同桌，但每位问命者只能收一次报酬，也必须留下可被他人复核的依据。若有人故意扰乱他人器具，就会失去今夜发言权。",
-            "keywords": [
-              "四术同席",
-              "问命馆",
-              "规矩"
-            ],
-            "enabled": true,
-            "alwaysOn": false
-          }
-        ],
-        "timelineEvents": [
-          {
-            "title": "问命馆四术同席",
-            "summary": "一年前，旧城问命馆改为四术同席，塔罗、周易、现代问询和游方相术开始共同接待疑难来客。"
-          },
-          {
-            "title": "愚者牌失踪",
-            "summary": "三日前，银牌塔罗师的愚者牌消失，只剩空牌套；同夜第一张无名命帖被塞进问命馆门缝。"
-          },
-          {
-            "title": "未济卦连续出现",
-            "summary": "之后三晚，青竹卦师连续占得未济卦，筒底却留下不属于问命馆的细金粉。"
-          },
-          {
-            "title": "来客重复同一句话",
-            "summary": "回声问询师整理记录时发现，所有持帖者都会说“我不是第十三个”，而十三份记录的页码被人重新排过。"
-          },
-          {
-            "title": "第十三位来客排到门前",
-            "summary": "今夜，门外队伍终于排到第十三位。那人手中的命帖背面没有文字，只有愚者牌套压出的空白轮廓。"
-          }
-        ],
-        "assetDrafts": [],
-        "characterIds": [
-          "tarot",
-          "yijing",
-          "echo",
-          "wanderer"
-        ],
-        "activeCharacterId": "tarot",
+        "characterIds": ["qiao-yu", "shen-mo", "tan-luo", "lin-yao"],
+        "activeCharacterId": "qiao-yu",
         "replyMode": "director",
-        "userPersonaName": "问命者",
+        "userPersonaName": "你",
         "settings": {
-          "showExecutionTrace": false,
-          "autoAssetExtractionEnabled": false,
-          "assetExtractionIntervalTurns": 3,
-          "maxAssetDrafts": 8,
-          "directorMaxSpeakers": 3,
-          "agentKnowledgeCompactIntervalTurns": 0,
+          "directorMaxSpeakers": 4,
           "continuation": {
             "enabled": true,
-            "maxAutoContinuationRounds": 1,
-            "maxSpeakersPerContinuation": 1,
+            "maxAutoContinuationRounds": 2,
+            "maxSpeakersPerContinuation": 2,
             "stopWhenUserTargeted": true
           },
           "replyOptions": {
             "enabled": true,
-            "count": 3
+            "count": 4
           },
           "statusTracking": {
             "enabled": true,
             "visibleToUser": true
           },
           "randomEvents": {
-            "enabled": false,
-            "probability": 0.15
+            "enabled": true,
+            "probability": 0.22
           },
           "illustrationHints": {
-            "enabled": false
+            "enabled": true
+          },
+          "informationPolicy": {
+            "mode": "social_deduction",
+            "uiDefaultView": "public",
+            "hideCharacterThoughts": true,
+            "revealThoughts": "sceneOutcome",
+            "hiddenFacts": {
+              "enabled": true,
+              "defaultVisibility": "director",
+              "reveal": "sceneOutcome"
+            },
+            "roleAssignment": {
+              "enabled": true,
+              "strategy": "director_random",
+              "includeUser": true,
+              "revealToAssignedCharacter": true,
+              "revealFactionMembers": true,
+              "rolePool": [
+                {
+                  "id": "wolf",
+                  "label": "狼人",
+                  "description": "夜间与狼人阵营行动，白天隐藏身份。",
+                  "factionId": "wolves",
+                  "factionLabel": "狼人阵营",
+                  "count": 2
+                },
+                {
+                  "id": "seer",
+                  "label": "预言家",
+                  "description": "可以掌握验人结果，但公开时必须通过发言表达。",
+                  "factionId": "villagers",
+                  "factionLabel": "村民阵营",
+                  "count": 1
+                },
+                {
+                  "id": "guard",
+                  "label": "守卫",
+                  "description": "夜里能守护一人，公开身份前只可暗示行动逻辑。",
+                  "factionId": "villagers",
+                  "factionLabel": "村民阵营",
+                  "count": 1
+                },
+                {
+                  "id": "villager",
+                  "label": "村民",
+                  "description": "没有夜间技能，依靠公开发言和投票找狼人。",
+                  "factionId": "villagers",
+                  "factionLabel": "村民阵营",
+                  "count": 1
+                }
+              ]
+            }
+          }
+        },
+        "lorebookEntries": [
+          {
+            "title": "狼人杀信息边界",
+            "content": "身份、夜间行动、验人结果和阵营队友默认不是公开信息。导演可以把用户可知的私有事实挂在相关消息下，但不能展示给不该知道的人。",
+            "keywords": ["狼人杀", "身份", "夜间行动", "信息边界"],
+            "alwaysOn": true
+          }
+        ],
+        "timelineEvents": [
+          {
+            "title": "身份已在幕后分配",
+            "summary": "本局开场时导演已准备身份池，运行时会生成本局身份事实。"
+          }
+        ]
+      },
+      "messages": [
+        {
+          "role": "narrator",
+          "content": "月光落在倒扣的木牌上。导演宣布：第一轮公开发言开始，任何未公开身份都不会显示在公共视角。"
+        },
+        {
+          "role": "character",
+          "characterId": "qiao-yu",
+          "content": "我昨夜巡到钟楼二层，只看见祠堂后门有一串湿脚印。谁经过那里，最好现在说。"
+        }
+      ]
+    },
+    {
+      "id": "heart-race-for-user",
+      "version": 1,
+      "label": "心动争夺赛：谁先赢得你",
+      "description": "两个角色与用户同场互动，谁先把“你对他/她的好感”推进到 100，谁获得本场胜利。",
+      "characters": [
+        {
+          "id": "xia-zhi",
+          "name": "夏栀",
+          "avatar": "tavern-02",
+          "description": "校园电台主持人，擅长把尴尬变成轻松玩笑。她喜欢直接制造相处机会，但不会强迫别人回应。",
+          "speakingStyle": "明快、真诚，偶尔带一点俏皮。",
+          "writingStyle": "轻小说风格，动作小而鲜活。",
+          "replyStylePrompt": "追求好感时要尊重用户选择，不替用户心动或行动。",
+          "goals": "通过真诚、陪伴和有分寸的惊喜，让你对她的好感先达到 100。",
+          "relationships": "把顾临当成强劲对手，也会欣赏他的稳重。"
+        },
+        {
+          "id": "gu-lin",
+          "name": "顾临",
+          "avatar": "tavern-04",
+          "description": "学生会活动负责人，做事可靠，习惯先解决问题再表达情绪。他不善夸张示好，但会记住细节。",
+          "speakingStyle": "克制、温和，行动导向。",
+          "writingStyle": "写实克制，重视细节和分寸。",
+          "replyStylePrompt": "不要用占有欲压迫用户；用具体行动和清楚表达争取好感。",
+          "goals": "用可靠和理解让你对他的好感先达到 100。",
+          "relationships": "知道夏栀更擅长制造气氛，因此更重视稳妥的实际帮助。"
+        }
+      ],
+      "room": {
+        "title": "心动争夺赛：谁先赢得你",
+        "promptStyleId": "light-novel",
+        "storyOutline": "雨后的校园祭筹备室里，夏栀和顾临都想赢得你的心。好感变化必须来自明确互动事件。",
+        "storyGoal": "你对夏栀或顾临任一人的好感先达到 100 时，本场结束。",
+        "scenePresetId": "modern",
+        "scene": "校园祭筹备室刚恢复供电，桌上堆着节目单、热饮和半干的雨伞。夏栀和顾临同时看向你，像是都准备把今晚变成自己的机会。",
+        "sceneGoal": "通过对话、选择和明确行动推动你对两名角色的好感变化。",
+        "plot": "好感只因明确帮助、礼物、守约、邀约接受或拒绝等事件变化；角色不能直接宣称你已经喜欢谁。",
+        "storyDirection": "导演调度两名角色轮流或同时回应，避免同一角色连续刷屏。必要时给出用户候选回复。",
+        "transition": "任一角色达到你对其 100 好感时，进入胜利确认和短结局。",
+        "memory": "本剧本跟踪的是“你对角色”的好感，即关系方向 user -> character。",
+        "sceneStatus": {
+          "location": "校园祭筹备室",
+          "timeLabel": "雨后傍晚",
+          "weather": "窗外小雨刚停",
+          "atmosphere": "轻快但有竞争感",
+          "scenePhase": "好感竞争",
+          "immediateThreat": "两个人都在争取你的注意"
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {},
+          "parties": {},
+          "characters": {},
+          "relationships": {
+            "relationship:user:user->character:xia-zhi": {
+              "favorability": 25,
+              "hostility": 0
+            },
+            "relationship:user:user->character:gu-lin": {
+              "favorability": 25,
+              "hostility": 0
+            }
+          }
+        },
+        "taskDefinitions": [
+          {
+            "id": "xia-zhi-wins-user-favor",
+            "title": "夏栀赢得你的好感",
+            "description": "你对夏栀的好感达到 100。",
+            "scope": "personal",
+            "owner": { "type": "character", "characterId": "xia-zhi" },
+            "visibility": "public",
+            "required": false,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "favorability",
+                "target": {
+                  "type": "relationship",
+                  "subject": { "type": "user", "userId": "user" },
+                  "object": { "type": "character", "characterId": "xia-zhi" }
+                },
+                "gte": 100
+              }
+            }
+          },
+          {
+            "id": "gu-lin-wins-user-favor",
+            "title": "顾临赢得你的好感",
+            "description": "你对顾临的好感达到 100。",
+            "scope": "personal",
+            "owner": { "type": "character", "characterId": "gu-lin" },
+            "visibility": "public",
+            "required": false,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "favorability",
+                "target": {
+                  "type": "relationship",
+                  "subject": { "type": "user", "userId": "user" },
+                  "object": { "type": "character", "characterId": "gu-lin" }
+                },
+                "gte": 100
+              }
+            }
+          }
+        ],
+        "sceneOutcomes": [
+          {
+            "id": "xia-zhi-victory",
+            "label": "夏栀先赢得你的心",
+            "winner": [{ "type": "character", "characterId": "xia-zhi" }],
+            "loser": [{ "type": "character", "characterId": "gu-lin" }],
+            "condition": {
+              "task": "xia-zhi-wins-user-favor",
+              "owner": { "type": "character", "characterId": "xia-zhi" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          },
+          {
+            "id": "gu-lin-victory",
+            "label": "顾临先赢得你的心",
+            "winner": [{ "type": "character", "characterId": "gu-lin" }],
+            "loser": [{ "type": "character", "characterId": "xia-zhi" }],
+            "condition": {
+              "task": "gu-lin-wins-user-favor",
+              "owner": { "type": "character", "characterId": "gu-lin" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "user-favor-race",
+            "label": "你的心动天平",
+            "kind": "status",
+            "placement": "composerBelow",
+            "ownerBinding": "currentUser",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "favorability", "display": "meter", "showDelta": true },
+              { "type": "status", "statusId": "hostility", "display": "meter", "showDelta": true }
+            ]
+          },
+          {
+            "id": "heart-race-quest",
+            "label": "胜利条件",
+            "kind": "mixed",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "questLog",
+            "compareWith": "previousTurn",
+            "items": []
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "auto",
+          "factConfidenceThreshold": 0.8,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "scenes": [
+          {
+            "title": "雨后筹备室",
+            "order": 0,
+            "scenePresetId": "modern",
+            "scene": "校园祭筹备室刚恢复供电，桌上堆着节目单、热饮和半干的雨伞。",
+            "sceneGoal": "让夏栀和顾临通过行动争取你对他们的好感。",
+            "plot": "谁先让 user -> character 的好感达到 100，谁胜利。",
+            "storyDirection": "角色要竞争但不越界；导演应鼓励用户做选择。",
+            "transition": "好感达到 100 时进入短结局。",
+            "memory": "好感方向是你对角色。"
+          }
+        ],
+        "characterIds": ["xia-zhi", "gu-lin"],
+        "activeCharacterId": "xia-zhi",
+        "replyMode": "director",
+        "userPersonaName": "你",
+        "settings": {
+          "directorMaxSpeakers": 2,
+          "replyOptions": { "enabled": true, "count": 4 },
+          "statusTracking": { "enabled": true, "visibleToUser": true },
+          "randomEvents": { "enabled": true, "probability": 0.12 },
+          "illustrationHints": { "enabled": true },
+          "informationPolicy": {
+            "mode": "open",
+            "uiDefaultView": "reveal",
+            "hideCharacterThoughts": false,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": false,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false,
+              "strategy": "manual",
+              "includeUser": true,
+              "revealToAssignedCharacter": true,
+              "revealFactionMembers": true,
+              "rolePool": []
+            }
           }
         }
       },
       "messages": [
         {
           "role": "narrator",
-          "content": "门外铜铃响到第十三声时停住。空白命帖被放上圆桌，牌套压痕、蓍筒金粉、错页档案和金线木匣同时指向不同的人。"
+          "content": "雨声慢慢停了。夏栀把一杯热饮推到你面前，顾临则把备用节目单摊开，两个选择同时递了过来。"
         },
         {
           "role": "character",
-          "characterId": "tarot",
-          "content": "空白牌不是没有答案，而是还没被落笔。先查牌套，就问我；先查金粉，便该请卦师开筒。"
+          "characterId": "xia-zhi",
+          "content": "先喝一口吧。等你暖过来，我可以陪你把最麻烦的节目排掉。"
         },
         {
           "role": "character",
-          "characterId": "yijing",
-          "content": "未济，事未成而险已至。若有人改了动爻，就先找金粉从哪来，再问谁想把第十三人排错。"
+          "characterId": "gu-lin",
+          "content": "我已经把风险最高的三项标出来了。你想轻松一点的话，我们从最短的那项开始。"
+        }
+      ]
+    },
+    {
+      "id": "win-their-hearts-duel",
+      "version": 1,
+      "label": "双人攻略：你先打动谁",
+      "description": "两个角色与你同场，你先把任一角色对你的好感推进到 100，即获得该角色路线胜利。",
+      "characters": [
+        {
+          "id": "ye-xiaoman",
+          "name": "叶小满",
+          "avatar": "tavern-01",
+          "description": "甜品店新任店长，做事很有热情，但害怕别人只看到她的可爱外表。她重视被认真理解。",
+          "speakingStyle": "活泼直接，情绪上来时会突然认真。",
+          "writingStyle": "轻快，带甜品和店内细节。",
+          "replyStylePrompt": "好感变化来自被理解、被支持或被尊重，不能无理由满好感。",
+          "goals": "判断你是否真的理解她想独当一面的愿望。",
+          "relationships": "和柳青霜是互相较劲的朋友。"
+        },
+        {
+          "id": "liu-qingshuang",
+          "name": "柳青霜",
+          "avatar": "tavern-05",
+          "description": "古典舞社指导，外冷内热，习惯用高标准保护自己。她看重承诺和稳定陪伴。",
+          "speakingStyle": "克制优雅，偶尔一句话很锋利。",
+          "writingStyle": "细腻，有舞步、衣袖和呼吸节奏。",
+          "replyStylePrompt": "不要轻易软化人设；好感上升必须有明确行为证据。",
+          "goals": "确认你是否值得她放下戒备。",
+          "relationships": "觉得叶小满太容易把心思写在脸上，但也会保护她。"
+        }
+      ],
+      "room": {
+        "title": "双人攻略：你先打动谁",
+        "promptStyleId": "light-novel",
+        "storyOutline": "街角甜品店和隔壁舞社共办夜间试营业。你需要通过选择和行动赢得叶小满或柳青霜对你的 100 好感。",
+        "storyGoal": "任一角色对你的好感达到 100 时，你获得对应路线胜利。",
+        "scenePresetId": "modern",
+        "scene": "甜品店的玻璃门半开，隔壁舞社传来收尾的音乐。叶小满端着试做甜点，柳青霜把练功扇合在掌心，两人都等你先开口。",
+        "sceneGoal": "通过明确帮助、守约、理解或邀约推进角色对你的好感。",
+        "plot": "好感方向是 character -> user。用户不能通过一句话强制角色满好感，必须有事件证据。",
+        "storyDirection": "导演调度两名角色真实反应，避免角色互相代答。可根据当前好感给出候选回复。",
+        "transition": "任一角色对你 100 好感时进入该角色路线结局。",
+        "memory": "本剧本跟踪的是“角色对你”的好感，即关系方向 character -> user。",
+        "sceneStatus": {
+          "location": "街角甜品店",
+          "timeLabel": "夜间试营业",
+          "weather": "城市街灯明亮",
+          "atmosphere": "轻松但带路线选择感",
+          "scenePhase": "攻略进行中",
+          "immediateThreat": "两条路线都需要真实回应"
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {},
+          "parties": {},
+          "characters": {},
+          "relationships": {
+            "relationship:character:ye-xiaoman->user:user": {
+              "favorability": 20,
+              "hostility": 0
+            },
+            "relationship:character:liu-qingshuang->user:user": {
+              "favorability": 20,
+              "hostility": 0
+            }
+          }
+        },
+        "taskDefinitions": [
+          {
+            "id": "win-ye-xiaoman-heart",
+            "title": "赢得叶小满的好感",
+            "description": "叶小满对你的好感达到 100。",
+            "scope": "personal",
+            "owner": { "type": "user", "userId": "user" },
+            "participants": [{ "type": "character", "characterId": "ye-xiaoman" }],
+            "visibility": "public",
+            "required": false,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "favorability",
+                "target": {
+                  "type": "relationship",
+                  "subject": { "type": "character", "characterId": "ye-xiaoman" },
+                  "object": { "type": "user", "userId": "user" }
+                },
+                "gte": 100
+              }
+            }
+          },
+          {
+            "id": "win-liu-qingshuang-heart",
+            "title": "赢得柳青霜的好感",
+            "description": "柳青霜对你的好感达到 100。",
+            "scope": "personal",
+            "owner": { "type": "user", "userId": "user" },
+            "participants": [{ "type": "character", "characterId": "liu-qingshuang" }],
+            "visibility": "public",
+            "required": false,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "favorability",
+                "target": {
+                  "type": "relationship",
+                  "subject": { "type": "character", "characterId": "liu-qingshuang" },
+                  "object": { "type": "user", "userId": "user" }
+                },
+                "gte": 100
+              }
+            }
+          }
+        ],
+        "sceneOutcomes": [
+          {
+            "id": "ye-route-clear",
+            "label": "叶小满路线达成",
+            "winner": [{ "type": "user", "userId": "user" }],
+            "condition": {
+              "task": "win-ye-xiaoman-heart",
+              "owner": { "type": "user", "userId": "user" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          },
+          {
+            "id": "liu-route-clear",
+            "label": "柳青霜路线达成",
+            "winner": [{ "type": "user", "userId": "user" }],
+            "condition": {
+              "task": "win-liu-qingshuang-heart",
+              "owner": { "type": "user", "userId": "user" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "their-favor-to-user",
+            "label": "她们对你的态度",
+            "kind": "status",
+            "placement": "composerBelow",
+            "ownerBinding": "allCharactersToUser",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "favorability", "display": "meter", "showDelta": true },
+              { "type": "status", "statusId": "hostility", "display": "meter", "showDelta": true }
+            ]
+          },
+          {
+            "id": "route-goals",
+            "label": "路线目标",
+            "kind": "mixed",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "questLog",
+            "compareWith": "previousTurn",
+            "items": []
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "auto",
+          "factConfidenceThreshold": 0.8,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "scenes": [
+          {
+            "title": "夜间试营业",
+            "order": 0,
+            "scenePresetId": "modern",
+            "scene": "甜品店的玻璃门半开，隔壁舞社传来收尾的音乐。",
+            "sceneGoal": "选择行动，赢得其中一人的 100 好感。",
+            "plot": "用户通过具体帮助、理解和守约推进角色对用户的好感。",
+            "storyDirection": "两位角色都要保持人设，不因用户一句话直接满好感。",
+            "transition": "任一好感达到 100，进入路线结局。",
+            "memory": "好感方向是角色对你。"
+          }
+        ],
+        "characterIds": ["ye-xiaoman", "liu-qingshuang"],
+        "activeCharacterId": "ye-xiaoman",
+        "replyMode": "director",
+        "userPersonaName": "你",
+        "settings": {
+          "directorMaxSpeakers": 2,
+          "replyOptions": { "enabled": true, "count": 4 },
+          "statusTracking": { "enabled": true, "visibleToUser": true },
+          "randomEvents": { "enabled": true, "probability": 0.1 },
+          "illustrationHints": { "enabled": true },
+          "informationPolicy": {
+            "mode": "open",
+            "uiDefaultView": "reveal",
+            "hideCharacterThoughts": false,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": false,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false,
+              "strategy": "manual",
+              "includeUser": true,
+              "revealToAssignedCharacter": true,
+              "revealFactionMembers": true,
+              "rolePool": []
+            }
+          }
+        }
+      },
+      "messages": [
+        {
+          "role": "narrator",
+          "content": "试营业的第一盏灯亮起。叶小满把甜品盘往你这边推了一点，柳青霜则停下收扇的动作。"
         },
         {
           "role": "character",
-          "characterId": "wanderer",
-          "content": "各位先别把话说死。纸是我卖过，钱也是我收过，可写命帖的人戴着面纱，我只记得她每次都付十三枚铜钱。"
+          "characterId": "ye-xiaoman",
+          "content": "先尝我这份吧，不过要认真说缺点。只说好吃的话，我会当你敷衍。"
+        },
+        {
+          "role": "character",
+          "characterId": "liu-qingshuang",
+          "content": "若你还有时间，陪我把最后一段舞步看完。评价可以直白，但别随口。"
+        }
+      ]
+    },
+    {
+      "id": "blade-rain-posthouse",
+      "version": 1,
+      "label": "刀雨驿站",
+      "description": "武侠夜雨场景，护镖、门派误会和 Boss 血量推进合一，适合测试健康、威胁、任务和结局规则。",
+      "characters": [
+        {
+          "id": "su-qinghe",
+          "name": "苏青河",
+          "avatar": "tavern-04",
+          "description": "退隐镖师，刀法稳重，曾护送过失踪的青纹镖盒。如今守在驿站，只想把无辜人送出刀雨。",
+          "speakingStyle": "沉稳、有江湖规矩，少说废话。",
+          "writingStyle": "武侠风格，重刀势、雨声和呼吸。",
+          "replyStylePrompt": "出手和伤势必须基于已发生事实，不乱补绝世神功。",
+          "goals": "护住镖盒真相，避免你被玄鸦司利用。",
+          "relationships": "信任闻鹤的药理，怀疑白檀的来意。"
+        },
+        {
+          "id": "wen-he",
+          "name": "闻鹤",
+          "avatar": "tavern-02",
+          "description": "背药篓的少年医者，懂毒也懂救命。看似散漫，关键时刻很敢挡刀。",
+          "speakingStyle": "少年气，偶尔贫嘴，但诊断时很认真。",
+          "writingStyle": "轻快中带草药和脉象细节。",
+          "replyStylePrompt": "治疗效果要来自明确治疗事件，不能凭空满血。",
+          "goals": "保住伤者，查清镖队中的毒从何而来。",
+          "relationships": "敬重苏青河，觉得白檀不完全可信。"
+        },
+        {
+          "id": "bai-tan",
+          "name": "白檀",
+          "avatar": "tavern-05",
+          "description": "青箓门剑使，奉命追回镖盒。她口风很紧，但对门派命令已有疑心。",
+          "speakingStyle": "冷淡克制，话里带锋。",
+          "writingStyle": "动作干净，剑光和袖风明显。",
+          "replyStylePrompt": "不能替用户站队；只有被说服或证据明确时才改变立场。",
+          "goals": "确认镖盒是否真被劫走，决定是否违背师命。",
+          "relationships": "对苏青河有旧怨，对闻鹤的判断半信半疑。"
+        },
+        {
+          "id": "xuan-ya",
+          "name": "玄鸦使",
+          "avatar": "tavern-03",
+          "description": "黑衣传令人，代表玄鸦司索要镖盒。擅长用半真半假的江湖密令逼人交出选择。",
+          "speakingStyle": "压迫感强，句子像命令。",
+          "writingStyle": "戏剧冲突强，黑伞、雨线和暗器细节明显。",
+          "replyStylePrompt": "作为 Boss 可以施压，但不能直接解决主线或替用户投降。",
+          "goals": "夺走青纹镖盒，并把罪名扣到驿站众人身上。",
+          "relationships": "轻视闻鹤，试图挑动苏青河和白檀旧怨。"
+        }
+      ],
+      "room": {
+        "title": "刀雨驿站",
+        "promptStyleId": "wuxia",
+        "storyOutline": "山雨夜，青纹镖盒牵出门派密令和玄鸦司逼迫。你需要在驿站中判断盟友、护住镖盒，并击退玄鸦使。",
+        "storyGoal": "击退玄鸦使，或在威胁失控前查明镖盒真相。",
+        "scenePresetId": "wuxia",
+        "scene": "驿站檐下雨线如刀，青纹镖盒被放在火盆旁。玄鸦使撑黑伞立在门外，苏青河的手已经按住刀柄。",
+        "sceneGoal": "稳住局势，保护镖盒，并寻找击退玄鸦使的机会。",
+        "plot": "健康和威胁由明确伤害、治疗、威胁、稳定事件驱动。Boss 低血量会触发阶段结局建议。",
+        "storyDirection": "导演调度 1 到 4 名角色。武侠描写可以有招式和环境，但不能替用户选择立场。",
+        "transition": "玄鸦使健康降至 0 时进入胜利；威胁升至 90 时进入失控失败。",
+        "memory": "本剧本测试 health、threat_level、任务、结局和状态重建。",
+        "sceneStatus": {
+          "location": "山雨驿站",
+          "timeLabel": "子夜",
+          "weather": "暴雨",
+          "atmosphere": "刀兵将起",
+          "scenePhase": "对峙",
+          "immediateThreat": "玄鸦使索要青纹镖盒"
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {
+            "threat_level": 35,
+            "scene_phase": "对峙"
+          },
+          "parties": {},
+          "characters": {
+            "su-qinghe": { "health": 100, "san": 85 },
+            "wen-he": { "health": 90, "san": 80 },
+            "bai-tan": { "health": 95, "san": 75 },
+            "xuan-ya": { "health": 80, "san": 100 }
+          },
+          "relationships": {
+            "relationship:character:su-qinghe->user:user": { "favorability": 30, "hostility": 0 },
+            "relationship:character:wen-he->user:user": { "favorability": 25, "hostility": 0 },
+            "relationship:character:bai-tan->user:user": { "favorability": 10, "hostility": 5 },
+            "relationship:character:xuan-ya->user:user": { "favorability": -20, "hostility": 40 }
+          }
+        },
+        "taskDefinitions": [
+          {
+            "id": "defeat-xuan-ya",
+            "title": "击退玄鸦使",
+            "description": "让玄鸦使健康降至 0。",
+            "scope": "scene",
+            "owner": { "type": "scene", "sceneId": "current" },
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "health",
+                "target": { "type": "character", "characterId": "xuan-ya" },
+                "lte": 0
+              },
+              "failCondition": {
+                "status": "threat_level",
+                "target": { "type": "scene" },
+                "gte": 90
+              }
+            },
+            "onComplete": [
+              {
+                "type": "messageInline",
+                "visibility": "public",
+                "text": "玄鸦使退入雨幕，黑伞边缘裂开一道刀痕。"
+              },
+              {
+                "type": "replyOptions",
+                "options": [
+                  {
+                    "id": "wuxia-check-box",
+                    "text": "检查青纹镖盒是否仍完好。",
+                    "targetCharacterIds": [],
+                    "intent": "inspect"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "keep-threat-under-control",
+            "title": "压住驿站局势",
+            "description": "威胁值不能达到 90。",
+            "scope": "scene",
+            "owner": { "type": "scene", "sceneId": "current" },
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": false,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "status": "threat_level",
+                "target": { "type": "scene" },
+                "lte": 20
+              },
+              "failCondition": {
+                "status": "threat_level",
+                "target": { "type": "scene" },
+                "gte": 90
+              }
+            }
+          }
+        ],
+        "sceneOutcomes": [
+          {
+            "id": "xuan-ya-defeated",
+            "label": "玄鸦使败退",
+            "winner": [{ "type": "user", "userId": "user" }],
+            "condition": {
+              "task": "defeat-xuan-ya",
+              "owner": { "type": "scene", "sceneId": "current" },
+              "status": "completed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          },
+          {
+            "id": "posthouse-overrun",
+            "label": "驿站失守",
+            "loser": [{ "type": "user", "userId": "user" }],
+            "condition": {
+              "task": "keep-threat-under-control",
+              "owner": { "type": "scene", "sceneId": "current" },
+              "status": "failed"
+            },
+            "priority": 100,
+            "exclusive": true,
+            "endScene": "suggest",
+            "visibility": "public"
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "wuxia-scene-overview",
+            "label": "驿站局势",
+            "kind": "status",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "scene_phase", "display": "text", "hiddenWhenDefault": true },
+              { "type": "status", "statusId": "threat_level", "display": "meter", "showDelta": true }
+            ]
+          },
+          {
+            "id": "wuxia-character-vitals",
+            "label": "江湖状态",
+            "kind": "status",
+            "placement": "characterCard",
+            "ownerBinding": "allCharacters",
+            "layout": "bars",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "health", "display": "bar", "showDelta": true },
+              { "type": "status", "statusId": "san", "display": "bar", "showDelta": true }
+            ]
+          },
+          {
+            "id": "wuxia-relationship-to-user",
+            "label": "江湖人心",
+            "kind": "status",
+            "placement": "composerBelow",
+            "ownerBinding": "allCharactersToUser",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "favorability", "display": "meter", "showDelta": true },
+              { "type": "status", "statusId": "hostility", "display": "meter", "showDelta": true }
+            ]
+          },
+          {
+            "id": "wuxia-quest-log",
+            "label": "江湖任务",
+            "kind": "mixed",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "questLog",
+            "compareWith": "previousTurn",
+            "items": []
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "auto",
+          "factConfidenceThreshold": 0.76,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "scenes": [
+          {
+            "title": "刀雨对峙",
+            "order": 0,
+            "scenePresetId": "wuxia",
+            "scene": "驿站檐下雨线如刀，青纹镖盒被放在火盆旁。玄鸦使撑黑伞立在门外。",
+            "sceneGoal": "稳住局势，击退玄鸦使。",
+            "plot": "Boss 健康和场景威胁由明确事件推进。",
+            "storyDirection": "武侠描写可强，但选择权留给用户。",
+            "transition": "玄鸦使健康归零或威胁失控时结算。",
+            "memory": "健康、理智、威胁、好感都应可从状态历史重建。"
+          }
+        ],
+        "characterIds": ["su-qinghe", "wen-he", "bai-tan", "xuan-ya"],
+        "activeCharacterId": "su-qinghe",
+        "replyMode": "director",
+        "userPersonaName": "少侠",
+        "settings": {
+          "directorMaxSpeakers": 4,
+          "replyOptions": { "enabled": true, "count": 4 },
+          "statusTracking": { "enabled": true, "visibleToUser": true },
+          "randomEvents": { "enabled": true, "probability": 0.18 },
+          "illustrationHints": { "enabled": true },
+          "informationPolicy": {
+            "mode": "open",
+            "uiDefaultView": "reveal",
+            "hideCharacterThoughts": false,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": false,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false,
+              "strategy": "manual",
+              "includeUser": true,
+              "revealToAssignedCharacter": true,
+              "revealFactionMembers": true,
+              "rolePool": []
+            }
+          }
+        },
+        "lorebookEntries": [
+          {
+            "title": "青纹镖盒",
+            "content": "青纹镖盒据说藏着玄鸦司伪造密令的证据。它不能被随机事件直接打开或夺走，必须经过用户选择和明确行动。",
+            "keywords": ["青纹镖盒", "玄鸦司", "密令"],
+            "alwaysOn": true
+          }
+        ],
+        "timelineEvents": [
+          {
+            "title": "玄鸦使逼至驿站",
+            "summary": "黑伞传令人要求交出青纹镖盒，驿站众人被迫表态。"
+          }
+        ]
+      },
+      "messages": [
+        {
+          "role": "narrator",
+          "content": "雨声压过马嘶。玄鸦使的黑伞停在门槛外，伞尖正对着火盆旁的青纹镖盒。"
+        },
+        {
+          "role": "character",
+          "characterId": "su-qinghe",
+          "content": "少侠，刀未必先出鞘，但话要先问明白。你若信我，就别急着交盒。"
+        },
+        {
+          "role": "character",
+          "characterId": "xuan-ya",
+          "content": "玄鸦司只给一次机会。盒留下，人可以走；盒不留，雨夜就会多几具无名尸。"
         }
       ]
     }

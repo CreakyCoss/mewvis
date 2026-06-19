@@ -57,8 +57,10 @@ writeFileSync(entryPath, `
     updateTavernTasks,
   } from ${JSON.stringify(corePath)};
   import {
+    createDefaultTavernState,
     createTavernRoom,
     createTavernRoomFromGeneratedPresetJson,
+    createTavernRoomFromSystemPreset,
     DEFAULT_TAVERN_PROGRESS_VIEWS,
     DEFAULT_TAVERN_SCENE_OUTCOMES,
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
@@ -66,6 +68,7 @@ writeFileSync(entryPath, `
     DEFAULT_TAVERN_TASK_DEFINITIONS,
     parseTavernGeneratedPresetJsonText,
     syncTavernRoomActiveScene,
+    tavernSystemPresets,
   } from ${JSON.stringify(storagePath)};
   import {
     parseTavernDirectorDecision,
@@ -1376,6 +1379,142 @@ writeFileSync(entryPath, `
         },
       )
     : null;
+  const defaultSystemPresetState = createDefaultTavernState("workspace-system-defaults");
+  const werewolfMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "moonlit-werewolf-table",
+    {
+      roomId: "system-werewolf-room",
+      createdAt: now + 70,
+      characterIdByPresetId: new Map([
+        ["qiao-yu", "wolf-qiao"],
+        ["shen-mo", "wolf-shen"],
+        ["tan-luo", "wolf-tan"],
+        ["lin-yao", "wolf-lin"],
+      ]),
+    },
+  );
+  const werewolfRoom = werewolfMaterialized.room;
+  let werewolfRandomIndex = 0;
+  const werewolfRandomValues = [0.12, 0.76, 0.34, 0.91, 0.48, 0.23, 0.67, 0.05, 0.82, 0.39];
+  const werewolfRoleFacts = assignTavernRoleFacts({
+    room: werewolfRoom,
+    characters: werewolfMaterialized.characters,
+    random: () => werewolfRandomValues[werewolfRandomIndex++ % werewolfRandomValues.length],
+    turnId: "system-werewolf-role-turn",
+    createdAt: now + 71,
+  });
+  const werewolfPublicRoleFacts = filterTavernFactEventsForAudience({
+    factEvents: werewolfRoleFacts,
+    room: werewolfRoom,
+    audience: { type: "public" },
+  });
+  const werewolfUserRoleFacts = filterTavernFactEventsForAudience({
+    factEvents: werewolfRoleFacts,
+    room: werewolfRoom,
+    audience: { type: "user" },
+  });
+  const werewolfDirectorRoleFacts = filterTavernFactEventsForAudience({
+    factEvents: werewolfRoleFacts,
+    room: werewolfRoom,
+    audience: { type: "director" },
+  });
+  const heartRaceMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "heart-race-for-user",
+    {
+      roomId: "system-heart-race-room",
+      createdAt: now + 72,
+      characterIdByPresetId: new Map([
+        ["xia-zhi", "heart-xia"],
+        ["gu-lin", "heart-gu"],
+      ]),
+    },
+  );
+  const heartRaceRoom = heartRaceMaterialized.room;
+  const heartRaceXiaRef = { type: "character", characterId: "heart-xia" };
+  const heartRaceGuRef = { type: "character", characterId: "heart-gu" };
+  const heartRaceAdvance = advanceTavernProgressFromFactEvents({
+    room: heartRaceRoom,
+    factEvents: [{
+      id: "system-heart-race-xia-help",
+      turnId: "system-heart-race-turn",
+      sourceMessageIds: ["system-heart-race-message"],
+      type: "help",
+      actor: heartRaceXiaRef,
+      target: userRef,
+      value: 75,
+      evidence: "夏栀明确帮你化解筹备室危机，让你对她的好感大幅提升。",
+      confidence: 0.96,
+      createdAt: now + 73,
+    }],
+    turnId: "system-heart-race-turn",
+    createdAt: now + 74,
+  });
+  const winTheirHeartsMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "win-their-hearts-duel",
+    {
+      roomId: "system-win-hearts-room",
+      createdAt: now + 75,
+      characterIdByPresetId: new Map([
+        ["ye-xiaoman", "route-ye"],
+        ["liu-qingshuang", "route-liu"],
+      ]),
+    },
+  );
+  const winTheirHeartsRoom = winTheirHeartsMaterialized.room;
+  const winTheirHeartsYeRef = { type: "character", characterId: "route-ye" };
+  const winTheirHeartsAdvance = advanceTavernProgressFromFactEvents({
+    room: winTheirHeartsRoom,
+    factEvents: [{
+      id: "system-win-hearts-user-help",
+      turnId: "system-win-hearts-turn",
+      sourceMessageIds: ["system-win-hearts-message"],
+      type: "help",
+      actor: userRef,
+      target: winTheirHeartsYeRef,
+      value: 80,
+      evidence: "你明确理解并支持叶小满独当一面的愿望，她对你的好感大幅提升。",
+      confidence: 0.96,
+      createdAt: now + 76,
+    }],
+    turnId: "system-win-hearts-turn",
+    createdAt: now + 77,
+  });
+  const wuxiaMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "blade-rain-posthouse",
+    {
+      roomId: "system-wuxia-room",
+      createdAt: now + 78,
+      characterIdByPresetId: new Map([
+        ["su-qinghe", "blade-su"],
+        ["wen-he", "blade-wen"],
+        ["bai-tan", "blade-bai"],
+        ["xuan-ya", "boss-xuan"],
+      ]),
+    },
+  );
+  const wuxiaRoom = wuxiaMaterialized.room;
+  const wuxiaBossRef = { type: "character", characterId: "boss-xuan" };
+  const wuxiaAdvance = advanceTavernProgressFromFactEvents({
+    room: wuxiaRoom,
+    factEvents: [{
+      id: "system-wuxia-boss-damage",
+      turnId: "system-wuxia-turn",
+      sourceMessageIds: ["system-wuxia-message"],
+      type: "damage",
+      actor: userRef,
+      target: wuxiaBossRef,
+      value: -80,
+      evidence: "少侠与苏青河合力击中玄鸦使要害，玄鸦使伤势足以败退。",
+      confidence: 0.97,
+      createdAt: now + 79,
+    }],
+    turnId: "system-wuxia-turn",
+    createdAt: now + 80,
+  });
   let promptPresetImportError = "";
   try {
     parseTavernExternalImportJson(JSON.stringify({
@@ -1493,6 +1632,76 @@ writeFileSync(entryPath, `
             "health",
           )
         : null,
+    },
+    systemPresets: {
+      presetIds: tavernSystemPresets.map((preset) => preset.id),
+      defaultStateRoomTitles: defaultSystemPresetState.rooms.map((item) => item.title),
+      defaultStateRoomCount: defaultSystemPresetState.rooms.length,
+      werewolf: {
+        room: werewolfRoom,
+        roleFacts: werewolfRoleFacts,
+        publicRoleFactCount: werewolfPublicRoleFacts.length,
+        userRoleFactCount: werewolfUserRoleFacts.length,
+        directorRoleFactCount: werewolfDirectorRoleFacts.length,
+        hiddenThoughts: werewolfRoom.settings.informationPolicy.hideCharacterThoughts,
+        hiddenFactsEnabled: werewolfRoom.settings.informationPolicy.hiddenFacts.enabled,
+      },
+      heartRace: {
+        room: heartRaceRoom,
+        xiaFavorBefore: getTavernStatusSnapshotValue(
+          heartRaceRoom.statusSnapshot,
+          { type: "relationship", subject: userRef, object: heartRaceXiaRef },
+          "favorability",
+        ),
+        guFavorBefore: getTavernStatusSnapshotValue(
+          heartRaceRoom.statusSnapshot,
+          { type: "relationship", subject: userRef, object: heartRaceGuRef },
+          "favorability",
+        ),
+        xiaFavorAfter: getTavernStatusSnapshotValue(
+          heartRaceAdvance.statusSnapshot,
+          { type: "relationship", subject: userRef, object: heartRaceXiaRef },
+          "favorability",
+        ),
+        xiaTaskStatus: heartRaceAdvance.taskSnapshot["xia-zhi-wins-user-favor"]?.status,
+        xiaOutcomeStatus: heartRaceAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "xia-zhi-victory"
+        )?.status,
+      },
+      winTheirHearts: {
+        room: winTheirHeartsRoom,
+        yeFavorBefore: getTavernStatusSnapshotValue(
+          winTheirHeartsRoom.statusSnapshot,
+          { type: "relationship", subject: winTheirHeartsYeRef, object: userRef },
+          "favorability",
+        ),
+        yeFavorAfter: getTavernStatusSnapshotValue(
+          winTheirHeartsAdvance.statusSnapshot,
+          { type: "relationship", subject: winTheirHeartsYeRef, object: userRef },
+          "favorability",
+        ),
+        yeTaskStatus: winTheirHeartsAdvance.taskSnapshot["win-ye-xiaoman-heart"]?.status,
+        yeOutcomeStatus: winTheirHeartsAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "ye-route-clear"
+        )?.status,
+      },
+      wuxia: {
+        room: wuxiaRoom,
+        bossHealthBefore: getTavernStatusSnapshotValue(
+          wuxiaRoom.statusSnapshot,
+          { type: "character", characterId: "boss-xuan" },
+          "health",
+        ),
+        bossHealthAfter: getTavernStatusSnapshotValue(
+          wuxiaAdvance.statusSnapshot,
+          { type: "character", characterId: "boss-xuan" },
+          "health",
+        ),
+        defeatTaskStatus: wuxiaAdvance.taskSnapshot["defeat-xuan-ya"]?.status,
+        outcomeStatus: wuxiaAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "xuan-ya-defeated"
+        )?.status,
+      },
     },
     imports: {
       sillyWorldBookEntries,
@@ -1955,6 +2164,50 @@ try {
       ),
     "生成 JSON 导入应创建世界书和映射后的初始角色消息",
     checks.progressChecks.generated,
+  );
+  assert(
+    checks.progressChecks.systemPresets.presetIds.join("|") ===
+      "moonlit-werewolf-table|heart-race-for-user|win-their-hearts-duel|blade-rain-posthouse" &&
+      checks.progressChecks.systemPresets.defaultStateRoomCount === 4 &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆"),
+    "系统预设应只包含新的四个互动剧本，并移除旧预设房间",
+    checks.progressChecks.systemPresets,
+  );
+  assert(
+    checks.progressChecks.systemPresets.werewolf.room.settings.informationPolicy.mode === "social_deduction" &&
+      checks.progressChecks.systemPresets.werewolf.hiddenThoughts &&
+      checks.progressChecks.systemPresets.werewolf.hiddenFactsEnabled &&
+      checks.progressChecks.systemPresets.werewolf.roleFacts.length === 5 &&
+      checks.progressChecks.systemPresets.werewolf.publicRoleFactCount === 0 &&
+      checks.progressChecks.systemPresets.werewolf.userRoleFactCount >= 1 &&
+      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 5,
+    "狼人杀预设应开启随机身份、隐藏心理/事实，并按受众过滤身份事实",
+    checks.progressChecks.systemPresets.werewolf,
+  );
+  assert(
+    checks.progressChecks.systemPresets.heartRace.xiaFavorBefore === 25 &&
+      checks.progressChecks.systemPresets.heartRace.guFavorBefore === 25 &&
+      checks.progressChecks.systemPresets.heartRace.xiaFavorAfter === 100 &&
+      checks.progressChecks.systemPresets.heartRace.xiaTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.heartRace.xiaOutcomeStatus === "pending",
+    "好感剧本1应按 user -> character 方向推进“你对角色的好感”并触发角色胜利",
+    checks.progressChecks.systemPresets.heartRace,
+  );
+  assert(
+    checks.progressChecks.systemPresets.winTheirHearts.yeFavorBefore === 20 &&
+      checks.progressChecks.systemPresets.winTheirHearts.yeFavorAfter === 100 &&
+      checks.progressChecks.systemPresets.winTheirHearts.yeTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.winTheirHearts.yeOutcomeStatus === "pending",
+    "好感剧本2应按 character -> user 方向推进“角色对你的好感”并触发用户路线胜利",
+    checks.progressChecks.systemPresets.winTheirHearts,
+  );
+  assert(
+    checks.progressChecks.systemPresets.wuxia.bossHealthBefore === 80 &&
+      checks.progressChecks.systemPresets.wuxia.bossHealthAfter === 0 &&
+      checks.progressChecks.systemPresets.wuxia.defeatTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.wuxia.outcomeStatus === "pending",
+    "武侠预设应把预设角色 id 映射到真实角色 id，并由伤害事实完成 Boss 任务和结局",
+    checks.progressChecks.systemPresets.wuxia,
   );
   assert(
     checks.progressChecks.imports.sillyWorldBookEntries.length === 2 &&
