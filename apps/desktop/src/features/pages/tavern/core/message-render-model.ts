@@ -1,0 +1,134 @@
+import type {
+  TavernCharacter,
+  TavernMessage,
+} from "../types";
+import {
+  normalizeTavernMessageForAudience,
+  type TavernVisibleMessage,
+} from "./message-visibility";
+
+export type TavernRenderableMessage = TavernVisibleMessage & {
+  source: TavernMessage;
+};
+const normalizeNarratorEchoText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
+
+const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
+  const normalizedReply = normalizeNarratorEchoText(replyText);
+
+  return normalizedReply.length > 0 && narratorTexts.some((narratorText) =>
+    normalizeNarratorEchoText(narratorText) === normalizedReply
+  );
+};
+
+const narratorEnvironmentSubjectPattern =
+  /^(?:热汤机|噪声|灯(?:光)?|门|舱门|舷窗|屏幕|频道|频段|补给站|酒馆|吧台|圆桌|空气|风|雨|雾|雪|火(?:盆)?|钟|影子|光线|冷藏柜|地板|墙面|舰桥|船舱|走廊|大厅|房间|窗外|门外|夜色|沉默|广播|警报|引擎|电流|蒸汽|纸页|档案|木匣|牌面|杯沿|灯火|炉火|水汽|寒意|潮气|金属|机器|系统|环境)/;
+const narratorEnvironmentMotionPattern =
+  /(?:压低|沉下|低沉|回荡|响起|停住|晃动|闪烁|亮起|暗下|落下|浮出|渗出|掠过|侧耳|屏息|等待|安静|静了|静下来)/;
+const characterIntentPattern =
+  /(?:我|你|您|咱|需要|知道|认为|确定|确认|决定|可以|不能|不会|必须|别|请|问|答|说|记得|退场|授权|失踪|航线|结局|核心|流程)/;
+const characterBodyActionPattern =
+  /(?:指下|手|掌|袖口|胸口|眼|嘴角|肩|背|脚|步|抬|放|抽出|摸|推|拿|递|看|笑|皱眉|点头|摇头)/;
+
+const isLikelyNarratorOnlyCharacterMessage = (
+  message: TavernRenderableMessage,
+  characters: TavernCharacter[],
+  userPersonaName: string,
+) => {
+  if (
+    message.role !== "character" ||
+    message.status === "streaming" ||
+    message.status === "error"
+  ) {
+    return false;
+  }
+
+  const content = message.content.trim();
+  if (
+    content.length < 8 ||
+    content.length > 90 ||
+    content.includes("\n") ||
+    /[?？]/.test(content) ||
+    /[*_`]/.test(content)
+  ) {
+    return false;
+  }
+
+  const labels = [
+    userPersonaName,
+    ...characters.map((character) => character.name),
+  ].map((label) => label.trim()).filter(Boolean);
+  if (labels.some((label) => content.includes(label))) {
+    return false;
+  }
+
+  if (
+    characterIntentPattern.test(content) ||
+    characterBodyActionPattern.test(content)
+  ) {
+    return false;
+  }
+
+  return narratorEnvironmentSubjectPattern.test(content) &&
+    narratorEnvironmentMotionPattern.test(content);
+};
+
+export const createTavernRenderableMessages = ({
+  messages,
+  characters,
+  userPersonaName,
+}: {
+  messages: TavernMessage[];
+  characters: TavernCharacter[];
+  userPersonaName: string;
+}): TavernRenderableMessage[] => {
+  const turnNarratorTexts: string[] = [];
+  const renderableMessages = messages.map((message) => ({
+    ...normalizeTavernMessageForAudience({
+      message,
+      characters,
+      userPersonaName,
+      audience: { type: "ui" },
+    }),
+    source: message,
+  }));
+
+  return renderableMessages.flatMap((message) => {
+    if (message.role === "user") {
+      turnNarratorTexts.length = 0;
+      return [message];
+    }
+
+    if (message.role === "narrator") {
+      turnNarratorTexts.push(message.content);
+      return [message];
+    }
+
+    if (isNarratorEchoReply(message.content, turnNarratorTexts)) {
+      return [];
+    }
+
+    if (isLikelyNarratorOnlyCharacterMessage(message, characters, userPersonaName)) {
+      const narratorMessage: TavernRenderableMessage = {
+        ...message,
+        role: "narrator",
+        characterId: undefined,
+        speakerName: "旁白",
+        thought: undefined,
+        source: {
+          ...message.source,
+          role: "narrator",
+          characterId: undefined,
+          thought: undefined,
+          content: message.content,
+        },
+      };
+      turnNarratorTexts.push(narratorMessage.content);
+      return [narratorMessage];
+    }
+
+    return [message];
+  });
+};

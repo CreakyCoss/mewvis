@@ -15,7 +15,6 @@ const META_FILE_NAME: &str = "meta.json";
 const ROOM_FILE_NAME: &str = "room.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
 const CONVERSATION_FILE_NAME: &str = "conversation.json";
-const CONTEXT_FILE_NAME: &str = "context.json";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -58,8 +57,6 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
     if !dir.exists() {
         return Ok(None);
     }
-
-    remove_legacy_tavern_files(&dir)?;
 
     let index_path = dir.join(INDEX_FILE_NAME);
     if !index_path.exists() {
@@ -136,7 +133,6 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
 pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
     let dir = tavern_dir(&input.workspace_path)?;
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建酒馆目录：{error}"))?;
-    remove_legacy_tavern_files(&dir)?;
 
     let rooms = input
         .state
@@ -173,12 +169,9 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
             .cloned()
             .unwrap_or_else(|| Value::Array(Vec::new()));
         let conversation = collect_room_scene_messages(room, messages_by_scene);
-        let context = extract_room_context(room);
-
         write_json_file(&room_dir.join(ROOM_FILE_NAME), room)?;
         write_json_file(&room_dir.join(MESSAGES_FILE_NAME), &messages)?;
         write_json_file(&room_dir.join(CONVERSATION_FILE_NAME), &conversation)?;
-        write_json_file(&room_dir.join(CONTEXT_FILE_NAME), &context)?;
         write_json_file(
             &room_dir.join(META_FILE_NAME),
             &tavern_session_meta(&room_id, room, &messages),
@@ -244,43 +237,6 @@ fn collect_room_scene_messages(
     Value::Object(conversation)
 }
 
-fn extract_room_context(room: &Value) -> Value {
-    let mut context = Map::new();
-    for key in [
-        "storyOutline",
-        "storyGoal",
-        "activeSceneId",
-        "scenes",
-        "scenePresetId",
-        "scene",
-        "sceneGoal",
-        "scenePlot",
-        "sceneDirection",
-        "sceneTransition",
-        "memory",
-        "autoMemory",
-        "autoMemoryUpdatedAt",
-        "summarizedMessageIds",
-        "characterConfigs",
-        "characterMemories",
-        "localCharacters",
-        "lorebookEntries",
-        "timelineEvents",
-        "assetDrafts",
-        "characterIds",
-        "activeCharacterId",
-        "replyMode",
-        "userPersonaName",
-        "settings",
-    ] {
-        if let Some(value) = room.get(key) {
-            context.insert(key.to_string(), value.clone());
-        }
-    }
-
-    Value::Object(context)
-}
-
 fn tavern_dir(workspace_path: &str) -> Result<PathBuf, String> {
     Ok(workspace_app_data_dir(&workspace_root(workspace_path)?).join(TAVERN_DIR_NAME))
 }
@@ -320,19 +276,6 @@ fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value)
         .map_err(|error| format!("无法序列化酒馆数据：{error}"))?;
     fs::write(path, content).map_err(|error| format!("无法保存酒馆数据：{error}"))
-}
-
-fn remove_legacy_tavern_files(dir: &Path) -> Result<(), String> {
-    for entry in fs::read_dir(dir).map_err(|error| format!("无法读取酒馆目录：{error}"))? {
-        let entry = entry.map_err(|error| format!("无法读取酒馆目录项：{error}"))?;
-        let path = entry.path();
-        if path.is_file()
-            && path.file_name().and_then(|value| value.to_str()) != Some(INDEX_FILE_NAME)
-        {
-            fs::remove_file(&path).map_err(|error| format!("无法删除旧酒馆数据：{error}"))?;
-        }
-    }
-    Ok(())
 }
 
 fn remove_stale_tavern_session_dirs(
@@ -480,7 +423,6 @@ mod tests {
         assert!(session_dir.join(ROOM_FILE_NAME).exists());
         assert!(session_dir.join(MESSAGES_FILE_NAME).exists());
         assert!(session_dir.join(CONVERSATION_FILE_NAME).exists());
-        assert!(session_dir.join(CONTEXT_FILE_NAME).exists());
 
         let loaded = load_tavern_state(LoadTavernStateInput {
             workspace_path: workspace.path_string(),

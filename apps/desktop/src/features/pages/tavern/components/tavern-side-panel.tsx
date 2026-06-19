@@ -5,6 +5,7 @@ import {
   Clock,
   Loader2,
   MessageSquare,
+  RefreshCcw,
   Save,
   Sparkles,
   Trash2,
@@ -52,6 +53,8 @@ type TavernSidePanelProps = {
   onApplyAssetDraft: (draftId: string) => void;
   onDeleteAssetDraft: (draftId: string) => void;
   onExtractRecentAssets: () => void;
+  onCompactCharacterKnowledge: (characterId: string) => void;
+  compactingCharacterIds?: Set<string>;
 };
 
 const replyModeDescriptions: Record<TavernReplyMode, string> = {
@@ -268,6 +271,8 @@ export const TavernSidePanel = ({
   onApplyAssetDraft,
   onDeleteAssetDraft,
   onExtractRecentAssets,
+  onCompactCharacterKnowledge,
+  compactingCharacterIds = new Set(),
 }: TavernSidePanelProps) => {
   const [detailPanel, setDetailPanel] = useState<DetailPanelKey | null>(null);
   const isBusy = isSending || isExtractingAssets;
@@ -277,7 +282,7 @@ export const TavernSidePanel = ({
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
     `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
-    `自动整理记忆：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
+    `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
   const enabledLorebookCount = activeRoom.lorebookEntries.filter((entry) => entry.enabled).length;
   const detailPanelTitle = {
@@ -356,9 +361,6 @@ export const TavernSidePanel = ({
             <TextBlock label="场景描述" value={activeRoom.scene} />
             <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
             <TextBlock label="房间记忆" value={activeRoom.memory} />
-            {activeRoom.autoMemory.trim() && (
-              <TextBlock label="自动记忆" value={activeRoom.autoMemory} />
-            )}
           </section>
 
           <section className="space-y-3">
@@ -367,22 +369,45 @@ export const TavernSidePanel = ({
               入席角色
             </div>
             <div className="space-y-2">
-              {roomCharacters.map((character) => (
-                <HoverCard key={character.id} openDelay={120} closeDelay={120}>
-                  <HoverCardTrigger asChild>
-                    <CharacterButton
-                      character={character}
-                      isActive={character.id === activeCharacter?.id}
-                      disabled={isSending}
-                      onClick={() => onPatchRoom(activeRoom.id, { activeCharacterId: character.id })}
-                    />
-                  </HoverCardTrigger>
-                  <CharacterProfileTooltip
-                    character={character}
-                    memory={activeRoom.characterMemories[character.id] ?? ""}
-                  />
-                </HoverCard>
-              ))}
+              {roomCharacters.map((character) => {
+                const isCompacting = compactingCharacterIds.has(character.id);
+                return (
+                  <div key={character.id} className="flex items-center gap-2">
+                    <HoverCard openDelay={120} closeDelay={120}>
+                      <HoverCardTrigger asChild>
+                        <div className="min-w-0 flex-1">
+                          <CharacterButton
+                            character={character}
+                            isActive={character.id === activeCharacter?.id}
+                            disabled={isSending}
+                            onClick={() => onPatchRoom(activeRoom.id, { activeCharacterId: character.id })}
+                          />
+                        </div>
+                      </HoverCardTrigger>
+                      <CharacterProfileTooltip
+                        character={character}
+                        memory={activeRoom.characterMemories[character.id] ?? ""}
+                      />
+                    </HoverCard>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="outline"
+                      className="shrink-0 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
+                      title="压缩角色知识"
+                      aria-label={`压缩${character.name}的角色知识`}
+                      disabled={isBusy || isCompacting}
+                      onClick={() => onCompactCharacterKnowledge(character.id)}
+                    >
+                      {isCompacting ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
               {roomCharacters.length === 0 && (
                 <div className="rounded-md border border-current/10 bg-current/5 px-3 py-4 text-center text-sm text-current opacity-70">
                   还没有角色入席。

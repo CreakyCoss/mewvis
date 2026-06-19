@@ -78,6 +78,7 @@ export type TavernRoomSettings = {
   assetExtractionIntervalTurns: number;
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
+  agentKnowledgeCompactIntervalTurns: number;
 };
 
 export type TavernTimelineScope = {
@@ -99,9 +100,6 @@ export type TavernScene = {
   transition: string;
   timelineScope: TavernTimelineScope;
   memory: string;
-  autoMemory: string;
-  autoMemoryUpdatedAt?: number;
-  summarizedMessageIds?: string[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   assetDrafts: TavernAssetDraft[];
@@ -129,9 +127,6 @@ export type TavernRoom = {
   sceneDirection: string;
   sceneTransition: string;
   memory: string;
-  autoMemory: string;
-  autoMemoryUpdatedAt?: number;
-  summarizedMessageIds?: string[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   localCharacters?: TavernCharacter[];

@@ -77,6 +77,7 @@ const replyLabelPattern = "(?:公开回应|公开回复|回复|回应|正文|对
 type TaggedBlock = {
   value: string;
   rest: string;
+  closed: boolean;
 };
 
 const tagNamePattern = (tagNames: string[]) =>
@@ -100,6 +101,7 @@ const extractTaggedBlock = (
         text.slice(0, closedMatch.index),
         text.slice(closedMatch.index + closedMatch[0].length),
       ].join("\n").trim(),
+      closed: true,
     };
   }
 
@@ -113,6 +115,7 @@ const extractTaggedBlock = (
   return {
     value: text.slice(openMatch.index + openMatch[0].length),
     rest: text.slice(0, openMatch.index).trim(),
+    closed: false,
   };
 };
 
@@ -148,6 +151,36 @@ const stripDanglingTagPrefix = (text: string) => {
 
   return /^<[^>\n]*$/.test(trimmed) ? "" : trimmed;
 };
+
+const stripDanglingMarkdownMarkers = (text: string) =>
+  text
+    .replace(/(^|\n)\s*[*_]+\s*$/g, "")
+    .replace(/\s+[*_]+\s*$/g, "")
+    .trim();
+
+const stripUnpairedMarkdownMarker = (text: string, marker: "*" | "_") => {
+  const markerCount = text.split(marker).length - 1;
+  if (markerCount % 2 === 0) {
+    return text;
+  }
+
+  const markerIndex = text.lastIndexOf(marker);
+  return markerIndex >= 0
+    ? `${text.slice(0, markerIndex)}${text.slice(markerIndex + marker.length)}`.trim()
+    : text;
+};
+
+const normalizeMarkdownMarkers = (text: string) =>
+  stripUnpairedMarkdownMarker(
+    stripUnpairedMarkdownMarker(stripDanglingMarkdownMarkers(text), "*"),
+    "_",
+  );
+
+export const stripTavernStandaloneActionBlocks = (text: string) =>
+  text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
+
+export const hasTavernReplyDialogueText = (text: string) =>
+  stripTavernStandaloneActionBlocks(text).trim().length > 0;
 
 const stripKnownTagBlocks = (text: string, tagNames: string[]) => {
   const pattern = tagNamePattern(tagNames);
@@ -191,11 +224,46 @@ const stripContextWrapperTags = (
   ).trim();
 };
 
+const openTagPatternFor = (tagNames: string[]) =>
+  new RegExp(`<\\s*(?:${tagNamePattern(tagNames)})(?:\\s+[^>]*)?\\s*>`, "i");
+
+const splitLooseThoughtValue = (value: string) => {
+  const replyOpenMatch = openTagPatternFor(replyTagNames).exec(value);
+  if (replyOpenMatch?.index !== undefined) {
+    return {
+      thought: value.slice(0, replyOpenMatch.index).trim(),
+      rest: value.slice(replyOpenMatch.index).trim(),
+    };
+  }
+
+  const paragraphSplit = value.match(/\n\s*\n/);
+  if (paragraphSplit?.index !== undefined) {
+    const thought = value.slice(0, paragraphSplit.index).trim();
+    const rest = value.slice(paragraphSplit.index + paragraphSplit[0].length).trim();
+    if (thought && rest) {
+      return { thought, rest };
+    }
+  }
+
+  return {
+    thought: value,
+    rest: "",
+  };
+};
+
 const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
   const thoughtBlock = extractTaggedBlock(text, thoughtTagNames);
-  const textWithoutThought = stripContextWrapperTags(thoughtBlock?.rest ?? text, {
+  const looseThought = thoughtBlock && !thoughtBlock.closed
+    ? splitLooseThoughtValue(thoughtBlock.value)
+    : null;
+  const textWithoutThought = stripContextWrapperTags(
+    looseThought
+      ? [thoughtBlock?.rest ?? "", looseThought.rest].filter(Boolean).join("\n")
+      : thoughtBlock?.rest ?? text,
+    {
     stripReplyTags: false,
-  });
+    },
+  );
   const replyBlock = extractTaggedBlock(textWithoutThought, replyTagNames);
 
   if (!thoughtBlock && !replyBlock) {
@@ -206,7 +274,9 @@ const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
     content: replyBlock
       ? stripContextWrapperTags(replyBlock.value).trim()
       : stripDanglingTagPrefix(stripContextWrapperTags(textWithoutThought)),
-    thought: thoughtBlock ? cleanTavernThoughtText(thoughtBlock.value) : undefined,
+    thought: thoughtBlock
+      ? cleanTavernThoughtText(looseThought?.thought ?? thoughtBlock.value)
+      : undefined,
   };
 };
 
@@ -267,9 +337,16 @@ const isOtherCharacterNarrationBlock = (
   activeCharacter: TavernCharacter,
   characters: TavernCharacter[],
 ) => {
-  const normalized = block
+  const source = block
     .replace(/^\s*(?:>\s*)?/, "")
-    .replace(/^[_*]+/, "")
+    .trimStart();
+
+  if (!/^[_*（(]/.test(source)) {
+    return false;
+  }
+
+  const normalized = source
+    .replace(/^[_*（(]+/, "")
     .trimStart();
 
   return characters.some((character) =>
@@ -350,7 +427,24 @@ const sanitizeTavernReplyContent = ({
         return [];
       }
 
-      return [block.replace(activePrefix ?? /^$/, "").trim()];
+      const sanitizedLines: string[] = [];
+      for (const line of block.split("\n")) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) {
+          continue;
+        }
+
+        if (
+          foreignPrefix?.test(trimmedLine) ||
+          isOtherCharacterNarrationBlock(trimmedLine, activeCharacter, characters)
+        ) {
+          break;
+        }
+
+        sanitizedLines.push(trimmedLine.replace(activePrefix ?? /^$/, "").trim());
+      }
+
+      return [sanitizedLines.filter(Boolean).join("\n").trim()];
     })
     .filter(Boolean);
 
@@ -377,12 +471,14 @@ export const parseTavernReplyText = ({
   const parsed = parseTaggedReplyParts(cleaned) ?? parseLabeledReplyParts(cleaned);
   const contentSource = parsed?.content ?? stripContextWrapperTags(cleaned);
   const content = cleanTavernReplyText({
-    text: sanitizeTavernReplyContent({
-      text: contentSource,
-      activeCharacter,
-      characters,
-      userPersonaName,
-    }),
+    text: normalizeMarkdownMarkers(
+      sanitizeTavernReplyContent({
+        text: contentSource,
+        activeCharacter,
+        characters,
+        userPersonaName,
+      }),
+    ),
     activeCharacter,
     characters,
     userPersonaName,

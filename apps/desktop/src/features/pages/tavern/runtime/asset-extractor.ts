@@ -2,7 +2,6 @@ import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/protocol";
-import { runTavernRuntimeChat } from "./chat";
 import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
@@ -15,6 +14,14 @@ import {
   formatTavernTimelineEvents,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
+import {
+  buildTavernBridgeSystemPrompt,
+} from "./bridge-session";
+import {
+  tavernArchivistAgentRoleId,
+  tavernBridgeSessionRootDir,
+} from "../core";
+import { runTavernRuntimeAgent } from "./agent";
 
 export type TavernExtractedAssetDraft = {
   sourceMessageIds: string[];
@@ -35,6 +42,7 @@ export type TavernExtractedAssetDraft = {
 };
 
 export type RunTavernAssetExtractionInput = {
+  workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
@@ -175,6 +183,7 @@ const parseAssetDraft = ({
 };
 
 export const runTavernAssetExtraction = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -256,10 +265,6 @@ export const runTavernAssetExtraction = async ({
       ? `<manual_room_memory>\n${room.memory.trim()}\n</manual_room_memory>`
       : "<manual_room_memory>（无）</manual_room_memory>",
     "",
-    room.autoMemory.trim()
-      ? `<auto_room_memory>\n${room.autoMemory.trim()}\n</auto_room_memory>`
-      : "<auto_room_memory>（无）</auto_room_memory>",
-    "",
     "<story_timeline>",
     formatTavernTimelineEvents(room) || "（无）",
     "</story_timeline>",
@@ -298,22 +303,20 @@ export const runTavernAssetExtraction = async ({
     formatTavernRuntimeMessagesForSummary(runtimeMessages),
     "</recent_conversation_context>",
   ].join("\n");
-  const result = await runTavernRuntimeChat({
+  const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    agentRoleId: tavernArchivistAgentRoleId(room),
     runtimeModel,
-    stream: false,
-    systemPrompt: [
+    systemPrompt: buildTavernBridgeSystemPrompt(room),
+    userMessage: "请整理本轮酒馆对话中值得沉淀的剧情资产，并只输出严格合法 JSON。",
+    requestContext: appendReferencesToPrompt(prompt, references),
+    runtimeInstruction: [
       "你是酒馆模式的剧情资产整理员。",
       "你的任务是把新一轮对话中值得长期保存的信息整理成待确认草稿。",
       "你只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
     ].join("\n"),
-    messages: [{
-      id: `tavern-asset-extractor-${Date.now()}`,
-      role: "user",
-      content: appendReferencesToPrompt(prompt, references),
-      timestamp: Date.now(),
-      metadata: null,
-    }],
   });
 
   try {

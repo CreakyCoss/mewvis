@@ -13,6 +13,8 @@
     "build:agent-bridge:darwin-x64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target darwin-x64",
     "test:agent-bridge:e2e": "node scripts/agent-bridge-e2e.mjs",
     "test:agent-bridge:live": "node scripts/agent-bridge-live-e2e.mjs",
+    "test:tavern:core": "node scripts/tavern-core-e2e.mjs",
+    "test:tavern:live": "node scripts/tavern-live-llm-e2e.mjs",
     "build:mac": "node scripts/build-macos.mjs",
     "build:mac:arm64": "node scripts/build-macos.mjs --target darwin-arm64",
     "build:mac:x64": "node scripts/build-macos.mjs --target darwin-x64",

@@ -233,6 +233,7 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   assetExtractionIntervalTurns: 3,
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
+  agentKnowledgeCompactIntervalTurns: 0,
 };
 
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
@@ -274,6 +275,12 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
       DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
       1,
       6,
+    ),
+    agentKnowledgeCompactIntervalTurns: clampInteger(
+      candidate.agentKnowledgeCompactIntervalTurns,
+      DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,
+      0,
+      50,
     ),
   };
 };
@@ -797,17 +804,6 @@ const buildTavernScene = (
     transition: input.transition?.trim() || fallback.sceneTransition?.trim() || "",
     timelineScope: normalizeTimelineScope(input.timelineScope),
     memory: input.memory?.trim() || fallback.memory?.trim() || "",
-    autoMemory: input.autoMemory?.trim() || fallback.autoMemory?.trim() || "",
-    autoMemoryUpdatedAt: typeof input.autoMemoryUpdatedAt === "number"
-      ? input.autoMemoryUpdatedAt
-      : typeof fallback.autoMemoryUpdatedAt === "number"
-      ? fallback.autoMemoryUpdatedAt
-      : undefined,
-    summarizedMessageIds: Array.isArray(input.summarizedMessageIds)
-      ? input.summarizedMessageIds.filter((item): item is string => typeof item === "string")
-      : Array.isArray(fallback.summarizedMessageIds)
-      ? fallback.summarizedMessageIds.filter((item): item is string => typeof item === "string")
-      : [],
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     assetDrafts: Array.isArray(input.assetDrafts)
@@ -855,9 +851,6 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     sceneDirection: activeScene.storyDirection,
     sceneTransition: activeScene.transition,
     memory: activeScene.memory,
-    autoMemory: activeScene.autoMemory,
-    autoMemoryUpdatedAt: activeScene.autoMemoryUpdatedAt,
-    summarizedMessageIds: activeScene.summarizedMessageIds ?? [],
     characterConfigs: activeScene.characterConfigs ?? {},
     characterMemories: activeScene.characterMemories,
     assetDrafts: activeScene.assetDrafts,
@@ -880,9 +873,6 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
     storyDirection: room.sceneDirection,
     transition: room.sceneTransition,
     memory: room.memory,
-    autoMemory: room.autoMemory,
-    autoMemoryUpdatedAt: room.autoMemoryUpdatedAt,
-    summarizedMessageIds: room.summarizedMessageIds ?? [],
     characterConfigs: room.characterConfigs ?? {},
     characterMemories: room.characterMemories,
     assetDrafts: room.assetDrafts,
@@ -1015,9 +1005,6 @@ export const createTavernRoomFromSystemPreset = (
       storyDirection: presetScene.storyDirection?.trim() || preset.room.storyDirection?.trim() || "",
       transition: presetScene.transition?.trim() || preset.room.transition?.trim() || "",
       memory: presetScene.memory?.trim() || preset.room.memory?.trim() || "",
-      autoMemory: "",
-      autoMemoryUpdatedAt: undefined,
-      summarizedMessageIds: [],
       characterConfigs: sceneCharacterConfigs,
       characterMemories: sceneCharacterMemories,
       assetDrafts: (presetScene.assetDrafts ?? preset.room.assetDrafts ?? [])
@@ -1061,9 +1048,6 @@ export const createTavernRoomFromSystemPreset = (
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
-    autoMemory: "",
-    autoMemoryUpdatedAt: undefined,
-    summarizedMessageIds: [],
     characterConfigs,
     characterMemories,
     localCharacters: characters,
@@ -1265,17 +1249,6 @@ const normalizeTavernState = (
       sceneTransition: typeof (room as Partial<TavernRoom>).sceneTransition === "string"
         ? (room as Partial<TavernRoom>).sceneTransition ?? ""
         : "",
-      autoMemory: typeof (room as Partial<TavernRoom>).autoMemory === "string"
-        ? (room as Partial<TavernRoom>).autoMemory ?? ""
-        : "",
-      autoMemoryUpdatedAt: typeof (room as Partial<TavernRoom>).autoMemoryUpdatedAt === "number"
-        ? (room as Partial<TavernRoom>).autoMemoryUpdatedAt
-        : undefined,
-      summarizedMessageIds: Array.isArray((room as Partial<TavernRoom>).summarizedMessageIds)
-        ? ((room as Partial<TavernRoom>).summarizedMessageIds ?? []).filter((item): item is string =>
-            typeof item === "string"
-          )
-        : [],
       characterConfigs,
       characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
       localCharacters,
@@ -1447,9 +1420,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
-    autoMemory: "",
-    autoMemoryUpdatedAt: undefined,
-    summarizedMessageIds: [],
     characterConfigs: {},
     characterMemories: {},
     localCharacters: [],

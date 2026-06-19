@@ -1,5 +1,4 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
-import { runTavernRuntimeChat } from "./chat";
 import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
@@ -7,8 +6,20 @@ import type {
   TavernRoom,
 } from "../types";
 import { tavernMessagesToRuntimeMessages } from "./prompt";
+import {
+  buildTavernBridgeSystemPrompt,
+} from "./bridge-session";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+  tavernBridgeSessionRootDir,
+  tavernManagedUserAgentRoleId,
+  tavernQuickReplyAgentRoleId,
+} from "../core";
+import { runTavernRuntimeAgent } from "./agent";
 
 export type TavernUserReplySuggestionInput = {
+  workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
@@ -132,6 +143,7 @@ const createManagedReplyFallback = (room: TavernRoom) =>
     : "我先顺着眼前的线索继续追问，看看还有没有被忽略的细节。";
 
 export const runTavernUserReplySuggestions = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -197,10 +209,6 @@ export const runTavernUserReplySuggestions = async ({
       ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
-    room.autoMemory.trim()
-      ? `<auto_memory>\n${room.autoMemory.trim()}\n</auto_memory>`
-      : "",
-    "",
     "<characters>",
     characterList,
     "</characters>",
@@ -212,24 +220,33 @@ export const runTavernUserReplySuggestions = async ({
     "<recent_conversation>",
     recentConversation || "（无）",
     "</recent_conversation>",
+    "",
+    "<public_visible_messages>",
+    formatTavernVisibleMessagesForRequestContext(
+      normalizeTavernMessagesForAudience({
+        messages,
+        characters,
+        userPersonaName: room.userPersonaName,
+        audience: { type: "user_proxy" },
+      }).slice(-RECENT_MESSAGE_LIMIT),
+    ) || "（无）",
+    "</public_visible_messages>",
   ].filter(Boolean).join("\n");
 
-  const result = await runTavernRuntimeChat({
+  const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    agentRoleId: tavernQuickReplyAgentRoleId(room),
     runtimeModel,
-    stream: false,
-    systemPrompt: [
+    systemPrompt: buildTavernBridgeSystemPrompt(room),
+    userMessage: `为酒馆用户「${room.userPersonaName || "我"}」生成 ${SUGGESTION_COUNT} 个下一句回复候选。`,
+    requestContext: prompt,
+    runtimeInstruction: [
       "你是酒馆模式的用户回复建议助手。",
       "你只为用户生成可点击发送的中文回复候选。",
       "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
     ].join("\n"),
-    messages: [{
-      id: `tavern-user-reply-suggestions-${Date.now()}`,
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      metadata: null,
-    }],
   });
 
   return [
@@ -241,6 +258,7 @@ export const runTavernUserReplySuggestions = async ({
 };
 
 export const runTavernManagedUserReply = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -270,10 +288,11 @@ export const runTavernManagedUserReply = async ({
     "reply 绝对不能包含 <function_calls>、<tool_calls>、XML/HTML 标签、工具调用、JSON 代码块或系统标记。",
     "只替用户说话，不要替酒馆角色说话，不要写角色动作，不要输出角色名加冒号。",
     "回复需要承接当前对话和场景目标，能自然推动下一轮角色回应。",
+    "避免连续输出“嗯”“好”“继续守着”这类低信息短句；等待场景里也要给出一个具体观察点、轮报要求或下一步检查指令。",
     "可以包含用户的行动决定、追问、试探或态度，但不要越过当前剧情直接解决核心谜题。",
     "建议 20 到 120 个中文字符；内容不要自带引号、编号或列表符号。",
     currentDraft?.trim()
-      ? "用户输入框里的文字是托管方向提示，请吸收其意图，但不要机械照抄。"
+      ? "用户输入框里的文字是托管方向提示，请吸收其意图；如果其中明确点名角色、发言顺序、人数或限制，必须保留这些硬约束，但不要机械照抄措辞。"
       : "没有方向提示时，根据当前剧情自动选择最合理、最有戏剧张力的一句回复。",
     "只输出严格合法 JSON 对象，不要 Markdown、代码块或解释。",
     "</rules>",
@@ -309,10 +328,6 @@ export const runTavernManagedUserReply = async ({
       ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
-    room.autoMemory.trim()
-      ? `<auto_memory>\n${room.autoMemory.trim()}\n</auto_memory>`
-      : "",
-    "",
     "<characters>",
     characterList,
     "</characters>",
@@ -324,6 +339,17 @@ export const runTavernManagedUserReply = async ({
     "<recent_conversation>",
     recentConversation || "（无）",
     "</recent_conversation>",
+    "",
+    "<public_visible_messages>",
+    formatTavernVisibleMessagesForRequestContext(
+      normalizeTavernMessagesForAudience({
+        messages,
+        characters,
+        userPersonaName: room.userPersonaName,
+        audience: { type: "user_proxy" },
+      }).slice(-RECENT_MESSAGE_LIMIT),
+    ) || "（无）",
+    "</public_visible_messages>",
   ].filter(Boolean).join("\n");
 
   const systemPrompt = [
@@ -334,18 +360,16 @@ export const runTavernManagedUserReply = async ({
   ].join("\n");
 
   const runManagedReplyRequest = async (content: string) => {
-    const result = await runTavernRuntimeChat({
+    const result = await runTavernRuntimeAgent({
       agentId: runtimeAgentId,
+      workspacePath,
+      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      agentRoleId: tavernManagedUserAgentRoleId(room),
       runtimeModel,
-      stream: false,
-      systemPrompt,
-      messages: [{
-        id: `tavern-managed-user-reply-${Date.now()}`,
-        role: "user",
-        content,
-        timestamp: Date.now(),
-        metadata: null,
-      }],
+      systemPrompt: buildTavernBridgeSystemPrompt(room),
+      userMessage: `以导演身份，为酒馆用户「${room.userPersonaName || "我"}」生成本轮要发送的回复。`,
+      requestContext: content,
+      runtimeInstruction: systemPrompt,
     });
 
     return parseManagedReply(result.text, room.userPersonaName);

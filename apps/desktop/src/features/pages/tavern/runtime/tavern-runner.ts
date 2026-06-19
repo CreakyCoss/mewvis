@@ -1,18 +1,25 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
-import { runTavernRuntimeChat } from "./chat";
 import type {
   TavernCharacter,
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
 } from "../types";
-import {
-  buildTavernSystemPrompt,
-  tavernMessagesToRuntimeMessages,
-} from "./prompt";
 import { cleanTavernThoughtText } from "./reply-cleanup";
+import {
+  buildTavernBridgeSystemPrompt,
+} from "./bridge-session";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+  tavernBridgeSessionRootDir,
+  tavernCharacterAgentRoleId,
+} from "../core";
+import { runTavernRuntimeAgent } from "./agent";
+import { buildTavernReplyAgentRequest } from "./reply-request";
 
 export type RunTavernReplyInput = {
+  workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
@@ -27,6 +34,7 @@ export type RunTavernReplyInput = {
 };
 
 export const runTavernReply = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -39,32 +47,33 @@ export const runTavernReply = async ({
   onTextDelta,
   onThinkingDelta,
 }: RunTavernReplyInput) => {
-  const systemPrompt = buildTavernSystemPrompt({
+  const request = buildTavernReplyAgentRequest({
     room,
     activeCharacter,
     characters,
+    messages,
     references,
     currentUserText,
     turnInstruction,
   });
-  const runtimeMessages = tavernMessagesToRuntimeMessages({
-    messages,
-    characters,
-    userPersonaName: room.userPersonaName,
-    visibleThoughtCharacterId: activeCharacter.id,
-  });
 
-  return runTavernRuntimeChat({
+  return runTavernRuntimeAgent({
     agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: request.sessionRootDir,
+    agentRoleId: request.agentRoleId,
     runtimeModel,
-    systemPrompt,
-    messages: runtimeMessages,
+    systemPrompt: request.systemPrompt,
+    userMessage: request.userMessage,
+    requestContext: request.requestContext,
+    runtimeInstruction: request.runtimeInstruction,
     onTextDelta,
     onThinkingDelta,
   });
 };
 
 export type RunTavernInnerThoughtInput = {
+  workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
@@ -76,6 +85,7 @@ export type RunTavernInnerThoughtInput = {
 };
 
 export const runTavernInnerThought = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -85,30 +95,22 @@ export const runTavernInnerThought = async ({
   currentUserText,
   replyContent,
 }: RunTavernInnerThoughtInput) => {
-  const runtimeMessages = tavernMessagesToRuntimeMessages({
+  const visibleMessages = normalizeTavernMessagesForAudience({
     messages,
     characters,
     userPersonaName: room.userPersonaName,
-    visibleThoughtCharacterId: activeCharacter.id,
+    audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
   const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
-  const recentConversation = runtimeMessages
-    .map((message) => message.content)
-    .join("\n\n");
-  const result = await runTavernRuntimeChat({
+  const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    agentRoleId: tavernCharacterAgentRoleId(room, activeCharacter),
     runtimeModel,
-    stream: false,
-    systemPrompt: [
-      "你是酒馆模式的角色内心独白补写器。",
-      "只为当前角色补一条会显示在聊天气泡里的内心想法，不是模型推理过程。",
-      "只输出 12 到 80 个中文字符的一句话；不要输出标签、角色名、解释、Markdown 或代码块。",
-      "内心想法必须贴合角色人设、当前公开回复和现场，不要替其他角色写心理。",
-    ].join("\n"),
-    messages: [{
-      id: `tavern-inner-thought-${Date.now()}`,
-      role: "user",
-      content: [
+    systemPrompt: buildTavernBridgeSystemPrompt(room),
+    userMessage: "请只输出当前角色此刻没有说出口的一句内心想法。",
+    requestContext: [
         "<active_character>",
         `name: ${activeCharacter.name}`,
         `description: ${activeCharacter.description}`,
@@ -127,18 +129,19 @@ export const runTavernInnerThought = async ({
         "</current_user_input>",
         "",
         "<recent_conversation>",
-        recentConversation || "（无）",
+        formatTavernVisibleMessagesForRequestContext(visibleMessages) || "（无）",
         "</recent_conversation>",
         "",
         "<generated_reply>",
         replyContent,
         "</generated_reply>",
-        "",
-        "请只输出当前角色此刻没有说出口的一句内心想法。",
       ].filter(Boolean).join("\n"),
-      timestamp: Date.now(),
-      metadata: null,
-    }],
+    runtimeInstruction: [
+      "你是酒馆模式的角色内心独白补写器。",
+      "只为当前角色补一条会显示在聊天气泡里的内心想法，不是模型推理过程。",
+      "只输出 12 到 80 个中文字符的一句话；不要输出标签、角色名、解释、Markdown 或代码块。",
+      "内心想法必须贴合角色人设、当前公开回复和现场，不要替其他角色写心理。",
+    ].join("\n"),
   });
 
   return cleanTavernThoughtText(result.text).slice(0, 120);

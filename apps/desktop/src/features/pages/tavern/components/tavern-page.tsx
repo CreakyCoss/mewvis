@@ -51,6 +51,13 @@ import {
   switchTavernRoomScene,
   syncTavernRoomActiveScene,
 } from "../storage";
+import {
+  createTavernRenderableMessages,
+  tavernCharacterAgentRoleId,
+} from "../core";
+import {
+  compactTavernAgentKnowledge,
+} from "../runtime/bridge-session";
 import type {
   TavernAssetDraft,
   TavernCharacter,
@@ -65,7 +72,11 @@ import { runTavernInnerThought, runTavernReply } from "../runtime/tavern-runner"
 import { runTavernDirector } from "../runtime/director";
 import { runTavernAssetExtraction } from "../runtime/asset-extractor";
 import { resolveTavernCharacterModel } from "../runtime/model-selection";
-import { parseTavernReplyText } from "../runtime/reply-cleanup";
+import {
+  hasTavernReplyDialogueText,
+  parseTavernReplyText,
+} from "../runtime/reply-cleanup";
+import { buildTavernCharacterTurnInstruction } from "../runtime/turn-instruction";
 import { runTavernQuickNovel, runTavernQuickSummary } from "../runtime/quick-summary";
 import {
   runTavernManagedUserReply,
@@ -100,99 +111,6 @@ const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
   return normalizedReply.length > 0 && narratorTexts.some((narratorText) =>
     normalizeNarratorEchoText(narratorText) === normalizedReply
   );
-};
-
-const narratorEnvironmentSubjectPattern =
-  /^(?:热汤机|噪声|灯(?:光)?|门|舱门|舷窗|屏幕|频道|频段|补给站|酒馆|吧台|圆桌|空气|风|雨|雾|雪|火(?:盆)?|钟|影子|光线|冷藏柜|地板|墙面|舰桥|船舱|走廊|大厅|房间|窗外|门外|夜色|沉默|广播|警报|引擎|电流|蒸汽|纸页|档案|木匣|牌面|杯沿|灯火|炉火|水汽|寒意|潮气|金属|机器|系统|环境)/;
-const narratorEnvironmentMotionPattern =
-  /(?:压低|沉下|低沉|回荡|响起|停住|晃动|闪烁|亮起|暗下|落下|浮出|渗出|掠过|侧耳|屏息|等待|安静|静了|静下来)/;
-const characterIntentPattern =
-  /(?:我|你|您|咱|需要|知道|认为|确定|确认|决定|可以|不能|不会|必须|别|请|问|答|说|记得|退场|授权|失踪|航线|结局|核心|流程)/;
-const characterBodyActionPattern =
-  /(?:指下|手|掌|袖口|胸口|眼|嘴角|肩|背|脚|步|抬|放|抽出|摸|推|拿|递|看|笑|皱眉|点头|摇头)/;
-
-const isLikelyNarratorOnlyCharacterMessage = (
-  message: TavernMessage,
-  characters: TavernCharacter[],
-  userPersonaName: string,
-) => {
-  if (
-    message.role !== "character" ||
-    message.status === "streaming" ||
-    message.status === "error"
-  ) {
-    return false;
-  }
-
-  const content = message.content.trim();
-  if (
-    content.length < 8 ||
-    content.length > 90 ||
-    content.includes("\n") ||
-    /[?？]/.test(content) ||
-    /[*_`]/.test(content)
-  ) {
-    return false;
-  }
-
-  const labels = [
-    userPersonaName,
-    ...characters.map((character) => character.name),
-  ].map((label) => label.trim()).filter(Boolean);
-  if (labels.some((label) => content.includes(label))) {
-    return false;
-  }
-
-  if (
-    characterIntentPattern.test(content) ||
-    characterBodyActionPattern.test(content)
-  ) {
-    return false;
-  }
-
-  return narratorEnvironmentSubjectPattern.test(content) &&
-    narratorEnvironmentMotionPattern.test(content);
-};
-
-const toNarratorMessage = (message: TavernMessage): TavernMessage => {
-  const { characterId: _characterId, ...messageWithoutCharacter } = message;
-
-  return {
-    ...messageWithoutCharacter,
-    role: "narrator",
-  };
-};
-
-const normalizeTavernMessagesForDisplay = (
-  messages: TavernMessage[],
-  characters: TavernCharacter[],
-  userPersonaName: string,
-) => {
-  const turnNarratorTexts: string[] = [];
-
-  return messages.flatMap((message) => {
-    if (message.role === "user") {
-      turnNarratorTexts.length = 0;
-      return [message];
-    }
-
-    if (message.role === "narrator") {
-      turnNarratorTexts.push(message.content);
-      return [message];
-    }
-
-    if (isNarratorEchoReply(message.content, turnNarratorTexts)) {
-      return [];
-    }
-
-    if (isLikelyNarratorOnlyCharacterMessage(message, characters, userPersonaName)) {
-      const narratorMessage = toNarratorMessage(message);
-      turnNarratorTexts.push(narratorMessage.content);
-      return [narratorMessage];
-    }
-
-    return [message];
-  });
 };
 
 type TavernPageProps = {
@@ -234,12 +152,9 @@ const orderRoundCharacters = (
   ];
 };
 
-const invalidateRoomAutoMemory = (room: TavernRoom): TavernRoom => ({
+const touchTavernRoomActiveScene = (room: TavernRoom): TavernRoom => ({
   ...syncTavernRoomActiveScene({
     ...room,
-    autoMemory: "",
-    autoMemoryUpdatedAt: undefined,
-    summarizedMessageIds: [],
     updatedAt: Date.now(),
   }),
 });
@@ -427,8 +342,6 @@ const createQuickSummarySignature = (
   sceneTransition: room.sceneTransition,
   timelineScope: room.scenes?.find((scene) => scene.id === room.activeSceneId)?.timelineScope ?? { mode: "auto" },
   memory: room.memory,
-  autoMemory: room.autoMemory,
-  autoMemoryUpdatedAt: room.autoMemoryUpdatedAt ?? null,
   characterIds: room.characterIds,
   activeCharacterId: room.activeCharacterId,
   replyMode: room.replyMode,
@@ -495,6 +408,12 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       1,
       6,
     ),
+    agentKnowledgeCompactIntervalTurns: clampInteger(
+      candidate.agentKnowledgeCompactIntervalTurns,
+      DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,
+      0,
+      50,
+    ),
   };
 };
 
@@ -516,6 +435,7 @@ export const TavernPage = ({
   const [isManagedAutoRunStarted, setIsManagedAutoRunStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
+  const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [isQuickSummaryOpen, setIsQuickSummaryOpen] = useState(false);
@@ -557,6 +477,7 @@ export const TavernPage = ({
     setIsManagedAutoRunStarted(false);
     setIsSending(false);
     setIsExtractingAssets(false);
+    setCompactingCharacterIds(new Set());
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
     setIsQuickSummaryOpen(false);
@@ -663,13 +584,18 @@ export const TavernPage = ({
   }, [activeRoom, characterById]);
   const roomMessages = useMemo(() => (
     activeRoom
-      ? normalizeTavernMessagesForDisplay(
-          getSceneMessages(activeRoom, state),
-          roomCharacters,
-          activeRoom.userPersonaName,
-        )
+      ? getSceneMessages(activeRoom, state)
       : []
-  ), [activeRoom, roomCharacters, state]);
+  ), [activeRoom, state]);
+  const renderableRoomMessages = useMemo(() => (
+    activeRoom
+      ? createTavernRenderableMessages({
+          messages: roomMessages,
+          characters: roomCharacters,
+          userPersonaName: activeRoom.userPersonaName,
+        })
+      : []
+  ), [activeRoom, roomCharacters, roomMessages]);
   const quickSummarySignature = useMemo(() => (
     activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""
   ), [activeRoom, roomMessages]);
@@ -700,7 +626,7 @@ export const TavernPage = ({
       minute: "2-digit",
     }).format(activeQuickSummaryCache.novelGeneratedAt);
   }, [activeQuickSummaryCache]);
-  const latestMessage = roomMessages[roomMessages.length - 1] ?? null;
+  const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
   const activeCharacter = useMemo(() => (
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId)
       ?? roomCharacters[0]
@@ -748,7 +674,7 @@ export const TavernPage = ({
     executionSteps.length,
     latestMessage?.content,
     latestMessage?.id,
-    roomMessages.length,
+    renderableRoomMessages.length,
     scrollMessagesToBottom,
     viewMode,
   ]);
@@ -839,6 +765,26 @@ export const TavernPage = ({
     const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
     return userTurnCount > 0 &&
       userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
+  }, []);
+
+  const shouldCompactCharacterKnowledgeAfterTurn = useCallback((
+    room: TavernRoom,
+    messages: TavernMessage[],
+    characterId: string,
+  ) => {
+    const interval = room.settings.agentKnowledgeCompactIntervalTurns;
+    if (!interval || interval <= 0) {
+      return false;
+    }
+
+    const completedTurns = messages.filter((message) =>
+      message.role === "character" &&
+      message.characterId === characterId &&
+      message.status !== "streaming" &&
+      message.status !== "error" &&
+      message.content.trim()
+    ).length;
+    return completedTurns > 0 && completedTurns % interval === 0;
   }, []);
 
   const patchRoom = useCallback((roomId: string, patch: Partial<TavernRoom>) => {
@@ -998,7 +944,7 @@ export const TavernPage = ({
     setState((current) => ({
       ...current,
       rooms: current.rooms.map((room) =>
-        room.id === targetRoom.id ? invalidateRoomAutoMemory(room) : room,
+        room.id === targetRoom.id ? touchTavernRoomActiveScene(room) : room,
       ),
       messagesByRoom: {
         ...current.messagesByRoom,
@@ -1616,11 +1562,6 @@ export const TavernPage = ({
       storyDirection: parsed.room.sceneDirection?.trim() || "",
       transition: parsed.room.sceneTransition?.trim() || "",
       memory: parsed.room.memory?.trim() || "",
-      autoMemory: parsed.room.autoMemory?.trim() || "",
-      autoMemoryUpdatedAt: typeof parsed.room.autoMemoryUpdatedAt === "number"
-        ? parsed.room.autoMemoryUpdatedAt
-        : undefined,
-      summarizedMessageIds: [],
       characterConfigs,
       characterMemories,
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
@@ -1645,9 +1586,6 @@ export const TavernPage = ({
       sceneTransition: importedScene.transition,
       locked: false,
       memory: importedScene.memory,
-      autoMemory: importedScene.autoMemory,
-      autoMemoryUpdatedAt: importedScene.autoMemoryUpdatedAt,
-      summarizedMessageIds: [],
       characterConfigs,
       characterMemories,
       localCharacters: importedCharacters,
@@ -1861,6 +1799,7 @@ export const TavernPage = ({
     }
     try {
       const extractedDraft = await runTavernAssetExtraction({
+        workspacePath: workspace.path,
         runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
@@ -1916,7 +1855,63 @@ export const TavernPage = ({
     roomMessages,
     runtimeModel,
     runtimeAgentId,
-    workspace.id,
+    workspace.path,
+  ]);
+
+  const compactCharacterKnowledge = useCallback(async (characterId: string) => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const character = roomCharacters.find((item) => item.id === characterId);
+    if (!character) {
+      setError("未找到要压缩知识的角色。");
+      return;
+    }
+
+    if (!runtimeModel) {
+      setError("请先在设置中选择模型，再压缩角色知识。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      setError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    setCompactingCharacterIds((current) => new Set([...current, characterId]));
+    setError("");
+    try {
+      const result = await compactTavernAgentKnowledge({
+        workspacePath: workspace.path,
+        room: activeRoom,
+        runtimeAgentId,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        agentRoleId: tavernCharacterAgentRoleId(activeRoom, character),
+        compactInstruction: [
+          `压缩「${character.name}」在当前酒馆中的长期角色知识。`,
+          "保留角色已经知道的公开事实、自己产生过的心理与承诺、与其他角色的关系变化。",
+          "不要引入其他角色未公开的心理描写。",
+        ].join("\n"),
+      });
+      toast.success(result?.compacted === false
+        ? `${character.name} 的底层 session 暂无可压缩内容。`
+        : `已压缩 ${character.name} 的角色知识。`);
+    } catch (compactError) {
+      setError(`压缩角色知识失败：${getErrorMessage(compactError)}`);
+    } finally {
+      setCompactingCharacterIds((current) => {
+        const next = new Set(current);
+        next.delete(characterId);
+        return next;
+      });
+    }
+  }, [
+    activeRoom,
+    roomCharacters,
+    runtimeAgentId,
+    runtimeModel,
+    workspace.path,
   ]);
 
   const handleGenerateReplySuggestions = useCallback(async () => {
@@ -1943,6 +1938,7 @@ export const TavernPage = ({
     setIsGeneratingReplySuggestions(true);
     try {
       const suggestions = await runTavernUserReplySuggestions({
+        workspacePath: workspace.path,
         runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
@@ -1968,7 +1964,7 @@ export const TavernPage = ({
     roomMessages,
     runtimeModel,
     runtimeAgentId,
-    workspace.id,
+    workspace.path,
   ]);
 
   const handleFillReplySuggestion = useCallback((suggestion: string) => {
@@ -2035,6 +2031,7 @@ export const TavernPage = ({
     setIsGeneratingQuickSummary(true);
     try {
       const content = await runTavernQuickSummary({
+        workspacePath: workspace.path,
         runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
@@ -2087,6 +2084,8 @@ export const TavernPage = ({
     roomMessages,
     runtimeModel,
     runtimeAgentId,
+    workspace.id,
+    workspace.path,
   ]);
 
   const handleGenerateQuickNovel = useCallback(async () => {
@@ -2128,6 +2127,7 @@ export const TavernPage = ({
     setIsGeneratingQuickNovel(true);
     try {
       const novelContent = await runTavernQuickNovel({
+        workspacePath: workspace.path,
         runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
@@ -2174,6 +2174,8 @@ export const TavernPage = ({
     roomMessages,
     runtimeModel,
     runtimeAgentId,
+    workspace.id,
+    workspace.path,
   ]);
 
   const handleExportQuickNovel = useCallback(() => {
@@ -2321,6 +2323,7 @@ export const TavernPage = ({
       try {
         setTurnStatus("导演正在代你生成本轮回复...");
         text = await runTavernManagedUserReply({
+          workspacePath: workspace.path,
           runtimeAgentId,
           runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: activeRoom,
@@ -2397,11 +2400,12 @@ export const TavernPage = ({
           status: "running",
         });
         const directorDecision = await runTavernDirector({
+          workspacePath: workspace.path,
           runtimeAgentId,
           runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: runtimeRoom,
           characters: roomCharacters,
-          messages: runtimeMessages,
+          messages: turnMessages,
           references,
           currentUserText: text,
           maxSpeakers: Math.min(
@@ -2447,6 +2451,28 @@ export const TavernPage = ({
           turnMessages.push(narratorMessage);
           turnNarratorTexts.push(narratorText);
         }
+        const ambientActionMessages = (directorDecision.ambientActions ?? [])
+          .map((action) => {
+            const actionText = action.action.trim();
+            if (!actionText) {
+              return null;
+            }
+
+            return createTavernMessage({
+              roomId: activeRoom.id,
+              role: "narrator",
+              characterId: action.characterId,
+              content: actionText,
+              status: "done",
+            });
+          })
+          .filter((message): message is TavernMessage => Boolean(message));
+        if (ambientActionMessages.length > 0) {
+          appendMessagesToRoom(activeRoom.id, ambientActionMessages);
+          runtimeMessages = [...runtimeMessages, ...ambientActionMessages];
+          turnMessages.push(...ambientActionMessages);
+          turnNarratorTexts.push(...ambientActionMessages.map((message) => message.content));
+        }
       }
 
       for (const [speakerIndex, speaker] of speakers.entries()) {
@@ -2472,35 +2498,34 @@ export const TavernPage = ({
         appendMessagesToRoom(activeRoom.id, [replyMessage]);
 
         let streamedText = "";
-        const replyFormatInstruction =
-          "必须按 <inner_thought>心理想法</inner_thought> 和 <reply>公开回复正文</reply> 输出，两个标签都不能省略；心理想法只写当前角色没有说出口的短句，不要替用户或其他角色写心理；公开回复必须符合当前角色口吻。";
-        const replyPerspectiveInstruction =
-          `公开回复必须以${speaker.name}直接说出口的话为主，不要写第三人称小说正文；对白不要包在引号里，也不要写“他说/声音很轻/似乎后悔”等作者叙述。动作标注最多 1 段，必须用 Markdown 单星号独立成段，且只能写可观察小动作。`;
-        const ownReplyInstruction = activeRoom.settings.immersiveDescriptionEnabled !== false
-          ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
-          : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
-        const turnInstruction = replyMode === "round"
-          ? [
-              `这是全员轮流回应的第 ${speakerIndex + 1}/${speakers.length} 位。`,
-              speakerIndex === 0
-                ? "你先回应用户，给后续角色留下可承接的信息。"
-                : "前面角色已经回应，请承接他们的信息，不要重复复述。",
-              ownReplyInstruction,
-              "不要输出任何角色名加冒号的发言人标签。",
-            ].join("\n")
-          : isDirectorLikeMode
-            ? [
-                `${isManagedMode ? "全托管导演" : "导演调度"}选择你作为第 ${speakerIndex + 1}/${speakers.length} 位发言者。`,
-                directorReason ? `导演意图：${directorReason}` : "",
-                speakerIndex === 0
-                  ? "回应用户输入，并顺着当前场景目标推进。"
-                  : "前面角色已经回应，请承接他们的信息，不要重复复述。",
-                ownReplyInstruction,
-                "不要输出任何角色名加冒号的发言人标签。",
-              ].filter(Boolean).join("\n")
-            : undefined;
+        const turnInstruction = buildTavernCharacterTurnInstruction({
+          room: activeRoom,
+          speaker,
+          speakerIndex,
+          speakerCount: speakers.length,
+          replyMode,
+          isDirectorLikeMode,
+          isManagedMode,
+          directorReason,
+        });
+        const handleReplyTextDelta = (delta: string) => {
+          streamedText += delta;
+          const streamedReply = parseTavernReplyText({
+            text: streamedText,
+            activeCharacter: speaker,
+            characters: roomCharacters,
+            userPersonaName: runtimeRoom.userPersonaName,
+          });
+          activeReplyText = streamedReply.content;
+          patchMessage(replyMessage.id, {
+            content: streamedReply.content,
+            thought: streamedReply.thought,
+            status: "streaming",
+          });
+        };
 
-        const result = await runTavernReply({
+        let result = await runTavernReply({
+          workspacePath: workspace.path,
           runtimeAgentId,
           runtimeModel: requireTavernRuntimeModelInput(
             resolvedSpeakerModels[speakerIndex].runtimeModel,
@@ -2508,33 +2533,64 @@ export const TavernPage = ({
           room: runtimeRoom,
           activeCharacter: speaker,
           characters: roomCharacters,
-          messages: runtimeMessages,
+          messages: turnMessages,
           references,
           currentUserText: text,
           turnInstruction,
-          onTextDelta: (delta) => {
-            streamedText += delta;
-            const streamedReply = parseTavernReplyText({
-              text: streamedText,
-              activeCharacter: speaker,
-              characters: roomCharacters,
-              userPersonaName: runtimeRoom.userPersonaName,
-            });
-            activeReplyText = streamedReply.content;
-            patchMessage(replyMessage.id, {
-              content: streamedReply.content,
-              thought: streamedReply.thought,
-              status: "streaming",
-            });
-          },
+          onTextDelta: handleReplyTextDelta,
         });
-        const finalReply = parseTavernReplyText({
+        let finalReply = parseTavernReplyText({
           text: result.text || streamedText,
           activeCharacter: speaker,
           characters: roomCharacters,
           userPersonaName: runtimeRoom.userPersonaName,
         });
-        const finalText = finalReply.content || "（对方短暂沉默，杯沿映着灯光。）";
+        if (!finalReply.content.trim() || !hasTavernReplyDialogueText(finalReply.content)) {
+          patchExecutionStep(speakerStepId, {
+            status: "running",
+            detail: "公开回复不完整，正在重试...",
+          });
+          streamedText = "";
+          activeReplyText = "";
+          patchMessage(replyMessage.id, {
+            content: "",
+            thought: undefined,
+            status: "streaming",
+          });
+          const retryTurnInstruction = [
+            turnInstruction,
+            "",
+            "<retry_instruction>",
+            "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
+            `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。`,
+            "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
+            "</retry_instruction>",
+          ].filter(Boolean).join("\n");
+          result = await runTavernReply({
+            workspacePath: workspace.path,
+            runtimeAgentId,
+            runtimeModel: requireTavernRuntimeModelInput(
+              resolvedSpeakerModels[speakerIndex].runtimeModel,
+            ),
+            room: runtimeRoom,
+            activeCharacter: speaker,
+            characters: roomCharacters,
+            messages: turnMessages,
+            references,
+            currentUserText: text,
+            turnInstruction: retryTurnInstruction,
+            onTextDelta: handleReplyTextDelta,
+          });
+          finalReply = parseTavernReplyText({
+            text: result.text || streamedText,
+            activeCharacter: speaker,
+            characters: roomCharacters,
+            userPersonaName: runtimeRoom.userPersonaName,
+          });
+        }
+        const finalText = finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
+          ? finalReply.content
+          : "（对方短暂沉默，杯沿映着灯光。）";
         if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
           removeMessage(replyMessage.id);
           patchExecutionStep(speakerStepId, {
@@ -2549,6 +2605,7 @@ export const TavernPage = ({
         if (!finalThought && finalText.trim()) {
           try {
             finalThought = await runTavernInnerThought({
+              workspacePath: workspace.path,
               runtimeAgentId,
               runtimeModel: requireTavernRuntimeModelInput(
                 resolvedSpeakerModels[speakerIndex].runtimeModel,
@@ -2556,7 +2613,7 @@ export const TavernPage = ({
               room: runtimeRoom,
               activeCharacter: speaker,
               characters: roomCharacters,
-              messages: runtimeMessages,
+              messages: turnMessages,
               currentUserText: text,
               replyContent: finalText,
             });
@@ -2582,6 +2639,44 @@ export const TavernPage = ({
           status: "done",
           detail: finalText.slice(0, 120),
         });
+        if (shouldCompactCharacterKnowledgeAfterTurn(activeRoom, runtimeMessages, speaker.id)) {
+          const compactStepId = `compact-${speaker.id}-${speakerIndex}`;
+          setTurnStatus(`${speaker.name} 正在压缩角色知识...`);
+          appendExecutionStep({
+            id: compactStepId,
+            label: `${speaker.name} 知识压缩`,
+            detail: "达到固定轮次，调用底层压缩。",
+            status: "running",
+          });
+          try {
+            const compactResult = await compactTavernAgentKnowledge({
+              workspacePath: workspace.path,
+              room: activeRoom,
+              runtimeAgentId,
+              runtimeModel: requireTavernRuntimeModelInput(
+                resolvedSpeakerModels[speakerIndex].runtimeModel,
+              ),
+              agentRoleId: tavernCharacterAgentRoleId(activeRoom, speaker),
+              compactInstruction: [
+                `压缩「${speaker.name}」在当前酒馆中的长期角色知识。`,
+                "保留角色已经知道的公开事实、自己产生过的心理与承诺、与其他角色的关系变化。",
+                "不要引入其他角色未公开的心理描写。",
+              ].join("\n"),
+            });
+            patchExecutionStep(compactStepId, {
+              status: "done",
+              detail: compactResult?.compacted === false
+                ? "底层 session 暂无可压缩内容。"
+                : "底层压缩已完成。",
+            });
+          } catch (compactError) {
+            patchExecutionStep(compactStepId, {
+              status: "error",
+              detail: getErrorMessage(compactError),
+            });
+            setError(`压缩 ${speaker.name} 的角色知识失败：${getErrorMessage(compactError)}`);
+          }
+        }
         activeReplyMessage = null;
         activeReplyText = "";
       }
@@ -2596,6 +2691,7 @@ export const TavernPage = ({
         });
         try {
           const extractedDraft = await runTavernAssetExtraction({
+            workspacePath: workspace.path,
             runtimeAgentId,
             runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
             room: runtimeRoom,
@@ -2691,7 +2787,9 @@ export const TavernPage = ({
     roomMessages,
     runtimeAgentId,
     shouldAutoExtractAssets,
+    shouldCompactCharacterKnowledgeAfterTurn,
     unresolvedFileReferences,
+    workspace.path,
   ]);
 
   const handleComposerKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2815,7 +2913,7 @@ export const TavernPage = ({
     activeRoom.settings.showExecutionTrace ||
     ((activeRoom.replyMode === "director" || isManagedModeEnabled) && isSending)
   ) && executionSteps.length > 0;
-  const hasExecutionTraceAnchor = shouldShowExecutionTrace && roomMessages.some((message) =>
+  const hasExecutionTraceAnchor = shouldShowExecutionTrace && renderableRoomMessages.some((message) =>
     message.id === executionTraceAnchorMessageId
   );
   const backgroundStyle = {
@@ -2972,14 +3070,13 @@ export const TavernPage = ({
                   </div>
                 )}
               </section>
-              {roomMessages.map((message) => (
+              {renderableRoomMessages.map((message) => (
                 <Fragment key={message.id}>
                   <TavernMessageRow
                     message={message}
                     room={activeRoom}
                     visualPreset={visualPreset}
                     character={message.characterId ? characterById.get(message.characterId) : null}
-                    characters={roomCharacters}
                     isSending={isSending}
                   />
                   {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
@@ -3047,6 +3144,8 @@ export const TavernPage = ({
             onApplyAssetDraft={applyAssetDraft}
             onDeleteAssetDraft={deleteAssetDraft}
             onExtractRecentAssets={extractRecentAssets}
+            onCompactCharacterKnowledge={compactCharacterKnowledge}
+            compactingCharacterIds={compactingCharacterIds}
           />
         )}
       </div>

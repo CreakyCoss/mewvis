@@ -424,15 +424,11 @@ type RoomContentEditDraft =
 const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   ...room,
   settings: { ...room.settings },
-  summarizedMessageIds: room.summarizedMessageIds
-    ? [...room.summarizedMessageIds]
-    : undefined,
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
   scenes: room.scenes?.map((scene) => ({
     ...scene,
     timelineScope: cloneTimelineScope(scene.timelineScope),
-    summarizedMessageIds: scene.summarizedMessageIds ? [...scene.summarizedMessageIds] : [],
     characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
     characterMemories: { ...scene.characterMemories },
     characterIds: [...scene.characterIds],
@@ -678,8 +674,6 @@ export const TavernManagementPage = ({
         storyDirection: "",
         transition: "",
         memory: "",
-        autoMemory: "",
-        summarizedMessageIds: [],
         characterConfigs,
         characterMemories: {},
         assetDrafts: [],
@@ -1101,6 +1095,10 @@ export const TavernManagementPage = ({
           directorMaxSpeakers: Math.min(
             6,
             Math.max(1, Number(roomContentEditDraft.directorMaxSpeakers) || 1),
+          ),
+          agentKnowledgeCompactIntervalTurns: Math.min(
+            50,
+            Math.max(0, Number(roomContentEditDraft.agentKnowledgeCompactIntervalTurns) || 0),
           ),
         },
       });
@@ -1816,6 +1814,23 @@ export const TavernManagementPage = ({
                   onChange={(event) => setRoomContentEditDraft({
                     ...roomContentEditDraft,
                     directorMaxSpeakers: Math.min(6, Math.max(1, Number(event.target.value) || 1)),
+                  })}
+                />
+              </TavernEditorField>
+              <TavernEditorField label="角色压缩间隔" htmlFor="tavern-content-agent-compact-interval">
+                <Input
+                  id="tavern-content-agent-compact-interval"
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={roomContentEditDraft.agentKnowledgeCompactIntervalTurns}
+                  className={editorControlClassName}
+                  onChange={(event) => setRoomContentEditDraft({
+                    ...roomContentEditDraft,
+                    agentKnowledgeCompactIntervalTurns: Math.min(
+                      50,
+                      Math.max(0, Number(event.target.value) || 0),
+                    ),
                   })}
                 />
               </TavernEditorField>
@@ -2745,6 +2760,12 @@ export const TavernManagementPage = ({
                       <TavernCompactSummaryItem
                         label="导演人数"
                         value={`${editingRoom.settings.directorMaxSpeakers} 人`}
+                      />
+                      <TavernCompactSummaryItem
+                        label="角色压缩"
+                        value={editingRoom.settings.agentKnowledgeCompactIntervalTurns > 0
+                          ? `${editingRoom.settings.agentKnowledgeCompactIntervalTurns} 轮`
+                          : "关闭"}
                       />
                     </div>
                   </TavernEditorSection>

@@ -1,5 +1,4 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
-import { runTavernRuntimeChat } from "./chat";
 import { formatTavernRuntimeMessagesForSummary } from "./conversation";
 import type {
   TavernCharacter,
@@ -11,8 +10,20 @@ import {
   formatTavernTimelineEvents,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
+import {
+  buildTavernBridgeSystemPrompt,
+  readTavernBridgeSession,
+  rebuildTavernBridgeSessionFromMessages,
+  summarizeTavernBridgeSession,
+} from "./bridge-session";
+import {
+  tavernBridgeSessionRootDir,
+  tavernQuickNovelAgentRoleId,
+} from "../core";
+import { runTavernRuntimeAgent } from "./agent";
 
 export type TavernQuickSummaryInput = {
+  workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
@@ -121,10 +132,6 @@ const buildTavernQuickContext = ({
       ? `<manual_memory>\n${room.memory.trim()}\n</manual_memory>`
       : "<manual_memory>（无）</manual_memory>",
     "",
-    room.autoMemory.trim()
-      ? `<auto_memory>\n${room.autoMemory.trim()}\n</auto_memory>`
-      : "<auto_memory>（无）</auto_memory>",
-    "",
     "<character_memories>",
     characterMemoryText || "（无）",
     "</character_memories>",
@@ -152,55 +159,54 @@ const buildTavernQuickContext = ({
 };
 
 export const runTavernQuickSummary = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
   characters,
   messages,
 }: TavernQuickSummaryInput) => {
-  const prompt = [
-    "<task>",
-    "总结当前酒馆故事进展，供用户快速回到现场。",
-    "</task>",
-    "",
-    "<rules>",
-    "只基于已发生的对话、房间记忆、时间线、世界书和角色设定。",
-    "不要续写剧情，不要新增事实，不要替任何角色安排新的行动。",
-    "优先写清：当前局面、已经确认的线索/事实、人物状态与关系变化、未解决的问题、下一步可跟进的方向。",
-    "输出中文 Markdown，使用简短小标题和列表；通常 4 到 8 条要点，内容很多时最多 10 条。",
-    "如果进展很少，用 2 到 4 条说明当前只建立了哪些基础信息，不要为了凑条目重复内容。",
-    "</rules>",
-    "",
-    buildTavernQuickContext({
+  let shouldRebuildBridgeSession = true;
+  try {
+    const currentSession = await readTavernBridgeSession({
+      workspacePath,
+      room,
+    });
+    shouldRebuildBridgeSession = !currentSession || currentSession.messages.length <= 1;
+  } catch {
+    shouldRebuildBridgeSession = true;
+  }
+
+  if (shouldRebuildBridgeSession) {
+    await rebuildTavernBridgeSessionFromMessages({
+      workspacePath,
       room,
       characters,
       messages,
-      conversationScope: "recent",
-    }),
-  ].join("\n");
+    });
+  }
 
-  const result = await runTavernRuntimeChat({
-    agentId: runtimeAgentId,
+  const result = await summarizeTavernBridgeSession({
+    workspacePath,
+    room,
+    runtimeAgentId,
     runtimeModel,
-    stream: false,
-    systemPrompt: [
-      "你是酒馆模式的剧情进展总结助手。",
-      "你的任务是压缩已有事实，帮助用户快速理解现在发生到哪里。",
-      "不要续写，不要编造，不要输出寒暄或分析过程。",
+    maxSummaryChars: 4200,
+    summaryInstruction: [
+      "总结当前酒馆故事进展，供用户快速回到现场。",
+      "只基于 bridge session 中已有消息、房间记忆、时间线、世界书和角色设定。",
+      "不要续写剧情，不要新增事实，不要替任何角色安排新的行动。",
+      "优先写清：当前局面、已经确认的线索/事实、人物状态与关系变化、未解决的问题、下一步可跟进的方向。",
+      "输出中文 Markdown，使用简短小标题和列表；通常 4 到 8 条要点，内容很多时最多 10 条。",
+      "如果进展很少，用 2 到 4 条说明当前只建立了哪些基础信息，不要为了凑条目重复内容。",
     ].join("\n"),
-    messages: [{
-      id: `tavern-quick-summary-${crypto.randomUUID()}`,
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      metadata: null,
-    }],
   });
 
-  return result.text.trim() || "当前还没有足够内容可总结。";
+  return result?.displaySummary?.summary?.trim() || "当前还没有足够内容可总结。";
 };
 
 export const runTavernQuickNovel = async ({
+  workspacePath,
   runtimeAgentId,
   runtimeModel,
   room,
@@ -233,22 +239,20 @@ export const runTavernQuickNovel = async ({
     }),
   ].join("\n");
 
-  const result = await runTavernRuntimeChat({
+  const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    agentRoleId: tavernQuickNovelAgentRoleId(room),
     runtimeModel,
-    stream: false,
-    systemPrompt: [
+    systemPrompt: buildTavernBridgeSystemPrompt(room),
+    userMessage: "请把当前酒馆内容整理成一章小说正文。",
+    requestContext: prompt,
+    runtimeInstruction: [
       "你是酒馆模式的小说化写作助手。",
       "你的任务是把已有剧情整理成自然、有画面感的小说正文。",
       "你可以润色和重组表达，但不能续写未来剧情、不能编造关键事实、不能输出解释过程。",
     ].join("\n"),
-    messages: [{
-      id: `tavern-quick-novel-${crypto.randomUUID()}`,
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      metadata: null,
-    }],
   });
 
   return result.text.trim() || "当前还没有足够内容可写成小说。";
