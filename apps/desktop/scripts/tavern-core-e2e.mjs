@@ -519,6 +519,46 @@ writeFileSync(entryPath, `
           lte: 0,
         },
       },
+      onComplete: [
+        {
+          type: "statusPatch",
+          statusEvents: [{
+            id: "action-status-trust-after-boss",
+            turnId: "turn-progress",
+            sourceFactEventIds: [],
+            sourceMessageIds: [],
+            target: { type: "relationship", subject: charARef, object: userRef },
+            statusId: "favorability",
+            before: 55,
+            after: 58,
+            delta: 3,
+            reason: "击败 Boss 后阿洛短暂信任旅人。",
+            confidence: 1,
+            visibility: "private",
+            status: "applied",
+            createdBy: "system",
+            createdAt: now + 13,
+          }],
+        },
+        {
+          type: "replyOptions",
+          options: [{
+            id: "reply-after-boss",
+            text: "先确认大家是否受伤。",
+            targetCharacterIds: [],
+            intent: "inspect",
+          }],
+        },
+        {
+          type: "messageInline",
+          visibility: "public",
+          text: "Boss 被击倒，酒馆里短暂安静下来。",
+        },
+        {
+          type: "directorDirective",
+          instruction: "下一轮优先处理战后检查和角色反应，不要直接跳到庆功。",
+        },
+      ],
     },
     {
       id: "earn-a-trust",
@@ -565,6 +605,13 @@ writeFileSync(entryPath, `
       exclusive: true,
       endScene: "auto",
       visibility: "public",
+      onAchieved: [
+        {
+          type: "sceneTransitionSuggestion",
+          targetSceneId: "scene-next",
+          requiresUserConfirm: true,
+        },
+      ],
     },
   ];
   const outcomeEvents = evaluateTavernSceneOutcomes({
@@ -723,6 +770,17 @@ writeFileSync(entryPath, `
       : null,
     reviewAppliedTaskStatus: reviewApplied?.taskSnapshot["defeat-boss"]?.status,
     reviewAppliedOutcomeStatus: reviewApplied?.outcomeEvents[0]?.status,
+    reviewAppliedActionMessages: reviewApplied?.actionMessages.map((message) => message.content) ?? [],
+    reviewAppliedReplyOptions: reviewApplied?.replyOptions.map((option) => option.text) ?? [],
+    reviewAppliedSceneDirection: reviewApplied?.sceneDirection ?? "",
+    reviewAppliedSceneTransition: reviewApplied?.sceneTransition ?? "",
+    reviewAppliedActionFavorability: reviewApplied
+      ? getTavernStatusSnapshotValue(
+          reviewApplied.statusSnapshot,
+          { type: "relationship", subject: charARef, object: userRef },
+          "favorability",
+        )
+      : null,
     reviewRejectedStatus: reviewRejected?.statusEvents[0]?.status,
     reviewRejectedBossHealth: reviewRejected
       ? getTavernStatusSnapshotValue(
@@ -987,6 +1045,17 @@ try {
       checks.progressChecks.reviewAppliedTaskStatus === "completed" &&
       checks.progressChecks.reviewAppliedOutcomeStatus === "applied",
     "review 模式下确认 pending 状态事件后才应推进快照、任务和结局",
+    checks.progressChecks,
+  );
+  assert(
+    checks.progressChecks.reviewAppliedActionFavorability === 58 &&
+      checks.progressChecks.reviewAppliedReplyOptions.includes("先确认大家是否受伤。") &&
+      checks.progressChecks.reviewAppliedReplyOptions.includes("确认进入「scene-next」") &&
+      checks.progressChecks.reviewAppliedActionMessages.some((text) => text.includes("Boss 被击倒")) &&
+      checks.progressChecks.reviewAppliedActionMessages.some((text) => text.includes("阶段转换建议")) &&
+      checks.progressChecks.reviewAppliedSceneDirection.includes("战后检查") &&
+      checks.progressChecks.reviewAppliedSceneTransition.includes("scene-next"),
+    "任务和结局动作应落地为状态补丁、候选回复、内联消息、导演指令和阶段建议",
     checks.progressChecks,
   );
   assert(

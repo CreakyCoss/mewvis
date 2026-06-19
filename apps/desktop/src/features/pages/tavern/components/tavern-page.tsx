@@ -1995,20 +1995,24 @@ export const TavernPage = ({
         turnId: progressTurnId,
         createdAt: Date.now(),
       });
+      const { actionMessages, ...progressRoomPatch } = progressPatch;
       const progressedRoom = appendProgressCheckpointToRoom(
         syncTavernRoomActiveScene({
           ...projectTavernSceneOntoRoom(activeRoom),
-          ...progressPatch,
+          ...progressRoomPatch,
           updatedAt: Date.now(),
         }),
         "manual",
         progressTurnId,
       );
       patchRoom(activeRoom.id, {
-        ...progressPatch,
+        ...progressRoomPatch,
         statusCheckpoints: progressedRoom.statusCheckpoints,
         updatedAt: Date.now(),
       });
+      if (actionMessages.length > 0) {
+        appendMessagesToRoom(activeRoom.id, actionMessages);
+      }
       patchExecutionStep("manual-progress-tracking", {
         status: "done",
         detail: `已抽取 ${factEvents.length} 个事实事件。`,
@@ -2026,6 +2030,7 @@ export const TavernPage = ({
   }, [
     activeRoom,
     appendProgressCheckpointToRoom,
+    appendMessagesToRoom,
     isSending,
     isTrackingProgress,
     patchExecutionStep,
@@ -2083,22 +2088,26 @@ export const TavernPage = ({
       return;
     }
 
+    const { actionMessages, ...progressRoomPatch } = progressPatch;
     const progressedRoom = appendProgressCheckpointToRoom(
       syncTavernRoomActiveScene({
         ...projectTavernSceneOntoRoom(activeRoom),
-        ...progressPatch,
+        ...progressRoomPatch,
         updatedAt: Date.now(),
       }),
       "manual",
-      progressPatch.statusSnapshot.turnId,
+      progressRoomPatch.statusSnapshot.turnId,
     );
     patchRoom(activeRoom.id, {
-      ...progressPatch,
+      ...progressRoomPatch,
       statusCheckpoints: progressedRoom.statusCheckpoints,
       updatedAt: Date.now(),
     });
+    if (actionMessages.length > 0) {
+      appendMessagesToRoom(activeRoom.id, actionMessages);
+    }
     toast.success(resolution === "applied" ? "状态事件已应用。" : "状态事件已拒绝。");
-  }, [activeRoom, appendProgressCheckpointToRoom, patchRoom]);
+  }, [activeRoom, appendMessagesToRoom, appendProgressCheckpointToRoom, patchRoom]);
 
   const compactCharacterKnowledge = useCallback(async (characterId: string) => {
     if (!activeRoom) {
@@ -3091,31 +3100,45 @@ export const TavernPage = ({
               turnId: progressTurnId,
               createdAt: Date.now(),
             });
+            const { actionMessages, ...progressRoomPatch } = progressPatch;
             runtimeRoom = appendProgressCheckpointToRoom(
               syncTavernRoomActiveScene({
                 ...projectTavernSceneOntoRoom(runtimeRoom),
-                ...progressPatch,
+                ...progressRoomPatch,
                 updatedAt: Date.now(),
               }),
               "after_turn",
               progressTurnId,
             );
-            setState((current) => ({
-              ...current,
-              rooms: current.rooms.map((room) =>
-                room.id === activeRoom.id
-                  ? appendProgressCheckpointToRoom(
-                      syncTavernRoomActiveScene({
-                        ...projectTavernSceneOntoRoom(room),
-                        ...progressPatch,
-                        updatedAt: Date.now(),
-                      }),
-                      "after_turn",
-                      progressTurnId,
-                    )
-                  : room
-              ),
-            }));
+            setState((current) => {
+              const currentRoom = current.rooms.find((room) => room.id === activeRoom.id);
+              const sceneId = currentRoom ? getRoomActiveSceneId(currentRoom) : activeRoom.id;
+              return {
+                ...current,
+                rooms: current.rooms.map((room) =>
+                  room.id === activeRoom.id
+                    ? appendProgressCheckpointToRoom(
+                        syncTavernRoomActiveScene({
+                          ...projectTavernSceneOntoRoom(room),
+                          ...progressRoomPatch,
+                          updatedAt: Date.now(),
+                        }),
+                        "after_turn",
+                        progressTurnId,
+                      )
+                    : room
+                ),
+                messagesByScene: actionMessages.length > 0
+                  ? {
+                      ...current.messagesByScene,
+                      [sceneId]: [
+                        ...(current.messagesByScene[sceneId] ?? []),
+                        ...actionMessages,
+                      ],
+                    }
+                  : current.messagesByScene,
+              };
+            });
           }
 
           if (shouldShowProgressTrace) {

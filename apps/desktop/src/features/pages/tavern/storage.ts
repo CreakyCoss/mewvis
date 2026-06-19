@@ -649,6 +649,41 @@ export const DEFAULT_TAVERN_TASK_DEFINITIONS: TavernTaskDefinition[] = [
         gte: 90,
       },
     },
+    onComplete: [
+      {
+        type: "messageInline",
+        visibility: "public",
+        text: "局势暂时稳定下来，新的选择窗口打开了。",
+      },
+      {
+        type: "replyOptions",
+        options: [
+          {
+            id: "progress-reply-check-party",
+            text: "确认每个人的状态。",
+            targetCharacterIds: [],
+            intent: "inspect",
+          },
+          {
+            id: "progress-reply-press-on",
+            text: "趁局势稳定继续推进。",
+            targetCharacterIds: [],
+            intent: "act",
+          },
+        ],
+      },
+    ],
+    onFail: [
+      {
+        type: "messageInline",
+        visibility: "public",
+        text: "局势已经失控，所有人都能感到危险正在逼近。",
+      },
+      {
+        type: "directorDirective",
+        instruction: "下一轮聚焦失控后果和角色反应，不要替用户选择撤退或牺牲。",
+      },
+    ],
   },
   {
     id: "earn-trust-through-help",
@@ -673,6 +708,13 @@ export const DEFAULT_TAVERN_TASK_DEFINITIONS: TavernTaskDefinition[] = [
         countGte: 1,
       },
     },
+    onComplete: [
+      {
+        type: "messageInline",
+        visibility: "owner",
+        text: "至少一位同伴开始更愿意相信你的判断。",
+      },
+    ],
   },
 ];
 
@@ -690,6 +732,19 @@ export const DEFAULT_TAVERN_SCENE_OUTCOMES: TavernSceneOutcomeDefinition[] = [
     exclusive: false,
     endScene: "suggest",
     visibility: "public",
+    onAchieved: [
+      {
+        type: "replyOptions",
+        options: [
+          {
+            id: "progress-reply-end-scene",
+            text: "确认这一阶段暂时告一段落。",
+            targetCharacterIds: [],
+            intent: "act",
+          },
+        ],
+      },
+    ],
   },
   {
     id: "scene-overwhelmed-failure",

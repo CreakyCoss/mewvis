@@ -2,9 +2,11 @@ import type {
   TavernCondition,
   TavernEntityRef,
   TavernFactEvent,
+  TavernMessage,
   TavernRoom,
   TavernOutcomeEvent,
   TavernProgressCheckpoint,
+  TavernProgressAction,
   TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusEvent,
@@ -15,6 +17,7 @@ import type {
   TavernTaskDefinition,
   TavernTaskEvent,
   TavernTaskState,
+  TavernReplyOption,
 } from "../types";
 
 const createProgressId = (prefix: string) =>
@@ -685,6 +688,331 @@ export const evaluateTavernSceneOutcomes = ({
 const sortByCreatedAt = <T extends { createdAt: number }>(items: T[]) =>
   [...items].sort((left, right) => left.createdAt - right.createdAt);
 
+export type TavernProgressActionResult = Pick<
+  TavernRoom,
+  | "statusEvents"
+  | "statusSnapshot"
+  | "replyOptions"
+  | "sceneDirection"
+  | "sceneTransition"
+> & {
+  actionMessages: TavernMessage[];
+};
+
+export type TavernPendingStatusResolutionPatch = Pick<
+  TavernRoom,
+  | "statusEvents"
+  | "previousStatusSnapshot"
+  | "statusSnapshot"
+  | "taskEvents"
+  | "taskSnapshot"
+  | "outcomeEvents"
+  | "replyOptions"
+  | "sceneDirection"
+  | "sceneTransition"
+> & {
+  actionMessages: TavernMessage[];
+};
+
+export type TavernProgressAdvancePatch = Pick<
+  TavernRoom,
+  | "factEvents"
+  | "statusEvents"
+  | "previousStatusSnapshot"
+  | "statusSnapshot"
+  | "taskEvents"
+  | "taskSnapshot"
+  | "outcomeEvents"
+  | "replyOptions"
+  | "sceneDirection"
+  | "sceneTransition"
+> & {
+  actionMessages: TavernMessage[];
+};
+
+const shouldPublishInlineAction = (visibility: string) =>
+  visibility !== "hidden" && visibility !== "debug" && visibility !== "director" && visibility !== "private";
+
+const progressActionMessage = ({
+  room,
+  turnId,
+  content,
+  createdAt,
+}: {
+  room: TavernRoom;
+  turnId: string;
+  content: string;
+  createdAt: number;
+}): TavernMessage => ({
+  id: createProgressId("message"),
+  roomId: room.id,
+  sceneId: room.activeSceneId,
+  turnId,
+  role: "narrator",
+  content,
+  status: "done",
+  createdAt,
+});
+
+const normalizeProgressReplyOptions = (
+  options: TavernReplyOption[],
+): TavernReplyOption[] => options.flatMap((option, index): TavernReplyOption[] => {
+  const text = typeof option.text === "string" ? option.text.trim() : "";
+  if (!text) {
+    return [];
+  }
+  const intent = option.intent === "answer" ||
+      option.intent === "ask" ||
+      option.intent === "act" ||
+      option.intent === "interrupt" ||
+      option.intent === "wait" ||
+      option.intent === "inspect"
+    ? option.intent
+    : "act";
+
+  return [{
+    id: typeof option.id === "string" && option.id.trim()
+      ? option.id.trim()
+      : createProgressId(`reply-option-${index + 1}`),
+    text,
+    respondsToInteractionId: typeof option.respondsToInteractionId === "string" &&
+        option.respondsToInteractionId.trim()
+      ? option.respondsToInteractionId.trim()
+      : undefined,
+    targetCharacterIds: Array.isArray(option.targetCharacterIds)
+      ? option.targetCharacterIds.flatMap((characterId) =>
+          typeof characterId === "string" && characterId.trim() ? [characterId.trim()] : []
+        )
+      : [],
+    intent,
+  }];
+});
+
+const mergeReplyOptions = (
+  existingOptions: TavernReplyOption[],
+  actionOptions: TavernReplyOption[],
+) => {
+  if (actionOptions.length === 0) {
+    return existingOptions;
+  }
+
+  const seen = new Set<string>();
+  return [...actionOptions, ...existingOptions].filter((option) => {
+    const key = `${option.intent}:${option.text.trim()}`;
+    if (!option.text.trim() || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+};
+
+const appendProgressDirective = (current: string, directive: string) => {
+  const trimmedDirective = directive.trim();
+  if (!trimmedDirective) {
+    return current;
+  }
+
+  const line = `进度指令：${trimmedDirective}`;
+  const lines = current
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (lines.includes(line)) {
+    return current;
+  }
+
+  return [...lines, line].slice(-8).join("\n");
+};
+
+const applyProgressStatusPatchActions = ({
+  actions,
+  statusEvents,
+  statusSnapshot,
+  turnId,
+  createdAt,
+}: {
+  actions: TavernProgressAction[];
+  statusEvents: TavernStatusEvent[];
+  statusSnapshot: TavernStatusSnapshot;
+  turnId: string;
+  createdAt: number;
+}) => {
+  const actionStatusEvents = actions.flatMap((action): TavernStatusEvent[] => {
+    if (action.type !== "statusPatch") {
+      return [];
+    }
+
+    if (!Array.isArray(action.statusEvents)) {
+      return [];
+    }
+
+    return action.statusEvents.flatMap((event, index): TavernStatusEvent[] => {
+      if (!event.target || typeof event.statusId !== "string" || typeof event.after === "undefined") {
+        return [];
+      }
+      return [{
+        ...event,
+        id: typeof event.id === "string" && event.id.trim()
+          ? event.id.trim()
+          : createProgressId(`status-action-${index + 1}`),
+        turnId: typeof event.turnId === "string" && event.turnId.trim()
+          ? event.turnId.trim()
+          : turnId,
+        sourceFactEventIds: Array.isArray(event.sourceFactEventIds) ? event.sourceFactEventIds : [],
+        sourceMessageIds: Array.isArray(event.sourceMessageIds) ? event.sourceMessageIds : [],
+        before: typeof event.before === "undefined" ? null : event.before,
+        after: event.after ?? null,
+        status: event.status ?? "applied",
+        createdBy: event.createdBy ?? "system",
+        createdAt: typeof event.createdAt === "number" ? event.createdAt : createdAt,
+      }];
+    });
+  });
+
+  if (actionStatusEvents.length === 0) {
+    return { statusEvents, statusSnapshot };
+  }
+
+  const nextStatusSnapshot = {
+    ...applyTavernStatusEventsToSnapshot({
+      snapshot: statusSnapshot,
+      events: actionStatusEvents,
+    }),
+    turnId,
+    updatedAt: createdAt,
+  };
+
+  return {
+    statusEvents: [...statusEvents, ...actionStatusEvents],
+    statusSnapshot: nextStatusSnapshot,
+  };
+};
+
+const applyTavernProgressActions = ({
+  room,
+  actions,
+  statusEvents,
+  statusSnapshot,
+  turnId,
+  createdAt,
+}: {
+  room: TavernRoom;
+  actions: TavernProgressAction[];
+  statusEvents: TavernStatusEvent[];
+  statusSnapshot: TavernStatusSnapshot;
+  turnId: string;
+  createdAt: number;
+}): TavernProgressActionResult => {
+  const statusPatchResult = applyProgressStatusPatchActions({
+    actions,
+    statusEvents,
+    statusSnapshot,
+    turnId,
+    createdAt,
+  });
+  const actionMessages: TavernMessage[] = [];
+  const actionReplyOptions: TavernReplyOption[] = [];
+  let sceneDirection = room.sceneDirection;
+  let sceneTransition = room.sceneTransition;
+
+  for (const action of actions) {
+    if (action.type === "replyOptions") {
+      if (Array.isArray(action.options)) {
+        actionReplyOptions.push(...normalizeProgressReplyOptions(action.options));
+      }
+      continue;
+    }
+
+    if (action.type === "messageInline") {
+      const text = typeof action.text === "string" ? action.text.trim() : "";
+      if (text && shouldPublishInlineAction(action.visibility)) {
+        actionMessages.push(progressActionMessage({
+          room,
+          turnId,
+          content: text,
+          createdAt,
+        }));
+      }
+      continue;
+    }
+
+    if (action.type === "directorDirective") {
+      if (typeof action.instruction === "string") {
+        sceneDirection = appendProgressDirective(sceneDirection, action.instruction);
+      }
+      continue;
+    }
+
+    if (action.type === "sceneTransitionSuggestion") {
+      const targetSceneId = typeof action.targetSceneId === "string" ? action.targetSceneId.trim() : "";
+      if (!targetSceneId) {
+        continue;
+      }
+      const targetScene = room.scenes?.find((scene) => scene.id === targetSceneId);
+      const targetLabel = targetScene?.title.trim() || targetSceneId;
+      const text = `阶段转换建议：${action.requiresUserConfirm ? "确认后" : "可以"}进入「${targetLabel}」。`;
+      sceneTransition = appendProgressDirective(sceneTransition, text);
+      actionMessages.push(progressActionMessage({
+        room,
+        turnId,
+        content: text,
+        createdAt,
+      }));
+      actionReplyOptions.push({
+        id: createProgressId("reply-option-transition"),
+        text: action.requiresUserConfirm
+          ? `确认进入「${targetLabel}」`
+          : `推进到「${targetLabel}」`,
+        targetCharacterIds: [],
+        intent: "act",
+      });
+    }
+  }
+
+  return {
+    statusEvents: statusPatchResult.statusEvents,
+    statusSnapshot: statusPatchResult.statusSnapshot,
+    replyOptions: mergeReplyOptions(room.replyOptions, actionReplyOptions),
+    sceneDirection,
+    sceneTransition,
+    actionMessages,
+  };
+};
+
+const collectProgressActions = ({
+  taskDefinitions,
+  taskEvents,
+  sceneOutcomes,
+  outcomeEvents,
+}: {
+  taskDefinitions: TavernTaskDefinition[];
+  taskEvents: TavernTaskEvent[];
+  sceneOutcomes: TavernSceneOutcomeDefinition[];
+  outcomeEvents: TavernOutcomeEvent[];
+}) => {
+  const taskById = new Map(taskDefinitions.map((task) => [task.id, task]));
+  const outcomeById = new Map(sceneOutcomes.map((outcome) => [outcome.id, outcome]));
+  return [
+    ...taskEvents.flatMap((event): TavernProgressAction[] => {
+      const task = taskById.get(event.taskId);
+      if (!task) {
+        return [];
+      }
+      if (event.type === "completed") {
+        return task.onComplete ?? [];
+      }
+      if (event.type === "failed") {
+        return task.onFail ?? [];
+      }
+      return [];
+    }),
+    ...outcomeEvents.flatMap((event): TavernProgressAction[] =>
+      outcomeById.get(event.outcomeId)?.onAchieved ?? []
+    ),
+  ];
+};
+
 export const createTavernProgressCheckpoint = ({
   room,
   turnId = room.statusSnapshot.turnId,
@@ -790,15 +1118,7 @@ export const resolveTavernPendingStatusEvent = ({
   statusEventId: string;
   resolution: "applied" | "rejected";
   createdAt?: number;
-}): Pick<
-  TavernRoom,
-  | "statusEvents"
-  | "previousStatusSnapshot"
-  | "statusSnapshot"
-  | "taskEvents"
-  | "taskSnapshot"
-  | "outcomeEvents"
-> | null => {
+}): TavernPendingStatusResolutionPatch | null => {
   const pendingEvent = room.statusEvents.find((event) => event.id === statusEventId);
   if (!pendingEvent || pendingEvent.status !== "pending") {
     return null;
@@ -820,6 +1140,10 @@ export const resolveTavernPendingStatusEvent = ({
       taskEvents: room.taskEvents,
       taskSnapshot: room.taskSnapshot,
       outcomeEvents: room.outcomeEvents,
+      replyOptions: room.replyOptions,
+      sceneDirection: room.sceneDirection,
+      sceneTransition: room.sceneTransition,
+      actionMessages: [],
     };
   }
 
@@ -856,14 +1180,31 @@ export const resolveTavernPendingStatusEvent = ({
     turnId: resolvedEvent.turnId,
     createdAt,
   });
+  const actionResult = applyTavernProgressActions({
+    room,
+    actions: collectProgressActions({
+      taskDefinitions: room.taskDefinitions,
+      taskEvents: taskResult.taskEvents,
+      sceneOutcomes: room.sceneOutcomes,
+      outcomeEvents,
+    }),
+    statusEvents,
+    statusSnapshot,
+    turnId: resolvedEvent.turnId,
+    createdAt,
+  });
 
   return {
-    statusEvents,
+    statusEvents: actionResult.statusEvents,
     previousStatusSnapshot,
-    statusSnapshot,
+    statusSnapshot: actionResult.statusSnapshot,
     taskEvents: [...room.taskEvents, ...taskResult.taskEvents],
     taskSnapshot: taskResult.taskSnapshot,
     outcomeEvents: [...room.outcomeEvents, ...outcomeEvents],
+    replyOptions: actionResult.replyOptions,
+    sceneDirection: actionResult.sceneDirection,
+    sceneTransition: actionResult.sceneTransition,
+    actionMessages: actionResult.actionMessages,
   };
 };
 
@@ -877,16 +1218,7 @@ export const advanceTavernProgressFromFactEvents = ({
   factEvents: TavernFactEvent[];
   turnId: string;
   createdAt?: number;
-}): Pick<
-  TavernRoom,
-  | "factEvents"
-  | "statusEvents"
-  | "previousStatusSnapshot"
-  | "statusSnapshot"
-  | "taskEvents"
-  | "taskSnapshot"
-  | "outcomeEvents"
-> => {
+}): TavernProgressAdvancePatch => {
   const previousStatusSnapshot = room.statusSnapshot;
   const derivedStatusEvents = deriveTavernStatusEventsFromFacts({
     factEvents,
@@ -931,14 +1263,31 @@ export const advanceTavernProgressFromFactEvents = ({
     turnId,
     createdAt,
   });
+  const actionResult = applyTavernProgressActions({
+    room,
+    actions: collectProgressActions({
+      taskDefinitions: room.taskDefinitions,
+      taskEvents: taskResult.taskEvents,
+      sceneOutcomes: room.sceneOutcomes,
+      outcomeEvents,
+    }),
+    statusEvents: [...room.statusEvents, ...statusEvents],
+    statusSnapshot,
+    turnId,
+    createdAt,
+  });
 
   return {
     factEvents: [...room.factEvents, ...factEvents],
-    statusEvents: [...room.statusEvents, ...statusEvents],
+    statusEvents: actionResult.statusEvents,
     previousStatusSnapshot,
-    statusSnapshot,
+    statusSnapshot: actionResult.statusSnapshot,
     taskEvents: [...room.taskEvents, ...taskResult.taskEvents],
     taskSnapshot: taskResult.taskSnapshot,
     outcomeEvents: [...room.outcomeEvents, ...outcomeEvents],
+    replyOptions: actionResult.replyOptions,
+    sceneDirection: actionResult.sceneDirection,
+    sceneTransition: actionResult.sceneTransition,
+    actionMessages: actionResult.actionMessages,
   };
 };
