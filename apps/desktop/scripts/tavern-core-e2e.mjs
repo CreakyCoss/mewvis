@@ -40,6 +40,7 @@ writeFileSync(entryPath, `
     isGeneratedTavernRoleAssignmentFactEvent,
     isTavernProgressVisibilityVisibleToUser,
     normalizeTavernMessagesForAudience,
+    orderTavernRoundSpeakers,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
     resolveTavernInformationView,
@@ -1419,12 +1420,36 @@ writeFileSync(entryPath, `
     room: werewolfRoom,
     audience: { type: "director" },
   });
+  const werewolfEliminateAdvance = advanceTavernProgressFromFactEvents({
+    room: werewolfRoom,
+    factEvents: [{
+      id: "system-werewolf-eliminate-shen",
+      turnId: "system-werewolf-day-vote",
+      sourceMessageIds: ["system-werewolf-vote-message"],
+      type: "player_eliminated",
+      target: { type: "character", characterId: "wolf-shen" },
+      evidence: "圆桌公开投票后，沈墨被宣告出局，不能继续参与白天发言。",
+      confidence: 0.98,
+      createdAt: now + 72,
+    }],
+    turnId: "system-werewolf-day-vote",
+    createdAt: now + 73,
+  });
+  const werewolfAfterEliminateRoom = {
+    ...werewolfRoom,
+    ...werewolfEliminateAdvance,
+  };
+  const werewolfRoundSpeakerIds = orderTavernRoundSpeakers({
+    room: werewolfAfterEliminateRoom,
+    characters: werewolfMaterialized.characters,
+    activeCharacterId: "wolf-qiao",
+  }).map((character) => character.id);
   const heartRaceMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
     "heart-race-for-user",
     {
       roomId: "system-heart-race-room",
-      createdAt: now + 72,
+      createdAt: now + 74,
       characterIdByPresetId: new Map([
         ["xia-zhi", "heart-xia"],
         ["gu-lin", "heart-gu"],
@@ -1446,17 +1471,17 @@ writeFileSync(entryPath, `
       value: 75,
       evidence: "夏栀明确帮你化解筹备室危机，让你对她的好感大幅提升。",
       confidence: 0.96,
-      createdAt: now + 73,
+      createdAt: now + 75,
     }],
     turnId: "system-heart-race-turn",
-    createdAt: now + 74,
+    createdAt: now + 76,
   });
   const winTheirHeartsMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
     "win-their-hearts-duel",
     {
       roomId: "system-win-hearts-room",
-      createdAt: now + 75,
+      createdAt: now + 77,
       characterIdByPresetId: new Map([
         ["ye-xiaoman", "route-ye"],
         ["liu-qingshuang", "route-liu"],
@@ -1477,17 +1502,17 @@ writeFileSync(entryPath, `
       value: 80,
       evidence: "你明确理解并支持叶小满独当一面的愿望，她对你的好感大幅提升。",
       confidence: 0.96,
-      createdAt: now + 76,
+      createdAt: now + 78,
     }],
     turnId: "system-win-hearts-turn",
-    createdAt: now + 77,
+    createdAt: now + 79,
   });
   const wuxiaMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
     "blade-rain-posthouse",
     {
       roomId: "system-wuxia-room",
-      createdAt: now + 78,
+      createdAt: now + 80,
       characterIdByPresetId: new Map([
         ["su-qinghe", "blade-su"],
         ["wen-he", "blade-wen"],
@@ -1510,10 +1535,10 @@ writeFileSync(entryPath, `
       value: -80,
       evidence: "少侠与苏青河合力击中玄鸦使要害，玄鸦使伤势足以败退。",
       confidence: 0.97,
-      createdAt: now + 79,
+      createdAt: now + 81,
     }],
     turnId: "system-wuxia-turn",
-    createdAt: now + 80,
+    createdAt: now + 82,
   });
   let promptPresetImportError = "";
   try {
@@ -1643,6 +1668,12 @@ writeFileSync(entryPath, `
         publicRoleFactCount: werewolfPublicRoleFacts.length,
         userRoleFactCount: werewolfUserRoleFacts.length,
         directorRoleFactCount: werewolfDirectorRoleFacts.length,
+        eliminatedPlayerState: getTavernStatusSnapshotValue(
+          werewolfEliminateAdvance.statusSnapshot,
+          { type: "character", characterId: "wolf-shen" },
+          "player_state",
+        ),
+        roundSpeakerIdsAfterEliminate: werewolfRoundSpeakerIds,
         hiddenThoughts: werewolfRoom.settings.informationPolicy.hideCharacterThoughts,
         hiddenFactsEnabled: werewolfRoom.settings.informationPolicy.hiddenFacts.enabled,
       },
@@ -2175,13 +2206,17 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.werewolf.room.settings.informationPolicy.mode === "social_deduction" &&
+      checks.progressChecks.systemPresets.werewolf.room.replyMode === "round" &&
       checks.progressChecks.systemPresets.werewolf.hiddenThoughts &&
       checks.progressChecks.systemPresets.werewolf.hiddenFactsEnabled &&
       checks.progressChecks.systemPresets.werewolf.roleFacts.length === 5 &&
       checks.progressChecks.systemPresets.werewolf.publicRoleFactCount === 0 &&
       checks.progressChecks.systemPresets.werewolf.userRoleFactCount >= 1 &&
-      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 5,
-    "狼人杀预设应开启随机身份、隐藏心理/事实，并按受众过滤身份事实",
+      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 5 &&
+      checks.progressChecks.systemPresets.werewolf.eliminatedPlayerState === "eliminated" &&
+      checks.progressChecks.systemPresets.werewolf.roundSpeakerIdsAfterEliminate.join("|") ===
+        "wolf-qiao|wolf-tan|wolf-lin",
+    "狼人杀预设应开启随机身份、隐藏心理/事实，并按存活玩家顺序发言且跳过出局者",
     checks.progressChecks.systemPresets.werewolf,
   );
   assert(

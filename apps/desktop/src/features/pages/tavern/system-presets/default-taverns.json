@@ -61,7 +61,7 @@
         "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌，导演已经在幕后分配身份。",
         "sceneGoal": "第一轮发言：每个人说出自己昨夜公开可证的行动，不允许直接公布未公开身份。",
         "plot": "身份事实、夜间行动和阵营信息默认隐藏；公开讨论只依据发言、投票和导演公开事件推进。",
-        "storyDirection": "导演每轮调度 1 到 4 名角色发言，并可让未发言角色出现公开动作描写。任何身份揭示必须通过规则、投票或结局复盘。",
+        "storyDirection": "发言阶段按存活玩家座次顺序发言；用户发言后，由所有仍存活的角色依次回应。导演只负责阶段、公开事件、夜晚/投票结算和复盘，不随意跳过存活玩家。",
         "transition": "当狼人被确认、村民误投过多，或导演判断阵营胜负明确时进入复盘。",
         "memory": "本局核心边界：隐藏身份不能直接展示给不该知道的人；角色心理描写在公开界面隐藏，结局后恢复。",
         "sceneStatus": {
@@ -72,6 +72,57 @@
           "scenePhase": "公开发言",
           "immediateThreat": "狼人身份未知"
         },
+        "statusDefinitions": [
+          {
+            "id": "player_state",
+            "label": "玩家状态",
+            "description": "狼人杀玩家是否仍可参与白天发言。",
+            "scope": "character",
+            "valueType": "enum",
+            "defaultValue": "alive",
+            "visibility": "public",
+            "enumOptions": [
+              { "value": "alive", "label": "存活" },
+              { "value": "eliminated", "label": "出局" }
+            ],
+            "updatePolicy": {
+              "mode": "eventDrivenWithReview",
+              "requireFactEvent": true,
+              "allowedEventTypes": ["player_eliminated", "player_revived"],
+              "confidenceThreshold": 0.85
+            }
+          }
+        ],
+        "statusRules": [
+          {
+            "id": "werewolf-eliminated-to-player-state",
+            "label": "玩家出局后不能继续发言",
+            "when": { "eventType": "player_eliminated", "targetScope": "character" },
+            "apply": {
+              "statusId": "player_state",
+              "target": "eventTarget",
+              "op": "set",
+              "value": "eliminated"
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true
+            }
+          },
+          {
+            "id": "werewolf-revived-to-player-state",
+            "label": "玩家复活后恢复发言",
+            "when": { "eventType": "player_revived", "targetScope": "character" },
+            "apply": {
+              "statusId": "player_state",
+              "target": "eventTarget",
+              "op": "set",
+              "value": "alive"
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true
+            }
+          }
+        ],
         "characterPublicStatuses": {
           "qiao-yu": {
             "location": "钟楼阴影旁",
@@ -186,6 +237,18 @@
         ],
         "progressViews": [
           {
+            "id": "werewolf-player-state",
+            "label": "存活状态",
+            "kind": "status",
+            "placement": "characterCard",
+            "ownerBinding": "allCharacters",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "player_state", "display": "badge" }
+            ]
+          },
+          {
             "id": "werewolf-scene-progress",
             "label": "本局进度",
             "kind": "mixed",
@@ -212,14 +275,14 @@
             "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌。",
             "sceneGoal": "完成第一轮公开发言，建立证词时间线。",
             "plot": "身份事实只由导演、本人和允许阵营可见；公开内容只能来自发言、投票和可观察动作。",
-            "storyDirection": "导演调度 1 到 4 名角色发言；没有被调度发言的角色可以出现一小句公开动作描写。",
+            "storyDirection": "白天发言按存活玩家座次顺序进行：用户发言后，所有仍存活角色依次回应；出局角色跳过，不能再被调度发言。",
             "transition": "当出现投票、验人公开、狼人暴露或阵营胜负事实时，推进到复盘。",
             "memory": "本局不要让角色自曝未公开身份；不要让狼人事实泄露到公开界面。"
           }
         ],
         "characterIds": ["qiao-yu", "shen-mo", "tan-luo", "lin-yao"],
         "activeCharacterId": "qiao-yu",
-        "replyMode": "director",
+        "replyMode": "round",
         "userPersonaName": "你",
         "settings": {
           "directorMaxSpeakers": 4,
@@ -315,7 +378,7 @@
       "messages": [
         {
           "role": "narrator",
-          "content": "月光落在倒扣的木牌上。导演宣布：第一轮公开发言开始，任何未公开身份都不会显示在公共视角。"
+          "content": "月光落在倒扣的木牌上。导演宣布：第一轮公开发言开始，仍存活的人按座次依次发言，任何未公开身份都不会显示在公共视角。"
         },
         {
           "role": "character",

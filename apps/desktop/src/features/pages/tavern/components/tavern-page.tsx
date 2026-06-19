@@ -63,6 +63,8 @@ import {
   createTavernProgressCheckpoint,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
+  isTavernCharacterAvailableForSpeech,
+  orderTavernRoundSpeakers,
   planTavernContinuation,
   rebuildTavernProgressFromHistory,
   resolveTavernPendingOutcomeEvent,
@@ -168,25 +170,6 @@ const getErrorMessage = (error: unknown) => {
   }
 
   return "未知错误";
-};
-
-const orderRoundCharacters = (
-  characters: TavernCharacter[],
-  activeCharacterId?: string,
-) => {
-  if (!activeCharacterId) {
-    return characters;
-  }
-
-  const activeIndex = characters.findIndex((character) => character.id === activeCharacterId);
-  if (activeIndex <= 0) {
-    return characters;
-  }
-
-  return [
-    ...characters.slice(activeIndex),
-    ...characters.slice(0, activeIndex),
-  ];
 };
 
 const touchTavernRoomActiveScene = (room: TavernRoom): TavernRoom => ({
@@ -2991,9 +2974,18 @@ export const TavernPage = ({
       return;
     }
 
+    const availableRoomCharacters = orderTavernRoundSpeakers({
+      room: activeRoom,
+      characters: roomCharacters,
+      activeCharacterId: activeCharacter?.id,
+    });
+    const availableActiveCharacter = activeCharacter &&
+        isTavernCharacterAvailableForSpeech(activeRoom, activeCharacter)
+      ? activeCharacter
+      : availableRoomCharacters[0] ?? null;
     const candidateSpeakers = replyMode === "round" || isDirectorLikeMode
-      ? orderRoundCharacters(roomCharacters, activeCharacter?.id)
-      : activeCharacter ? [activeCharacter] : [];
+      ? availableRoomCharacters
+      : availableActiveCharacter ? [availableActiveCharacter] : [];
     if (candidateSpeakers.length === 0) {
       setError("当前房间还没有可回应的角色。");
       return;
@@ -3156,7 +3148,7 @@ export const TavernPage = ({
           runtimeAgentId,
           runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: runtimeRoom,
-          characters: roomCharacters,
+          characters: availableRoomCharacters,
           messages: turnMessages,
           references,
           currentUserText: text,
@@ -3165,13 +3157,13 @@ export const TavernPage = ({
             Math.max(1, roomCharacters.length),
           ),
         });
-        const characterById = new Map(roomCharacters.map((character) => [character.id, character]));
+        const characterById = new Map(availableRoomCharacters.map((character) => [character.id, character]));
         const directedSpeakers = directorDecision.speakerIds
           .map((characterId) => characterById.get(characterId))
           .filter((character): character is TavernCharacter => Boolean(character));
         speakers = directedSpeakers.length > 0
           ? directedSpeakers
-          : activeCharacter ? [activeCharacter] : roomCharacters.slice(0, 1);
+          : availableActiveCharacter ? [availableActiveCharacter] : availableRoomCharacters.slice(0, 1);
         const directedSpeakerModels = speakers.map((speaker) => ({
           speaker,
           resolvedModel: resolveTavernCharacterModel({
@@ -3512,7 +3504,7 @@ export const TavernPage = ({
         const continuationPlan = activeRoom.settings.continuation.enabled
           ? planTavernContinuation({
               pendingInteractions: latestPendingInteractions,
-              characters: roomCharacters,
+              characters: availableRoomCharacters,
               continuationRound,
               maxAutoContinuationRounds: activeRoom.settings.continuation.maxAutoContinuationRounds,
               maxSpeakersPerContinuation: activeRoom.settings.continuation.maxSpeakersPerContinuation,
@@ -3538,7 +3530,7 @@ export const TavernPage = ({
           continuationPlan.interactionIds.includes(interaction.id)
         )?.text;
         speakerQueue = continuationPlan.speakerIds
-          .map((characterId) => roomCharacters.find((character) => character.id === characterId))
+          .map((characterId) => availableRoomCharacters.find((character) => character.id === characterId))
           .filter((character): character is TavernCharacter => Boolean(character));
         for (const speaker of speakerQueue) {
           continuationInstructionBySpeakerId.set(
