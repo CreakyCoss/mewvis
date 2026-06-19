@@ -493,6 +493,70 @@ try {
   );
   assert(!("leafId" in (done.bridgeSession ?? {})), "done 事件不应向应用侧暴露 leafId", done.bridgeSession);
 
+  const oneShotTaskId = "mock-one-shot-agent";
+  const oneShotAgentRoleId = "mock-one-shot-agent-role";
+  const unexpectedOneShotAgentSessionDir = join(sessionDirPath, "agents", "mock", oneShotAgentRoleId);
+  assert(
+    !existsSync(unexpectedOneShotAgentSessionDir),
+    "空 sessionRootDir 的一次性 agent 运行前不应已有持久 agent session 目录",
+    unexpectedOneShotAgentSessionDir,
+  );
+  send(sendMessageCommand({
+    mode: "agent",
+    requestId: oneShotTaskId,
+    taskId: oneShotTaskId,
+    agentId: "mock",
+    workspacePath,
+    sessionRootDir: null,
+    agentRoleId: oneShotAgentRoleId,
+    systemPrompt: "一次性 Agent 系统提示词。",
+    userMessage: "请只完成本次一次性任务。",
+    requestContext: "一次性 Agent 的上下文资料。",
+    runtimeInstruction: "本轮只验证一次性 agent 不落库。",
+    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+    resources: bridgeResources(["read"]),
+  }));
+  const oneShotDone = await waitFor(
+    (item) => item.type === "done" && item.taskId === oneShotTaskId,
+    "mock one-shot done",
+  );
+  const oneShotTaskResult = await waitFor(
+    (item) => item.type === "task_result" && item.requestId === oneShotTaskId,
+    "mock one-shot task_result",
+  );
+  assert(oneShotTaskResult.success === true, "空 sessionRootDir 的一次性 agent 应成功", oneShotTaskResult);
+  assert(
+    !oneShotDone.bridgeSession,
+    "空 sessionRootDir 的一次性 agent done 事件不应携带 bridgeSession",
+    oneShotDone,
+  );
+  assert(
+    oneShotDone.text.includes("任务摘要：一次性 Agent 系统提示词。") &&
+      oneShotDone.text.includes("请只完成本次一次性任务。") &&
+      oneShotDone.text.includes("请求上下文：一次性 Agent 的上下文资料。") &&
+      oneShotDone.text.includes("允许工具：read"),
+    "一次性 agent 仍应保留系统提示词、request_context、runtime_instruction 和工具资源",
+    oneShotDone.text,
+  );
+  assert(
+    !existsSync(unexpectedOneShotAgentSessionDir),
+    "空 sessionRootDir 的一次性 agent 不应创建持久 agent session 目录",
+    unexpectedOneShotAgentSessionDir,
+  );
+  const afterOneShot = await request({
+    type: "read_session",
+    requestId: "read-after-one-shot",
+    workspacePath,
+    sessionRootDir,
+  }, "session_result");
+  assert(
+    afterOneShot.messages.length === afterTask.messages.length &&
+      afterOneShot.messages.map((message) => message.content).join("|") ===
+        afterTask.messages.map((message) => message.content).join("|"),
+    "空 sessionRootDir 的一次性 agent 不应改动已有 bridge ledger",
+    afterOneShot.messages,
+  );
+
   const edited = await request({
     type: "message_edit",
     requestId: "edit-user",
