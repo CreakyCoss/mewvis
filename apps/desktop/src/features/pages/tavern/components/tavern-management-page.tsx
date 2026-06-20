@@ -109,6 +109,9 @@ type TavernManagementPageProps = {
   onCreateRoom: () => void;
   onQuickCreateRoom: (draft: TavernGeneratedPresetAgentDraft) => Promise<string | null>;
   onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
+  onRegenerateDirectorProfile: (
+    room: TavernRoom,
+  ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
   onSelectRoom: (roomId: string) => void;
   onOpenRoom: (roomId: string) => void;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
@@ -758,6 +761,39 @@ const clampQuickCreateProbability = (value: string) => {
   return Math.min(1, Math.max(0, parsed / 100));
 };
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "未知错误";
+};
+
+const cloneTavernDirectorProfile = (
+  profile: TavernRoomSettings["directorScheduling"]["profile"],
+): TavernRoomSettings["directorScheduling"]["profile"] => profile
+  ? {
+      ...profile,
+      globalGoals: [...profile.globalGoals],
+      globalRules: [...profile.globalRules],
+      characterProfiles: Object.fromEntries(
+        Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
+          characterId,
+          {
+            ...characterProfile,
+            interestTags: [...characterProfile.interestTags],
+            goalTags: [...characterProfile.goalTags],
+            knowledgeTags: [...characterProfile.knowledgeTags],
+            speechTriggers: [...characterProfile.speechTriggers],
+            silenceTriggers: [...characterProfile.silenceTriggers],
+          },
+        ]),
+      ),
+    }
+  : undefined;
+
 const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
   ...settings,
   continuation: { ...settings.continuation },
@@ -772,6 +808,7 @@ const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettin
       ...settings.directorScheduling.speakerMotivation,
       rules: settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
     },
+    profile: cloneTavernDirectorProfile(settings.directorScheduling.profile),
     fixedOrder: {
       ...settings.directorScheduling.fixedOrder,
       phaseValues: [...settings.directorScheduling.fixedOrder.phaseValues],
@@ -782,6 +819,12 @@ const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettin
     hiddenFacts: { ...settings.informationPolicy.hiddenFacts },
     roleAssignment: {
       ...settings.informationPolicy.roleAssignment,
+      opening: {
+        ...settings.informationPolicy.roleAssignment.opening,
+        globalStatusPatches: settings.informationPolicy.roleAssignment.opening.globalStatusPatches.map((patch) => ({
+          ...patch,
+        })),
+      },
       rolePool: settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
     },
   },
@@ -878,6 +921,7 @@ export const TavernManagementPage = ({
   onCreateRoom,
   onQuickCreateRoom,
   onRunTextFieldAgent,
+  onRegenerateDirectorProfile,
   onSelectRoom,
   onOpenRoom,
   onPatchRoom,
@@ -901,6 +945,8 @@ export const TavernManagementPage = ({
   const [quickCreateError, setQuickCreateError] = useState("");
   const [isQuickCreatingRoom, setIsQuickCreatingRoom] = useState(false);
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
+  const [isRegeneratingDirectorProfile, setIsRegeneratingDirectorProfile] = useState(false);
+  const [directorProfileError, setDirectorProfileError] = useState("");
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
@@ -1429,6 +1475,32 @@ export const TavernManagementPage = ({
 
   const patchEditingRoomDraft = (patch: Partial<TavernRoom>) => {
     setEditingRoomDraft((current) => current ? { ...current, ...patch } : current);
+  };
+
+  const regenerateDirectorProfile = async () => {
+    if (!editingRoom || isRegeneratingDirectorProfile) {
+      return;
+    }
+
+    setIsRegeneratingDirectorProfile(true);
+    setDirectorProfileError("");
+    try {
+      const profile = await onRegenerateDirectorProfile(editingRoom);
+      patchEditingRoomDraft({
+        settings: {
+          ...editingRoom.settings,
+          directorScheduling: {
+            ...editingRoom.settings.directorScheduling,
+            profile,
+          },
+        },
+      });
+      setDirectorProfileError("");
+    } catch (profileError) {
+      setDirectorProfileError(`生成调度画像失败：${getErrorMessage(profileError)}`);
+    } finally {
+      setIsRegeneratingDirectorProfile(false);
+    }
   };
 
   const switchEditingRoomScene = (sceneId: string) => {
@@ -4530,15 +4602,32 @@ export const TavernManagementPage = ({
                     title="运行设置"
                     description="控制执行过程、剧情资产整理频率和导演调度人数。"
                     action={(
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="outline"
-                        onClick={openSettingsContentEditor}
-                      >
-                        <Pencil className="size-3.5" />
-                      编辑
-                    </Button>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          disabled={
+                            editingRoom.locked ||
+                            isRegeneratingDirectorProfile ||
+                            !globalRuntimeModel ||
+                            editingRoom.characterIds.length === 0
+                          }
+                          onClick={() => void regenerateDirectorProfile()}
+                        >
+                          <Sparkles className="size-3.5" />
+                          {isRegeneratingDirectorProfile ? "生成中" : "生成调度画像"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          onClick={openSettingsContentEditor}
+                        >
+                          <Pencil className="size-3.5" />
+                          编辑
+                        </Button>
+                      </div>
                   )}
                     contentClassName="space-y-0 pb-4"
                   >
@@ -4631,6 +4720,12 @@ export const TavernManagementPage = ({
                         value={`${editingRoom.settings.directorMaxSpeakers} 人`}
                       />
                       <TavernCompactSummaryItem
+                        label="调度画像"
+                        value={editingRoom.settings.directorScheduling.profile
+                          ? `${Object.keys(editingRoom.settings.directorScheduling.profile.characterProfiles).length} 角色`
+                          : "未生成"}
+                      />
+                      <TavernCompactSummaryItem
                         label="角色压缩"
                         value={editingRoom.settings.agentKnowledgeCompactIntervalTurns > 0
                           ? `${editingRoom.settings.agentKnowledgeCompactIntervalTurns} 轮`
@@ -4645,6 +4740,11 @@ export const TavernManagementPage = ({
                           : `${editingRoom.progressTracker.intervalTurns} 轮`}
                       />
                     </div>
+                    {directorProfileError && (
+                      <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
+                        {directorProfileError}
+                      </div>
+                    )}
                   </TavernEditorSection>
 
                   <TavernEditorSection

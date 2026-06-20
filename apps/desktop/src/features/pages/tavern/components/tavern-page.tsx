@@ -60,19 +60,23 @@ import {
 } from "../storage";
 import {
   advanceTavernProgressFromFactEvents,
+  buildTavernSchedulingSignals,
   canTavernCharacterUseNonverbalReply,
   createTavernProgressCheckpoint,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
   isTavernFixedOrderPhase,
   isTavernCharacterAvailableForSpeech,
+  isGeneratedTavernRoleAssignmentFactEvent,
   orderTavernRoundSpeakers,
+  orderTavernRoundParticipants,
   planTavernContinuation,
   rebuildTavernProgressFromHistory,
   resolveTavernScheduledSpeakers,
   resolveTavernPendingOutcomeEvent,
   resolveTavernPendingStatusEvent,
   shouldSuppressTavernAutoContinuation,
+  setTavernStatusSnapshotValue,
   tavernCharacterAgentRoleId,
 } from "../core";
 import {
@@ -92,6 +96,7 @@ import type {
   TavernScene,
   TavernSceneOutcomeDefinition,
   TavernRoomSettings,
+  TavernSchedulingSignal,
   TavernStatusEvent,
   TavernStatusTargetRef,
   TavernState,
@@ -114,6 +119,8 @@ import {
   runTavernUserReplySuggestions,
 } from "../runtime/user-reply-suggestions";
 import { runTavernProgressTracking } from "../runtime/progress-tracker";
+import { runTavernDirectorRoleAssignment } from "../runtime/role-assignment-director";
+import { runTavernDirectorProfileAgent } from "../runtime/director-profile-agent";
 import {
   runTavernGeneratedPresetAgent,
   type TavernGeneratedPresetAgentDraft,
@@ -139,9 +146,31 @@ const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_ILLUSTRATION_HINT_LIMIT = 24;
 const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
+const TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS = 90_000;
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
+
+const withTavernTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> => {
+  let timeoutId: number | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+};
 
 const normalizeNarratorEchoText = (text: string) =>
   text
@@ -155,6 +184,54 @@ const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
     normalizeNarratorEchoText(narratorText) === normalizedReply
   );
 };
+
+const formatTavernSchedulingSignalTrace = (
+  signals: TavernSchedulingSignal[],
+  characters: TavernCharacter[],
+) => {
+  const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
+  const topSignals = signals
+    .filter((signal) => signal.score > 0)
+    .slice(0, 3);
+
+  if (topSignals.length === 0) {
+    return "未命中明显调度动机。";
+  }
+
+  return topSignals.map((signal) => {
+    const name = characterNameById.get(signal.characterId) ?? signal.characterId;
+    const reasons = signal.reasons.slice(0, 2).join("、") || "常规承接";
+    const modes = signal.suggestedModes.length > 0
+      ? `；建议：${signal.suggestedModes.map((mode) =>
+          mode === "speech" ? "发言" : mode === "nonverbal" ? "动作" : "旁观"
+        ).join("/")}`
+      : "";
+    return `${name} ${signal.score}：${reasons}${modes}`;
+  }).join("；");
+};
+
+const cloneTavernDirectorProfile = (
+  profile: TavernRoomSettings["directorScheduling"]["profile"],
+): TavernRoomSettings["directorScheduling"]["profile"] => profile
+  ? {
+      ...profile,
+      globalGoals: [...profile.globalGoals],
+      globalRules: [...profile.globalRules],
+      characterProfiles: Object.fromEntries(
+        Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
+          characterId,
+          {
+            ...characterProfile,
+            interestTags: [...characterProfile.interestTags],
+            goalTags: [...characterProfile.goalTags],
+            knowledgeTags: [...characterProfile.knowledgeTags],
+            speechTriggers: [...characterProfile.speechTriggers],
+            silenceTriggers: [...characterProfile.silenceTriggers],
+          },
+        ]),
+      ),
+    }
+  : undefined;
 
 type TavernPageProps = {
   workspace: Workspace;
@@ -462,12 +539,15 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
           ? candidate.directorScheduling.speakerMotivation.rules
           : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules,
       },
+      profile: cloneTavernDirectorProfile(candidate.directorScheduling?.profile),
       fixedOrder: {
         ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
         ...(candidate.directorScheduling?.fixedOrder ?? {}),
         phaseValues: Array.isArray(candidate.directorScheduling?.fixedOrder?.phaseValues)
           ? candidate.directorScheduling.fixedOrder.phaseValues
           : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues,
+        includeUser: Boolean(candidate.directorScheduling?.fixedOrder?.includeUser),
+        userPosition: candidate.directorScheduling?.fixedOrder?.userPosition === "last" ? "last" : "first",
       },
     },
     continuation: {
@@ -503,6 +583,13 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
         rolePool: Array.isArray(candidate.informationPolicy?.roleAssignment?.rolePool)
           ? candidate.informationPolicy.roleAssignment.rolePool
           : DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool,
+        opening: {
+          ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening,
+          ...(candidate.informationPolicy?.roleAssignment?.opening ?? {}),
+          globalStatusPatches: Array.isArray(candidate.informationPolicy?.roleAssignment?.opening?.globalStatusPatches)
+            ? candidate.informationPolicy.roleAssignment.opening.globalStatusPatches
+            : DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening.globalStatusPatches,
+        },
       },
     },
   };
@@ -726,6 +813,8 @@ export const TavernPage = ({
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const managedAutoRunTimerRef = useRef<number | null>(null);
+  const roleAssignmentRoomIdsRef = useRef<Set<string>>(new Set());
+  const roleAssignmentRunIdRef = useRef(0);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -764,6 +853,8 @@ export const TavernPage = ({
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
+    roleAssignmentRoomIdsRef.current.clear();
+    roleAssignmentRunIdRef.current += 1;
   }, [workspace.id]);
 
   useEffect(() => {
@@ -1154,6 +1245,147 @@ export const TavernPage = ({
       };
     });
   }, []);
+
+  useEffect(() => {
+    if (
+      !isTavernStateHydrated ||
+      viewMode !== "room" ||
+      !activeRoom
+    ) {
+      return;
+    }
+
+    const roleAssignment = activeRoom.settings.informationPolicy.roleAssignment;
+    const alreadyAssigned = activeRoom.factEvents.some(isGeneratedTavernRoleAssignmentFactEvent);
+    if (
+      !roleAssignment.enabled ||
+      roleAssignment.strategy !== "director_random" ||
+      !roleAssignment.opening.autoStart ||
+      alreadyAssigned ||
+      roleAssignmentRoomIdsRef.current.has(activeRoom.id) ||
+      !runtimeModel ||
+      !runtimeAgentId ||
+      roomCharacters.length === 0
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const runId = roleAssignmentRunIdRef.current + 1;
+    roleAssignmentRunIdRef.current = runId;
+    roleAssignmentRoomIdsRef.current.add(activeRoom.id);
+    setIsSending(true);
+    setError("");
+    setTurnStatus("导演正在实时分配本局身份...");
+
+    withTavernTimeout(
+      runTavernDirectorRoleAssignment({
+        workspacePath: workspace.path,
+        runtimeAgentId,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        room: activeRoom,
+        characters: roomCharacters,
+      }),
+      TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS,
+      "导演实时分配身份超时，请重试或稍后再进入酒馆。",
+    ).then((assignment) => {
+      if (isCancelled || roleAssignmentRunIdRef.current !== runId) {
+        return;
+      }
+
+      const createdAt = Date.now();
+      const narratorMessages = [
+        assignment.openingNarrator?.trim(),
+        assignment.dayAnnouncement?.trim(),
+      ].filter((content): content is string => Boolean(content));
+      if (narratorMessages.length > 0) {
+        appendMessagesToRoom(activeRoom.id, narratorMessages.map((content) =>
+          createTavernMessage({
+            roomId: activeRoom.id,
+            role: "narrator",
+            content,
+            status: "done",
+          })
+        ));
+      }
+
+      const openingEventType = roleAssignment.opening.publicEventType.trim();
+      const openingFactEvent: TavernFactEvent | null = openingEventType
+        ? {
+            id: `director-opening-event-${createdAt.toString(36)}`,
+            turnId: assignment.factEvents[0]?.turnId ?? `director-opening-${createdAt.toString(36)}`,
+            sourceMessageIds: [],
+            type: openingEventType,
+            target: { type: "global" },
+            ...(roleAssignment.opening.publicEventValue !== undefined
+              ? { value: roleAssignment.opening.publicEventValue }
+              : {}),
+            evidence: assignment.publicFact?.trim() ||
+              assignment.dayAnnouncement?.trim() ||
+              "身份分配完成，公开流程进入下一阶段。",
+            confidence: 1,
+            visibility: "public",
+            createdAt,
+          }
+        : null;
+      const progressPatch = advanceTavernProgressFromFactEvents({
+        room: activeRoom,
+        factEvents: [
+          ...assignment.factEvents,
+          ...(openingFactEvent ? [openingFactEvent] : []),
+        ],
+        turnId: openingFactEvent?.turnId ?? assignment.factEvents[0]?.turnId ?? `director-opening-${createdAt.toString(36)}`,
+        createdAt,
+      });
+      const statusSnapshot = roleAssignment.opening.globalStatusPatches.reduce(
+        (snapshot, patch) => setTavernStatusSnapshotValue(
+          snapshot,
+          { type: "global" },
+          patch.statusId,
+          patch.value,
+        ),
+        progressPatch.statusSnapshot,
+      );
+
+      patchRoom(activeRoom.id, {
+        ...progressPatch,
+        statusSnapshot,
+      });
+      setTurnStatus("身份已分配，按当前阶段继续。");
+    }).catch((assignmentError) => {
+      if (roleAssignmentRunIdRef.current !== runId) {
+        return;
+      }
+
+      roleAssignmentRoomIdsRef.current.delete(activeRoom.id);
+      if (!isCancelled) {
+        setError(`导演实时分配身份失败：${getErrorMessage(assignmentError)}`);
+        setTurnStatus("");
+      }
+    }).finally(() => {
+      if (roleAssignmentRunIdRef.current === runId) {
+        setIsSending(false);
+        if (isCancelled) {
+          roleAssignmentRoomIdsRef.current.delete(activeRoom.id);
+          setTurnStatus("");
+        }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    activeRoom,
+    appendMessagesToRoom,
+    isTavernStateHydrated,
+    patchRoom,
+    roomCharacters,
+    runtimeAgentId,
+    runtimeModel,
+    viewMode,
+    workspace.path,
+  ]);
 
   const patchMessage = useCallback((messageId: string, patch: Partial<TavernMessage>) => {
     setState((current) => {
@@ -2196,6 +2428,36 @@ export const TavernPage = ({
     });
   }, [runtimeAgentId, runtimeModel, workspace.path]);
 
+  const handleRegenerateDirectorProfile = useCallback(async (
+    room: TavernRoom,
+  ) => {
+    if (!runtimeModel) {
+      throw new Error(TAVERN_RUNTIME_MODEL_UNAVAILABLE);
+    }
+
+    if (!runtimeAgentId) {
+      throw new Error("当前 Agent 运行时不可用，请稍后重试。");
+    }
+
+    const roomCharacterById = new Map(
+      (room.localCharacters ?? []).map((character) => [character.id, character] as const),
+    );
+    const characters = room.characterIds
+      .map((characterId) => roomCharacterById.get(characterId) ?? characterById.get(characterId))
+      .filter((character): character is TavernCharacter => Boolean(character));
+    if (characters.length === 0) {
+      throw new Error("当前酒馆还没有可生成调度画像的角色。");
+    }
+
+    return runTavernDirectorProfileAgent({
+      workspacePath: workspace.path,
+      agentId: runtimeAgentId,
+      runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+      room,
+      characters,
+    });
+  }, [characterById, runtimeAgentId, runtimeModel, workspace.path]);
+
   const selectRoomScene = useCallback((roomId: string, sceneId: string) => {
     setState((current) => {
       const targetRoom = current.rooms.find((room) => room.id === roomId);
@@ -2999,11 +3261,30 @@ export const TavernPage = ({
       return;
     }
 
-    const availableRoomCharacters = orderTavernRoundSpeakers({
-      room: activeRoom,
-      characters: roomCharacters,
-      activeCharacterId: activeCharacter?.id,
-    });
+    const fixedOrderSettings = activeRoom.settings.directorScheduling.fixedOrder;
+    const fixedOrderParticipants = isTavernFixedOrderPhase(activeRoom) && fixedOrderSettings.includeUser
+      ? orderTavernRoundParticipants({
+          room: activeRoom,
+          characters: roomCharacters,
+          activeCharacterId: activeCharacter?.id,
+          includeUser: true,
+          userPosition: fixedOrderSettings.userPosition,
+          userPersonaName: activeRoom.userPersonaName,
+        })
+      : [];
+    const fixedOrderUserIndex = fixedOrderParticipants.findIndex((participant) => participant.type === "user");
+    const fixedOrderCharactersAfterUser = fixedOrderUserIndex >= 0
+      ? fixedOrderParticipants
+          .slice(fixedOrderUserIndex + 1)
+          .flatMap((participant) => participant.type === "character" ? [participant.character] : [])
+      : [];
+    const availableRoomCharacters = fixedOrderUserIndex >= 0
+      ? fixedOrderCharactersAfterUser
+      : orderTavernRoundSpeakers({
+          room: activeRoom,
+          characters: roomCharacters,
+          activeCharacterId: activeCharacter?.id,
+        });
     const availableActiveCharacter = activeCharacter &&
         isTavernCharacterAvailableForSpeech(activeRoom, activeCharacter)
       ? activeCharacter
@@ -3011,7 +3292,8 @@ export const TavernPage = ({
     const candidateSpeakers = replyMode === "round" || isDirectorLikeMode
       ? availableRoomCharacters
       : availableActiveCharacter ? [availableActiveCharacter] : [];
-    if (candidateSpeakers.length === 0) {
+    const canSubmitFixedOrderUserOnlyTurn = fixedOrderUserIndex >= 0 && fixedOrderCharactersAfterUser.length === 0;
+    if (candidateSpeakers.length === 0 && !canSubmitFixedOrderUserOnlyTurn) {
       setError("当前房间还没有可回应的角色。");
       return;
     }
@@ -3163,10 +3445,21 @@ export const TavernPage = ({
       const turnNarratorTexts: string[] = [];
       if (isDirectorLikeMode) {
         setTurnStatus("导演正在判断本轮发言顺序...");
+        const schedulingSignals = buildTavernSchedulingSignals({
+          room: runtimeRoom,
+          characters: availableRoomCharacters,
+          messages: runtimeMessages,
+          currentUserText: text,
+          selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+        });
+        const schedulingSignalTrace = formatTavernSchedulingSignalTrace(
+          schedulingSignals,
+          availableRoomCharacters,
+        );
         appendExecutionStep({
           id: "director",
           label: "导演调度",
-          detail: "导演正在判断本轮发言顺序...",
+          detail: `动态动机：${schedulingSignalTrace}`,
           status: "running",
         });
         const directorDecision = await runTavernDirector({
@@ -3175,7 +3468,7 @@ export const TavernPage = ({
           runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
           room: runtimeRoom,
           characters: availableRoomCharacters,
-          messages: turnMessages,
+          messages: runtimeMessages,
           references,
           currentUserText: text,
           selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
@@ -3214,8 +3507,8 @@ export const TavernPage = ({
         patchExecutionStep("director", {
           status: "done",
           detail: speakers.length > 0
-            ? speakers.map((speaker) => speaker.name).join(" -> ")
-            : "仅旁白/阶段推进",
+            ? `${speakers.map((speaker) => speaker.name).join(" -> ")}；${schedulingSignalTrace}`
+            : `仅旁白/阶段推进；${schedulingSignalTrace}`,
         });
 
         const narratorText = directorDecision.narrator?.trim();
@@ -3291,7 +3584,7 @@ export const TavernPage = ({
           });
           patchExecutionStep("director", {
             status: "done",
-            detail: `${speakers.length > 0 ? speakers.map((speaker) => speaker.name).join(" -> ") : "仅旁白/阶段推进"}；插图 ${illustrationHints.length} 条`,
+            detail: `${speakers.length > 0 ? speakers.map((speaker) => speaker.name).join(" -> ") : "仅旁白/阶段推进"}；${schedulingSignalTrace}；插图 ${illustrationHints.length} 条`,
           });
         }
       }
@@ -3315,6 +3608,11 @@ export const TavernPage = ({
         const currentSpeakerRunIndex = speakerRunIndex++;
         const speakerStepId = `speaker-${speaker.id}-${currentSpeakerRunIndex}`;
         const continuationInstruction = continuationInstructionBySpeakerId.get(speaker.id);
+        const directorReasonForCharacter = runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
+            runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
+            runtimeRoom.settings.informationPolicy.mode === "mystery"
+          ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
+          : directorReason;
         const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
           room: runtimeRoom,
           characterId: speaker.id,
@@ -3322,7 +3620,7 @@ export const TavernPage = ({
           directorNonverbalReplyIds,
           currentUserText: text,
           directorReason: [
-            directorReason,
+            directorReasonForCharacter,
             continuationInstruction,
           ].filter(Boolean).join("\n"),
         });
@@ -3358,7 +3656,7 @@ export const TavernPage = ({
           replyMode,
           isDirectorLikeMode,
           isManagedMode,
-          directorReason,
+          directorReason: directorReasonForCharacter,
           allowNonverbalReply: nonverbalReplyAllowed,
         });
         const effectiveTurnInstruction = continuationInstruction
@@ -3936,6 +4234,7 @@ export const TavernPage = ({
         onCreateRoom={handleCreateRoom}
         onQuickCreateRoom={handleQuickCreateRoom}
         onRunTextFieldAgent={handleRunTextFieldAgent}
+        onRegenerateDirectorProfile={handleRegenerateDirectorProfile}
         onSelectRoom={(roomId) => setState((current) => ({
           ...current,
           activeRoomId: roomId,

@@ -8,11 +8,16 @@ import type {
 
 const generatedRoleAssignmentPrefix = "role-assignment";
 
-type TavernRoleAssignmentParticipant = {
+export type TavernRoleAssignmentParticipant = {
   entity: TavernEntityRef;
   label: string;
   characterId?: string;
   isUser: boolean;
+};
+
+export type TavernRoleAssignmentSelection = {
+  participant: TavernRoleAssignmentParticipant;
+  role: TavernRoleAssignmentDefinition;
 };
 
 const shuffle = <T,>(items: T[], random: () => number) => {
@@ -44,6 +49,54 @@ const roleEvidence = (
 export const isGeneratedTavernRoleAssignmentFactEvent = (event: TavernFactEvent) =>
   event.id.startsWith(`${generatedRoleAssignmentPrefix}-`) &&
   event.type === "role_assignment";
+
+export const createTavernRoleAssignmentFactEvents = ({
+  room,
+  assignments,
+  turnId = `${generatedRoleAssignmentPrefix}-${Date.now().toString(36)}`,
+  createdAt = Date.now(),
+}: {
+  room: Pick<TavernRoom, "settings">;
+  assignments: TavernRoleAssignmentSelection[];
+  turnId?: string;
+  createdAt?: number;
+}): TavernFactEvent[] => {
+  const roleAssignment = room.settings.informationPolicy.roleAssignment;
+  const userFactionIds = new Set(assignments.flatMap(({ participant, role }) =>
+    participant.isUser && role.factionId ? [role.factionId] : []
+  ));
+
+  return assignments.map(({ participant, role }, index) => {
+    const visibleToCharacterIds = roleAssignment.revealToAssignedCharacter && participant.characterId
+      ? [participant.characterId]
+      : [];
+    const visibleToFactionIds = roleAssignment.revealFactionMembers && role.factionId
+      ? [role.factionId]
+      : [];
+    const visibleToUser = (
+      roleAssignment.revealToAssignedCharacter && participant.isUser
+    ) || (
+      roleAssignment.revealFactionMembers &&
+      Boolean(role.factionId && userFactionIds.has(role.factionId))
+    );
+
+    return {
+      id: `${generatedRoleAssignmentPrefix}-${turnId}-${index + 1}`,
+      turnId,
+      sourceMessageIds: [],
+      type: "role_assignment",
+      target: participant.entity,
+      evidence: roleEvidence(participant, role),
+      confidence: 1,
+      visibility: "private",
+      revealWhen: room.settings.informationPolicy.hiddenFacts.reveal,
+      ...(visibleToUser ? { visibleToUser } : {}),
+      ...(visibleToCharacterIds.length > 0 ? { visibleToCharacterIds } : {}),
+      ...(visibleToFactionIds.length > 0 ? { visibleToFactionIds } : {}),
+      createdAt: createdAt + index,
+    };
+  });
+};
 
 export const assignTavernRoleFacts = ({
   room,
@@ -91,38 +144,11 @@ export const assignTavernRoleFacts = ({
       participant,
       role: shuffledRoles[index],
     }));
-  const userFactionIds = new Set(assignments.flatMap(({ participant, role }) =>
-    participant.isUser && role.factionId ? [role.factionId] : []
-  ));
 
-  return assignments.map(({ participant, role }, index) => {
-    const visibleToCharacterIds = roleAssignment.revealToAssignedCharacter && participant.characterId
-      ? [participant.characterId]
-      : [];
-    const visibleToFactionIds = roleAssignment.revealFactionMembers && role.factionId
-      ? [role.factionId]
-      : [];
-    const visibleToUser = (
-      roleAssignment.revealToAssignedCharacter && participant.isUser
-    ) || (
-      roleAssignment.revealFactionMembers &&
-      Boolean(role.factionId && userFactionIds.has(role.factionId))
-    );
-
-    return {
-      id: `${generatedRoleAssignmentPrefix}-${turnId}-${index + 1}`,
-      turnId,
-      sourceMessageIds: [],
-      type: "role_assignment",
-      target: participant.entity,
-      evidence: roleEvidence(participant, role),
-      confidence: 1,
-      visibility: "private",
-      revealWhen: room.settings.informationPolicy.hiddenFacts.reveal,
-      ...(visibleToUser ? { visibleToUser } : {}),
-      ...(visibleToCharacterIds.length > 0 ? { visibleToCharacterIds } : {}),
-      ...(visibleToFactionIds.length > 0 ? { visibleToFactionIds } : {}),
-      createdAt: createdAt + index,
-    };
+  return createTavernRoleAssignmentFactEvents({
+    room,
+    assignments,
+    turnId,
+    createdAt,
   });
 };

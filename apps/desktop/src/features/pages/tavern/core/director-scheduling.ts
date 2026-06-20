@@ -22,6 +22,8 @@ const defaultDirectorScheduling = {
     phaseStatusId: "",
     phaseValues: [],
     stopAfterRound: false,
+    includeUser: false,
+    userPosition: "first" as const,
   },
   autoContinuation: "enabled" as const,
   instruction: "",
@@ -306,6 +308,9 @@ export const formatTavernDirectorSchedulingInstruction = (
       "当前处于固定顺序发言阶段。",
       fixedOrderPhaseValue ? `当前阶段值：${fixedOrderPhaseValue}。` : "",
       "导演可以给出公开旁白和未发言角色动作，但角色 speakerIds 会由应用侧按存活座次固定生成。",
+      scheduling.fixedOrder.includeUser
+        ? `本阶段固定顺序包含用户座位，用户位置：${scheduling.fixedOrder.userPosition === "last" ? "末位" : "首位"}；当前用户消息视为用户自己的座次发言。`
+        : "",
       "如果需要先公布夜晚结果或阶段信息，把内容写进 narrator；不要因此返回空 speakerIds 或把本阶段误判为导演-only。",
       "若发言中点名其他角色，只记录为发言内容；不要把被点名者追加为本轮自动回应者。",
       scheduling.fixedOrder.stopAfterRound

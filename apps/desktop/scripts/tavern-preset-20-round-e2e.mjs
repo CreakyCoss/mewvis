@@ -26,6 +26,7 @@ writeFileSync(entryPath, `
     getTavernStatusSnapshotValue,
     isTavernDirectorOnlyTurnAllowed,
     isTavernFixedOrderPhase,
+    orderTavernRoundParticipants,
     resolveTavernScheduledSpeakers,
     setTavernStatusSnapshotValue,
     shouldSuppressTavernAutoContinuation,
@@ -148,6 +149,15 @@ writeFileSync(entryPath, `
     };
     const fixedOrderDuringDayDiscussion = isTavernFixedOrderPhase(room);
     const suppressContinuationDuringDayDiscussion = shouldSuppressTavernAutoContinuation(room);
+    const openingConfig = room.settings.informationPolicy.roleAssignment.opening;
+    const participantOrderBeforeElimination = orderTavernRoundParticipants({
+      room,
+      characters,
+      activeCharacterId: room.activeCharacterId,
+      includeUser: room.settings.directorScheduling.fixedOrder.includeUser,
+      userPosition: room.settings.directorScheduling.fixedOrder.userPosition,
+      userPersonaName: room.userPersonaName,
+    }).map((participant) => participant.id);
 
     for (let round = 1; round <= 20; round += 1) {
       const turnId = \`werewolf-turn-\${round}\`;
@@ -233,6 +243,15 @@ writeFileSync(entryPath, `
       }
     }
 
+    const participantOrderAfterElimination = orderTavernRoundParticipants({
+      room,
+      characters,
+      activeCharacterId: room.activeCharacterId,
+      includeUser: room.settings.directorScheduling.fixedOrder.includeUser,
+      userPosition: room.settings.directorScheduling.fixedOrder.userPosition,
+      userPersonaName: room.userPersonaName,
+    }).map((participant) => participant.id);
+
     return {
       room,
       characters,
@@ -258,6 +277,9 @@ writeFileSync(entryPath, `
       nightScheduledSpeakerIds,
       fixedOrderDuringDayDiscussion,
       suppressContinuationDuringDayDiscussion,
+      openingConfig,
+      participantOrderBeforeElimination,
+      participantOrderAfterElimination,
       eliminatedCharacterId,
       eliminatedPlayerState: statusOf(room, eliminatedCharacterId, "player_state"),
     };
@@ -428,6 +450,23 @@ try {
     werewolf.suppressContinuationDuringDayDiscussion,
     "Werewolf day discussion should suppress automatic continuation",
   );
+  assert(
+    werewolf.openingConfig.autoStart &&
+      werewolf.openingConfig.publicEventType === "phase_started" &&
+      werewolf.openingConfig.publicEventValue === "day_discussion",
+    "Werewolf preset should declare generic director role-assignment opening behavior",
+    { openingConfig: werewolf.openingConfig },
+  );
+  assert(
+    werewolf.participantOrderBeforeElimination.join("|") === "user|wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
+    "Werewolf fixed-order participants should include the user as the first seat before NPC speeches",
+    { participantOrderBeforeElimination: werewolf.participantOrderBeforeElimination },
+  );
+  assert(
+    werewolf.participantOrderAfterElimination.join("|") === "user|wolf-qiao|wolf-tan|wolf-lin|wolf-bai",
+    "Werewolf fixed-order participants should keep the user seat and skip eliminated characters",
+    { participantOrderAfterElimination: werewolf.participantOrderAfterElimination },
+  );
   assert(werewolf.roleFacts.length === 6, "Werewolf role assignment should cover user plus 5 characters", {
     roleFactCount: werewolf.roleFacts.length,
   });
@@ -563,6 +602,9 @@ try {
       nightScheduledSpeakerIds: werewolf.nightScheduledSpeakerIds,
       fixedOrderDuringDayDiscussion: werewolf.fixedOrderDuringDayDiscussion,
       suppressContinuationDuringDayDiscussion: werewolf.suppressContinuationDuringDayDiscussion,
+      openingConfig: werewolf.openingConfig,
+      participantOrderBeforeElimination: werewolf.participantOrderBeforeElimination,
+      participantOrderAfterElimination: werewolf.participantOrderAfterElimination,
       ordersBeforeElimination: werewolf.orders.slice(0, 2),
       orderAfterElimination: werewolf.orders[6],
       eliminatedPlayerState: werewolf.eliminatedPlayerState,

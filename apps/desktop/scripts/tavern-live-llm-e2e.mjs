@@ -166,10 +166,10 @@ writeFileSync(helperEntryPath, `
     parseTavernReplyText,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts"))};
   import {
-    assignTavernRoleFacts,
     advanceTavernProgressFromFactEvents,
     canTavernCharacterUseNonverbalReply,
     canTavernSelectedTargetsStaySilent,
+    createTavernRoleAssignmentFactEvents,
     extractTavernPendingInteractionsFromMessages,
     filterTavernFactEventsForAudience,
     formatTavernDirectorSchedulingInstruction,
@@ -217,23 +217,9 @@ writeFileSync(helperEntryPath, `
         ]),
         markAsSystemPreset: false,
       });
-      const roleFacts = assignTavernRoleFacts({
-        room: materialized.room,
-        characters: materialized.characters,
-        random: (() => {
-          const values = [0.17, 0.63, 0.28, 0.91, 0.42, 0.74, 0.05, 0.57, 0.36, 0.82, 0.11, 0.69];
-          let index = 0;
-          return () => values[index++ % values.length];
-        })(),
-        turnId: "live-werewolf-role-assignment",
-        createdAt: now + 1,
-      });
       return {
         scenario: "werewolf",
-        room: {
-          ...materialized.room,
-          factEvents: roleFacts,
-        },
+        room: materialized.room,
         characters: materialized.characters,
         messages: materialized.messages,
       };
@@ -442,6 +428,173 @@ writeFileSync(helperEntryPath, `
       },
     ];
     return { scenario: "custom", room, characters, messages: [] };
+  };
+
+  const expandRolePool = (rolePool) => rolePool.flatMap((role) =>
+    Array.from({ length: Math.max(1, Math.round(role.count || 1)) }, () => role)
+  );
+
+  const roleAssignmentParticipants = (room, characters) => [
+    ...(room.settings.informationPolicy.roleAssignment.includeUser
+      ? [{
+          entity: { type: "user", userId: "user" },
+          label: room.userPersonaName?.trim() || "你",
+          isUser: true,
+        }]
+      : []),
+    ...characters.map((character) => ({
+      entity: { type: "character", characterId: character.id },
+      label: character.name,
+      characterId: character.id,
+      isUser: false,
+    })),
+  ];
+
+  const participantKey = (participant) =>
+    participant.isUser ? "user:user" : "character:" + participant.characterId;
+
+  export const buildRoleAssignmentRequest = ({ room, characters }) => {
+    const roleAssignment = room.settings.informationPolicy.roleAssignment;
+    const participants = roleAssignmentParticipants(room, characters);
+    const rolePool = expandRolePool(roleAssignment.rolePool);
+    const prompt = [
+      "<output_schema>",
+      "{\\"assignments\\":[{\\"targetType\\":\\"user\\",\\"characterId\\":\\"\\",\\"roleId\\":\\"role-id\\"},{\\"targetType\\":\\"character\\",\\"characterId\\":\\"character-id\\",\\"roleId\\":\\"role-id\\"}],\\"openingNarrator\\":\\"公开开场，不泄露身份\\",\\"dayAnnouncement\\":\\"第二天清晨公布的公开事实，不泄露隐藏身份\\",\\"publicFact\\":\\"一句可记录的首夜公开事实\\"}",
+      "</output_schema>",
+      "",
+      "<constraints>",
+      "实时生成本局身份分配；assignments 必须覆盖每个参与者一次且仅一次。",
+      "roleId 必须来自 role_pool，并严格满足每个角色 count 展开后的数量。",
+      "公开字段 openingNarrator/dayAnnouncement/publicFact 禁止写出任何人的身份、阵营、夜间私密行动、验人结果或心理。",
+      "dayAnnouncement 应表现为首夜已经发生并进入第二天的公开结果；不要直接解决主线。",
+      "只输出严格合法 JSON 对象，不要 Markdown。",
+      "</constraints>",
+      "",
+      "<participants>",
+      participants.map((participant) => participant.isUser
+        ? "targetType: user\\ncharacterId: \\nname: " + participant.label
+        : "targetType: character\\ncharacterId: " + participant.characterId + "\\nname: " + participant.label
+      ).join("\\n\\n---\\n\\n"),
+      "</participants>",
+      "",
+      "<role_pool>",
+      roleAssignment.rolePool.map((role) => [
+        "roleId: " + role.id,
+        "label: " + role.label,
+        "count: " + Math.max(1, Math.round(role.count || 1)),
+        role.factionId ? "factionId: " + role.factionId : "",
+        role.factionLabel ? "factionLabel: " + role.factionLabel : "",
+        role.description ? "description: " + role.description : "",
+      ].filter(Boolean).join("\\n")).join("\\n\\n---\\n\\n"),
+      "</role_pool>",
+      "",
+      "<expanded_role_count>" + rolePool.length + "</expanded_role_count>",
+    ].join("\\n");
+
+    return {
+      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      agentRoleId: tavernDirectorAgentRoleId(room),
+      systemPrompt: buildTavernBridgeSystemPrompt(room),
+      userMessage: "请为本局实时分配身份，并输出严格合法 JSON。",
+      requestContext: prompt,
+      runtimeInstruction: [
+        "你是酒馆主持制剧本的导演 Agent。",
+        "本轮只做开局身份分配和首夜公开结果生成，不安排角色公开发言。",
+        "身份和阵营只写入 assignments 结构，不得出现在公开旁白字段。",
+        "必须严格按 schema 输出 JSON。",
+      ].join("\\n"),
+    };
+  };
+
+  export const parseRoleAssignment = ({ text, room, characters, turnId, createdAt }) => {
+    const parsed = JSON.parse(extractJsonObject(text));
+    const participants = roleAssignmentParticipants(room, characters);
+    const roleAssignment = room.settings.informationPolicy.roleAssignment;
+    const participantByKey = new Map(participants.map((participant) => [participantKey(participant), participant]));
+    const roleById = new Map(roleAssignment.rolePool.map((role) => [role.id, role]));
+    const roleLimits = new Map(roleAssignment.rolePool.map((role) => [role.id, Math.max(1, Math.round(role.count || 1))]));
+    const roleCounts = new Map();
+    const seenParticipants = new Set();
+    const selections = [];
+
+    for (const candidate of Array.isArray(parsed.assignments) ? parsed.assignments : []) {
+      const targetType = candidate?.targetType === "user" ? "user" : candidate?.targetType === "character" ? "character" : "";
+      const characterId = typeof candidate?.characterId === "string" ? candidate.characterId.trim() : "";
+      const key = targetType === "user" ? "user:user" : targetType === "character" ? "character:" + characterId : "";
+      const roleId = typeof candidate?.roleId === "string" ? candidate.roleId.trim() : "";
+      const participant = participantByKey.get(key);
+      const role = roleById.get(roleId);
+      if (!participant || !role || seenParticipants.has(key)) {
+        continue;
+      }
+      const nextRoleCount = (roleCounts.get(role.id) ?? 0) + 1;
+      if (nextRoleCount > (roleLimits.get(role.id) ?? 0)) {
+        continue;
+      }
+      roleCounts.set(role.id, nextRoleCount);
+      seenParticipants.add(key);
+      selections.push({ participant, role });
+    }
+
+    const missingParticipants = participants.filter((participant) => !seenParticipants.has(participantKey(participant)));
+    const invalidRoleCounts = roleAssignment.rolePool.filter((role) =>
+      (roleCounts.get(role.id) ?? 0) !== Math.max(1, Math.round(role.count || 1))
+    );
+    if (missingParticipants.length || invalidRoleCounts.length || selections.length !== participants.length) {
+      throw new Error("导演身份分配不完整：" + JSON.stringify({
+        missing: missingParticipants.map((item) => item.label),
+        invalidRoles: invalidRoleCounts.map((role) => role.id),
+      }));
+    }
+
+    return {
+      factEvents: createTavernRoleAssignmentFactEvents({
+        room,
+        assignments: selections,
+        turnId,
+        createdAt,
+      }),
+      openingNarrator: typeof parsed.openingNarrator === "string" ? parsed.openingNarrator.trim().slice(0, 240) : "",
+      dayAnnouncement: typeof parsed.dayAnnouncement === "string" ? parsed.dayAnnouncement.trim().slice(0, 360) : "",
+      publicFact: typeof parsed.publicFact === "string" ? parsed.publicFact.trim().slice(0, 240) : "",
+    };
+  };
+
+  export const applyRoleAssignmentOpening = ({ room, assignment, createdAt }) => {
+    const opening = room.settings.informationPolicy.roleAssignment.opening;
+    const openingEventType = opening.publicEventType?.trim() || "";
+    const openingFactEvent = openingEventType
+      ? {
+          id: "live-opening-event-" + createdAt.toString(36),
+          turnId: assignment.factEvents[0]?.turnId ?? "live-opening-" + createdAt.toString(36),
+          sourceMessageIds: [],
+          type: openingEventType,
+          target: { type: "global" },
+          ...(opening.publicEventValue !== undefined ? { value: opening.publicEventValue } : {}),
+          evidence: assignment.publicFact || assignment.dayAnnouncement || "身份分配完成，公开流程进入下一阶段。",
+          confidence: 1,
+          visibility: "public",
+          createdAt,
+        }
+      : null;
+    const progressPatch = advanceTavernProgressFromFactEvents({
+      room,
+      factEvents: [
+        ...assignment.factEvents,
+        ...(openingFactEvent ? [openingFactEvent] : []),
+      ],
+      turnId: openingFactEvent?.turnId ?? assignment.factEvents[0]?.turnId ?? "live-opening-" + createdAt.toString(36),
+      createdAt,
+    });
+    const statusSnapshot = (opening.globalStatusPatches ?? []).reduce(
+      (snapshot, patch) => setTavernStatusSnapshotValue(snapshot, { type: "global" }, patch.statusId, patch.value),
+      progressPatch.statusSnapshot,
+    );
+    return {
+      ...room,
+      ...progressPatch,
+      statusSnapshot,
+    };
   };
 
   export const setGlobalStatus = (room, statusId, value) => ({
@@ -807,6 +960,7 @@ writeFileSync(helperEntryPath, `
       "ambientActions 可选，最多 " + ambientActionMax + " 条，只能选择未出现在 speakerIds 和 nonverbalReplyIds 里的角色；只写可被观察到的动作/状态，不写对白、心理、意图或新剧情结果。",
       "ambientActions 用来让未发言角色保持在场感，例如“琪拉把托盘放回吧台”“莫尔侧身让开门口”；不要为了凑数而生成。",
       "narrator 只能写已发生状态、环境过渡或镜头提示，不要新增关键事实、行动结果或替角色做决定；可为空，建议 40 字内。",
+      "reason 只能写公开调度理由，不得包含隐藏身份、阵营、未公开心理、夜间私密行动或验人结果。",
       "如果已经输出 narrator，后续 speakerIds/nonverbalReplyIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
       "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
       "</constraints>",
@@ -1365,6 +1519,61 @@ try {
   const privateSecrets = [];
   const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
 
+  if (
+    scenario === "werewolf" &&
+    room.settings.informationPolicy.roleAssignment.opening.autoStart &&
+    !room.factEvents.some((event) => event.type === "role_assignment")
+  ) {
+    const requestInput = helper.buildRoleAssignmentRequest({ room, characters });
+    const assignmentRun = await runAgent({
+      label: "tavern-role-assignment-opening",
+      sessionRootDir: flowSessionRootDir,
+      agentRoleId: requestInput.agentRoleId,
+      runtimeModel: selectedModel,
+      systemPrompt: requestInput.systemPrompt,
+      userMessage: requestInput.userMessage,
+      requestContext: requestInput.requestContext,
+      runtimeInstruction: requestInput.runtimeInstruction,
+    });
+    const createdAt = Date.now();
+    const assignment = helper.parseRoleAssignment({
+      text: assignmentRun.text,
+      room,
+      characters,
+      turnId: "live-director-role-assignment",
+      createdAt,
+    });
+    room = helper.applyRoleAssignmentOpening({
+      room,
+      assignment,
+      createdAt,
+    });
+    const openingMessages = [
+      assignment.openingNarrator,
+      assignment.dayAnnouncement,
+    ].filter(Boolean).map((content, index) => ({
+      id: "live-opening-narrator-" + (index + 1),
+      roomId: room.id,
+      role: "narrator",
+      content,
+      createdAt: createdAt + index,
+      status: "done",
+    }));
+    allMessages.push(...openingMessages);
+    flowRuns.push({
+      label: assignmentRun.label,
+      kind: "role_assignment_opening",
+      firstDeltaMs: assignmentRun.firstDeltaMs,
+      firstTextMs: assignmentRun.firstTextMs,
+      doneMs: assignmentRun.doneMs,
+      roleFactCount: assignment.factEvents.length,
+      openingNarrator: assignment.openingNarrator,
+      dayAnnouncement: assignment.dayAnnouncement,
+      publicFact: assignment.publicFact,
+      phase: room.statusSnapshot.global?.werewolf_phase,
+    });
+  }
+
   const characterNamePattern = characters
     .map((character) => character.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
@@ -1382,9 +1591,9 @@ try {
   const scriptedDraftForRound = (roundIndex) => {
     if (scenario === "werewolf") {
       return [
-        "导演，请分配身份并进入第一夜。只公布第一夜开始和主持流程，不要让任何角色公开发言。",
-        "第二天清晨，请公布前一夜的公开事实，然后进入白天顺序发言。所有存活玩家按座次发言一轮；如果有人点名质疑其他人，也不要让被点名者插队回应。",
+        "我作为首位座次发言：昨夜我只听见旧钟慢了半拍，暂时不认定任何人身份，请后续玩家按座次给出公开证词。",
         "现在进入投票阶段。请停止辩论，由导演组织投票和放逐结算，不要再安排角色公开发言。",
+        "继续进入下一夜，只公布公开主持流程，不要泄露隐藏身份。",
       ][roundIndex] ?? "继续按狼人杀阶段规则推进。";
     }
 
@@ -1416,7 +1625,13 @@ try {
       return;
     }
 
-    const nextPhase = roundIndex === 0
+    const nextPhase = room.settings.informationPolicy.roleAssignment.opening.autoStart
+      ? roundIndex === 0
+        ? "day_discussion"
+        : roundIndex === 1
+        ? "vote"
+        : "night"
+      : roundIndex === 0
       ? "night"
       : roundIndex === 1
       ? "day_discussion"
@@ -1465,14 +1680,14 @@ try {
     return reply;
   };
 
-  const runDirector = async (roundIndex, turnMessages, currentUserText, selectedTargetCharacterIds = []) => {
+  const runDirector = async (roundIndex, currentUserText, selectedTargetCharacterIds = []) => {
     const maxSpeakers = helper.fixedOrderPhase(room)
       ? characters.length
       : Math.min(4, characters.length);
     const requestInput = helper.buildDirectorRequest({
       room,
       characters,
-      messages: turnMessages,
+      messages: allMessages,
       currentUserText,
       selectedTargetCharacterIds,
       maxSpeakers,
@@ -1524,7 +1739,12 @@ try {
         currentUserText,
         directorReason: parsedDecision.reason ?? "",
       }));
-    if (parsedDecision.speakerIds.length === 0 && scheduledSpeakerIds.length > 0 && !scheduledOnlyForNonverbalTarget) {
+    if (
+      parsedDecision.speakerIds.length === 0 &&
+      scheduledSpeakerIds.length > 0 &&
+      !scheduledOnlyForNonverbalTarget &&
+      !helper.fixedOrderPhase(room)
+    ) {
       formatWarnings.push({
         label: `tavern-director-${roundIndex + 1}`,
         issue: "director_empty_speaker_ids_scheduler_fallback",
@@ -1694,7 +1914,7 @@ try {
     allMessages.push(userMessage);
     const turnMessages = [userMessage];
 
-    const decision = await runDirector(roundIndex, turnMessages, userText, selectedTargetCharacterIds);
+    const decision = await runDirector(roundIndex, userText, selectedTargetCharacterIds);
     if (decision.narrator?.trim()) {
       const narratorMessage = {
         id: `n-${roundIndex + 1}`,
@@ -1748,8 +1968,13 @@ try {
       for (const [speakerIndex, speakerId] of activeSpeakerIds.entries()) {
         const activeName = characterNameById.get(speakerId) ?? speakerId;
         const continuationInstruction = continuationInstructionBySpeakerId.get(speakerId);
+        const baseDirectorReason = room.settings.informationPolicy.hiddenFacts.enabled ||
+            room.settings.informationPolicy.mode === "social_deduction" ||
+            room.settings.informationPolicy.mode === "mystery"
+          ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
+          : decision.reason ?? "";
         const directorReasonText = [
-          decision.reason ?? "",
+          baseDirectorReason,
           continuationInstruction
             ? `自动续调度：${continuationInstruction}`
             : "",
@@ -1915,18 +2140,21 @@ try {
 
   if (scenario === "werewolf") {
     const directorRuns = flowRuns.filter((run) => run.kind === "director");
+    const roleAssignmentRuns = flowRuns.filter((run) => run.kind === "role_assignment_opening");
+    assert(
+      roleAssignmentRuns.length === 1 && roleAssignmentRuns[0].roleFactCount === 6,
+      "狼人杀真实流程应先由导演实时分配用户+5名角色身份",
+      roleAssignmentRuns,
+    );
     if (FLOW_ROUNDS >= 1) {
-      assert(directorRuns[0]?.decision?.speakerIds.length === 0, "狼人杀第一夜应允许导演-only，不应公开调度角色发言", directorRuns[0]);
-    }
-    if (FLOW_ROUNDS >= 2) {
       assert(
-        directorRuns[1]?.decision?.speakerIds.join("|") === "wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
-        "狼人杀白天讨论阶段应按存活座次固定顺序发言",
-        directorRuns[1],
+        directorRuns[0]?.decision?.speakerIds.join("|") === "wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
+        "狼人杀开局后第一轮应视为用户首位发言，然后按存活座次调度其他角色",
+        directorRuns[0],
       );
     }
-    if (FLOW_ROUNDS >= 3) {
-      assert(directorRuns[2]?.decision?.speakerIds.length === 0, "狼人杀投票阶段不应继续公开辩论发言", directorRuns[2]);
+    if (FLOW_ROUNDS >= 2) {
+      assert(directorRuns[1]?.decision?.speakerIds.length === 0, "狼人杀投票阶段不应继续公开辩论发言", directorRuns[1]);
     }
     assert(
       !flowRuns.some((run) => run.kind === "continuation"),

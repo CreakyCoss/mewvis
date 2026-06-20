@@ -28,14 +28,19 @@ writeFileSync(entryPath, `
     advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
     assignTavernRoleFacts,
+    buildTavernSchedulingSignals,
     canTavernCharacterUseNonverbalReply,
     createEmptyTavernStatusSnapshot,
+    createTavernDirectorProfileFromCharacters,
     createTavernProgressCheckpoint,
+    createTavernRoleAssignmentFactEvents,
     createTavernRenderableMessages,
     deriveTavernStatusEventsFromFacts,
     evaluateTavernSceneOutcomes,
     extractTavernPendingInteractionsFromMessages,
     filterTavernFactEventsForAudience,
+    formatTavernDirectorProfileForPrompt,
+    formatTavernSchedulingSignalsForPrompt,
     formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
     isGeneratedTavernRoleAssignmentFactEvent,
@@ -44,6 +49,8 @@ writeFileSync(entryPath, `
     isTavernFixedOrderPhase,
     isTavernProgressVisibilityVisibleToUser,
     normalizeTavernMessagesForAudience,
+    normalizeTavernDirectorProfile,
+    orderTavernRoundParticipants,
     orderTavernRoundSpeakers,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
@@ -241,6 +248,64 @@ writeFileSync(entryPath, `
       agentKnowledgeCompactIntervalTurns: 0,
       maxAssetDrafts: 5,
       directorMaxSpeakers: 3,
+      directorScheduling: {
+        targetedReplyPolicy: "prefer",
+        maxExtraSpeakersOnTargetedReply: 2,
+        allowDirectorOnly: false,
+        directorOnlyPhaseStatusId: "",
+        directorOnlyPhaseValues: [],
+        speakerMotivation: {
+          enabled: true,
+          maxMotivatedSpeakers: 2,
+          rules: [
+            {
+              id: "direct-target-priority",
+              label: "直接目标优先",
+              when: "用户明确询问、点名或选择候选回复目标。",
+              priority: 100,
+              instruction: "被直接指向的角色优先被导演评估。",
+            },
+            {
+              id: "goal-competes-for-user-attention",
+              label: "目标竞争用户注意",
+              when: "角色目标与用户注意或好感相关。",
+              priority: 72,
+              instruction: "强目标角色可以主动发言，但不要每轮抢话。",
+            },
+            {
+              id: "knowledge-holder-helps-or-misdirects",
+              label: "知情者介入",
+              when: "角色掌握与当前问题相关的事实。",
+              priority: 68,
+              instruction: "知情角色可补充、误导或转移焦点。",
+            },
+            {
+              id: "relationship-stakes",
+              label: "关系利益相关",
+              when: "当前发言会影响关系状态。",
+              priority: 58,
+              instruction: "关系利益越高，说话欲望越高。",
+            },
+            {
+              id: "quiet-temperament-brake",
+              label: "沉默人设刹车",
+              when: "角色寡言且无强动机。",
+              priority: 25,
+              instruction: "弱动机时优先 ambient action。",
+            },
+          ],
+        },
+        fixedOrder: {
+          enabled: false,
+          phaseStatusId: "",
+          phaseValues: [],
+          stopAfterRound: false,
+          includeUser: false,
+          userPosition: "first",
+        },
+        autoContinuation: "enabled",
+        instruction: "",
+      },
       continuation: {
         enabled: true,
         maxAutoContinuationRounds: 1,
@@ -262,6 +327,30 @@ writeFileSync(entryPath, `
       illustrationHints: {
         enabled: false,
       },
+      informationPolicy: {
+        mode: "open",
+        uiDefaultView: "public",
+        hideCharacterThoughts: false,
+        revealThoughts: "manual",
+        hiddenFacts: {
+          enabled: false,
+          defaultVisibility: "director",
+          reveal: "manual",
+        },
+        roleAssignment: {
+          enabled: false,
+          strategy: "manual",
+          includeUser: false,
+          revealToAssignedCharacter: true,
+          revealFactionMembers: true,
+          opening: {
+            autoStart: false,
+            publicEventType: "",
+            globalStatusPatches: [],
+          },
+          rolePool: [],
+        },
+      },
     },
     createdAt: now,
     updatedAt: now,
@@ -271,8 +360,9 @@ writeFileSync(entryPath, `
       id: "char-a",
       name: "阿洛",
       avatar: "",
-      description: "谨慎的斥候。",
+      description: "谨慎的斥候，沉默寡言，关注屋顶和第二道影子。",
       speakingStyle: "短句，谨慎。",
+      goals: "守住高处视野。",
       createdAt: now,
       updatedAt: now,
     },
@@ -280,12 +370,61 @@ writeFileSync(entryPath, `
       id: "char-b",
       name: "贝拉",
       avatar: "",
-      description: "热情的酒保。",
+      description: "热情的酒保，对门口、化学气味和旅人信任很敏感。",
       speakingStyle: "轻快。",
+      goals: "获得旅人信任和好感。",
       createdAt: now,
       updatedAt: now,
     },
   ];
+  const schedulingProfile = createTavernDirectorProfileFromCharacters({
+    room,
+    characters,
+    source: "manual",
+    updatedAt: now,
+  });
+  schedulingProfile.characterProfiles["char-a"] = {
+    ...schedulingProfile.characterProfiles["char-a"],
+    speechBias: "low",
+    nonverbalBias: "high",
+    interestTags: ["屋顶", "第二道影子"],
+    goalTags: ["高处视野"],
+    silenceTriggers: ["未被点名", "无关键事实"],
+  };
+  schedulingProfile.characterProfiles["char-b"] = {
+    ...schedulingProfile.characterProfiles["char-b"],
+    speechBias: "high",
+    nonverbalBias: "balanced",
+    interestTags: ["门口", "化学气味"],
+    goalTags: ["旅人信任", "好感"],
+    speechTriggers: ["被点名", "有人谈到门口"],
+  };
+  room.settings.directorScheduling.profile = schedulingProfile;
+  const normalizedMappedProfile = normalizeTavernDirectorProfile({
+    version: 1,
+    source: "generated",
+    globalGoals: ["测试调度"],
+    globalRules: ["保持角色动机稳定"],
+    characterProfiles: {
+      "seed-b": {
+        characterId: "seed-b",
+        temperament: "热情主动",
+        speechBias: "very_high",
+        nonverbalBias: "balanced",
+        interestTags: ["化学"],
+        goalTags: ["信任"],
+        knowledgeTags: ["门口"],
+        conflictStyle: "主动补充",
+        socialStrategy: "吸引用户注意",
+        speechTriggers: ["被问到气味"],
+        silenceTriggers: [],
+        notes: "测试映射",
+      },
+    },
+  }, {
+    characters,
+    mapCharacterId: (characterId) => characterId === "seed-b" ? "char-b" : undefined,
+  });
   const parsedDirectorRandomEvent = parseTavernDirectorDecision(JSON.stringify({
     speakerIds: ["char-a", "missing-character"],
     ambientActions: [{ characterId: "char-b", action: "擦亮杯沿，望向门口。" }],
@@ -406,6 +545,45 @@ writeFileSync(entryPath, `
     },
   ];
   const currentTurnMessages = messages.slice(3, 5);
+  const schedulingSignalRoom = {
+    ...room,
+    factEvents: [
+      {
+        id: "fact-chemical-door",
+        turnId: "turn-scheduling",
+        sourceMessageIds: ["m-user"],
+        type: "clue_found",
+        actor: { type: "character", characterId: "char-b" },
+        target: { type: "character", characterId: "char-b" },
+        evidence: "贝拉注意到门口残留一丝化学气味。",
+        confidence: 1,
+        visibility: "public",
+        createdAt: now + 10,
+      },
+    ],
+  };
+  const directTargetSignals = buildTavernSchedulingSignals({
+    room: schedulingSignalRoom,
+    characters,
+    messages,
+    currentUserText: "贝拉，你觉得门口的化学气味是谁留下的？",
+    selectedTargetCharacterIds: ["char-b"],
+  });
+  const quietSignals = buildTavernSchedulingSignals({
+    room: schedulingSignalRoom,
+    characters,
+    messages,
+    currentUserText: "先继续观察。",
+    selectedTargetCharacterIds: [],
+  });
+  const directorProfilePrompt = formatTavernDirectorProfileForPrompt({
+    profile: room.settings.directorScheduling.profile,
+    characters,
+  });
+  const schedulingSignalsPrompt = formatTavernSchedulingSignalsForPrompt({
+    signals: directTargetSignals,
+    characters,
+  });
 
   const visibleToA = normalizeTavernMessagesForAudience({
     messages,
@@ -1439,6 +1617,49 @@ writeFileSync(entryPath, `
     room: werewolfRoom,
     audience: { type: "director" },
   });
+  const werewolfRoleById = new Map(werewolfRoom.settings.informationPolicy.roleAssignment.rolePool.map((role) => [role.id, role]));
+  const werewolfParticipantById = new Map([
+    ["user", {
+      entity: { type: "user", userId: "user" },
+      label: werewolfRoom.userPersonaName,
+      isUser: true,
+    }],
+    ...werewolfMaterialized.characters.map((character) => [character.id, {
+      entity: { type: "character", characterId: character.id },
+      label: character.name,
+      characterId: character.id,
+      isUser: false,
+    }]),
+  ]);
+  const werewolfDirectorAssigned = {
+    factEvents: createTavernRoleAssignmentFactEvents({
+      room: werewolfRoom,
+      assignments: [
+        ["user", "villager"],
+        ["wolf-qiao", "wolf"],
+        ["wolf-shen", "seer"],
+        ["wolf-tan", "wolf"],
+        ["wolf-lin", "witch"],
+        ["wolf-bai", "villager"],
+      ].map(([participantId, roleId]) => ({
+        participant: werewolfParticipantById.get(participantId),
+        role: werewolfRoleById.get(roleId),
+      })),
+      turnId: "system-werewolf-director-assignment",
+      createdAt: now + 71,
+    }),
+    dayAnnouncement: "天亮时，祠堂旧钟慢了半拍，圆桌旁暂时无人缺席。",
+  };
+  const werewolfDirectorAssignedUserFacts = filterTavernFactEventsForAudience({
+    factEvents: werewolfDirectorAssigned.factEvents,
+    room: werewolfRoom,
+    audience: { type: "user" },
+  });
+  const werewolfDirectorAssignedPublicFacts = filterTavernFactEventsForAudience({
+    factEvents: werewolfDirectorAssigned.factEvents,
+    room: werewolfRoom,
+    audience: { type: "public" },
+  });
   const werewolfNightScheduledSpeakerIds = resolveTavernScheduledSpeakers({
     room: werewolfRoom,
     availableCharacters: werewolfMaterialized.characters,
@@ -1480,6 +1701,14 @@ writeFileSync(entryPath, `
     characters: werewolfMaterialized.characters,
     activeCharacterId: "wolf-qiao",
   }).map((character) => character.id);
+  const werewolfRoundParticipantIds = orderTavernRoundParticipants({
+    room: werewolfDayDiscussionRoom,
+    characters: werewolfMaterialized.characters,
+    activeCharacterId: "wolf-qiao",
+    includeUser: werewolfDayDiscussionRoom.settings.directorScheduling.fixedOrder.includeUser,
+    userPosition: werewolfDayDiscussionRoom.settings.directorScheduling.fixedOrder.userPosition,
+    userPersonaName: werewolfDayDiscussionRoom.userPersonaName,
+  }).map((participant) => participant.id);
   const werewolfScheduledSpeakerIds = resolveTavernScheduledSpeakers({
     room: werewolfDayDiscussionRoom,
     availableCharacters: werewolfMaterialized.characters,
@@ -1803,6 +2032,10 @@ writeFileSync(entryPath, `
       werewolf: {
         room: werewolfRoom,
         roleFacts: werewolfRoleFacts,
+        directorAssignedFacts: werewolfDirectorAssigned.factEvents,
+        directorAssignedUserFactCount: werewolfDirectorAssignedUserFacts.length,
+        directorAssignedPublicFactCount: werewolfDirectorAssignedPublicFacts.length,
+        directorAssignedDayAnnouncement: werewolfDirectorAssigned.dayAnnouncement,
         publicRoleFactCount: werewolfPublicRoleFacts.length,
         userRoleFactCount: werewolfUserRoleFacts.length,
         directorRoleFactCount: werewolfDirectorRoleFacts.length,
@@ -1810,12 +2043,14 @@ writeFileSync(entryPath, `
         nightScheduledSpeakerIds: werewolfNightScheduledSpeakerIds,
         fixedOrderDuringDayDiscussion: isTavernFixedOrderPhase(werewolfDayDiscussionRoom),
         suppressContinuationDuringDayDiscussion: shouldSuppressTavernAutoContinuation(werewolfDayDiscussionRoom),
+        openingConfig: werewolfRoom.settings.informationPolicy.roleAssignment.opening,
         eliminatedPlayerState: getTavernStatusSnapshotValue(
           werewolfEliminateAdvance.statusSnapshot,
           { type: "character", characterId: "wolf-shen" },
           "player_state",
         ),
         roundSpeakerIdsAfterEliminate: werewolfRoundSpeakerIds,
+        roundParticipantIdsAfterEliminate: werewolfRoundParticipantIds,
         scheduledSpeakerIdsAfterEliminate: werewolfScheduledSpeakerIds,
         hiddenThoughts: werewolfRoom.settings.informationPolicy.hideCharacterThoughts,
         hiddenFactsEnabled: werewolfRoom.settings.informationPolicy.hiddenFacts.enabled,
@@ -1924,6 +2159,11 @@ writeFileSync(entryPath, `
     parsedDirectorIllustrationHintsLoose,
     parsedDirectorNonverbalReply,
     parsedDirectorNonverbalCap,
+    normalizedMappedProfile,
+    directTargetSignals,
+    quietSignals,
+    directorProfilePrompt,
+    schedulingSignalsPrompt,
     randomEventOpportunityChecks,
     progressChecks,
     roleAssignmentChecks,
@@ -2230,6 +2470,37 @@ try {
     checks.parsedDirectorNonverbalCap,
   );
   assert(
+    checks.normalizedMappedProfile?.characterProfiles["char-b"]?.speechBias === "very_high" &&
+      !checks.normalizedMappedProfile?.characterProfiles["seed-b"],
+    "稳定调度画像应能在导入/生成时把临时角色 id 映射到真实角色 id",
+    checks.normalizedMappedProfile,
+  );
+  assert(
+    checks.directTargetSignals[0]?.characterId === "char-b" &&
+      checks.directTargetSignals[0]?.matchedRuleIds.includes("direct-target-priority") &&
+      checks.directTargetSignals[0]?.matchedRuleIds.includes("knowledge-holder-helps-or-misdirects") &&
+      checks.directTargetSignals[0]?.suggestedModes.includes("speech"),
+    "动态调度信号应让被点名且掌握相关事实的角色优先发言",
+    checks.directTargetSignals,
+  );
+  assert(
+    checks.quietSignals.find((signal) => signal.characterId === "char-a")?.matchedRuleIds.includes("quiet-temperament-brake") &&
+      checks.quietSignals.find((signal) => signal.characterId === "char-a")?.suggestedModes.includes("ambient"),
+    "动态调度信号应对沉默人设且无强动机的角色降权并建议弱在场动作",
+    checks.quietSignals,
+  );
+  assert(
+    checks.directorProfilePrompt.includes('"characterId": "char-b"') &&
+      checks.directorProfilePrompt.includes('"speechBias": "high"') &&
+      checks.schedulingSignalsPrompt.includes('"matchedRuleIds"') &&
+      checks.schedulingSignalsPrompt.includes('"direct-target-priority"'),
+    "导演 prompt 上下文应包含稳定画像和每轮动态调度信号",
+    {
+      profile: checks.directorProfilePrompt,
+      signals: checks.schedulingSignalsPrompt,
+    },
+  );
+  assert(
     checks.randomEventOpportunityChecks.enabledHit &&
       !checks.randomEventOpportunityChecks.enabledMiss &&
       !checks.randomEventOpportunityChecks.disabled,
@@ -2390,15 +2661,24 @@ try {
       checks.progressChecks.systemPresets.werewolf.nightScheduledSpeakerIds.length === 0 &&
       checks.progressChecks.systemPresets.werewolf.fixedOrderDuringDayDiscussion &&
       checks.progressChecks.systemPresets.werewolf.suppressContinuationDuringDayDiscussion &&
+      checks.progressChecks.systemPresets.werewolf.openingConfig.autoStart &&
+      checks.progressChecks.systemPresets.werewolf.openingConfig.publicEventType === "phase_started" &&
+      checks.progressChecks.systemPresets.werewolf.openingConfig.publicEventValue === "day_discussion" &&
       checks.progressChecks.systemPresets.werewolf.hiddenThoughts &&
       checks.progressChecks.systemPresets.werewolf.hiddenFactsEnabled &&
       checks.progressChecks.systemPresets.werewolf.roleFacts.length === 6 &&
+      checks.progressChecks.systemPresets.werewolf.directorAssignedFacts.length === 6 &&
+      checks.progressChecks.systemPresets.werewolf.directorAssignedPublicFactCount === 0 &&
+      checks.progressChecks.systemPresets.werewolf.directorAssignedUserFactCount >= 1 &&
+      !/狼人|预言家|女巫|村民|wolves|villagers/.test(checks.progressChecks.systemPresets.werewolf.directorAssignedDayAnnouncement) &&
       checks.progressChecks.systemPresets.werewolf.publicRoleFactCount === 0 &&
       checks.progressChecks.systemPresets.werewolf.userRoleFactCount >= 1 &&
       checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 6 &&
       checks.progressChecks.systemPresets.werewolf.eliminatedPlayerState === "eliminated" &&
       checks.progressChecks.systemPresets.werewolf.roundSpeakerIdsAfterEliminate.join("|") ===
         "wolf-qiao|wolf-tan|wolf-lin|wolf-bai" &&
+      checks.progressChecks.systemPresets.werewolf.roundParticipantIdsAfterEliminate.join("|") ===
+        "user|wolf-qiao|wolf-tan|wolf-lin|wolf-bai" &&
       checks.progressChecks.systemPresets.werewolf.scheduledSpeakerIdsAfterEliminate.join("|") ===
         "wolf-qiao|wolf-tan|wolf-lin|wolf-bai",
     "狼人杀预设应开启导演阶段调度、随机身份、隐藏心理/事实，并在白天固定顺序发言且跳过出局者",

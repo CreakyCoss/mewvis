@@ -72,7 +72,7 @@
         "scene": "祠堂前的圆桌被月光切成两半。每个人面前都有一枚倒扣木牌，导演已经准备身份池，第一夜即将开始。",
         "sceneGoal": "当前阶段：第一夜。导演分配身份后推进夜晚行动；不要让角色在开局公开预发言。",
         "plot": "标准流程：身份分配 -> 第一夜 -> 第二天公布前一夜公开事实 -> 存活玩家按座次一轮发言 -> 投票放逐 -> 第二夜。发言中可以点名质疑，但不会让被点名者同轮插队发言。",
-        "storyDirection": "导演负责阶段推进、公开事实公布、投票和夜晚/白天循环。白天讨论阶段必须按存活座次固定顺序发言；一轮发言结束后进入投票，不自动追加被点名角色回应。",
+        "storyDirection": "导演负责阶段推进、公开事实公布、投票和夜晚/白天循环。白天讨论阶段用户作为首位座次先发言，其余存活角色再按座次固定顺序发言；一轮发言结束后进入投票，不自动追加被点名角色回应。",
         "transition": "当狼人被全部放逐、狼人获得人数优势，或导演判断阵营胜负明确时进入复盘并公开隐藏事实。",
         "memory": "本局核心边界：隐藏身份、夜间行动和心理描写在公开界面隐藏；结局后恢复显示。狼人杀是主持制流程，阶段规则优先于普通聊天承接。",
         "sceneStatus": {
@@ -404,10 +404,12 @@
               "enabled": true,
               "phaseStatusId": "werewolf_phase",
               "phaseValues": ["day_discussion"],
-              "stopAfterRound": true
+              "stopAfterRound": true,
+              "includeUser": true,
+              "userPosition": "first"
             },
             "autoContinuation": "disabledForFixedOrder",
-            "instruction": "狼人杀是主持制阶段游戏：夜晚、白天公布、投票和结算阶段可由导演只输出公开旁白，不调用角色公开发言；白天讨论阶段必须按存活座次固定顺序发言，角色发言中点名或提问只作为发言内容，不会让被点名者同轮插队；一轮发言结束后进入投票。"
+            "instruction": "狼人杀是主持制阶段游戏：夜晚、白天公布、投票和结算阶段可由导演只输出公开旁白，不调用角色公开发言；白天讨论阶段用户作为首位座次先发言，其余存活角色再按座次固定顺序发言，角色发言中点名或提问只作为发言内容，不会让被点名者同轮插队；一轮发言结束后进入投票。"
           },
           "continuation": {
             "enabled": false,
@@ -446,6 +448,15 @@
               "includeUser": true,
               "revealToAssignedCharacter": true,
               "revealFactionMembers": true,
+              "opening": {
+                "autoStart": true,
+                "publicEventType": "phase_started",
+                "publicEventValue": "day_discussion",
+                "globalStatusPatches": [
+                  { "statusId": "werewolf_phase", "value": "day_discussion" },
+                  { "statusId": "day_number", "value": 1 }
+                ]
+              },
               "rolePool": [
                 {
                   "id": "wolf",

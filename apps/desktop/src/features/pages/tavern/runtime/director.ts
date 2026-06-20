@@ -27,8 +27,11 @@ import {
 } from "./director-decision";
 import {
   filterTavernFactEventsForAudience,
+  buildTavernSchedulingSignals,
   canTavernSelectedTargetsStaySilent,
+  formatTavernDirectorProfileForPrompt,
   formatTavernDirectorSchedulingInstruction,
+  formatTavernSchedulingSignalsForPrompt,
   formatTavernVisibleMessagesForRequestContext,
   isTavernDirectorOnlyTurnAllowed,
   normalizeTavernMessagesForAudience,
@@ -148,6 +151,21 @@ export const runTavernDirector = async ({
     : `,"illustrationHints":[]`;
   const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
   const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room);
+  const schedulingSignals = buildTavernSchedulingSignals({
+    room,
+    characters,
+    messages,
+    currentUserText,
+    selectedTargetCharacterIds,
+  });
+  const directorProfileText = formatTavernDirectorProfileForPrompt({
+    profile: room.settings.directorScheduling.profile,
+    characters,
+  });
+  const schedulingSignalsText = formatTavernSchedulingSignalsForPrompt({
+    signals: schedulingSignals,
+    characters,
+  });
   const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
     room,
     selectedTargetCharacterIds,
@@ -181,9 +199,12 @@ export const runTavernDirector = async ({
     "如果用户以某个角色的全名、昵称或可唯一识别称呼开头发出指令/询问，该角色是本轮被点名目标，优先安排其公开回应或行动；除非用户明确要求不用回答/只动作/保持沉默，否则不要放入 nonverbalReplyIds。",
     `普通承接轮次优先选择 1-2 个角色；冲突、会议、多人相关场景可选择最多 ${maxSpeakers} 个角色。`,
     "优先选择最能推进场景目标、回应用户、制造承接关系的角色。",
+    "director_profile 是稳定角色调度画像；scheduling_signals 是应用侧每轮根据点名、兴趣、目标、关系、事实、任务和近期发言计算的动态动机。导演可以裁决或修正，但必须优先考虑高分信号和强理由。",
+    "scheduling_signals 的 reason 只用于内部调度，不能原样复制进公开 narrator 或泄露到角色公开对白；reason 字段仍只能写公开调度理由。",
     `ambientActions 可选，最多 ${ambientActionMax} 条，只能选择未出现在 speakerIds 和 nonverbalReplyIds 里的角色；只写可被观察到的动作/状态，不写对白、心理、意图或新剧情结果。`,
     "ambientActions 用来让未发言角色保持在场感，例如“莉娜把托盘放回吧台”“莫尔侧身让开门口”；不要为了凑数而生成。",
     "narrator 只能写已发生状态、环境过渡或镜头提示，不要新增关键事实、行动结果或替角色做决定；可为空，建议 40 字内。",
+    "reason 只能写公开调度理由，不得包含隐藏身份、阵营、未公开心理、夜间私密行动或验人结果。",
     canConsiderRandomEvent
       ? "randomEvent 由导演决定是否触发；只能写公开可观察的小事件，例如门外脚步、灯火闪动、远处钟声。不要直接解决主线、不要覆盖用户选择、不要替任何角色做关键行动，不触发则输出空字符串。"
       : "randomEvent 当前不可用，必须输出空字符串。",
@@ -245,6 +266,14 @@ export const runTavernDirector = async ({
       ? selectedTargetCharacters.map((character) => `id: ${character.id}\nname: ${character.name}`).join("\n\n---\n\n")
       : "（无）",
     "</selected_reply_targets>",
+    "",
+    "<director_profile instruction=\"stable_scheduling_profile; low_frequency; do_not_rewrite_in_this_turn\">",
+    directorProfileText,
+    "</director_profile>",
+    "",
+    "<scheduling_signals instruction=\"dynamic_per_turn_recommendations; director_may_override_with_reason; do_not_leak_hidden_or_private_reasons\">",
+    schedulingSignalsText || "[]",
+    "</scheduling_signals>",
     "",
     "<progress_context instruction=\"director_only; use_for_scheduling_motivation_without_leaking_hidden_facts\">",
     limitDirectorContextText(formatDirectorProgressContext(room), 6000),

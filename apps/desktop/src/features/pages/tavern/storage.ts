@@ -11,6 +11,7 @@ import type {
   TavernCharacterPublicStatus,
   TavernCharacterMemoryDraft,
   TavernCondition,
+  TavernDirectorProfile,
   TavernEntityRef,
   TavernIllustrationHint,
   TavernLorebookEntry,
@@ -47,6 +48,10 @@ import type {
   TavernTimelineEvent,
   TavernTimelineScope,
 } from "./types";
+import {
+  createTavernDirectorProfileFromCharacters,
+  normalizeTavernDirectorProfile,
+} from "./core/scheduling-profile";
 import {
   DEFAULT_TAVERN_PROMPT_STYLE_ID,
   normalizeTavernPromptStyleId,
@@ -357,6 +362,8 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
       phaseStatusId: "",
       phaseValues: [],
       stopAfterRound: false,
+      includeUser: false,
+      userPosition: "first",
     },
     autoContinuation: "enabled",
     instruction: "",
@@ -399,6 +406,11 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
       revealToAssignedCharacter: true,
       revealFactionMembers: true,
       rolePool: [],
+      opening: {
+        autoStart: false,
+        publicEventType: "",
+        globalStatusPatches: [],
+      },
     },
   },
 };
@@ -886,6 +898,29 @@ const clampInteger = (value: unknown, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, Math.round(numberValue)));
 };
 
+const cloneTavernDirectorProfile = (
+  profile: TavernDirectorProfile | undefined,
+): TavernDirectorProfile | undefined => profile
+  ? {
+      ...profile,
+      globalGoals: [...profile.globalGoals],
+      globalRules: [...profile.globalRules],
+      characterProfiles: Object.fromEntries(
+        Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
+          characterId,
+          {
+            ...characterProfile,
+            interestTags: [...characterProfile.interestTags],
+            goalTags: [...characterProfile.goalTags],
+            knowledgeTags: [...characterProfile.knowledgeTags],
+            speechTriggers: [...characterProfile.speechTriggers],
+            silenceTriggers: [...characterProfile.silenceTriggers],
+          },
+        ]),
+      ),
+    }
+  : undefined;
+
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
@@ -900,6 +935,7 @@ const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
       rules: DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
     },
+    profile: cloneTavernDirectorProfile(DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.profile),
     fixedOrder: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
       phaseValues: [...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues],
@@ -978,6 +1014,9 @@ const normalizeInformationPolicy = (
   const roleAssignment = candidate.roleAssignment && typeof candidate.roleAssignment === "object"
     ? candidate.roleAssignment as Partial<TavernRoomSettings["informationPolicy"]["roleAssignment"]>
     : {};
+  const roleAssignmentOpening = roleAssignment.opening && typeof roleAssignment.opening === "object"
+    ? roleAssignment.opening as Partial<TavernRoomSettings["informationPolicy"]["roleAssignment"]["opening"]>
+    : {};
   const mode = candidate.mode === "mystery" ||
       candidate.mode === "social_deduction" ||
       candidate.mode === "custom" ||
@@ -1012,6 +1051,31 @@ const normalizeInformationPolicy = (
       revealToAssignedCharacter: roleAssignment.revealToAssignedCharacter !== false,
       revealFactionMembers: roleAssignment.revealFactionMembers !== false,
       rolePool: normalizeRoleAssignmentPool(roleAssignment.rolePool),
+      opening: {
+        autoStart: Boolean(roleAssignmentOpening.autoStart),
+        publicEventType: typeof roleAssignmentOpening.publicEventType === "string"
+          ? roleAssignmentOpening.publicEventType.trim().slice(0, 80)
+          : "",
+        ...(roleAssignmentOpening.publicEventValue !== undefined
+          ? { publicEventValue: normalizeStatusValue(roleAssignmentOpening.publicEventValue) }
+          : {}),
+        globalStatusPatches: Array.isArray(roleAssignmentOpening.globalStatusPatches)
+          ? roleAssignmentOpening.globalStatusPatches.flatMap((patch) => {
+              if (!patch || typeof patch !== "object") {
+                return [];
+              }
+              const record = patch as Record<string, unknown>;
+              const statusId = typeof record.statusId === "string" ? record.statusId.trim() : "";
+              if (!statusId) {
+                return [];
+              }
+              return [{
+                statusId,
+                value: normalizeStatusValue(record.value),
+              }];
+            }).slice(0, 12)
+          : [],
+      },
     },
   };
 };
@@ -1023,10 +1087,27 @@ const normalizeStringList = (value: unknown, maxItems = 12) => Array.isArray(val
 
 const normalizeDirectorScheduling = (
   value: unknown,
+  options: {
+    characters?: TavernCharacter[];
+    characterIds?: string[];
+    mapCharacterId?: (characterId: string) => string | undefined;
+    profileSource?: TavernDirectorProfile["source"];
+    updatedAt?: number;
+  } = {},
 ): TavernRoomSettings["directorScheduling"] => {
   const defaults = cloneDefaultRoomSettings().directorScheduling;
+  const defaultsWithProfile = options.characters?.length
+    ? {
+        ...defaults,
+        profile: createTavernDirectorProfileFromCharacters({
+          characters: options.characters,
+          source: options.profileSource ?? "system",
+          updatedAt: options.updatedAt,
+        }),
+      }
+    : defaults;
   if (!value || typeof value !== "object") {
-    return defaults;
+    return defaultsWithProfile;
   }
 
   const candidate = value as Partial<TavernRoomSettings["directorScheduling"]>;
@@ -1092,6 +1173,13 @@ const normalizeDirectorScheduling = (
           }).slice(0, 12)
         : defaults.speakerMotivation.rules.map((rule) => ({ ...rule })),
     },
+    profile: normalizeTavernDirectorProfile(candidate.profile, {
+      characters: options.characters,
+      characterIds: options.characterIds,
+      mapCharacterId: options.mapCharacterId,
+      source: options.profileSource,
+      updatedAt: options.updatedAt,
+    }),
     fixedOrder: {
       enabled: Boolean(fixedOrder.enabled),
       phaseStatusId: typeof fixedOrder.phaseStatusId === "string"
@@ -1099,6 +1187,8 @@ const normalizeDirectorScheduling = (
         : "",
       phaseValues: normalizeStringList(fixedOrder.phaseValues),
       stopAfterRound: Boolean(fixedOrder.stopAfterRound),
+      includeUser: Boolean(fixedOrder.includeUser),
+      userPosition: fixedOrder.userPosition === "last" ? "last" : "first",
     },
     autoContinuation,
     instruction: typeof candidate.instruction === "string"
@@ -1107,9 +1197,22 @@ const normalizeDirectorScheduling = (
   };
 };
 
-const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
+const normalizeRoomSettings = (
+  value: unknown,
+  options: {
+    characters?: TavernCharacter[];
+    characterIds?: string[];
+    mapCharacterId?: (characterId: string) => string | undefined;
+    profileSource?: TavernDirectorProfile["source"];
+    updatedAt?: number;
+  } = {},
+): TavernRoomSettings => {
   if (!value || typeof value !== "object") {
-    return cloneDefaultRoomSettings();
+    const defaults = cloneDefaultRoomSettings();
+    return {
+      ...defaults,
+      directorScheduling: normalizeDirectorScheduling(undefined, options),
+    };
   }
 
   const candidate = value as Partial<TavernRoomSettings>;
@@ -1159,7 +1262,7 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
-    directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling),
+    directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling, options),
     continuation: {
       enabled: continuation.enabled !== false,
       maxAutoContinuationRounds: clampInteger(
@@ -2944,7 +3047,13 @@ export const createTavernRoomFromSystemPreset = (
     activeCharacterId,
     replyMode: normalizeReplyMode(preset.room.replyMode),
     userPersonaName: preset.room.userPersonaName?.trim() || "我",
-    settings: normalizeRoomSettings(preset.room.settings),
+    settings: normalizeRoomSettings(preset.room.settings, {
+      characters,
+      characterIds,
+      mapCharacterId: mapSystemCharacterId,
+      profileSource: "preset",
+      updatedAt: createdAt,
+    }),
     createdAt: options.roomCreatedAt ?? createdAt,
     updatedAt: createdAt,
   });
@@ -3582,7 +3691,13 @@ export const createTavernRoomFromGeneratedPresetJson = (
     activeCharacterId: roomActiveCharacterId,
     replyMode: normalizeReplyMode(roomInput.replyMode),
     userPersonaName: trimGeneratedString(roomInput.userPersonaName) || "我",
-    settings: normalizeRoomSettings(roomInput.settings),
+    settings: normalizeRoomSettings(roomInput.settings, {
+      characters,
+      characterIds: roomCharacterIds,
+      mapCharacterId: mapGeneratedCharacterId,
+      profileSource: "generated",
+      updatedAt: createdAt,
+    }),
     createdAt: options.roomCreatedAt ?? createdAt,
     updatedAt: createdAt,
   });

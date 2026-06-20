@@ -40,6 +40,42 @@ export type TavernCharacter = {
   updatedAt: number;
 };
 
+export type TavernDirectorSpeechBias = "very_low" | "low" | "balanced" | "high" | "very_high";
+
+export type TavernDirectorReplyModePreference = "speech" | "nonverbal" | "ambient";
+
+export type TavernDirectorCharacterProfile = {
+  characterId: string;
+  temperament?: string;
+  speechBias: TavernDirectorSpeechBias;
+  nonverbalBias?: TavernDirectorSpeechBias;
+  interestTags: string[];
+  goalTags: string[];
+  knowledgeTags: string[];
+  conflictStyle?: string;
+  socialStrategy?: string;
+  speechTriggers: string[];
+  silenceTriggers: string[];
+  notes?: string;
+};
+
+export type TavernDirectorProfile = {
+  version: 1;
+  source: "system" | "preset" | "generated" | "manual";
+  globalGoals: string[];
+  globalRules: string[];
+  characterProfiles: Record<string, TavernDirectorCharacterProfile>;
+  updatedAt?: number;
+};
+
+export type TavernSchedulingSignal = {
+  characterId: string;
+  score: number;
+  reasons: string[];
+  suggestedModes: TavernDirectorReplyModePreference[];
+  matchedRuleIds: string[];
+};
+
 export type TavernLorebookEntry = {
   id: string;
   title: string;
@@ -114,11 +150,14 @@ export type TavernRoomSettings = {
         instruction: string;
       }>;
     };
+    profile?: TavernDirectorProfile;
     fixedOrder: {
       enabled: boolean;
       phaseStatusId?: string;
       phaseValues: string[];
       stopAfterRound: boolean;
+      includeUser: boolean;
+      userPosition: "first" | "last";
     };
     autoContinuation: "enabled" | "disabled" | "disabledForFixedOrder";
     instruction: string;
@@ -248,6 +287,15 @@ export type TavernInformationPolicy = {
     revealToAssignedCharacter: boolean;
     revealFactionMembers: boolean;
     rolePool: TavernRoleAssignmentDefinition[];
+    opening: {
+      autoStart: boolean;
+      publicEventType: string;
+      publicEventValue?: TavernStatusValue;
+      globalStatusPatches: Array<{
+        statusId: string;
+        value: TavernStatusValue;
+      }>;
+    };
   };
 };
 
@@ -296,7 +344,7 @@ export type TavernFactEvent = {
   actor?: TavernEntityRef;
   target?: TavernEntityRef;
   intensity?: TavernEventIntensity;
-  value?: number;
+  value?: TavernStatusValue;
   evidence: string;
   confidence: number;
   visibility?: TavernProgressVisibility;

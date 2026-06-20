@@ -83,7 +83,29 @@ const generatedPresetSchema = `{
             }
           ]
         },
-        "fixedOrder": { "enabled": false, "phaseStatusId": "", "phaseValues": [], "stopAfterRound": false },
+        "profile": {
+          "version": 1,
+          "source": "generated",
+          "globalGoals": ["全局调度目标"],
+          "globalRules": ["稳定玩法调度规则"],
+          "characterProfiles": {
+            "stable-short-id": {
+              "characterId": "stable-short-id",
+              "temperament": "稳定性格调度摘要",
+              "speechBias": "very_low | low | balanced | high | very_high",
+              "nonverbalBias": "very_low | low | balanced | high | very_high",
+              "interestTags": ["感兴趣内容"],
+              "goalTags": ["个人局内目标关键词"],
+              "knowledgeTags": ["常掌握或关注的知识/线索"],
+              "conflictStyle": "冲突处理方式",
+              "socialStrategy": "社交/竞争策略",
+              "speechTriggers": ["什么情况更想说话"],
+              "silenceTriggers": ["什么情况更倾向沉默或动作回应"],
+              "notes": "导演调度时的稳定补充"
+            }
+          }
+        },
+        "fixedOrder": { "enabled": false, "phaseStatusId": "", "phaseValues": [], "stopAfterRound": false, "includeUser": false, "userPosition": "first | last" },
         "autoContinuation": "enabled | disabled | disabledForFixedOrder",
         "instruction": "阶段制/点名/固定顺序等调度规则"
       },
@@ -103,6 +125,12 @@ const generatedPresetSchema = `{
           "includeUser": true,
           "revealToAssignedCharacter": true,
           "revealFactionMembers": true,
+          "opening": {
+            "autoStart": false,
+            "publicEventType": "",
+            "publicEventValue": "",
+            "globalStatusPatches": []
+          },
           "rolePool": [
             { "id": "wolf", "label": "狼人", "description": "夜间同阵营行动", "factionId": "wolves", "factionLabel": "狼人阵营", "count": 1 }
           ]
@@ -170,9 +198,11 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "如果 request_context.advanced.enableStatusTracking 为 true，可以生成少量通用状态面板，但每个可变数值状态都必须有明确事件驱动的 statusRules。",
   "如果 request_context.advanced.enableIllustrationHints 为 false，room.settings.illustrationHints.enabled 必须为 false；为 true 时只开启配置，不要生成与当前公开场景矛盾的插图内容。",
   "如果 request_context.advanced.enableRandomEvents 为 false，room.settings.randomEvents.enabled 必须为 false；为 true 时使用 request_context.advanced.randomEventProbability，随机事件仍只由导演运行时决定。",
-  "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达；需要每局随机身份时，填写 roleAssignment.rolePool，由运行时生成本局身份事实。",
-  "狼人杀、辩论投票、回合制推理等阶段制剧本应设置 room.settings.directorScheduling：夜晚/投票/结算阶段可 allowDirectorOnly，白天发言阶段用 fixedOrder 绑定全局阶段状态并禁用自动续调度，避免被点名角色同轮插队。",
+  "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达；需要每局随机身份时，填写 roleAssignment.rolePool，由导演运行时生成本局身份事实；若进入房间就应开局，设置 roleAssignment.opening.autoStart，并用 opening.publicEventType/publicEventValue/globalStatusPatches 声明分配后要产生的公开事件和状态变化。",
+  "狼人杀、辩论投票、回合制推理等阶段制剧本应设置 room.settings.directorScheduling：夜晚/投票/结算阶段可 allowDirectorOnly，白天发言阶段用 fixedOrder 绑定全局阶段状态并禁用自动续调度，避免被点名角色同轮插队；若用户也在固定座次中，设置 fixedOrder.includeUser 和 userPosition。",
   "普通互动剧本的 targetedReplyPolicy 优先使用 prefer：被点名者应被导演优先考虑；如果需要回应但不适合开口，应进入 nonverbalReplyIds，由角色 Agent 输出心理和动作，直接对白可为空。只有完全无需近景反应时才用 ambientActions/旁白处理；只有确实要求目标必须开口时才用 include/exclusive。",
+  "room.settings.directorScheduling.profile 是稳定调度画像，不写本轮临时状态；为每个角色填写 speechBias、interestTags、goalTags、speechTriggers、silenceTriggers 等，让导演后续每轮结合动态状态和事实计算发言动机。",
+  "profile 只描述低频稳定特征，例如沉默寡言、对化学知识感兴趣、目标是获得用户信任；不要把当前血量、当前好感、刚发生的动作写进 profile，这些应由状态栏、任务、事实和每轮调度信号处理。",
   "仅部分人可知的事实不能写进开场旁白或公开消息；只能写入 factEvents/status 初始数据或角色私有记忆，并设置可见性。",
   "随机事件只由导演触发，必须是公开可观察事件，不能直接解决主线，不能覆盖用户选择。",
   "状态栏、任务和结局可为空数组；如果设计数值状态，必须同时给出可由明确事件驱动的 statusRules。",

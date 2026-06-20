@@ -5,6 +5,19 @@ import type {
 } from "../types";
 import { getTavernStatusSnapshotValue } from "./progress-engine";
 
+export type TavernRoundParticipant =
+  | {
+      type: "user";
+      id: "user";
+      name: string;
+    }
+  | {
+      type: "character";
+      id: string;
+      name: string;
+      character: TavernCharacter;
+    };
+
 const speechStateStatusIds = new Set([
   "player_state",
   "alive_state",
@@ -94,4 +107,45 @@ export const orderTavernRoundSpeakers = ({
     ...availableCharacters.slice(activeIndex),
     ...availableCharacters.slice(0, activeIndex),
   ];
+};
+
+export const orderTavernRoundParticipants = ({
+  room,
+  characters,
+  activeCharacterId,
+  includeUser = false,
+  userPosition = "first",
+  userPersonaName,
+}: {
+  room: Pick<TavernRoom, "statusDefinitions" | "statusSnapshot">;
+  characters: TavernCharacter[];
+  activeCharacterId?: string;
+  includeUser?: boolean;
+  userPosition?: "first" | "last";
+  userPersonaName?: string;
+}): TavernRoundParticipant[] => {
+  const characterParticipants: TavernRoundParticipant[] = orderTavernRoundSpeakers({
+    room,
+    characters,
+    activeCharacterId,
+  }).map((character) => ({
+    type: "character" as const,
+    id: character.id,
+    name: character.name,
+    character,
+  }));
+
+  if (!includeUser) {
+    return characterParticipants;
+  }
+
+  const userParticipant: TavernRoundParticipant = {
+    type: "user",
+    id: "user",
+    name: userPersonaName?.trim() || "你",
+  };
+
+  return userPosition === "last"
+    ? [...characterParticipants, userParticipant]
+    : [userParticipant, ...characterParticipants];
 };
