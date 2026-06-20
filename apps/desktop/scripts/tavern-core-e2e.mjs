@@ -312,6 +312,17 @@ writeFileSync(entryPath, `
     true,
     true,
   );
+  const parsedDirectorNonverbalReply = parseTavernDirectorDecision(JSON.stringify({
+    speakerIds: [],
+    nonverbalReplyIds: ["char-b", "missing-character"],
+    ambientActions: [{ characterId: "char-b", action: "擦亮杯沿。" }],
+    reason: "贝拉只用动作回应。",
+  }), characters, 2, true, true);
+  const parsedDirectorNonverbalCap = parseTavernDirectorDecision(JSON.stringify({
+    speakerIds: ["char-a"],
+    nonverbalReplyIds: ["char-b"],
+    reason: "贝拉被要求只用动作回应，阿洛也想插话。",
+  }), characters, 1, true, true);
   const randomEventOpportunityChecks = {
     enabledHit: shouldOfferTavernDirectorRandomEvent({
       settings: {
@@ -1559,6 +1570,24 @@ writeFileSync(entryPath, `
     currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
     directorReason: "用户明确要求叶小满只用动作回应。",
   });
+  const winTheirHeartsDirectorNonverbalSpeakerIds = resolveTavernScheduledSpeakers({
+    room: winTheirHeartsRoom,
+    availableCharacters: winTheirHeartsMaterialized.characters,
+    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
+    directorSpeakerIds: [],
+    directorNonverbalReplyIds: ["route-ye"],
+    selectedTargetCharacterIds: [],
+    currentUserText: "小满，你不用回答。",
+    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
+  }).map((character) => character.id);
+  const winTheirHeartsDirectorNonverbalAllowed = canTavernCharacterUseNonverbalReply({
+    room: winTheirHeartsRoom,
+    characterId: "route-ye",
+    selectedTargetCharacterIds: [],
+    directorNonverbalReplyIds: ["route-ye"],
+    currentUserText: "小满，你不用回答。",
+    directorReason: "导演根据昵称判断叶小满只做动作回应。",
+  });
   const winTheirHeartsAdvance = advanceTavernProgressFromFactEvents({
     room: winTheirHeartsRoom,
     factEvents: [{
@@ -1834,6 +1863,8 @@ writeFileSync(entryPath, `
         motivatedOtherSpeakerIds: winTheirHeartsMotivatedOtherSpeakerIds,
         nonverbalCueSpeakerIds: winTheirHeartsNonverbalCueSpeakerIds,
         nonverbalReplyAllowed: winTheirHeartsNonverbalReplyAllowed,
+        directorNonverbalSpeakerIds: winTheirHeartsDirectorNonverbalSpeakerIds,
+        directorNonverbalAllowed: winTheirHeartsDirectorNonverbalAllowed,
       },
       wuxia: {
         room: wuxiaRoom,
@@ -1891,6 +1922,8 @@ writeFileSync(entryPath, `
     parsedDirectorRandomEventDisabled,
     parsedDirectorIllustrationHintsDisabled,
     parsedDirectorIllustrationHintsLoose,
+    parsedDirectorNonverbalReply,
+    parsedDirectorNonverbalCap,
     randomEventOpportunityChecks,
     progressChecks,
     roleAssignmentChecks,
@@ -2185,6 +2218,18 @@ try {
     },
   );
   assert(
+    checks.parsedDirectorNonverbalReply.nonverbalReplyIds.join("|") === "char-b" &&
+      checks.parsedDirectorNonverbalReply.ambientActions.length === 0,
+    "导演 nonverbalReplyIds 应被解析为角色调用计划，并避免同角色重复进入 ambientActions",
+    checks.parsedDirectorNonverbalReply,
+  );
+  assert(
+    checks.parsedDirectorNonverbalCap.speakerIds.length === 0 &&
+      checks.parsedDirectorNonverbalCap.nonverbalReplyIds.join("|") === "char-b",
+    "导演同时返回 speakerIds/nonverbalReplyIds 时，应按合并角色数限制本轮调度并优先保留非语言角色回复",
+    checks.parsedDirectorNonverbalCap,
+  );
+  assert(
     checks.randomEventOpportunityChecks.enabledHit &&
       !checks.randomEventOpportunityChecks.enabledMiss &&
       !checks.randomEventOpportunityChecks.disabled,
@@ -2377,7 +2422,9 @@ try {
       checks.progressChecks.systemPresets.winTheirHearts.silentTargetSpeakerIds.length === 0 &&
       checks.progressChecks.systemPresets.winTheirHearts.motivatedOtherSpeakerIds.join("|") === "route-liu" &&
       checks.progressChecks.systemPresets.winTheirHearts.nonverbalCueSpeakerIds.join("|") === "route-ye" &&
-      checks.progressChecks.systemPresets.winTheirHearts.nonverbalReplyAllowed,
+      checks.progressChecks.systemPresets.winTheirHearts.nonverbalReplyAllowed &&
+      checks.progressChecks.systemPresets.winTheirHearts.directorNonverbalSpeakerIds.join("|") === "route-ye" &&
+      checks.progressChecks.systemPresets.winTheirHearts.directorNonverbalAllowed,
     "好感剧本2应按 character -> user 方向推进“角色对你的好感”，并允许被点名目标沉默或让强动机非目标发言",
     checks.progressChecks.systemPresets.winTheirHearts,
   );

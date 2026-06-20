@@ -5,6 +5,7 @@ import type {
 
 export type TavernDirectorDecision = {
   speakerIds: string[];
+  nonverbalReplyIds?: string[];
   narrator?: string;
   randomEvent?: string;
   illustrationHints?: string[];
@@ -54,7 +55,7 @@ const extractLooseJsonStringArray = (text: string, fieldName: string) => {
 
 const extractLooseJsonStringField = (text: string, fieldName: string) => {
   const fieldPattern = new RegExp(
-    `"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"\\s*(?=,\\s*"(?:speakerIds|ambientActions|narrator|randomEvent|illustrationHints|reason)"\\s*:|\\s*}\\s*$)`,
+    `"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"\\s*(?=,\\s*"(?:speakerIds|nonverbalReplyIds|ambientActions|narrator|randomEvent|illustrationHints|reason)"\\s*:|\\s*}\\s*$)`,
     "i",
   );
   const fieldMatch = fieldPattern.exec(text);
@@ -108,8 +109,19 @@ export const parseTavernDirectorDecision = (
         .filter((id) => characterIds.has(id))
     : extractLooseJsonStringArray(jsonText, "speakerIds")
         .filter((id) => characterIds.has(id));
-  const uniqueSpeakerIds = [...new Set(speakerIds)].slice(0, maxSpeakers);
-  const speakerIdSet = new Set(uniqueSpeakerIds);
+  const parsedNonverbalReplyIds: unknown[] | null = Array.isArray(parsed?.nonverbalReplyIds)
+    ? parsed.nonverbalReplyIds
+    : null;
+  const nonverbalReplyIdsRaw = parsedNonverbalReplyIds
+    ? parsedNonverbalReplyIds
+        .flatMap((value: unknown) => typeof value === "string" ? [value] : [])
+        .filter((id) => characterIds.has(id))
+    : extractLooseJsonStringArray(jsonText, "nonverbalReplyIds")
+        .filter((id) => characterIds.has(id));
+  const scheduledIdSet = new Set([...new Set(nonverbalReplyIdsRaw), ...new Set(speakerIds)].slice(0, maxSpeakers));
+  const uniqueSpeakerIds = [...new Set(speakerIds)].filter((id) => scheduledIdSet.has(id));
+  const nonverbalReplyIds = [...new Set(nonverbalReplyIdsRaw)].filter((id) => scheduledIdSet.has(id));
+  const speakerIdSet = new Set([...uniqueSpeakerIds, ...nonverbalReplyIds]);
   const narrator = typeof parsed?.narrator === "string"
     ? limitDirectorText(parsed.narrator, 280)
     : limitDirectorText(extractLooseJsonStringField(jsonText, "narrator"), 280);
@@ -165,6 +177,7 @@ export const parseTavernDirectorDecision = (
 
   return {
     speakerIds: uniqueSpeakerIds,
+    nonverbalReplyIds,
     narrator: narrator || undefined,
     randomEvent: randomEvent || undefined,
     illustrationHints,

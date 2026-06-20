@@ -172,7 +172,7 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "如果 request_context.advanced.enableRandomEvents 为 false，room.settings.randomEvents.enabled 必须为 false；为 true 时使用 request_context.advanced.randomEventProbability，随机事件仍只由导演运行时决定。",
   "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达；需要每局随机身份时，填写 roleAssignment.rolePool，由运行时生成本局身份事实。",
   "狼人杀、辩论投票、回合制推理等阶段制剧本应设置 room.settings.directorScheduling：夜晚/投票/结算阶段可 allowDirectorOnly，白天发言阶段用 fixedOrder 绑定全局阶段状态并禁用自动续调度，避免被点名角色同轮插队。",
-  "普通互动剧本的 targetedReplyPolicy 优先使用 prefer：被点名者应被导演优先考虑；如果需要回应但不适合开口，应仍进入 speakerIds，由角色 Agent 输出心理和动作，直接对白可为空。只有完全无需近景反应时才用 ambientActions/旁白处理；只有确实要求目标必须开口时才用 include/exclusive。",
+  "普通互动剧本的 targetedReplyPolicy 优先使用 prefer：被点名者应被导演优先考虑；如果需要回应但不适合开口，应进入 nonverbalReplyIds，由角色 Agent 输出心理和动作，直接对白可为空。只有完全无需近景反应时才用 ambientActions/旁白处理；只有确实要求目标必须开口时才用 include/exclusive。",
   "仅部分人可知的事实不能写进开场旁白或公开消息；只能写入 factEvents/status 初始数据或角色私有记忆，并设置可见性。",
   "随机事件只由导演触发，必须是公开可观察事件，不能直接解决主线，不能覆盖用户选择。",
   "状态栏、任务和结局可为空数组；如果设计数值状态，必须同时给出可由明确事件驱动的 statusRules。",

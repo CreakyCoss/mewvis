@@ -3159,6 +3159,7 @@ export const TavernPage = ({
       });
 
       let directorReason = "";
+      let directorNonverbalReplyIds: string[] = [];
       const turnNarratorTexts: string[] = [];
       if (isDirectorLikeMode) {
         setTurnStatus("导演正在判断本轮发言顺序...");
@@ -3185,11 +3186,13 @@ export const TavernPage = ({
                 Math.max(1, roomCharacters.length),
               ),
         });
+        directorNonverbalReplyIds = directorDecision.nonverbalReplyIds ?? [];
         speakers = resolveTavernScheduledSpeakers({
           room: runtimeRoom,
           availableCharacters: availableRoomCharacters,
           activeCharacterId: activeCharacter?.id,
           directorSpeakerIds: directorDecision.speakerIds,
+          directorNonverbalReplyIds,
           selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
           currentUserText: text,
           fallbackCharacter: availableActiveCharacter,
@@ -3316,6 +3319,7 @@ export const TavernPage = ({
           room: runtimeRoom,
           characterId: speaker.id,
           selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+          directorNonverbalReplyIds,
           currentUserText: text,
           directorReason: [
             directorReason,

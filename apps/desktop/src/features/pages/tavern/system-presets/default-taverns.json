@@ -722,7 +722,7 @@
                   "label": "被点名者可沉默回应",
                   "when": "用户的问题冒犯、过于唐突、关系不足，或角色性格不愿立刻开口。",
                   "priority": 64,
-                  "instruction": "被点名者不必每次说出口对白；如果需要近景回应，应进入 speakerIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
+                  "instruction": "被点名者不必每次说出口对白；如果需要近景非语言回应，应进入 nonverbalReplyIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
                 }
               ]
             },
@@ -988,12 +988,12 @@
                   "label": "被询问者可克制或沉默",
                   "when": "被点名者感到问题冒犯、关系尚浅、需要观察、或人设偏克制。",
                   "priority": 66,
-                  "instruction": "被点名者不必每次说出口对白；如果需要回应，应进入 speakerIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
+                  "instruction": "被点名者不必每次说出口对白；如果需要非语言回应，应进入 nonverbalReplyIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
                 }
               ]
             },
             "autoContinuation": "enabled",
-            "instruction": "这是双路线攻略剧本。导演调度应兼顾被用户关注的人、另一位竞争者的介入欲望、当前好感方向和人设克制程度；指定目标只是强信号，不是强制开口。被指定目标需要动作回应时仍进入 speakerIds，由角色 Agent 输出非语言回复。"
+            "instruction": "这是双路线攻略剧本。导演调度应兼顾被用户关注的人、另一位竞争者的介入欲望、当前好感方向和人设克制程度；指定目标只是强信号，不是强制开口。被指定目标需要动作回应时进入 nonverbalReplyIds，由角色 Agent 输出非语言回复。"
           },
           "replyOptions": { "enabled": true, "count": 4 },
           "statusTracking": { "enabled": true, "visibleToUser": true },

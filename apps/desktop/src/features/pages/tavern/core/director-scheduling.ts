@@ -145,19 +145,22 @@ export const canTavernCharacterUseNonverbalReply = ({
   room,
   characterId,
   selectedTargetCharacterIds,
+  directorNonverbalReplyIds,
   currentUserText,
   directorReason,
 }: {
   room: Pick<TavernRoom, "settings">;
   characterId: string;
   selectedTargetCharacterIds?: string[];
+  directorNonverbalReplyIds?: string[];
   currentUserText?: string;
   directorReason?: string | null;
 }) =>
-  canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
-  Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
-  (hasTavernNonverbalTargetCue(currentUserText ?? "") ||
-    hasTavernNonverbalTargetCue(directorReason ?? ""));
+  Boolean(directorNonverbalReplyIds?.includes(characterId)) ||
+  (canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
+    Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
+    (hasTavernNonverbalTargetCue(currentUserText ?? "") ||
+      hasTavernNonverbalTargetCue(directorReason ?? "")));
 
 export const shouldSuppressTavernAutoContinuation = (
   room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
@@ -181,11 +184,28 @@ const uniqueCharacters = (characters: TavernCharacter[]) => {
   });
 };
 
+export const mergeTavernCharacterIds = (
+  ...characterIdLists: Array<readonly string[] | undefined | null>
+) => {
+  const seen = new Set<string>();
+  return characterIdLists
+    .flatMap((list) => list ?? [])
+    .flatMap((characterId) => {
+      const normalized = characterId.trim();
+      if (!normalized || seen.has(normalized)) {
+        return [];
+      }
+      seen.add(normalized);
+      return [normalized];
+    });
+};
+
 export const resolveTavernScheduledSpeakers = ({
   room,
   availableCharacters,
   activeCharacterId,
   directorSpeakerIds,
+  directorNonverbalReplyIds,
   selectedTargetCharacterIds,
   currentUserText,
   fallbackCharacter,
@@ -194,6 +214,7 @@ export const resolveTavernScheduledSpeakers = ({
   availableCharacters: TavernCharacter[];
   activeCharacterId?: string | null;
   directorSpeakerIds: string[];
+  directorNonverbalReplyIds?: string[];
   selectedTargetCharacterIds?: string[];
   currentUserText?: string;
   fallbackCharacter?: TavernCharacter | null;
@@ -212,7 +233,7 @@ export const resolveTavernScheduledSpeakers = ({
 
   const characterById = new Map(availableCharacters.map((character) => [character.id, character]));
   const rawDirectedSpeakers = uniqueCharacters(
-    directorSpeakerIds
+    mergeTavernCharacterIds(directorNonverbalReplyIds, directorSpeakerIds)
       .map((characterId) => characterById.get(characterId))
       .filter((character): character is TavernCharacter => Boolean(character)),
   );
@@ -306,8 +327,8 @@ export const formatTavernDirectorSchedulingInstruction = (
   } else if (scheduling.targetedReplyPolicy === "include") {
     lines.push(`当用户选择或指定回复对象时，必须包含被指定角色；其他角色最多追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。`);
   } else if (scheduling.targetedReplyPolicy === "prefer") {
-    lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其公开发言；关系差、问题冒犯、沉默人设或策略性回避时，可让该角色只进入 ambientActions、旁白反应或保持沉默。");
-    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应把该目标放入 speakerIds，让角色 Agent 自己输出心理和动作；不要改用旁白替角色完成这类近景反应。");
+    lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其说出口对白；关系差、问题冒犯、沉默人设或策略性回避时，可让该角色进入 nonverbalReplyIds。");
+    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应把该目标放入 nonverbalReplyIds，让角色 Agent 自己输出心理和动作；不要改用旁白替角色完成这类近景反应。");
   }
 
   if (scheduling.speakerMotivation.enabled) {

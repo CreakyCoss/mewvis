@@ -303,6 +303,16 @@ writeFileSync(entryPath, `
       currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
       fallbackCharacter: characters[0],
     }).map((speaker) => speaker.id);
+    const directorNonverbalSpeakerIds = resolveTavernScheduledSpeakers({
+      room,
+      availableCharacters: characters,
+      activeCharacterId: room.activeCharacterId,
+      directorSpeakerIds: [],
+      directorNonverbalReplyIds: ["route-ye"],
+      selectedTargetCharacterIds: [],
+      currentUserText: "小满，你不用回答。",
+      fallbackCharacter: characters[0],
+    }).map((speaker) => speaker.id);
 
     for (let round = 1; round <= 20; round += 1) {
       const turnId = \`hearts-turn-\${round}\`;
@@ -364,6 +374,7 @@ writeFileSync(entryPath, `
       targetCanStaySilentSpeakerIds,
       motivatedOtherSpeakerIds,
       nonverbalCueSpeakerIds,
+      directorNonverbalSpeakerIds,
       yeFavorFinal: favorOf(room, yeRef, userRef),
       liuFavorFinal: favorOf(room, liuRef, userRef),
       reverseYeFavor: favorOf(room, userRef, yeRef),
@@ -485,6 +496,11 @@ try {
     { nonverbalCueSpeakerIds: winTheirHearts.nonverbalCueSpeakerIds },
   );
   assert(
+    winTheirHearts.directorNonverbalSpeakerIds.join("|") === "route-ye",
+    "Director nonverbalReplyIds should schedule the addressed character even without a UI-selected target",
+    { directorNonverbalSpeakerIds: winTheirHearts.directorNonverbalSpeakerIds },
+  );
+  assert(
     winTheirHearts.yeFavorByRound.length === 20,
     "Win-their-hearts test should run exactly 20 rounds",
     { rounds: winTheirHearts.yeFavorByRound.length },
@@ -561,6 +577,7 @@ try {
       targetCanStaySilentSpeakerIds: winTheirHearts.targetCanStaySilentSpeakerIds,
       motivatedOtherSpeakerIds: winTheirHearts.motivatedOtherSpeakerIds,
       nonverbalCueSpeakerIds: winTheirHearts.nonverbalCueSpeakerIds,
+      directorNonverbalSpeakerIds: winTheirHearts.directorNonverbalSpeakerIds,
       completedTasks: Object.fromEntries(
         Object.entries(winTheirHearts.room.taskSnapshot).map(([key, value]) => [key, value.status]),
       ),
