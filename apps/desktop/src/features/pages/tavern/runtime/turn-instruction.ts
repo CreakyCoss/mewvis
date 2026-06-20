@@ -16,12 +16,15 @@ export const DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT: TavernCharacterPromptVaria
 const buildReplyFormatInstruction = (
   speaker: TavernCharacter,
   variant: TavernCharacterPromptVariant,
+  allowNonverbalReply: boolean,
 ) => {
   if (variant === "minimal_contract") {
     return [
       "输出只允许包含 <inner_thought>...</inner_thought> 和 <reply>...</reply> 两段。",
       `<inner_thought> 只写${speaker.name}自己的内心短句，不写别人心理。`,
-      `<reply> 必须非空，至少有一句${speaker.name}说出口的对白，可附带 0 到 1 段可观察动作。`,
+      allowNonverbalReply
+        ? `<reply> 可以只写一段${speaker.name}的可观察动作标注，也可以为空；不要强行说出口对白。`
+        : `<reply> 必须非空，至少有一句${speaker.name}说出口的对白，可附带 0 到 1 段可观察动作。`,
       "不要在标签外输出文字，不要省略结束标签。",
     ].join("\n");
   }
@@ -30,9 +33,13 @@ const buildReplyFormatInstruction = (
     return [
       "把输出当成一个必须通过解析器的 XML 片段，严格遵守：",
       "<inner_thought>一句当前角色自己的心理想法</inner_thought>",
-      "<reply>一句当前角色直接说出口的非空对白。可选：*一个可观察小动作。*</reply>",
+      allowNonverbalReply
+        ? "<reply>*一个当前角色可被观察到的动作。*</reply>，或在确实完全不动时使用空 <reply></reply>。"
+        : "<reply>一句当前角色直接说出口的非空对白。可选：*一个可观察小动作。*</reply>",
       "四个标签 <inner_thought>、</inner_thought>、<reply>、</reply> 都是必填字符，不能省略、改名或写到代码块里。",
-      "<reply>...</reply> 中间必须有公开回复正文，不能为空，不能只写空白、沉默或不答。",
+      allowNonverbalReply
+        ? "<reply>...</reply> 允许没有直接对白；优先写一段 Markdown 单星号动作，不要替换成旁白或第三人称剧情总结。"
+        : "<reply>...</reply> 中间必须有公开回复正文，不能为空，不能只写空白、沉默或不答。",
       "标签外不允许有任何文字；<reply> 中不能包含其他角色名加冒号的发言。",
     ].join("\n");
   }
@@ -41,12 +48,16 @@ const buildReplyFormatInstruction = (
     "必须严格使用下面的输出模板，不要在标签外输出任何文字：",
     "<inner_thought>当前角色没有说出口的一句心理想法</inner_thought>",
     "<reply>",
-    "当前角色说出口的一句或两句公开对白。",
-    "可选：*当前角色可被观察到的小动作。*",
+    allowNonverbalReply
+      ? "*当前角色可被观察到的小动作。*"
+      : "当前角色说出口的一句或两句公开对白。",
+    allowNonverbalReply ? "" : "可选：*当前角色可被观察到的小动作。*",
     "</reply>",
-    `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 <inner_thought>、</inner_thought>、<reply>、</reply> 任一标签，<reply> 也不能留空。`,
+    allowNonverbalReply
+      ? "本轮允许不说出口对白；不能省略 <inner_thought>、</inner_thought>、<reply>、</reply> 任一标签。"
+      : `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 <inner_thought>、</inner_thought>、<reply>、</reply> 任一标签，<reply> 也不能留空。`,
     "心理想法只写当前角色自己的短句，不要替用户或其他角色写心理；公开回复必须符合当前角色口吻。",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 };
 
 export const buildTavernCharacterTurnInstruction = ({
@@ -59,6 +70,7 @@ export const buildTavernCharacterTurnInstruction = ({
   isManagedMode,
   directorReason,
   promptVariant = DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
+  allowNonverbalReply = false,
 }: {
   room: TavernRoom;
   speaker: TavernCharacter;
@@ -69,13 +81,20 @@ export const buildTavernCharacterTurnInstruction = ({
   isManagedMode: boolean;
   directorReason?: string | null;
   promptVariant?: TavernCharacterPromptVariant;
+  allowNonverbalReply?: boolean;
 }) => {
-  const replyFormatInstruction = buildReplyFormatInstruction(speaker, promptVariant);
+  const replyFormatInstruction = buildReplyFormatInstruction(
+    speaker,
+    promptVariant,
+    allowNonverbalReply,
+  );
   const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
-  const replyPerspectiveInstruction =
-    `公开回复必须以${speaker.name}直接说出口的话为主，至少包含一句当前角色说出口的对白；不要写第三人称小说正文；对白不要包在引号里，也不要写“他说/声音很轻/似乎后悔”等作者叙述。动作标注最多 1 段，必须用 Markdown 单星号独立成段，且只能写可观察小动作；只输出动作标注视为无效回复。`;
-  const nonEmptyReplyInstruction =
-    `被调度发言就表示${speaker.name}必须公开回应一句，不能用空 <reply></reply>、沉默、不答、无话可说来完成本轮；不能只点头、只写动作或用动作替代对白。如果没有新信息，就用角色口吻说一句“我这边暂时没有新动静，继续守着”这类短状态。`;
+  const replyPerspectiveInstruction = allowNonverbalReply
+    ? `本轮允许${speaker.name}不说出口对白；公开部分应写${speaker.name}自己的可观察动作、神态或停顿，动作标注最多 1 段，必须用 Markdown 单星号独立成段。不要写第三人称全知旁白，不要写其他角色动作。`
+    : `公开回复必须以${speaker.name}直接说出口的话为主，至少包含一句当前角色说出口的对白；不要写第三人称小说正文；对白不要包在引号里，也不要写“他说/声音很轻/似乎后悔”等作者叙述。动作标注最多 1 段，必须用 Markdown 单星号独立成段，且只能写可观察小动作；只输出动作标注视为无效回复。`;
+  const nonEmptyReplyInstruction = allowNonverbalReply
+    ? `被调度到这轮不等于必须开口。若当前问题冒犯、关系不足、角色选择回避或用户要求只用动作回应，<reply> 可以只写动作，直接对白可以为空；优先给一个用户能看见的动作，例如“*${speaker.name}别过头，没有接话。*”。`
+    : `被调度发言就表示${speaker.name}必须公开回应一句，不能用空 <reply></reply>、沉默、不答、无话可说来完成本轮；不能只点头、只写动作或用动作替代对白。如果没有新信息，就用角色口吻说一句“我这边暂时没有新动静，继续守着”这类短状态。`;
   const styleInstruction = [
     `房间提示词风格：${promptStyle.label}。${promptStyle.characterAddendum}`,
     speaker.writingStyle ? `当前角色写作风格：${speaker.writingStyle}` : "",

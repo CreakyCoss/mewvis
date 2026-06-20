@@ -480,8 +480,8 @@ try {
     { motivatedOtherSpeakerIds: winTheirHearts.motivatedOtherSpeakerIds },
   );
   assert(
-    winTheirHearts.nonverbalCueSpeakerIds.length === 0,
-    "Explicit nonverbal target cues should remove the addressed target from the speaker queue",
+    winTheirHearts.nonverbalCueSpeakerIds.join("|") === "route-ye",
+    "Explicit nonverbal target cues should schedule the addressed character for a nonverbal character reply",
     { nonverbalCueSpeakerIds: winTheirHearts.nonverbalCueSpeakerIds },
   );
   assert(

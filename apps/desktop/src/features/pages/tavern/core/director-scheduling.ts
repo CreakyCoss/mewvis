@@ -139,7 +139,25 @@ export const canTavernSelectedTargetsStaySilent = (
 };
 
 export const hasTavernNonverbalTargetCue = (text: string) =>
-  /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)/u.test(text);
+  /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)|保持沉默|沉默回应|没有开口|不出声/u.test(text);
+
+export const canTavernCharacterUseNonverbalReply = ({
+  room,
+  characterId,
+  selectedTargetCharacterIds,
+  currentUserText,
+  directorReason,
+}: {
+  room: Pick<TavernRoom, "settings">;
+  characterId: string;
+  selectedTargetCharacterIds?: string[];
+  currentUserText?: string;
+  directorReason?: string | null;
+}) =>
+  canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
+  Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
+  (hasTavernNonverbalTargetCue(currentUserText ?? "") ||
+    hasTavernNonverbalTargetCue(directorReason ?? ""));
 
 export const shouldSuppressTavernAutoContinuation = (
   room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
@@ -206,13 +224,11 @@ export const resolveTavernScheduledSpeakers = ({
   const scheduling = getDirectorScheduling(room);
   const targetedReplyPolicy = scheduling.targetedReplyPolicy;
   const targetIds = new Set(targetSpeakers.map((speaker) => speaker.id));
-  const shouldKeepTargetsNonverbal = canTavernSelectedTargetsStaySilent(
+  const shouldScheduleTargetsForNonverbalReply = canTavernSelectedTargetsStaySilent(
     room,
     selectedTargetCharacterIds,
   ) && hasTavernNonverbalTargetCue(currentUserText ?? "");
-  const directedSpeakers = shouldKeepTargetsNonverbal
-    ? rawDirectedSpeakers.filter((speaker) => !targetIds.has(speaker.id))
-    : rawDirectedSpeakers;
+  const directedSpeakers = rawDirectedSpeakers;
 
   if (targetSpeakers.length > 0 && targetedReplyPolicy === "exclusive") {
     return targetSpeakers;
@@ -227,6 +243,14 @@ export const resolveTavernScheduledSpeakers = ({
   }
 
   if (targetSpeakers.length > 0 && targetedReplyPolicy === "prefer") {
+    if (shouldScheduleTargetsForNonverbalReply) {
+      const maxExtraSpeakers = Math.max(0, scheduling.maxExtraSpeakersOnTargetedReply);
+      return uniqueCharacters([
+        ...targetSpeakers,
+        ...directedSpeakers.filter((speaker) => !targetIds.has(speaker.id)).slice(0, maxExtraSpeakers),
+      ]);
+    }
+
     return directedSpeakers;
   }
 
@@ -283,7 +307,7 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push(`当用户选择或指定回复对象时，必须包含被指定角色；其他角色最多追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。`);
   } else if (scheduling.targetedReplyPolicy === "prefer") {
     lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其公开发言；关系差、问题冒犯、沉默人设或策略性回避时，可让该角色只进入 ambientActions、旁白反应或保持沉默。");
-    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，优先不要把该目标放入 speakerIds；用 ambientActions 或 narrator 展示其公开可观察反应。");
+    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应把该目标放入 speakerIds，让角色 Agent 自己输出心理和动作；不要改用旁白替角色完成这类近景反应。");
   }
 
   if (scheduling.speakerMotivation.enabled) {
@@ -299,7 +323,7 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push([
       `自由调度时先评估角色发言动机；除被点名/候选回复目标外，最多额外加入 ${scheduling.speakerMotivation.maxMotivatedSpeakers} 个强动机角色。`,
       "发言动机不是随机概率，而是上下文倾向：角色目标、胜利条件、好感/敌对/任务状态、是否知道相关事实、是否想误导或保护秘密、以及人设是否寡言都会影响是否加入 speakerIds。",
-      "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientActions 保持在场。",
+      "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientActions 保持在场。被明确要求动作回应的目标角色不属于弱动机旁观者，应作为非语言角色回复处理。",
       rulesText,
     ].filter(Boolean).join("\n"));
   }

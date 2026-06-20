@@ -165,12 +165,12 @@ export const runTavernDirector = async ({
     directorOnlyAllowed
       ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
       : selectedTargetsCanStaySilent
-      ? "speakerIds 是本轮角色调用计划，不是氛围描述；若被指定目标适合动作回应、沉默或回避，可以返回空 speakerIds，但必须用 ambientActions 或 narrator 交代公开可观察反应。"
+      ? "speakerIds 是本轮角色调用计划，不是氛围描述；若用户明确要求被指定目标只用动作/神态回应，应把该目标放入 speakerIds，让角色 Agent 生成自己的心理和动作；若只是弱在场感或无需角色近景反应，才可返回空 speakerIds 并用 ambientActions/narrator 处理。"
       : "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
     directorOnlyAllowed
       ? "不要为了满足格式硬塞角色发言；夜晚、投票结算、公开结果公布等阶段可只写 narrator。"
       : selectedTargetsCanStaySilent
-      ? "不要用空数组表达无事发生；只有当被指定目标确实不该开口，且已通过 ambientActions 或 narrator 提供可观察动作/旁白处理时，才可返回空 speakerIds。"
+      ? "不要用空数组表达无事发生；如果目标被明确要求做动作/神态回应，不要把目标写进 ambientActions，而应调度该目标 speakerId。"
       : "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
     directorOnlyAllowed
       ? "当用户输入是“嗯”“好”“继续”等短确认时，若当前阶段只需要主持推进，可以返回空 speakerIds。"
@@ -291,7 +291,7 @@ export const runTavernDirector = async ({
       directorOnlyAllowed
         ? "当前阶段允许 speakerIds 为空；只有确实需要公开角色发言时才安排角色。"
         : selectedTargetsCanStaySilent
-        ? "当前候选回复/点名目标可以选择不开口；若不开口，speakerIds 可为空，但 ambientActions 或 narrator 必须处理其公开可见反应。"
+        ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应安排该目标 speakerId，由角色 Agent 输出动作和心理。"
         : "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
       schedulingInstruction,
       "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",

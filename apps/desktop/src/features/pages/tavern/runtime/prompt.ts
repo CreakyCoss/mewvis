@@ -191,14 +191,14 @@ export const buildTavernSystemPrompt = ({
     `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
     "- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <reply>...</reply>，不要代码块、解释或标签外文字。",
     "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
-    "- <reply> 必须非空，以当前角色直接说出口的话为主；不要写成全知旁白、作者总结或第三人称小说正文。",
+    "- 默认情况下 <reply> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <reply> 可以只写当前角色的可观察动作而没有直接对白。",
     `- 角色口吻硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}`,
     "- 可以承接旁白、动作和其他角色公开发言；不要复述原句，不要声称知道他人未说出口的信息。",
     "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
   ];
   const styleRules = immersiveDescriptionEnabled
     ? [
-        "- <reply> 可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；对白优先，不能只写动作。",
+        "- <reply> 可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；默认对白优先，只有本轮 turn instruction 明确允许非语言回应时才可以只写动作。",
         "- 动作不要用第一人称叙述；可写角色名或他/她的动作，不写心理解释、比喻、环境铺陈或剧情总结。",
         "- 单次回复控制在 1 到 3 个自然段。",
       ]

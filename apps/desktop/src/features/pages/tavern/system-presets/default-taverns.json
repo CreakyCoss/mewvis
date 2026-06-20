@@ -715,19 +715,19 @@
                   "label": "争夺用户好感",
                   "when": "用户的行动、夸奖、帮助或邀约会影响你对某个角色的好感，或某角色察觉自己在竞争中落后。",
                   "priority": 86,
-                  "instruction": "未被点名的竞争者也可能主动发言、展示价值或温和打断来争取注意；但如果人设克制，可只给动作反应。"
+                  "instruction": "未被点名的竞争者也可能主动发言、展示价值或温和打断来争取注意；但如果人设克制，可只给 ambientActions 弱在场动作。"
                 },
                 {
                   "id": "target-can-react-silently",
                   "label": "被点名者可沉默回应",
                   "when": "用户的问题冒犯、过于唐突、关系不足，或角色性格不愿立刻开口。",
                   "priority": 64,
-                  "instruction": "被点名者可以不进入 speakerIds，而通过 ambientActions、神态、短旁白或沉默表达态度。"
+                  "instruction": "被点名者不必每次说出口对白；如果需要近景回应，应进入 speakerIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
                 }
               ]
             },
             "autoContinuation": "enabled",
-            "instruction": "这是好感竞争剧本。导演自由调度时要考虑谁正在争取用户好感、谁因竞争或关系变化想插话；但被点名者不一定必须说话，可用动作或沉默回应。"
+            "instruction": "这是好感竞争剧本。导演自由调度时要考虑谁正在争取用户好感、谁因竞争或关系变化想插话；但被点名者不一定必须说出口对白，可被调度为非语言角色回复，用心理和动作回应。"
           },
           "replyOptions": { "enabled": true, "count": 4 },
           "statusTracking": { "enabled": true, "visibleToUser": true },
@@ -981,19 +981,19 @@
                   "label": "路线角色争取用户注意",
                   "when": "用户向某人表达理解、帮助、邀约或明显推进路线时，另一位角色可能因较劲、吃味、守约需求或自身路线目标想发言。",
                   "priority": 84,
-                  "instruction": "未被点名角色可以加入 speakerIds 来吸引用户注意或轻微争夺节奏，也可以只给动作反应；不要让所有人每轮都说。"
+                  "instruction": "未被点名角色可以加入 speakerIds 来吸引用户注意或轻微争夺节奏，也可以只给 ambientActions 弱在场动作；不要让所有人每轮都说。"
                 },
                 {
                   "id": "addressed-character-may-withhold",
                   "label": "被询问者可克制或沉默",
                   "when": "被点名者感到问题冒犯、关系尚浅、需要观察、或人设偏克制。",
                   "priority": 66,
-                  "instruction": "被点名者不必每次公开说话；可通过动作、神态、停顿、转移视线或简短旁白表达态度。"
+                  "instruction": "被点名者不必每次说出口对白；如果需要回应，应进入 speakerIds，由角色 Agent 输出心理和动作，直接公开对白可以为空。"
                 }
               ]
             },
             "autoContinuation": "enabled",
-            "instruction": "这是双路线攻略剧本。导演调度应兼顾被用户关注的人、另一位竞争者的介入欲望、当前好感方向和人设克制程度；指定目标只是强信号，不是强制开口。"
+            "instruction": "这是双路线攻略剧本。导演调度应兼顾被用户关注的人、另一位竞争者的介入欲望、当前好感方向和人设克制程度；指定目标只是强信号，不是强制开口。被指定目标需要动作回应时仍进入 speakerIds，由角色 Agent 输出非语言回复。"
           },
           "replyOptions": { "enabled": true, "count": 4 },
           "statusTracking": { "enabled": true, "visibleToUser": true },

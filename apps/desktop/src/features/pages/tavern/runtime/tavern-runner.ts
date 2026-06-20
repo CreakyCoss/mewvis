@@ -29,6 +29,7 @@ export type RunTavernReplyInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   turnInstruction?: string;
+  allowNonverbalReply?: boolean;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
@@ -44,6 +45,7 @@ export const runTavernReply = async ({
   references,
   currentUserText,
   turnInstruction,
+  allowNonverbalReply,
   onTextDelta,
   onThinkingDelta,
 }: RunTavernReplyInput) => {
@@ -55,6 +57,7 @@ export const runTavernReply = async ({
     references,
     currentUserText,
     turnInstruction,
+    allowNonverbalReply,
   });
 
   return runTavernRuntimeAgent({

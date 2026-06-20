@@ -320,7 +320,7 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
           label: "直接目标优先",
           when: "用户明确询问、点名、选择候选回复目标，或上一位角色的问题明确指向某角色。",
           priority: 100,
-          instruction: "被直接指向的角色必须优先被导演评估；关系差、问题冒犯、沉默人设、策略回避或只需动作反应时，可以不进入 speakerIds，而进入 ambientActions、旁白反应或保持可见沉默。",
+          instruction: "被直接指向的角色必须优先被导演评估；若需要回应但不适合开口，应进入 speakerIds 并由角色 Agent 输出心理和动作，不要改成旁白代替。只有完全无需近景反应时才不调度。",
         },
         {
           id: "goal-competes-for-user-attention",
@@ -348,7 +348,7 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
           label: "沉默人设刹车",
           when: "角色人设是寡言、谨慎、冷淡、观察者、守规矩，且没有被点名、没有关键事实、没有强利益相关。",
           priority: 25,
-          instruction: "这类角色一般不要加入 speakerIds，可用 ambientActions 表示在场；只有被点名或信息/目标强相关时才发言。",
+          instruction: "这类角色一般不要加入 speakerIds，可用 ambientActions 表示弱在场；但如果被点名或需要近景反应，可加入 speakerIds 并用非语言动作完成本轮。",
         }
       ],
     },

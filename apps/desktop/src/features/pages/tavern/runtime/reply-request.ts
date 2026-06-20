@@ -22,6 +22,7 @@ export type TavernReplyAgentRequestInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   turnInstruction?: string;
+  allowNonverbalReply?: boolean;
 };
 
 const escapePromptXmlText = (text: string) =>
@@ -83,6 +84,7 @@ export const buildTavernReplyAgentRequest = ({
   references,
   currentUserText,
   turnInstruction,
+  allowNonverbalReply = false,
 }: TavernReplyAgentRequestInput) => {
   const promptContext = buildTavernSystemPrompt({
     room,
@@ -107,7 +109,9 @@ export const buildTavernReplyAgentRequest = ({
     userMessage: [
       `请以「${activeCharacter.name}」的身份生成本轮回复。`,
       "输出必须包含 <inner_thought>...</inner_thought> 和 <reply>...</reply>。",
-      "<reply> 必须非空；即使没有新信息，也要用当前角色口吻说一句简短公开状态。",
+      allowNonverbalReply
+        ? "<reply> 可以只包含当前角色可被观察到的动作，也可以没有直接对白；不要为了格式强行开口。"
+        : "<reply> 必须非空；即使没有新信息，也要用当前角色口吻说一句简短公开状态。",
     ].join("\n"),
     requestContext: [
       promptContext,

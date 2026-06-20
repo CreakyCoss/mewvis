@@ -28,6 +28,7 @@ writeFileSync(entryPath, `
     advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
     assignTavernRoleFacts,
+    canTavernCharacterUseNonverbalReply,
     createEmptyTavernStatusSnapshot,
     createTavernProgressCheckpoint,
     createTavernRenderableMessages,
@@ -1551,6 +1552,13 @@ writeFileSync(entryPath, `
     currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
     fallbackCharacter: winTheirHeartsMaterialized.characters[0],
   }).map((character) => character.id);
+  const winTheirHeartsNonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
+    room: winTheirHeartsRoom,
+    characterId: "route-ye",
+    selectedTargetCharacterIds: ["route-ye"],
+    currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
+    directorReason: "用户明确要求叶小满只用动作回应。",
+  });
   const winTheirHeartsAdvance = advanceTavernProgressFromFactEvents({
     room: winTheirHeartsRoom,
     factEvents: [{
@@ -1825,6 +1833,7 @@ writeFileSync(entryPath, `
         silentTargetSpeakerIds: winTheirHeartsSilentTargetSpeakerIds,
         motivatedOtherSpeakerIds: winTheirHeartsMotivatedOtherSpeakerIds,
         nonverbalCueSpeakerIds: winTheirHeartsNonverbalCueSpeakerIds,
+        nonverbalReplyAllowed: winTheirHeartsNonverbalReplyAllowed,
       },
       wuxia: {
         room: wuxiaRoom,
@@ -2367,7 +2376,8 @@ try {
       checks.progressChecks.systemPresets.winTheirHearts.targetCanStaySilent &&
       checks.progressChecks.systemPresets.winTheirHearts.silentTargetSpeakerIds.length === 0 &&
       checks.progressChecks.systemPresets.winTheirHearts.motivatedOtherSpeakerIds.join("|") === "route-liu" &&
-      checks.progressChecks.systemPresets.winTheirHearts.nonverbalCueSpeakerIds.length === 0,
+      checks.progressChecks.systemPresets.winTheirHearts.nonverbalCueSpeakerIds.join("|") === "route-ye" &&
+      checks.progressChecks.systemPresets.winTheirHearts.nonverbalReplyAllowed,
     "好感剧本2应按 character -> user 方向推进“角色对你的好感”，并允许被点名目标沉默或让强动机非目标发言",
     checks.progressChecks.systemPresets.winTheirHearts,
   );

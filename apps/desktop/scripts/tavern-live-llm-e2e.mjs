@@ -32,6 +32,9 @@ const PROMPT_VARIANT = process.env.NOVEL_CLAW_TAVERN_PROMPT_VARIANT?.trim() || "
 const THINKING_LEVEL = process.env.NOVEL_CLAW_LIVE_THINKING?.trim() || "off";
 const TARGET_SILENCE_CASE = process.env.NOVEL_CLAW_TAVERN_TARGET_SILENCE_CASE === "1";
 const DIRECT_USER_INPUT = process.env.NOVEL_CLAW_TAVERN_DIRECT_USER_INPUT === "1";
+const ASSERT_GAME_VICTORY = process.env.NOVEL_CLAW_TAVERN_ASSERT_VICTORY === "1";
+const LIVE_PROGRESS_VALUE = Number(process.env.NOVEL_CLAW_TAVERN_PROGRESS_VALUE ?? 4);
+const SUMMARY_ONLY = process.env.NOVEL_CLAW_TAVERN_SUMMARY_ONLY === "1";
 
 const MODEL_DEFAULTS = {
   "MiniMax-M3-highspeed": {
@@ -164,6 +167,8 @@ writeFileSync(helperEntryPath, `
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts"))};
   import {
     assignTavernRoleFacts,
+    advanceTavernProgressFromFactEvents,
+    canTavernCharacterUseNonverbalReply,
     canTavernSelectedTargetsStaySilent,
     extractTavernPendingInteractionsFromMessages,
     filterTavernFactEventsForAudience,
@@ -194,6 +199,8 @@ writeFileSync(helperEntryPath, `
   const now = Date.now();
 
   export const canSelectedTargetsStaySilent = canTavernSelectedTargetsStaySilent;
+  export const canCharacterUseNonverbalReply = canTavernCharacterUseNonverbalReply;
+  export const advanceProgressFromFacts = advanceTavernProgressFromFactEvents;
 
   export const createFixture = () => {
     const fixtureMode = process.env.NOVEL_CLAW_TAVERN_LIVE_FIXTURE?.trim() || "custom";
@@ -769,15 +776,15 @@ writeFileSync(helperEntryPath, `
       "<constraints maxSpeakers=\\"" + maxSpeakers + "\\">",
       "speakerIds 只能使用下方角色 id；如果需要多人发言，按发言顺序排列。",
       directorOnlyAllowed
-      ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
-      : selectedTargetsCanStaySilent
-      ? "speakerIds 是本轮角色调用计划，不是氛围描述；若被指定目标适合动作回应、沉默或回避，可以返回空 speakerIds，但必须用 ambientActions 或 narrator 交代公开可观察反应。"
-      : "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
+        ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
+        : selectedTargetsCanStaySilent
+        ? "speakerIds 是本轮角色调用计划，不是氛围描述；若用户明确要求被指定目标只用动作/神态回应，应把该目标放入 speakerIds，让角色 Agent 生成自己的心理和动作；若只是弱在场感或无需角色近景反应，才可返回空 speakerIds 并用 ambientActions/narrator 处理。"
+        : "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
       directorOnlyAllowed
-      ? "不要为了满足格式硬塞角色发言；夜晚、投票结算、公开结果公布等阶段可只写 narrator。"
-      : selectedTargetsCanStaySilent
-      ? "不要用空数组表达无事发生；只有当被指定目标确实不该开口，且已通过 ambientActions 或 narrator 提供可观察动作/旁白处理时，才可返回空 speakerIds。"
-      : "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
+        ? "不要为了满足格式硬塞角色发言；夜晚、投票结算、公开结果公布等阶段可只写 narrator。"
+        : selectedTargetsCanStaySilent
+        ? "不要用空数组表达无事发生；如果目标被明确要求做动作/神态回应，不要把目标写进 ambientActions，而应调度该目标 speakerId。"
+        : "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
       directorOnlyAllowed
         ? "当用户输入是“嗯”“好”“继续”等短确认时，若当前阶段只需要主持推进，可以返回空 speakerIds。"
         : "当用户输入是“嗯”“好”“继续”等短确认时，也必须选择 1 个角色承接当前岗位状态，不要返回 []。",
@@ -862,7 +869,7 @@ writeFileSync(helperEntryPath, `
         directorOnlyAllowed
           ? "当前阶段允许 speakerIds 为空；只有确实需要公开角色发言时才安排角色。"
           : selectedTargetsCanStaySilent
-          ? "当前候选回复/点名目标可以选择不开口；若不开口，speakerIds 可为空，但 ambientActions 或 narrator 必须处理其公开可见反应。"
+          ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应安排该目标 speakerId，由角色 Agent 输出动作和心理。"
           : "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
         schedulingInstruction,
         "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
@@ -884,6 +891,7 @@ writeFileSync(helperEntryPath, `
     isManagedMode = false,
     directorReason = "",
     promptVariant,
+    allowNonverbalReply = false,
   }) => {
     const activeCharacter = characterById(characters, activeCharacterId);
     const turnInstruction = buildTavernCharacterTurnInstruction({
@@ -896,6 +904,7 @@ writeFileSync(helperEntryPath, `
       isManagedMode,
       directorReason,
       promptVariant,
+      allowNonverbalReply,
     });
     return buildTavernReplyAgentRequest({
       room,
@@ -905,6 +914,7 @@ writeFileSync(helperEntryPath, `
       references: [],
       currentUserText,
       turnInstruction,
+      allowNonverbalReply,
     });
   };
 
@@ -1190,6 +1200,7 @@ const assertCharacterReply = ({
   forbiddenContentFragments = [],
   activeName,
   characterNames,
+  allowNonverbalReply = false,
 }) => {
   if (!hasRecognizableReplyStructure(raw)) {
     formatWarnings.push({
@@ -1212,10 +1223,12 @@ const assertCharacterReply = ({
     parsed,
     },
   );
-  assert(stripItalicActionBlocks(parsed.content).trim(), `${label} 不应只输出动作标注，必须包含直接对白`, {
-    raw,
-    parsed,
-  });
+  if (!allowNonverbalReply) {
+    assert(stripItalicActionBlocks(parsed.content).trim(), `${label} 不应只输出动作标注，必须包含直接对白`, {
+      raw,
+      parsed,
+    });
+  }
   assert(!foreignSpeakerLinePattern(activeName, characterNames).test(parsed.content), `${label} 不应包含其他说话人标签`, parsed);
   for (const forbidden of forbiddenMarkers) {
     assert(!parsed.content.includes(forbidden), `${label} 不应复述其他角色 marker`, { forbidden, parsed });
@@ -1489,7 +1502,15 @@ try {
     const selectedTargetVisibleHandled = selectedTargetCharacterIds.some((characterId) =>
       decision.ambientActions?.some((action) => action.characterId === characterId)
     ) || selectedTargetNames.some((name) => decision.narrator?.includes(name));
-    if (parsedDecision.speakerIds.length === 0 && scheduledSpeakerIds.length > 0) {
+    const scheduledOnlyForNonverbalTarget = parsedDecision.speakerIds.length === 0 &&
+      scheduledSpeakerIds.some((speakerId) => helper.canCharacterUseNonverbalReply({
+        room,
+        characterId: speakerId,
+        selectedTargetCharacterIds,
+        currentUserText,
+        directorReason: parsedDecision.reason ?? "",
+      }));
+    if (parsedDecision.speakerIds.length === 0 && scheduledSpeakerIds.length > 0 && !scheduledOnlyForNonverbalTarget) {
       formatWarnings.push({
         label: `tavern-director-${roundIndex + 1}`,
         issue: "director_empty_speaker_ids_scheduler_fallback",
@@ -1532,6 +1553,7 @@ try {
     forbiddenMarkers,
     forbiddenSecrets,
     forbiddenContentFragments,
+    allowNonverbalReply = false,
     label,
   }) => {
     const requestInput = helper.buildCharacterRequest({
@@ -1547,6 +1569,7 @@ try {
       isManagedMode: true,
       directorReason,
       promptVariant: PROMPT_VARIANT,
+      allowNonverbalReply,
     });
     for (const secret of forbiddenSecrets ?? []) {
       assert(!requestInput.requestContext.includes(secret), `${label} request_context 不应包含其他角色心理`, {
@@ -1579,7 +1602,7 @@ try {
       attemptLabel: label,
       runtimeInstruction: requestInput.runtimeInstruction,
     });
-    if (!attempt.parsed.content.trim() || !helper.hasCharacterDialogueText(attempt.parsed.content)) {
+    if (!attempt.parsed.content.trim() || (!allowNonverbalReply && !helper.hasCharacterDialogueText(attempt.parsed.content))) {
       formatWarnings.push({
         label,
         issue: "character_unusable_reply_retry",
@@ -1591,9 +1614,15 @@ try {
         requestInput.runtimeInstruction,
         "",
         "<retry_instruction>",
-        "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
-        "请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。",
-        "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
+        allowNonverbalReply
+          ? "上一次输出没有可展示的公开动作。"
+          : "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
+        allowNonverbalReply
+          ? "请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>*一个可被观察到的动作，不写直接对白。*</reply>。"
+          : "请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。",
+        allowNonverbalReply
+          ? "本轮允许不开口，但必须给出用户能看到的动作或神态。"
+          : "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
         "</retry_instruction>",
       ].filter(Boolean).join("\n");
       attempt = await runAttempt({
@@ -1611,6 +1640,7 @@ try {
       forbiddenContentFragments,
       activeName,
       characterNames: characters.map((character) => character.name),
+      allowNonverbalReply,
     });
     flowRuns.push({
       label,
@@ -1620,6 +1650,7 @@ try {
       firstTextMs: run.firstTextMs,
       doneMs: run.doneMs,
       retryCount,
+      allowNonverbalReply,
       content: parsed.content,
       thought: parsed.thought ?? "",
     });
@@ -1703,6 +1734,19 @@ try {
       for (const [speakerIndex, speakerId] of activeSpeakerIds.entries()) {
         const activeName = characterNameById.get(speakerId) ?? speakerId;
         const continuationInstruction = continuationInstructionBySpeakerId.get(speakerId);
+        const directorReasonText = [
+          decision.reason ?? "",
+          continuationInstruction
+            ? `自动续调度：${continuationInstruction}`
+            : "",
+        ].filter(Boolean).join("\n");
+        const allowNonverbalReply = helper.canCharacterUseNonverbalReply({
+          room,
+          characterId: speakerId,
+          selectedTargetCharacterIds,
+          currentUserText: userText,
+          directorReason: directorReasonText,
+        });
         const otherTurnSecrets = privateSecrets
           .filter((item) => item.characterId !== speakerId && turnMessages.some((message) => message.id === item.messageId))
           .map((item) => item.secret);
@@ -1716,15 +1760,11 @@ try {
           currentUserText: userText,
           speakerIndex,
           speakerCount: activeSpeakerIds.length,
-          directorReason: [
-            decision.reason ?? "",
-            continuationInstruction
-              ? `自动续调度：${continuationInstruction}`
-              : "",
-          ].filter(Boolean).join("\n"),
+          directorReason: directorReasonText,
           forbiddenMarkers: [],
           forbiddenSecrets: otherTurnSecrets,
           forbiddenContentFragments,
+          allowNonverbalReply,
           label: continuationRound > 0
             ? `tavern-round-${roundIndex + 1}-continuation-${continuationRound}-${activeName}`
             : `tavern-round-${roundIndex + 1}-${activeName}`,
@@ -1821,6 +1861,41 @@ try {
         pendingInteractions: latestPendingInteractions,
       });
     }
+
+    if (scenario === "win-hearts" && !TARGET_SILENCE_CASE && LIVE_PROGRESS_VALUE !== 0) {
+      const progressPatch = helper.advanceProgressFromFacts({
+        room,
+        factEvents: [{
+          id: `live-win-hearts-progress-${roundIndex + 1}`,
+          turnId: userMessage.id,
+          sourceMessageIds: turnMessages.map((message) => message.id),
+          type: "help",
+          actor: { type: "user", userId: "user" },
+          target: { type: "character", characterId: "route-ye" },
+          value: LIVE_PROGRESS_VALUE,
+          evidence: `真实 LLM 第 ${roundIndex + 1} 轮后，用户持续以明确行动支持叶小满。`,
+          confidence: 0.96,
+          visibility: "public",
+          createdAt: Date.now(),
+        }],
+        turnId: userMessage.id,
+        createdAt: Date.now(),
+      });
+      room = {
+        ...room,
+        ...progressPatch,
+      };
+      flowRuns.push({
+        label: `tavern-progress-${roundIndex + 1}`,
+        kind: "progress",
+        value: LIVE_PROGRESS_VALUE,
+        yeFavorability: room.statusSnapshot.relationships?.["character:route-ye::user"]?.favorability,
+        completedTasks: Object.fromEntries(
+          Object.entries(room.taskSnapshot).map(([key, value]) => [key, value.status]),
+        ),
+        outcomes: room.outcomeEvents.map((event) => event.outcomeId),
+      });
+    }
   }
 
   if (scenario === "werewolf") {
@@ -1856,6 +1931,30 @@ try {
       "好感度指定叶小满时，导演必须处理目标，但目标可以发言、动作反应或被旁白处理",
       directorRuns,
     );
+    if (TARGET_SILENCE_CASE) {
+      const routeYeRuns = flowRuns.filter((run) =>
+        run.kind === "character" && run.activeName === "叶小满"
+      );
+      assert(
+        routeYeRuns.some((run) =>
+          run.allowNonverbalReply && !helper.hasCharacterDialogueText(run.content ?? "")
+        ),
+        "目标沉默 case 应由叶小满角色 Agent 输出非语言回复，而不是旁白替代或直接对白",
+        routeYeRuns,
+      );
+    }
+    if (ASSERT_GAME_VICTORY) {
+      assert(
+        room.taskSnapshot["win-ye-xiaoman-heart"]?.status === "completed",
+        "好感度真实 LLM 流程应完成叶小满路线任务",
+        { taskSnapshot: room.taskSnapshot, flowRuns: flowRuns.filter((run) => run.kind === "progress") },
+      );
+      assert(
+        room.outcomeEvents.some((event) => event.outcomeId === "ye-route-clear"),
+        "好感度真实 LLM 流程应触发叶小满路线胜利事件",
+        { outcomeEvents: room.outcomeEvents },
+      );
+    }
   }
 
   console.log(JSON.stringify({
@@ -1863,12 +1962,34 @@ try {
     scenario,
     targetSilenceCase: TARGET_SILENCE_CASE,
     directUserInput: DIRECT_USER_INPUT,
+    assertGameVictory: ASSERT_GAME_VICTORY,
+    liveProgressValue: LIVE_PROGRESS_VALUE,
+    summaryOnly: SUMMARY_ONLY,
     selectedModelId: selectedModel.modelId,
     promptVariant: PROMPT_VARIANT,
     rounds: FLOW_ROUNDS,
     speedResults,
     formatWarnings,
-    flowRuns,
+    flowRuns: SUMMARY_ONLY
+      ? flowRuns.map((run) => ({
+          label: run.label,
+          kind: run.kind,
+          activeName: run.activeName,
+          decision: run.kind === "director" ? run.decision : undefined,
+          allowNonverbalReply: run.allowNonverbalReply,
+          retryCount: run.retryCount,
+          content: typeof run.content === "string" ? run.content.slice(0, 120) : undefined,
+          value: run.value,
+          completedTasks: run.completedTasks,
+          outcomes: run.outcomes,
+        }))
+      : flowRuns,
+    finalProgress: scenario === "win-hearts"
+      ? {
+          taskSnapshot: room.taskSnapshot,
+          outcomeEvents: room.outcomeEvents,
+        }
+      : undefined,
   }, null, 2));
 
   await shutdown();

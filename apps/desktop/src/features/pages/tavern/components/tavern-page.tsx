@@ -60,6 +60,7 @@ import {
 } from "../storage";
 import {
   advanceTavernProgressFromFactEvents,
+  canTavernCharacterUseNonverbalReply,
   createTavernProgressCheckpoint,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
@@ -3310,6 +3311,17 @@ export const TavernPage = ({
         const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
         const currentSpeakerRunIndex = speakerRunIndex++;
         const speakerStepId = `speaker-${speaker.id}-${currentSpeakerRunIndex}`;
+        const continuationInstruction = continuationInstructionBySpeakerId.get(speaker.id);
+        const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
+          room: runtimeRoom,
+          characterId: speaker.id,
+          selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+          currentUserText: text,
+          directorReason: [
+            directorReason,
+            continuationInstruction,
+          ].filter(Boolean).join("\n"),
+        });
         setTurnStatus(isDirectorLikeMode
           ? `${speaker.name} 正在按导演调度回应...`
           : `${speaker.name} 正在回应...`);
@@ -3343,8 +3355,8 @@ export const TavernPage = ({
           isDirectorLikeMode,
           isManagedMode,
           directorReason,
+          allowNonverbalReply: nonverbalReplyAllowed,
         });
-        const continuationInstruction = continuationInstructionBySpeakerId.get(speaker.id);
         const effectiveTurnInstruction = continuationInstruction
           ? [
               turnInstruction,
@@ -3384,6 +3396,7 @@ export const TavernPage = ({
           references,
           currentUserText: text,
           turnInstruction: effectiveTurnInstruction,
+          allowNonverbalReply: nonverbalReplyAllowed,
           onTextDelta: handleReplyTextDelta,
         });
         let finalReply = parseTavernReplyText({
@@ -3392,7 +3405,12 @@ export const TavernPage = ({
           characters: roomCharacters,
           userPersonaName: runtimeRoom.userPersonaName,
         });
-        if (!finalReply.content.trim() || !hasTavernReplyDialogueText(finalReply.content)) {
+        const isFinalReplyUsable = (reply: typeof finalReply) =>
+          nonverbalReplyAllowed
+            ? Boolean(reply.content.trim())
+            : Boolean(reply.content.trim() && hasTavernReplyDialogueText(reply.content));
+
+        if (!isFinalReplyUsable(finalReply)) {
           patchExecutionStep(speakerStepId, {
             status: "running",
             detail: "公开回复不完整，正在重试...",
@@ -3408,9 +3426,15 @@ export const TavernPage = ({
             effectiveTurnInstruction,
             "",
             "<retry_instruction>",
-            "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
-            `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。`,
-            "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
+            nonverbalReplyAllowed
+              ? "上一次输出没有可展示的公开动作。"
+              : "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
+            nonverbalReplyAllowed
+              ? `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>*一个可被观察到的动作，不写直接对白。*</reply>。`
+              : `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。`,
+            nonverbalReplyAllowed
+              ? "本轮允许不开口，但必须给出用户能看到的动作或神态。"
+              : "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
             "</retry_instruction>",
           ].filter(Boolean).join("\n");
           result = await runTavernReply({
@@ -3426,6 +3450,7 @@ export const TavernPage = ({
             references,
             currentUserText: text,
             turnInstruction: retryTurnInstruction,
+            allowNonverbalReply: nonverbalReplyAllowed,
             onTextDelta: handleReplyTextDelta,
           });
           finalReply = parseTavernReplyText({
@@ -3435,7 +3460,11 @@ export const TavernPage = ({
             userPersonaName: runtimeRoom.userPersonaName,
           });
         }
-        const finalText = finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
+        const finalText = nonverbalReplyAllowed
+          ? (finalReply.content.trim()
+              ? finalReply.content
+              : `*${speaker.name}短暂沉默，没有开口。*`)
+          : finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
           ? finalReply.content
           : "（对方短暂沉默，杯沿映着灯光。）";
         if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
