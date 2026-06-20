@@ -74,6 +74,21 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_skill_settings",
         run: add_skill_settings,
     },
+    ConfigMigrationStep {
+        target_version: 16,
+        name: "drop_ai_agent_model_binding",
+        run: drop_ai_agent_model_binding,
+    },
+    ConfigMigrationStep {
+        target_version: 17,
+        name: "add_skill_group_skill_disabled_flag",
+        run: add_skill_group_skill_disabled_flag,
+    },
+    ConfigMigrationStep {
+        target_version: 18,
+        name: "normalize_skill_group_member_disabled_flag",
+        run: normalize_skill_group_member_disabled_flag,
+    },
 ];
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -222,6 +237,7 @@ fn add_skill_groups(conn: &Connection) -> Result<(), String> {
         CREATE TABLE IF NOT EXISTS skill_group_skills (
             group_id TEXT NOT NULL,
             skill_name TEXT NOT NULL,
+            disabled INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL,
             PRIMARY KEY(group_id, skill_name),
             FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE
@@ -251,6 +267,35 @@ fn add_skill_group_default_flag(conn: &Connection) -> Result<(), String> {
 
     conn.execute_batch("ALTER TABLE skill_groups ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0;")
         .map_err(|error| format!("无法添加 Skill 默认分组标记：{error}"))
+}
+
+fn add_skill_group_skill_disabled_flag(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "skill_group_skills")?;
+
+    if columns.iter().any(|column| column == "disabled") {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        "ALTER TABLE skill_group_skills ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0;",
+    )
+    .map_err(|error| format!("无法添加 Skill 分组成员禁用标记：{error}"))
+}
+
+fn normalize_skill_group_member_disabled_flag(conn: &Connection) -> Result<(), String> {
+    add_skill_group_skill_disabled_flag(conn)?;
+    drop_skill_group_disabled_flag(conn)
+}
+
+fn drop_skill_group_disabled_flag(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "skill_groups")?;
+
+    if !columns.iter().any(|column| column == "disabled") {
+        return Ok(());
+    }
+
+    conn.execute_batch("ALTER TABLE skill_groups DROP COLUMN disabled;")
+        .map_err(|error| format!("无法移除 Skill 分组禁用标记：{error}"))
 }
 
 fn add_skill_settings(conn: &Connection) -> Result<(), String> {
@@ -402,6 +447,44 @@ fn add_provider_model_one_million_context(conn: &Connection) -> Result<(), Strin
         "ALTER TABLE provider_models ADD COLUMN is_one_million_context INTEGER DEFAULT 0;",
     )
     .map_err(|error| format!("无法添加 LLM 模型 1M 标记字段：{error}"))
+}
+
+fn drop_ai_agent_model_binding(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "ai_agents")?;
+
+    if !columns.iter().any(|column| column == "provider_id")
+        && !columns.iter().any(|column| column == "model_id")
+    {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        r#"
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE ai_agents_next (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            avatar TEXT NOT NULL,
+            description TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        INSERT INTO ai_agents_next (
+            id, name, avatar, description, created_at, updated_at
+        )
+        SELECT
+            id, name, avatar, description, created_at, updated_at
+        FROM ai_agents;
+
+        DROP TABLE ai_agents;
+        ALTER TABLE ai_agents_next RENAME TO ai_agents;
+
+        PRAGMA foreign_keys = ON;
+        "#,
+    )
+    .map_err(|error| format!("无法移除角色模型绑定字段：{error}"))
 }
 
 pub(crate) fn run_config_migrations(
@@ -640,5 +723,160 @@ mod tests {
         assert_eq!(name, "Default Embedding");
         assert_eq!(api_key.as_deref(), Some("key"));
         assert_eq!(model_id, "text-embedding-3-small");
+    }
+
+    #[test]
+    fn drop_ai_agent_model_binding_preserves_agent_profile_data() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE ai_agents (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                avatar TEXT NOT NULL,
+                description TEXT,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            INSERT INTO ai_agents (
+                id, name, avatar, description, provider_id, model_id, created_at, updated_at
+            ) VALUES (
+                'agent-1', '策划师', 'avatar-1', '负责长篇策划',
+                'provider-1', 'model-1', 1, 2
+            );
+            "#,
+        )
+        .expect("create old agent table");
+
+        drop_ai_agent_model_binding(&conn).expect("drop agent model binding columns");
+
+        let columns = table_columns(&conn, "ai_agents").expect("read columns");
+        assert!(!columns.iter().any(|column| column == "provider_id"));
+        assert!(!columns.iter().any(|column| column == "model_id"));
+
+        let (name, avatar, description): (String, String, Option<String>) = conn
+            .query_row(
+                "SELECT name, avatar, description FROM ai_agents WHERE id = ?1",
+                params!["agent-1"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("read migrated agent");
+
+        assert_eq!(name, "策划师");
+        assert_eq!(avatar, "avatar-1");
+        assert_eq!(description.as_deref(), Some("负责长篇策划"));
+    }
+
+    #[test]
+    fn add_skill_group_skill_disabled_flag_defaults_existing_members_to_enabled() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE skill_groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            INSERT INTO skill_groups (
+                id, name, description, "order", created_at, updated_at
+            ) VALUES (
+                'group-1', '命理分析', NULL, 0, 1, 2
+            );
+
+            CREATE TABLE skill_group_skills (
+                group_id TEXT NOT NULL,
+                skill_name TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(group_id, skill_name),
+                FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE
+            );
+
+            INSERT INTO skill_group_skills (
+                group_id, skill_name, created_at
+            ) VALUES (
+                'group-1', 'bazi', 3
+            );
+            "#,
+        )
+        .expect("create old skill group member table");
+
+        add_skill_group_skill_disabled_flag(&conn).expect("add disabled column");
+
+        let columns = table_columns(&conn, "skill_group_skills").expect("read columns");
+        assert!(columns.iter().any(|column| column == "disabled"));
+
+        let disabled: i64 = conn
+            .query_row(
+                "SELECT disabled FROM skill_group_skills WHERE group_id = ?1 AND skill_name = ?2",
+                params!["group-1", "bazi"],
+                |row| row.get(0),
+            )
+            .expect("read disabled flag");
+
+        assert_eq!(disabled, 0);
+    }
+
+    #[test]
+    fn normalize_skill_group_member_disabled_flag_removes_group_level_flag() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE skill_groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                disabled INTEGER NOT NULL DEFAULT 0,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE skill_group_skills (
+                group_id TEXT NOT NULL,
+                skill_name TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(group_id, skill_name),
+                FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE
+            );
+
+            INSERT INTO skill_groups (
+                id, name, description, disabled, "order", created_at, updated_at
+            ) VALUES (
+                'group-1', '命理分析', NULL, 1, 0, 1, 2
+            );
+            INSERT INTO skill_group_skills (
+                group_id, skill_name, created_at
+            ) VALUES (
+                'group-1', 'bazi', 3
+            );
+            "#,
+        )
+        .expect("create bad skill group schema");
+
+        normalize_skill_group_member_disabled_flag(&conn).expect("normalize disabled flags");
+
+        let group_columns = table_columns(&conn, "skill_groups").expect("read group columns");
+        assert!(!group_columns.iter().any(|column| column == "disabled"));
+
+        let member_columns =
+            table_columns(&conn, "skill_group_skills").expect("read member columns");
+        assert!(member_columns.iter().any(|column| column == "disabled"));
+
+        let disabled: i64 = conn
+            .query_row(
+                "SELECT disabled FROM skill_group_skills WHERE group_id = ?1 AND skill_name = ?2",
+                params!["group-1", "bazi"],
+                |row| row.get(0),
+            )
+            .expect("read member disabled flag");
+
+        assert_eq!(disabled, 0);
     }
 }

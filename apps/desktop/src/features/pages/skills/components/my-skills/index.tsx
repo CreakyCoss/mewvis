@@ -130,6 +130,15 @@ export const MySkillsTab = ({
     ? existingGroupSkillNames(selectedGroup, skillsByKey)
     : skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
+  const selectedGroupSkillDisabledByKey = useMemo(
+    () => new Map(
+      selectedGroup?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? [],
+    ),
+    [selectedGroup],
+  );
+  const disabledMemberCount = selectedGroup
+    ? selectedGroup.skills.filter((skill) => skill.disabled === true).length
+    : 0;
   const visibleSkills = selectedGroup
     ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key))
     : skills;
@@ -296,6 +305,30 @@ export const MySkillsTab = ({
     );
   }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, pendingDeleteGroup]);
 
+  const toggleSelectedGroupSkillDisabled = useCallback((skill: WorkspaceSkill) => {
+    if (!selectedGroup || isSaving) {
+      return;
+    }
+
+    const nextGroups = groups.map((group) =>
+      group.id === selectedGroup.id
+        ? {
+            ...group,
+            skills: group.skills.map((member) =>
+              member.key === skill.key
+                ? {
+                    ...member,
+                    disabled: member.disabled !== true,
+                  }
+                : member,
+            ),
+          }
+        : group,
+    );
+
+    onGroupsChange(nextGroups, defaultSkillGroupId);
+  }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, selectedGroup]);
+
   const closeQuickActionsOnBlur = useCallback((
     event: FocusEvent<HTMLDivElement>,
   ) => {
@@ -449,19 +482,21 @@ export const MySkillsTab = ({
           </section>
 
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <div className="group/selected-group relative flex max-w-full items-center gap-1">
-              <button
-                type="button"
-                className="-ml-1 inline-flex min-w-0 items-center rounded-full px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-black/[0.04] hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
-                onClick={openSelectedGroupDetails}
-                aria-label={
-                  selectedGroup && !selectedGroup.readonly
-                    ? `编辑分组：${selectedGroupName}`
-                    : `查看分组：${selectedGroupName}`
-                }
-              >
-                <span className="max-w-[220px] truncate">{selectedGroupName}</span>
-              </button>
+            <div className="group/selected-group relative flex max-w-full items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1">
+                <button
+                  type="button"
+                  className="-ml-1 inline-flex min-w-0 items-center gap-1.5 rounded-full px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-black/[0.04] hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                  onClick={openSelectedGroupDetails}
+                  aria-label={
+                    selectedGroup && !selectedGroup.readonly
+                      ? `编辑分组：${selectedGroupName}`
+                      : `查看分组：${selectedGroupName}`
+                  }
+                >
+                  <span className="max-w-[220px] truncate">{selectedGroupName}</span>
+                </button>
+              </div>
               {selectedGroup && !selectedGroup.readonly && (
                 <div className="pointer-events-none absolute left-0 top-full z-20 pt-1 opacity-0 transition-opacity group-hover/selected-group:pointer-events-auto group-hover/selected-group:opacity-100 group-focus-within/selected-group:pointer-events-auto group-focus-within/selected-group:opacity-100">
                   <Button
@@ -479,7 +514,12 @@ export const MySkillsTab = ({
               )}
             </div>
             <div className="flex items-center">
-              <span>共 {visibleSkills.length} 个 Skill</span>
+              <span>
+                共 {visibleSkills.length} 个 Skill
+                {disabledMemberCount > 0
+                  ? `，${disabledMemberCount} 个已禁用`
+                  : ""}
+              </span>
             </div>
           </div>
         </div>
@@ -532,6 +572,11 @@ export const MySkillsTab = ({
                                     skill.source === "app" || skill.source === "upload"
                                   }
                                   removing={removingSkillKey === skill.key}
+                                  skillDisabled={
+                                    selectedGroupSkillDisabledByKey.get(skill.key) === true
+                                  }
+                                  canToggleSkillDisabled={selectedGroup !== null}
+                                  onToggleSkillDisabled={toggleSelectedGroupSkillDisabled}
                                   onRemove={setPendingRemoveSkill}
                                 />
                               ))}

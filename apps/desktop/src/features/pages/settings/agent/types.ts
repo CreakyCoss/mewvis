@@ -1,12 +1,8 @@
-import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-
 export type AiAgent = {
   id: string;
   name: string;
   avatar: string;
   description: string | null;
-  providerId: string;
-  modelId: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -43,8 +39,6 @@ export type SaveAiAgentInput = {
   name: string;
   avatar: string;
   description?: string | null;
-  providerId: string;
-  modelId: string;
 };
 
 export type SaveCollaborationWorkflowInput = {
@@ -70,7 +64,6 @@ export type AgentProfile = {
   name: string;
   avatar: string;
   description: string | null;
-  runtimeModel: RuntimeModelOption;
   isDefault: boolean;
 };
 

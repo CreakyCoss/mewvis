@@ -20,7 +20,6 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import type {
   ChatMessage,
   ComposerSubmitInput,
-  ModelSource,
   PendingAgentQuestion,
 } from "../../types";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
@@ -34,7 +33,6 @@ export type ChatPanelViewModel = {
   workspace: Workspace;
   workspaces: Workspace[];
   messages: ChatMessage[];
-  modelSource: ModelSource;
   selectedAgent: AgentProfile | null;
   chatError: string;
   settingsError: string;
@@ -69,7 +67,6 @@ export type ChatPanelViewModel = {
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
-  setModelSource: Dispatch<SetStateAction<ModelSource>>;
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
@@ -231,7 +228,6 @@ export const ChatPanel = () => {
     workspace,
     workspaces,
     messages,
-    modelSource,
     selectedAgent,
     chatError,
     settingsError,
@@ -263,7 +259,6 @@ export const ChatPanel = () => {
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
-    setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedRuntimeModelId,
@@ -298,7 +293,6 @@ export const ChatPanel = () => {
       isSettingsLoading={isSettingsLoading}
       showThinkingProcess={showThinkingProcess}
       showToolCallProcess={showToolCallProcess}
-      modelSource={modelSource}
       runtimeAgents={availableRuntimeAgents}
       selectedRuntimeAgent={selectedRuntimeAgent}
       selectedRuntimeAgentId={runtimeAgentId}
@@ -314,7 +308,6 @@ export const ChatPanel = () => {
       selectedSkillGroupLabel={selectedSkillGroupLabel}
       onShowThinkingProcessChange={setShowThinkingProcess}
       onShowToolCallProcessChange={setShowToolCallProcess}
-      onModelSourceChange={setModelSource}
       onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}
       onRuntimeModelChange={setSelectedRuntimeModelId}

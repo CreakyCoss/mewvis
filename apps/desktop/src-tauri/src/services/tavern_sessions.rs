@@ -171,7 +171,7 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
 
     write_json_file(
         &dir.join(INDEX_FILE_NAME),
-            &TavernIndex {
+        &TavernIndex {
             version: TAVERN_STATE_VERSION,
             active_room_id,
             room_ids,
@@ -196,10 +196,7 @@ fn tavern_session_meta(room_id: &str, room: &Value, messages: &Value) -> TavernS
     }
 }
 
-fn collect_room_scene_messages(
-    room: &Value,
-    messages_by_scene: &Map<String, Value>,
-) -> Value {
+fn collect_room_scene_messages(room: &Value, messages_by_scene: &Map<String, Value>) -> Value {
     let mut scene_ids = HashSet::new();
     if let Some(active_scene_id) = value_string(room, "activeSceneId") {
         scene_ids.insert(active_scene_id);

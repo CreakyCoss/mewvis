@@ -58,8 +58,6 @@ export const MessageList = ({
   const {
     messages,
     isSending,
-    modelSource,
-    selectedAgent,
     activeAgentTaskId,
     onEditHistoryMessage,
     onDeleteHistoryMessage,
@@ -288,7 +286,7 @@ export const MessageList = ({
         const isMessageStreaming =
           message.status === "loading" || message.status === "streaming";
         const messageAgentAvatar = resolveAgentAvatar(
-          message.agentAvatar ?? (modelSource === "agent" ? selectedAgent?.avatar : null),
+          message.agentAvatar ?? null,
         );
         const agentBlocks = message.agentBlocks ?? [];
         const isAgentBackedMessage =

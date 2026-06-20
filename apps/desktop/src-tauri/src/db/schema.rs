@@ -147,11 +147,12 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
     },
     DatabaseTableSchema {
         name: "skill_group_skills",
-        columns: &["group_id", "skill_name", "created_at"],
+        columns: &["group_id", "skill_name", "disabled", "created_at"],
         create_sql: r#"
             CREATE TABLE IF NOT EXISTS skill_group_skills (
                 group_id TEXT NOT NULL,
                 skill_name TEXT NOT NULL,
+                disabled INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL,
                 PRIMARY KEY(group_id, skill_name),
                 FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE
@@ -165,8 +166,6 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
             "name",
             "avatar",
             "description",
-            "provider_id",
-            "model_id",
             "created_at",
             "updated_at",
         ],
@@ -176,12 +175,8 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
                 name TEXT NOT NULL,
                 avatar TEXT NOT NULL,
                 description TEXT,
-                provider_id TEXT NOT NULL,
-                model_id TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL,
-                FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,
-                FOREIGN KEY (model_id) REFERENCES provider_models(id) ON DELETE CASCADE
+                updated_at INTEGER NOT NULL
             );
         "#,
     },

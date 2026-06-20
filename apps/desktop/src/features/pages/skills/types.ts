@@ -7,6 +7,11 @@ export type WorkspaceSkill = {
   path: string;
 };
 
+export type WorkspaceSkillGroupSkill = {
+  key: string;
+  disabled?: boolean;
+};
+
 export type WorkspaceSkillGroup = {
   id: string;
   name: string;
@@ -15,7 +20,7 @@ export type WorkspaceSkillGroup = {
   readonly: boolean;
   isDefault: boolean;
   order: number;
-  skillNames: string[];
+  skills: WorkspaceSkillGroupSkill[];
 };
 
 export type WorkspaceSkillSettings = {
@@ -28,7 +33,9 @@ export type SaveWorkspaceSkillGroupInput = {
   id?: string;
   name: string;
   description?: string | null;
-  skillNames: string[];
+  source?: "system" | "app" | "custom" | string;
+  readonly?: boolean;
+  skills: WorkspaceSkillGroupSkill[];
 };
 
 export type MarketplaceSkill = {

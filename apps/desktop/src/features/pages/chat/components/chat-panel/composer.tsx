@@ -49,7 +49,7 @@ import {
   NO_SKILLS_GROUP_ID,
 } from "@/features/pages/skills/constants";
 import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
-import type { ComposerSubmitInput, ModelSource } from "../../types";
+import type { ComposerSubmitInput } from "../../types";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
 type ComposerProps = {
@@ -60,7 +60,6 @@ type ComposerProps = {
   isSettingsLoading: boolean;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  modelSource: ModelSource;
   runtimeAgents: readonly RuntimeAgentDefinition[];
   selectedRuntimeAgent: RuntimeAgentDefinition | null;
   selectedRuntimeAgentId: string;
@@ -76,7 +75,6 @@ type ComposerProps = {
   selectedSkillGroupLabel: string;
   onShowThinkingProcessChange: (value: boolean) => void;
   onShowToolCallProcessChange: (value: boolean) => void;
-  onModelSourceChange: (source: ModelSource) => void;
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onRuntimeModelChange: (id: string) => void;
@@ -86,32 +84,13 @@ type ComposerProps = {
   onAbortTask: () => void;
 };
 
-type RuntimeModelGroup = {
-  providerId: string;
-  providerName: string;
-  models: RuntimeModelOption[];
-};
+const formatRuntimeModelLabel = (model: RuntimeModelOption) =>
+  `${model.provider.name}/${model.modelName}`;
 
-const groupRuntimeModelsByProvider = (
-  runtimeModels: RuntimeModelOption[],
-): RuntimeModelGroup[] => {
-  const groups: RuntimeModelGroup[] = [];
+const formatRuntimeModelTitle = (model: RuntimeModelOption) =>
+  `${model.provider.name} / ${model.modelName}`;
 
-  for (const model of runtimeModels) {
-    let group = groups.find((item) => item.providerId === model.provider.id);
-    if (!group) {
-      group = {
-        providerId: model.provider.id,
-        providerName: model.provider.name,
-        models: [],
-      };
-      groups.push(group);
-    }
-    group.models.push(model);
-  }
-
-  return groups;
-};
+const NO_AGENT_PROFILE_ID = "__no_agent_profile__";
 
 export const Composer = memo(({
   files,
@@ -121,7 +100,6 @@ export const Composer = memo(({
   isSettingsLoading,
   showThinkingProcess,
   showToolCallProcess,
-  modelSource,
   runtimeAgents,
   selectedRuntimeAgent,
   selectedRuntimeAgentId,
@@ -137,7 +115,6 @@ export const Composer = memo(({
   selectedSkillGroupLabel,
   onShowThinkingProcessChange,
   onShowToolCallProcessChange,
-  onModelSourceChange,
   onRuntimeAgentChange,
   onSelectedAgentChange,
   onRuntimeModelChange,
@@ -196,19 +173,20 @@ export const Composer = memo(({
     [fileReferenceMatches],
   );
   const visibleAllowedAgentTools = allowedAgentTools;
-  const runtimeModelGroups = useMemo(
-    () => groupRuntimeModelsByProvider(runtimeModels),
-    [runtimeModels],
-  );
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
-  const selectedModelLabel = modelSource === "agent"
-      ? selectedAgent?.name ?? "选择角色"
-      : selectedRuntimeModel
-        ? selectedRuntimeModel.modelName
-        : "选择模型";
+  const selectedModelLabel = selectedRuntimeModel
+    ? selectedRuntimeModel.modelName
+    : "选择模型";
+  const selectedModelTitle = selectedRuntimeModel
+    ? formatRuntimeModelTitle(selectedRuntimeModel)
+    : selectedModelLabel;
   const modelLabel = !runtimeAgentRequiresModel
     ? "无需模型"
     : selectedModelLabel;
+  const selectedAgentLabel = selectedAgent?.name ?? "不使用角色";
+  const modelMenuLabel = selectedAgent
+    ? `${modelLabel} · ${selectedAgent.name}`
+    : modelLabel;
   const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
   const enabledProcessOptionLabel = [
     showThinkingProcess ? "思考" : "",
@@ -372,6 +350,152 @@ export const Composer = memo(({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
+                  title={`模型：${runtimeAgentRequiresModel ? selectedModelTitle : modelLabel}；角色：${selectedAgentLabel}`}
+                >
+                  <Orbit className="size-3.5 shrink-0" />
+                  <span className="min-w-0 truncate">{modelMenuLabel}</span>
+                  <ChevronDown className="size-3 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel>模型与角色</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger
+                    disabled={isSettingsLoading}
+                    title={selectedModelTitle}
+                  >
+                    <Orbit className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">模型</span>
+                    <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-64">
+                    {runtimeModels.length === 0 ? (
+                      <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuRadioGroup
+                        value={selectedRuntimeModelId}
+                        onValueChange={onRuntimeModelChange}
+                      >
+                        {runtimeModels.map((model) => (
+                          <DropdownMenuRadioItem
+                            key={model.id}
+                            value={model.id}
+                            title={formatRuntimeModelTitle(model)}
+                          >
+                            <span className="truncate">
+                              {formatRuntimeModelLabel(model)}
+                            </span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger
+                    disabled={isSettingsLoading}
+                    title={selectedAgentLabel}
+                  >
+                    <Bot className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">角色</span>
+                    <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedAgentLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuRadioGroup
+                      value={selectedAgent?.id ?? NO_AGENT_PROFILE_ID}
+                      onValueChange={(value) => {
+                        onSelectedAgentChange(value === NO_AGENT_PROFILE_ID ? "" : value);
+                      }}
+                    >
+                      <DropdownMenuRadioItem value={NO_AGENT_PROFILE_ID}>
+                        <span className="truncate">不使用角色</span>
+                      </DropdownMenuRadioItem>
+                      {agentProfiles.length === 0 ? (
+                        <DropdownMenuItem disabled>暂无角色</DropdownMenuItem>
+                      ) : (
+                        agentProfiles.map((agent) => (
+                          <DropdownMenuRadioItem key={agent.id} value={agent.id}>
+                            <span className="truncate">{agent.name}</span>
+                          </DropdownMenuRadioItem>
+                        ))
+                      )}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger title={runtimeAgentLabel}>
+                    <Bot className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">执行</span>
+                    <span className="max-w-28 truncate text-xs text-muted-foreground">{runtimeAgentLabel}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-60">
+                    <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
+                      {runtimeAgents.map((agent) => (
+                        <DropdownMenuRadioItem
+                          key={agent.id}
+                          value={agent.id}
+                          title={agent.description}
+                        >
+                          <span className="truncate">{agent.label}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Wrench className="size-3.5" />
+                    <span className="min-w-0 flex-1 truncate">过程</span>
+                    <span className="max-w-28 truncate text-xs text-muted-foreground">
+                      {enabledProcessOptionLabel || "无"}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-52">
+                    <DropdownMenuItem
+                      className={toggleMenuItemClassName}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onShowThinkingProcessChange(!showThinkingProcess);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">思考过程</span>
+                      <Switch
+                        size="sm"
+                        checked={showThinkingProcess}
+                        aria-label="思考过程"
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={onShowThinkingProcessChange}
+                      />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={toggleMenuItemClassName}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onShowToolCallProcessChange(!showToolCallProcess);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">工具调用过程</span>
+                      <Switch
+                        size="sm"
+                        checked={showToolCallProcess}
+                        aria-label="工具调用过程"
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={onShowToolCallProcessChange}
+                      />
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   className="h-8 min-w-0 max-w-[13rem] px-2 text-xs"
                   title={`技能组：${selectedSkillGroupLabel}`}
                 >
@@ -440,169 +564,13 @@ export const Composer = memo(({
                             )}
                           </span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {group.skillNames.length} 个 Skill
+                            {group.skills.length} 个 Skill
                           </span>
                         </span>
                       </DropdownMenuCheckboxItem>
                     ))}
                   </>
                 )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`模型：${modelLabel}`}
-                >
-                  <Orbit className="size-3.5 shrink-0" />
-                  <span className="min-w-0 truncate">{modelLabel}</span>
-                  <ChevronDown className="size-3 shrink-0" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel>模型配置</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger
-                    disabled={isSettingsLoading}
-                    title={selectedModelLabel}
-                  >
-                    <Orbit className="size-3.5" />
-                    <span className="min-w-0 flex-1 truncate">模型</span>
-                    <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-56">
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Orbit className="size-3.5" />
-                        模型
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-52">
-                        {runtimeModelGroups.length === 0 ? (
-                          <DropdownMenuItem disabled>未配置 LLM</DropdownMenuItem>
-                        ) : (
-                          runtimeModelGroups.map((provider) => {
-                            return (
-                              <DropdownMenuSub key={provider.providerId}>
-                                <DropdownMenuSubTrigger>{provider.providerName}</DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent className="w-56">
-                                  {provider.models.length === 0 ? (
-                                    <DropdownMenuItem disabled>未启用模型</DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuRadioGroup
-                                      value={selectedRuntimeModel?.provider.id === provider.providerId ? selectedRuntimeModelId : ""}
-                                      onValueChange={(value) => {
-                                        onModelSourceChange("direct");
-                                        onRuntimeModelChange(value);
-                                      }}
-                                    >
-                                      {provider.models.map((model) => (
-                                        <DropdownMenuRadioItem key={model.id} value={model.id}>
-                                          <span className="truncate">{model.modelName}</span>
-                                        </DropdownMenuRadioItem>
-                                      ))}
-                                    </DropdownMenuRadioGroup>
-                                  )}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuSub>
-                            );
-                          })
-                        )}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    {agentProfiles.length > 0 && (
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                          <Bot className="size-3.5" />
-                          角色
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-56">
-                          <DropdownMenuRadioGroup
-                            value={modelSource === "agent" ? selectedAgent?.id ?? "" : ""}
-                            onValueChange={(value) => {
-                              onModelSourceChange("agent");
-                              onSelectedAgentChange(value);
-                            }}
-                          >
-                            {agentProfiles.map((agent) => (
-                              <DropdownMenuRadioItem key={agent.id} value={agent.id}>
-                                <span className="truncate">{agent.name}</span>
-                              </DropdownMenuRadioItem>
-                            ))}
-                          </DropdownMenuRadioGroup>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger title={runtimeAgentLabel}>
-                    <Bot className="size-3.5" />
-                    <span className="min-w-0 flex-1 truncate">执行</span>
-                    <span className="max-w-28 truncate text-xs text-muted-foreground">{runtimeAgentLabel}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-60">
-                    <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
-                      {runtimeAgents.map((agent) => (
-                        <DropdownMenuRadioItem
-                          key={agent.id}
-                          value={agent.id}
-                          title={agent.description}
-                        >
-                          <span className="truncate">{agent.label}</span>
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Wrench className="size-3.5" />
-                    <span className="min-w-0 flex-1 truncate">过程</span>
-                    <span className="max-w-28 truncate text-xs text-muted-foreground">
-                      {enabledProcessOptionLabel || "无"}
-                    </span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-52">
-                    <DropdownMenuItem
-                      className={toggleMenuItemClassName}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        onShowThinkingProcessChange(!showThinkingProcess);
-                      }}
-                    >
-                      <span className="min-w-0 flex-1">思考过程</span>
-                      <Switch
-                        size="sm"
-                        checked={showThinkingProcess}
-                        aria-label="思考过程"
-                        onClick={(event) => event.stopPropagation()}
-                        onCheckedChange={onShowThinkingProcessChange}
-                      />
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className={toggleMenuItemClassName}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        onShowToolCallProcessChange(!showToolCallProcess);
-                      }}
-                    >
-                      <span className="min-w-0 flex-1">工具调用过程</span>
-                      <Switch
-                        size="sm"
-                        checked={showToolCallProcess}
-                        aria-label="工具调用过程"
-                        onClick={(event) => event.stopPropagation()}
-                        onCheckedChange={onShowToolCallProcessChange}
-                      />
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
 

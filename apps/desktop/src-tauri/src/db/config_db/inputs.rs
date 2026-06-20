@@ -64,11 +64,21 @@ pub struct SaveWorkspaceSkillsInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SaveSkillGroupSkillInput {
+    pub key: String,
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveSkillGroupInput {
     pub id: Option<String>,
     pub name: String,
     pub description: Option<String>,
-    pub skill_names: Vec<String>,
+    pub source: Option<String>,
+    pub readonly: Option<bool>,
+    pub skills: Vec<SaveSkillGroupSkillInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,8 +88,6 @@ pub struct SaveAiAgentInput {
     pub name: String,
     pub avatar: String,
     pub description: Option<String>,
-    pub provider_id: String,
-    pub model_id: String,
 }
 
 #[derive(Debug, Deserialize)]

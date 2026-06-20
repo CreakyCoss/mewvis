@@ -7,8 +7,6 @@ import type {
 } from "@/features/ai/components/context-tools";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
-export type ModelSource = "direct" | "agent";
-
 export type FileReferenceMatch = ContextFileReferenceMatch<WorkspaceFileEntry>;
 
 export type PendingAgentQuestion = {

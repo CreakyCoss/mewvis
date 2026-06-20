@@ -94,33 +94,6 @@ pub fn save_llm_settings(
     llm_settings(app)
 }
 
-pub(super) fn ensure_provider_model_exists(
-    conn: &Connection,
-    provider_id: &str,
-    model_id: &str,
-) -> Result<(), String> {
-    let exists = conn
-        .query_row(
-            r#"
-            SELECT EXISTS(
-                SELECT 1
-                FROM provider_models
-                WHERE id = ?2 AND provider_id = ?1 AND is_enabled = 1
-            )
-            "#,
-            params![provider_id, model_id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|error| format!("无法读取 Agent 模型：{error}"))?
-        == 1;
-
-    if exists {
-        Ok(())
-    } else {
-        Err("请选择有效且已启用的模型".to_string())
-    }
-}
-
 fn load_llm_providers(conn: &Connection) -> Result<Vec<LlmProvider>, String> {
     let mut statement = conn
         .prepare(

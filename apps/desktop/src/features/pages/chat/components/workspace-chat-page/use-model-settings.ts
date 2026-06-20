@@ -11,7 +11,6 @@ import {
   resolveAgentProfiles,
 } from "@/features/pages/settings/agent/utils";
 import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
-import type { ModelSource } from "../../types";
 
 type RuntimeAgentSource = {
   listAgents: () => Promise<Readonly<{
@@ -36,11 +35,9 @@ export const useModelSettings = ({
   const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
   const [selectedRuntimeModelId, setSelectedRuntimeModelId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
-  const [modelSource, setModelSource] = useState<ModelSource>("direct");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
-  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
 
   const loadLlmOptions = useCallback(async () => {
     setIsSettingsLoading(true);
@@ -55,22 +52,16 @@ export const useModelSettings = ({
       if (runtimeModelState.error) {
         throw new Error(runtimeModelState.error);
       }
-      const nextRuntimeModels = runtimeModelState.runtimeModels;
 
       setAgents(agentSettings.agents);
-      setSelectedAgentId((currentAgentId) => {
-        const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
-        const currentProfile = profiles.find((agent) => agent.id === currentAgentId);
-        return currentProfile?.id ?? profiles[0]?.id ?? "";
-      });
-      setModelSource((currentSource) => {
-        const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
-        return currentSource === "agent" && profiles.length === 0 ? "direct" : currentSource;
-      });
+      setSelectedAgentId((currentAgentId) =>
+        agentSettings.agents.some((agent) => agent.id === currentAgentId)
+          ? currentAgentId
+          : "",
+      );
     } catch (caught) {
       setSettingsError(String(caught));
     } finally {
-      setHasLoadedSettings(true);
       setIsSettingsLoading(false);
     }
   }, [loadLlmSettings]);
@@ -128,18 +119,14 @@ export const useModelSettings = ({
   const runtimeAgentId = selectedRuntimeAgent?.id ?? defaultRuntimeAgentId;
   const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const agentProfiles = useMemo(
-    () => resolveAgentProfiles(agents, runtimeModels),
-    [agents, runtimeModels],
+    () => resolveAgentProfiles(agents),
+    [agents],
   );
   const selectedAgent = useMemo(
-    () => agentProfiles.find((agent) => agent.id === selectedAgentId)
-      ?? agentProfiles[0]
-      ?? null,
+    () => agentProfiles.find((agent) => agent.id === selectedAgentId) ?? null,
     [agentProfiles, selectedAgentId],
   );
-  const effectiveRuntimeModel = modelSource === "agent"
-    ? selectedAgent?.runtimeModel ?? null
-    : selectedRuntimeModel;
+  const effectiveRuntimeModel = selectedRuntimeModel;
 
   useEffect(() => {
     if (runtimeModelError) {
@@ -153,18 +140,10 @@ export const useModelSettings = ({
     }
   }, [selectedRuntimeAgent, selectedRuntimeAgentId]);
 
-  useEffect(() => {
-    if (hasLoadedSettings && modelSource === "agent" && !selectedAgent && agentProfiles.length === 0) {
-      setModelSource("direct");
-    }
-  }, [agentProfiles.length, hasLoadedSettings, modelSource, selectedAgent]);
-
   return {
     runtimeModels,
     selectedRuntimeModelId,
     setSelectedRuntimeModelId,
-    modelSource,
-    setModelSource,
     selectedAgentId,
     setSelectedAgentId,
     settingsError,

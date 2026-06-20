@@ -184,7 +184,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
         group.source === "custom"
           ? {
               ...group,
-              skillNames: group.skillNames.filter((key) => key !== removedSkill.key),
+              skills: group.skills.filter((skill) => skill.key !== removedSkill.key),
             }
           : group,
       );
@@ -239,10 +239,14 @@ const toSaveSkillGroups = (
   groups: WorkspaceSkillGroup[],
 ): SaveWorkspaceSkillGroupInput[] =>
   groups
-    .filter((group) => group.source === "custom")
     .map((group) => ({
       id: group.id,
       name: group.name,
       description: group.description,
-      skillNames: group.skillNames,
+      source: group.source,
+      readonly: group.readonly,
+      skills: group.skills.map((skill) => ({
+        key: skill.key,
+        disabled: skill.disabled === true,
+      })),
     }));

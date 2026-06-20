@@ -117,7 +117,7 @@ export const CollaborationWorkflowSettingsDialog = ({
               <span>协作流程设置</span>
             </DialogTitle>
             <DialogDescription className="mt-2">
-              配置聊天页可直接选择的自定义协作流程、执行角色和步骤。
+              配置自定义协作流程、执行角色和步骤。
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -293,7 +293,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                               }}
                             >
                               {agentProfiles.length === 0 ? (
-                                <option value="">请先配置 LLM 或角色</option>
+                                <option value="">请先创建角色</option>
                               ) : (
                                 agentProfiles.map((agent) => (
                                   <option key={agent.id} value={agent.id}>

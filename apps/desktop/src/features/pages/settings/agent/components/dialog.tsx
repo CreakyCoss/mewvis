@@ -29,11 +29,8 @@ export const AgentSettingsDialog = ({
 }: AgentSettingsDialogProps) => {
   const {
     agents,
-    runtimeModelGroups,
     draft,
     selectedAgentId,
-    selectedRuntimeModels,
-    selectedRuntimeModel,
     isLoading,
     isSaving,
     error,
@@ -64,7 +61,7 @@ export const AgentSettingsDialog = ({
               <span>角色设置</span>
             </DialogTitle>
             <DialogDescription className="mt-2">
-              创建可复用的角色画像，并绑定一个已配置 LLM 和具体模型。
+              创建可复用的角色画像，聊天时可与任意模型独立组合。
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -212,62 +209,6 @@ export const AgentSettingsDialog = ({
                       updateDraft((current) => ({ ...current, description: value }));
                     }}
                   />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="agent-provider">LLM</Label>
-                    <select
-                      id="agent-provider"
-                      className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={draft.providerId}
-                      disabled={runtimeModelGroups.length === 0}
-                      onChange={(event) => {
-                        const providerId = event.currentTarget.value;
-                        const group = runtimeModelGroups.find((item) => item.providerId === providerId);
-                        const model = group?.models[0];
-                        updateDraft((current) => ({
-                          ...current,
-                          providerId,
-                          modelId: model?.id ?? "",
-                        }));
-                      }}
-                    >
-                      {runtimeModelGroups.length === 0 ? (
-                        <option value="">未配置 LLM</option>
-                      ) : (
-                        runtimeModelGroups.map((provider) => (
-                          <option key={provider.providerId} value={provider.providerId}>
-                            {provider.providerName}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="agent-model">模型</Label>
-                    <select
-                      id="agent-model"
-                      className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                      value={draft.modelId}
-                      disabled={!selectedRuntimeModel && selectedRuntimeModels.length === 0}
-                      onChange={(event) => {
-                        const modelId = event.currentTarget.value;
-                        updateDraft((current) => ({ ...current, modelId }));
-                      }}
-                    >
-                      {selectedRuntimeModels.length === 0 ? (
-                        <option value="">未启用模型</option>
-                      ) : (
-                        selectedRuntimeModels.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.modelName}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
                 </div>
 
                 {selectedAgentId && (

@@ -75,8 +75,6 @@ pub struct AiAgent {
     pub name: String,
     pub avatar: String,
     pub description: Option<String>,
-    pub provider_id: String,
-    pub model_id: String,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -129,6 +127,21 @@ pub struct AiAgentSettings {
 pub struct WorkspaceSkillSettings {
     pub default_group_id: Option<String>,
     pub skill_groups: Vec<SkillGroup>,
+    pub readonly_skill_groups: Vec<ReadonlySkillGroupMembers>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillGroupSkill {
+    pub key: String,
+    pub disabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadonlySkillGroupMembers {
+    pub id: String,
+    pub skills: Vec<SkillGroupSkill>,
 }
 
 #[derive(Debug, Serialize)]
@@ -138,7 +151,7 @@ pub struct SkillGroup {
     pub name: String,
     pub description: Option<String>,
     pub order: i64,
-    pub skill_names: Vec<String>,
+    pub skills: Vec<SkillGroupSkill>,
     pub created_at: i64,
     pub updated_at: i64,
 }

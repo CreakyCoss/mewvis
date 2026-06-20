@@ -193,6 +193,9 @@ export const GroupDialog = ({
       : id === defaultGroupId
         ? ALL_SKILLS_GROUP_ID
         : defaultGroupId;
+    const previousSkillDisabledByKey = new Map(
+      state.group?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? [],
+    );
     const nextGroup: WorkspaceSkillGroup = {
       id,
       name,
@@ -201,7 +204,12 @@ export const GroupDialog = ({
       readonly: false,
       isDefault: id === nextDefaultGroupId,
       order: state.group?.order ?? nextCustomGroupOrder(groups),
-      skillNames: [...selectedSkillNames].sort(),
+      skills: [...selectedSkillNames]
+        .sort()
+        .map((key) => ({
+          key,
+          disabled: previousSkillDisabledByKey.get(key) === true,
+        })),
     };
     const nextGroups = (state.group
       ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group))

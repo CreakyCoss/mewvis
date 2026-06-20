@@ -103,7 +103,7 @@ const SessionRow = ({
         }
       >
         <span className="min-w-0 flex-1 truncate">{session.title}</span>
-        <span className="ml-2 flex h-7 w-9 shrink-0 items-center justify-end text-xs font-medium text-muted-foreground/80 group-hover/session:opacity-0 group-focus-within/session:opacity-0">
+        <span className="ml-2 flex h-7 w-12 shrink-0 items-center justify-end whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground/80 group-hover/session:opacity-0 group-focus-within/session:opacity-0">
           {isRunning ? (
             <LoaderCircle className="size-3.5 animate-spin" aria-label="处理中" />
           ) : session.isUnread ? (

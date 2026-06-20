@@ -212,8 +212,6 @@ export const WorkspaceChatPage = ({
     runtimeModels,
     selectedRuntimeModelId,
     setSelectedRuntimeModelId,
-    modelSource,
-    setModelSource,
     setSelectedAgentId,
     settingsError,
     isSettingsLoading,
@@ -280,7 +278,11 @@ export const WorkspaceChatPage = ({
       return skills;
     }
     const skillKeys = new Set(
-      selectedSkillGroups.flatMap((group) => group.skillNames),
+      selectedSkillGroups.flatMap((group) =>
+        group.skills
+          .filter((skill) => skill.disabled !== true)
+          .map((skill) => skill.key),
+      ),
     );
     return skills.filter((skill) => skillKeys.has(skill.key));
   }, [selectedSkillGroupIds, selectedSkillGroups, skills]);
@@ -924,8 +926,8 @@ export const WorkspaceChatPage = ({
       now,
       text,
       referencedFiles: draftReferencedFiles,
-      assistantAgentAvatar: modelSource === "agent" ? selectedAgent?.avatar : undefined,
-      assistantAgentName: modelSource === "agent" ? selectedAgent?.name : undefined,
+      assistantAgentAvatar: selectedAgent?.avatar,
+      assistantAgentName: selectedAgent?.name,
       userMessageId,
       assistantMessageId,
     });
@@ -946,7 +948,7 @@ export const WorkspaceChatPage = ({
         referencedFiles: referencedFileDescriptors,
         activeFile: activeFile ? { path: activeFile.path } : null,
         activeSkills,
-        selectedAgent: modelSource === "agent" ? selectedAgent : null,
+        selectedAgent,
         agentInstructions: workspaceAgentInteractionInstructions,
         executionMemorySummary: "",
       });
@@ -1004,7 +1006,6 @@ export const WorkspaceChatPage = ({
     workspace,
     workspaces: workspaceOptions,
     messages,
-    modelSource,
     selectedAgent,
     chatError,
     settingsError,
@@ -1039,7 +1040,6 @@ export const WorkspaceChatPage = ({
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
     submitAgentQuestionAnswer,
-    setModelSource,
     setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedRuntimeModelId,

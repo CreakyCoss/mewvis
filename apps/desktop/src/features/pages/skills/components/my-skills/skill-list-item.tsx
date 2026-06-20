@@ -4,6 +4,8 @@ import {
   Globe2,
   Loader2,
   Palette,
+  Pause,
+  Play,
   Search,
   Sparkles,
   Trash2,
@@ -23,6 +25,9 @@ type SkillListItemProps = {
   disabled: boolean;
   removable: boolean;
   removing: boolean;
+  skillDisabled?: boolean;
+  canToggleSkillDisabled?: boolean;
+  onToggleSkillDisabled?: (skill: WorkspaceSkill) => void;
   onRemove: (skill: WorkspaceSkill) => void;
 };
 
@@ -31,13 +36,20 @@ export const SkillListItem = ({
   disabled,
   removable,
   removing,
+  skillDisabled = false,
+  canToggleSkillDisabled = false,
+  onToggleSkillDisabled,
   onRemove,
 }: SkillListItemProps) => {
   const description = skillDescriptionPreview(skill.description);
   const fullDescription = skill.description.trim() || "暂无描述";
   const actionPinned = removing;
-  const actionHoverSpaceClassName = removable
-    ? "group-hover:pr-14 group-focus-within:pr-14"
+  const hasActions = removable || canToggleSkillDisabled;
+  const actionCount = Number(removable) + Number(canToggleSkillDisabled);
+  const actionHoverSpaceClassName = hasActions
+    ? actionCount > 1
+      ? "group-hover:pr-24 group-focus-within:pr-24"
+      : "group-hover:pr-14 group-focus-within:pr-14"
     : "";
 
   return (
@@ -57,6 +69,7 @@ export const SkillListItem = ({
           }}
           className={[
             "group relative grid min-h-[112px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-[22px] bg-white p-4 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] ring-1 ring-black/[0.03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/35 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]",
+            skillDisabled ? "opacity-65 grayscale-[0.2]" : "",
           ].join(" ")}
         >
           <div className="flex size-14 items-center justify-center rounded-2xl bg-[#ececec] text-muted-foreground">
@@ -74,13 +87,18 @@ export const SkillListItem = ({
               <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">
                 {skill.name}
               </h3>
+              {skillDisabled && (
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  已禁用
+                </span>
+              )}
             </div>
             <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">
               {description}
             </p>
           </div>
 
-          {removable && (
+          {hasActions && (
             <div
               className={[
                 "absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-2 transition-opacity",
@@ -89,19 +107,36 @@ export const SkillListItem = ({
                   : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
               ].join(" ")}
             >
-              <SkillActionIconButton
-                label={removing ? "移除中" : "移除"}
-                variant="destructive"
-                disabled={disabled || removing}
-                onClick={() => onRemove(skill)}
-                icon={
-                  removing ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )
-                }
-              />
+              {canToggleSkillDisabled && (
+                <SkillActionIconButton
+                  label={skillDisabled ? "启用" : "禁用"}
+                  variant={skillDisabled ? "secondary" : "default"}
+                  disabled={disabled}
+                  onClick={() => onToggleSkillDisabled?.(skill)}
+                  icon={
+                    skillDisabled ? (
+                      <Play className="size-4" />
+                    ) : (
+                      <Pause className="size-4" />
+                    )
+                  }
+                />
+              )}
+              {removable && (
+                <SkillActionIconButton
+                  label={removing ? "移除中" : "移除"}
+                  variant="destructive"
+                  disabled={disabled || removing}
+                  onClick={() => onRemove(skill)}
+                  icon={
+                    removing ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )
+                  }
+                />
+              )}
             </div>
           )}
         </article>

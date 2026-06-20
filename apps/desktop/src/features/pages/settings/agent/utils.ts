@@ -1,5 +1,4 @@
 import { defaultAgentAvatar } from "@/assets/agent-avatars";
-import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type {
   AgentProfile,
   AiAgent,
@@ -19,37 +18,16 @@ const createWorkflowStepId = () => {
   return `workflow-step-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-const findRuntimeModelForAgent = (
-  runtimeModels: RuntimeModelOption[],
-  agent: Pick<AiAgent, "providerId" | "modelId">,
-) => {
-  const runtimeModel = runtimeModels.find(
-    (model) => model.id === agent.modelId,
-  );
-
-  return runtimeModel?.provider.id === agent.providerId ? runtimeModel : null;
-};
-
 export const resolveAgentProfiles = (
   agents: AiAgent[],
-  runtimeModels: RuntimeModelOption[],
-): AgentProfile[] => {
-  return agents.flatMap((agent) => {
-    const runtimeModel = findRuntimeModelForAgent(runtimeModels, agent);
-    if (!runtimeModel) {
-      return [];
-    }
-
-    return [{
-      id: agent.id,
-      name: agent.name,
-      avatar: agent.avatar,
-      description: agent.description,
-      runtimeModel,
-      isDefault: false,
-    }];
-  });
-};
+): AgentProfile[] =>
+  agents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    avatar: agent.avatar,
+    description: agent.description,
+    isDefault: false,
+  }));
 
 export const resolveCollaborationWorkflowProfiles = (
   workflows: CollaborationWorkflow[],
@@ -125,34 +103,23 @@ export const resolveCollaborationWorkflowStepProfiles = (
     }];
   });
 
-export const createAgentDraft = (
-  runtimeModels: RuntimeModelOption[],
-): SaveAiAgentInput => {
-  const runtimeModel = runtimeModels[0] ?? null;
-
+export const createAgentDraft = (): SaveAiAgentInput => {
   return {
     id: null,
     name: "",
     avatar: defaultAgentAvatar.id,
     description: "",
-    providerId: runtimeModel?.provider.id ?? "",
-    modelId: runtimeModel?.id ?? "",
   };
 };
 
 export const agentToDraft = (
   agent: AiAgent,
-  runtimeModels: RuntimeModelOption[],
 ): SaveAiAgentInput => {
-  const runtimeModel = findRuntimeModelForAgent(runtimeModels, agent);
-
   return {
     id: agent.id,
     name: agent.name,
     avatar: agent.avatar,
     description: agent.description ?? "",
-    providerId: runtimeModel?.provider.id ?? agent.providerId,
-    modelId: runtimeModel?.id ?? agent.modelId,
   };
 };
 

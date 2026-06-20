@@ -1,14 +1,12 @@
 import { useLayoutEffect, type Dispatch, type SetStateAction } from "react";
 import { create } from "zustand";
 import { ALL_SKILLS_GROUP_ID } from "@/features/pages/skills/constants";
-import type { ModelSource } from "../../types";
 import type { ChatPanelViewModel } from "./index";
 
 const noop = () => {};
 const noopAsync = async () => {};
 const noopDispatch: Dispatch<SetStateAction<string>> = () => {};
 const noopSkillGroupToggle = () => {};
-const noopModelSourceDispatch: Dispatch<SetStateAction<ModelSource>> = () => {};
 
 const emptyWorkspace = {
   id: "",
@@ -28,7 +26,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   workspace: emptyWorkspace,
   workspaces: [],
   messages: [],
-  modelSource: "direct",
   selectedAgent: null,
   chatError: "",
   settingsError: "",
@@ -63,7 +60,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   setAgentQuestionAnswer: noopDispatch,
   setCustomAgentQuestionAnswer: noopDispatch,
   submitAgentQuestionAnswer: noopAsync,
-  setModelSource: noopModelSourceDispatch,
   setSelectedRuntimeAgentId: noopDispatch,
   setSelectedAgentId: noopDispatch,
   setSelectedRuntimeModelId: noop,
@@ -96,8 +92,15 @@ export const useChatPanelStore = create<ChatPanelStore>((set) => ({
 
 export const useChatPanelStoreBridge = (state: ChatPanelViewModel) => {
   const setChatPanelState = useChatPanelStore((store) => store.setChatPanelState);
+  const resetChatPanelState = useChatPanelStore((store) => store.resetChatPanelState);
 
   useLayoutEffect(() => {
     setChatPanelState(state);
   });
+
+  useLayoutEffect(() => {
+    return () => {
+      resetChatPanelState();
+    };
+  }, [resetChatPanelState]);
 };

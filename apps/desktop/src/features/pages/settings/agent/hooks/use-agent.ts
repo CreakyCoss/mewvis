@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { normalizeAgentAvatarId } from "@/assets/agent-avatars";
 import {
-  type RuntimeModelOption,
-  useLlmSettingsStore,
-} from "@/features/pages/settings/llm/store";
-import {
   deleteAiAgent,
   deleteCollaborationWorkflow,
   getAiAgentSettings,
@@ -25,33 +21,6 @@ import {
 } from "../utils";
 
 type AgentSettingsSelectionKind = "agent" | "workflow";
-
-type RuntimeModelGroup = {
-  providerId: string;
-  providerName: string;
-  models: RuntimeModelOption[];
-};
-
-const groupRuntimeModelsByProvider = (
-  runtimeModels: RuntimeModelOption[],
-): RuntimeModelGroup[] => {
-  const groups: RuntimeModelGroup[] = [];
-
-  for (const model of runtimeModels) {
-    let group = groups.find((item) => item.providerId === model.provider.id);
-    if (!group) {
-      group = {
-        providerId: model.provider.id,
-        providerName: model.provider.name,
-        models: [],
-      };
-      groups.push(group);
-    }
-    group.models.push(model);
-  }
-
-  return groups;
-};
 
 const workflowToDraft = (workflow: CollaborationWorkflow): SaveCollaborationWorkflowInput => ({
   id: workflow.id,
@@ -74,7 +43,7 @@ const workflowToDraft = (workflow: CollaborationWorkflow): SaveCollaborationWork
 export const useAgentSettings = (open: boolean) => {
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [workflows, setWorkflows] = useState<CollaborationWorkflow[]>([]);
-  const [draft, setDraft] = useState<SaveAiAgentInput>(() => createAgentDraft([]));
+  const [draft, setDraft] = useState<SaveAiAgentInput>(() => createAgentDraft());
   const [workflowDraft, setWorkflowDraft] = useState<SaveCollaborationWorkflowInput>(() =>
     createCollaborationWorkflowDraft([]),
   );
@@ -84,41 +53,18 @@ export const useAgentSettings = (open: boolean) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
-  const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? null,
     [agents, selectedAgentId],
   );
   const agentProfiles = useMemo(
-    () => resolveAgentProfiles(agents, runtimeModels),
-    [agents, runtimeModels],
+    () => resolveAgentProfiles(agents),
+    [agents],
   );
   const selectedWorkflow = useMemo(
     () => workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null,
     [selectedWorkflowId, workflows],
-  );
-
-  const runtimeModelGroups = useMemo(
-    () => groupRuntimeModelsByProvider(runtimeModels),
-    [runtimeModels],
-  );
-
-  const selectedRuntimeModels = useMemo(
-    () => runtimeModels.filter((model) => model.provider.id === draft.providerId),
-    [draft.providerId, runtimeModels],
-  );
-
-  const selectedRuntimeModel = useMemo(
-    () => {
-      const runtimeModel = runtimeModels.find(
-        (model) => model.id === draft.modelId,
-      );
-
-      return runtimeModel?.provider.id === draft.providerId ? runtimeModel : null;
-    },
-    [draft.modelId, draft.providerId, runtimeModels],
   );
 
   const load = useCallback(async () => {
@@ -126,26 +72,23 @@ export const useAgentSettings = (open: boolean) => {
     setError("");
 
     try {
-      const [agentSettings] = await Promise.all([
-        getAiAgentSettings(),
-        loadLlmSettings(),
-      ]);
-      const nextRuntimeModels = useLlmSettingsStore.getState().runtimeModels;
-      setAgents(agentSettings.agents);
-      setWorkflows(agentSettings.collaborationWorkflows);
-      const profiles = resolveAgentProfiles(agentSettings.agents, nextRuntimeModels);
+      const agentSettings = await getAiAgentSettings();
+      const profiles = resolveAgentProfiles(agentSettings.agents);
       const nextAgent = agentSettings.agents[0];
       const nextWorkflow = agentSettings.collaborationWorkflows[0];
+
+      setAgents(agentSettings.agents);
+      setWorkflows(agentSettings.collaborationWorkflows);
       setSelectionKind(nextAgent ? "agent" : nextWorkflow ? "workflow" : "agent");
       setSelectedAgentId(nextAgent?.id ?? "");
       setSelectedWorkflowId(nextWorkflow?.id ?? "");
       setDraft(
         nextAgent
           ? {
-              ...agentToDraft(nextAgent, nextRuntimeModels),
+              ...agentToDraft(nextAgent),
               avatar: normalizeAgentAvatarId(nextAgent.avatar),
             }
-          : createAgentDraft(nextRuntimeModels),
+          : createAgentDraft(),
       );
       setWorkflowDraft(
         nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
@@ -155,7 +98,7 @@ export const useAgentSettings = (open: boolean) => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadLlmSettings]);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -171,16 +114,16 @@ export const useAgentSettings = (open: boolean) => {
       return;
     }
     setDraft({
-      ...agentToDraft(agent, runtimeModels),
+      ...agentToDraft(agent),
       avatar: normalizeAgentAvatarId(agent.avatar),
     });
-  }, [agents, runtimeModels]);
+  }, [agents]);
 
   const createNew = useCallback(() => {
     setSelectionKind("agent");
     setSelectedAgentId("");
-    setDraft(createAgentDraft(runtimeModels));
-  }, [runtimeModels]);
+    setDraft(createAgentDraft());
+  }, []);
 
   const selectWorkflow = useCallback((workflowId: string) => {
     setSelectionKind("workflow");
@@ -213,14 +156,6 @@ export const useAgentSettings = (open: boolean) => {
       setError("角色名称不能为空");
       return false;
     }
-    if (!draft.providerId || !draft.modelId) {
-      setError("请选择角色使用的 LLM 和模型");
-      return false;
-    }
-    if (!selectedRuntimeModel) {
-      setError("请选择有效且已启用的模型");
-      return false;
-    }
 
     setIsSaving(true);
     setError("");
@@ -240,7 +175,7 @@ export const useAgentSettings = (open: boolean) => {
       setSelectedAgentId(saved?.id ?? "");
       if (saved) {
         setDraft({
-          ...agentToDraft(saved, runtimeModels),
+          ...agentToDraft(saved),
           avatar: normalizeAgentAvatarId(saved.avatar),
         });
       }
@@ -251,7 +186,7 @@ export const useAgentSettings = (open: boolean) => {
     } finally {
       setIsSaving(false);
     }
-  }, [draft, runtimeModels, selectedRuntimeModel]);
+  }, [draft]);
 
   const saveWorkflow = useCallback(async () => {
     if (!workflowDraft.name.trim()) {
@@ -324,17 +259,17 @@ export const useAgentSettings = (open: boolean) => {
       setDraft(
         nextAgent
           ? {
-              ...agentToDraft(nextAgent, runtimeModels),
+              ...agentToDraft(nextAgent),
               avatar: normalizeAgentAvatarId(nextAgent.avatar),
             }
-          : createAgentDraft(runtimeModels),
+          : createAgentDraft(),
       );
     } catch (caught) {
       setError(String(caught));
     } finally {
       setIsSaving(false);
     }
-  }, [runtimeModels]);
+  }, []);
 
   const removeWorkflow = useCallback(async (workflowId: string) => {
     setIsSaving(true);
@@ -342,10 +277,11 @@ export const useAgentSettings = (open: boolean) => {
 
     try {
       const settings = await deleteCollaborationWorkflow(workflowId);
+      const profiles = resolveAgentProfiles(settings.agents);
+      const nextWorkflow = settings.collaborationWorkflows[0];
+
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
-      const profiles = resolveAgentProfiles(settings.agents, runtimeModels);
-      const nextWorkflow = settings.collaborationWorkflows[0];
       setSelectedWorkflowId(nextWorkflow?.id ?? "");
       setWorkflowDraft(
         nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
@@ -355,14 +291,11 @@ export const useAgentSettings = (open: boolean) => {
     } finally {
       setIsSaving(false);
     }
-  }, [runtimeModels]);
+  }, []);
 
   return {
     agents,
     workflows,
-    runtimeModelGroups,
-    selectedRuntimeModels,
-    selectedRuntimeModel,
     draft,
     workflowDraft,
     selectionKind,

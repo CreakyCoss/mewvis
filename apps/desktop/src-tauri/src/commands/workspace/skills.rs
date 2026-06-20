@@ -4,8 +4,8 @@ use tauri::AppHandle;
 
 use crate::{
     db::config_db::{
-        self, SaveWorkspaceSkillsInput, SkillGroup as DbSkillGroup,
-        WorkspaceSkillSettings as DbWorkspaceSkillSettings,
+        self, ReadonlySkillGroupMembers, SaveWorkspaceSkillsInput, SkillGroup as DbSkillGroup,
+        SkillGroupSkill as DbSkillGroupSkill, WorkspaceSkillSettings as DbWorkspaceSkillSettings,
     },
     services::skills as skills_service,
 };
@@ -31,7 +31,14 @@ pub struct WorkspaceSkillGroup {
     pub readonly: bool,
     pub is_default: bool,
     pub order: i64,
-    pub skill_names: Vec<String>,
+    pub skills: Vec<WorkspaceSkillGroupSkill>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSkillGroupSkill {
+    pub key: String,
+    pub disabled: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,6 +149,7 @@ fn load_workspace_skills(
     let DbWorkspaceSkillSettings {
         default_group_id,
         skill_groups,
+        readonly_skill_groups,
     } = config_db::workspace_skill_settings(app, workspace_id)?;
     let skill_definitions = skills_service::load_available_skills(app)?;
     let available_skill_keys = skill_definitions
@@ -160,7 +168,12 @@ fn load_workspace_skills(
             path: skill.path.clone(),
         })
         .collect::<Vec<_>>();
-    let mut groups = default_skill_groups(&skill_definitions);
+    let readonly_skill_overrides = readonly_skill_overrides(
+        readonly_skill_groups,
+        &available_skill_keys,
+        &legacy_skill_key_by_name,
+    );
+    let mut groups = default_skill_groups(&skill_definitions, &readonly_skill_overrides);
     groups.extend(custom_skill_groups(
         skill_groups,
         &available_skill_keys,
@@ -183,7 +196,10 @@ fn load_workspace_skills(
     })
 }
 
-fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<WorkspaceSkillGroup> {
+fn default_skill_groups(
+    skills: &[skills_service::SkillDefinition],
+    readonly_skill_overrides: &BTreeMap<String, BTreeMap<String, bool>>,
+) -> Vec<WorkspaceSkillGroup> {
     let mut groups = BTreeMap::<String, WorkspaceSkillGroup>::new();
 
     for skill in skills {
@@ -201,16 +217,24 @@ fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<Works
                 readonly: true,
                 is_default: false,
                 order: default_group.order,
-                skill_names: Vec::new(),
+                skills: Vec::new(),
             });
-        entry.skill_names.push(skill.key.clone());
+        let disabled = readonly_skill_overrides
+            .get(default_group.id)
+            .and_then(|skills| skills.get(&skill.key))
+            .copied()
+            .unwrap_or(false);
+        entry.skills.push(WorkspaceSkillGroupSkill {
+            key: skill.key.clone(),
+            disabled,
+        });
     }
 
     groups
         .into_values()
         .map(|mut group| {
-            group.skill_names.sort();
-            group.skill_names.dedup();
+            group.skills.sort_by(|left, right| left.key.cmp(&right.key));
+            group.skills.dedup_by(|left, right| left.key == right.key);
             group
         })
         .collect()
@@ -224,8 +248,8 @@ fn custom_skill_groups(
     groups
         .into_iter()
         .map(|group| WorkspaceSkillGroup {
-            skill_names: resolve_skill_identifiers(
-                group.skill_names,
+            skills: resolve_skill_members(
+                group.skills,
                 available_skill_keys,
                 legacy_skill_key_by_name,
             ),
@@ -237,28 +261,58 @@ fn custom_skill_groups(
             is_default: false,
             order: 1000 + group.order,
         })
-        .filter(|group| !group.skill_names.is_empty())
+        .filter(|group| !group.skills.is_empty())
         .collect()
 }
 
-fn resolve_skill_identifiers(
-    identifiers: Vec<String>,
+fn resolve_skill_members(
+    members: Vec<DbSkillGroupSkill>,
     available_skill_keys: &HashSet<String>,
     legacy_skill_key_by_name: &BTreeMap<String, String>,
-) -> Vec<String> {
-    let mut resolved = identifiers
-        .into_iter()
-        .filter_map(|identifier| {
-            if available_skill_keys.contains(&identifier) {
-                Some(identifier)
-            } else {
-                legacy_skill_key_by_name.get(&identifier).cloned()
-            }
-        })
-        .collect::<Vec<_>>();
+) -> Vec<WorkspaceSkillGroupSkill> {
+    let mut resolved = BTreeMap::<String, bool>::new();
+    for member in members {
+        let resolved_key = if available_skill_keys.contains(&member.key) {
+            Some(member.key)
+        } else {
+            legacy_skill_key_by_name.get(&member.key).cloned()
+        };
 
-    resolved.sort();
-    resolved.dedup();
+        if let Some(key) = resolved_key {
+            let disabled = resolved.entry(key).or_insert(false);
+            *disabled = *disabled || member.disabled;
+        }
+    }
+
+    resolved
+        .into_iter()
+        .map(|(key, disabled)| WorkspaceSkillGroupSkill { key, disabled })
+        .collect()
+}
+
+fn readonly_skill_overrides(
+    groups: Vec<ReadonlySkillGroupMembers>,
+    available_skill_keys: &HashSet<String>,
+    legacy_skill_key_by_name: &BTreeMap<String, String>,
+) -> BTreeMap<String, BTreeMap<String, bool>> {
+    let mut resolved = BTreeMap::<String, BTreeMap<String, bool>>::new();
+
+    for group in groups {
+        let group_entry = resolved.entry(group.id).or_default();
+        for member in group.skills {
+            let resolved_key = if available_skill_keys.contains(&member.key) {
+                Some(member.key)
+            } else {
+                legacy_skill_key_by_name.get(&member.key).cloned()
+            };
+
+            if let Some(key) = resolved_key {
+                let disabled = group_entry.entry(key).or_insert(false);
+                *disabled = *disabled || member.disabled;
+            }
+        }
+    }
+
     resolved
 }
 

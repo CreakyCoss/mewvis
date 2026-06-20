@@ -7,7 +7,6 @@ use super::{
     inputs::{
         SaveAiAgentInput, SaveCollaborationWorkflowInput, SaveCollaborationWorkflowStepInput,
     },
-    llm::ensure_provider_model_exists,
     models::{
         AiAgent, AiAgentSettings, CollaborationWorkflow, CollaborationWorkflowStep,
         CollaborationWorkflowStepRecord,
@@ -34,18 +33,7 @@ pub fn save_ai_agent(app: &AppHandle, input: SaveAiAgentInput) -> Result<AiAgent
         return Err("请选择 Agent 头像".to_string());
     }
 
-    let provider_id = input.provider_id.trim();
-    if provider_id.is_empty() {
-        return Err("请选择 Agent 使用的 LLM".to_string());
-    }
-
-    let model_id = input.model_id.trim();
-    if model_id.is_empty() {
-        return Err("请选择 Agent 使用的模型".to_string());
-    }
-
     let conn = open_config_connection(app)?;
-    ensure_provider_model_exists(&conn, provider_id, model_id)?;
 
     let now = now_millis()?;
     let id = normalize_record_id(input.id.as_deref());
@@ -56,29 +44,20 @@ pub fn save_ai_agent(app: &AppHandle, input: SaveAiAgentInput) -> Result<AiAgent
         conn.execute(
             r#"
             UPDATE ai_agents
-            SET name = ?2, avatar = ?3, description = ?4, provider_id = ?5, model_id = ?6, updated_at = ?7
+            SET name = ?2, avatar = ?3, description = ?4, updated_at = ?5
             WHERE id = ?1
             "#,
-            params![id, name, avatar, description, provider_id, model_id, now],
+            params![id, name, avatar, description, now],
         )
         .map_err(|error| format!("无法更新 Agent：{error}"))?;
     } else {
         conn.execute(
             r#"
             INSERT INTO ai_agents (
-                id, name, avatar, description, provider_id, model_id, created_at, updated_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                id, name, avatar, description, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
             "#,
-            params![
-                id,
-                name,
-                avatar,
-                description,
-                provider_id,
-                model_id,
-                now,
-                now
-            ],
+            params![id, name, avatar, description, now, now],
         )
         .map_err(|error| format!("无法保存 Agent：{error}"))?;
     }
@@ -218,7 +197,7 @@ fn load_ai_agents(conn: &Connection) -> Result<Vec<AiAgent>, String> {
     let mut statement = conn
         .prepare(
             r#"
-            SELECT id, name, avatar, description, provider_id, model_id, created_at, updated_at
+            SELECT id, name, avatar, description, created_at, updated_at
             FROM ai_agents
             ORDER BY created_at ASC
             "#,
@@ -232,10 +211,8 @@ fn load_ai_agents(conn: &Connection) -> Result<Vec<AiAgent>, String> {
                 name: row.get(1)?,
                 avatar: row.get(2)?,
                 description: row.get(3)?,
-                provider_id: row.get(4)?,
-                model_id: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
             })
         })
         .map_err(|error| format!("无法读取 Agent：{error}"))?;

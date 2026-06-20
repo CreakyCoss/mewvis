@@ -30,7 +30,7 @@ export const SettingsPanel = ({
         <div className="min-w-0">
           <h2 className="text-base font-semibold">设置</h2>
           <p className="truncate text-xs text-muted-foreground">
-            配置模型 Provider、可用模型、角色和协作流程。
+            配置模型 Provider、可用模型、角色画像和协作流程。
           </p>
         </div>
         <Button
@@ -51,7 +51,7 @@ export const SettingsPanel = ({
           <div className="mb-7 space-y-2">
             <h3 className="text-2xl font-semibold">应用设置</h3>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              设置会影响所有工作区中的模型选择、角色和协作流程。
+              设置会影响所有工作区中的模型选择、角色画像和协作流程。
             </p>
           </div>
 
@@ -80,7 +80,7 @@ export const SettingsPanel = ({
               </span>
               <span className="block text-base font-semibold">角色设置</span>
               <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-                创建和维护角色，并绑定已配置的模型。
+                创建和维护角色画像，聊天时独立选择模型。
               </span>
             </button>
 

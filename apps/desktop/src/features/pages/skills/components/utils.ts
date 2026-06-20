@@ -7,7 +7,7 @@ export {
 export const existingGroupSkillNames = (
   group: WorkspaceSkillGroup,
   skillsByKey: Map<string, WorkspaceSkill>,
-) => group.skillNames.filter((key) => skillsByKey.has(key));
+) => group.skills.map((skill) => skill.key).filter((key) => skillsByKey.has(key));
 
 export const nextCustomGroupOrder = (groups: WorkspaceSkillGroup[]) => {
   const maxOrder = groups
