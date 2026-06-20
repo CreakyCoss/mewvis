@@ -3,9 +3,9 @@
   "presets": [
     {
       "id": "moonlit-werewolf-table",
-      "version": 1,
+      "version": 2,
       "label": "月下圆桌狼人杀",
-      "description": "五人月下议事，导演随机分配狼人、预言家、守卫与村民身份，公开发言和私密身份严格分离。",
+      "description": "六人起步的主持制狼人杀：导演分配身份，第一夜开局，白天公布公开事实后按存活座次发言，随后投票并进入下一夜。",
       "characters": [
         {
           "id": "qiao-yu",
@@ -36,7 +36,7 @@
           "description": "常在旅店牌桌上取胜的青年，擅长读表情和反向试探。笑得轻松，心思很重。",
           "speakingStyle": "轻快带试探，喜欢抛出选择题。",
           "writingStyle": "轻小说式即时反应，动作小而灵。",
-          "replyStylePrompt": "可以调侃，但不能用上帝视角透露身份或夜间事实。",
+          "replyStylePrompt": "可以点名质疑，但不能用上帝视角透露身份或夜间事实；被点名者不会在同轮插队回应。",
           "goals": "用发言压力逼出破绽；若抽到狼人，则尽量制造合理混乱。",
           "relationships": "觉得沈墨太会设套，常故意打乱他的节奏。"
         },
@@ -50,29 +50,91 @@
           "replyStylePrompt": "只说公开可见的伤势、情绪和行动，心理判断要保持为推测。",
           "goals": "尽量减少误伤，稳住投票节奏；身份目标优先于表面职业。",
           "relationships": "对谭洛的试探不太放心，但会听乔雨的夜巡记录。"
+        },
+        {
+          "id": "bai-shan",
+          "name": "白杉",
+          "avatar": "tavern-02",
+          "description": "祠堂钟匠，熟悉每一处门轴、钟摆和暗格。沉默寡言，但对异常声响极敏感。",
+          "speakingStyle": "简短克制，先报听到的声音和方位。",
+          "writingStyle": "有金属、木轴、钟摆和夜风细节。",
+          "replyStylePrompt": "发言只基于公开听见或自己可见的事实，不替其他人补充动机。",
+          "goals": "用声音线索帮好人阵营缩小范围；身份目标优先。",
+          "relationships": "不太信任过于会说话的人，但会认真听乔雨的记录。"
         }
       ],
       "room": {
         "title": "月下圆桌狼人杀",
         "promptStyleId": "dramatic",
-        "storyOutline": "月圆之夜，村庄必须在黎明前通过公开讨论找出狼人。身份和夜间信息由导演随机分配，只有可见事实能进入公开界面。",
-        "storyGoal": "通过多轮公开发言、追问和投票找出狼人，或让狼人阵营撑到局势失控。",
+        "storyOutline": "六人起步的月下狼人杀。导演先随机分配狼人、预言家、女巫与村民身份，然后直接进入第一夜。夜晚行动和身份事实默认隐藏；白天只公布公开结果。",
+        "storyGoal": "在夜晚/白天循环中，通过公开事实、顺序发言和投票放逐找出狼人；狼人阵营则隐藏身份并争取人数优势。",
         "scenePresetId": "mystery",
-        "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌，导演已经在幕后分配身份。",
-        "sceneGoal": "第一轮发言：每个人说出自己昨夜公开可证的行动，不允许直接公布未公开身份。",
-        "plot": "身份事实、夜间行动和阵营信息默认隐藏；公开讨论只依据发言、投票和导演公开事件推进。",
-        "storyDirection": "发言阶段按存活玩家座次顺序发言；用户发言后，由所有仍存活的角色依次回应。导演只负责阶段、公开事件、夜晚/投票结算和复盘，不随意跳过存活玩家。",
-        "transition": "当狼人被确认、村民误投过多，或导演判断阵营胜负明确时进入复盘。",
-        "memory": "本局核心边界：隐藏身份不能直接展示给不该知道的人；角色心理描写在公开界面隐藏，结局后恢复。",
+        "scene": "祠堂前的圆桌被月光切成两半。每个人面前都有一枚倒扣木牌，导演已经准备身份池，第一夜即将开始。",
+        "sceneGoal": "当前阶段：第一夜。导演分配身份后推进夜晚行动；不要让角色在开局公开预发言。",
+        "plot": "标准流程：身份分配 -> 第一夜 -> 第二天公布前一夜公开事实 -> 存活玩家按座次一轮发言 -> 投票放逐 -> 第二夜。发言中可以点名质疑，但不会让被点名者同轮插队发言。",
+        "storyDirection": "导演负责阶段推进、公开事实公布、投票和夜晚/白天循环。白天讨论阶段必须按存活座次固定顺序发言；一轮发言结束后进入投票，不自动追加被点名角色回应。",
+        "transition": "当狼人被全部放逐、狼人获得人数优势，或导演判断阵营胜负明确时进入复盘并公开隐藏事实。",
+        "memory": "本局核心边界：隐藏身份、夜间行动和心理描写在公开界面隐藏；结局后恢复显示。狼人杀是主持制流程，阶段规则优先于普通聊天承接。",
         "sceneStatus": {
           "location": "祠堂圆桌",
-          "timeLabel": "月圆夜第一轮",
+          "timeLabel": "第一夜",
           "weather": "无风，月光很亮",
-          "atmosphere": "每句话都像投票前的铺垫",
-          "scenePhase": "公开发言",
+          "atmosphere": "倒扣木牌还没有被公开",
+          "scenePhase": "夜晚",
           "immediateThreat": "狼人身份未知"
         },
         "statusDefinitions": [
+          {
+            "id": "werewolf_phase",
+            "label": "狼人杀阶段",
+            "description": "主持制狼人杀当前阶段，用于约束导演是否调度角色发言。",
+            "scope": "global",
+            "valueType": "enum",
+            "defaultValue": "night",
+            "visibility": "public",
+            "enumOptions": [
+              { "value": "night", "label": "夜晚" },
+              { "value": "day_announcement", "label": "白天公布" },
+              { "value": "day_discussion", "label": "顺序发言" },
+              { "value": "vote", "label": "投票" },
+              { "value": "vote_result", "label": "放逐结算" },
+              { "value": "ended", "label": "复盘" }
+            ],
+            "updatePolicy": {
+              "mode": "eventDrivenWithReview",
+              "requireFactEvent": true,
+              "allowedEventTypes": ["phase_started"],
+              "confidenceThreshold": 0.85
+            }
+          },
+          {
+            "id": "night_number",
+            "label": "夜晚轮次",
+            "scope": "global",
+            "valueType": "number",
+            "defaultValue": 1,
+            "visibility": "public",
+            "min": 1,
+            "max": 20,
+            "updatePolicy": {
+              "mode": "manual",
+              "requireFactEvent": true
+            }
+          },
+          {
+            "id": "day_number",
+            "label": "白天轮次",
+            "scope": "global",
+            "valueType": "number",
+            "defaultValue": 0,
+            "visibility": "public",
+            "min": 0,
+            "max": 20,
+            "updatePolicy": {
+              "mode": "manual",
+              "requireFactEvent": true
+            }
+          },
           {
             "id": "player_state",
             "label": "玩家状态",
@@ -94,6 +156,19 @@
           }
         ],
         "statusRules": [
+          {
+            "id": "werewolf-phase-started",
+            "label": "导演推进狼人杀阶段",
+            "when": { "eventType": "phase_started", "targetScope": "global" },
+            "apply": {
+              "statusId": "werewolf_phase",
+              "target": "eventTarget",
+              "op": "set"
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true
+            }
+          },
           {
             "id": "werewolf-eliminated-to-player-state",
             "label": "玩家出局后不能继续发言",
@@ -151,7 +226,26 @@
             "visibleMood": "担心但镇定",
             "holding": ["药篮"],
             "publicGoal": "阻止仓促误投"
+          },
+          "bai-shan": {
+            "location": "钟架阴影下",
+            "posture": "指尖贴着旧钟木轴",
+            "visibleMood": "沉默警觉",
+            "holding": ["小铜锤"],
+            "publicGoal": "记录夜里异常声响"
           }
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {
+            "werewolf_phase": "night",
+            "night_number": 1,
+            "day_number": 0
+          },
+          "scene": {},
+          "parties": {},
+          "characters": {},
+          "relationships": {}
         },
         "taskDefinitions": [
           {
@@ -249,6 +343,20 @@
             ]
           },
           {
+            "id": "werewolf-phase-view",
+            "label": "本局阶段",
+            "kind": "status",
+            "placement": "sidePanel",
+            "ownerBinding": "global",
+            "layout": "compact",
+            "compareWith": "previousTurn",
+            "items": [
+              { "type": "status", "statusId": "werewolf_phase", "display": "badge" },
+              { "type": "status", "statusId": "night_number", "display": "text" },
+              { "type": "status", "statusId": "day_number", "display": "text" }
+            ]
+          },
+          {
             "id": "werewolf-scene-progress",
             "label": "本局进度",
             "kind": "mixed",
@@ -269,27 +377,42 @@
         },
         "scenes": [
           {
-            "title": "第一夜后的圆桌",
+            "title": "第一夜",
             "order": 0,
             "scenePresetId": "mystery",
-            "scene": "祠堂前的圆桌被月光切成两半，钟楼刚敲过第一声。每个人面前都有一枚倒扣的木牌。",
-            "sceneGoal": "完成第一轮公开发言，建立证词时间线。",
-            "plot": "身份事实只由导演、本人和允许阵营可见；公开内容只能来自发言、投票和可观察动作。",
-            "storyDirection": "白天发言按存活玩家座次顺序进行：用户发言后，所有仍存活角色依次回应；出局角色跳过，不能再被调度发言。",
-            "transition": "当出现投票、验人公开、狼人暴露或阵营胜负事实时，推进到复盘。",
+            "scene": "祠堂前的圆桌被月光切成两半。倒扣木牌还没有公开，导演宣布所有人闭眼，第一夜开始。",
+            "sceneGoal": "导演分配身份并推进第一夜行动；不开启公开角色发言。",
+            "plot": "身份事实只由导演、本人和允许阵营可见；夜晚行动不会直接进入公共发言。",
+            "storyDirection": "夜晚阶段允许导演只输出公开旁白，不调度角色公开发言。第二天由导演公布公开事实后再进入顺序发言。",
+            "transition": "进入第二天白天公布前一夜公开结果。",
             "memory": "本局不要让角色自曝未公开身份；不要让狼人事实泄露到公开界面。"
           }
         ],
-        "characterIds": ["qiao-yu", "shen-mo", "tan-luo", "lin-yao"],
+        "characterIds": ["qiao-yu", "shen-mo", "tan-luo", "lin-yao", "bai-shan"],
         "activeCharacterId": "qiao-yu",
-        "replyMode": "round",
+        "replyMode": "director",
         "userPersonaName": "你",
         "settings": {
-          "directorMaxSpeakers": 4,
+          "directorMaxSpeakers": 6,
+          "directorScheduling": {
+            "targetedReplyPolicy": "include",
+            "maxExtraSpeakersOnTargetedReply": 0,
+            "allowDirectorOnly": true,
+            "directorOnlyPhaseStatusId": "werewolf_phase",
+            "directorOnlyPhaseValues": ["night", "day_announcement", "vote", "vote_result", "ended"],
+            "fixedOrder": {
+              "enabled": true,
+              "phaseStatusId": "werewolf_phase",
+              "phaseValues": ["day_discussion"],
+              "stopAfterRound": true
+            },
+            "autoContinuation": "disabledForFixedOrder",
+            "instruction": "狼人杀是主持制阶段游戏：夜晚、白天公布、投票和结算阶段可由导演只输出公开旁白，不调用角色公开发言；白天讨论阶段必须按存活座次固定顺序发言，角色发言中点名或提问只作为发言内容，不会让被点名者同轮插队；一轮发言结束后进入投票。"
+          },
           "continuation": {
-            "enabled": true,
-            "maxAutoContinuationRounds": 2,
-            "maxSpeakersPerContinuation": 2,
+            "enabled": false,
+            "maxAutoContinuationRounds": 0,
+            "maxSpeakersPerContinuation": 1,
             "stopWhenUserTargeted": true
           },
           "replyOptions": {
@@ -341,9 +464,9 @@
                   "count": 1
                 },
                 {
-                  "id": "guard",
-                  "label": "守卫",
-                  "description": "夜里能守护一人，公开身份前只可暗示行动逻辑。",
+                  "id": "witch",
+                  "label": "女巫",
+                  "description": "拥有解药和毒药，夜晚可根据主持信息选择是否使用；公开前不能直接证明自己身份。",
                   "factionId": "villagers",
                   "factionLabel": "村民阵营",
                   "count": 1
@@ -354,7 +477,7 @@
                   "description": "没有夜间技能，依靠公开发言和投票找狼人。",
                   "factionId": "villagers",
                   "factionLabel": "村民阵营",
-                  "count": 1
+                  "count": 2
                 }
               ]
             }
@@ -363,7 +486,7 @@
         "lorebookEntries": [
           {
             "title": "狼人杀信息边界",
-            "content": "身份、夜间行动、验人结果和阵营队友默认不是公开信息。导演可以把用户可知的私有事实挂在相关消息下，但不能展示给不该知道的人。",
+            "content": "身份、夜间行动、验人结果、女巫用药和狼人队友默认不是公开信息。导演可以把用户可知的私有事实挂在相关消息下，但不能展示给不该知道的人。白天讨论阶段一人一轮顺序发言，点名质疑不触发同轮自动回应。",
             "keywords": ["狼人杀", "身份", "夜间行动", "信息边界"],
             "alwaysOn": true
           }
@@ -371,19 +494,14 @@
         "timelineEvents": [
           {
             "title": "身份已在幕后分配",
-            "summary": "本局开场时导演已准备身份池，运行时会生成本局身份事实。"
+            "summary": "本局为 6 人起步：用户加 5 名角色。运行时由导演根据身份池生成本局身份事实，然后直接进入第一夜。"
           }
         ]
       },
       "messages": [
         {
           "role": "narrator",
-          "content": "月光落在倒扣的木牌上。导演宣布：第一轮公开发言开始，仍存活的人按座次依次发言，任何未公开身份都不会显示在公共视角。"
-        },
-        {
-          "role": "character",
-          "characterId": "qiao-yu",
-          "content": "我昨夜巡到钟楼二层，只看见祠堂后门有一串湿脚印。谁经过那里，最好现在说。"
+          "content": "月光落在倒扣的木牌上。导演宣布：本局为六人局，身份将在幕后分配。所有人闭眼，第一夜开始。"
         }
       ]
     },
@@ -585,6 +703,32 @@
         "userPersonaName": "你",
         "settings": {
           "directorMaxSpeakers": 2,
+          "directorScheduling": {
+            "targetedReplyPolicy": "prefer",
+            "maxExtraSpeakersOnTargetedReply": 1,
+            "speakerMotivation": {
+              "enabled": true,
+              "maxMotivatedSpeakers": 1,
+              "rules": [
+                {
+                  "id": "favor-contest-attention",
+                  "label": "争夺用户好感",
+                  "when": "用户的行动、夸奖、帮助或邀约会影响你对某个角色的好感，或某角色察觉自己在竞争中落后。",
+                  "priority": 86,
+                  "instruction": "未被点名的竞争者也可能主动发言、展示价值或温和打断来争取注意；但如果人设克制，可只给动作反应。"
+                },
+                {
+                  "id": "target-can-react-silently",
+                  "label": "被点名者可沉默回应",
+                  "when": "用户的问题冒犯、过于唐突、关系不足，或角色性格不愿立刻开口。",
+                  "priority": 64,
+                  "instruction": "被点名者可以不进入 speakerIds，而通过 ambientActions、神态、短旁白或沉默表达态度。"
+                }
+              ]
+            },
+            "autoContinuation": "enabled",
+            "instruction": "这是好感竞争剧本。导演自由调度时要考虑谁正在争取用户好感、谁因竞争或关系变化想插话；但被点名者不一定必须说话，可用动作或沉默回应。"
+          },
           "replyOptions": { "enabled": true, "count": 4 },
           "statusTracking": { "enabled": true, "visibleToUser": true },
           "randomEvents": { "enabled": true, "probability": 0.12 },
@@ -825,6 +969,32 @@
         "userPersonaName": "你",
         "settings": {
           "directorMaxSpeakers": 2,
+          "directorScheduling": {
+            "targetedReplyPolicy": "prefer",
+            "maxExtraSpeakersOnTargetedReply": 1,
+            "speakerMotivation": {
+              "enabled": true,
+              "maxMotivatedSpeakers": 1,
+              "rules": [
+                {
+                  "id": "route-character-seeks-user-attention",
+                  "label": "路线角色争取用户注意",
+                  "when": "用户向某人表达理解、帮助、邀约或明显推进路线时，另一位角色可能因较劲、吃味、守约需求或自身路线目标想发言。",
+                  "priority": 84,
+                  "instruction": "未被点名角色可以加入 speakerIds 来吸引用户注意或轻微争夺节奏，也可以只给动作反应；不要让所有人每轮都说。"
+                },
+                {
+                  "id": "addressed-character-may-withhold",
+                  "label": "被询问者可克制或沉默",
+                  "when": "被点名者感到问题冒犯、关系尚浅、需要观察、或人设偏克制。",
+                  "priority": 66,
+                  "instruction": "被点名者不必每次公开说话；可通过动作、神态、停顿、转移视线或简短旁白表达态度。"
+                }
+              ]
+            },
+            "autoContinuation": "enabled",
+            "instruction": "这是双路线攻略剧本。导演调度应兼顾被用户关注的人、另一位竞争者的介入欲望、当前好感方向和人设克制程度；指定目标只是强信号，不是强制开口。"
+          },
           "replyOptions": { "enabled": true, "count": 4 },
           "statusTracking": { "enabled": true, "visibleToUser": true },
           "randomEvents": { "enabled": true, "probability": 0.1 },

@@ -1,5 +1,6 @@
 export * from "./agent-role";
 export * from "./continuation-scheduler";
+export * from "./director-scheduling";
 export * from "./information-policy";
 export * from "./interaction-extractor";
 export * from "./message-render-model";

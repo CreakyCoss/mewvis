@@ -3,6 +3,7 @@ import type {
   TavernRoom,
 } from "../types";
 import { getTavernPromptStylePreset } from "../prompt-styles";
+import { isTavernFixedOrderPhase } from "../core";
 
 export type TavernCharacterPromptVariant =
   | "xml_contract"
@@ -80,9 +81,16 @@ export const buildTavernCharacterTurnInstruction = ({
     speaker.writingStyle ? `当前角色写作风格：${speaker.writingStyle}` : "",
     speaker.replyStylePrompt ? `当前角色回复规则：${speaker.replyStylePrompt}` : "",
   ].filter(Boolean).join("\n");
+  const schedulingInstruction = isTavernFixedOrderPhase(room)
+    ? [
+        "当前是固定顺序发言阶段。",
+        "你可以点名、质疑或回应其他角色的公开发言，但被点名者不会在本轮插队回应。",
+        "发言结束后应把控制权交回固定流程；不要要求导演立刻让某人加塞发言。",
+      ].join("\n")
+    : "";
   const ownReplyInstruction = room.settings.immersiveDescriptionEnabled !== false
-    ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
-    : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
+    ? `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n${schedulingInstruction}\n只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。`
+    : `${replyFormatInstruction}\n${replyPerspectiveInstruction}\n${nonEmptyReplyInstruction}\n${styleInstruction}\n${schedulingInstruction}\n只输出你自己的回应，不要替其他角色总结或行动；动作、神态和场景互动只在必要时简短使用，不要刻意使用斜体描写。`;
 
   if (replyMode === "round") {
     return [

@@ -305,6 +305,62 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
   agentKnowledgeCompactIntervalTurns: 0,
+  directorScheduling: {
+    targetedReplyPolicy: "prefer",
+    maxExtraSpeakersOnTargetedReply: 2,
+    allowDirectorOnly: false,
+    directorOnlyPhaseStatusId: "",
+    directorOnlyPhaseValues: [],
+    speakerMotivation: {
+      enabled: true,
+      maxMotivatedSpeakers: 2,
+      rules: [
+        {
+          id: "direct-target-priority",
+          label: "直接目标优先",
+          when: "用户明确询问、点名、选择候选回复目标，或上一位角色的问题明确指向某角色。",
+          priority: 100,
+          instruction: "被直接指向的角色必须优先被导演评估；关系差、问题冒犯、沉默人设、策略回避或只需动作反应时，可以不进入 speakerIds，而进入 ambientActions、旁白反应或保持可见沉默。",
+        },
+        {
+          id: "goal-competes-for-user-attention",
+          label: "目标竞争用户注意",
+          when: "角色的个人任务、胜利条件、关系目标或当前人设目标与获得用户注意/好感/信任相关。",
+          priority: 72,
+          instruction: "即使用户没有点名，该角色也可以主动发言吸引用户注意，但不要每轮都抢话；根据人设克制程度决定是否加入。",
+        },
+        {
+          id: "knowledge-holder-helps-or-misdirects",
+          label: "知情者介入",
+          when: "角色掌握与当前问题相关的公开事实、私有事实、阵营信息、线索或世界书知识。",
+          priority: 68,
+          instruction: "友好或守序角色倾向于补充帮助；有隐藏目标、敌对或欺骗动机的角色可误导、转移焦点或半真半假地发言，但不能泄露不该公开的事实。",
+        },
+        {
+          id: "relationship-stakes",
+          label: "关系利益相关",
+          when: "当前发言会影响角色与用户或其他角色的好感、敌对、信任、承诺或竞争关系。",
+          priority: 58,
+          instruction: "关系利益越高，说话欲望越高；关系冷淡或无关的角色保持旁观或只做 ambient action。",
+        },
+        {
+          id: "quiet-temperament-brake",
+          label: "沉默人设刹车",
+          when: "角色人设是寡言、谨慎、冷淡、观察者、守规矩，且没有被点名、没有关键事实、没有强利益相关。",
+          priority: 25,
+          instruction: "这类角色一般不要加入 speakerIds，可用 ambientActions 表示在场；只有被点名或信息/目标强相关时才发言。",
+        }
+      ],
+    },
+    fixedOrder: {
+      enabled: false,
+      phaseStatusId: "",
+      phaseValues: [],
+      stopAfterRound: false,
+    },
+    autoContinuation: "enabled",
+    instruction: "",
+  },
   continuation: {
     enabled: true,
     maxAutoContinuationRounds: 1,
@@ -837,6 +893,18 @@ const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
   randomEvents: { ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents },
   illustrationHints: { ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints },
+  directorScheduling: {
+    ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
+    directorOnlyPhaseValues: [...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.directorOnlyPhaseValues],
+    speakerMotivation: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
+      rules: DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
+    },
+    fixedOrder: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
+      phaseValues: [...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues],
+    },
+  },
   informationPolicy: {
     ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
     hiddenFacts: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts },
@@ -948,6 +1016,97 @@ const normalizeInformationPolicy = (
   };
 };
 
+const normalizeStringList = (value: unknown, maxItems = 12) => Array.isArray(value)
+  ? [...new Set(value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : []))]
+      .slice(0, maxItems)
+  : [];
+
+const normalizeDirectorScheduling = (
+  value: unknown,
+): TavernRoomSettings["directorScheduling"] => {
+  const defaults = cloneDefaultRoomSettings().directorScheduling;
+  if (!value || typeof value !== "object") {
+    return defaults;
+  }
+
+  const candidate = value as Partial<TavernRoomSettings["directorScheduling"]>;
+  const fixedOrder = candidate.fixedOrder && typeof candidate.fixedOrder === "object"
+    ? candidate.fixedOrder as Partial<TavernRoomSettings["directorScheduling"]["fixedOrder"]>
+    : {};
+  const speakerMotivation = candidate.speakerMotivation && typeof candidate.speakerMotivation === "object"
+    ? candidate.speakerMotivation as Partial<TavernRoomSettings["directorScheduling"]["speakerMotivation"]>
+    : {};
+  const targetedReplyPolicy = candidate.targetedReplyPolicy === "director" ||
+      candidate.targetedReplyPolicy === "prefer" ||
+      candidate.targetedReplyPolicy === "exclusive" ||
+      candidate.targetedReplyPolicy === "include"
+    ? candidate.targetedReplyPolicy
+    : defaults.targetedReplyPolicy;
+  const autoContinuation = candidate.autoContinuation === "disabled" ||
+      candidate.autoContinuation === "disabledForFixedOrder" ||
+      candidate.autoContinuation === "enabled"
+    ? candidate.autoContinuation
+    : defaults.autoContinuation;
+
+  return {
+    targetedReplyPolicy,
+    maxExtraSpeakersOnTargetedReply: clampInteger(
+      candidate.maxExtraSpeakersOnTargetedReply,
+      defaults.maxExtraSpeakersOnTargetedReply,
+      0,
+      5,
+    ),
+    allowDirectorOnly: Boolean(candidate.allowDirectorOnly),
+    directorOnlyPhaseStatusId: typeof candidate.directorOnlyPhaseStatusId === "string"
+      ? candidate.directorOnlyPhaseStatusId.trim()
+      : "",
+    directorOnlyPhaseValues: normalizeStringList(candidate.directorOnlyPhaseValues),
+    speakerMotivation: {
+      enabled: speakerMotivation.enabled !== false,
+      maxMotivatedSpeakers: clampInteger(
+        speakerMotivation.maxMotivatedSpeakers,
+        defaults.speakerMotivation.maxMotivatedSpeakers,
+        0,
+        5,
+      ),
+      rules: Array.isArray(speakerMotivation.rules)
+        ? speakerMotivation.rules.flatMap((item, index) => {
+            if (!item || typeof item !== "object") {
+              return [];
+            }
+            const record = item as Record<string, unknown>;
+            const label = typeof record.label === "string" ? record.label.trim() : "";
+            const when = typeof record.when === "string" ? record.when.trim() : "";
+            const instruction = typeof record.instruction === "string" ? record.instruction.trim() : "";
+            if (!label || !when || !instruction) {
+              return [];
+            }
+            const rawId = typeof record.id === "string" ? record.id.trim() : "";
+            return [{
+              id: rawId || `speaker-motivation-${index + 1}`,
+              label: label.slice(0, 80),
+              when: when.slice(0, 240),
+              priority: clampInteger(record.priority, 50, 0, 100),
+              instruction: instruction.slice(0, 360),
+            }];
+          }).slice(0, 12)
+        : defaults.speakerMotivation.rules.map((rule) => ({ ...rule })),
+    },
+    fixedOrder: {
+      enabled: Boolean(fixedOrder.enabled),
+      phaseStatusId: typeof fixedOrder.phaseStatusId === "string"
+        ? fixedOrder.phaseStatusId.trim()
+        : "",
+      phaseValues: normalizeStringList(fixedOrder.phaseValues),
+      stopAfterRound: Boolean(fixedOrder.stopAfterRound),
+    },
+    autoContinuation,
+    instruction: typeof candidate.instruction === "string"
+      ? candidate.instruction.trim().slice(0, 1200)
+      : "",
+  };
+};
+
 const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
   if (!value || typeof value !== "object") {
     return cloneDefaultRoomSettings();
@@ -1000,6 +1159,7 @@ const normalizeRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling),
     continuation: {
       enabled: continuation.enabled !== false,
       maxAutoContinuationRounds: clampInteger(

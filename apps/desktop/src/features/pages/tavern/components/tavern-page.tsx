@@ -63,12 +63,15 @@ import {
   createTavernProgressCheckpoint,
   createTavernRenderableMessages,
   extractTavernPendingInteractionsFromMessages,
+  isTavernFixedOrderPhase,
   isTavernCharacterAvailableForSpeech,
   orderTavernRoundSpeakers,
   planTavernContinuation,
   rebuildTavernProgressFromHistory,
+  resolveTavernScheduledSpeakers,
   resolveTavernPendingOutcomeEvent,
   resolveTavernPendingStatusEvent,
+  shouldSuppressTavernAutoContinuation,
   tavernCharacterAgentRoleId,
 } from "../core";
 import {
@@ -445,6 +448,27 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    directorScheduling: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
+      ...(candidate.directorScheduling ?? {}),
+      directorOnlyPhaseValues: Array.isArray(candidate.directorScheduling?.directorOnlyPhaseValues)
+        ? candidate.directorScheduling.directorOnlyPhaseValues
+        : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.directorOnlyPhaseValues,
+      speakerMotivation: {
+        ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
+        ...(candidate.directorScheduling?.speakerMotivation ?? {}),
+        rules: Array.isArray(candidate.directorScheduling?.speakerMotivation?.rules)
+          ? candidate.directorScheduling.speakerMotivation.rules
+          : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules,
+      },
+      fixedOrder: {
+        ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
+        ...(candidate.directorScheduling?.fixedOrder ?? {}),
+        phaseValues: Array.isArray(candidate.directorScheduling?.fixedOrder?.phaseValues)
+          ? candidate.directorScheduling.fixedOrder.phaseValues
+          : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues,
+      },
+    },
     continuation: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation,
       ...(candidate.continuation ?? {}),
@@ -3152,18 +3176,23 @@ export const TavernPage = ({
           messages: turnMessages,
           references,
           currentUserText: text,
-          maxSpeakers: Math.min(
-            activeRoom.settings.directorMaxSpeakers,
-            Math.max(1, roomCharacters.length),
-          ),
+          selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+          maxSpeakers: isTavernFixedOrderPhase(runtimeRoom)
+            ? Math.max(1, availableRoomCharacters.length)
+            : Math.min(
+                activeRoom.settings.directorMaxSpeakers,
+                Math.max(1, roomCharacters.length),
+              ),
         });
-        const characterById = new Map(availableRoomCharacters.map((character) => [character.id, character]));
-        const directedSpeakers = directorDecision.speakerIds
-          .map((characterId) => characterById.get(characterId))
-          .filter((character): character is TavernCharacter => Boolean(character));
-        speakers = directedSpeakers.length > 0
-          ? directedSpeakers
-          : availableActiveCharacter ? [availableActiveCharacter] : availableRoomCharacters.slice(0, 1);
+        speakers = resolveTavernScheduledSpeakers({
+          room: runtimeRoom,
+          availableCharacters: availableRoomCharacters,
+          activeCharacterId: activeCharacter?.id,
+          directorSpeakerIds: directorDecision.speakerIds,
+          selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+          currentUserText: text,
+          fallbackCharacter: availableActiveCharacter,
+        });
         const directedSpeakerModels = speakers.map((speaker) => ({
           speaker,
           resolvedModel: resolveTavernCharacterModel({
@@ -3175,10 +3204,14 @@ export const TavernPage = ({
           throw new Error(`角色 ${missingDirectedModel.speaker.name} 还没有可用模型。`);
         }
         directorReason = directorDecision.reason ?? "";
-        setTurnStatus(`导演安排 ${speakers.map((speaker) => speaker.name).join("、")} 发言。`);
+        setTurnStatus(speakers.length > 0
+          ? `导演安排 ${speakers.map((speaker) => speaker.name).join("、")} 发言。`
+          : "导演仅推进公开流程。");
         patchExecutionStep("director", {
           status: "done",
-          detail: speakers.map((speaker) => speaker.name).join(" -> "),
+          detail: speakers.length > 0
+            ? speakers.map((speaker) => speaker.name).join(" -> ")
+            : "仅旁白/阶段推进",
         });
 
         const narratorText = directorDecision.narrator?.trim();
@@ -3254,7 +3287,7 @@ export const TavernPage = ({
           });
           patchExecutionStep("director", {
             status: "done",
-            detail: `${speakers.map((speaker) => speaker.name).join(" -> ")}；插图 ${illustrationHints.length} 条`,
+            detail: `${speakers.length > 0 ? speakers.map((speaker) => speaker.name).join(" -> ") : "仅旁白/阶段推进"}；插图 ${illustrationHints.length} 条`,
           });
         }
       }
@@ -3501,7 +3534,8 @@ export const TavernPage = ({
           userPersonaName: runtimeRoom.userPersonaName,
           turnId: userMessage.turnId ?? userMessage.id,
         }).filter((interaction) => !closedInteractionIds.has(interaction.id));
-        const continuationPlan = activeRoom.settings.continuation.enabled
+        const continuationPlan = activeRoom.settings.continuation.enabled &&
+            !shouldSuppressTavernAutoContinuation(runtimeRoom)
           ? planTavernContinuation({
               pendingInteractions: latestPendingInteractions,
               characters: availableRoomCharacters,

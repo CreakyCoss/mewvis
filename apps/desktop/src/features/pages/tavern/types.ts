@@ -97,6 +97,32 @@ export type TavernRoomSettings = {
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
   agentKnowledgeCompactIntervalTurns: number;
+  directorScheduling: {
+    targetedReplyPolicy: "director" | "prefer" | "include" | "exclusive";
+    maxExtraSpeakersOnTargetedReply: number;
+    allowDirectorOnly: boolean;
+    directorOnlyPhaseStatusId?: string;
+    directorOnlyPhaseValues: string[];
+    speakerMotivation: {
+      enabled: boolean;
+      maxMotivatedSpeakers: number;
+      rules: Array<{
+        id: string;
+        label: string;
+        when: string;
+        priority: number;
+        instruction: string;
+      }>;
+    };
+    fixedOrder: {
+      enabled: boolean;
+      phaseStatusId?: string;
+      phaseValues: string[];
+      stopAfterRound: boolean;
+    };
+    autoContinuation: "enabled" | "disabled" | "disabledForFixedOrder";
+    instruction: string;
+  };
   continuation: {
     enabled: boolean;
     maxAutoContinuationRounds: number;

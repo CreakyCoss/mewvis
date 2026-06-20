@@ -30,6 +30,8 @@ const FLOW_TIMEOUT_MS = Number(process.env.NOVEL_CLAW_TAVERN_FLOW_TIMEOUT_MS ?? 
 const FLOW_ROUNDS = Number(process.env.NOVEL_CLAW_TAVERN_LIVE_ROUNDS ?? 5);
 const PROMPT_VARIANT = process.env.NOVEL_CLAW_TAVERN_PROMPT_VARIANT?.trim() || "xml_contract";
 const THINKING_LEVEL = process.env.NOVEL_CLAW_LIVE_THINKING?.trim() || "off";
+const TARGET_SILENCE_CASE = process.env.NOVEL_CLAW_TAVERN_TARGET_SILENCE_CASE === "1";
+const DIRECT_USER_INPUT = process.env.NOVEL_CLAW_TAVERN_DIRECT_USER_INPUT === "1";
 
 const MODEL_DEFAULTS = {
   "MiniMax-M3-highspeed": {
@@ -161,14 +163,26 @@ writeFileSync(helperEntryPath, `
     parseTavernReplyText,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts"))};
   import {
+    assignTavernRoleFacts,
+    canTavernSelectedTargetsStaySilent,
     extractTavernPendingInteractionsFromMessages,
+    filterTavernFactEventsForAudience,
+    formatTavernDirectorSchedulingInstruction,
     formatTavernVisibleMessagesForRequestContext,
+    isTavernDirectorOnlyTurnAllowed,
+    isTavernFixedOrderPhase,
     normalizeTavernMessagesForAudience,
     planTavernContinuation,
+    resolveTavernScheduledSpeakers,
+    setTavernStatusSnapshotValue,
+    shouldSuppressTavernAutoContinuation,
     tavernBridgeSessionRootDir,
     tavernDirectorAgentRoleId,
     tavernManagedUserAgentRoleId,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts"))};
+  import {
+    createTavernRoomFromSystemPreset,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/storage.ts"))};
   import {
     formatTavernLorebookEntries,
     formatTavernTimelineEvents,
@@ -179,7 +193,63 @@ writeFileSync(helperEntryPath, `
 
   const now = Date.now();
 
+  export const canSelectedTargetsStaySilent = canTavernSelectedTargetsStaySilent;
+
   export const createFixture = () => {
+    const fixtureMode = process.env.NOVEL_CLAW_TAVERN_LIVE_FIXTURE?.trim() || "custom";
+    if (fixtureMode === "werewolf") {
+      const materialized = createTavernRoomFromSystemPreset("live-workspace", "moonlit-werewolf-table", {
+        roomId: "live-werewolf-room",
+        createdAt: now,
+        characterIdByPresetId: new Map([
+          ["qiao-yu", "wolf-qiao"],
+          ["shen-mo", "wolf-shen"],
+          ["tan-luo", "wolf-tan"],
+          ["lin-yao", "wolf-lin"],
+          ["bai-shan", "wolf-bai"],
+        ]),
+        markAsSystemPreset: false,
+      });
+      const roleFacts = assignTavernRoleFacts({
+        room: materialized.room,
+        characters: materialized.characters,
+        random: (() => {
+          const values = [0.17, 0.63, 0.28, 0.91, 0.42, 0.74, 0.05, 0.57, 0.36, 0.82, 0.11, 0.69];
+          let index = 0;
+          return () => values[index++ % values.length];
+        })(),
+        turnId: "live-werewolf-role-assignment",
+        createdAt: now + 1,
+      });
+      return {
+        scenario: "werewolf",
+        room: {
+          ...materialized.room,
+          factEvents: roleFacts,
+        },
+        characters: materialized.characters,
+        messages: materialized.messages,
+      };
+    }
+
+    if (fixtureMode === "win-hearts") {
+      const materialized = createTavernRoomFromSystemPreset("live-workspace", "win-their-hearts-duel", {
+        roomId: "live-win-hearts-room",
+        createdAt: now,
+        characterIdByPresetId: new Map([
+          ["ye-xiaoman", "route-ye"],
+          ["liu-qingshuang", "route-liu"],
+        ]),
+        markAsSystemPreset: false,
+      });
+      return {
+        scenario: "win-hearts",
+        room: materialized.room,
+        characters: materialized.characters,
+        messages: materialized.messages,
+      };
+    }
+
     const room = {
       id: "live-room-alpha",
       workspaceId: "live-workspace",
@@ -196,11 +266,45 @@ writeFileSync(helperEntryPath, `
       sceneDirection: "角色只说自己的公开发言，不替别人说话；未发言角色可以被导演安排公开动作描写。",
       sceneTransition: "",
       memory: "",
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      statusDefinitions: [],
+      statusRules: [],
+      progressViews: [],
+      progressTracker: {
+        enabled: false,
+        mode: "afterTurn",
+        intervalTurns: 1,
+        applyMode: "auto",
+        factConfidenceThreshold: 0.75,
+        generateCheckpointBeforeContextTrim: false,
+      },
+      factEvents: [],
+      statusEvents: [],
+      statusSnapshot: {
+        turnId: "initial",
+        global: {},
+        scene: {},
+        parties: {},
+        characters: {},
+        relationships: {},
+        updatedAt: now,
+      },
+      statusCheckpoints: [],
+      taskDefinitions: [],
+      taskEvents: [],
+      taskSnapshot: {},
+      sceneOutcomes: [],
+      outcomeEvents: [],
       characterConfigs: {},
       characterMemories: {},
       localCharacters: [],
       lorebookEntries: [],
       timelineEvents: [],
+      illustrationHints: [],
       assetDrafts: [],
       characterIds: ["char-a", "char-b", "char-c", "char-d", "char-e"],
       activeCharacterId: "char-a",
@@ -214,6 +318,21 @@ writeFileSync(helperEntryPath, `
         agentKnowledgeCompactIntervalTurns: 0,
         maxAssetDrafts: 5,
         directorMaxSpeakers: 4,
+        directorScheduling: {
+          targetedReplyPolicy: "prefer",
+          maxExtraSpeakersOnTargetedReply: 2,
+          allowDirectorOnly: false,
+          directorOnlyPhaseStatusId: "",
+          directorOnlyPhaseValues: [],
+          fixedOrder: {
+            enabled: false,
+            phaseStatusId: "",
+            phaseValues: [],
+            stopAfterRound: false,
+          },
+          autoContinuation: "enabled",
+          instruction: "",
+        },
         continuation: {
           enabled: true,
           maxAutoContinuationRounds: 1,
@@ -234,6 +353,25 @@ writeFileSync(helperEntryPath, `
         },
         illustrationHints: {
           enabled: false,
+        },
+        informationPolicy: {
+          mode: "open",
+          uiDefaultView: "reveal",
+          hideCharacterThoughts: false,
+          revealThoughts: "manual",
+          hiddenFacts: {
+            enabled: false,
+            defaultVisibility: "director",
+            reveal: "manual",
+          },
+          roleAssignment: {
+            enabled: false,
+            strategy: "manual",
+            includeUser: true,
+            revealToAssignedCharacter: true,
+            revealFactionMembers: true,
+            rolePool: [],
+          },
         },
       },
       createdAt: now,
@@ -296,8 +434,37 @@ writeFileSync(helperEntryPath, `
         updatedAt: now,
       },
     ];
-    return { room, characters };
+    return { scenario: "custom", room, characters, messages: [] };
   };
+
+  export const setGlobalStatus = (room, statusId, value) => ({
+    ...room,
+    statusSnapshot: setTavernStatusSnapshotValue(
+      room.statusSnapshot,
+      { type: "global" },
+      statusId,
+      value,
+    ),
+  });
+
+  export const directorOnlyAllowed = (room) => isTavernDirectorOnlyTurnAllowed(room);
+  export const fixedOrderPhase = (room) => isTavernFixedOrderPhase(room);
+  export const suppressContinuation = (room) => shouldSuppressTavernAutoContinuation(room);
+  export const resolveScheduledSpeakerIds = ({
+    room,
+    characters,
+    directorSpeakerIds,
+    selectedTargetCharacterIds,
+    currentUserText,
+  }) => resolveTavernScheduledSpeakers({
+    room,
+    availableCharacters: characters,
+    activeCharacterId: room.activeCharacterId,
+    directorSpeakerIds,
+    selectedTargetCharacterIds,
+    currentUserText,
+    fallbackCharacter: characters[0] ?? null,
+  }).map((character) => character.id);
 
   export const bridgeSystemPrompt = (room) => buildTavernBridgeSystemPrompt(room);
 
@@ -529,6 +696,7 @@ writeFileSync(helperEntryPath, `
     characters,
     messages,
     currentUserText,
+    selectedTargetCharacterIds = [],
     maxSpeakers,
   }) => {
     const runtimeMessages = tavernMessagesToRuntimeMessages({
@@ -552,6 +720,47 @@ writeFileSync(helperEntryPath, `
         : "",
     ].filter(Boolean).join("\\n")).join("\\n\\n---\\n\\n");
     const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
+    const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
+    const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room);
+    const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds);
+    const selectedTargetCharacters = selectedTargetCharacterIds
+      .map((characterId) => characters.find((character) => character.id === characterId))
+      .filter(Boolean);
+    const progressContext = JSON.stringify({
+      statusSnapshot: room.statusSnapshot,
+      tasks: room.taskDefinitions.map((task) => ({
+        id: task.id,
+        title: task.title,
+        owner: task.owner,
+        participants: task.participants ?? [],
+        visibility: task.visibility,
+        lifecycle: task.lifecycle,
+        currentStatus: room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus,
+      })),
+      outcomes: room.sceneOutcomes.map((outcome) => ({
+        id: outcome.id,
+        label: outcome.label,
+        condition: outcome.condition,
+        winner: outcome.winner ?? [],
+        loser: outcome.loser ?? [],
+        priority: outcome.priority,
+      })),
+      recentFacts: filterTavernFactEventsForAudience({
+        factEvents: room.factEvents,
+        room,
+        audience: { type: "director" },
+      }).slice(-16).map((fact) => ({
+        id: fact.id,
+        type: fact.type,
+        actor: fact.actor,
+        target: fact.target,
+        evidence: fact.evidence,
+        visibility: fact.visibility,
+        visibleToUser: fact.visibleToUser,
+        visibleToCharacterIds: fact.visibleToCharacterIds ?? [],
+        visibleToFactionIds: fact.visibleToFactionIds ?? [],
+      })),
+    }, null, 2).slice(0, 6000);
     const prompt = [
       "<output_schema>",
       "{\\"speakerIds\\":[\\"character-id\\"],\\"ambientActions\\":[{\\"characterId\\":\\"未发言角色 id\\",\\"action\\":\\"一句可观察动作\\"}],\\"narrator\\":\\"可选旁白\\",\\"reason\\":\\"可选简短原因\\"}",
@@ -559,9 +768,19 @@ writeFileSync(helperEntryPath, `
       "",
       "<constraints maxSpeakers=\\"" + maxSpeakers + "\\">",
       "speakerIds 只能使用下方角色 id；如果需要多人发言，按发言顺序排列。",
-      "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
-      "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
-      "当用户输入是“嗯”“好”“继续”等短确认时，也必须选择 1 个角色承接当前岗位状态，不要返回 []。",
+      directorOnlyAllowed
+      ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
+      : selectedTargetsCanStaySilent
+      ? "speakerIds 是本轮角色调用计划，不是氛围描述；若被指定目标适合动作回应、沉默或回避，可以返回空 speakerIds，但必须用 ambientActions 或 narrator 交代公开可观察反应。"
+      : "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
+      directorOnlyAllowed
+      ? "不要为了满足格式硬塞角色发言；夜晚、投票结算、公开结果公布等阶段可只写 narrator。"
+      : selectedTargetsCanStaySilent
+      ? "不要用空数组表达无事发生；只有当被指定目标确实不该开口，且已通过 ambientActions 或 narrator 提供可观察动作/旁白处理时，才可返回空 speakerIds。"
+      : "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
+      directorOnlyAllowed
+        ? "当用户输入是“嗯”“好”“继续”等短确认时，若当前阶段只需要主持推进，可以返回空 speakerIds。"
+        : "当用户输入是“嗯”“好”“继续”等短确认时，也必须选择 1 个角色承接当前岗位状态，不要返回 []。",
       "每轮自主选择 1 到 " + maxSpeakers + " 个角色，不要为了凑人数而加入无必要发言者。",
       "如果用户明确点名多个角色发言或给出发言顺序，在 " + maxSpeakers + " 人上限内优先按用户点名安排。",
       "普通承接轮次优先选择 1-2 个角色；冲突、会议、多人相关场景可选择最多 " + maxSpeakers + " 个角色。",
@@ -572,6 +791,7 @@ writeFileSync(helperEntryPath, `
       "如果已经输出 narrator，后续 speakerIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
       "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
       "</constraints>",
+      schedulingInstruction ? "\\n<director_scheduling_rules>\\n" + schedulingInstruction + "\\n</director_scheduling_rules>" : "",
       "",
       room.storyOutline.trim() || room.storyGoal.trim()
         ? "<story_arc>\\n" + [room.storyOutline.trim(), room.storyGoal.trim() ? "终局目标：" + room.storyGoal.trim() : ""].filter(Boolean).join("\\n\\n") + "\\n</story_arc>"
@@ -598,6 +818,16 @@ writeFileSync(helperEntryPath, `
       "<characters>",
       characterList,
       "</characters>",
+      "",
+      "<selected_reply_targets instruction=\\"targets_addressed_by_user_or_reply_option; may_speak_or_react_nonverbally_depending_on_relationship_and_context\\">",
+      selectedTargetCharacters.length > 0
+        ? selectedTargetCharacters.map((character) => "id: " + character.id + "\\nname: " + character.name).join("\\n\\n---\\n\\n")
+        : "（无）",
+      "</selected_reply_targets>",
+      "",
+      "<progress_context instruction=\\"director_only; use_for_scheduling_motivation_without_leaking_hidden_facts\\">",
+      progressContext,
+      "</progress_context>",
       "",
       "<current_user_input>",
       currentUserText,
@@ -629,10 +859,15 @@ writeFileSync(helperEntryPath, `
         "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
         "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
         "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
-        "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
+        directorOnlyAllowed
+          ? "当前阶段允许 speakerIds 为空；只有确实需要公开角色发言时才安排角色。"
+          : selectedTargetsCanStaySilent
+          ? "当前候选回复/点名目标可以选择不开口；若不开口，speakerIds 可为空，但 ambientActions 或 narrator 必须处理其公开可见反应。"
+          : "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
+        schedulingInstruction,
         "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
         "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",
-      ].join("\\n"),
+      ].filter(Boolean).join("\\n"),
     };
   };
 
@@ -724,6 +959,14 @@ await build({
   external: ["react", "react-dom"],
   alias: {
     "@": resolve(workspaceRoot, "src"),
+  },
+  loader: {
+    ".css": "empty",
+    ".png": "file",
+    ".jpg": "file",
+    ".jpeg": "file",
+    ".svg": "file",
+    ".webp": "file",
   },
   logLevel: "silent",
 });
@@ -1077,7 +1320,12 @@ try {
   assert(selectedSpeed, "两个 MiniMax highspeed 模型测速均失败", speedResults);
   log(`selected model ${selectedSpeed.modelId} doneMs=${selectedSpeed.doneMs}`);
   const selectedModel = runtimeModelFor(selectedSpeed.modelId);
-  const { room, characters } = helper.createFixture();
+  let {
+    room,
+    characters,
+    messages: initialMessages = [],
+    scenario = "custom",
+  } = helper.createFixture();
   const flowSessionRootDir = join(workspacePath, "flow", "session");
   log("creating tavern flow session");
   await createSession(flowSessionRootDir, helper.bridgeSystemPrompt(room), {
@@ -1087,7 +1335,7 @@ try {
   });
 
   const flowRuns = [];
-  const allMessages = [];
+  const allMessages = [...initialMessages];
   const characterContents = [];
   const privateSecrets = [];
   const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
@@ -1106,14 +1354,67 @@ try {
     assert(!/<\/?(?:function_calls?|tool_calls?|invoke|tool|arguments?)[^>]*>/i.test(reply), `${label} 托管用户不应输出工具调用`, reply);
   };
 
+  const scriptedDraftForRound = (roundIndex) => {
+    if (scenario === "werewolf") {
+      return [
+        "导演，请分配身份并进入第一夜。只公布第一夜开始和主持流程，不要让任何角色公开发言。",
+        "第二天清晨，请公布前一夜的公开事实，然后进入白天顺序发言。所有存活玩家按座次发言一轮；如果有人点名质疑其他人，也不要让被点名者插队回应。",
+        "现在进入投票阶段。请停止辩论，由导演组织投票和放逐结算，不要再安排角色公开发言。",
+      ][roundIndex] ?? "继续按狼人杀阶段规则推进。";
+    }
+
+    if (scenario === "win-hearts") {
+      if (TARGET_SILENCE_CASE && roundIndex === 0) {
+        return "我看向叶小满，冒犯地问：你是不是只会靠可爱卖甜点？我知道这很冒犯，你现在不用回答我，只用动作表示你是否不快。";
+      }
+      return [
+        "我先认真回应叶小满，指出甜品里一处具体优点，也给一个尊重她店长判断的小建议。",
+        "我继续把注意力放在叶小满身上，主动帮她整理试营业动线，但也礼貌回应柳青霜。",
+        "我邀请叶小满一起确认下一份新品，同时注意不替她做决定。",
+      ][roundIndex] ?? "继续围绕叶小满的店长计划行动。";
+    }
+
+    return roundIndex === 0
+      ? "先请贝拉、阿洛、琪拉、莫尔依次各报一句自己的岗位情况；赛恩先照看炉火，可以只给一个动作描写。"
+      : "";
+  };
+
+  const selectedTargetCharacterIdsForRound = (roundIndex) => {
+    if (scenario === "win-hearts" && roundIndex <= 2) {
+      return ["route-ye"];
+    }
+    return [];
+  };
+
+  const prepareScenarioRound = (roundIndex) => {
+    if (scenario !== "werewolf") {
+      return;
+    }
+
+    const nextPhase = roundIndex === 0
+      ? "night"
+      : roundIndex === 1
+      ? "day_discussion"
+      : "vote";
+    room = helper.setGlobalStatus(room, "werewolf_phase", nextPhase);
+  };
+
   const runManagedUser = async (roundIndex) => {
+    const currentDraft = scriptedDraftForRound(roundIndex);
+    if (DIRECT_USER_INPUT) {
+      flowRuns.push({
+        label: `tavern-direct-user-${roundIndex + 1}`,
+        activeName: room.userPersonaName || "旅人",
+        kind: "direct_user",
+        content: currentDraft,
+      });
+      return currentDraft;
+    }
     const requestInput = helper.buildManagedUserRequest({
       room,
       characters,
       messages: allMessages,
-      currentDraft: roundIndex === 0
-        ? "先请贝拉、阿洛、琪拉、莫尔依次各报一句自己的岗位情况；赛恩先照看炉火，可以只给一个动作描写。"
-        : "",
+      currentDraft,
     });
     const run = await runAgent({
       label: `tavern-managed-user-${roundIndex + 1}`,
@@ -1139,13 +1440,16 @@ try {
     return reply;
   };
 
-  const runDirector = async (roundIndex, turnMessages, currentUserText) => {
-    const maxSpeakers = Math.min(4, characters.length);
+  const runDirector = async (roundIndex, turnMessages, currentUserText, selectedTargetCharacterIds = []) => {
+    const maxSpeakers = helper.fixedOrderPhase(room)
+      ? characters.length
+      : Math.min(4, characters.length);
     const requestInput = helper.buildDirectorRequest({
       room,
       characters,
       messages: turnMessages,
       currentUserText,
+      selectedTargetCharacterIds,
       maxSpeakers,
     });
     const run = await runAgent({
@@ -1159,27 +1463,52 @@ try {
       runtimeInstruction: requestInput.runtimeInstruction,
     });
     const parsedDecision = helper.parseDirectorDecision(run.text, characters, maxSpeakers);
-    const decision = parsedDecision.speakerIds.length > 0
-      ? parsedDecision
-      : {
-          ...parsedDecision,
-          speakerIds: characters[0]?.id ? [characters[0].id] : [],
-          reason: [
-            parsedDecision.reason ?? "",
-            "导演返回空 speakerIds，按应用侧兜底选择默认角色。",
-          ].filter(Boolean).join("；"),
-        };
-    if (parsedDecision.speakerIds.length === 0) {
+    const scheduledSpeakerIds = helper.resolveScheduledSpeakerIds({
+      room,
+      characters,
+      directorSpeakerIds: parsedDecision.speakerIds,
+      selectedTargetCharacterIds,
+      currentUserText,
+    });
+    const decision = {
+      ...parsedDecision,
+      speakerIds: scheduledSpeakerIds,
+      ambientActions: (parsedDecision.ambientActions ?? [])
+        .filter((action) => !scheduledSpeakerIds.includes(action.characterId)),
+      reason: [
+        parsedDecision.reason ?? "",
+        scheduledSpeakerIds.join("|") !== parsedDecision.speakerIds.join("|")
+          ? "应用侧调度规则已调整 speakerIds。"
+          : "",
+      ].filter(Boolean).join("；") || undefined,
+    };
+    const selectedTargetsCanStaySilent = helper.canSelectedTargetsStaySilent(room, selectedTargetCharacterIds);
+    const selectedTargetNames = selectedTargetCharacterIds
+      .map((characterId) => characterNameById.get(characterId))
+      .filter(Boolean);
+    const selectedTargetVisibleHandled = selectedTargetCharacterIds.some((characterId) =>
+      decision.ambientActions?.some((action) => action.characterId === characterId)
+    ) || selectedTargetNames.some((name) => decision.narrator?.includes(name));
+    if (parsedDecision.speakerIds.length === 0 && scheduledSpeakerIds.length > 0) {
       formatWarnings.push({
         label: `tavern-director-${roundIndex + 1}`,
-        issue: "director_empty_speaker_ids_fallback",
+        issue: "director_empty_speaker_ids_scheduler_fallback",
         raw: run.text,
-        fallbackSpeakerIds: decision.speakerIds,
+        fallbackSpeakerIds: scheduledSpeakerIds,
       });
     }
-    assert(decision.speakerIds.length > 0, `round ${roundIndex + 1} 应用侧兜底后必须至少有一个合法 speakerId`, {
+    assert(
+      decision.speakerIds.length > 0 ||
+        helper.directorOnlyAllowed(room) ||
+        (selectedTargetsCanStaySilent && selectedTargetVisibleHandled),
+      `round ${roundIndex + 1} 必须有合法 speakerId；只有导演-only 或被点名目标已有可见动作/旁白回应时才能为空`,
+      {
       raw: run.text,
       decision,
+      directorOnlyAllowed: helper.directorOnlyAllowed(room),
+      selectedTargetsCanStaySilent,
+      selectedTargetCharacterIds,
+      selectedTargetNames,
     });
     flowRuns.push({
       label: run.label,
@@ -1303,19 +1632,24 @@ try {
 
   for (let roundIndex = 0; roundIndex < FLOW_ROUNDS; roundIndex += 1) {
     log(`running managed/director tavern round ${roundIndex + 1}/${FLOW_ROUNDS}`);
+    prepareScenarioRound(roundIndex);
+    const selectedTargetCharacterIds = selectedTargetCharacterIdsForRound(roundIndex);
     const userText = await runManagedUser(roundIndex);
     const userMessage = {
       id: `u-${roundIndex + 1}`,
       roomId: room.id,
       role: "user",
       content: userText,
+      targetCharacterIds: selectedTargetCharacterIds.length > 0
+        ? selectedTargetCharacterIds
+        : undefined,
       createdAt: Date.now(),
       status: "done",
     };
     allMessages.push(userMessage);
     const turnMessages = [userMessage];
 
-    const decision = await runDirector(roundIndex, turnMessages, userText);
+    const decision = await runDirector(roundIndex, turnMessages, userText, selectedTargetCharacterIds);
     if (decision.narrator?.trim()) {
       const narratorMessage = {
         id: `n-${roundIndex + 1}`,
@@ -1442,7 +1776,8 @@ try {
         messages: turnMessages,
         turnId: userMessage.id,
       }).filter((interaction) => !closedInteractionIds.has(interaction.id));
-      const continuationPlan = room.settings.continuation.enabled
+      const continuationPlan = room.settings.continuation.enabled &&
+          !helper.suppressContinuation(room)
         ? helper.planContinuation({
             room,
             characters,
@@ -1488,8 +1823,46 @@ try {
     }
   }
 
+  if (scenario === "werewolf") {
+    const directorRuns = flowRuns.filter((run) => run.kind === "director");
+    if (FLOW_ROUNDS >= 1) {
+      assert(directorRuns[0]?.decision?.speakerIds.length === 0, "狼人杀第一夜应允许导演-only，不应公开调度角色发言", directorRuns[0]);
+    }
+    if (FLOW_ROUNDS >= 2) {
+      assert(
+        directorRuns[1]?.decision?.speakerIds.join("|") === "wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
+        "狼人杀白天讨论阶段应按存活座次固定顺序发言",
+        directorRuns[1],
+      );
+    }
+    if (FLOW_ROUNDS >= 3) {
+      assert(directorRuns[2]?.decision?.speakerIds.length === 0, "狼人杀投票阶段不应继续公开辩论发言", directorRuns[2]);
+    }
+    assert(
+      !flowRuns.some((run) => run.kind === "continuation"),
+      "狼人杀固定顺序/投票流程不应触发自动续调度",
+      flowRuns.filter((run) => run.kind === "continuation"),
+    );
+  }
+
+  if (scenario === "win-hearts") {
+    const directorRuns = flowRuns.filter((run) => run.kind === "director");
+    const targetHandled = (run) =>
+      run.decision?.speakerIds.includes("route-ye") ||
+      run.decision?.ambientActions?.some((action) => action.characterId === "route-ye") ||
+      /叶小满|小满/.test(run.decision?.narrator ?? "");
+    assert(
+      directorRuns.slice(0, Math.min(3, FLOW_ROUNDS)).every(targetHandled),
+      "好感度指定叶小满时，导演必须处理目标，但目标可以发言、动作反应或被旁白处理",
+      directorRuns,
+    );
+  }
+
   console.log(JSON.stringify({
     ok: true,
+    scenario,
+    targetSilenceCase: TARGET_SILENCE_CASE,
+    directUserInput: DIRECT_USER_INPUT,
     selectedModelId: selectedModel.modelId,
     promptVariant: PROMPT_VARIANT,
     rounds: FLOW_ROUNDS,

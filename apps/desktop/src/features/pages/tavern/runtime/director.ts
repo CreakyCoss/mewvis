@@ -26,7 +26,11 @@ import {
   shouldOfferTavernDirectorRandomEvent,
 } from "./director-decision";
 import {
+  filterTavernFactEventsForAudience,
+  canTavernSelectedTargetsStaySilent,
+  formatTavernDirectorSchedulingInstruction,
   formatTavernVisibleMessagesForRequestContext,
+  isTavernDirectorOnlyTurnAllowed,
   normalizeTavernMessagesForAudience,
   tavernBridgeSessionRootDir,
   tavernDirectorAgentRoleId,
@@ -49,11 +53,53 @@ export type RunTavernDirectorInput = {
   messages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
   randomEventOpportunity?: boolean;
 };
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
+
+const limitDirectorContextText = (text: string, maxChars: number) => {
+  const trimmed = text.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}...`;
+};
+
+const formatDirectorProgressContext = (room: TavernRoom) => JSON.stringify({
+  statusSnapshot: room.statusSnapshot,
+  tasks: room.taskDefinitions.map((task) => ({
+    id: task.id,
+    title: task.title,
+    owner: task.owner,
+    participants: task.participants ?? [],
+    visibility: task.visibility,
+    lifecycle: task.lifecycle,
+    currentStatus: room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus,
+  })),
+  outcomes: room.sceneOutcomes.map((outcome) => ({
+    id: outcome.id,
+    label: outcome.label,
+    condition: outcome.condition,
+    winner: outcome.winner ?? [],
+    loser: outcome.loser ?? [],
+    priority: outcome.priority,
+  })),
+  recentFacts: filterTavernFactEventsForAudience({
+    factEvents: room.factEvents,
+    room,
+    audience: { type: "director" },
+  }).slice(-16).map((fact) => ({
+    id: fact.id,
+    type: fact.type,
+    actor: fact.actor,
+    target: fact.target,
+    evidence: fact.evidence,
+    visibility: fact.visibility,
+    visibleToUser: fact.visibleToUser,
+    visibleToCharacterIds: fact.visibleToCharacterIds ?? [],
+    visibleToFactionIds: fact.visibleToFactionIds ?? [],
+  })),
+}, null, 2);
 
 export const runTavernDirector = async ({
   workspacePath,
@@ -64,6 +110,7 @@ export const runTavernDirector = async ({
   messages,
   references,
   currentUserText,
+  selectedTargetCharacterIds = [],
   maxSpeakers = 3,
   randomEventOpportunity,
 }: RunTavernDirectorInput): Promise<TavernDirectorDecision> => {
@@ -99,6 +146,15 @@ export const runTavernDirector = async ({
   const illustrationHintsSchema = canRequestIllustrationHints
     ? `,"illustrationHints":["可选；1-3 条公开可观察的画面提示"]`
     : `,"illustrationHints":[]`;
+  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
+  const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room);
+  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
+    room,
+    selectedTargetCharacterIds,
+  );
+  const selectedTargetCharacters = selectedTargetCharacterIds
+    .map((characterId) => characters.find((character) => character.id === characterId))
+    .filter((character): character is TavernCharacter => Boolean(character));
   const directorPrompt = [
     "<output_schema>",
     `{"speakerIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白"${randomEventSchema}${illustrationHintsSchema},"reason":"可选简短原因"}`,
@@ -106,9 +162,19 @@ export const runTavernDirector = async ({
     "",
     `<constraints maxSpeakers="${maxSpeakers}">`,
     "speakerIds 只能使用下方角色 id；如果需要多人发言，按发言顺序排列。",
-    "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
-    "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
-    "当用户输入是“嗯”“好”“继续”等短确认时，也必须选择 1 个角色承接当前岗位状态，不要返回 []。",
+    directorOnlyAllowed
+      ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
+      : selectedTargetsCanStaySilent
+      ? "speakerIds 是本轮角色调用计划，不是氛围描述；若被指定目标适合动作回应、沉默或回避，可以返回空 speakerIds，但必须用 ambientActions 或 narrator 交代公开可观察反应。"
+      : "speakerIds 是本轮角色调用计划，不是氛围描述；只要 characters 非空，speakerIds 必须至少包含 1 个角色 id。",
+    directorOnlyAllowed
+      ? "不要为了满足格式硬塞角色发言；夜晚、投票结算、公开结果公布等阶段可只写 narrator。"
+      : selectedTargetsCanStaySilent
+      ? "不要用空数组表达无事发生；只有当被指定目标确实不该开口，且已通过 ambientActions 或 narrator 提供可观察动作/旁白处理时，才可返回空 speakerIds。"
+      : "不要用空数组表示沉默、留白、等待或用户要求少说；这种情况选择 1 个最相关角色进行一句短回应。",
+    directorOnlyAllowed
+      ? "当用户输入是“嗯”“好”“继续”等短确认时，若当前阶段只需要主持推进，可以返回空 speakerIds。"
+      : "当用户输入是“嗯”“好”“继续”等短确认时，也必须选择 1 个角色承接当前岗位状态，不要返回 []。",
     `每轮自主选择 1 到 ${maxSpeakers} 个角色，不要为了凑人数而加入无必要发言者。`,
     `如果用户明确点名多个角色发言或给出发言顺序，在 ${maxSpeakers} 人上限内优先按用户点名安排。`,
     `普通承接轮次优先选择 1-2 个角色；冲突、会议、多人相关场景可选择最多 ${maxSpeakers} 个角色。`,
@@ -125,6 +191,9 @@ export const runTavernDirector = async ({
     "如果已经输出 narrator，后续 speakerIds 应选择会对旁白产生角色回应的人；不要安排角色复述 narrator。",
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",
+    schedulingInstruction
+      ? `\n<director_scheduling_rules>\n${schedulingInstruction}\n</director_scheduling_rules>`
+      : "",
     "",
     `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="director">`,
     promptStyle.directorAddendum,
@@ -169,6 +238,16 @@ export const runTavernDirector = async ({
     characterList,
     "</characters>",
     "",
+    "<selected_reply_targets instruction=\"targets_addressed_by_user_or_reply_option; may_speak_or_react_nonverbally_depending_on_relationship_and_context\">",
+    selectedTargetCharacters.length > 0
+      ? selectedTargetCharacters.map((character) => `id: ${character.id}\nname: ${character.name}`).join("\n\n---\n\n")
+      : "（无）",
+    "</selected_reply_targets>",
+    "",
+    "<progress_context instruction=\"director_only; use_for_scheduling_motivation_without_leaking_hidden_facts\">",
+    limitDirectorContextText(formatDirectorProgressContext(room), 6000),
+    "</progress_context>",
+    "",
     "<current_user_input>",
     currentUserText,
     "</current_user_input>",
@@ -209,10 +288,15 @@ export const runTavernDirector = async ({
         ? "本轮可以给出插图提示；插图提示只描述公开可见画面，不参与角色发言。"
         : "本轮不要生成插图提示，illustrationHints 必须为空数组。",
       "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
-      "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
+      directorOnlyAllowed
+        ? "当前阶段允许 speakerIds 为空；只有确实需要公开角色发言时才安排角色。"
+        : selectedTargetsCanStaySilent
+        ? "当前候选回复/点名目标可以选择不开口；若不开口，speakerIds 可为空，但 ambientActions 或 narrator 必须处理其公开可见反应。"
+        : "只要有可用角色，就必须返回至少一个 speakerId；不要用空 speakerIds 表达沉默。",
+      schedulingInstruction,
       "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
       "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
   });
 
   try {

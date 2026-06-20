@@ -765,6 +765,18 @@ const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettin
   statusTracking: { ...settings.statusTracking },
   randomEvents: { ...settings.randomEvents },
   illustrationHints: { ...settings.illustrationHints },
+  directorScheduling: {
+    ...settings.directorScheduling,
+    directorOnlyPhaseValues: [...settings.directorScheduling.directorOnlyPhaseValues],
+    speakerMotivation: {
+      ...settings.directorScheduling.speakerMotivation,
+      rules: settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
+    },
+    fixedOrder: {
+      ...settings.directorScheduling.fixedOrder,
+      phaseValues: [...settings.directorScheduling.fixedOrder.phaseValues],
+    },
+  },
   informationPolicy: {
     ...settings.informationPolicy,
     hiddenFacts: { ...settings.informationPolicy.hiddenFacts },

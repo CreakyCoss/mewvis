@@ -38,15 +38,20 @@ writeFileSync(entryPath, `
     formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
     isGeneratedTavernRoleAssignmentFactEvent,
+    canTavernSelectedTargetsStaySilent,
+    isTavernDirectorOnlyTurnAllowed,
+    isTavernFixedOrderPhase,
     isTavernProgressVisibilityVisibleToUser,
     normalizeTavernMessagesForAudience,
     orderTavernRoundSpeakers,
     planTavernContinuation,
     rebuildTavernProgressFromHistory,
     resolveTavernInformationView,
+    resolveTavernScheduledSpeakers,
     resolveTavernPendingOutcomeEvent,
     resolveTavernPendingStatusEvent,
     setTavernStatusSnapshotValue,
+    shouldSuppressTavernAutoContinuation,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
     tavernDirectorAgentRoleId,
@@ -1393,6 +1398,7 @@ writeFileSync(entryPath, `
         ["shen-mo", "wolf-shen"],
         ["tan-luo", "wolf-tan"],
         ["lin-yao", "wolf-lin"],
+        ["bai-shan", "wolf-bai"],
       ]),
     },
   );
@@ -1421,6 +1427,14 @@ writeFileSync(entryPath, `
     room: werewolfRoom,
     audience: { type: "director" },
   });
+  const werewolfNightScheduledSpeakerIds = resolveTavernScheduledSpeakers({
+    room: werewolfRoom,
+    availableCharacters: werewolfMaterialized.characters,
+    activeCharacterId: "wolf-qiao",
+    directorSpeakerIds: ["wolf-qiao"],
+    selectedTargetCharacterIds: [],
+    fallbackCharacter: werewolfMaterialized.characters[0],
+  }).map((character) => character.id);
   const werewolfEliminateAdvance = advanceTavernProgressFromFactEvents({
     room: werewolfRoom,
     factEvents: [{
@@ -1440,10 +1454,27 @@ writeFileSync(entryPath, `
     ...werewolfRoom,
     ...werewolfEliminateAdvance,
   };
+  const werewolfDayDiscussionRoom = {
+    ...werewolfAfterEliminateRoom,
+    statusSnapshot: setTavernStatusSnapshotValue(
+      werewolfAfterEliminateRoom.statusSnapshot,
+      { type: "global" },
+      "werewolf_phase",
+      "day_discussion",
+    ),
+  };
   const werewolfRoundSpeakerIds = orderTavernRoundSpeakers({
-    room: werewolfAfterEliminateRoom,
+    room: werewolfDayDiscussionRoom,
     characters: werewolfMaterialized.characters,
     activeCharacterId: "wolf-qiao",
+  }).map((character) => character.id);
+  const werewolfScheduledSpeakerIds = resolveTavernScheduledSpeakers({
+    room: werewolfDayDiscussionRoom,
+    availableCharacters: werewolfMaterialized.characters,
+    activeCharacterId: "wolf-qiao",
+    directorSpeakerIds: ["wolf-tan"],
+    selectedTargetCharacterIds: ["wolf-lin"],
+    fallbackCharacter: werewolfMaterialized.characters[0],
   }).map((character) => character.id);
   const heartRaceMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
@@ -1491,6 +1522,35 @@ writeFileSync(entryPath, `
   );
   const winTheirHeartsRoom = winTheirHeartsMaterialized.room;
   const winTheirHeartsYeRef = { type: "character", characterId: "route-ye" };
+  const winTheirHeartsTargetCanStaySilent = canTavernSelectedTargetsStaySilent(
+    winTheirHeartsRoom,
+    ["route-ye"],
+  );
+  const winTheirHeartsSilentTargetSpeakerIds = resolveTavernScheduledSpeakers({
+    room: winTheirHeartsRoom,
+    availableCharacters: winTheirHeartsMaterialized.characters,
+    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
+    directorSpeakerIds: [],
+    selectedTargetCharacterIds: ["route-ye"],
+    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
+  }).map((character) => character.id);
+  const winTheirHeartsMotivatedOtherSpeakerIds = resolveTavernScheduledSpeakers({
+    room: winTheirHeartsRoom,
+    availableCharacters: winTheirHeartsMaterialized.characters,
+    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
+    directorSpeakerIds: ["route-liu"],
+    selectedTargetCharacterIds: ["route-ye"],
+    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
+  }).map((character) => character.id);
+  const winTheirHeartsNonverbalCueSpeakerIds = resolveTavernScheduledSpeakers({
+    room: winTheirHeartsRoom,
+    availableCharacters: winTheirHeartsMaterialized.characters,
+    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
+    directorSpeakerIds: ["route-ye"],
+    selectedTargetCharacterIds: ["route-ye"],
+    currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
+    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
+  }).map((character) => character.id);
   const winTheirHeartsAdvance = advanceTavernProgressFromFactEvents({
     room: winTheirHeartsRoom,
     factEvents: [{
@@ -1709,12 +1769,17 @@ writeFileSync(entryPath, `
         publicRoleFactCount: werewolfPublicRoleFacts.length,
         userRoleFactCount: werewolfUserRoleFacts.length,
         directorRoleFactCount: werewolfDirectorRoleFacts.length,
+        directorOnlyAtNight: isTavernDirectorOnlyTurnAllowed(werewolfRoom),
+        nightScheduledSpeakerIds: werewolfNightScheduledSpeakerIds,
+        fixedOrderDuringDayDiscussion: isTavernFixedOrderPhase(werewolfDayDiscussionRoom),
+        suppressContinuationDuringDayDiscussion: shouldSuppressTavernAutoContinuation(werewolfDayDiscussionRoom),
         eliminatedPlayerState: getTavernStatusSnapshotValue(
           werewolfEliminateAdvance.statusSnapshot,
           { type: "character", characterId: "wolf-shen" },
           "player_state",
         ),
         roundSpeakerIdsAfterEliminate: werewolfRoundSpeakerIds,
+        scheduledSpeakerIdsAfterEliminate: werewolfScheduledSpeakerIds,
         hiddenThoughts: werewolfRoom.settings.informationPolicy.hideCharacterThoughts,
         hiddenFactsEnabled: werewolfRoom.settings.informationPolicy.hiddenFacts.enabled,
       },
@@ -1756,6 +1821,10 @@ writeFileSync(entryPath, `
         yeOutcomeStatus: winTheirHeartsAdvance.outcomeEvents.find((event) =>
           event.outcomeId === "ye-route-clear"
         )?.status,
+        targetCanStaySilent: winTheirHeartsTargetCanStaySilent,
+        silentTargetSpeakerIds: winTheirHeartsSilentTargetSpeakerIds,
+        motivatedOtherSpeakerIds: winTheirHeartsMotivatedOtherSpeakerIds,
+        nonverbalCueSpeakerIds: winTheirHeartsNonverbalCueSpeakerIds,
       },
       wuxia: {
         room: wuxiaRoom,
@@ -2262,17 +2331,23 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.werewolf.room.settings.informationPolicy.mode === "social_deduction" &&
-      checks.progressChecks.systemPresets.werewolf.room.replyMode === "round" &&
+      checks.progressChecks.systemPresets.werewolf.room.replyMode === "director" &&
+      checks.progressChecks.systemPresets.werewolf.directorOnlyAtNight &&
+      checks.progressChecks.systemPresets.werewolf.nightScheduledSpeakerIds.length === 0 &&
+      checks.progressChecks.systemPresets.werewolf.fixedOrderDuringDayDiscussion &&
+      checks.progressChecks.systemPresets.werewolf.suppressContinuationDuringDayDiscussion &&
       checks.progressChecks.systemPresets.werewolf.hiddenThoughts &&
       checks.progressChecks.systemPresets.werewolf.hiddenFactsEnabled &&
-      checks.progressChecks.systemPresets.werewolf.roleFacts.length === 5 &&
+      checks.progressChecks.systemPresets.werewolf.roleFacts.length === 6 &&
       checks.progressChecks.systemPresets.werewolf.publicRoleFactCount === 0 &&
       checks.progressChecks.systemPresets.werewolf.userRoleFactCount >= 1 &&
-      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 5 &&
+      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 6 &&
       checks.progressChecks.systemPresets.werewolf.eliminatedPlayerState === "eliminated" &&
       checks.progressChecks.systemPresets.werewolf.roundSpeakerIdsAfterEliminate.join("|") ===
-        "wolf-qiao|wolf-tan|wolf-lin",
-    "狼人杀预设应开启随机身份、隐藏心理/事实，并按存活玩家顺序发言且跳过出局者",
+        "wolf-qiao|wolf-tan|wolf-lin|wolf-bai" &&
+      checks.progressChecks.systemPresets.werewolf.scheduledSpeakerIdsAfterEliminate.join("|") ===
+        "wolf-qiao|wolf-tan|wolf-lin|wolf-bai",
+    "狼人杀预设应开启导演阶段调度、随机身份、隐藏心理/事实，并在白天固定顺序发言且跳过出局者",
     checks.progressChecks.systemPresets.werewolf,
   );
   assert(
@@ -2288,8 +2363,12 @@ try {
     checks.progressChecks.systemPresets.winTheirHearts.yeFavorBefore === 20 &&
       checks.progressChecks.systemPresets.winTheirHearts.yeFavorAfter === 100 &&
       checks.progressChecks.systemPresets.winTheirHearts.yeTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.winTheirHearts.yeOutcomeStatus === "pending",
-    "好感剧本2应按 character -> user 方向推进“角色对你的好感”并触发用户路线胜利",
+      checks.progressChecks.systemPresets.winTheirHearts.yeOutcomeStatus === "pending" &&
+      checks.progressChecks.systemPresets.winTheirHearts.targetCanStaySilent &&
+      checks.progressChecks.systemPresets.winTheirHearts.silentTargetSpeakerIds.length === 0 &&
+      checks.progressChecks.systemPresets.winTheirHearts.motivatedOtherSpeakerIds.join("|") === "route-liu" &&
+      checks.progressChecks.systemPresets.winTheirHearts.nonverbalCueSpeakerIds.length === 0,
+    "好感剧本2应按 character -> user 方向推进“角色对你的好感”，并允许被点名目标沉默或让强动机非目标发言",
     checks.progressChecks.systemPresets.winTheirHearts,
   );
   assert(
