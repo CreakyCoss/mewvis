@@ -1,0 +1,729 @@
+import { Plus } from "lucide-react";
+import type { Ref } from "react";
+import { useImperativeHandle, useState } from "react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/tavern/visual-presets";
+import { cn } from "@/lib/utils";
+import { getActiveTavernScene } from "../../../../../storage";
+import type {
+  TavernCharacter,
+  TavernRoom,
+  TavernRoomCharacterConfig,
+  TavernScene,
+  TavernTimelineScope,
+} from "../../../../../types";
+import { EditorField } from "../../primitives";
+import {
+  cloneRoomCharacterConfigs,
+  cloneTimelineScope,
+  editorControlClassName,
+  emptyValueText,
+  getTimelineEventLabel,
+} from "../../utils";
+import type { ModuleEditProps } from "../types";
+
+export type ScenesEditHandle = (sceneId: string) => void;
+
+type ScenesDraft = {
+  sceneId: string;
+  sceneTitle: string;
+  scenePresetId: TavernRoom["scenePresetId"];
+  scene: string;
+  sceneGoal: string;
+  scenePlot: string;
+  sceneDirection: string;
+  sceneTransition: string;
+  timelineScope: TavernTimelineScope;
+  memory: string;
+  characterIds: string[];
+  activeCharacterId: string;
+  characterConfigs: Record<string, TavernRoomCharacterConfig>;
+  characterMemories: Record<string, string>;
+};
+
+type ScenesEditProps = ModuleEditProps & {
+  bind: Ref<ScenesEditHandle>;
+  roomCharacterById: Map<string, TavernCharacter>;
+};
+
+export const ScenesEdit = ({
+  bind,
+  data,
+  onSave,
+  renderTextFieldAgentActions,
+  roomCharacterById,
+}: ScenesEditProps) => {
+  const [draft, setDraft] = useState<ScenesDraft | null>(null);
+  const [error, setError] = useState("");
+
+  const open = (sceneId: string) => {
+    const scene = data.scenes?.find((item) => item.id === sceneId)
+      ?? getActiveTavernScene(data);
+    if (!scene) {
+      return;
+    }
+
+    setError("");
+    setDraft({
+      sceneId: scene.id,
+      sceneTitle: scene.title,
+      scenePresetId: scene.scenePresetId,
+      scene: scene.scene,
+      sceneGoal: scene.sceneGoal,
+      scenePlot: scene.plot,
+      sceneDirection: scene.storyDirection,
+      sceneTransition: scene.transition,
+      timelineScope: cloneTimelineScope(scene.timelineScope),
+      memory: scene.memory,
+      characterIds: [...scene.characterIds],
+      activeCharacterId: scene.activeCharacterId,
+      characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
+      characterMemories: { ...scene.characterMemories },
+    });
+  };
+
+  useImperativeHandle(bind, () => open);
+
+  const close = () => {
+    setDraft(null);
+    setError("");
+  };
+
+  const save = () => {
+    if (!draft) {
+      return;
+    }
+
+    const isEditedSceneActive = draft.sceneId === data.activeSceneId;
+    const updatedAt = Date.now();
+    const validCharacterIds = new Set(roomCharacterById.keys());
+    const nextCharacterIds = Array.from(new Set(
+      draft.characterIds.filter((characterId) => validCharacterIds.has(characterId)),
+    ));
+    if ((data.localCharacters?.length ?? 0) > 0 && nextCharacterIds.length === 0) {
+      setError("请至少为场景引用一个角色。");
+      return;
+    }
+
+    const nextActiveCharacterId = nextCharacterIds.includes(draft.activeCharacterId)
+      ? draft.activeCharacterId
+      : nextCharacterIds[0] ?? "";
+    const nextCharacterConfigs: Record<string, TavernRoomCharacterConfig> = Object.fromEntries(
+      nextCharacterIds.map((characterId) => {
+        const sourceConfig = draft.characterConfigs[characterId] ?? { characterId };
+        const memory = (
+          draft.characterMemories[characterId]
+          ?? sourceConfig.memory
+          ?? ""
+        ).trim();
+        return [
+          characterId,
+          {
+            characterId,
+            memory: memory || undefined,
+          },
+        ];
+      }),
+    );
+    const nextCharacterMemories = Object.fromEntries(
+      Object.entries(nextCharacterConfigs).flatMap(([characterId, config]) => {
+        const memory = config.memory?.trim() ?? "";
+        return memory ? [[characterId, memory]] : [];
+      }),
+    );
+
+    const updateScene = (scene: TavernScene) =>
+      scene.id === draft.sceneId
+        ? {
+            ...scene,
+            title: draft.sceneTitle.trim() || "默认场景",
+            scenePresetId: draft.scenePresetId,
+            scene: draft.scene,
+            sceneGoal: draft.sceneGoal,
+            plot: draft.scenePlot,
+            storyDirection: draft.sceneDirection,
+            transition: draft.sceneTransition,
+            timelineScope: cloneTimelineScope(draft.timelineScope),
+            memory: draft.memory,
+            characterIds: nextCharacterIds,
+            activeCharacterId: nextActiveCharacterId,
+            characterConfigs: nextCharacterConfigs,
+            characterMemories: nextCharacterMemories,
+            updatedAt,
+          }
+        : scene;
+
+    onSave({
+      ...(isEditedSceneActive
+        ? {
+            scenePresetId: draft.scenePresetId,
+            scene: draft.scene,
+            sceneGoal: draft.sceneGoal,
+            scenePlot: draft.scenePlot,
+            sceneDirection: draft.sceneDirection,
+            sceneTransition: draft.sceneTransition,
+            memory: draft.memory,
+            characterIds: nextCharacterIds,
+            activeCharacterId: nextActiveCharacterId,
+            characterConfigs: nextCharacterConfigs,
+            characterMemories: nextCharacterMemories,
+          }
+        : {}),
+      scenes: data.scenes?.map(updateScene),
+    });
+    close();
+  };
+
+  return (
+    <Dialog
+      open={Boolean(draft)}
+      onOpenChange={(openState) => {
+        if (!openState) {
+          close();
+        }
+      }}
+    >
+      {draft && (
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>编辑故事阶段</DialogTitle>
+            <DialogDescription>
+              修改当前故事阶段的描述、剧情、目标、走向、记忆和出场角色。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={(event) => {
+              event.preventDefault();
+              save();
+            }}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-3">
+                <EditorField label="当前阶段名称" htmlFor="tavern-scenes-title">
+                  <Input
+                    id="tavern-scenes-title"
+                    value={draft.sceneTitle}
+                    className={editorControlClassName}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      sceneTitle: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <EditorField label="场景设置" htmlFor="tavern-scenes-preset">
+                  <NativeSelect
+                    id="tavern-scenes-preset"
+                    value={draft.scenePresetId}
+                    className={editorControlClassName}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      scenePresetId: event.target.value as TavernRoom["scenePresetId"],
+                    })}
+                  >
+                    {TAVERN_SCENE_PRESET_OPTIONS.map((preset) => (
+                      <NativeSelectOption key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </EditorField>
+
+                <EditorField
+                  label="场景描述"
+                  htmlFor="tavern-scenes-scene"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "scene",
+                    fieldLabel: "场景描述",
+                    currentText: draft.scene,
+                    applyText: (text) => setDraft({ ...draft, scene: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-scene"
+                    value={draft.scene}
+                    className={cn("min-h-[132px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      scene: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <EditorField
+                  label="阶段剧情"
+                  htmlFor="tavern-scenes-plot"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "scenePlot",
+                    fieldLabel: "阶段剧情",
+                    currentText: draft.scenePlot,
+                    applyText: (text) => setDraft({ ...draft, scenePlot: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-plot"
+                    value={draft.scenePlot}
+                    className={cn("min-h-[132px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      scenePlot: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <EditorField
+                  label="场景目标"
+                  htmlFor="tavern-scenes-goal"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "sceneGoal",
+                    fieldLabel: "场景目标",
+                    currentText: draft.sceneGoal,
+                    applyText: (text) => setDraft({ ...draft, sceneGoal: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-goal"
+                    value={draft.sceneGoal}
+                    className={cn("min-h-[92px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      sceneGoal: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <EditorField
+                  label="剧情走向"
+                  htmlFor="tavern-scenes-direction"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "sceneDirection",
+                    fieldLabel: "剧情走向",
+                    currentText: draft.sceneDirection,
+                    applyText: (text) => setDraft({ ...draft, sceneDirection: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-direction"
+                    value={draft.sceneDirection}
+                    className={cn("min-h-[112px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      sceneDirection: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <EditorField
+                  label="承接关系"
+                  htmlFor="tavern-scenes-transition"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "sceneTransition",
+                    fieldLabel: "承接关系",
+                    currentText: draft.sceneTransition,
+                    applyText: (text) => setDraft({ ...draft, sceneTransition: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-transition"
+                    value={draft.sceneTransition}
+                    className={cn("min-h-[92px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      sceneTransition: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                <div className="space-y-3 rounded-md border border-border/70 bg-muted/15 p-3">
+                  <EditorField label="时间线范围" htmlFor="tavern-scenes-timeline-scope">
+                    <NativeSelect
+                      id="tavern-scenes-timeline-scope"
+                      value={draft.timelineScope.mode}
+                      className={editorControlClassName}
+                      onChange={(event) => {
+                        const mode = event.target.value as TavernTimelineScope["mode"];
+                        setDraft({
+                          ...draft,
+                          timelineScope: mode === "range"
+                            ? { mode: "range" }
+                            : mode === "selected"
+                            ? { mode: "selected", eventIds: [] }
+                            : { mode: "auto" },
+                        });
+                      }}
+                    >
+                      <NativeSelectOption value="auto">自动</NativeSelectOption>
+                      <NativeSelectOption value="range">起止范围</NativeSelectOption>
+                      <NativeSelectOption value="selected">精选事件</NativeSelectOption>
+                    </NativeSelect>
+                  </EditorField>
+
+                  {draft.timelineScope.mode === "range" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <EditorField label="起点事件" htmlFor="tavern-scenes-timeline-start">
+                        <NativeSelect
+                          id="tavern-scenes-timeline-start"
+                          value={draft.timelineScope.startEventId ?? ""}
+                          className={editorControlClassName}
+                          onChange={(event) => setDraft({
+                            ...draft,
+                            timelineScope: {
+                              ...draft.timelineScope,
+                              mode: "range",
+                              startEventId: event.target.value || undefined,
+                            },
+                          })}
+                        >
+                          <NativeSelectOption value="">从第一条</NativeSelectOption>
+                          {data.timelineEvents.map((event, index) => (
+                            <NativeSelectOption key={event.id} value={event.id}>
+                              {getTimelineEventLabel(event, index)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </EditorField>
+                      <EditorField label="终点事件" htmlFor="tavern-scenes-timeline-end">
+                        <NativeSelect
+                          id="tavern-scenes-timeline-end"
+                          value={draft.timelineScope.endEventId ?? ""}
+                          className={editorControlClassName}
+                          onChange={(event) => setDraft({
+                            ...draft,
+                            timelineScope: {
+                              ...draft.timelineScope,
+                              mode: "range",
+                              endEventId: event.target.value || undefined,
+                            },
+                          })}
+                        >
+                          <NativeSelectOption value="">到最后一条</NativeSelectOption>
+                          {data.timelineEvents.map((event, index) => (
+                            <NativeSelectOption key={event.id} value={event.id}>
+                              {getTimelineEventLabel(event, index)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </EditorField>
+                    </div>
+                  )}
+
+                  {draft.timelineScope.mode === "selected" && (
+                    <div className="space-y-2">
+                      {data.timelineEvents.length > 0 ? (
+                        data.timelineEvents.map((event, index) => {
+                          const selectedEventIds = draft.timelineScope.eventIds ?? [];
+                          const isSelected = selectedEventIds.includes(event.id);
+
+                          return (
+                            <label
+                              key={event.id}
+                              className="flex items-start gap-2 rounded-md border bg-background/70 px-3 py-2"
+                              htmlFor={`tavern-scenes-timeline-event-${event.id}`}
+                            >
+                              <input
+                                id={`tavern-scenes-timeline-event-${event.id}`}
+                                type="checkbox"
+                                checked={isSelected}
+                                className="mt-1 size-4"
+                                onChange={(eventChange) => setDraft({
+                                  ...draft,
+                                  timelineScope: {
+                                    mode: "selected",
+                                    eventIds: eventChange.target.checked
+                                      ? [...selectedEventIds, event.id]
+                                      : selectedEventIds.filter((eventId) => eventId !== event.id),
+                                  },
+                                })}
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium leading-5">
+                                  {getTimelineEventLabel(event, index)}
+                                </span>
+                                <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground">
+                                  {event.summary}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-md border bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                          暂无共享剧情事件。
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <EditorField
+                  label="阶段记忆"
+                  htmlFor="tavern-scenes-memory"
+                  action={renderTextFieldAgentActions({
+                    fieldKey: "sceneMemory",
+                    fieldLabel: "阶段记忆",
+                    currentText: draft.memory,
+                    applyText: (text) => setDraft({ ...draft, memory: text }),
+                  })}
+                >
+                  <Textarea
+                    id="tavern-scenes-memory"
+                    value={draft.memory}
+                    className={cn("min-h-[112px] resize-none text-sm leading-6", editorControlClassName)}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      memory: event.target.value,
+                    })}
+                  />
+                </EditorField>
+
+                {(() => {
+                  const availableSceneRoleDefinitions = data.localCharacters ?? [];
+                  const availableSceneRoleIds = new Set(
+                    availableSceneRoleDefinitions.map((character) => character.id),
+                  );
+                  const selectedCharacterIds = new Set(draft.characterIds);
+                  const selectedSceneRoleDefinitions = draft.characterIds
+                    .map((characterId) => roomCharacterById.get(characterId))
+                    .filter((character): character is TavernCharacter => Boolean(character));
+                  const addableSceneRoleDefinitions = availableSceneRoleDefinitions.filter(
+                    (character) => !selectedCharacterIds.has(character.id),
+                  );
+                  const addSceneCharacter = (character: TavernCharacter) => {
+                    const nextCharacterConfigs = {
+                      ...draft.characterConfigs,
+                      [character.id]: draft.characterConfigs[character.id] ?? {
+                        characterId: character.id,
+                      },
+                    };
+                    setDraft({
+                      ...draft,
+                      characterIds: Array.from(new Set([
+                        ...draft.characterIds,
+                        character.id,
+                      ])),
+                      activeCharacterId: draft.activeCharacterId || character.id,
+                      characterConfigs: nextCharacterConfigs,
+                    });
+                  };
+                  const removeSceneCharacter = (characterId: string) => {
+                    if (draft.characterIds.length <= 1) {
+                      return;
+                    }
+
+                    const nextCharacterIds = draft.characterIds.filter((id) => id !== characterId);
+                    const nextCharacterConfigs = { ...draft.characterConfigs };
+                    const nextCharacterMemories = { ...draft.characterMemories };
+                    delete nextCharacterConfigs[characterId];
+                    delete nextCharacterMemories[characterId];
+                    setDraft({
+                      ...draft,
+                      characterIds: nextCharacterIds,
+                      activeCharacterId: draft.activeCharacterId === characterId
+                        ? nextCharacterIds[0] ?? ""
+                        : draft.activeCharacterId,
+                      characterConfigs: nextCharacterConfigs,
+                      characterMemories: nextCharacterMemories,
+                    });
+                  };
+
+                  return (
+                    <div className="space-y-3 rounded-md border border-border/70 bg-muted/15 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium leading-5">场景引用角色</div>
+                          <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                            添加本阶段需要出场的角色，并维护角色只在本场景生效的记忆。
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="outline"
+                              disabled={addableSceneRoleDefinitions.length === 0}
+                            >
+                              <Plus className="size-3.5" />
+                              添加角色
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-64">
+                            <DropdownMenuLabel>可添加角色</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {addableSceneRoleDefinitions.map((character) => (
+                              <DropdownMenuItem
+                                key={character.id}
+                                className="items-start gap-2"
+                                onSelect={() => addSceneCharacter(character)}
+                              >
+                                <img
+                                  src={resolveAgentAvatar(character.avatar).src}
+                                  alt=""
+                                  className="mt-0.5 size-7 rounded-md border bg-muted/20"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm">{character.name}</span>
+                                  <span className="line-clamp-1 block text-xs text-muted-foreground">
+                                    {character.speakingStyle || emptyValueText}
+                                  </span>
+                                </span>
+                              </DropdownMenuItem>
+                            ))}
+                            {addableSceneRoleDefinitions.length === 0 && (
+                              <DropdownMenuItem disabled>暂无可添加角色</DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {availableSceneRoleDefinitions.length > 0 || selectedSceneRoleDefinitions.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedSceneRoleDefinitions.map((character) => {
+                            const isActiveCharacter = draft.activeCharacterId === character.id;
+                            const characterConfig = draft.characterConfigs[character.id] ?? {
+                              characterId: character.id,
+                            };
+                            const characterMemory = draft.characterMemories[character.id]
+                              ?? characterConfig.memory
+                              ?? "";
+
+                            return (
+                              <div
+                                key={character.id}
+                                className="space-y-3 rounded-md border border-primary/25 bg-background/80 p-3"
+                              >
+                                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5">
+                                  <img
+                                    src={resolveAgentAvatar(character.avatar).src}
+                                    alt=""
+                                    className="size-10 rounded-md border bg-muted/20"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                      <div className="min-w-0 truncate text-sm font-medium leading-5">
+                                        {character.name}
+                                      </div>
+                                      {!availableSceneRoleIds.has(character.id) && (
+                                        <Badge variant="secondary">外部角色</Badge>
+                                      )}
+                                      {isActiveCharacter && <Badge variant="outline">默认</Badge>}
+                                    </div>
+                                    <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                                      {character.speakingStyle || emptyValueText}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      size="xs"
+                                      variant={isActiveCharacter ? "secondary" : "outline"}
+                                      disabled={isActiveCharacter}
+                                      onClick={() => setDraft({
+                                        ...draft,
+                                        activeCharacterId: character.id,
+                                      })}
+                                    >
+                                      设为默认
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="xs"
+                                      variant="ghost"
+                                      disabled={draft.characterIds.length <= 1}
+                                      onClick={() => removeSceneCharacter(character.id)}
+                                    >
+                                      移除
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                <div className="border-t pt-3">
+                                  <EditorField
+                                    label="角色场景记忆"
+                                    htmlFor={`tavern-scenes-character-memory-${character.id}`}
+                                  >
+                                    <Textarea
+                                      id={`tavern-scenes-character-memory-${character.id}`}
+                                      value={characterMemory}
+                                      className={cn("min-h-[96px] resize-none text-sm leading-6", editorControlClassName)}
+                                      onChange={(event) => {
+                                        const nextMemory = event.target.value;
+                                        setDraft({
+                                          ...draft,
+                                          characterMemories: {
+                                            ...draft.characterMemories,
+                                            [character.id]: nextMemory,
+                                          },
+                                          characterConfigs: {
+                                            ...draft.characterConfigs,
+                                            [character.id]: {
+                                              ...characterConfig,
+                                              memory: nextMemory.trim() || undefined,
+                                            },
+                                          },
+                                        });
+                                      }}
+                                    />
+                                  </EditorField>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {selectedSceneRoleDefinitions.length === 0 && (
+                            <div className="rounded-md border border-dashed bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                              暂未引用角色。点击“添加角色”加入本阶段需要的角色。
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-md border bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                          暂无角色定义。请先在酒馆角色库中新建角色。
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {error && (
+                <div className="mt-3 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+              <Button type="button" variant="outline" onClick={close}>
+                取消
+              </Button>
+              <Button type="submit">保存修改</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+};

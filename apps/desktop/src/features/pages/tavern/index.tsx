@@ -48,7 +48,6 @@ const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
   const [runtimeAgentId, setRuntimeAgentId] = useState("");
-  const [, setIsRoomImmersive] = useState(false);
 
   useEffect(() => {
     void loadSettings();
@@ -100,7 +99,6 @@ const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
       files={files}
       runtimeModel={runtimeModels[0] ?? null}
       runtimeAgentId={runtimeAgentId}
-      onRoomImmersiveChange={setIsRoomImmersive}
     />
   );
 };
