@@ -10,6 +10,7 @@ type OrdinaryCreateProps = {
   onCreateRoom: () => string | void;
   onOpenRoomEditor: (roomId: string) => void;
   onOperationStatusChange: (status: string) => void;
+  showTrigger?: boolean;
 };
 
 export const OrdinaryCreate = ({
@@ -17,6 +18,7 @@ export const OrdinaryCreate = ({
   onCreateRoom,
   onOpenRoomEditor,
   onOperationStatusChange,
+  showTrigger = true,
 }: OrdinaryCreateProps) => {
   const open = () => {
     const roomId = onCreateRoom();
@@ -32,6 +34,10 @@ export const OrdinaryCreate = ({
   };
 
   useImperativeHandle(bind, () => open);
+
+  if (!showTrigger) {
+    return null;
+  }
 
   return (
     <Button type="button" variant="outline" onClick={open}>

@@ -1,6 +1,7 @@
 import {
   FileUp,
   MoreHorizontal,
+  Plus,
   TriangleAlertIcon,
   Wine,
 } from "lucide-react";
@@ -120,7 +121,7 @@ export const ManagementPage = ({
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-background text-foreground">
       <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-5 lg:px-7">
+        <div className="flex w-full flex-col gap-4 px-5 py-5 lg:px-7">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
@@ -132,6 +133,9 @@ export const ManagementPage = ({
                   <span>{formatCount(rooms.length, "房间")}</span>
                   <span>{formatCount(totalRoomCharacterCount, "角色")}</span>
                   <span>{formatCount(activeRoomMessages.length, "消息")}</span>
+                  {roomOperationStatus && (
+                    <span aria-live="polite">{roomOperationStatus}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -156,6 +160,7 @@ export const ManagementPage = ({
                 onCreateRoom={createRoom}
                 onOpenRoomEditor={(roomId) => roomEditorRef.current?.(roomId)}
                 onOperationStatusChange={setRoomOperationStatus}
+                showTrigger={false}
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -173,13 +178,19 @@ export const ManagementPage = ({
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuLabel>酒馆操作</DropdownMenuLabel>
                   <DropdownMenuItem
+                    onSelect={() => ordinaryCreateRef.current?.()}
+                  >
+                    <Plus className="size-4" />
+                    普通创建
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onSelect={() => {
                       setRoomOperationStatus("");
                       roomImportInputRef.current?.click();
                     }}
                   >
                     <FileUp className="size-4" />
-                    导入酒馆/角色卡/世界书
+                    导入酒馆
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -187,25 +198,13 @@ export const ManagementPage = ({
           </header>
 
           <section className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-base font-semibold leading-6">酒馆</h2>
-                <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {formatCount(rooms.length, "房间")}
-                  {roomOperationStatus && (
-                    <span aria-live="polite">{roomOperationStatus}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
             <RoomCardRuntimeProvider
               value={{
                 openRoomEditor: (roomId) => roomEditorRef.current?.(roomId),
                 onOperationStatusChange: setRoomOperationStatus,
               }}
             >
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13.5rem),1fr))] gap-3">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-4">
                 {rooms.map((room) => (
                   <RoomCard
                     key={room.id}

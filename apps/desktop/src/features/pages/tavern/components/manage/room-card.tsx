@@ -3,10 +3,12 @@ import {
   Copy,
   Download,
   LockKeyhole,
+  Map,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   RotateCcw,
+  Target,
   Trash2,
   UnlockKeyhole,
   UsersRound,
@@ -15,7 +17,6 @@ import {
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { getVisualPreset } from "../../visual-presets";
 import type { TavernCharacter, TavernRoom } from "../../types";
 import { compactScene } from "../../utils";
 import { useManagementContext } from "./context";
@@ -103,7 +105,21 @@ export const RoomCard = ({
     .map((characterId) => characterById.get(characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
   const messages = messagesByRoomId[room.id] ?? [];
-  const draftCount = room.assetDrafts.length;
+  const visualPreset = getVisualPreset(room.scenePresetId);
+  const visibleCharacters = roomCharacters.slice(0, 4);
+  const hiddenCharacterCount = Math.max(
+    0,
+    roomCharacters.length - visibleCharacters.length,
+  );
+  const sceneCount = Math.max(1, room.scenes?.length ?? 1);
+  const roomBadgeClassName = room.systemPresetId
+    ? "bg-[#f3d8a8]/95 text-[#33240f] ring-[#b47a2a]/30 shadow-[0_10px_24px_-18px_rgba(85,55,18,0.72)]"
+    : "bg-background/90 text-foreground ring-border/55 shadow-sm";
+  const coverStyle = {
+    backgroundImage: `linear-gradient(180deg,rgba(8,13,12,0.18),rgba(8,13,12,0.26) 42%,rgba(8,13,12,0.46)), url(${visualPreset.tavern.backgroundImage})`,
+    backgroundPosition: visualPreset.tavern.backgroundPosition,
+    backgroundSize: visualPreset.tavern.backgroundSize,
+  };
 
   const setOperationStatus = (status: string) => {
     onOperationStatusChange?.(status);
@@ -206,113 +222,127 @@ export const RoomCard = ({
   return (
     <article
       className={cn(
-        "flex min-h-[24rem] flex-col overflow-hidden rounded-md border bg-card shadow-sm transition-colors",
-        isActive && "border-primary/50 bg-primary/[0.04] shadow-md",
+        "flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)] transition-colors",
+        isActive && "border-primary/45 bg-primary/[0.035] shadow-[0_20px_58px_-38px_rgb(13_148_136_/_0.45)]",
       )}
     >
       <button
         type="button"
-        className="flex min-w-0 flex-1 flex-col text-left transition-colors hover:bg-accent/20 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="flex min-w-0 flex-col text-left transition-colors hover:bg-accent/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={() => selectRoom(room.id)}
       >
-        <div className="relative flex aspect-[4/5] min-h-[12rem] flex-col justify-between overflow-hidden border-b bg-muted/35 p-3">
-          <div className="relative flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap gap-1.5">
-              {room.systemPresetId && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[11px]">
-                  系统预设
-                </Badge>
-              )}
-              {draftCount > 0 && (
-                <Badge variant="outline" className="h-5 bg-background/70 px-1.5 text-[11px]">
-                  {draftCount} 草稿
-                </Badge>
-              )}
-            </div>
-            {room.locked && (
-              <Badge
-                variant="outline"
-                className="h-6 w-6 shrink-0 justify-center bg-background/80 p-0"
-                title="已锁定"
-                aria-label="已锁定"
-              >
-                <LockKeyhole className="size-3" />
-              </Badge>
+        <div className="relative">
+          <div
+            className="h-[clamp(6.25rem,9vw,7.5rem)] w-full overflow-hidden rounded-t-lg bg-muted bg-cover bg-center shadow-inner"
+            style={coverStyle}
+          />
+          <span
+            className={cn(
+              "absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full px-2.5 py-1 text-xs font-semibold leading-4 ring-1 backdrop-blur-sm",
+              roomBadgeClassName,
             )}
-          </div>
-
-          <div className="relative mt-auto space-y-3">
-            <div className="flex min-h-14 items-end">
+          >
+            {room.systemPresetId ? "系统预设" : visualPreset.label}
+          </span>
+          <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
+            <div className="flex min-w-0 items-end overflow-hidden pb-px">
               {roomCharacters.length > 0 ? (
                 <div className="flex min-w-0 items-end">
-                  {roomCharacters.slice(0, 4).map((character, index) => (
+                  {visibleCharacters.map((character, index) => (
                     <img
                       key={character.id}
                       src={resolveAgentAvatar(character.avatar).src}
                       alt=""
                       className={cn(
-                        "size-14 rounded-md border-2 border-background bg-background object-cover shadow-sm",
-                        index > 0 && "-ml-4",
+                        "size-12 rounded-lg border-2 border-background bg-background object-cover shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",
+                        index > 0 && "-ml-3",
                       )}
                     />
                   ))}
+                  {hiddenCharacterCount > 0 && (
+                    <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-lg border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
+                      +{hiddenCharacterCount}
+                    </span>
+                  )}
                 </div>
               ) : (
-                <span className="flex size-14 items-center justify-center rounded-md border-2 border-background bg-background/85 text-primary shadow-sm">
-                  <Wine className="size-6" />
+                <span className="flex size-12 items-center justify-center rounded-lg border-2 border-background bg-background/90 text-primary shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
+                  <Wine className="size-5" />
                 </span>
               )}
-            </div>
-            <div className="grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
-              <span className="inline-flex h-7 items-center justify-center gap-1 rounded-md bg-background/75 px-2">
-                <UsersRound className="size-3.5" />
-                {roomCharacters.length}
-              </span>
-              <span className="inline-flex h-7 items-center justify-center gap-1 rounded-md bg-background/75 px-2">
-                <MessageCircle className="size-3.5" />
-                {messages.length}
-              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col p-3">
-          <h3 className="min-w-0 text-base font-semibold leading-6 line-clamp-2">
+        <div className="flex flex-col px-3.5 pt-8 pb-3">
+          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">
             {room.title}
           </h3>
-          <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">
+          <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
             {compactScene(room.scene)}
           </p>
-          <div className="mt-auto pt-3">
-            <div className="min-h-14 rounded-md bg-muted/35 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
-              <div className="mb-0.5 font-medium text-foreground/70">场景目标</div>
-              <div className="line-clamp-2">
-                {room.sceneGoal.trim() || emptyValueText}
+
+          <div className="mt-2.5 grid grid-cols-3 gap-2 text-[11px] text-foreground/80">
+            <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
+              <UsersRound className="size-3.5 shrink-0" />
+              <span className="truncate">{roomCharacters.length} 角色</span>
+            </span>
+            <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
+              <MessageCircle className="size-3.5 shrink-0" />
+              <span className="truncate">{messages.length} 消息</span>
+            </span>
+            <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
+              <Map className="size-3.5 shrink-0" />
+              <span className="truncate">{sceneCount} 场景</span>
+            </span>
+          </div>
+
+          <div className="mt-2.5">
+            <div className="border-t pt-2.5">
+              <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-lg border border-primary/15 bg-primary/[0.055] px-3 py-2 text-xs leading-5 text-muted-foreground">
+                <Target className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Target className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold leading-5 text-foreground">
+                    当前目标
+                  </div>
+                  <div className="line-clamp-1">
+                    {room.sceneGoal.trim() || emptyValueText}
+                  </div>
+                </div>
               </div>
             </div>
+            {room.locked && (
+              <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <LockKeyhole className="size-3.5" />
+                已锁定
+              </div>
+            )}
           </div>
         </div>
       </button>
 
-      <div className="border-t bg-background/70 p-2.5">
-        <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
+      <div className="border-t bg-background/80 p-2.5">
+        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_2.25rem] gap-2">
           <Button
             type="button"
             size="sm"
-            className="h-8 min-w-0 whitespace-nowrap px-2"
+            className="h-9 min-w-0 whitespace-nowrap text-sm shadow-[0_12px_28px_-22px_rgb(13_148_136_/_0.95)]"
             onClick={handleOpenRoom}
           >
-            <ArrowRight className="size-3.5 shrink-0" />
+            <ArrowRight className="size-4 shrink-0" />
             <span className="truncate">进入</span>
           </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 min-w-0 whitespace-nowrap px-2"
+            className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
             onClick={() => openRoomEditor(room.id)}
           >
-            <Pencil className="size-3.5 shrink-0" />
+            <Pencil className="size-4 shrink-0" />
             <span className="truncate">编辑</span>
           </Button>
           <DropdownMenu>
@@ -320,34 +350,50 @@ export const RoomCard = ({
               <Button
                 type="button"
                 size="icon"
-                variant="ghost"
-                className="size-8 shrink-0"
+                variant="outline"
+                className="size-9 shrink-0 bg-background/80"
                 title="更多操作"
                 aria-label={`更多操作：${room.title}`}
               >
-                <MoreHorizontal className="size-3.5" />
+                <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel>房间操作</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={handleCopyRoom}>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-48 rounded-lg p-1.5 shadow-xl"
+            >
+              <DropdownMenuLabel className="px-2 py-1 text-xs text-muted-foreground">
+                房间操作
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                className="h-8 gap-2 rounded-md px-2 text-sm"
+                onSelect={handleCopyRoom}
+              >
                 <Copy className="size-4" />
                 复制酒馆
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleExportRoom}>
+              <DropdownMenuItem
+                className="h-8 gap-2 rounded-md px-2 text-sm"
+                onSelect={handleExportRoom}
+              >
                 <Download className="size-4" />
                 导出酒馆
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
+                className="h-8 gap-2 rounded-md px-2 text-sm"
                 disabled={room.locked}
                 onSelect={handleClearRoomMessages}
               >
                 <RotateCcw className="size-4" />
                 清空对话
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleRoomLockChange}>
+              <DropdownMenuSeparator className="my-1.5" />
+              <DropdownMenuItem
+                className="h-8 gap-2 rounded-md px-2 text-sm"
+                onSelect={handleRoomLockChange}
+              >
                 {room.locked ? (
                   <LockKeyhole className="size-4" />
                 ) : (
@@ -357,6 +403,7 @@ export const RoomCard = ({
               </DropdownMenuItem>
               {room.systemPresetId && (
                 <DropdownMenuItem
+                  className="h-8 gap-2 rounded-md px-2 text-sm"
                   disabled={room.locked}
                   onSelect={handleRestoreSystemPresetRoom}
                 >
@@ -364,8 +411,10 @@ export const RoomCard = ({
                   恢复默认
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator className="my-1.5" />
               <DropdownMenuItem
                 variant="destructive"
+                className="h-8 gap-2 rounded-md px-2 text-sm"
                 disabled={!hasMultipleRooms || room.locked}
                 onSelect={handleDeleteRoom}
               >
