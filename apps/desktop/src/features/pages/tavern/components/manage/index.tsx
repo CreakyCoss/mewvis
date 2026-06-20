@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   FileUp,
   MoreHorizontal,
   Plus,
@@ -46,10 +47,12 @@ import {
 
 type ManagementPageProps = {
   tavernPage?: RefObject<PageNavigationHandle | null>;
+  onBack?: () => void;
 };
 
 export const ManagementPage = ({
   tavernPage,
+  onBack,
 }: ManagementPageProps) => {
   const {
     rooms,
@@ -66,7 +69,6 @@ export const ManagementPage = ({
     regenerateDirectorProfile,
   } = useManagementContext();
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
-  const [dangerConfirmStep, setDangerConfirmStep] = useState<1 | 2>(1);
   const [roomOperationStatus, setRoomOperationStatus] = useState("");
   const roomImportInputRef = useRef<HTMLInputElement | null>(null);
   const quickCreateRef = useRef<QuickCreateHandle>(null);
@@ -81,21 +83,14 @@ export const ManagementPage = ({
 
   const requestDangerAction = (action: PendingDangerAction) => {
     setPendingDangerAction(action);
-    setDangerConfirmStep(1);
   };
 
   const closeDangerAction = () => {
     setPendingDangerAction(null);
-    setDangerConfirmStep(1);
   };
 
   const confirmDangerAction = () => {
     if (!pendingDangerAction) {
-      return;
-    }
-
-    if (dangerConfirmStep === 1) {
-      setDangerConfirmStep(2);
       return;
     }
 
@@ -124,6 +119,19 @@ export const ManagementPage = ({
         <div className="flex w-full flex-col gap-4 px-5 py-5 lg:px-7">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
+              {onBack && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-9 shrink-0"
+                  title="返回侧边栏"
+                  aria-label="返回侧边栏"
+                  onClick={onBack}
+                >
+                  <ArrowLeft className="size-4" />
+                </Button>
+              )}
               <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
                 <Wine className="size-5 text-primary" />
               </div>
@@ -201,6 +209,7 @@ export const ManagementPage = ({
             <RoomCardRuntimeProvider
               value={{
                 openRoomEditor: (roomId) => roomEditorRef.current?.(roomId),
+                onRequestDangerAction: requestDangerAction,
                 onOperationStatusChange: setRoomOperationStatus,
               }}
             >
@@ -233,17 +242,9 @@ export const ManagementPage = ({
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                   <TriangleAlertIcon className="size-4" />
                 </span>
-                <DialogTitle>
-                  {dangerConfirmStep === 1
-                    ? pendingDangerAction.title
-                    : `再次确认${pendingDangerAction.title}`}
-                </DialogTitle>
+                <DialogTitle>{pendingDangerAction.title}</DialogTitle>
               </div>
-              <DialogDescription>
-                {dangerConfirmStep === 1
-                  ? pendingDangerAction.description
-                  : pendingDangerAction.secondDescription}
-              </DialogDescription>
+              <DialogDescription>{pendingDangerAction.description}</DialogDescription>
             </DialogHeader>
 
             {pendingDangerAction.summary && (
@@ -265,7 +266,7 @@ export const ManagementPage = ({
                 variant="destructive"
                 onClick={confirmDangerAction}
               >
-                {dangerConfirmStep === 1 ? "继续" : pendingDangerAction.confirmLabel}
+                {pendingDangerAction.confirmLabel}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -284,6 +285,7 @@ export const ManagementPage = ({
         onRunTextFieldAgent={runTextFieldAgent}
         onRegenerateDirectorProfile={regenerateDirectorProfile}
         onRequestDangerAction={requestDangerAction}
+        onOpenRoom={(room) => tavernPage?.current?.open(room)}
       />
     </div>
   );

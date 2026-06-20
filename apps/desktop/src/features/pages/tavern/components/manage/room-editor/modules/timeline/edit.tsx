@@ -104,7 +104,7 @@ export const TimelineEdit = ({
           <DialogHeader>
             <DialogTitle>{draft.eventId ? "编辑时间线事件" : "新增时间线事件"}</DialogTitle>
             <DialogDescription>
-              剧情事件会进入大故事时间线草稿，保存酒馆后才生效。
+              剧情事件会写入大故事时间线，点击保存修改后立即生效。
             </DialogDescription>
           </DialogHeader>
 

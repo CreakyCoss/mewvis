@@ -180,7 +180,7 @@ export const ProgressEdit = ({
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="space-y-3">
                 <div className="rounded-md border border-border/70 bg-muted/15 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  状态定义、状态规则和状态面板属于房间级配置；任务定义和结局条件属于当前故事阶段。保存房间后配置才会写入本地数据。
+                  状态定义、状态规则和状态面板属于房间级配置；任务定义和结局条件属于当前故事阶段。点击保存修改后会立即写入本地数据。
                 </div>
 
                 <EditorField

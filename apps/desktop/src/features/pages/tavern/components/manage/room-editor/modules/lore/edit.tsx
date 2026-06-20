@@ -121,7 +121,7 @@ export const LoreEdit = ({
           <DialogHeader>
             <DialogTitle>{draft.entryId ? "编辑世界书条目" : "新增世界书条目"}</DialogTitle>
             <DialogDescription>
-              世界书条目会进入酒馆共享设定草稿，保存酒馆后才生效。
+              世界书条目会写入酒馆共享设定，点击保存修改后立即生效。
             </DialogDescription>
           </DialogHeader>
 

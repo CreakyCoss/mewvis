@@ -3,7 +3,10 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { getTavernPromptStylePreset } from "../../../../../prompt-styles";
 import type { TavernRoom } from "../../../../../types";
-import { EditorSection } from "../../primitives";
+import {
+  EditorSection,
+  editorHeaderActionButtonClassName,
+} from "../../primitives";
 import { BasicEdit, type BasicEditHandle } from "./edit";
 import { BasicSummaryContent } from "./summary";
 import type { ModuleSave, ModuleEditProps } from "../types";
@@ -34,7 +37,7 @@ export const BasicSection = ({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-1.5 px-2.5 text-xs"
+            className={editorHeaderActionButtonClassName}
             onClick={() => editRef.current?.(data)}
           >
             <Pencil className="size-3.5" />

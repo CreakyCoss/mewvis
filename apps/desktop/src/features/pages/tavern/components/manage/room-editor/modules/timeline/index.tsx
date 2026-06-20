@@ -1,8 +1,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
   Clock,
   Pencil,
   Plus,
@@ -11,7 +9,14 @@ import {
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { TavernRoom } from "../../../../../types";
-import { EditorSection } from "../../primitives";
+import {
+  EditorSection,
+  editorDangerIconActionButtonClassName,
+  editorHeaderActionButtonClassName,
+  editorIconActionButtonClassName,
+  editorListEntryBodyClassName,
+  editorListEntryTitleClassName,
+} from "../../primitives";
 import { emptyValueText, formatCount } from "../../utils";
 import type { PendingDangerAction } from "../../types";
 import { TimelineEdit, type TimelineEditHandle } from "./edit";
@@ -48,26 +53,34 @@ export const TimelineSection = ({
         description="沉淀整个大故事已经确定发生过的关键事件。"
         meta={formatCount(data.timelineEvents.length, "事件")}
         action={(
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
-              size="icon-xs"
-              variant="ghost"
+              size="sm"
+              variant="outline"
+              className={editorHeaderActionButtonClassName}
               disabled={data.timelineEvents.length === 0}
               title={areAllCollapsed ? "全部展开剧情事件" : "全部折叠剧情事件"}
               aria-label={areAllCollapsed ? "全部展开剧情事件" : "全部折叠剧情事件"}
               onClick={() => setAllCollapsed(!areAllCollapsed)}
             >
               {areAllCollapsed ? (
-                <ChevronsUpDown className="size-3.5" />
+                <>
+                  <ChevronDown className="size-3.5" />
+                  全部展开
+                </>
               ) : (
-                <ChevronsDownUp className="size-3.5" />
+                <>
+                  <ChevronRight className="size-3.5" />
+                  全部折叠
+                </>
               )}
             </Button>
             <Button
               type="button"
-              size="xs"
+              size="sm"
               variant="outline"
+              className={editorHeaderActionButtonClassName}
               onClick={() => editRef.current?.()}
             >
               <Plus className="size-3.5" />
@@ -97,7 +110,7 @@ export const TimelineSection = ({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      className="mt-0.5"
+                      className={`${editorIconActionButtonClassName} mt-0.5`}
                       title={isCollapsed ? "展开剧情事件" : "折叠剧情事件"}
                       aria-label={isCollapsed ? "展开剧情事件" : "折叠剧情事件"}
                       onClick={() => setCollapsedEventIds((current) => ({
@@ -112,11 +125,11 @@ export const TimelineSection = ({
                       )}
                     </Button>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium leading-5">
+                      <div className={editorListEntryTitleClassName}>
                         {event.title || emptyValueText}
                       </div>
                       {!isCollapsed && (
-                        <div className="mt-1 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                        <div className={`mt-1 ${editorListEntryBodyClassName}`}>
                           {event.summary || emptyValueText}
                         </div>
                       )}
@@ -125,25 +138,26 @@ export const TimelineSection = ({
                       type="button"
                       size="icon-sm"
                       variant="ghost"
+                      className={editorIconActionButtonClassName}
                       title="编辑剧情事件"
                       aria-label="编辑剧情事件"
                       onClick={() => editRef.current?.(event)}
                     >
-                      <Pencil className="size-4" />
+                      <Pencil className="size-3.5" />
                     </Button>
                     <Button
                       type="button"
                       size="icon-sm"
                       variant="ghost"
+                      className={editorDangerIconActionButtonClassName}
                       title="删除剧情事件"
                       aria-label="删除剧情事件"
                       onClick={() => {
                         const eventLabel = event.title.trim() || `剧情事件 ${index + 1}`;
                         onRequestDangerAction({
                           title: "删除剧情事件",
-                          description: `删除剧情事件「${eventLabel}」？`,
-                          secondDescription:
-                            "再次确认删除剧情事件？保存后它会从当前酒馆的剧情时间线中移除。",
+                          description:
+                            `删除剧情事件「${eventLabel}」？确认后它会立即从当前酒馆的剧情时间线中移除。`,
                           confirmLabel: "删除事件",
                           onConfirm: () => onSave({
                             timelineEvents: data.timelineEvents.filter(
@@ -153,7 +167,7 @@ export const TimelineSection = ({
                         });
                       }}
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </div>
                 </div>

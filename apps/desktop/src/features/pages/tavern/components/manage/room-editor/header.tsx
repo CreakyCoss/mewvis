@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   BookOpen,
   Clock,
   LockKeyhole,
@@ -7,6 +8,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -17,12 +20,14 @@ import {
   getRoomCharacterById,
   getRoomCharacters,
 } from "./utils";
+import { editorHeaderActionButtonClassName } from "./primitives";
 
 type HeaderProps = {
   data: TavernRoom;
   characterById: Map<string, TavernCharacter>;
   messagesByRoomId: Record<string, TavernMessage[]>;
   textFieldAgentError: string;
+  onEnterRoom: () => void;
 };
 
 export const Header = ({
@@ -30,6 +35,7 @@ export const Header = ({
   characterById,
   messagesByRoomId,
   textFieldAgentError,
+  onEnterRoom,
 }: HeaderProps) => {
   const roomCharacterById = getRoomCharacterById(data, characterById);
   const roomCharacters = getRoomCharacters(data, roomCharacterById);
@@ -63,38 +69,54 @@ export const Header = ({
 
   return (
     <header className="shrink-0 border-b bg-background px-5 py-4 shadow-sm lg:px-7">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-semibold leading-7">
-              {data.title.trim() || emptyValueText}
-            </h1>
-            {data.systemPresetId && (
-              <Badge
-                variant="secondary"
-                className="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
-              >
-                系统预设
-              </Badge>
-            )}
-            {data.locked && (
-              <Badge variant="outline" className="gap-1">
-                <LockKeyhole className="size-3" />
-                已锁定
-              </Badge>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold leading-7">
+                {data.title.trim() || emptyValueText}
+              </h1>
+              {data.systemPresetId && (
+                <Badge
+                  variant="secondary"
+                  className="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
+                >
+                  系统预设
+                </Badge>
+              )}
+              {data.locked && (
+                <Badge variant="outline" className="gap-1">
+                  <LockKeyhole className="size-3" />
+                  已锁定
+                </Badge>
+              )}
+            </div>
+            <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              编辑酒馆内容、共享剧情资产和可用故事场景。
+            </p>
+            {textFieldAgentError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
+                {textFieldAgentError}
+              </div>
             )}
           </div>
-          <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            编辑酒馆内容、共享剧情资产和可用故事场景。
-          </p>
-          {textFieldAgentError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-              {textFieldAgentError}
-            </div>
-          )}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn(
+              editorHeaderActionButtonClassName,
+              "h-9 shrink-0 self-start px-3 lg:self-auto",
+            )}
+            onClick={onEnterRoom}
+          >
+            <ArrowRight className="size-3.5" />
+            进入酒馆
+          </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 xl:min-w-[520px]">
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
           {headerStats.map(({ icon: Icon, value, label }) => (
             <div
               key={label}

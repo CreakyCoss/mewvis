@@ -18,6 +18,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -80,6 +88,11 @@ type VersionControlSectionProps = {
   onActiveFileCleared: () => void;
 };
 
+type PendingDiscardConfirmation = {
+  message: string;
+  resolve: (confirmed: boolean) => void;
+};
+
 const toolItems: Array<{
   value: FileManageTool;
   label: string;
@@ -128,6 +141,20 @@ export const VersionControlSection = ({
   const [switchingVersionBranchName, setSwitchingVersionBranchName] = useState("");
   const [discardingVersionFilePath, setDiscardingVersionFilePath] = useState("");
   const [newBranchName, setNewBranchName] = useState("");
+  const [pendingDiscardConfirmation, setPendingDiscardConfirmation] =
+    useState<PendingDiscardConfirmation | null>(null);
+
+  const requestDiscardConfirmation = useCallback((message: string) =>
+    new Promise<boolean>((resolve) => {
+      setPendingDiscardConfirmation({ message, resolve });
+    }), []);
+
+  const resolveDiscardConfirmation = useCallback((confirmed: boolean) => {
+    setPendingDiscardConfirmation((pending) => {
+      pending?.resolve(confirmed);
+      return null;
+    });
+  }, []);
 
   const clearSelectedVersionSnapshot = useCallback(() => {
     setSelectedHistoryVersionId("");
@@ -423,7 +450,7 @@ export const VersionControlSection = ({
     const isNewFile =
       statusFile?.status === "added" || statusFile?.status === "untracked";
     if (!options?.skipConfirmation) {
-      const confirmed = window.confirm(
+      const confirmed = await requestDiscardConfirmation(
         isNewFile
           ? `撤销 ${normalizedPath} 的未提交新增？该文件会被删除。`
           : `撤销 ${normalizedPath} 的未提交修改？文件会恢复到当前提交。`,
@@ -469,6 +496,7 @@ export const VersionControlSection = ({
     onActiveFileCleared,
     onActiveFileOpened,
     onFilesRefresh,
+    requestDiscardConfirmation,
     versionStatus?.files,
     workspacePath,
   ]);
@@ -841,6 +869,42 @@ export const VersionControlSection = ({
           <VersionControlHistoryPanel {...versionPanelProps} />
         </div>
       </ScrollArea>
+
+      <Dialog
+        open={Boolean(pendingDiscardConfirmation)}
+        onOpenChange={(open) => {
+          if (!open) {
+            resolveDiscardConfirmation(false);
+          }
+        }}
+      >
+        {pendingDiscardConfirmation && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>撤销未提交变更</DialogTitle>
+              <DialogDescription>
+                {pendingDiscardConfirmation.message}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => resolveDiscardConfirmation(false)}
+              >
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => resolveDiscardConfirmation(true)}
+              >
+                确认撤销
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 };

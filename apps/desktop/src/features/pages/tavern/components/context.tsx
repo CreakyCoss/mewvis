@@ -27,6 +27,8 @@ export type TavernPageProps = {
   files: WorkspaceFileEntry[];
   runtimeModel: RuntimeModelOption | null;
   runtimeAgentId: string;
+  isHomeFullscreen?: boolean;
+  onExitHomeFullscreen?: () => void;
 };
 
 type TavernPageProviderProps = Pick<

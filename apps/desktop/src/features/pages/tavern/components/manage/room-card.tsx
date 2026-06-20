@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +32,12 @@ import { getVisualPreset } from "../../visual-presets";
 import type { TavernCharacter, TavernRoom } from "../../types";
 import { compactScene } from "../../utils";
 import { useManagementContext } from "./context";
+import type { PendingDangerAction } from "./room-editor/types";
 import { emptyValueText } from "./room-editor/utils";
 
 type RoomCardRuntimeValue = {
   openRoomEditor: (roomId: string) => void;
+  onRequestDangerAction: (action: PendingDangerAction) => void;
   onOperationStatusChange?: (status: string) => void;
 };
 
@@ -69,11 +72,6 @@ type RoomCardProps = {
   onOpenRoom?: (room: TavernRoom) => void;
 };
 
-const confirmDangerousRoomAction = (
-  firstMessage: string,
-  secondMessage: string,
-) => window.confirm(firstMessage) && window.confirm(secondMessage);
-
 export const RoomCard = ({
   room,
   onRoomRemove,
@@ -96,6 +94,7 @@ export const RoomCard = ({
   } = useManagementContext();
   const {
     openRoomEditor,
+    onRequestDangerAction,
     onOperationStatusChange,
   } = useRoomCardRuntime();
 
@@ -113,8 +112,8 @@ export const RoomCard = ({
   );
   const sceneCount = Math.max(1, room.scenes?.length ?? 1);
   const roomBadgeClassName = room.systemPresetId
-    ? "bg-primary/10 text-primary ring-primary/20 shadow-sm"
-    : "bg-background/90 text-foreground ring-border/55 shadow-sm";
+    ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
+    : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
   const coverStyle = {
     backgroundImage: `linear-gradient(180deg,rgba(8,13,12,0.18),rgba(8,13,12,0.26) 42%,rgba(8,13,12,0.46)), url(${visualPreset.tavern.backgroundImage})`,
     backgroundPosition: visualPreset.tavern.backgroundPosition,
@@ -132,21 +131,30 @@ export const RoomCard = ({
 
   const handleCopyRoom = () => {
     if (!copyRoom(room.id)) {
-      setOperationStatus(`复制「${room.title}」失败`);
+      const failureMessage = `复制「${room.title}」失败`;
+      setOperationStatus(failureMessage);
+      toast.error(failureMessage);
       return;
     }
 
-    setOperationStatus(`已复制「${room.title}」`);
+    const successMessage = `已复制「${room.title}」`;
+    setOperationStatus(successMessage);
+    toast.success(successMessage);
     onRoomCopy?.(room.id);
   };
 
   const handleExportRoom = () => {
     const exported = exportRoom(room.id);
-    setOperationStatus(
-      exported
-        ? `已导出「${room.title}」`
-        : `导出「${room.title}」失败`,
-    );
+    const message = exported
+      ? `已导出「${room.title}」`
+      : `导出「${room.title}」失败`;
+
+    setOperationStatus(message);
+    if (exported) {
+      toast.success(message);
+    } else {
+      toast.error(message);
+    }
   };
 
   const handleClearRoomMessages = () => {
@@ -154,33 +162,47 @@ export const RoomCard = ({
       return;
     }
 
-    if (!confirmDangerousRoomAction(
-      `清空「${room.title}」的对话记录？`,
-      "再次确认清空对话？系统会先保存状态检查点，再把当前房间现有消息替换为一条重置提示。",
-    )) {
-      return;
-    }
+    onRequestDangerAction({
+      title: "清空对话",
+      description:
+        `清空「${room.title}」的对话记录？系统会先保存状态检查点，再把当前房间现有消息替换为一条重置提示。`,
+      confirmLabel: "清空对话",
+      onConfirm: () => {
+        void clearRoomMessages(room.id).then((applied) => {
+          if (!applied) {
+            setOperationStatus(`清空「${room.title}」失败`);
+            return;
+          }
 
-    void clearRoomMessages(room.id).then((applied) => {
-      if (!applied) {
-        setOperationStatus(`清空「${room.title}」失败`);
-        return;
-      }
-
-      setOperationStatus(`已清空「${room.title}」的对话`);
-      onRoomChange?.(room.id);
+          setOperationStatus(`已清空「${room.title}」的对话`);
+          onRoomChange?.(room.id);
+        });
+      },
     });
   };
 
   const handleRoomLockChange = () => {
     const nextLocked = !room.locked;
-    const applied = setRoomLocked(room.id, nextLocked);
-    if (!applied) {
-      return;
-    }
+    const actionLabel = nextLocked ? "锁定酒馆" : "解锁酒馆";
+    const consequence = nextLocked
+      ? "锁定后将不能删除该酒馆、恢复系统默认或清空对话。"
+      : "解锁后将重新允许删除该酒馆、恢复系统默认或清空对话。";
 
-    setOperationStatus(nextLocked ? `已锁定「${room.title}」` : `已解锁「${room.title}」`);
-    onRoomChange?.(room.id);
+    onRequestDangerAction({
+      title: actionLabel,
+      description: `${actionLabel}「${room.title}」？${consequence}`,
+      confirmLabel: actionLabel,
+      onConfirm: () => {
+        const applied = setRoomLocked(room.id, nextLocked);
+        if (!applied) {
+          setOperationStatus(`${actionLabel}「${room.title}」失败`);
+          return;
+        }
+
+        setOperationStatus(nextLocked ? `已锁定「${room.title}」` : `已解锁「${room.title}」`);
+        onRoomChange?.(room.id);
+      },
+    });
   };
 
   const handleRestoreSystemPresetRoom = () => {
@@ -188,13 +210,22 @@ export const RoomCard = ({
       return;
     }
 
-    void restoreSystemPresetRoom(room.id).then((applied) => {
-      if (!applied) {
-        return;
-      }
+    onRequestDangerAction({
+      title: "恢复默认",
+      description:
+        `恢复「${room.title}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
+      confirmLabel: "恢复默认",
+      onConfirm: () => {
+        void restoreSystemPresetRoom(room.id).then((applied) => {
+          if (!applied) {
+            setOperationStatus(`恢复「${room.title}」默认内容失败`);
+            return;
+          }
 
-      setOperationStatus(`已恢复「${room.title}」默认内容`);
-      onRoomChange?.(room.id);
+          setOperationStatus(`已恢复「${room.title}」默认内容`);
+          onRoomChange?.(room.id);
+        });
+      },
     });
   };
 
@@ -203,20 +234,20 @@ export const RoomCard = ({
       return;
     }
 
-    if (!confirmDangerousRoomAction(
-      `删除酒馆「${room.title}」？房间、对话记录和剧情资产都会被永久移除。`,
-      `再次确认删除酒馆「${room.title}」？`,
-    )) {
-      return;
-    }
+    onRequestDangerAction({
+      title: "删除酒馆",
+      description: `删除酒馆「${room.title}」？房间、对话记录和剧情资产都会被永久移除。`,
+      confirmLabel: "删除酒馆",
+      onConfirm: () => {
+        if (!deleteRoom(room.id)) {
+          setOperationStatus(`删除「${room.title}」失败`);
+          return;
+        }
 
-    if (!deleteRoom(room.id)) {
-      setOperationStatus(`删除「${room.title}」失败`);
-      return;
-    }
-
-    setOperationStatus(`已删除「${room.title}」`);
-    onRoomRemove?.(room.id);
+        setOperationStatus(`已删除「${room.title}」`);
+        onRoomRemove?.(room.id);
+      },
+    });
   };
 
   return (
@@ -238,7 +269,7 @@ export const RoomCard = ({
           />
           <span
             className={cn(
-              "absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full px-2.5 py-1 text-xs font-semibold leading-4 ring-1 backdrop-blur-sm",
+              "absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full px-2.5 py-1 text-xs font-semibold leading-4 ring-1 backdrop-blur-md",
               roomBadgeClassName,
             )}
           >
@@ -381,16 +412,6 @@ export const RoomCard = ({
                 导出酒馆
               </DropdownMenuItem>
               <DropdownMenuItem
-                variant="destructive"
-                className="h-8 gap-2 rounded-md px-2 text-sm"
-                disabled={room.locked}
-                onSelect={handleClearRoomMessages}
-              >
-                <RotateCcw className="size-4" />
-                清空对话
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1.5" />
-              <DropdownMenuItem
                 className="h-8 gap-2 rounded-md px-2 text-sm"
                 onSelect={handleRoomLockChange}
               >
@@ -401,6 +422,7 @@ export const RoomCard = ({
                 )}
                 {room.locked ? "解锁酒馆" : "锁定酒馆"}
               </DropdownMenuItem>
+              <DropdownMenuSeparator className="mx-2 my-1.5" />
               {room.systemPresetId && (
                 <DropdownMenuItem
                   className="h-8 gap-2 rounded-md px-2 text-sm"
@@ -411,7 +433,15 @@ export const RoomCard = ({
                   恢复默认
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator className="my-1.5" />
+              <DropdownMenuItem
+                variant="destructive"
+                className="h-8 gap-2 rounded-md px-2 text-sm"
+                disabled={room.locked}
+                onSelect={handleClearRoomMessages}
+              >
+                <RotateCcw className="size-4" />
+                清空对话
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 className="h-8 gap-2 rounded-md px-2 text-sm"

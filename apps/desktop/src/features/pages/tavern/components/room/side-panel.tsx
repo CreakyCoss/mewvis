@@ -15,11 +15,20 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  TriangleAlertIcon,
   UsersRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   HoverCard,
   HoverCardContent,
@@ -101,6 +110,13 @@ type SidePanelProps = {
   onOpenChange: (isOpen: boolean) => void;
 };
 
+type SidePanelDangerAction = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+};
+
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
@@ -122,9 +138,6 @@ const hasAssetDraftItems = (draft: TavernAssetDraft) =>
   draft.timelineEvents.some((event) => event.title.trim() && event.summary.trim()) ||
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
-
-const confirmDangerousAction = (message: string, secondMessage: string) =>
-  window.confirm(message) && window.confirm(secondMessage);
 
 const appendProgressCheckpointToRoom = (
   room: TavernRoom,
@@ -587,7 +600,25 @@ export const SidePanel = ({
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [isTrackingProgress, setIsTrackingProgress] = useState(false);
   const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
+  const [pendingDangerAction, setPendingDangerAction] = useState<SidePanelDangerAction | null>(null);
   const isBusy = isSending || isExtractingAssets || isTrackingProgress;
+
+  const requestDangerAction = (action: SidePanelDangerAction) => {
+    setPendingDangerAction(action);
+  };
+
+  const closeDangerAction = () => {
+    setPendingDangerAction(null);
+  };
+
+  const confirmDangerAction = () => {
+    if (!pendingDangerAction) {
+      return;
+    }
+
+    pendingDangerAction.onConfirm();
+    closeDangerAction();
+  };
 
   useImperativeHandle(bind, () => ({
     show: () => onOpenChange(true),
@@ -753,16 +784,21 @@ export const SidePanel = ({
   };
   const deleteAssetDraft = (draftId: string) => {
     const draft = activeRoom.assetDrafts.find((item) => item.id === draftId);
-    if (!draft || !confirmDangerousAction(
-      "忽略这份待确认草稿？",
-      "再次确认忽略草稿？草稿中的时间线、记忆和世界书建议都会被删除。",
-    )) {
+    if (!draft) {
       return;
     }
 
-    const room = projectTavernSceneOntoRoom(activeRoom);
-    patchRoom(activeRoom.id, {
-      assetDrafts: room.assetDrafts.filter((draft) => draft.id !== draftId),
+    requestDangerAction({
+      title: "忽略草稿",
+      description:
+        "忽略这份待确认草稿？草稿中的时间线、记忆和世界书建议都会被删除。",
+      confirmLabel: "忽略草稿",
+      onConfirm: () => {
+        const room = projectTavernSceneOntoRoom(activeRoom);
+        patchRoom(activeRoom.id, {
+          assetDrafts: room.assetDrafts.filter((draft) => draft.id !== draftId),
+        });
+      },
     });
   };
   const clearIllustrationHints = () => {
@@ -770,15 +806,16 @@ export const SidePanel = ({
       return;
     }
 
-    if (!confirmDangerousAction(
-      "清空当前场景的插图提示？",
-      "再次确认清空插图提示？这些导演生成的画面提示会从当前场景中移除。",
-    )) {
-      return;
-    }
-
-    patchRoom(activeRoom.id, {
-      illustrationHints: [],
+    requestDangerAction({
+      title: "清空插图提示",
+      description:
+        "清空当前场景的插图提示？这些导演生成的画面提示会从当前场景中移除。",
+      confirmLabel: "清空提示",
+      onConfirm: () => {
+        patchRoom(activeRoom.id, {
+          illustrationHints: [],
+        });
+      },
     });
   };
   const extractRecentAssets = async () => {
@@ -2198,6 +2235,46 @@ export const SidePanel = ({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={Boolean(pendingDangerAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDangerAction();
+          }
+        }}
+      >
+        {pendingDangerAction && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <DialogTitle>{pendingDangerAction.title}</DialogTitle>
+              </div>
+              <DialogDescription>{pendingDangerAction.description}</DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeDangerAction}
+              >
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmDangerAction}
+              >
+                {pendingDangerAction.confirmLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </aside>
   );
 };

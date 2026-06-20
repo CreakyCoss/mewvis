@@ -4,6 +4,7 @@ import {
   Clapperboard,
   Clock,
   House,
+  LogOut,
   Pencil,
   Settings2,
   Sparkles,
@@ -128,6 +129,7 @@ type RoomEditorProps = {
     room: TavernRoom,
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
   onRequestDangerAction: (action: PendingDangerAction) => void;
+  onOpenRoom: (room: TavernRoom) => void;
 };
 
 export const RoomEditor = ({
@@ -142,6 +144,7 @@ export const RoomEditor = ({
   onRunTextFieldAgent,
   onRegenerateDirectorProfile,
   onRequestDangerAction,
+  onOpenRoom,
 }: RoomEditorProps) => {
   const [data, setData] = useState<TavernRoom | null>(null);
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
@@ -169,17 +172,29 @@ export const RoomEditor = ({
     setTextFieldAgentError("");
   };
 
-  const onModuleSave = (patch: Partial<TavernRoom>) => {
-    setData((current) => current ? { ...current, ...patch } : current);
+  const persistRoom = (room: TavernRoom) => {
+    const nextRoom = prepareTavernRoomForSave(room);
+    setData(cloneTavernRoom(projectTavernSceneOntoRoom(nextRoom)));
+    onPatchRoom(nextRoom.id, nextRoom);
+    return nextRoom;
   };
 
-  const onSave = () => {
+  const onModuleSave = (patch: Partial<TavernRoom>) => {
     if (!data) {
       return;
     }
 
-    onPatchRoom(data.id, prepareTavernRoomForSave(data));
-    closeRoomEditor();
+    persistRoom({ ...data, ...patch });
+  };
+
+  const enterRoom = () => {
+    if (!data) {
+      return;
+    }
+
+    const nextRoom = persistRoom(data);
+    onSelectRoom(nextRoom.id);
+    onOpenRoom(nextRoom);
   };
 
   const buildTextFieldAgentContext = () => {
@@ -435,6 +450,17 @@ export const RoomEditor = ({
             </button>
           ))}
         </nav>
+        <div className="mt-3 border-t pt-3">
+          <button
+            type="button"
+            className="flex h-12 w-full flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            title="退出编辑"
+            aria-label="退出编辑"
+            onClick={closeRoomEditor}
+          >
+            <LogOut className="size-4 rotate-180" />
+          </button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -443,11 +469,23 @@ export const RoomEditor = ({
           characterById={characterById}
           messagesByRoomId={messagesByRoomId}
           textFieldAgentError={textFieldAgentError}
+          onEnterRoom={enterRoom}
         />
 
         <ScrollArea className="min-h-0 flex-1 bg-muted/10">
           <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
             <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
+              <Button
+                type="button"
+                title="退出编辑"
+                aria-label="退出编辑"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                onClick={closeRoomEditor}
+              >
+                <LogOut className="size-3.5 rotate-180" />
+              </Button>
               {editorModules.map(({ id, label, description, icon: Icon }) => (
                 <Button
                   key={id}
@@ -470,22 +508,6 @@ export const RoomEditor = ({
             </div>
           </div>
         </ScrollArea>
-
-        <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-background px-5 py-3 lg:px-7">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={closeRoomEditor}
-          >
-            取消
-          </Button>
-          <Button
-            type="button"
-            onClick={onSave}
-          >
-            保存
-          </Button>
-        </footer>
       </div>
     </div>
   );

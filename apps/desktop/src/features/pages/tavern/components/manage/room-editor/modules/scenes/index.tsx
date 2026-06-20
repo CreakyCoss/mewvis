@@ -1,4 +1,12 @@
-import { Clapperboard, Plus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  Clapperboard,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +31,11 @@ import type {
 import {
   EditorSection,
   SceneSummaryLine,
+  editorDangerActionButtonClassName,
+  editorHeaderActionButtonClassName,
+  editorListEntryBodyClassName,
+  editorPrimaryActionButtonClassName,
+  editorQuietActionButtonClassName,
 } from "../../primitives";
 import type { PendingDangerAction } from "../../types";
 import {
@@ -186,8 +199,9 @@ export const ScenesSection = ({
         action={(
           <Button
             type="button"
-            size="xs"
+            size="sm"
             variant="outline"
+            className={editorHeaderActionButtonClassName}
             disabled={data.locked}
             onClick={createScene}
           >
@@ -225,7 +239,7 @@ export const ScenesSection = ({
                             </div>
                             {isActiveScene && <Badge variant="secondary">默认</Badge>}
                           </div>
-                          <div className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                          <div className={cn("mt-1 line-clamp-2", editorListEntryBodyClassName)}>
                             {scene.plot.trim() || scene.scene.trim() || emptyValueText}
                           </div>
                         </div>
@@ -297,60 +311,71 @@ export const ScenesSection = ({
                       </div>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap justify-end gap-1 border-t pt-2">
+                  <div className="mt-3 flex flex-wrap justify-end gap-1.5 border-t pt-2">
                     <Button
                       type="button"
                       size="xs"
-                      variant="ghost"
+                      variant="outline"
+                      className={editorQuietActionButtonClassName}
                       disabled={data.locked || index === 0}
                       onClick={() => moveScene(scene.id, -1)}
                     >
+                      <ArrowUp className="size-3" />
                       上移
                     </Button>
                     <Button
                       type="button"
                       size="xs"
-                      variant="ghost"
+                      variant="outline"
+                      className={editorQuietActionButtonClassName}
                       disabled={data.locked || index === scenes.length - 1}
                       onClick={() => moveScene(scene.id, 1)}
                     >
+                      <ArrowDown className="size-3" />
                       下移
                     </Button>
                     <Button
                       type="button"
                       size="xs"
-                      variant={isActiveScene ? "secondary" : "outline"}
+                      variant="outline"
+                      className={isActiveScene
+                        ? editorPrimaryActionButtonClassName
+                        : editorQuietActionButtonClassName}
                       disabled={isActiveScene}
                       onClick={() => switchScene(scene.id)}
                     >
+                      <CheckCircle2 className="size-3" />
                       设为默认
                     </Button>
                     <Button
                       type="button"
                       size="xs"
                       variant="outline"
+                      className={editorPrimaryActionButtonClassName}
                       aria-label={`编辑${sceneTitle}叙事`}
                       onClick={() => editRef.current?.(scene.id)}
                     >
+                      <Pencil className="size-3" />
                       编辑
                     </Button>
                     <Button
                       type="button"
                       size="xs"
                       variant="ghost"
+                      className={editorDangerActionButtonClassName}
                       disabled={data.locked || scenes.length <= 1}
                       onClick={() => {
                         const sceneLabel = scene.title.trim() || `阶段 ${index + 1}`;
                         onRequestDangerAction({
                           title: "删除故事阶段",
-                          description: `删除「${sceneLabel}」？`,
-                          secondDescription:
-                            "再次确认删除故事阶段？保存后该阶段的剧情配置和对话历史会被移除。",
+                          description:
+                            `删除「${sceneLabel}」？确认后该阶段的剧情配置和对话历史会立即移除。`,
                           confirmLabel: "删除阶段",
                           onConfirm: () => deleteScene(scene.id),
                         });
                       }}
                     >
+                      <Trash2 className="size-3" />
                       删除
                     </Button>
                   </div>

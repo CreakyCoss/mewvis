@@ -2,8 +2,6 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
   Pencil,
   Plus,
   Trash2,
@@ -12,7 +10,16 @@ import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TavernRoom } from "../../../../../types";
-import { EditorSection } from "../../primitives";
+import {
+  EditorSection,
+  editorDangerIconActionButtonClassName,
+  editorHeaderActionButtonClassName,
+  editorIconActionButtonClassName,
+  editorListBadgeClassName,
+  editorListEntryBodyClassName,
+  editorListEntryTitleClassName,
+  editorListKeywordClassName,
+} from "../../primitives";
 import { emptyValueText, formatCount } from "../../utils";
 import type { PendingDangerAction } from "../../types";
 import { LoreEdit, type LoreEditHandle } from "./edit";
@@ -51,26 +58,34 @@ export const LoreSection = ({
         description="维护整个酒馆故事可被关键词触发或常驻生效的共享设定资料。"
         meta={formatCount(data.lorebookEntries.length, "条")}
         action={(
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
-              size="icon-xs"
-              variant="ghost"
+              size="sm"
+              variant="outline"
+              className={editorHeaderActionButtonClassName}
               disabled={data.lorebookEntries.length === 0}
               title={areAllCollapsed ? "全部展开世界书" : "全部折叠世界书"}
               aria-label={areAllCollapsed ? "全部展开世界书" : "全部折叠世界书"}
               onClick={() => setAllCollapsed(!areAllCollapsed)}
             >
               {areAllCollapsed ? (
-                <ChevronsUpDown className="size-3.5" />
+                <>
+                  <ChevronDown className="size-3.5" />
+                  全部展开
+                </>
               ) : (
-                <ChevronsDownUp className="size-3.5" />
+                <>
+                  <ChevronRight className="size-3.5" />
+                  全部折叠
+                </>
               )}
             </Button>
             <Button
               type="button"
-              size="xs"
+              size="sm"
               variant="outline"
+              className={editorHeaderActionButtonClassName}
               onClick={() => editRef.current?.()}
             >
               <Plus className="size-3.5" />
@@ -100,7 +115,7 @@ export const LoreSection = ({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      className="mt-0.5"
+                      className={`${editorIconActionButtonClassName} mt-0.5`}
                       title={isCollapsed ? "展开世界书" : "折叠世界书"}
                       aria-label={isCollapsed ? "展开世界书" : "折叠世界书"}
                       onClick={() => setCollapsedEntryIds((current) => ({
@@ -116,37 +131,47 @@ export const LoreSection = ({
                     </Button>
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                        <div className="min-w-0 truncate text-sm font-medium leading-5">
+                        <div className={editorListEntryTitleClassName}>
                           {entry.title || emptyValueText}
                         </div>
                         {!isCollapsed && (
                           <>
-                            <Badge variant={entry.enabled ? "secondary" : "outline"}>
+                            <Badge
+                              variant={entry.enabled ? "secondary" : "outline"}
+                              className={editorListBadgeClassName}
+                            >
                               {entry.enabled ? "启用" : "停用"}
                             </Badge>
-                            {entry.alwaysOn && <Badge variant="outline">常驻</Badge>}
+                            {entry.alwaysOn && (
+                              <Badge
+                                variant="outline"
+                                className={editorListBadgeClassName}
+                              >
+                                常驻
+                              </Badge>
+                            )}
                           </>
                         )}
                       </div>
                       {!isCollapsed && (
                         <>
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex flex-wrap gap-1.5">
                             {entry.keywords.length > 0 ? (
                               entry.keywords.map((keyword) => (
                                 <span
                                   key={keyword}
-                                  className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                                  className={editorListKeywordClassName}
                                 >
                                   {keyword}
                                 </span>
                               ))
                             ) : (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-[11px] leading-4 text-muted-foreground">
                                 无关键词
                               </span>
                             )}
                           </div>
-                          <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                          <div className={`mt-2 ${editorListEntryBodyClassName}`}>
                             {entry.content || emptyValueText}
                           </div>
                         </>
@@ -156,25 +181,26 @@ export const LoreSection = ({
                       type="button"
                       size="icon-sm"
                       variant="ghost"
+                      className={editorIconActionButtonClassName}
                       title="编辑世界书"
                       aria-label="编辑世界书"
                       onClick={() => editRef.current?.(entry)}
                     >
-                      <Pencil className="size-4" />
+                      <Pencil className="size-3.5" />
                     </Button>
                     <Button
                       type="button"
                       size="icon-sm"
                       variant="ghost"
+                      className={editorDangerIconActionButtonClassName}
                       title="删除世界书"
                       aria-label="删除世界书"
                       onClick={() => {
                         const entryLabel = entry.title.trim() || "未命名世界书";
                         onRequestDangerAction({
                           title: "删除世界书",
-                          description: `删除世界书「${entryLabel}」？`,
-                          secondDescription:
-                            "再次确认删除世界书？保存后它会从当前酒馆的设定资料中移除。",
+                          description:
+                            `删除世界书「${entryLabel}」？确认后它会立即从当前酒馆的设定资料中移除。`,
                           confirmLabel: "删除世界书",
                           onConfirm: () => onSave({
                             lorebookEntries: data.lorebookEntries.filter(
@@ -184,7 +210,7 @@ export const LoreSection = ({
                         });
                       }}
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </div>
                 </div>

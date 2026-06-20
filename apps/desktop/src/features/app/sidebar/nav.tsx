@@ -1,16 +1,31 @@
 import { Bot, Database, MessageSquarePlus, Settings, Wine, Wrench } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { To } from "react-router";
 import { NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
+import { TAVERN_FULLSCREEN_SEARCH } from "@/features/pages/tavern/navigation";
 import { cn } from "@/lib/utils";
 
 type NavProps = {
   chatPath: string;
 };
 
-const navItems = [
-  { to: "/skills", label: "技能广场", icon: Wrench },
-  { to: "/knowledge", label: "知识库", icon: Database },
-  { to: "/tavern", label: "酒馆", icon: Wine },
+type NavItem = {
+  id: string;
+  to: To;
+  label: string;
+  icon: LucideIcon;
+};
+
+const navItems: NavItem[] = [
+  { id: "skills", to: "/skills", label: "技能广场", icon: Wrench },
+  { id: "knowledge", to: "/knowledge", label: "知识库", icon: Database },
+  {
+    id: "tavern",
+    to: { pathname: "/tavern", search: TAVERN_FULLSCREEN_SEARCH },
+    label: "酒馆",
+    icon: Wine,
+  },
 ];
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -36,7 +51,7 @@ export const PrimaryNav = ({ chatPath }: NavProps) => (
       const Icon = item.icon;
 
       return (
-        <NavLink key={item.to} to={item.to} className={linkClassName}>
+        <NavLink key={item.id} to={item.to} className={linkClassName}>
           <Icon className="size-4" />
           <span>{item.label}</span>
         </NavLink>

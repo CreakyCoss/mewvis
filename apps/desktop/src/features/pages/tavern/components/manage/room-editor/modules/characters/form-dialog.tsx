@@ -234,7 +234,7 @@ export const CharacterFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent className="!flex h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-b px-5 py-4 pr-12">
           <DialogTitle>{character ? "编辑角色" : "新建角色"}</DialogTitle>
           <DialogDescription>
@@ -242,8 +242,8 @@ export const CharacterFormDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-4 px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="space-y-4 px-5 pt-4 pb-24">
             {formError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {formError}
@@ -378,9 +378,9 @@ export const CharacterFormDialog = ({
             </div>
 
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="border-t px-5 py-4">
+        <DialogFooter className="relative z-10 shrink-0 border-t bg-popover px-5 py-4 shadow-[0_-12px_24px_-24px_rgb(15_23_42_/_0.45)]">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
@@ -392,7 +392,7 @@ export const CharacterFormDialog = ({
       </DialogContent>
 
       <Dialog open={isAvatarPickerOpen} onOpenChange={setIsAvatarPickerOpen}>
-        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogContent className="!flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
           <DialogHeader className="border-b px-5 py-4 pr-12">
             <DialogTitle>选择头像</DialogTitle>
             <DialogDescription>
@@ -454,7 +454,7 @@ export const CharacterFormDialog = ({
             </div>
           </ScrollArea>
 
-          <DialogFooter className="border-t px-5 py-4">
+          <DialogFooter className="relative z-10 shrink-0 border-t bg-popover px-5 py-4 shadow-[0_-12px_24px_-24px_rgb(15_23_42_/_0.45)]">
             <Button
               type="button"
               variant="outline"

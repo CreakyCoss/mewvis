@@ -1,6 +1,5 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard } from "lucide-react";
 import { toast } from "sonner";
 import {
   getActiveReferenceToken,
@@ -15,6 +14,7 @@ import {
 } from "@/features/pages/settings/llm/store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { WindowDragRegion } from "@/components/window-drag-region";
 import {
   readWorkspaceFile,
   type WorkspaceFileEntry,
@@ -61,6 +61,7 @@ import { ManagementPage } from "./manage";
 import { MessageRow } from "./room/message-row";
 import { ProgressPanel } from "./room/progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./room/quick-summary";
+import { SceneBriefCard } from "./room/scene-brief-card";
 import { SidePanel, type SidePanelHandle } from "./room/side-panel";
 import { submitRoomTurn } from "./room/turn/submit";
 
@@ -104,11 +105,16 @@ const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
+const getTavernSceneText = (value: string, fallback: string) =>
+  value.trim() || fallback;
+
 export const TavernPage = ({
   workspace,
   files,
   runtimeModel,
   runtimeAgentId,
+  isHomeFullscreen = false,
+  onExitHomeFullscreen,
 }: TavernPageProps) => (
   <TavernPageProvider
     workspace={workspace}
@@ -117,14 +123,21 @@ export const TavernPage = ({
   >
     <TavernPageContent
       files={files}
+      isHomeFullscreen={isHomeFullscreen}
+      onExitHomeFullscreen={onExitHomeFullscreen}
     />
   </TavernPageProvider>
 );
 
-type TavernPageContentProps = Pick<TavernPageProps, "files">;
+type TavernPageContentProps = Pick<
+  TavernPageProps,
+  "files" | "isHomeFullscreen" | "onExitHomeFullscreen"
+>;
 
 const TavernPageContent = ({
   files,
+  isHomeFullscreen = false,
+  onExitHomeFullscreen,
 }: TavernPageContentProps) => {
   const ctx = useTavernPageContext();
   const {
@@ -795,7 +808,7 @@ const TavernPageContent = ({
   }
 
   if (viewMode === "home") {
-    return (
+    const managementPage = (
       <ManagementProvider
         workspace={workspace}
         state={state}
@@ -808,9 +821,23 @@ const TavernPageContent = ({
       >
         <ManagementPage
           tavernPage={tavernPage}
+          onBack={isHomeFullscreen ? onExitHomeFullscreen : undefined}
         />
       </ManagementProvider>
     );
+
+    if (isHomeFullscreen) {
+      return (
+        <div className="fixed inset-0 z-[45] flex h-screen min-h-0 w-screen flex-col bg-background text-foreground">
+          <WindowDragRegion className="h-10 shrink-0" />
+          <div className="flex min-h-0 flex-1">
+            {managementPage}
+          </div>
+        </div>
+      );
+    }
+
+    return managementPage;
   }
 
   const shouldShowExecutionTrace = (
@@ -826,6 +853,40 @@ const TavernPageContent = ({
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
+  const activeSceneTitle = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId)?.title ??
+    "默认场景";
+  const sceneDescription = getTavernSceneText(
+    activeRoom.scene,
+    "这个房间还没有场景描述。",
+  );
+  const sceneMechanism = getTavernSceneText(
+    activeRoom.scenePlot,
+    getTavernSceneText(activeRoom.storyOutline, "剧情会根据角色行动与明确事件推进。"),
+  );
+  const sceneGoal = getTavernSceneText(
+    activeRoom.sceneGoal,
+    getTavernSceneText(activeRoom.storyGoal, "完成当前场景目标。"),
+  );
+  const sceneEnding = getTavernSceneText(
+    activeRoom.sceneTransition,
+    "达成目标或触发关键条件时结算。",
+  );
+  const sceneBriefLines = Array.from(new Set([
+    activeRoom.storyOutline.trim() || sceneDescription,
+    activeRoom.storyGoal.trim() || activeRoom.sceneGoal.trim(),
+  ].filter(Boolean)));
+  const sceneDirectionNote = activeRoom.sceneDirection.trim();
+  const sceneBriefContent = {
+    themeLabel: visualPreset.label,
+    title: activeRoom.title,
+    sceneTitle: activeSceneTitle,
+    briefLines: sceneBriefLines,
+    description: sceneDescription,
+    mechanism: sceneMechanism,
+    goal: sceneGoal,
+    ending: sceneEnding,
+    footerNote: sceneDirectionNote,
+  };
 
   return (
     <div
@@ -885,86 +946,36 @@ const TavernPageContent = ({
                 visualPreset.tavern.messageList,
               )}
             >
-              <section
+              <SceneBriefCard
                 className={cn(
-                  "rounded-md border px-4 py-3 sm:px-5",
-                  visualPreset.tavern.sceneCard,
+                  "self-center",
+                  isSidePanelOpen
+                    ? "lg:w-[min(calc(100vw-320px),56rem)]"
+                    : "md:w-[min(calc(100vw-2.5rem),56rem)]",
                 )}
-              >
-                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                    <span
-                      className={cn(
-                        "rounded-md px-2 py-1 text-xs",
-                        visualPreset.tavern.sceneBadge,
-                      )}
-                    >
-                      {visualPreset.label}
-                    </span>
-                    <span>{activeRoom.title}</span>
-                    <span className="text-xs font-medium opacity-60">
-                      {activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId)?.title ??
-                        "默认场景"}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid gap-2 md:hidden">
-                    <div className="flex items-center gap-1.5">
-                      <Clapperboard className="size-4 shrink-0 opacity-70" />
-                      <NativeSelect
-                        value={activeRoom.activeSceneId ?? activeRoom.scenes?.[0]?.id ?? ""}
-                        className="h-9 min-w-0 bg-current/5 text-xs text-current"
-                        aria-label="选择场景"
-                        onChange={(event) => selectRoomScene(activeRoom.id, event.target.value)}
-                      >
-                        {(activeRoom.scenes ?? []).map((scene) => (
-                          <NativeSelectOption key={scene.id} value={scene.id}>
-                            {scene.title}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    </div>
-                  </div>
-                <ProgressPanel
-                  placement="sceneHeader"
-                  className="mt-3"
-                />
-                {(activeRoom.storyOutline.trim() || activeRoom.storyGoal.trim()) && (
-                  <div className="mt-3 grid gap-2 rounded-md border border-current/10 bg-current/[0.03] p-3 text-xs leading-5 opacity-75 md:grid-cols-2">
-                    {activeRoom.storyOutline.trim() && (
-                      <div className="whitespace-pre-wrap">
-                        {activeRoom.storyOutline.trim()}
-                      </div>
-                    )}
-                    {activeRoom.storyGoal.trim() && (
-                      <div className="whitespace-pre-wrap">
-                        {activeRoom.storyGoal.trim()}
-                      </div>
-                    )}
-                  </div>
+                visualPreset={visualPreset}
+                content={sceneBriefContent}
+                sceneSelector={(
+                  <NativeSelect
+                    value={activeRoom.activeSceneId ?? activeRoom.scenes?.[0]?.id ?? ""}
+                    className="h-9 min-w-0 bg-current/5 text-xs text-current"
+                    aria-label="选择场景"
+                    onChange={(event) => selectRoomScene(activeRoom.id, event.target.value)}
+                  >
+                    {(activeRoom.scenes ?? []).map((scene) => (
+                      <NativeSelectOption key={scene.id} value={scene.id}>
+                        {scene.title}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
                 )}
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 opacity-80">
-                  {activeRoom.scene.trim() || "这个房间还没有场景描述。"}
-                </p>
-                {activeRoom.scenePlot.trim() && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 opacity-80">
-                    {activeRoom.scenePlot}
-                  </p>
+                progressSlot={(
+                  <ProgressPanel
+                    placement="sceneHeader"
+                    className="mt-3"
+                  />
                 )}
-                {activeRoom.sceneGoal.trim() && (
-                  <p className="mt-2 text-xs leading-5 opacity-65">
-                    {activeRoom.sceneGoal}
-                  </p>
-                )}
-                {(activeRoom.sceneDirection.trim() || activeRoom.sceneTransition.trim()) && (
-                  <div className="mt-2 grid gap-2 text-xs leading-5 opacity-65 md:grid-cols-2">
-                    {activeRoom.sceneDirection.trim() && (
-                      <p className="whitespace-pre-wrap">{activeRoom.sceneDirection}</p>
-                    )}
-                    {activeRoom.sceneTransition.trim() && (
-                      <p className="whitespace-pre-wrap">{activeRoom.sceneTransition}</p>
-                    )}
-                  </div>
-                )}
-              </section>
+              />
               {renderableRoomMessages.map((message) => (
                 <Fragment key={message.id}>
                   <MessageRow

@@ -1,9 +1,13 @@
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { createAgentClient } from "@/agent-client/runtime";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
+import {
+  isTavernFullscreenSearch,
+  TAVERN_FULLSCREEN_SEARCH_PARAM,
+} from "@/features/pages/tavern/navigation";
 import {
   listWorkspaceFiles,
   type WorkspaceFileEntry,
@@ -22,6 +26,8 @@ const LoadingState = () => (
 
 export const TavernPage = () => {
   const { workspaceId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { overview, activeWorkspace, defaultWorkspace } = useWorkspaceOverview();
   const workspaces = overview?.workspaces ?? [];
   const workspace =
@@ -30,6 +36,21 @@ export const TavernPage = () => {
     defaultWorkspace ??
     workspaces[0] ??
     null;
+  const isHomeFullscreen = isTavernFullscreenSearch(location.search);
+  const exitHomeFullscreen = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.delete(TAVERN_FULLSCREEN_SEARCH_PARAM);
+
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+        hash: location.hash,
+      },
+      { replace: true },
+    );
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   if (!workspace && !overview) {
     return <LoadingState />;
@@ -39,10 +60,26 @@ export const TavernPage = () => {
     return <Navigate to="/" replace />;
   }
 
-  return <TavernContainer workspace={workspace} />;
+  return (
+    <TavernContainer
+      workspace={workspace}
+      isHomeFullscreen={isHomeFullscreen}
+      onExitHomeFullscreen={exitHomeFullscreen}
+    />
+  );
 };
 
-const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
+type TavernContainerProps = {
+  workspace: Workspace;
+  isHomeFullscreen: boolean;
+  onExitHomeFullscreen: () => void;
+};
+
+const TavernContainer = ({
+  workspace,
+  isHomeFullscreen,
+  onExitHomeFullscreen,
+}: TavernContainerProps) => {
   const agentClient = useMemo(() => createAgentClient(), []);
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
@@ -99,6 +136,8 @@ const TavernContainer = ({ workspace }: { workspace: Workspace }) => {
       files={files}
       runtimeModel={runtimeModels[0] ?? null}
       runtimeAgentId={runtimeAgentId}
+      isHomeFullscreen={isHomeFullscreen}
+      onExitHomeFullscreen={onExitHomeFullscreen}
     />
   );
 };

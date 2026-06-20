@@ -32,6 +32,7 @@ import {
   getTimelineScopeSummary,
 } from "../../utils";
 import { BasicSummaryContent } from "../basic/summary";
+import { editorHeaderActionButtonClassName } from "../../primitives";
 
 type OverviewTargetModuleId =
   | "basic"
@@ -103,7 +104,7 @@ const OverviewCard = ({
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 gap-1.5 px-2.5 text-xs"
+          className={editorHeaderActionButtonClassName}
           onClick={onAction}
         >
           <Pencil className="size-3.5" />

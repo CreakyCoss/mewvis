@@ -875,12 +875,6 @@ export const ManagementProvider = ({
       return false;
     }
 
-    if (!window.confirm(
-      `再次确认恢复「${preset.label}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
-    )) {
-      return false;
-    }
-
     try {
       await deleteTavernBridgeSession({ workspacePath: workspace.path, room });
     } catch (resetError) {
@@ -920,14 +914,6 @@ export const ManagementProvider = ({
   const setRoomLocked = useCallback((roomId: string, locked: boolean) => {
     const room = state.rooms.find((item) => item.id === roomId);
     if (!room || room.locked === locked) {
-      return false;
-    }
-
-    const actionLabel = locked ? "锁定" : "解锁";
-    const consequence = locked
-      ? "锁定后将不能删除该酒馆、恢复系统默认或清空对话。"
-      : "解锁后将重新允许删除该酒馆、恢复系统默认或清空对话。";
-    if (!window.confirm(`再次确认${actionLabel}「${room.title}」？${consequence}`)) {
       return false;
     }
 

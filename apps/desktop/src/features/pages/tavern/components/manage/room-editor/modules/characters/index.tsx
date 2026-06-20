@@ -11,7 +11,11 @@ import {
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom } from "../../../../../types";
 import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
-import { EditorSection } from "../../primitives";
+import {
+  EditorSection,
+  editorHeaderActionButtonClassName,
+  editorIconActionButtonClassName,
+} from "../../primitives";
 import {
   emptyValueText,
   formatCount,
@@ -51,8 +55,9 @@ export const CharactersSection = ({
         action={(
           <Button
             type="button"
-            size="xs"
+            size="sm"
             variant="outline"
+            className={editorHeaderActionButtonClassName}
             onClick={() => editRef.current?.()}
           >
             <Plus className="size-3.5" />
@@ -95,6 +100,7 @@ export const CharactersSection = ({
                       type="button"
                       size="icon-xs"
                       variant="ghost"
+                      className={editorIconActionButtonClassName}
                       title="编辑角色资料"
                       aria-label={`编辑${character.name}的角色资料`}
                       onClick={() => editRef.current?.(character)}
