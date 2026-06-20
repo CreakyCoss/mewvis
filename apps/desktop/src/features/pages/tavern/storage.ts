@@ -2724,7 +2724,6 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
   return {
     ...room,
     activeSceneId: activeScene.id,
-    scenePresetId: activeScene.scenePresetId,
     scene: activeScene.scene,
     sceneGoal: activeScene.sceneGoal,
     scenePlot: activeScene.plot,

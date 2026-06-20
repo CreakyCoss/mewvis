@@ -1,4 +1,11 @@
-import { Plus } from "lucide-react";
+import {
+  BookOpenText,
+  Clapperboard,
+  FileText,
+  Plus,
+  Save,
+  UsersRound,
+} from "lucide-react";
 import type { Ref } from "react";
 import { useImperativeHandle, useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
@@ -6,11 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -28,12 +30,22 @@ import { cn } from "@/lib/utils";
 import { getActiveTavernScene } from "../../../../../storage";
 import type {
   TavernCharacter,
-  TavernRoom,
   TavernRoomCharacterConfig,
   TavernScene,
   TavernTimelineScope,
 } from "../../../../../types";
-import { EditorField } from "../../primitives";
+import {
+  EditorField,
+  EditorFormCard,
+  EditorFormDialogContent,
+  EditorFormFooter,
+  EditorFormHeader,
+  EditorFormLayout,
+  EditorFormNav,
+  EditorFormSidebarCard,
+  EditorFormSidebarPanel,
+  EditorStatusPill,
+} from "../../primitives";
 import {
   cloneRoomCharacterConfigs,
   cloneTimelineScope,
@@ -48,7 +60,6 @@ export type ScenesEditHandle = (sceneId: string) => void;
 type ScenesDraft = {
   sceneId: string;
   sceneTitle: string;
-  scenePresetId: TavernRoom["scenePresetId"];
   scene: string;
   sceneGoal: string;
   scenePlot: string;
@@ -88,7 +99,6 @@ export const ScenesEdit = ({
     setDraft({
       sceneId: scene.id,
       sceneTitle: scene.title,
-      scenePresetId: scene.scenePresetId,
       scene: scene.scene,
       sceneGoal: scene.sceneGoal,
       scenePlot: scene.plot,
@@ -158,7 +168,6 @@ export const ScenesEdit = ({
         ? {
             ...scene,
             title: draft.sceneTitle.trim() || "默认场景",
-            scenePresetId: draft.scenePresetId,
             scene: draft.scene,
             sceneGoal: draft.sceneGoal,
             plot: draft.scenePlot,
@@ -177,7 +186,6 @@ export const ScenesEdit = ({
     onSave({
       ...(isEditedSceneActive
         ? {
-            scenePresetId: draft.scenePresetId,
             scene: draft.scene,
             sceneGoal: draft.sceneGoal,
             scenePlot: draft.scenePlot,
@@ -205,13 +213,12 @@ export const ScenesEdit = ({
       }}
     >
       {draft && (
-        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>编辑故事阶段</DialogTitle>
-            <DialogDescription>
-              修改当前故事阶段的描述、剧情、目标、走向、记忆和出场角色。
-            </DialogDescription>
-          </DialogHeader>
+        <EditorFormDialogContent className="sm:max-w-6xl">
+          <EditorFormHeader
+            icon={Clapperboard}
+            title="编辑故事阶段"
+            description="修改当前故事阶段的描述、剧情、目标、走向、记忆和出场角色。"
+          />
 
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -220,8 +227,50 @@ export const ScenesEdit = ({
               save();
             }}
           >
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <EditorFormLayout
+              sidebar={(
+                <>
+                  <EditorFormSidebarCard
+                    icon={Clapperboard}
+                    title={draft.sceneTitle.trim() || "默认场景"}
+                    meta={(
+                      <>
+                        <EditorStatusPill tone="active">
+                          {TAVERN_SCENE_PRESET_OPTIONS.find((preset) => preset.id === data.scenePresetId)?.label ?? "场景"}
+                        </EditorStatusPill>
+                        <EditorStatusPill>
+                          {draft.characterIds.length} 角色
+                        </EditorStatusPill>
+                      </>
+                    )}
+                  >
+                    <p className="line-clamp-5 text-xs leading-5 text-muted-foreground">
+                      {draft.scene.trim() || "还没有填写场景描述。"}
+                    </p>
+                  </EditorFormSidebarCard>
+                  <EditorFormSidebarPanel title="阶段目标">
+                    <p className="line-clamp-4 text-sm leading-5 text-muted-foreground">
+                      {draft.sceneGoal.trim() || emptyValueText}
+                    </p>
+                  </EditorFormSidebarPanel>
+                  <EditorFormNav
+                    items={[
+                      { href: "#tavern-scenes-content-section", icon: FileText, label: "阶段内容" },
+                      { href: "#tavern-scenes-memory-section", icon: BookOpenText, label: "阶段记忆" },
+                      { href: "#tavern-scenes-characters-section", icon: UsersRound, label: "出场角色" },
+                    ]}
+                  />
+                </>
+              )}
+            >
               <div className="space-y-3">
+                <EditorFormCard
+                  id="tavern-scenes-content-section"
+                  icon={FileText}
+                  title="阶段内容"
+                  description="定义阶段基础信息、场景描述、剧情目标和时间线范围。"
+                >
+                  <div className="space-y-3">
                 <EditorField label="当前阶段名称" htmlFor="tavern-scenes-title">
                   <Input
                     id="tavern-scenes-title"
@@ -232,24 +281,6 @@ export const ScenesEdit = ({
                       sceneTitle: event.target.value,
                     })}
                   />
-                </EditorField>
-
-                <EditorField label="场景设置" htmlFor="tavern-scenes-preset">
-                  <NativeSelect
-                    id="tavern-scenes-preset"
-                    value={draft.scenePresetId}
-                    className={editorControlClassName}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      scenePresetId: event.target.value as TavernRoom["scenePresetId"],
-                    })}
-                  >
-                    {TAVERN_SCENE_PRESET_OPTIONS.map((preset) => (
-                      <NativeSelectOption key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
                 </EditorField>
 
                 <EditorField
@@ -477,7 +508,15 @@ export const ScenesEdit = ({
                     </div>
                   )}
                 </div>
+                  </div>
+                </EditorFormCard>
 
+                <EditorFormCard
+                  id="tavern-scenes-memory-section"
+                  icon={BookOpenText}
+                  title="阶段记忆"
+                  description="保存本阶段长期可被承接的事实和状态。"
+                >
                 <EditorField
                   label="阶段记忆"
                   htmlFor="tavern-scenes-memory"
@@ -498,7 +537,14 @@ export const ScenesEdit = ({
                     })}
                   />
                 </EditorField>
+                </EditorFormCard>
 
+                <EditorFormCard
+                  id="tavern-scenes-characters-section"
+                  icon={UsersRound}
+                  title="出场角色"
+                  description="添加本阶段需要出场的角色，并维护只在本场景生效的角色记忆。"
+                >
                 {(() => {
                   const availableSceneRoleDefinitions = data.localCharacters ?? [];
                   const availableSceneRoleIds = new Set(
@@ -706,23 +752,27 @@ export const ScenesEdit = ({
                     </div>
                   );
                 })()}
+                </EditorFormCard>
               </div>
 
               {error && (
-                <div className="mt-3 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {error}
                 </div>
               )}
-            </div>
+            </EditorFormLayout>
 
-            <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+            <EditorFormFooter status="保存后会立即更新当前故事阶段。">
               <Button type="button" variant="outline" onClick={close}>
                 取消
               </Button>
-              <Button type="submit">保存修改</Button>
-            </DialogFooter>
+              <Button type="submit">
+                <Save className="size-4" />
+                保存修改
+              </Button>
+            </EditorFormFooter>
           </form>
-        </DialogContent>
+        </EditorFormDialogContent>
       )}
     </Dialog>
   );

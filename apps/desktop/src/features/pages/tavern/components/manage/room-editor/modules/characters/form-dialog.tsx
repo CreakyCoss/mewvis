@@ -1,6 +1,18 @@
 import type { MouseEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Pencil, Save, Sparkles } from "lucide-react";
+import {
+  BookOpenText,
+  Bot,
+  Check,
+  MessageCircle,
+  Pencil,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  UserRoundCog,
+  UsersRound,
+} from "lucide-react";
 import {
   defaultTavernAvatar,
   normalizeTavernAvatarId,
@@ -22,6 +34,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "../../../../../types";
 import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
+import {
+  EditorFormCard,
+  EditorFormDialogContent,
+  EditorFormFooter,
+  EditorFormHeader,
+  EditorFormLayout,
+  EditorFormNav,
+  EditorFormSidebarCard,
+  EditorStatusPill,
+} from "../../primitives";
 
 export type CharacterFormValue = {
   name: string;
@@ -113,12 +135,6 @@ export const CharacterFormDialog = ({
     onOpenChange(false);
   };
 
-  const renderModelControls = () => (
-    <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-      当前使用默认模型：{roomModelLabel}
-    </div>
-  );
-
   const buildCharacterTextFieldContext = () => ({
     character: {
       name,
@@ -181,7 +197,7 @@ export const CharacterFormDialog = ({
     applyText: (text: string) => void;
   }): ReactNode => {
     if (!onRunTextFieldAgent) {
-      return <span className="text-xs font-medium text-muted-foreground">{label}</span>;
+      return null;
     }
 
     const isPolishing = activeTextFieldAgentKey === `${fieldKey}:polish`;
@@ -200,9 +216,7 @@ export const CharacterFormDialog = ({
     };
 
     return (
-      <span className="flex min-h-5 items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className="flex shrink-0 items-center gap-1">
+      <span className="flex shrink-0 items-center gap-1" aria-label={label}>
           <Button
             type="button"
             size="sm"
@@ -227,169 +241,232 @@ export const CharacterFormDialog = ({
             <Sparkles className="size-3" />
             {isInspiring ? "处理中" : "灵感"}
           </Button>
-        </span>
       </span>
     );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!flex h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b px-5 py-4 pr-12">
-          <DialogTitle>{character ? "编辑角色" : "新建角色"}</DialogTitle>
-          <DialogDescription>
-            编辑角色基础定义。角色回复统一使用当前默认模型。
-          </DialogDescription>
-        </DialogHeader>
+      <EditorFormDialogContent className="sm:max-w-6xl">
+        <EditorFormHeader
+          icon={UserRoundCog}
+          title={character ? "编辑角色" : "新建角色"}
+          description="编辑角色基础定义。角色回复统一使用当前默认模型。"
+        />
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="space-y-4 px-5 pt-4 pb-24">
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSubmit();
+          }}
+        >
+          <EditorFormLayout
+            sidebar={(
+              <>
+                <EditorFormSidebarCard
+                  icon={UserRoundCog}
+                  title={name.trim() || "未命名角色"}
+                  image={(
+                    <button
+                      type="button"
+                      className="flex size-24 shrink-0 items-center justify-center rounded-xl border bg-background p-1.5 shadow-xs transition-all hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      aria-label={`更换头像：${selectedAvatar.label}`}
+                      aria-haspopup="dialog"
+                      aria-expanded={isAvatarPickerOpen}
+                      onClick={() => setIsAvatarPickerOpen(true)}
+                    >
+                      <img
+                        src={selectedAvatar.src}
+                        alt=""
+                        className="size-full rounded-lg object-cover"
+                      />
+                    </button>
+                  )}
+                  meta={<EditorStatusPill tone="active">当前角色</EditorStatusPill>}
+                >
+                  <div className="space-y-2 text-xs leading-5 text-muted-foreground">
+                    <div className="rounded-md bg-background/65 px-3 py-2 ring-1 ring-border/60">
+                      <div className="flex items-center gap-1.5 font-medium text-foreground">
+                        <Bot className="size-3.5 text-primary" />
+                        默认模型
+                      </div>
+                      <div className="mt-1 line-clamp-2">{roomModelLabel}</div>
+                    </div>
+                    <p className="line-clamp-4">
+                      {description.trim() || "还没有填写角色设定。"}
+                    </p>
+                  </div>
+                </EditorFormSidebarCard>
+
+                <EditorFormNav
+                  items={[
+                    { href: "#tavern-character-basic-section", icon: UserRoundCog, label: "基础信息" },
+                    { href: "#tavern-character-description-section", icon: BookOpenText, label: "角色设定" },
+                    { href: "#tavern-character-speaking-section", icon: MessageCircle, label: "说话方式" },
+                    { href: "#tavern-character-style-section", icon: ShieldCheck, label: "风格规则" },
+                    { href: "#tavern-character-goal-section", icon: Target, label: "目标关系" },
+                  ]}
+                />
+              </>
+            )}
+          >
             {formError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {formError}
               </div>
             )}
 
-            <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 sm:grid-cols-[88px_minmax(0,1fr)]">
-              <button
-                type="button"
-                className="flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1.5 shadow-xs transition-all hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={`更换头像：${selectedAvatar.label}`}
-                aria-haspopup="dialog"
-                aria-expanded={isAvatarPickerOpen}
-                onClick={() => setIsAvatarPickerOpen(true)}
-              >
-                <img
-                  src={selectedAvatar.src}
-                  alt=""
-                  className="size-full rounded-[5px] object-cover"
+            <EditorFormCard
+              id="tavern-character-basic-section"
+              icon={UserRoundCog}
+              title="基础信息"
+              description="角色名称用于聊天展示与调度识别。"
+            >
+              <label className="block space-y-1.5" htmlFor="tavern-character-name">
+                <span className="text-xs font-medium text-muted-foreground">角色名称</span>
+                <Input
+                  id="tavern-character-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
                 />
-              </button>
+              </label>
+            </EditorFormCard>
 
-              <div className="min-w-0 space-y-3">
-                <label className="block space-y-1.5" htmlFor="tavern-character-name">
-                  <span className="text-xs font-medium text-muted-foreground">角色名称</span>
-                  <Input
-                    id="tavern-character-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </label>
-                {renderModelControls()}
-              </div>
-            </div>
-
-            <label className="block space-y-1.5" htmlFor="tavern-character-description">
-              {renderTextFieldHeader({
+            <EditorFormCard
+              id="tavern-character-description-section"
+              icon={BookOpenText}
+              title="角色设定"
+              action={renderTextFieldHeader({
                 label: "角色设定",
                 fieldKey: "characterDescription",
                 fieldLabel: "角色设定",
                 currentText: description,
                 applyText: setDescription,
               })}
+            >
               <Textarea
                 id="tavern-character-description"
                 value={description}
-                className="min-h-[112px] resize-none text-sm leading-6"
+                className="min-h-[132px] resize-none text-sm leading-6"
                 onChange={(event) => setDescription(event.target.value)}
               />
-            </label>
+            </EditorFormCard>
 
-            <label className="block space-y-1.5" htmlFor="tavern-character-style">
-              {renderTextFieldHeader({
+            <EditorFormCard
+              id="tavern-character-speaking-section"
+              icon={MessageCircle}
+              title="说话方式"
+              action={renderTextFieldHeader({
                 label: "说话方式",
                 fieldKey: "characterSpeakingStyle",
                 fieldLabel: "角色说话方式",
                 currentText: speakingStyle,
                 applyText: setSpeakingStyle,
               })}
+            >
               <Textarea
                 id="tavern-character-style"
                 value={speakingStyle}
-                className="min-h-[88px] resize-none text-sm leading-6"
+                className="min-h-[96px] resize-none text-sm leading-6"
                 onChange={(event) => setSpeakingStyle(event.target.value)}
               />
-            </label>
+            </EditorFormCard>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block space-y-1.5" htmlFor="tavern-character-writing-style">
-                {renderTextFieldHeader({
+            <div className="grid gap-3 lg:grid-cols-2">
+              <EditorFormCard
+                id="tavern-character-style-section"
+                icon={ShieldCheck}
+                title="写作风格"
+                action={renderTextFieldHeader({
                   label: "写作风格",
                   fieldKey: "characterWritingStyle",
                   fieldLabel: "角色写作风格",
                   currentText: writingStyle,
                   applyText: setWritingStyle,
                 })}
+              >
                 <Textarea
                   id="tavern-character-writing-style"
                   value={writingStyle}
-                  className="min-h-[76px] resize-none text-sm leading-6"
+                  className="min-h-[86px] resize-none text-sm leading-6"
                   onChange={(event) => setWritingStyle(event.target.value)}
                 />
-              </label>
-              <label className="block space-y-1.5" htmlFor="tavern-character-reply-style-prompt">
-                {renderTextFieldHeader({
+              </EditorFormCard>
+              <EditorFormCard
+                icon={ShieldCheck}
+                title="回复规则"
+                action={renderTextFieldHeader({
                   label: "回复规则",
                   fieldKey: "characterReplyStylePrompt",
                   fieldLabel: "角色回复规则",
                   currentText: replyStylePrompt,
                   applyText: setReplyStylePrompt,
                 })}
+              >
                 <Textarea
                   id="tavern-character-reply-style-prompt"
                   value={replyStylePrompt}
-                  className="min-h-[76px] resize-none text-sm leading-6"
+                  className="min-h-[86px] resize-none text-sm leading-6"
                   onChange={(event) => setReplyStylePrompt(event.target.value)}
                 />
-              </label>
+              </EditorFormCard>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block space-y-1.5" htmlFor="tavern-character-goals">
-                {renderTextFieldHeader({
+            <div className="grid gap-3 lg:grid-cols-2">
+              <EditorFormCard
+                id="tavern-character-goal-section"
+                icon={Target}
+                title="目标"
+                action={renderTextFieldHeader({
                   label: "目标",
                   fieldKey: "characterGoals",
                   fieldLabel: "角色目标",
                   currentText: goals,
                   applyText: setGoals,
                 })}
+              >
                 <Textarea
                   id="tavern-character-goals"
                   value={goals}
-                  className="min-h-[76px] resize-none text-sm leading-6"
+                  className="min-h-[86px] resize-none text-sm leading-6"
                   onChange={(event) => setGoals(event.target.value)}
                 />
-              </label>
-              <label className="block space-y-1.5" htmlFor="tavern-character-relationships">
-                {renderTextFieldHeader({
+              </EditorFormCard>
+              <EditorFormCard
+                icon={UsersRound}
+                title="关系"
+                action={renderTextFieldHeader({
                   label: "关系",
                   fieldKey: "characterRelationships",
                   fieldLabel: "角色关系",
                   currentText: relationships,
                   applyText: setRelationships,
                 })}
+              >
                 <Textarea
                   id="tavern-character-relationships"
                   value={relationships}
-                  className="min-h-[76px] resize-none text-sm leading-6"
+                  className="min-h-[86px] resize-none text-sm leading-6"
                   onChange={(event) => setRelationships(event.target.value)}
                 />
-              </label>
+              </EditorFormCard>
             </div>
+          </EditorFormLayout>
 
-          </div>
-        </div>
-
-        <DialogFooter className="relative z-10 shrink-0 border-t bg-popover px-5 py-4 shadow-[0_-12px_24px_-24px_rgb(15_23_42_/_0.45)]">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button type="button" onClick={handleSubmit}>
-            <Save className="size-4" />
-            保存角色
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          <EditorFormFooter
+            status="保存后角色定义会立即更新。"
+          >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button type="submit">
+              <Save className="size-4" />
+              保存角色
+            </Button>
+          </EditorFormFooter>
+        </form>
+      </EditorFormDialogContent>
 
       <Dialog open={isAvatarPickerOpen} onOpenChange={setIsAvatarPickerOpen}>
         <DialogContent className="!flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">

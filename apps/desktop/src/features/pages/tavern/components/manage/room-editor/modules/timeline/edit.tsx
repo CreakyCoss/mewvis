@@ -1,21 +1,32 @@
 import type { Ref } from "react";
 import { useImperativeHandle, useState } from "react";
+import {
+  Clock,
+  FileText,
+  Save,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { createTavernTimelineEvent } from "../../../../../storage";
 import type { TavernTimelineEvent } from "../../../../../types";
-import { EditorField } from "../../primitives";
-import { editorControlClassName } from "../../utils";
+import {
+  EditorField,
+  EditorFormCard,
+  EditorFormDialogContent,
+  EditorFormFooter,
+  EditorFormHeader,
+  EditorFormLayout,
+  EditorFormNav,
+  EditorFormSidebarCard,
+  EditorFormSidebarPanel,
+  EditorStatusPill,
+} from "../../primitives";
+import { editorControlClassName, emptyValueText } from "../../utils";
 import type { ModuleSave } from "../types";
 
 export type TimelineEditHandle = (event?: TavernTimelineEvent | null) => void;
@@ -100,14 +111,12 @@ export const TimelineEdit = ({
       }}
     >
       {draft && (
-        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{draft.eventId ? "编辑时间线事件" : "新增时间线事件"}</DialogTitle>
-            <DialogDescription>
-              剧情事件会写入大故事时间线，点击保存修改后立即生效。
-            </DialogDescription>
-          </DialogHeader>
-
+        <EditorFormDialogContent className="sm:max-w-4xl">
+          <EditorFormHeader
+            icon={Clock}
+            title={draft.eventId ? "编辑时间线事件" : "新增时间线事件"}
+            description="剧情事件会写入大故事时间线，点击保存修改后立即生效。"
+          />
           <form
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
@@ -115,8 +124,42 @@ export const TimelineEdit = ({
               save();
             }}
           >
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="space-y-3">
+            <EditorFormLayout
+              sidebar={(
+                <>
+                  <EditorFormSidebarCard
+                    icon={Clock}
+                    title={draft.title.trim() || emptyValueText}
+                    meta={(
+                      <EditorStatusPill tone={draft.eventId ? "info" : "active"}>
+                        {draft.eventId ? "编辑事件" : "新增事件"}
+                      </EditorStatusPill>
+                    )}
+                  >
+                    <p className="line-clamp-5 text-xs leading-5 text-muted-foreground">
+                      {draft.summary.trim() || "还没有填写事件摘要。"}
+                    </p>
+                  </EditorFormSidebarCard>
+                  <EditorFormSidebarPanel title="已有事件">
+                    <div className="text-sm font-medium leading-5">
+                      {data.timelineEvents.length} 条
+                    </div>
+                  </EditorFormSidebarPanel>
+                  <EditorFormNav
+                    items={[
+                      { href: "#tavern-timeline-basic-section", icon: Clock, label: "事件标题" },
+                      { href: "#tavern-timeline-summary-section", icon: FileText, label: "事件摘要" },
+                    ]}
+                  />
+                </>
+              )}
+            >
+              <EditorFormCard
+                id="tavern-timeline-basic-section"
+                icon={Clock}
+                title="事件标题"
+                description="用于在时间线列表中快速识别剧情节点。"
+              >
                 <EditorField label="事件标题" htmlFor="tavern-timeline-title">
                   <Input
                     id="tavern-timeline-title"
@@ -128,7 +171,14 @@ export const TimelineEdit = ({
                     })}
                   />
                 </EditorField>
+              </EditorFormCard>
 
+              <EditorFormCard
+                id="tavern-timeline-summary-section"
+                icon={FileText}
+                title="事件摘要"
+                description="摘要应保留明确事实，便于后续剧情承接。"
+              >
                 <EditorField label="事件摘要" htmlFor="tavern-timeline-summary">
                   <Textarea
                     id="tavern-timeline-summary"
@@ -140,23 +190,26 @@ export const TimelineEdit = ({
                     })}
                   />
                 </EditorField>
-              </div>
+              </EditorFormCard>
 
               {error && (
-                <div className="mt-3 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {error}
                 </div>
               )}
-            </div>
+            </EditorFormLayout>
 
-            <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+            <EditorFormFooter status="保存后会立即更新剧情时间线。">
               <Button type="button" variant="outline" onClick={close}>
                 取消
               </Button>
-              <Button type="submit">保存修改</Button>
-            </DialogFooter>
+              <Button type="submit">
+                <Save className="size-4" />
+                保存修改
+              </Button>
+            </EditorFormFooter>
           </form>
-        </DialogContent>
+        </EditorFormDialogContent>
       )}
     </Dialog>
   );
