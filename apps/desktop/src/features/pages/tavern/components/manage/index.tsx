@@ -204,7 +204,7 @@ export const ManagementPage = ({
                 onOperationStatusChange: setRoomOperationStatus,
               }}
             >
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-4">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
                 {rooms.map((room) => (
                   <RoomCard
                     key={room.id}
