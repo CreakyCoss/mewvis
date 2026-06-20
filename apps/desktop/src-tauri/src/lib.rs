@@ -7,7 +7,8 @@ use commands::{
     agent_runtime::{
         abort_agent_runtime_agent, answer_agent_runtime_question,
         append_agent_runtime_session_messages, compact_agent_runtime_session,
-        create_agent_runtime_session, delete_agent_runtime_session_message,
+        create_agent_runtime_session, delete_agent_runtime_session,
+        delete_agent_runtime_session_message, dispose_agent_runtime_session_workers,
         edit_agent_runtime_session_message, list_agent_runtime_agents, read_agent_runtime_session,
         rebuild_agent_runtime_session, run_agent_runtime_agent, run_agent_runtime_chat,
         summarize_agent_runtime_session, AgentRuntimeSupervisor,
@@ -85,6 +86,8 @@ pub fn run() {
             abort_agent_runtime_agent,
             create_agent_runtime_session,
             read_agent_runtime_session,
+            dispose_agent_runtime_session_workers,
+            delete_agent_runtime_session,
             append_agent_runtime_session_messages,
             rebuild_agent_runtime_session,
             compact_agent_runtime_session,

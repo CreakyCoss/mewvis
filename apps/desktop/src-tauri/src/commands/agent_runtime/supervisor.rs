@@ -25,6 +25,7 @@ const AGENT_WORKER_IDLE_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 const AGENT_WORKER_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 const AGENT_WORKER_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(10);
 const AGENT_WORKER_HEARTBEAT_MAX_MISSES: u8 = 2;
+const AGENT_WORKER_DISPOSE_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn exit_status_label(status: &ExitStatus) -> String {
     if let Some(code) = status.code() {
@@ -105,6 +106,7 @@ enum WorkerLifecycle {
 enum WorkerStopReason {
     Idle,
     Cancelled,
+    Disposed,
     Unhealthy,
 }
 
@@ -163,6 +165,37 @@ impl AgentRuntimeSupervisor {
 
         if let Some(worker) = worker {
             worker.abort(task_id)?;
+        }
+
+        Ok(())
+    }
+
+    pub(super) fn dispose_session(
+        &self,
+        workspace_path: &str,
+        session_root_dir: &str,
+    ) -> Result<(), String> {
+        let workers = {
+            let mut inner = self
+                .inner
+                .lock()
+                .map_err(|_| "Agent runtime supervisor 状态已损坏".to_string())?;
+            let session_keys = inner
+                .workers
+                .keys()
+                .filter(|session_key| {
+                    session_key_matches(session_key, workspace_path, session_root_dir)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            session_keys
+                .into_iter()
+                .filter_map(|session_key| inner.workers.remove(&session_key))
+                .collect::<Vec<_>>()
+        };
+
+        for worker in workers {
+            worker.dispose()?;
         }
 
         Ok(())
@@ -449,6 +482,59 @@ impl AgentRuntimeWorker {
             self.emit_task_state(task_id, "cancelling");
             self.emit_error(task_id, "Agent 任务已取消");
             self.kill_child()?;
+        }
+
+        Ok(())
+    }
+
+    fn dispose(self: &Arc<Self>) -> Result<(), String> {
+        let (current_task_id, queued_task_ids, should_stop) = {
+            let mut state = self
+                .state
+                .lock()
+                .map_err(|_| "Agent runtime worker 状态已损坏".to_string())?;
+            if matches!(
+                state.lifecycle,
+                WorkerLifecycle::Stopping | WorkerLifecycle::Stopped | WorkerLifecycle::Crashed
+            ) {
+                return Ok(());
+            }
+
+            let current_task_id = state.current_task_id.clone();
+            let queued_task_ids = state
+                .queue
+                .iter()
+                .map(|task| task.task_id.clone())
+                .collect::<Vec<_>>();
+            state.lifecycle = WorkerLifecycle::Stopping;
+            state.stop_reason = Some(WorkerStopReason::Disposed);
+            state.touch();
+            (current_task_id, queued_task_ids, true)
+        };
+
+        append_agent_diagnostic(
+            &self.app,
+            format!(
+                "worker session dispose worker={} session_key={} current_task={:?} queued={}",
+                self.id,
+                self.session_key,
+                current_task_id,
+                queued_task_ids.len(),
+            ),
+        );
+
+        if let Some(task_id) = current_task_id {
+            self.emit_error(&task_id, "Agent session 已释放，任务已取消");
+            self.emit_task_state(&task_id, "cancelling");
+        }
+        for task_id in queued_task_ids {
+            self.emit_error(&task_id, "Agent session 已释放，队列任务已取消");
+            self.emit_task_state(&task_id, "cancelling");
+        }
+
+        if should_stop {
+            self.kill_child()?;
+            self.wait_until_stopped(AGENT_WORKER_DISPOSE_TIMEOUT)?;
         }
 
         Ok(())
@@ -801,7 +887,10 @@ impl AgentRuntimeWorker {
         );
 
         if let Some(task_id) = current_task_id {
-            let task_state = if stop_reason == Some(WorkerStopReason::Cancelled) {
+            let task_state = if matches!(
+                stop_reason,
+                Some(WorkerStopReason::Cancelled | WorkerStopReason::Disposed)
+            ) {
                 "cancelled"
             } else {
                 "failed"
@@ -832,7 +921,12 @@ impl AgentRuntimeWorker {
 
         Self::remove_worker_from_supervisor(&self.supervisor, &self.session_key, self);
 
-        if !queued_tasks.is_empty() && stop_reason != Some(WorkerStopReason::Idle) {
+        if !queued_tasks.is_empty()
+            && !matches!(
+                stop_reason,
+                Some(WorkerStopReason::Idle | WorkerStopReason::Disposed)
+            )
+        {
             Self::resubmit_queued_tasks(
                 &self.supervisor,
                 &self.app,
@@ -841,8 +935,13 @@ impl AgentRuntimeWorker {
             );
         } else {
             for task in queued_tasks {
+                let task_state = if stop_reason == Some(WorkerStopReason::Disposed) {
+                    "cancelled"
+                } else {
+                    "failed"
+                };
                 self.emit_error(&task.task_id, "Agent worker 已停止，队列任务已取消");
-                self.emit_task_state(&task.task_id, "failed");
+                self.emit_task_state(&task.task_id, task_state);
                 Self::remove_task_from_supervisor(&self.supervisor, &task.task_id);
             }
         }
@@ -914,11 +1013,43 @@ impl AgentRuntimeWorker {
     }
 
     fn kill_child(&self) -> Result<(), String> {
-        self.child
+        let mut child = self
+            .child
             .lock()
-            .map_err(|_| "Agent runtime worker 进程已无法访问".to_string())?
+            .map_err(|_| "Agent runtime worker 进程已无法访问".to_string())?;
+        if child
+            .try_wait()
+            .map_err(|error| format!("检查 Agent runtime worker 状态失败：{error}"))?
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        child
             .kill()
             .map_err(|error| format!("终止 Agent runtime worker 失败：{error}"))
+    }
+
+    fn wait_until_stopped(&self, timeout: Duration) -> Result<(), String> {
+        let started_at = Instant::now();
+        loop {
+            let lifecycle = self
+                .state
+                .lock()
+                .map_err(|_| "Agent runtime worker 状态已损坏".to_string())?
+                .lifecycle;
+            if matches!(
+                lifecycle,
+                WorkerLifecycle::Stopped | WorkerLifecycle::Crashed
+            ) {
+                return Ok(());
+            }
+            if started_at.elapsed() >= timeout {
+                return Err("等待 Agent runtime worker 停止超时".to_string());
+            }
+
+            thread::sleep(Duration::from_millis(50));
+        }
     }
 
     fn set_idle(&self) {
@@ -1145,4 +1276,15 @@ impl WorkerLifecycle {
             WorkerLifecycle::Crashed => "crashed",
         }
     }
+}
+
+fn session_key_matches(session_key: &str, workspace_path: &str, session_root_dir: &str) -> bool {
+    let Some(rest) = session_key.strip_prefix(workspace_path) else {
+        return false;
+    };
+    let Some(rest) = rest.strip_prefix('|') else {
+        return false;
+    };
+    rest.rsplit_once('|')
+        .is_some_and(|(_, scope)| scope == session_root_dir)
 }

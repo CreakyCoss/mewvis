@@ -3,6 +3,7 @@ import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
 export type TavernReplyMode = "active" | "round" | "director";
 
 export type TavernPromptStyleId =
+  | "silent-law"
   | "novel"
   | "wuxia"
   | "light-novel"

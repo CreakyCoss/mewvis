@@ -18,7 +18,8 @@ pub use agents::list_agent_runtime_agents;
 pub use chat::run_agent_runtime_chat;
 pub use session::{
     append_agent_runtime_session_messages, compact_agent_runtime_session,
-    create_agent_runtime_session, delete_agent_runtime_session_message,
+    create_agent_runtime_session, delete_agent_runtime_session,
+    delete_agent_runtime_session_message, dispose_agent_runtime_session_workers,
     edit_agent_runtime_session_message, read_agent_runtime_session, rebuild_agent_runtime_session,
     summarize_agent_runtime_session,
 };

@@ -25,6 +25,28 @@ export async function readLedger(input: {
   return invoke<LedgerResult>("read_agent_runtime_session", { input });
 }
 
+export async function deleteLedger(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<void>("delete_agent_runtime_session", { input });
+}
+
+export async function disposeLedgerWorkers(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<void>("dispose_agent_runtime_session_workers", { input });
+}
+
 export async function summarizeLedger(input: {
   workspacePath: string;
   sessionRootDir: string;

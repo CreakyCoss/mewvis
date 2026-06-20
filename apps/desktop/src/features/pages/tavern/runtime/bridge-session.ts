@@ -1,6 +1,8 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
 import {
   createLedger,
+  deleteLedger,
+  disposeLedgerWorkers,
   readLedger,
   rebuildLedger,
   summarizeLedger,
@@ -55,6 +57,28 @@ export const readTavernBridgeSession = async ({
 }: TavernBridgeSessionInput) => readLedger(
   tavernBridgeSessionInput({ workspacePath, room }),
 );
+
+export const deleteTavernBridgeSession = async ({
+  workspacePath,
+  room,
+}: {
+  workspacePath: string;
+  room: Pick<TavernRoom, "id">;
+}) => deleteLedger({
+  workspacePath,
+  sessionRootDir: tavernBridgeSessionRootDir(room.id),
+});
+
+export const disposeTavernBridgeSessionWorkers = async ({
+  workspacePath,
+  room,
+}: {
+  workspacePath: string;
+  room: Pick<TavernRoom, "id">;
+}) => disposeLedgerWorkers({
+  workspacePath,
+  sessionRootDir: tavernBridgeSessionRootDir(room.id),
+});
 
 const toLedgerRole = (role: TavernMessage["role"]) => {
   if (role === "character" || role === "narrator") {

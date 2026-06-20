@@ -1,10 +1,13 @@
 use super::{
     rpc::call_agent_bridge_rpc, session_paths::resolve_session_root_dir,
-    types::AgentRuntimeModelInput,
+    supervisor::AgentRuntimeSupervisor, types::AgentRuntimeModelInput,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::AppHandle;
+use std::{fs, path::PathBuf};
+use tauri::{AppHandle, State};
+
+use crate::services::workspace_paths::{ensure_under_root, workspace_app_data_dir, workspace_root};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -115,6 +118,38 @@ pub async fn read_agent_runtime_session(
         &["session_result"],
     )
     .await
+}
+
+#[tauri::command]
+pub fn dispose_agent_runtime_session_workers(
+    state: State<AgentRuntimeSupervisor>,
+    input: AgentRuntimeSessionInput,
+) -> Result<(), String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    state.dispose_session(&input.workspace_path, &session_root_dir)
+}
+
+#[tauri::command]
+pub fn delete_agent_runtime_session(
+    state: State<AgentRuntimeSupervisor>,
+    input: AgentRuntimeSessionInput,
+) -> Result<(), String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    state.dispose_session(&input.workspace_path, &session_root_dir)?;
+
+    let workspace = workspace_root(&input.workspace_path)?;
+    let app_data_dir = workspace_app_data_dir(&workspace);
+    let session_dir = PathBuf::from(session_root_dir);
+    ensure_under_root(&app_data_dir, &session_dir)?;
+
+    if session_dir.exists() {
+        fs::remove_dir_all(&session_dir)
+            .map_err(|error| format!("无法删除 Agent runtime session：{error}"))?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

@@ -46,6 +46,7 @@ export type RunTavernGeneratedPresetAgentInput = {
 };
 
 const GENERATED_PRESET_AGENT_ROLE_ID = "tavern-one-shot-preset-builder";
+const promptStyleIdsSchema = TAVERN_PROMPT_STYLE_PRESETS.map((preset) => preset.id).join(" | ");
 
 const generatedPresetSchema = `{
   "version": 1,
@@ -53,7 +54,7 @@ const generatedPresetSchema = `{
   "description": "一句话说明玩法",
   "room": {
     "title": "酒馆标题",
-    "promptStyleId": "novel | wuxia | light-novel | dramatic | grounded",
+    "promptStyleId": "${promptStyleIdsSchema}",
     "storyOutline": "背景故事摘要",
     "storyGoal": "场景长期目标",
     "scene": "第一幕公开环境",

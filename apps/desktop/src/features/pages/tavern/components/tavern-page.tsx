@@ -81,6 +81,8 @@ import {
 } from "../core";
 import {
   compactTavernAgentKnowledge,
+  deleteTavernBridgeSession,
+  disposeTavernBridgeSessionWorkers,
 } from "../runtime/bridge-session";
 import type {
   TavernAssetDraft,
@@ -818,6 +820,41 @@ export const TavernPage = ({
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const tavernRoomsRef = useRef<TavernRoom[]>(state.rooms);
+
+  useEffect(() => {
+    tavernRoomsRef.current = state.rooms;
+  }, [state.rooms]);
+
+  useEffect(() => {
+    const workspaceId = workspace.id;
+    const workspacePath = workspace.path;
+
+    return () => {
+      const rooms = [
+        ...new Map(
+          tavernRoomsRef.current
+            .filter((room) => room.workspaceId === workspaceId)
+            .map((room) => [room.id, room] as const),
+        ).values(),
+      ];
+
+      if (rooms.length === 0) {
+        return;
+      }
+
+      void Promise.allSettled(
+        rooms.map((room) => disposeTavernBridgeSessionWorkers({ workspacePath, room })),
+      ).then((results) => {
+        const failed = results.find(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+        if (failed) {
+          console.warn("Failed to dispose tavern bridge workers", failed.reason);
+        }
+      });
+    };
+  }, [workspace.id, workspace.path]);
 
   useEffect(() => {
     if (workspaceIdRef.current === workspace.id) {
@@ -1452,13 +1489,21 @@ export const TavernPage = ({
     });
   }, []);
 
-  const clearRoomMessages = useCallback((roomId: string) => {
+  const clearRoomMessages = useCallback(async (roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
     if (targetRoom?.locked) {
       return;
     }
 
     if (!targetRoom) {
+      return;
+    }
+
+    try {
+      await deleteTavernBridgeSession({ workspacePath: workspace.path, room: targetRoom });
+    } catch (resetError) {
+      const message = resetError instanceof Error ? resetError.message : String(resetError);
+      setError(`无法清理酒馆底层会话：${message}`);
       return;
     }
 
@@ -1490,7 +1535,8 @@ export const TavernPage = ({
         },
       };
     });
-  }, [appendProgressCheckpointToRoom, state.rooms]);
+    setError("");
+  }, [appendProgressCheckpointToRoom, state.rooms, workspace.path]);
 
   const deleteRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
@@ -1762,7 +1808,7 @@ export const TavernPage = ({
     setError("");
   }, [activeRoom, workspace.id]);
 
-  const restoreSystemPresetRoom = useCallback((roomId: string) => {
+  const restoreSystemPresetRoom = useCallback(async (roomId: string) => {
     const room = state.rooms.find((item) => item.id === roomId);
     const preset = getTavernSystemPreset(room?.systemPresetId);
     if (!room || room.locked || !preset) {
@@ -1772,6 +1818,14 @@ export const TavernPage = ({
     if (!window.confirm(
       `再次确认恢复「${preset.label}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
     )) {
+      return;
+    }
+
+    try {
+      await deleteTavernBridgeSession({ workspacePath: workspace.path, room });
+    } catch (resetError) {
+      const message = resetError instanceof Error ? resetError.message : String(resetError);
+      setError(`无法清理酒馆底层会话：${message}`);
       return;
     }
 
@@ -1800,7 +1854,7 @@ export const TavernPage = ({
       };
     });
     setError("");
-  }, [state.rooms, workspace.id]);
+  }, [state.rooms, workspace.id, workspace.path]);
 
   const setRoomLocked = useCallback((roomId: string, locked: boolean) => {
     const room = state.rooms.find((item) => item.id === roomId);
