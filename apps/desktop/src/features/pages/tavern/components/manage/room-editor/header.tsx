@@ -1,4 +1,11 @@
-import { LockKeyhole } from "lucide-react";
+import {
+  BookOpen,
+  Clock,
+  LockKeyhole,
+  MessageSquareText,
+  UsersRound,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type {
   TavernCharacter,
@@ -7,7 +14,6 @@ import type {
 } from "../../../types";
 import {
   emptyValueText,
-  formatCount,
   getRoomCharacterById,
   getRoomCharacters,
 } from "./utils";
@@ -28,17 +34,46 @@ export const Header = ({
   const roomCharacterById = getRoomCharacterById(data, characterById);
   const roomCharacters = getRoomCharacters(data, roomCharacterById);
   const roomMessageCount = messagesByRoomId[data.id]?.length ?? 0;
+  const headerStats: Array<{
+    icon: LucideIcon;
+    value: number;
+    label: string;
+  }> = [
+    {
+      icon: UsersRound,
+      value: roomCharacters.length,
+      label: "角色阵容",
+    },
+    {
+      icon: MessageSquareText,
+      value: roomMessageCount,
+      label: "消息对话",
+    },
+    {
+      icon: Clock,
+      value: data.timelineEvents.length,
+      label: "事件时间线",
+    },
+    {
+      icon: BookOpen,
+      value: data.lorebookEntries.length,
+      label: "条世界书",
+    },
+  ];
 
   return (
-    <header className="shrink-0 border-b bg-muted/10 px-5 py-4 lg:px-7">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <header className="shrink-0 border-b bg-background px-5 py-4 shadow-sm lg:px-7">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-xl font-semibold leading-7">
               {data.title.trim() || emptyValueText}
             </h1>
             {data.systemPresetId && (
-              <Badge variant="secondary">
+              <Badge
+                variant="secondary"
+                className="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
+              >
                 系统预设
               </Badge>
             )}
@@ -59,31 +94,25 @@ export const Header = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:min-w-[360px]">
-          <div className="rounded-md border bg-background/70 px-3 py-2">
-            <div className="font-medium">
-              {formatCount(roomCharacters.length, "角色")}
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 xl:min-w-[520px]">
+          {headerStats.map(({ icon: Icon, value, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-3 rounded-lg border bg-muted/10 px-3 py-2.5 shadow-xs"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-base font-semibold leading-5">
+                  {value}
+                </div>
+                <div className="truncate text-[11px] leading-4 text-muted-foreground">
+                  {label}
+                </div>
+              </div>
             </div>
-            <div className="text-muted-foreground">入席</div>
-          </div>
-          <div className="rounded-md border bg-background/70 px-3 py-2">
-            <div className="font-medium">
-              {formatCount(roomMessageCount, "消息")}
-            </div>
-            <div className="text-muted-foreground">对话</div>
-          </div>
-          <div className="rounded-md border bg-background/70 px-3 py-2">
-            <div className="font-medium">
-              {formatCount(data.timelineEvents.length, "事件")}
-            </div>
-            <div className="text-muted-foreground">时间线</div>
-          </div>
-          <div className="rounded-md border bg-background/70 px-3 py-2">
-            <div className="font-medium">
-              {formatCount(data.lorebookEntries.length, "条")}
-            </div>
-            <div className="text-muted-foreground">世界书</div>
-          </div>
+          ))}
         </div>
       </div>
     </header>

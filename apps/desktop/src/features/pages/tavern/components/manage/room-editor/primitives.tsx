@@ -115,31 +115,36 @@ export const SceneSummaryLine = ({
 };
 
 export const EditorSection = ({
+  id,
   icon: Icon,
   title,
   description,
   meta,
+  metaClassName,
   action,
   children,
   className,
   contentClassName,
 }: {
+  id?: string;
   icon: ComponentType<{ className?: string }>;
   title: string;
   description?: string;
   meta?: string;
+  metaClassName?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
 }) => (
   <section
+    id={id}
     className={cn(
-      "border-b border-border/70 last:border-b-0",
+      "overflow-hidden rounded-lg border bg-card shadow-sm",
       className,
     )}
   >
-    <div className="flex items-start justify-between gap-3 px-1 py-4">
+    <div className="flex items-start justify-between gap-3 border-b bg-muted/10 px-4 py-3">
       <div className="flex min-w-0 gap-2.5">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <Icon className="size-3.5" />
@@ -148,7 +153,12 @@ export const EditorSection = ({
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold leading-5">{title}</h3>
             {meta && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span
+                className={cn(
+                  "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground",
+                  metaClassName,
+                )}
+              >
                 {meta}
               </span>
             )}
@@ -162,7 +172,7 @@ export const EditorSection = ({
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className={cn("space-y-3 px-1 pb-5", contentClassName)}>
+    <div className={cn("space-y-3 px-4 py-4", contentClassName)}>
       {children}
     </div>
   </section>

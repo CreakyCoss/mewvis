@@ -1,12 +1,22 @@
 import {
+  Activity,
+  BookOpen,
+  Clapperboard,
+  Clock,
+  House,
   Pencil,
+  Settings2,
   Sparkles,
+  UsersRound,
+  Wine,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { MouseEvent, Ref } from "react";
 import { useImperativeHandle, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { cn } from "@/lib/utils";
 import { normalizeTavernPromptStyleId } from "../../../prompt-styles";
 import {
   getActiveTavernScene,
@@ -23,6 +33,7 @@ import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { CharactersSection } from "./modules/characters";
 import { LoreSection } from "./modules/lore";
+import { OverviewSection } from "./modules/overview";
 import { ProgressSection } from "./modules/progress";
 import { ScenesSection } from "./modules/scenes";
 import { SettingsSection } from "./modules/settings";
@@ -36,6 +47,72 @@ import {
 } from "./utils";
 
 export type RoomEditorHandle = (roomId: string) => void;
+
+type EditorModuleId =
+  | "overview"
+  | "basic"
+  | "characters"
+  | "scenes"
+  | "timeline"
+  | "lore"
+  | "settings"
+  | "progress";
+
+const editorModules: Array<{
+  id: EditorModuleId;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "overview",
+    label: "总览",
+    description: "核心故事资源概览",
+    icon: House,
+  },
+  {
+    id: "basic",
+    label: "基础信息",
+    description: "标题、故事目标和视觉主题",
+    icon: Wine,
+  },
+  {
+    id: "characters",
+    label: "角色",
+    description: "酒馆角色库",
+    icon: UsersRound,
+  },
+  {
+    id: "scenes",
+    label: "场景",
+    description: "故事阶段和场景目标",
+    icon: Clapperboard,
+  },
+  {
+    id: "timeline",
+    label: "时间线",
+    description: "已沉淀的剧情事件",
+    icon: Clock,
+  },
+  {
+    id: "lore",
+    label: "世界书",
+    description: "共享设定资料",
+    icon: BookOpen,
+  },
+  {
+    id: "settings",
+    label: "运行设置",
+    description: "模型和执行策略",
+    icon: Settings2,
+  },
+  {
+    id: "progress",
+    label: "进度系统",
+    description: "状态追踪和进度面板",
+    icon: Activity,
+  },
+];
 
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
@@ -69,6 +146,7 @@ export const RoomEditor = ({
   const [data, setData] = useState<TavernRoom | null>(null);
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
+  const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("overview");
 
   const openRoomEditor = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
@@ -78,6 +156,7 @@ export const RoomEditor = ({
 
     onSelectRoom(roomId);
     setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
+    setActiveModuleId("overview");
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -257,22 +336,35 @@ export const RoomEditor = ({
     return null;
   }
 
-  return (
-    <div className="absolute inset-0 z-30 flex min-h-0 flex-col overflow-hidden bg-background">
-      <Header
-        data={data}
-        characterById={characterById}
-        messagesByRoomId={messagesByRoomId}
-        textFieldAgentError={textFieldAgentError}
-      />
-
-      <ScrollArea className="min-h-0 flex-1 bg-background">
-        <div className="mx-auto flex w-full max-w-5xl flex-col px-5 py-2 lg:px-6">
+  const renderActiveModule = () => {
+    switch (activeModuleId) {
+      case "overview":
+        return (
+          <OverviewSection
+            data={data}
+            characterById={characterById}
+            onOpenModule={(moduleId) => setActiveModuleId(moduleId)}
+          />
+        );
+      case "basic":
+        return (
           <BasicSection
             data={data}
             onSave={onModuleSave}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
+        );
+      case "characters":
+        return (
+          <CharactersSection
+            data={data}
+            globalRuntimeModel={globalRuntimeModel}
+            onSave={onModuleSave}
+            onRunTextFieldAgent={runCharacterTextFieldAgent}
+          />
+        );
+      case "scenes":
+        return (
           <ScenesSection
             data={data}
             characterById={characterById}
@@ -280,51 +372,121 @@ export const RoomEditor = ({
             onRequestDangerAction={onRequestDangerAction}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
-          <SettingsSection
-            data={data}
-            globalRuntimeModel={globalRuntimeModel}
-            onRegenerateDirectorProfile={onRegenerateDirectorProfile}
-            onSave={onModuleSave}
-          />
-          <ProgressSection
-            data={data}
-            onSave={onModuleSave}
-          />
-          <CharactersSection
-            data={data}
-            globalRuntimeModel={globalRuntimeModel}
-            onSave={onModuleSave}
-            onRunTextFieldAgent={runCharacterTextFieldAgent}
-          />
+        );
+      case "timeline":
+        return (
           <TimelineSection
             data={data}
             onSave={onModuleSave}
             onRequestDangerAction={onRequestDangerAction}
           />
+        );
+      case "lore":
+        return (
           <LoreSection
             data={data}
             onSave={onModuleSave}
             onRequestDangerAction={onRequestDangerAction}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
-        </div>
-      </ScrollArea>
+        );
+      case "settings":
+        return (
+          <SettingsSection
+            data={data}
+            globalRuntimeModel={globalRuntimeModel}
+            onRegenerateDirectorProfile={onRegenerateDirectorProfile}
+            onSave={onModuleSave}
+          />
+        );
+      case "progress":
+        return (
+          <ProgressSection
+            data={data}
+            onSave={onModuleSave}
+          />
+        );
+    }
+  };
 
-      <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-background px-5 py-3 lg:px-7">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={closeRoomEditor}
-        >
-          取消
-        </Button>
-        <Button
-          type="button"
-          onClick={onSave}
-        >
-          保存
-        </Button>
-      </footer>
+  return (
+    <div className="absolute inset-0 z-30 flex min-h-0 overflow-hidden bg-background">
+      <aside className="hidden w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4 md:flex">
+        <div className="mb-4 flex justify-center">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Wine className="size-5" />
+          </span>
+        </div>
+        <nav className="flex min-h-0 flex-1 flex-col gap-1">
+          {editorModules.map(({ id, label, description, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              title={`${label}：${description}`}
+              aria-label={`切换到${label}`}
+              onClick={() => setActiveModuleId(id)}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+                activeModuleId === id && "bg-primary/10 text-primary",
+              )}
+            >
+              <Icon className="size-4" />
+              <span className="max-w-full truncate">{label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          data={data}
+          characterById={characterById}
+          messagesByRoomId={messagesByRoomId}
+          textFieldAgentError={textFieldAgentError}
+        />
+
+        <ScrollArea className="min-h-0 flex-1 bg-muted/10">
+          <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
+            <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
+              {editorModules.map(({ id, label, description, icon: Icon }) => (
+                <Button
+                  key={id}
+                  type="button"
+                  title={`${label}：${description}`}
+                  aria-label={`切换到${label}`}
+                  size="sm"
+                  variant={activeModuleId === id ? "default" : "outline"}
+                  className="h-8 shrink-0 gap-1.5 px-3 text-xs"
+                  onClick={() => setActiveModuleId(id)}
+                >
+                  <Icon className="size-3.5" />
+                  {label}
+                </Button>
+              ))}
+            </nav>
+
+            <div className="mx-auto w-full max-w-7xl">
+              {renderActiveModule()}
+            </div>
+          </div>
+        </ScrollArea>
+
+        <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-background px-5 py-3 lg:px-7">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={closeRoomEditor}
+          >
+            取消
+          </Button>
+          <Button
+            type="button"
+            onClick={onSave}
+          >
+            保存
+          </Button>
+        </footer>
+      </div>
     </div>
   );
 };

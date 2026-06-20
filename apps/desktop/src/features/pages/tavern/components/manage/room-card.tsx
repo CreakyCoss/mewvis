@@ -113,7 +113,7 @@ export const RoomCard = ({
   );
   const sceneCount = Math.max(1, room.scenes?.length ?? 1);
   const roomBadgeClassName = room.systemPresetId
-    ? "bg-[#f3d8a8]/95 text-[#33240f] ring-[#b47a2a]/30 shadow-[0_10px_24px_-18px_rgba(85,55,18,0.72)]"
+    ? "bg-primary/10 text-primary ring-primary/20 shadow-sm"
     : "bg-background/90 text-foreground ring-border/55 shadow-sm";
   const coverStyle = {
     backgroundImage: `linear-gradient(180deg,rgba(8,13,12,0.18),rgba(8,13,12,0.26) 42%,rgba(8,13,12,0.46)), url(${visualPreset.tavern.backgroundImage})`,
