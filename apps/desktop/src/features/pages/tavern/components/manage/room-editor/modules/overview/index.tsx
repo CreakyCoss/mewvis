@@ -284,7 +284,7 @@ export const OverviewSection = ({
             <EmptyPreview
               icon={GitBranch}
               title="暂无剧情节点"
-              description="剧情结构用于组织阶段、节点和分支。"
+              description="剧情结构用于组织节点和分支。"
             />
           )}
         </OverviewCard>

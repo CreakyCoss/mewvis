@@ -98,7 +98,7 @@ const editorModules: Array<{
   {
     id: "story-graph",
     label: "剧情结构",
-    description: "阶段、节点和分支",
+    description: "节点和分支",
     icon: GitBranch,
   },
   {
