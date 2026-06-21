@@ -19,13 +19,6 @@ export type SidePanelProps = {
   onOpenChange: (isOpen: boolean) => void;
 };
 
-export type SidePanelDangerAction = {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-};
-
 export type DetailPanelKey =
   | "asset-drafts"
   | "timeline"

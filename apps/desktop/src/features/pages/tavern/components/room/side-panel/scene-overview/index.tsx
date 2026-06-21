@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Brain,
@@ -16,26 +16,55 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  requireRuntimeModelInput,
+  type RuntimeModelOption,
+} from "@/features/pages/settings/llm/store";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  advanceTavernProgressFromFactEvents,
+  filterTavernFactEventsForAudience,
+  getTavernStatusSnapshotValue,
+  isTavernProgressVisibilityVisibleToUser,
+  rebuildTavernProgressFromHistory,
+  resolveTavernPendingStatusEvent,
+} from "../../../../core";
+import { runTavernProgressTracking } from "../../../../runtime/progress-tracker";
+import {
+  projectTavernSceneOntoRoom,
+  syncTavernRoomActiveScene,
+} from "../../../../storage";
 import type {
+  TavernCondition,
   TavernFactEvent,
+  TavernReplyMode,
+  TavernRoom,
   TavernStatusDefinition,
   TavernStatusEvent,
+  TavernStatusTargetRef,
   TavernStatusValue,
+  TavernTaskDefinition,
+  TavernTaskState,
 } from "../../../../types";
+import { useTavernPageContext } from "../../../context";
 import {
   compactText,
   MeterBar,
 } from "../shared";
+import {
+  createResolvedStatusMetric,
+  getProgressStatusItems,
+  numericStatusPercent,
+} from "../status-utils";
 import type {
-  DetailPanelKey,
   ResolvedStatusMetric,
   TaskCardData,
   TaskValueDisplay,
@@ -45,6 +74,40 @@ type TaskCardDisplayData = {
   data: TaskCardData;
   conditionText: string;
 };
+
+type SceneOverviewSectionProps = {
+  externalBusy: boolean;
+  onBusyChange?: (isBusy: boolean) => void;
+  onOpenTasksDetail: () => void;
+  onOpenTipsDetail: () => void;
+  onOpenScriptReviewDetail: () => void;
+};
+
+const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
+
+const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
+  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "未知错误";
+};
+
+const replyModeDescriptions: Record<TavernReplyMode, string> = {
+  active: "仅当前选中的角色发言",
+  round: "所有入席角色依次发言",
+  director: "由导演选择合适角色发言",
+};
+
+const isIdentityFactEvent = (event: { type: string }) =>
+  /(?:role|identity|faction|camp|alignment|身份|阵营)/i.test(event.type);
 
 const formatStatusValue = (value: TavernStatusValue) => {
   if (Array.isArray(value)) {
@@ -65,6 +128,310 @@ const formatMetricValue = (value: TavernStatusValue) => {
 
 const statusMaxValue = (definition: TavernStatusDefinition) =>
   typeof definition.max === "number" ? definition.max : 100;
+
+const taskStatusLabels = {
+  inactive: "未激活",
+  active: "进行中",
+  completed: "已完成",
+  failed: "已失败",
+} as const;
+
+const conditionReferencesStatus = (
+  condition: TavernCondition | undefined,
+  statusId: string,
+): boolean => {
+  if (!condition) {
+    return false;
+  }
+  if ("status" in condition && "target" in condition) {
+    return condition.status === statusId;
+  }
+  if ("all" in condition) {
+    return condition.all.some((item) => conditionReferencesStatus(item, statusId));
+  }
+  if ("any" in condition) {
+    return condition.any.some((item) => conditionReferencesStatus(item, statusId));
+  }
+  if ("not" in condition) {
+    return conditionReferencesStatus(condition.not, statusId);
+  }
+  return false;
+};
+
+const isDefaultSceneThreatMetric = (metric: ResolvedStatusMetric) =>
+  metric.definition.id === "threat_level" &&
+  metric.definition.scope === "scene" &&
+  metric.definition.label === "威胁";
+
+const roomHasActiveTaskForStatus = (
+  room: TavernRoom,
+  statusId: string,
+) => room.taskDefinitions.some((task) => {
+  if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
+    return false;
+  }
+  const status = room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
+  if (status === "inactive") {
+    return false;
+  }
+  return conditionReferencesStatus(task.lifecycle.startCondition, statusId) ||
+    conditionReferencesStatus(task.lifecycle.completeCondition, statusId) ||
+    conditionReferencesStatus(task.lifecycle.failCondition, statusId);
+});
+
+const shouldUseSituationMetric = (
+  metric: ResolvedStatusMetric,
+  room: TavernRoom,
+) => {
+  if (typeof metric.value !== "number") {
+    return false;
+  }
+  if (!isDefaultSceneThreatMetric(metric)) {
+    return true;
+  }
+  return roomHasActiveTaskForStatus(room, metric.definition.id);
+};
+
+const formatConditionTargetLabel = (
+  target: TavernStatusTargetRef,
+  characterNameById: Map<string, string>,
+) => {
+  switch (target.type) {
+    case "global":
+      return "全局";
+    case "scene":
+      return "";
+    case "party":
+      return `队伍 ${target.partyId}`;
+    case "character":
+      return characterNameById.get(target.characterId) ?? target.characterId;
+    case "relationship": {
+      const subject = target.subject.type === "character"
+        ? characterNameById.get(target.subject.characterId) ?? target.subject.characterId
+        : "你";
+      const object = target.object.type === "character"
+        ? characterNameById.get(target.object.characterId) ?? target.object.characterId
+        : "你";
+      return `${subject}对${object}`;
+    }
+  }
+};
+
+const formatTaskConditionCardText = (
+  condition: TavernCondition | undefined,
+  characterNameById: Map<string, string>,
+  statusDefinitionById: Map<string, TavernStatusDefinition>,
+): string => {
+  if (!condition) {
+    return "无额外条件";
+  }
+  if ("all" in condition) {
+    return condition.all.map((item) =>
+      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
+    ).join(" 且 ");
+  }
+  if ("any" in condition) {
+    return condition.any.map((item) =>
+      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
+    ).join(" 或 ");
+  }
+  if ("not" in condition) {
+    return `非 ${formatTaskConditionCardText(condition.not, characterNameById, statusDefinitionById)}`;
+  }
+  if ("status" in condition && "target" in condition) {
+    const targetLabel = formatConditionTargetLabel(condition.target, characterNameById);
+    const statusLabel = statusDefinitionById.get(condition.status)?.label ?? condition.status;
+    if (condition.lte !== undefined) {
+      return `${targetLabel}${statusLabel}降至 ${condition.lte}`;
+    }
+    if (condition.gte !== undefined) {
+      return `${targetLabel}${statusLabel}达到 ${condition.gte}`;
+    }
+    if (condition.equals !== undefined) {
+      return `${targetLabel}${statusLabel}为 ${formatStatusValue(condition.equals)}`;
+    }
+    if (condition.notEquals !== undefined) {
+      return `${targetLabel}${statusLabel}不是 ${formatStatusValue(condition.notEquals)}`;
+    }
+    return `${targetLabel}${statusLabel}变化`;
+  }
+  if ("factEvent" in condition) {
+    return `出现 ${condition.factEvent} 事件`;
+  }
+  if ("task" in condition && "status" in condition) {
+    return `任务 ${condition.task} ${taskStatusLabels[condition.status]}`;
+  }
+  if ("flag" in condition) {
+    return `标记 ${condition.flag} 为 ${formatStatusValue(condition.equals)}`;
+  }
+  return "未知条件";
+};
+
+const findTaskStatusCondition = (
+  condition: TavernCondition | undefined,
+): Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }> | null => {
+  if (!condition) {
+    return null;
+  }
+  if ("status" in condition && "target" in condition) {
+    return condition;
+  }
+  if ("all" in condition) {
+    return condition.all.map(findTaskStatusCondition).find((item) => item !== null) ?? null;
+  }
+  if ("any" in condition) {
+    return condition.any.map(findTaskStatusCondition).find((item) => item !== null) ?? null;
+  }
+  return null;
+};
+
+const formatTaskNumber = (value: number) =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+const formatTaskMetricValue = (
+  value: TavernStatusValue,
+  definition: TavernStatusDefinition,
+) => {
+  if (typeof value !== "number") {
+    return formatStatusValue(value);
+  }
+  const max = typeof definition.max === "number" ? definition.max : 100;
+  return `${formatTaskNumber(Math.round(value))}/${formatTaskNumber(max)}`;
+};
+
+const formatTaskConditionTargetText = (
+  condition: Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }>,
+) => {
+  if (condition.lte !== undefined) {
+    return `目标 ≤ ${formatTaskNumber(condition.lte)}`;
+  }
+  if (condition.gte !== undefined) {
+    return `目标 ≥ ${formatTaskNumber(condition.gte)}`;
+  }
+  if (condition.equals !== undefined) {
+    return `目标 = ${formatStatusValue(condition.equals)}`;
+  }
+  if (condition.notEquals !== undefined) {
+    return `目标 ≠ ${formatStatusValue(condition.notEquals)}`;
+  }
+  return "等待变化";
+};
+
+const resolveTaskTargetPercent = (
+  condition: Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }>,
+  definition: TavernStatusDefinition,
+) => {
+  const targetValue =
+    condition.lte ??
+    condition.gte ??
+    (typeof condition.equals === "number" ? condition.equals : undefined);
+  return typeof targetValue === "number"
+    ? numericStatusPercent(targetValue, definition)
+    : undefined;
+};
+
+const resolveTaskConditionMetric = ({
+  activeRoom,
+  task,
+  characterNameById,
+  statusDefinitionById,
+}: {
+  activeRoom: TavernRoom;
+  task: TavernTaskDefinition;
+  characterNameById: Map<string, string>;
+  statusDefinitionById: Map<string, TavernStatusDefinition>;
+}) => {
+  const condition = findTaskStatusCondition(task.lifecycle.completeCondition);
+  if (!condition) {
+    return null;
+  }
+
+  const definition = statusDefinitionById.get(condition.status);
+  if (!definition) {
+    return null;
+  }
+
+  const value = getTavernStatusSnapshotValue(
+    activeRoom.statusSnapshot,
+    condition.target,
+    definition.id,
+  ) ?? definition.defaultValue;
+  const targetLabel = formatConditionTargetLabel(condition.target, characterNameById);
+  const metricLabel = `${targetLabel}${definition.label}` || definition.label;
+
+  return {
+    mode: "status",
+    label: metricLabel,
+    valueText: formatTaskMetricValue(value, definition),
+    currentText: `当前：${metricLabel} ${formatStatusValue(value)}`,
+    percent: numericStatusPercent(value, definition),
+    targetText: formatTaskConditionTargetText(condition),
+    targetPercent: resolveTaskTargetPercent(condition, definition),
+  } satisfies TaskValueDisplay;
+};
+
+const resolveTaskProgressDisplay = ({
+  activeRoom,
+  task,
+  state,
+  characterNameById,
+  statusDefinitionById,
+}: {
+  activeRoom: TavernRoom;
+  task: TavernTaskDefinition;
+  state?: TavernTaskState;
+  characterNameById: Map<string, string>;
+  statusDefinitionById: Map<string, TavernStatusDefinition>;
+}): Pick<TaskCardData, "metric"> => {
+  if (state?.progress && state.progress.target > 0) {
+    return {
+      metric: {
+        mode: "progress",
+        label: "任务进度",
+        valueText: `${state.progress.current}/${state.progress.target}`,
+        currentText: `当前：${state.progress.current} / ${state.progress.target}`,
+        percent: Math.max(0, Math.min(100, (state.progress.current / state.progress.target) * 100)),
+        targetText: `目标 ${state.progress.target}`,
+        targetPercent: 100,
+      },
+    };
+  }
+
+  const status = state?.status ?? task.lifecycle.initialStatus;
+  switch (status) {
+    case "completed":
+      return {};
+    case "failed":
+      return {};
+    case "active": {
+      const conditionMetric = resolveTaskConditionMetric({
+        activeRoom,
+        task,
+        characterNameById,
+        statusDefinitionById,
+      });
+      if (conditionMetric) {
+        return { metric: conditionMetric };
+      }
+      if (task.progress?.target) {
+        return {
+          metric: {
+            mode: "progress",
+            label: "任务进度",
+            valueText: `0/${task.progress.target}`,
+            currentText: `当前：0 / ${task.progress.target}`,
+            percent: 0,
+            targetText: `目标 ${task.progress.target}`,
+            targetPercent: 100,
+          },
+        };
+      }
+      return {};
+    }
+    case "inactive":
+      return {};
+  }
+};
 
 const situationStatusName = (metric: ResolvedStatusMetric | null) => {
   if (!metric) {
@@ -501,10 +868,10 @@ const TaskCard = ({
 
 const TasksSection = ({
   taskCards,
-  onOpenDetail,
+  onOpenTasksDetail,
 }: {
   taskCards: TaskCardDisplayData[];
-  onOpenDetail: (detailPanel: DetailPanelKey) => void;
+  onOpenTasksDetail: () => void;
 }) => (
   <SectionCard className="space-y-3 px-3 py-3">
     <CardHeading icon={Flag}>当前任务</CardHeading>
@@ -515,7 +882,7 @@ const TasksSection = ({
             key={taskCard.data.task.id}
             data={taskCard.data}
             conditionText={taskCard.conditionText}
-            onClick={() => onOpenDetail("tasks-outcomes")}
+            onClick={onOpenTasksDetail}
           />
         ))}
       </div>
@@ -562,7 +929,8 @@ const SceneDetailsSection = ({
   memory,
   identityFactEvents,
   isSending,
-  onOpenDetail,
+  onOpenTipsDetail,
+  onOpenScriptReviewDetail,
   onImmersiveDescriptionChange,
 }: {
   immersiveDescriptionEnabled: boolean;
@@ -570,7 +938,8 @@ const SceneDetailsSection = ({
   memory: string | undefined;
   identityFactEvents: TavernFactEvent[];
   isSending: boolean;
-  onOpenDetail: (detailPanel: DetailPanelKey) => void;
+  onOpenTipsDetail: () => void;
+  onOpenScriptReviewDetail: () => void;
   onImmersiveDescriptionChange: (checked: boolean) => void;
 }) => (
   <SectionCard className="space-y-2 px-3 py-3">
@@ -597,20 +966,20 @@ const SceneDetailsSection = ({
       icon={FileText}
       title="场景描述"
       summary={compactText(scene)}
-      onClick={() => onOpenDetail("tips")}
+      onClick={onOpenTipsDetail}
     />
     <DetailRow
       icon={Brain}
       title="房间记忆"
       summary={compactText(memory)}
-      onClick={() => onOpenDetail("tips")}
+      onClick={onOpenTipsDetail}
     />
     {identityFactEvents.length > 0 && (
       <DetailRow
         icon={ShieldCheck}
         title="我的身份"
         summary={identityFactEvents.slice(0, 2).map((event) => event.evidence).join("；")}
-        onClick={() => onOpenDetail("script-review")}
+        onClick={onOpenScriptReviewDetail}
       />
     )}
   </SectionCard>
@@ -661,82 +1030,336 @@ const ToolActionsSection = ({
 );
 
 export const SceneOverviewSection = ({
-  sceneTitle,
-  scenePhase,
-  sceneStatusItems,
-  immersiveDescriptionEnabled,
-  scene,
-  sceneGoal,
-  memory,
-  identityFactEvents,
-  pendingStatusEvents,
-  statusDefinitionById,
-  isSending,
-  isBusy,
-  isTrackingProgress,
-  situationMetric,
-  taskCards,
-  onOpenDetail,
-  onImmersiveDescriptionChange,
-  onTrackRecentProgress,
-  onRebuildProgress,
-  onResolvePendingStatusEvent,
-}: {
-  sceneTitle: string;
-  scenePhase: string;
-  sceneStatusItems: string[];
-  immersiveDescriptionEnabled: boolean;
-  scene: string | undefined;
-  sceneGoal: string | undefined;
-  memory: string | undefined;
-  identityFactEvents: TavernFactEvent[];
-  pendingStatusEvents: TavernStatusEvent[];
-  statusDefinitionById: Map<string, TavernStatusDefinition>;
-  isSending: boolean;
-  isBusy: boolean;
-  isTrackingProgress: boolean;
-  situationMetric: ResolvedStatusMetric | null;
-  taskCards: TaskCardDisplayData[];
-  onOpenDetail: (detailPanel: DetailPanelKey) => void;
-  onImmersiveDescriptionChange: (checked: boolean) => void;
-  onTrackRecentProgress: () => void;
-  onRebuildProgress: () => void;
-  onResolvePendingStatusEvent: (statusEventId: string, resolution: "applied" | "rejected") => void;
-}) => (
-  <section className="space-y-4">
-    <OverviewHeader
-      sceneTitle={sceneTitle}
-      scenePhase={scenePhase}
-      sceneStatusItems={sceneStatusItems}
-    />
-    <GoalCard sceneGoal={sceneGoal} />
-    {situationMetric && (
-      <SituationCard metric={situationMetric} />
-    )}
-    <PendingStatusEvents
-      events={pendingStatusEvents}
-      statusDefinitionById={statusDefinitionById}
-      isBusy={isBusy}
-      onResolve={onResolvePendingStatusEvent}
-    />
-    <TasksSection
-      taskCards={taskCards}
-      onOpenDetail={onOpenDetail}
-    />
-    <SceneDetailsSection
-      immersiveDescriptionEnabled={immersiveDescriptionEnabled}
-      scene={scene}
-      memory={memory}
-      identityFactEvents={identityFactEvents}
-      isSending={isSending}
-      onOpenDetail={onOpenDetail}
-      onImmersiveDescriptionChange={onImmersiveDescriptionChange}
-    />
-    <ToolActionsSection
-      isBusy={isBusy}
-      isTrackingProgress={isTrackingProgress}
-      onTrackRecentProgress={onTrackRecentProgress}
-      onRebuildProgress={onRebuildProgress}
-    />
-  </section>
-);
+  externalBusy,
+  onBusyChange,
+  onOpenTasksDetail,
+  onOpenTipsDetail,
+  onOpenScriptReviewDetail,
+}: SceneOverviewSectionProps) => {
+  const {
+    activeRoom,
+    workspace,
+    roomCharacters,
+    roomMessages,
+    runtimeModel,
+    runtimeAgentId,
+    isSending,
+    patchRoom,
+    appendMessagesToRoom,
+    appendProgressCheckpointToRoom,
+    reportError,
+    resetExecutionTrace,
+    patchExecutionStep,
+    setExecutionTraceAnchorMessageId,
+  } = useTavernPageContext();
+  const [isTrackingProgress, setIsTrackingProgress] = useState(false);
+
+  useEffect(() => {
+    onBusyChange?.(isTrackingProgress);
+  }, [isTrackingProgress, onBusyChange]);
+
+  useEffect(() => () => {
+    onBusyChange?.(false);
+  }, [onBusyChange]);
+
+  if (!activeRoom) {
+    return null;
+  }
+
+  const isBusy = isSending || externalBusy || isTrackingProgress;
+  const userPersonaName = activeRoom.userPersonaName.trim();
+  const activeScene = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId);
+  const sceneOverviewTitle =
+    activeRoom.sceneStatus?.location?.trim() ||
+    activeScene?.title?.trim() ||
+    activeRoom.title.trim() ||
+    "当前场景";
+  const sceneOverviewPhase =
+    activeRoom.sceneStatus?.scenePhase?.trim() ||
+    activeRoom.sceneStatus?.atmosphere?.trim() ||
+    activeRoom.sceneStatus?.timeLabel?.trim() ||
+    "进行中";
+  const sceneStatusItems = [
+    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
+    userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
+    `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
+    `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
+    `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
+  ].filter(Boolean);
+  const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
+  const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
+  const pendingStatusEvents = activeRoom.statusEvents
+    .filter((event) => event.status === "pending")
+    .filter((event) => {
+      const visibility = statusDefinitionById.get(event.statusId)?.visibility;
+      return isTavernProgressVisibilityVisibleToUser(visibility ?? "public");
+    })
+    .slice(-6);
+  const sidePanelStatusItems = getProgressStatusItems(activeRoom.progressViews, "sidePanel");
+  const sidePanelSituationMetrics = sidePanelStatusItems
+    .flatMap((item) => {
+      const definition = statusDefinitionById.get(item.statusId);
+      if (
+        !definition ||
+        !isTavernProgressVisibilityVisibleToUser(definition.visibility) ||
+        !["global", "scene", "party"].includes(definition.scope)
+      ) {
+        return [];
+      }
+      const metric = createResolvedStatusMetric({ activeRoom, definition, item });
+      return metric ? [metric] : [];
+    });
+  const situationMetric =
+    sidePanelSituationMetrics
+      .filter((metric) => shouldUseSituationMetric(metric, activeRoom))
+      .find((metric) => /威胁|风险|危机|局势/.test(metric.definition.label)) ??
+    sidePanelSituationMetrics.find((metric) => shouldUseSituationMetric(metric, activeRoom)) ??
+    null;
+  const visibleTaskDefinitions = activeRoom.taskDefinitions.filter((task) =>
+    isTavernProgressVisibilityVisibleToUser(task.visibility)
+  );
+  const activeTaskCards: TaskCardData[] = visibleTaskDefinitions
+    .map((task) => {
+      const state = activeRoom.taskSnapshot[task.id];
+      const status = state?.status ?? task.lifecycle.initialStatus;
+      const progressDisplay = resolveTaskProgressDisplay({
+        activeRoom,
+        task,
+        state,
+        characterNameById,
+        statusDefinitionById,
+      });
+      return {
+        task,
+        state,
+        status,
+        ...progressDisplay,
+      };
+    })
+    .filter((item) => item.status !== "inactive")
+    .slice(0, 4);
+  const identityFactEvents = filterTavernFactEventsForAudience({
+    factEvents: activeRoom.factEvents,
+    room: activeRoom,
+    audience: { type: "user" },
+  }).filter((event) => event.visibleToUser || event.visibility !== "public").filter(isIdentityFactEvent);
+  const sceneOverviewTaskCards = activeTaskCards.map((data) => ({
+    data,
+    conditionText: formatTaskConditionCardText(
+      data.task.lifecycle.completeCondition,
+      characterNameById,
+      statusDefinitionById,
+    ),
+  }));
+
+  const trackRecentProgress = async () => {
+    if (isBusy) {
+      return;
+    }
+
+    if (!runtimeModel) {
+      reportError("请先在设置中选择模型，再更新状态。");
+      return;
+    }
+
+    if (!runtimeAgentId) {
+      reportError("请先选择可用的 Agent 运行配置。");
+      return;
+    }
+
+    if (roomCharacters.length === 0) {
+      reportError("当前房间还没有可更新状态的角色。");
+      return;
+    }
+
+    if (activeRoom.statusDefinitions.length === 0 || activeRoom.statusRules.length === 0) {
+      reportError("当前房间还没有状态定义或状态规则。");
+      return;
+    }
+
+    const availableMessages = roomMessages.filter((message) =>
+      message.status !== "streaming" && message.status !== "error"
+    );
+    const contextMessages = availableMessages.slice(-30);
+    const sourceMessages = availableMessages.slice(-12);
+    if (sourceMessages.length === 0) {
+      reportError("当前房间还没有可更新状态的对话。");
+      return;
+    }
+
+    const progressTurnId = sourceMessages.at(-1)?.turnId ?? sourceMessages.at(-1)?.id ?? `manual-${Date.now()}`;
+    setIsTrackingProgress(true);
+    reportError("");
+    if (activeRoom.settings.showExecutionTrace) {
+      setExecutionTraceAnchorMessageId(sourceMessages.at(-1)?.id ?? "");
+      resetExecutionTrace([{
+        id: "manual-progress-tracking",
+        label: "手动更新状态",
+        detail: "从最近对话中抽取事实事件并应用状态规则。",
+        status: "running",
+      }]);
+    }
+
+    try {
+      const factEvents = await runTavernProgressTracking({
+        workspacePath: workspace.path,
+        runtimeAgentId,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: contextMessages,
+        sourceMessages,
+        references: [],
+        currentUserText: "手动更新最近对话中的状态、任务与结局。",
+        turnId: progressTurnId,
+      });
+
+      if (factEvents.length === 0) {
+        patchExecutionStep("manual-progress-tracking", {
+          status: "done",
+          detail: "最近对话没有明确状态事件。",
+        });
+        toast.info("最近对话没有明确状态事件。");
+        return;
+      }
+
+      const progressPatch = advanceTavernProgressFromFactEvents({
+        room: activeRoom,
+        factEvents,
+        turnId: progressTurnId,
+        createdAt: Date.now(),
+      });
+      const { actionMessages, ...progressRoomPatch } = progressPatch;
+      const progressedRoom = appendProgressCheckpointToRoom(
+        syncTavernRoomActiveScene({
+          ...projectTavernSceneOntoRoom(activeRoom),
+          ...progressRoomPatch,
+          updatedAt: Date.now(),
+        }),
+        "manual",
+        progressTurnId,
+      );
+      patchRoom(activeRoom.id, {
+        ...progressRoomPatch,
+        statusCheckpoints: progressedRoom.statusCheckpoints,
+      });
+      if (actionMessages.length > 0) {
+        appendMessagesToRoom(activeRoom.id, actionMessages);
+      }
+      patchExecutionStep("manual-progress-tracking", {
+        status: "done",
+        detail: `已抽取 ${factEvents.length} 个事实事件。`,
+      });
+      toast.success("状态面板已更新。");
+    } catch (progressError) {
+      patchExecutionStep("manual-progress-tracking", {
+        status: "error",
+        detail: getErrorMessage(progressError),
+      });
+      reportError(`状态更新失败：${getErrorMessage(progressError)}`);
+    } finally {
+      setIsTrackingProgress(false);
+    }
+  };
+
+  const rebuildProgressFromHistory = () => {
+    const rebuiltProgress = rebuildTavernProgressFromHistory({
+      room: activeRoom,
+      createdAt: Date.now(),
+    });
+    const rebuiltRoom = appendProgressCheckpointToRoom(
+      syncTavernRoomActiveScene({
+        ...projectTavernSceneOntoRoom(activeRoom),
+        ...rebuiltProgress,
+        updatedAt: Date.now(),
+      }),
+      "rebuild",
+      rebuiltProgress.statusSnapshot.turnId,
+    );
+    patchRoom(activeRoom.id, {
+      ...rebuiltProgress,
+      statusCheckpoints: rebuiltRoom.statusCheckpoints,
+    });
+    toast.success("状态面板已从 checkpoint 和事件历史重建。");
+  };
+
+  const resolvePendingStatusEvent = (
+    statusEventId: string,
+    resolution: "applied" | "rejected",
+  ) => {
+    const progressPatch = resolveTavernPendingStatusEvent({
+      room: activeRoom,
+      statusEventId,
+      resolution,
+      createdAt: Date.now(),
+    });
+    if (!progressPatch) {
+      reportError("未找到可处理的待确认状态事件。");
+      return;
+    }
+
+    const { actionMessages, ...progressRoomPatch } = progressPatch;
+    const progressedRoom = appendProgressCheckpointToRoom(
+      syncTavernRoomActiveScene({
+        ...projectTavernSceneOntoRoom(activeRoom),
+        ...progressRoomPatch,
+        updatedAt: Date.now(),
+      }),
+      "manual",
+      progressRoomPatch.statusSnapshot.turnId,
+    );
+    patchRoom(activeRoom.id, {
+      ...progressRoomPatch,
+      statusCheckpoints: progressedRoom.statusCheckpoints,
+    });
+    if (actionMessages.length > 0) {
+      appendMessagesToRoom(activeRoom.id, actionMessages);
+    }
+    toast.success(resolution === "applied" ? "状态事件已应用。" : "状态事件已拒绝。");
+  };
+
+  return (
+    <section className="space-y-4">
+      <OverviewHeader
+        sceneTitle={sceneOverviewTitle}
+        scenePhase={sceneOverviewPhase}
+        sceneStatusItems={sceneStatusItems}
+      />
+      <GoalCard sceneGoal={activeRoom.sceneGoal} />
+      {situationMetric && (
+        <SituationCard metric={situationMetric} />
+      )}
+      <PendingStatusEvents
+        events={pendingStatusEvents}
+        statusDefinitionById={statusDefinitionById}
+        isBusy={isBusy}
+        onResolve={resolvePendingStatusEvent}
+      />
+      <TasksSection
+        taskCards={sceneOverviewTaskCards}
+        onOpenTasksDetail={onOpenTasksDetail}
+      />
+      <SceneDetailsSection
+        immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
+        scene={activeRoom.scene}
+        memory={activeRoom.memory}
+        identityFactEvents={identityFactEvents}
+        isSending={isSending}
+        onOpenTipsDetail={onOpenTipsDetail}
+        onOpenScriptReviewDetail={onOpenScriptReviewDetail}
+        onImmersiveDescriptionChange={(checked) => patchRoom(activeRoom.id, {
+          settings: {
+            ...activeRoom.settings,
+            immersiveDescriptionEnabled: checked,
+          },
+        })}
+      />
+      <ToolActionsSection
+        isBusy={isBusy}
+        isTrackingProgress={isTrackingProgress}
+        onTrackRecentProgress={() => void trackRecentProgress()}
+        onRebuildProgress={rebuildProgressFromHistory}
+      />
+    </section>
+  );
+};

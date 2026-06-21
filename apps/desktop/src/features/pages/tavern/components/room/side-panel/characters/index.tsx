@@ -1,90 +1,14 @@
-import {
-  Brain,
-  ChevronRight,
-  HeartPulse,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import {
   HoverCard,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom, TavernStatusValue } from "../../../../types";
-import { MeterBar } from "../shared";
+import type { TavernCharacter, TavernRoom } from "../../../../types";
 import type { ResolvedStatusMetric } from "../types";
 import { CharacterDetail } from "./detail";
-
-const formatMetricValue = (value: TavernStatusValue) => {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.join("、") : "无";
-  }
-  if (typeof value === "boolean") {
-    return value ? "是" : "否";
-  }
-  if (typeof value === "number") {
-    return String(Math.round(value));
-  }
-  return value === null || value === "" ? "未记录" : String(value);
-};
-
-const metricMaxValue = (metric: ResolvedStatusMetric) =>
-  typeof metric.definition.max === "number" ? metric.definition.max : 100;
-
-const resolveMetricIcon = (label: string): LucideIcon => {
-  if (/健康|生命|体力|伤/.test(label)) {
-    return HeartPulse;
-  }
-  return Brain;
-};
-
-const CharacterMetricView = ({
-  metric,
-  variant = "compact",
-}: {
-  metric: ResolvedStatusMetric;
-  variant?: "compact" | "featured";
-}) => {
-  const Icon = resolveMetricIcon(metric.definition.label);
-  const value = formatMetricValue(metric.value);
-  const maxValue = metricMaxValue(metric);
-
-  if (variant === "featured") {
-    return (
-      <div className="min-w-0 rounded-lg border border-current/10 bg-background/60 px-2.5 py-2 shadow-sm">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-current/75">
-            <Icon className="size-3.5 shrink-0 text-primary" />
-            <span className="truncate">{metric.definition.label}</span>
-          </span>
-          <span className="shrink-0 text-[13px] font-semibold tabular-nums">
-            {value}
-            <span className="ml-0.5 text-xs font-normal text-current/55">/{maxValue}</span>
-          </span>
-        </div>
-        <div className="mt-2">
-          <MeterBar percent={metric.percent} />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-w-0 space-y-1 rounded-md px-0.5">
-      <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-current/70">
-          <Icon className="size-3.5 shrink-0 text-primary" />
-        <span className="shrink-0">{metric.definition.label}</span>
-      </div>
-      <div className="flex min-w-0 items-end justify-between gap-1.5">
-        <span className="shrink-0 text-[13px] font-semibold leading-none tabular-nums text-current/90">
-          {value}
-          <span className="ml-0.5 text-[11px] font-normal text-current/50">/{maxValue}</span>
-        </span>
-      </div>
-      <MeterBar percent={metric.percent} />
-    </div>
-  );
-};
+import { CharacterMetricView } from "./status-metric";
 
 const CharacterCardContent = ({
   character,
@@ -96,6 +20,7 @@ const CharacterCardContent = ({
   metrics: ResolvedStatusMetric[];
 }) => {
   const avatar = resolveAgentAvatar(character.avatar).src;
+  const compactMetrics = metrics.slice(0, 2);
 
   if (isActive) {
     return (
@@ -117,9 +42,9 @@ const CharacterCardContent = ({
             </span>
           </span>
         </span>
-        {metrics.length > 0 ? (
+        {compactMetrics.length > 0 ? (
           <span className="grid grid-cols-2 gap-2">
-            {metrics.map((metric) => (
+            {compactMetrics.map((metric) => (
               <CharacterMetricView
                 key={metric.key}
                 metric={metric}
@@ -147,8 +72,8 @@ const CharacterCardContent = ({
         {character.name}
       </span>
       <span className="grid min-w-0 flex-1 grid-cols-2 gap-2.5">
-        {metrics.length > 0 ? (
-          metrics.map((metric) => (
+        {compactMetrics.length > 0 ? (
+          compactMetrics.map((metric) => (
             <CharacterMetricView key={metric.key} metric={metric} />
           ))
         ) : (
@@ -169,8 +94,13 @@ export const CharacterStatusRow = ({
   metrics,
   isBusy,
   isCompacting,
+  isRebuilding,
+  isExtractingMemory,
   onClick,
+  onAddMemory,
+  onExtractMemory,
   onCompact,
+  onRebuild,
 }: {
   character: TavernCharacter;
   room: TavernRoom;
@@ -180,8 +110,13 @@ export const CharacterStatusRow = ({
   metrics: ResolvedStatusMetric[];
   isBusy: boolean;
   isCompacting: boolean;
+  isRebuilding: boolean;
+  isExtractingMemory: boolean;
   onClick: () => void;
+  onAddMemory: () => void;
+  onExtractMemory: () => void;
   onCompact: () => void;
+  onRebuild: () => void;
 }) => (
   <HoverCard openDelay={120} closeDelay={120}>
     <HoverCardTrigger asChild>
@@ -205,9 +140,15 @@ export const CharacterStatusRow = ({
       character={character}
       room={room}
       memory={memory}
+      metrics={metrics}
       isBusy={isBusy}
       isCompacting={isCompacting}
+      isRebuilding={isRebuilding}
+      isExtractingMemory={isExtractingMemory}
+      onAddMemory={onAddMemory}
+      onExtractMemory={onExtractMemory}
       onCompact={onCompact}
+      onRebuild={onRebuild}
     />
   </HoverCard>
 );
