@@ -35,7 +35,6 @@ import {
   EditorStatusPill,
   editorDangerActionButtonClassName,
   editorHeaderActionButtonClassName,
-  editorListEntryBodyClassName,
   editorPrimaryActionButtonClassName,
   editorQuietActionButtonClassName,
 } from "../../primitives";
@@ -74,29 +73,18 @@ const getNodeTone = (node: TavernStoryNode) => {
   return "border-primary/35 bg-primary/[0.06]";
 };
 
-const getSceneTitle = (room: TavernRoom, sceneId: string | undefined) =>
-  sceneId
-    ? room.storyGraph.nodes.find((node) => node.sceneId === sceneId)?.title?.trim() ||
-      room.scenes?.find((scene) => scene.id === sceneId)?.title?.trim() ||
-      "缺失场景"
-    : "未绑定场景";
-
-const nodeWidth = 190;
-const nodeHeight = 144;
-const nodeColumnGap = 244;
-const nodeLaneGap = 18;
+const nodeWidth = 170;
+const nodeHeight = 72;
+const nodeColumnGap = 340;
+const nodeLaneGap = 20;
 const graphPaddingX = 48;
 const graphPaddingY = 24;
-const stageHeaderHeight = 42;
-
-type StoryGraphLayoutStage = Pick<TavernStoryStage, "id" | "title" | "order">;
 
 type StoryGraphLayoutNode = {
   node: TavernStoryNode;
   x: number;
   y: number;
   depth: number;
-  stageTitle: string;
 };
 
 type StoryGraphLayout = {
@@ -104,13 +92,6 @@ type StoryGraphLayout = {
   height: number;
   nodes: StoryGraphLayoutNode[];
   nodeById: Map<string, StoryGraphLayoutNode>;
-  stages: Array<{
-    id: string;
-    title: string;
-    top: number;
-    height: number;
-    nodeCount: number;
-  }>;
 };
 
 const sortByOrder = <T extends { order?: number; createdAt?: number; title?: string }>(items: T[]) =>
@@ -135,7 +116,7 @@ const getStoryNodeTypeLabel = (node: TavernStoryNode) => {
     return "失败";
   }
   if (node.type === "ending") {
-    return "结局";
+    return "终局";
   }
   return "普通";
 };
@@ -253,11 +234,7 @@ const getStageNodeCount = (
   stage: TavernStoryStage,
   graph: TavernRoom["storyGraph"],
 ) => {
-  const routeNodes = buildRouteToNode(graph, stage.routeNodeId);
-  if (routeNodes.length > 0) {
-    return routeNodes.length;
-  }
-  return graph.nodes.filter((node) => node.stageId === stage.id).length;
+  return buildRouteToNode(graph, stage.routeNodeId).length;
 };
 
 const formatStageRouteTitle = (
@@ -269,6 +246,23 @@ const formatStageRouteTitle = (
     return "未绑定路线";
   }
   return routeNodes.map((node) => node.title || emptyValueText).join(" → ");
+};
+
+const buildRouteEdgeIds = (
+  graph: TavernRoom["storyGraph"],
+  routeNodes: TavernStoryNode[],
+) => {
+  const edgeIds = new Set<string>();
+  routeNodes.slice(0, -1).forEach((node, index) => {
+    const nextNode = routeNodes[index + 1];
+    const edge = graph.edges.find((item) =>
+      item.fromNodeId === node.id && item.toNodeId === nextNode?.id
+    );
+    if (edge) {
+      edgeIds.add(edge.id);
+    }
+  });
+  return edgeIds;
 };
 
 const canNodeUseMainPathRole = (
@@ -299,22 +293,6 @@ const canNodeUseMainPathRole = (
 };
 
 const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayout => {
-  const orderedStages: StoryGraphLayoutStage[] = sortByOrder(graph.stages);
-  const stageIds = new Set(orderedStages.map((stage) => stage.id));
-  const hasUngroupedNodes = graph.nodes.some((node) => !stageIds.has(node.stageId));
-  const layoutStages = hasUngroupedNodes
-    ? [
-        ...orderedStages,
-        {
-          id: "__ungrouped__",
-          title: "未分组",
-          order: orderedStages.length,
-        },
-      ]
-    : orderedStages;
-  const fallbackStages = layoutStages.length > 0
-    ? layoutStages
-    : [{ id: "__default__", title: "默认阶段", order: 0 }];
   const edgesByPriority = [...graph.edges].sort((left, right) =>
     left.priority - right.priority ||
     left.createdAt - right.createdAt
@@ -346,11 +324,7 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
     }
   }
 
-  const nodesByStageId = new Map<string, TavernStoryNode[]>();
   graph.nodes.forEach((node, index) => {
-    const stageId = stageIds.has(node.stageId)
-      ? node.stageId
-      : fallbackStages[fallbackStages.length - 1]?.id ?? "__default__";
     const fallbackDepth = Math.max(
       0,
       Math.round(((node.position?.x ?? graphPaddingX + index * nodeColumnGap) - graphPaddingX) / nodeColumnGap),
@@ -359,25 +333,20 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
     if (!depthByNodeId.has(node.id)) {
       depthByNodeId.set(node.id, fallbackDepth);
     }
-    nodesByStageId.set(stageId, [...(nodesByStageId.get(stageId) ?? []), node]);
   });
 
-  let top = graphPaddingY;
   let maxDepth = 0;
   const layoutNodes: StoryGraphLayoutNode[] = [];
-  const stageBands: StoryGraphLayout["stages"] = [];
+  const laneCountByDepth = new Map<number, number>();
+  let maxLaneCount = 1;
 
-  fallbackStages.forEach((stage) => {
-    const stageNodes = sortByOrder(nodesByStageId.get(stage.id) ?? [])
-      .sort((left, right) =>
-        (depthByNodeId.get(left.id) ?? 0) - (depthByNodeId.get(right.id) ?? 0) ||
-        (left.position?.y ?? 0) - (right.position?.y ?? 0) ||
-        (left.createdAt ?? 0) - (right.createdAt ?? 0)
-      );
-    const laneCountByDepth = new Map<number, number>();
-    let maxLaneCount = 1;
-
-    stageNodes.forEach((node) => {
+  sortByOrder(graph.nodes)
+    .sort((left, right) =>
+      (depthByNodeId.get(left.id) ?? 0) - (depthByNodeId.get(right.id) ?? 0) ||
+      (left.position?.y ?? 0) - (right.position?.y ?? 0) ||
+      (left.createdAt ?? 0) - (right.createdAt ?? 0)
+    )
+    .forEach((node) => {
       const depth = depthByNodeId.get(node.id) ?? 0;
       const lane = laneCountByDepth.get(depth) ?? 0;
       laneCountByDepth.set(depth, lane + 1);
@@ -387,25 +356,16 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
       layoutNodes.push({
         node,
         depth,
-        stageTitle: stage.title,
         x: graphPaddingX + depth * nodeColumnGap,
-        y: top + stageHeaderHeight + lane * (nodeHeight + nodeLaneGap),
+        y: graphPaddingY + lane * (nodeHeight + nodeLaneGap),
       });
-    });
-
-    const height = stageHeaderHeight + maxLaneCount * nodeHeight + (maxLaneCount - 1) * nodeLaneGap + 28;
-    stageBands.push({
-      id: stage.id,
-      title: stage.title,
-      top,
-      height,
-      nodeCount: stageNodes.length,
-    });
-    top += height + 12;
   });
 
   const width = Math.max(760, graphPaddingX * 2 + (maxDepth + 1) * nodeColumnGap + nodeWidth);
-  const height = Math.max(360, top + graphPaddingY);
+  const height = Math.max(
+    360,
+    graphPaddingY * 2 + maxLaneCount * nodeHeight + (maxLaneCount - 1) * nodeLaneGap,
+  );
   const nodeById = new Map(layoutNodes.map((item) => [item.node.id, item]));
 
   return {
@@ -413,7 +373,6 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
     height,
     nodes: layoutNodes,
     nodeById,
-    stages: stageBands,
   };
 };
 
@@ -433,9 +392,15 @@ export const StoryGraphSection = ({
     ? (data.scenes ?? []).find((scene) => scene.id === activeNode.sceneId) ?? null
     : null;
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(
+    graph.stages[0]?.id ?? null,
+  );
   const editingNode = editingNodeId
     ? graph.nodes.find((node) => node.id === editingNodeId) ?? null
     : null;
+  const selectedStage = graph.stages.find((stage) => stage.id === selectedStageId) ??
+    graph.stages[0] ??
+    null;
 
   const createSceneForStoryNode = (
     title: string,
@@ -502,6 +467,7 @@ export const StoryGraphSection = ({
       title: `阶段 ${graph.stages.length + 1}`,
       order: graph.stages.length,
     };
+    setSelectedStageId(stage.id);
     saveGraph({ stages: [...graph.stages, stage] });
   };
 
@@ -530,7 +496,11 @@ export const StoryGraphSection = ({
     };
     const nextGraph = {
       ...graph,
-      stages: graph.stages.length > 0 ? graph.stages : [defaultStage],
+      stages: graph.stages.length > 0
+        ? graph.stages.map((stage, index) => index === 0 && !stage.routeNodeId
+          ? { ...stage, routeNodeId: node.id }
+          : stage)
+        : [{ ...defaultStage, routeNodeId: node.id }],
       nodes: [...graph.nodes, node],
       entryNodeId: graph.entryNodeId || node.id,
       activeNodeId: node.id,
@@ -787,10 +757,12 @@ export const StoryGraphSection = ({
     : [];
   const graphLayout = buildStoryGraphLayout(graph);
   const defaultRouteNodes = buildDefaultRoute(graph);
-  const getNodeScene = (node: TavernStoryNode): TavernScene | null =>
-    node.sceneId
-      ? (data.scenes ?? []).find((scene) => scene.id === node.sceneId) ?? null
-      : null;
+  const selectedStageRouteNodes = selectedStage
+    ? buildRouteToNode(graph, selectedStage.routeNodeId)
+    : [];
+  const selectedStageRouteNodeIds = new Set(selectedStageRouteNodes.map((node) => node.id));
+  const selectedStageRouteEdgeIds = buildRouteEdgeIds(graph, selectedStageRouteNodes);
+  const hasSelectedStageRoute = selectedStageRouteNodes.length > 0;
   const getSceneCharacters = (scene: TavernScene | null | undefined) =>
     (scene?.characterIds ?? [])
       .map((characterId) => roomCharacterById.get(characterId))
@@ -858,6 +830,20 @@ export const StoryGraphSection = ({
               </NativeSelectOption>
             ))}
         </NativeSelect>
+        {isOutgoing ? (
+          <Input
+            value={edge.reason ?? ""}
+            placeholder="出口原因"
+            className="mt-2 h-8 bg-background/80 text-xs"
+            disabled={data.locked}
+            onChange={(event) => updateEdge(edge.id, { reason: event.target.value })}
+          />
+        ) : (
+          <div className="mt-2 rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground">
+            <span className="font-medium">入口原因：</span>
+            {edge.reason?.trim() || emptyValueText}
+          </div>
+        )}
         <div className="mt-2 flex justify-between gap-2">
           <Button
             type="button"
@@ -934,8 +920,26 @@ export const StoryGraphSection = ({
                 阶段
               </Button>
             </div>
-            {graph.stages.map((stage) => (
-              <div key={stage.id} className="rounded-md border bg-background/70 p-2">
+            {graph.stages.map((stage) => {
+              const isSelectedStage = selectedStage?.id === stage.id;
+              const stageNodeCount = getStageNodeCount(stage, graph);
+              return (
+              <div
+                key={stage.id}
+                role="button"
+                tabIndex={0}
+                className={cn(
+                  "rounded-md border bg-background/70 p-2 transition-colors",
+                  isSelectedStage && "border-primary/50 bg-primary/[0.05] shadow-sm",
+                )}
+                onClick={() => setSelectedStageId(stage.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedStageId(stage.id);
+                  }
+                }}
+              >
                 <div className="flex items-center justify-between gap-2">
 	                  <Input
 	                    value={stage.title}
@@ -943,7 +947,9 @@ export const StoryGraphSection = ({
 	                    disabled={data.locked}
 	                    onChange={(event) => updateStage(stage.id, { title: event.target.value })}
 	                  />
-	                  <EditorStatusPill>{getStageNodeCount(stage, graph)}</EditorStatusPill>
+	                  <EditorStatusPill tone={isSelectedStage ? "active" : "muted"}>
+                      {stageNodeCount}
+                    </EditorStatusPill>
 	                </div>
 	                <NativeSelect
 	                  value={stage.routeNodeId ?? ""}
@@ -960,10 +966,14 @@ export const StoryGraphSection = ({
 	                </NativeSelect>
 	                <div className="mt-2 rounded-md bg-muted/25 px-2 py-1.5 text-[11px] text-muted-foreground">
 	                  <div className="truncate">{formatStageRouteTitle(stage, graph)}</div>
-	                  <div className="mt-0.5">{formatCount(getStageNodeCount(stage, graph), "节点")}</div>
+	                  <div className="mt-0.5">
+                      {isSelectedStage ? "已选中 · " : ""}
+                      {formatCount(stageNodeCount, "节点")}
+                    </div>
 	                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="min-h-[24rem] overflow-hidden rounded-lg border bg-muted/10">
@@ -979,6 +989,10 @@ export const StoryGraphSection = ({
                 <span className="rounded-md border bg-background/80 px-2 py-1">
                   默认路线 {defaultRouteNodes.length}
                 </span>
+                <span className="rounded-md border bg-background/80 px-2 py-1">
+                  阶段：{selectedStage?.title || emptyValueText}
+                  {hasSelectedStageRoute ? ` · 高亮 ${selectedStageRouteNodes.length}` : " · 未绑定路线"}
+                </span>
               </div>
             </div>
 
@@ -990,26 +1004,6 @@ export const StoryGraphSection = ({
                   height: graphLayout.height,
                 }}
               >
-                {graphLayout.stages.map((stage) => (
-                  <div
-                    key={stage.id}
-                    className="absolute rounded-lg border border-border/60 bg-background/45"
-                    style={{
-                      left: 12,
-                      top: stage.top,
-                      width: graphLayout.width - 24,
-                      height: stage.height,
-                    }}
-                  >
-                    <div className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground">
-                      <span>{stage.title}</span>
-                      <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px]">
-                        {formatCount(stage.nodeCount, "节点")}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-
                 <svg
                   className="pointer-events-none absolute inset-0 z-10"
                   width={graphLayout.width}
@@ -1047,12 +1041,18 @@ export const StoryGraphSection = ({
                       ? `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`
                       : `M ${startX} ${startY} C ${startX + 72} ${startY}, ${endX - 72} ${endY}, ${endX} ${endY}`;
                     const edgeTone = getEdgeVisualTone(edge, toLayout.node);
+                    const isRouteEdge = selectedStageRouteEdgeIds.has(edge.id);
 
                     return (
                       <path
                         key={edge.id}
                         d={path}
-                        className={cn("fill-none stroke-[2.5]", edgeTone.stroke)}
+                        className={cn(
+                          "fill-none transition-opacity",
+                          isRouteEdge ? "stroke-[4] drop-shadow-sm" : "stroke-[2.5]",
+                          edgeTone.stroke,
+                          hasSelectedStageRoute && !isRouteEdge && "opacity-25",
+                        )}
                         strokeDasharray={edge.isDefault ? undefined : "6 6"}
                         markerEnd={`url(#${edgeTone.markerId})`}
                       />
@@ -1068,11 +1068,13 @@ export const StoryGraphSection = ({
                   }
 
                   const edgeTone = getEdgeVisualTone(edge, toLayout.node);
+                  const isRouteEdge = selectedStageRouteEdgeIds.has(edge.id);
+                  const edgeDisplayText = edge.reason?.trim() || edge.label?.trim() || "继续";
                   const labelLeft = Math.max(
                     16,
                     Math.min(
-                      graphLayout.width - 136,
-                      (fromLayout.x + nodeWidth + toLayout.x) / 2 - 56,
+                      graphLayout.width - 216,
+                      (fromLayout.x + nodeWidth + toLayout.x) / 2 - 96,
                     ),
                   );
                   const labelTop = Math.max(
@@ -1088,17 +1090,19 @@ export const StoryGraphSection = ({
                       key={edge.id}
                       type="button"
                       className={cn(
-                        "absolute z-20 max-w-32 truncate rounded-full border bg-background/95 px-2.5 py-1 text-[11px] font-medium shadow-xs transition-colors hover:bg-background",
+                        "absolute z-20 max-w-48 truncate rounded-full border bg-background/95 px-2.5 py-1 text-[11px] font-medium shadow-xs transition-colors hover:bg-background",
                         edgeTone.text,
+                        isRouteEdge && "border-primary/50 bg-primary/10 shadow-sm",
+                        hasSelectedStageRoute && !isRouteEdge && "opacity-45",
                       )}
                       style={{
                         left: labelLeft,
                         top: labelTop,
                       }}
-	                      title={edge.label || "继续"}
+	                      title={edgeDisplayText}
                       onClick={() => saveGraph({ activeNodeId: edge.toNodeId })}
                     >
-                      {edge.label?.trim() || "继续"}
+                      {edgeDisplayText}
                     </button>
                   );
                 })}
@@ -1106,17 +1110,18 @@ export const StoryGraphSection = ({
 	                {graphLayout.nodes.map((layoutNode, index) => {
 	                  const node = layoutNode.node;
 	                  const isActive = activeNode?.id === node.id;
-	                  const outgoingCount = graph.edges.filter((edge) => edge.fromNodeId === node.id).length;
-	                  const nodeScene = getNodeScene(node);
+                    const isRouteNode = selectedStageRouteNodeIds.has(node.id);
 
 	                  return (
                     <button
                       key={node.id}
                       type="button"
                       className={cn(
-                        "absolute z-30 flex flex-col overflow-hidden rounded-md border p-3 text-left shadow-sm transition-colors hover:bg-background",
+                        "absolute z-30 flex flex-col overflow-hidden rounded-md border px-2 py-2 text-left shadow-sm transition-colors hover:bg-background",
                         getNodeTone(node),
+                        isRouteNode && "ring-2 ring-primary/30",
                         isActive && "ring-2 ring-primary/45",
+                        hasSelectedStageRoute && !isRouteNode && "opacity-60",
                       )}
                       style={{
                         left: layoutNode.x,
@@ -1126,44 +1131,26 @@ export const StoryGraphSection = ({
                       }}
                       onClick={() => saveGraph({ activeNodeId: node.id })}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex h-full min-w-0 flex-col justify-center gap-1">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="flex size-5 shrink-0 items-center justify-center rounded-sm border bg-background/70 text-[11px] font-medium text-muted-foreground">
                             {index + 1}
                           </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium leading-5">
-                              {node.title || emptyValueText}
-                            </div>
-                            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                              {layoutNode.stageTitle} · {getSceneTitle(data, node.sceneId)}
-                            </div>
+                          <div className="min-w-0 flex-1 truncate text-sm font-medium leading-5">
+                            {node.title || emptyValueText}
                           </div>
                         </div>
-                        <EditorStatusPill tone={node.status === "ready" ? "active" : "muted"}>
-                          {getStoryNodeStatusLabel(node)}
-                        </EditorStatusPill>
+                        <div className="flex flex-wrap gap-1 pl-7">
+                          <span className="shrink-0 rounded-sm bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {getStoryPathRoleLabel(node)}
+                          </span>
+                          {node.type !== "normal" && (
+                          <span className="shrink-0 rounded-sm bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {getStoryNodeTypeLabel(node)}
+                          </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {getStoryNodeTypeLabel(node)}
-                        </span>
-                        <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {getStoryPathRoleLabel(node)}
-                        </span>
-                        <span className="rounded-sm bg-background/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {formatCount(outgoingCount, "出口")}
-                        </span>
-                      </div>
-	                      <div className={cn("mt-2 line-clamp-2 text-[11px] leading-5", editorListEntryBodyClassName)}>
-	                        {nodeScene?.scene?.trim() || emptyValueText}
-	                      </div>
-	                      <div className="mt-1 line-clamp-1 text-[11px] leading-5 text-muted-foreground">
-	                        {nodeScene?.sceneGoal?.trim() || emptyValueText}
-	                      </div>
-	                      <div className="mt-auto pt-2">
-	                        {renderSceneAvatarStack(nodeScene, 3)}
-	                      </div>
 	                    </button>
                   );
                 })}

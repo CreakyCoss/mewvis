@@ -2565,6 +2565,7 @@ const createTavernStoryEdge = (
     fromNodeId: input.fromNodeId,
     toNodeId: input.toNodeId,
     label: input.label?.trim() || "继续",
+    reason: input.reason?.trim() || undefined,
     isDefault: Boolean(input.isDefault),
     priority: typeof input.priority === "number" ? input.priority : 0,
     createdAt: typeof input.createdAt === "number" ? input.createdAt : updatedAt,
@@ -2614,7 +2615,7 @@ const createDefaultStoryGraph = (
     version: 1,
     entryNodeId: entryNode.id,
     activeNodeId: entryNode.id,
-    stages: [stage],
+    stages: [{ ...stage, routeNodeId: nodes[nodes.length - 1]?.id ?? entryNode.id }],
     nodes: nodes.length > 0 ? nodes : [entryNode],
     edges,
   };

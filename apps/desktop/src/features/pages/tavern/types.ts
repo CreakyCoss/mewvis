@@ -230,6 +230,7 @@ export type TavernStoryEdge = {
   fromNodeId: string;
   toNodeId: string;
   label: string;
+  reason?: string;
   isDefault?: boolean;
   priority: number;
   createdAt: number;
