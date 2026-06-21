@@ -179,6 +179,14 @@ const normalizeMarkdownMarkers = (text: string) =>
 export const stripTavernStandaloneActionBlocks = (text: string) =>
   text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
 
+export const stripTavernImmersiveDescriptionText = (text: string) =>
+  stripTavernStandaloneActionBlocks(text)
+    .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 export const hasTavernReplyDialogueText = (text: string) =>
   stripTavernStandaloneActionBlocks(text).trim().length > 0;
 

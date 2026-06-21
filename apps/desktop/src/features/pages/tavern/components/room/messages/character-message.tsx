@@ -7,6 +7,7 @@ import type {
   TavernCharacter,
   TavernFactEvent,
 } from "../../../types";
+import { stripTavernImmersiveDescriptionText } from "../../../runtime/reply-cleanup";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";
@@ -34,13 +35,20 @@ export const CharacterMessage = ({
   visualPreset,
 }: CharacterMessageProps) => {
   const avatar = resolveAgentAvatar(character?.avatar);
-  const displayThought = thought?.trim() ?? "";
+  const displayThought = immersiveDescriptionEnabled ? thought?.trim() ?? "" : "";
+  const displayContent = immersiveDescriptionEnabled
+    ? content
+    : stripTavernImmersiveDescriptionText(content);
   const copyContent = displayThought
-    ? `心想：${displayThought}\n\n${content}`
-    : content;
+    ? `心想：${displayThought}\n\n${displayContent}`
+    : displayContent;
   const immersiveDescriptionClassName = immersiveDescriptionEnabled
     ? "tavern-immersive-em"
     : undefined;
+
+  if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
+    return null;
+  }
 
   return (
     <div className="group/message flex justify-start">
@@ -84,7 +92,7 @@ export const CharacterMessage = ({
             )}
             <SmoothMarkdownContent
               className={immersiveDescriptionEnabled ? "tavern-immersive-markdown" : undefined}
-              content={content}
+              content={displayContent}
               emClassName={immersiveDescriptionClassName}
               isStreaming={isStreaming}
               separateEmphasisBlocks={immersiveDescriptionEnabled}
