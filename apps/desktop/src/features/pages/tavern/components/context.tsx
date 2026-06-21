@@ -11,7 +11,15 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../storage";
+import {
+  hasTavernPresentationStarted,
+  normalizeTavernPresentation,
+} from "../presentation-profiles";
 import { createTavernProgressCheckpoint } from "../core";
+import {
+  buildTavernMessageSegments,
+  inferTavernMessageKind,
+} from "../core/message-segments";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -216,6 +224,8 @@ export const TavernPageProvider = ({
     setState((current) => {
       const room = current.rooms.find((item) => item.id === roomId);
       const sceneId = room ? getRoomActiveSceneId(room) : roomId;
+      const updatedAt = Date.now();
+      const shouldLockPresentation = hasTavernPresentationStarted(messages);
       const nextSceneMessages = [
         ...(current.messagesByScene[sceneId] ?? []),
         ...messages,
@@ -223,9 +233,24 @@ export const TavernPageProvider = ({
 
       return {
         ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === roomId ? { ...room, updatedAt: Date.now() } : room,
-        ),
+        rooms: current.rooms.map((room) => {
+          if (room.id !== roomId) {
+            return room;
+          }
+
+          const presentation = normalizeTavernPresentation(room.presentation);
+          return {
+            ...room,
+            presentation: shouldLockPresentation && !presentation.lockedAt
+              ? {
+                  ...presentation,
+                  lockedAt: updatedAt,
+                  lockedSceneId: sceneId,
+                }
+              : presentation,
+            updatedAt,
+          };
+        }),
         messagesByScene: {
           ...current.messagesByScene,
           [sceneId]: nextSceneMessages,
@@ -244,9 +269,26 @@ export const TavernPageProvider = ({
             }
 
             patchedSceneId = sceneId;
-            return {
+            const nextMessage = {
               ...message,
               ...patch,
+            };
+            const shouldRebuildSegments =
+              !patch.segments &&
+              (patch.content !== undefined ||
+                patch.thought !== undefined ||
+                patch.presentationProfileId !== undefined ||
+                patch.role !== undefined ||
+                patch.characterId !== undefined);
+            return {
+              ...nextMessage,
+              kind: nextMessage.kind ?? inferTavernMessageKind({
+                role: nextMessage.role,
+                presentationProfileId: nextMessage.presentationProfileId,
+              }),
+              segments: shouldRebuildSegments
+                ? buildTavernMessageSegments(nextMessage)
+                : nextMessage.segments,
             };
           });
           return [sceneId, nextMessages];

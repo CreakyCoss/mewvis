@@ -365,6 +365,7 @@ export const RoomEditor = ({
         return (
           <BasicSection
             data={data}
+            messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />

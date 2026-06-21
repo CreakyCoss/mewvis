@@ -10,6 +10,7 @@ import {
 import type { Workspace } from "@/features/pages/workspace/types";
 import { normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import { normalizeTavernPromptStyleId } from "../../prompt-styles";
+import { normalizeTavernPresentation } from "../../presentation-profiles";
 import {
   createTavernProgressCheckpoint,
 } from "../../core";
@@ -927,6 +928,11 @@ export const ManagementProvider = ({
         systemPresetId: undefined,
         systemPresetVersion: undefined,
         locked: false,
+        presentation: {
+          ...sourceRoom.presentation,
+          lockedAt: undefined,
+          lockedSceneId: undefined,
+        },
         title: `${sourceRoom.title}（副本）`,
         activeSceneId,
         scenes: copiedScenes,
@@ -1328,6 +1334,7 @@ export const ManagementProvider = ({
       id: roomId,
       workspaceId: workspace.id,
       title: `${title}（导入）`,
+      presentation: normalizeTavernPresentation(parsedExport.room.presentation),
       promptStyleId: normalizeTavernPromptStyleId(parsedExport.room.promptStyleId),
       creationSource: "imported",
       storyOutline: parsedExport.room.storyOutline?.trim() || "",
@@ -1485,7 +1492,17 @@ export const ManagementProvider = ({
       });
       const materialized = createTavernRoomFromGeneratedPresetJson(
         workspace.id,
-        result.preset,
+        {
+          ...result.preset,
+          room: {
+            ...(result.preset.room ?? {}),
+            presentation: {
+              profileId: quickDraft.presentationProfileId,
+              profileVersion: 1,
+            },
+            presentationProfileId: quickDraft.presentationProfileId,
+          },
+        },
         {
           creationSource: "quick",
         },

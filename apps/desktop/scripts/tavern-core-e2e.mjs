@@ -8,6 +8,7 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-core-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
+const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director-decision.ts");
 const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
@@ -24,6 +25,7 @@ const assert = (condition, message, details) => {
 };
 
 writeFileSync(entryPath, `
+  import { allAgentAvatarOptions } from ${JSON.stringify(avatarPath)};
   import {
     advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
@@ -93,7 +95,10 @@ writeFileSync(entryPath, `
     parseSillyTavernWorldBookJson,
     parseTavernExternalImportJson,
   } from ${JSON.stringify(importFormatsPath)};
-  import { buildTavernSystemPrompt } from ${JSON.stringify(promptPath)};
+  import {
+    buildTavernSystemPrompt,
+    tavernMessagesToRuntimeMessages,
+  } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
   import { buildTavernCharacterTurnInstruction } from ${JSON.stringify(turnInstructionPath)};
 
@@ -103,6 +108,7 @@ writeFileSync(entryPath, `
   const charBRef = { type: "character", characterId: "char-b" };
   const bossRef = { type: "character", characterId: "boss" };
   const globalRef = { type: "global" };
+  const knownAvatarIds = new Set(allAgentAvatarOptions.map((option) => option.id));
   const statusDefinitions = [
     {
       id: "health",
@@ -635,6 +641,60 @@ writeFileSync(entryPath, `
     isManagedMode: false,
     directorReason: "测试武侠风格。",
   });
+  const narrativeRoom = {
+    ...styledRoom,
+    presentation: {
+      profileId: "third-person-prose",
+      lockedAt: null,
+      lockedSceneId: null,
+    },
+  };
+  const narrativePromptForA = buildTavernSystemPrompt({
+    room: narrativeRoom,
+    activeCharacter: styledCharacter,
+    characters: [styledCharacter, characters[1]],
+    references: [],
+    currentUserText: "山雨要来了。",
+  });
+  const narrativeTurnInstructionForA = buildTavernCharacterTurnInstruction({
+    room: narrativeRoom,
+    speaker: styledCharacter,
+    speakerIndex: 0,
+    speakerCount: 1,
+    replyMode: "director",
+    isDirectorLikeMode: true,
+    isManagedMode: false,
+    directorReason: "测试第三人称叙事。",
+  });
+  const narrativeBeatReply = parseTavernReplyText({
+    text: "<inner_thought>他不能先露怯。</inner_thought><narrative_beat>阿洛把披风拢紧，目光停在檐下那串雨珠上，没有急着开口。</narrative_beat>",
+    activeCharacter: characters[0],
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
+  const narrativeMessage = {
+    id: "m-narrative",
+    roomId: room.id,
+    role: "character",
+    characterId: "char-a",
+    kind: "narrative_beat",
+    presentationProfileId: "third-person-prose",
+    content: "阿洛把杯沿转向灯影，像是把一句没出口的话压了回去。",
+    createdAt: now,
+  };
+  const narrativeContextForA = formatTavernVisibleMessagesForRequestContext(
+    normalizeTavernMessagesForAudience({
+      messages: [narrativeMessage],
+      characters,
+      userPersonaName: room.userPersonaName,
+      audience: { type: "character", characterId: "char-a" },
+    }),
+  );
+  const narrativeRuntimeHistory = tavernMessagesToRuntimeMessages({
+    messages: [narrativeMessage],
+    characters,
+    userPersonaName: room.userPersonaName,
+  })[0]?.content ?? "";
   const mixedSpeakerReply = parseTavernReplyText({
     text: "<inner_thought>我得继续盯住高处。</inner_thought><reply>我先留在屋顶。\\n贝拉：门口交给我。</reply>",
     activeCharacter: characters[0],
@@ -1577,296 +1637,198 @@ writeFileSync(entryPath, `
       )
     : null;
   const defaultSystemPresetState = createDefaultTavernState("workspace-system-defaults");
-  const werewolfMaterialized = createTavernRoomFromSystemPreset(
+  const fogboundMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
-    "moonlit-werewolf-table",
+    "fogbound-archive-inquest",
     {
-      roomId: "system-werewolf-room",
+      roomId: "system-fogbound-room",
       createdAt: now + 70,
       characterIdByPresetId: new Map([
-        ["qiao-yu", "wolf-qiao"],
-        ["shen-mo", "wolf-shen"],
-        ["tan-luo", "wolf-tan"],
-        ["lin-yao", "wolf-lin"],
-        ["bai-shan", "wolf-bai"],
+        ["fo-mu-qingyan", "fog-mu"],
+        ["fo-luo-yunfan", "fog-luo"],
+        ["fo-qin-suye", "fog-qin"],
+        ["fo-han-ruosheng", "fog-han"],
       ]),
     },
   );
-  const werewolfRoom = werewolfMaterialized.room;
-  let werewolfRandomIndex = 0;
-  const werewolfRandomValues = [0.12, 0.76, 0.34, 0.91, 0.48, 0.23, 0.67, 0.05, 0.82, 0.39];
-  const werewolfRoleFacts = assignTavernRoleFacts({
-    room: werewolfRoom,
-    characters: werewolfMaterialized.characters,
-    random: () => werewolfRandomValues[werewolfRandomIndex++ % werewolfRandomValues.length],
-    turnId: "system-werewolf-role-turn",
-    createdAt: now + 71,
+  const fogboundRoom = fogboundMaterialized.room;
+  const fogboundAdvance = advanceTavernProgressFromFactEvents({
+    room: fogboundRoom,
+    factEvents: [
+      {
+        id: "system-fogbound-clue",
+        turnId: "system-fogbound-turn",
+        sourceMessageIds: ["system-fogbound-message"],
+        type: "clue_verified",
+        target: { type: "scene", sceneId: fogboundRoom.activeSceneId },
+        evidence: "调查人把潮汐钟停摆时刻与巡检表缺口对应起来，确认三点十七分不是自然停摆。",
+        confidence: 0.96,
+        createdAt: now + 71,
+      },
+      {
+        id: "system-fogbound-protect",
+        turnId: "system-fogbound-turn",
+        sourceMessageIds: ["system-fogbound-message"],
+        type: "witness_protected",
+        target: { type: "global" },
+        evidence: "调查人先转移秦素夜的住客，再让她交出备用齿轮线索。",
+        confidence: 0.9,
+        createdAt: now + 71,
+      },
+    ],
+    turnId: "system-fogbound-turn",
+    createdAt: now + 72,
   });
-  const werewolfPublicRoleFacts = filterTavernFactEventsForAudience({
-    factEvents: werewolfRoleFacts,
-    room: werewolfRoom,
-    audience: { type: "public" },
+
+  const emberMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "ember-market-alliance",
+    {
+      roomId: "system-ember-room",
+      createdAt: now + 73,
+      characterIdByPresetId: new Map([
+        ["em-yan-zhuo", "ember-yan"],
+        ["em-lian-shuo", "ember-lian"],
+        ["em-ke-lin", "ember-ke"],
+        ["em-miao-sen", "ember-miao"],
+      ]),
+    },
+  );
+  const emberRoom = emberMaterialized.room;
+  const emberYanRef = { type: "character", characterId: "ember-yan" };
+  const emberAdvance = advanceTavernProgressFromFactEvents({
+    room: emberRoom,
+    factEvents: [
+      {
+        id: "system-ember-water-deal",
+        turnId: "system-ember-turn",
+        sourceMessageIds: ["system-ember-message"],
+        type: "water_deal_secured",
+        target: { type: "global" },
+        evidence: "四方接受诊所保底供水、商会监督账本和守备队夜间通行的临时组合条件。",
+        confidence: 0.95,
+        createdAt: now + 74,
+      },
+      {
+        id: "system-ember-deal-secured",
+        turnId: "system-ember-turn",
+        sourceMessageIds: ["system-ember-message"],
+        type: "deal_secured",
+        target: { type: "scene", sceneId: emberRoom.activeSceneId },
+        evidence: "燕灼、连朔和柯临都给出明确让步，苗森同意以赦免换完整暗渠图。",
+        confidence: 0.92,
+        createdAt: now + 74,
+      },
+      {
+        id: "system-ember-promise-kept",
+        turnId: "system-ember-turn",
+        sourceMessageIds: ["system-ember-message"],
+        type: "promise_kept",
+        actor: emberYanRef,
+        target: userRef,
+        evidence: "用户把监督条款写入协议，兑现了让商会不被单方接管的承诺。",
+        confidence: 0.91,
+        createdAt: now + 74,
+      },
+    ],
+    turnId: "system-ember-turn",
+    createdAt: now + 75,
   });
-  const werewolfUserRoleFacts = filterTavernFactEventsForAudience({
-    factEvents: werewolfRoleFacts,
-    room: werewolfRoom,
-    audience: { type: "user" },
+
+  const starfallMaterialized = createTavernRoomFromSystemPreset(
+    "workspace-system",
+    "starfall-opera-rehearsal",
+    {
+      roomId: "system-starfall-room",
+      createdAt: now + 76,
+      characterIdByPresetId: new Map([
+        ["so-lu-yin", "opera-lu"],
+        ["so-shen-wei", "opera-shen"],
+        ["so-qi-lan", "opera-qi"],
+        ["so-meng-xi", "opera-meng"],
+      ]),
+    },
+  );
+  const starfallRoom = starfallMaterialized.room;
+  const starfallShenRef = { type: "character", characterId: "opera-shen" };
+  const starfallAdvance = advanceTavernProgressFromFactEvents({
+    room: starfallRoom,
+    factEvents: [
+      {
+        id: "system-starfall-stage-repaired",
+        turnId: "system-starfall-turn",
+        sourceMessageIds: ["system-starfall-message"],
+        type: "stage_repaired",
+        target: { type: "scene", sceneId: starfallRoom.activeSceneId },
+        evidence: "祁岚确认升降台滑轮被重新校准，灯控焦痕不再影响第七场走位。",
+        confidence: 0.95,
+        createdAt: now + 77,
+      },
+      {
+        id: "system-starfall-curse-clue",
+        turnId: "system-starfall-turn",
+        sourceMessageIds: ["system-starfall-message"],
+        type: "curse_clue_resolved",
+        target: { type: "global" },
+        evidence: "录音蜡筒证明三年前的坠幕声来自绞盘倒转，而不是不可验证的诅咒。",
+        confidence: 0.93,
+        createdAt: now + 77,
+      },
+      {
+        id: "system-starfall-voice",
+        turnId: "system-starfall-turn",
+        sourceMessageIds: ["system-starfall-message"],
+        type: "voice_recovered",
+        target: starfallShenRef,
+        evidence: "沈微在旧谱被移出星砂幕布后，能够轻声唱完第七场关键音阶。",
+        confidence: 0.9,
+        createdAt: now + 77,
+      },
+    ],
+    turnId: "system-starfall-turn",
+    createdAt: now + 78,
   });
-  const werewolfDirectorRoleFacts = filterTavernFactEventsForAudience({
-    factEvents: werewolfRoleFacts,
-    room: werewolfRoom,
-    audience: { type: "director" },
-  });
-  const werewolfRoleById = new Map(werewolfRoom.settings.informationPolicy.roleAssignment.rolePool.map((role) => [role.id, role]));
-  const werewolfParticipantById = new Map([
-    ["user", {
-      entity: { type: "user", userId: "user" },
-      label: werewolfRoom.userPersonaName,
-      isUser: true,
-    }],
-    ...werewolfMaterialized.characters.map((character) => [character.id, {
-      entity: { type: "character", characterId: character.id },
-      label: character.name,
-      characterId: character.id,
-      isUser: false,
-    }]),
-  ]);
-  const werewolfDirectorAssigned = {
-    factEvents: createTavernRoleAssignmentFactEvents({
-      room: werewolfRoom,
-      assignments: [
-        ["user", "villager"],
-        ["wolf-qiao", "wolf"],
-        ["wolf-shen", "seer"],
-        ["wolf-tan", "wolf"],
-        ["wolf-lin", "witch"],
-        ["wolf-bai", "villager"],
-      ].map(([participantId, roleId]) => ({
-        participant: werewolfParticipantById.get(participantId),
-        role: werewolfRoleById.get(roleId),
+  const avatarMigrationWorkspaceId = "workspace-avatar-migration";
+  const avatarMigrationMaterialized = createTavernRoomFromSystemPreset(
+    avatarMigrationWorkspaceId,
+    "fogbound-archive-inquest",
+    {
+      roomId: "system-avatar-migration-room",
+      createdAt: now + 79,
+    },
+  );
+  const avatarMigrationPreviousWindow = globalThis.window;
+  const avatarMigrationLocalStorageStub = {
+    getItem: () => null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+  };
+  globalThis.window = avatarMigrationPreviousWindow ?? { localStorage: avatarMigrationLocalStorageStub };
+  const avatarMigrationState = await saveTavernState("", avatarMigrationWorkspaceId, {
+    version: 2,
+    activeRoomId: avatarMigrationMaterialized.room.id,
+    rooms: [{
+      ...avatarMigrationMaterialized.room,
+      systemPresetVersion: 1,
+      localCharacters: avatarMigrationMaterialized.room.localCharacters.map((character, index) => ({
+        ...character,
+        avatar: ["📚", "🧭", "🌫️", "✉️"][index] ?? "📚",
+        systemPresetCharacterId: undefined,
       })),
-      turnId: "system-werewolf-director-assignment",
-      createdAt: now + 71,
-    }),
-    dayAnnouncement: "天亮时，祠堂旧钟慢了半拍，圆桌旁暂时无人缺席。",
-  };
-  const werewolfDirectorAssignedUserFacts = filterTavernFactEventsForAudience({
-    factEvents: werewolfDirectorAssigned.factEvents,
-    room: werewolfRoom,
-    audience: { type: "user" },
-  });
-  const werewolfDirectorAssignedPublicFacts = filterTavernFactEventsForAudience({
-    factEvents: werewolfDirectorAssigned.factEvents,
-    room: werewolfRoom,
-    audience: { type: "public" },
-  });
-  const werewolfNightScheduledSpeakerIds = resolveTavernScheduledSpeakers({
-    room: werewolfRoom,
-    availableCharacters: werewolfMaterialized.characters,
-    activeCharacterId: "wolf-qiao",
-    directorSpeakerIds: ["wolf-qiao"],
-    selectedTargetCharacterIds: [],
-    fallbackCharacter: werewolfMaterialized.characters[0],
-  }).map((character) => character.id);
-  const werewolfEliminateAdvance = advanceTavernProgressFromFactEvents({
-    room: werewolfRoom,
-    factEvents: [{
-      id: "system-werewolf-eliminate-shen",
-      turnId: "system-werewolf-day-vote",
-      sourceMessageIds: ["system-werewolf-vote-message"],
-      type: "player_eliminated",
-      target: { type: "character", characterId: "wolf-shen" },
-      evidence: "圆桌公开投票后，沈墨被宣告出局，不能继续参与白天发言。",
-      confidence: 0.98,
-      createdAt: now + 72,
     }],
-    turnId: "system-werewolf-day-vote",
-    createdAt: now + 73,
-  });
-  const werewolfAfterEliminateRoom = {
-    ...werewolfRoom,
-    ...werewolfEliminateAdvance,
-  };
-  const werewolfDayDiscussionRoom = {
-    ...werewolfAfterEliminateRoom,
-    statusSnapshot: setTavernStatusSnapshotValue(
-      werewolfAfterEliminateRoom.statusSnapshot,
-      { type: "global" },
-      "werewolf_phase",
-      "day_discussion",
-    ),
-  };
-  const werewolfRoundSpeakerIds = orderTavernRoundSpeakers({
-    room: werewolfDayDiscussionRoom,
-    characters: werewolfMaterialized.characters,
-    activeCharacterId: "wolf-qiao",
-  }).map((character) => character.id);
-  const werewolfRoundParticipantIds = orderTavernRoundParticipants({
-    room: werewolfDayDiscussionRoom,
-    characters: werewolfMaterialized.characters,
-    activeCharacterId: "wolf-qiao",
-    includeUser: werewolfDayDiscussionRoom.settings.directorScheduling.fixedOrder.includeUser,
-    userPosition: werewolfDayDiscussionRoom.settings.directorScheduling.fixedOrder.userPosition,
-    userPersonaName: werewolfDayDiscussionRoom.userPersonaName,
-  }).map((participant) => participant.id);
-  const werewolfScheduledSpeakerIds = resolveTavernScheduledSpeakers({
-    room: werewolfDayDiscussionRoom,
-    availableCharacters: werewolfMaterialized.characters,
-    activeCharacterId: "wolf-qiao",
-    directorSpeakerIds: ["wolf-tan"],
-    selectedTargetCharacterIds: ["wolf-lin"],
-    fallbackCharacter: werewolfMaterialized.characters[0],
-  }).map((character) => character.id);
-  const heartRaceMaterialized = createTavernRoomFromSystemPreset(
-    "workspace-system",
-    "heart-race-for-user",
-    {
-      roomId: "system-heart-race-room",
-      createdAt: now + 74,
-      characterIdByPresetId: new Map([
-        ["xia-zhi", "heart-xia"],
-        ["gu-lin", "heart-gu"],
-      ]),
+    messagesByScene: {
+      [avatarMigrationMaterialized.room.activeSceneId ?? avatarMigrationMaterialized.room.id]:
+        avatarMigrationMaterialized.messages,
     },
+  });
+  if (avatarMigrationPreviousWindow === undefined) {
+    delete globalThis.window;
+  } else {
+    globalThis.window = avatarMigrationPreviousWindow;
+  }
+  const avatarMigrationRoom = avatarMigrationState.rooms.find((room) =>
+    room.id === avatarMigrationMaterialized.room.id
   );
-  const heartRaceRoom = heartRaceMaterialized.room;
-  const heartRaceXiaRef = { type: "character", characterId: "heart-xia" };
-  const heartRaceGuRef = { type: "character", characterId: "heart-gu" };
-  const heartRaceAdvance = advanceTavernProgressFromFactEvents({
-    room: heartRaceRoom,
-    factEvents: [{
-      id: "system-heart-race-xia-help",
-      turnId: "system-heart-race-turn",
-      sourceMessageIds: ["system-heart-race-message"],
-      type: "help",
-      actor: heartRaceXiaRef,
-      target: userRef,
-      value: 75,
-      evidence: "夏栀明确帮你化解筹备室危机，让你对她的好感大幅提升。",
-      confidence: 0.96,
-      createdAt: now + 75,
-    }],
-    turnId: "system-heart-race-turn",
-    createdAt: now + 76,
-  });
-  const winTheirHeartsMaterialized = createTavernRoomFromSystemPreset(
-    "workspace-system",
-    "win-their-hearts-duel",
-    {
-      roomId: "system-win-hearts-room",
-      createdAt: now + 77,
-      characterIdByPresetId: new Map([
-        ["ye-xiaoman", "route-ye"],
-        ["liu-qingshuang", "route-liu"],
-      ]),
-    },
-  );
-  const winTheirHeartsRoom = winTheirHeartsMaterialized.room;
-  const winTheirHeartsYeRef = { type: "character", characterId: "route-ye" };
-  const winTheirHeartsTargetCanStaySilent = canTavernSelectedTargetsStaySilent(
-    winTheirHeartsRoom,
-    ["route-ye"],
-  );
-  const winTheirHeartsSilentTargetSpeakerIds = resolveTavernScheduledSpeakers({
-    room: winTheirHeartsRoom,
-    availableCharacters: winTheirHeartsMaterialized.characters,
-    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
-    directorSpeakerIds: [],
-    selectedTargetCharacterIds: ["route-ye"],
-    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
-  }).map((character) => character.id);
-  const winTheirHeartsMotivatedOtherSpeakerIds = resolveTavernScheduledSpeakers({
-    room: winTheirHeartsRoom,
-    availableCharacters: winTheirHeartsMaterialized.characters,
-    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
-    directorSpeakerIds: ["route-liu"],
-    selectedTargetCharacterIds: ["route-ye"],
-    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
-  }).map((character) => character.id);
-  const winTheirHeartsNonverbalCueSpeakerIds = resolveTavernScheduledSpeakers({
-    room: winTheirHeartsRoom,
-    availableCharacters: winTheirHeartsMaterialized.characters,
-    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
-    directorSpeakerIds: ["route-ye"],
-    selectedTargetCharacterIds: ["route-ye"],
-    currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
-    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
-  }).map((character) => character.id);
-  const winTheirHeartsNonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    room: winTheirHeartsRoom,
-    characterId: "route-ye",
-    selectedTargetCharacterIds: ["route-ye"],
-    currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
-    directorReason: "用户明确要求叶小满只用动作回应。",
-  });
-  const winTheirHeartsDirectorNonverbalSpeakerIds = resolveTavernScheduledSpeakers({
-    room: winTheirHeartsRoom,
-    availableCharacters: winTheirHeartsMaterialized.characters,
-    activeCharacterId: winTheirHeartsRoom.activeCharacterId,
-    directorSpeakerIds: [],
-    directorNonverbalReplyIds: ["route-ye"],
-    selectedTargetCharacterIds: [],
-    currentUserText: "小满，你不用回答。",
-    fallbackCharacter: winTheirHeartsMaterialized.characters[0],
-  }).map((character) => character.id);
-  const winTheirHeartsDirectorNonverbalAllowed = canTavernCharacterUseNonverbalReply({
-    room: winTheirHeartsRoom,
-    characterId: "route-ye",
-    selectedTargetCharacterIds: [],
-    directorNonverbalReplyIds: ["route-ye"],
-    currentUserText: "小满，你不用回答。",
-    directorReason: "导演根据昵称判断叶小满只做动作回应。",
-  });
-  const winTheirHeartsAdvance = advanceTavernProgressFromFactEvents({
-    room: winTheirHeartsRoom,
-    factEvents: [{
-      id: "system-win-hearts-user-help",
-      turnId: "system-win-hearts-turn",
-      sourceMessageIds: ["system-win-hearts-message"],
-      type: "help",
-      actor: userRef,
-      target: winTheirHeartsYeRef,
-      value: 80,
-      evidence: "你明确理解并支持叶小满独当一面的愿望，她对你的好感大幅提升。",
-      confidence: 0.96,
-      createdAt: now + 78,
-    }],
-    turnId: "system-win-hearts-turn",
-    createdAt: now + 79,
-  });
-  const wuxiaMaterialized = createTavernRoomFromSystemPreset(
-    "workspace-system",
-    "blade-rain-posthouse",
-    {
-      roomId: "system-wuxia-room",
-      createdAt: now + 80,
-      characterIdByPresetId: new Map([
-        ["su-qinghe", "blade-su"],
-        ["wen-he", "blade-wen"],
-        ["bai-tan", "blade-bai"],
-        ["xuan-ya", "boss-xuan"],
-      ]),
-    },
-  );
-  const wuxiaRoom = wuxiaMaterialized.room;
-  const wuxiaBossRef = { type: "character", characterId: "boss-xuan" };
-  const wuxiaAdvance = advanceTavernProgressFromFactEvents({
-    room: wuxiaRoom,
-    factEvents: [{
-      id: "system-wuxia-boss-damage",
-      turnId: "system-wuxia-turn",
-      sourceMessageIds: ["system-wuxia-message"],
-      type: "damage",
-      actor: userRef,
-      target: wuxiaBossRef,
-      value: -80,
-      evidence: "少侠与苏青河合力击中玄鸦使要害，玄鸦使伤势足以败退。",
-      confidence: 0.97,
-      createdAt: now + 81,
-    }],
-    turnId: "system-wuxia-turn",
-    createdAt: now + 82,
-  });
   const legacyCleanupWorkspaceId = "workspace-legacy-cleanup";
   const legacyManualRoom = {
     ...createTavernRoom(legacyCleanupWorkspaceId, 1),
@@ -2027,96 +1989,135 @@ writeFileSync(entryPath, `
     },
     systemPresets: {
       presetIds: tavernSystemPresets.map((preset) => preset.id),
+      invalidAvatarIds: tavernSystemPresets.flatMap((preset) =>
+        preset.characters.flatMap((character) =>
+          knownAvatarIds.has(character.avatar)
+            ? []
+            : [preset.id + ":" + character.id + ":" + character.avatar]
+        )
+      ),
       defaultStateRoomTitles: defaultSystemPresetState.rooms.map((item) => item.title),
       defaultStateRoomCount: defaultSystemPresetState.rooms.length,
-      werewolf: {
-        room: werewolfRoom,
-        roleFacts: werewolfRoleFacts,
-        directorAssignedFacts: werewolfDirectorAssigned.factEvents,
-        directorAssignedUserFactCount: werewolfDirectorAssignedUserFacts.length,
-        directorAssignedPublicFactCount: werewolfDirectorAssignedPublicFacts.length,
-        directorAssignedDayAnnouncement: werewolfDirectorAssigned.dayAnnouncement,
-        publicRoleFactCount: werewolfPublicRoleFacts.length,
-        userRoleFactCount: werewolfUserRoleFacts.length,
-        directorRoleFactCount: werewolfDirectorRoleFacts.length,
-        directorOnlyAtNight: isTavernDirectorOnlyTurnAllowed(werewolfRoom),
-        nightScheduledSpeakerIds: werewolfNightScheduledSpeakerIds,
-        fixedOrderDuringDayDiscussion: isTavernFixedOrderPhase(werewolfDayDiscussionRoom),
-        suppressContinuationDuringDayDiscussion: shouldSuppressTavernAutoContinuation(werewolfDayDiscussionRoom),
-        openingConfig: werewolfRoom.settings.informationPolicy.roleAssignment.opening,
-        eliminatedPlayerState: getTavernStatusSnapshotValue(
-          werewolfEliminateAdvance.statusSnapshot,
-          { type: "character", characterId: "wolf-shen" },
-          "player_state",
-        ),
-        roundSpeakerIdsAfterEliminate: werewolfRoundSpeakerIds,
-        roundParticipantIdsAfterEliminate: werewolfRoundParticipantIds,
-        scheduledSpeakerIdsAfterEliminate: werewolfScheduledSpeakerIds,
-        hiddenThoughts: werewolfRoom.settings.informationPolicy.hideCharacterThoughts,
-        hiddenFactsEnabled: werewolfRoom.settings.informationPolicy.hiddenFacts.enabled,
+      avatarMigration: {
+        avatars: avatarMigrationRoom?.localCharacters.map((character) => character.avatar) ?? [],
+        systemPresetCharacterIds:
+          avatarMigrationRoom?.localCharacters.map((character) => character.systemPresetCharacterId) ?? [],
       },
-      heartRace: {
-        room: heartRaceRoom,
-        xiaFavorBefore: getTavernStatusSnapshotValue(
-          heartRaceRoom.statusSnapshot,
-          { type: "relationship", subject: userRef, object: heartRaceXiaRef },
-          "favorability",
+      fogbound: {
+        room: fogboundRoom,
+        avatarIds: fogboundRoom.localCharacters.map((character) => character.avatar),
+        characterCount: fogboundMaterialized.characters.length,
+        scenesCount: fogboundRoom.scenes?.length ?? 0,
+        lorebookCount: fogboundRoom.lorebookEntries.length,
+        timelineCount: fogboundRoom.timelineEvents.length,
+        messageProfiles: fogboundMaterialized.messages.map((message) => message.presentationProfileId),
+        hasMappedCharacterRelationship: fogboundMaterialized.characters.some((character) =>
+          character.relationships.some((relationship) =>
+            relationship.target.type === "character" &&
+            ["fog-mu", "fog-luo", "fog-qin", "fog-han"].includes(relationship.target.characterId)
+          )
         ),
-        guFavorBefore: getTavernStatusSnapshotValue(
-          heartRaceRoom.statusSnapshot,
-          { type: "relationship", subject: userRef, object: heartRaceGuRef },
-          "favorability",
+        hasUnmappedPresetRelationship: fogboundMaterialized.characters.some((character) =>
+          character.relationships.some((relationship) =>
+            relationship.target.type === "character" &&
+            relationship.target.characterId.startsWith("fo-")
+          )
         ),
-        xiaFavorAfter: getTavernStatusSnapshotValue(
-          heartRaceAdvance.statusSnapshot,
-          { type: "relationship", subject: userRef, object: heartRaceXiaRef },
-          "favorability",
+        caseClarityBefore: getTavernStatusSnapshotValue(
+          fogboundRoom.statusSnapshot,
+          { type: "scene" },
+          "case_clarity",
         ),
-        xiaTaskStatus: heartRaceAdvance.taskSnapshot["xia-zhi-wins-user-favor"]?.status,
-        xiaOutcomeStatus: heartRaceAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "xia-zhi-victory"
+        caseClarityAfter: getTavernStatusSnapshotValue(
+          fogboundAdvance.statusSnapshot,
+          { type: "scene" },
+          "case_clarity",
+        ),
+        witnessSafetyBefore: getTavernStatusSnapshotValue(
+          fogboundRoom.statusSnapshot,
+          { type: "global" },
+          "witness_safety",
+        ),
+        verifyTaskStatus: fogboundAdvance.taskSnapshot["fo-verify-tide-clock"]?.status,
+        outcomeStatus: fogboundAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "fo-truth-reconstructed"
         )?.status,
       },
-      winTheirHearts: {
-        room: winTheirHeartsRoom,
-        yeFavorBefore: getTavernStatusSnapshotValue(
-          winTheirHeartsRoom.statusSnapshot,
-          { type: "relationship", subject: winTheirHeartsYeRef, object: userRef },
-          "favorability",
+      ember: {
+        room: emberRoom,
+        avatarIds: emberRoom.localCharacters.map((character) => character.avatar),
+        characterCount: emberMaterialized.characters.length,
+        scenesCount: emberRoom.scenes?.length ?? 0,
+        lorebookCount: emberRoom.lorebookEntries.length,
+        timelineCount: emberRoom.timelineEvents.length,
+        allianceBefore: getTavernStatusSnapshotValue(
+          emberRoom.statusSnapshot,
+          { type: "scene" },
+          "alliance_stability",
         ),
-        yeFavorAfter: getTavernStatusSnapshotValue(
-          winTheirHeartsAdvance.statusSnapshot,
-          { type: "relationship", subject: winTheirHeartsYeRef, object: userRef },
-          "favorability",
+        allianceAfter: getTavernStatusSnapshotValue(
+          emberAdvance.statusSnapshot,
+          { type: "scene" },
+          "alliance_stability",
         ),
-        yeTaskStatus: winTheirHeartsAdvance.taskSnapshot["win-ye-xiaoman-heart"]?.status,
-        yeOutcomeStatus: winTheirHeartsAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "ye-route-clear"
+        waterBefore: getTavernStatusSnapshotValue(
+          emberRoom.statusSnapshot,
+          { type: "global" },
+          "water_security",
+        ),
+        waterAfter: getTavernStatusSnapshotValue(
+          emberAdvance.statusSnapshot,
+          { type: "global" },
+          "water_security",
+        ),
+        yanTrustBefore: getTavernStatusSnapshotValue(
+          emberRoom.statusSnapshot,
+          { type: "relationship", subject: emberYanRef, object: userRef },
+          "trust_to_mediator",
+        ),
+        trustStatusEvent: emberAdvance.statusEvents.find((event) =>
+          event.statusId === "trust_to_mediator"
         )?.status,
-        targetCanStaySilent: winTheirHeartsTargetCanStaySilent,
-        silentTargetSpeakerIds: winTheirHeartsSilentTargetSpeakerIds,
-        motivatedOtherSpeakerIds: winTheirHeartsMotivatedOtherSpeakerIds,
-        nonverbalCueSpeakerIds: winTheirHeartsNonverbalCueSpeakerIds,
-        nonverbalReplyAllowed: winTheirHeartsNonverbalReplyAllowed,
-        directorNonverbalSpeakerIds: winTheirHeartsDirectorNonverbalSpeakerIds,
-        directorNonverbalAllowed: winTheirHeartsDirectorNonverbalAllowed,
+        waterTaskStatus: emberAdvance.taskSnapshot["em-seal-water-truce"]?.status,
+        outcomeStatus: emberAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "em-alliance-formed"
+        )?.status,
       },
-      wuxia: {
-        room: wuxiaRoom,
-        bossHealthBefore: getTavernStatusSnapshotValue(
-          wuxiaRoom.statusSnapshot,
-          { type: "character", characterId: "boss-xuan" },
-          "health",
+      starfall: {
+        room: starfallRoom,
+        avatarIds: starfallRoom.localCharacters.map((character) => character.avatar),
+        characterCount: starfallMaterialized.characters.length,
+        scenesCount: starfallRoom.scenes?.length ?? 0,
+        lorebookCount: starfallRoom.lorebookEntries.length,
+        timelineCount: starfallRoom.timelineEvents.length,
+        performanceBefore: getTavernStatusSnapshotValue(
+          starfallRoom.statusSnapshot,
+          { type: "scene" },
+          "performance_integrity",
         ),
-        bossHealthAfter: getTavernStatusSnapshotValue(
-          wuxiaAdvance.statusSnapshot,
-          { type: "character", characterId: "boss-xuan" },
-          "health",
+        performanceAfter: getTavernStatusSnapshotValue(
+          starfallAdvance.statusSnapshot,
+          { type: "scene" },
+          "performance_integrity",
         ),
-        defeatTaskStatus: wuxiaAdvance.taskSnapshot["defeat-xuan-ya"]?.status,
-        outcomeStatus: wuxiaAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "xuan-ya-defeated"
+        cursePressureBefore: getTavernStatusSnapshotValue(
+          starfallRoom.statusSnapshot,
+          { type: "global" },
+          "curse_pressure",
+        ),
+        voiceBefore: getTavernStatusSnapshotValue(
+          starfallRoom.statusSnapshot,
+          { type: "character", characterId: "opera-shen" },
+          "voice_stability",
+        ),
+        voiceStatusEvent: starfallAdvance.statusEvents.find((event) =>
+          event.statusId === "voice_stability"
         )?.status,
+        stageTaskStatus: starfallAdvance.taskSnapshot["so-secure-seventh-scene"]?.status,
+        outcomeStatus: starfallAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "so-seventh-scene-saved"
+        )?.status,
+        replyOptionTargetIds: starfallAdvance.replyOptions.flatMap((option) => option.targetCharacterIds),
       },
       legacyCleanup: {
         activeRoomId: legacyCleanupState.activeRoomId,
@@ -2139,6 +2140,11 @@ writeFileSync(entryPath, `
     promptForA,
     styledPromptForA,
     styledTurnInstructionForA,
+    narrativePromptForA,
+    narrativeTurnInstructionForA,
+    narrativeBeatReply,
+    narrativeContextForA,
+    narrativeRuntimeHistory,
     mixedSpeakerReply,
     activeSegmentReply,
     wrongRoleReply,
@@ -2253,6 +2259,22 @@ try {
     {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,
+    },
+  );
+  assert(
+    checks.narrativePromptForA.includes("<narrative_beat> 写一段第三人称叙事片段") &&
+      checks.narrativeTurnInstructionForA.includes("<narrative_beat> 写一段围绕阿洛的第三人称小说正文") &&
+      checks.narrativeBeatReply.contentKind === "narrative_beat" &&
+      checks.narrativeBeatReply.content.includes("阿洛把披风拢紧") &&
+      checks.narrativeContextForA.includes("<narrative_beat>") &&
+      checks.narrativeRuntimeHistory.includes("<history_narrative_beat>"),
+    "第三人称/小说呈现模式应使用 narrative_beat 生成合同、解析结果和历史上下文",
+    {
+      prompt: checks.narrativePromptForA,
+      turnInstruction: checks.narrativeTurnInstructionForA,
+      parsed: checks.narrativeBeatReply,
+      context: checks.narrativeContextForA,
+      history: checks.narrativeRuntimeHistory,
     },
   );
   assert(
@@ -2638,10 +2660,26 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.presetIds.join("|") ===
-      "moonlit-werewolf-table|heart-race-for-user|win-their-hearts-duel|blade-rain-posthouse" &&
-      checks.progressChecks.systemPresets.defaultStateRoomCount === 4 &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆"),
-    "系统预设应只包含新的四个互动剧本，并移除旧预设房间",
+      "fogbound-archive-inquest|ember-market-alliance|starfall-opera-rehearsal" &&
+      checks.progressChecks.systemPresets.defaultStateRoomCount === 3 &&
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港档案馆问询") &&
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("余烬集市同盟") &&
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("星坠歌剧院彩排") &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆") &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("月下圆桌狼人杀"),
+    "系统预设应只包含新的三个完整剧本，并移除旧预设房间",
+    checks.progressChecks.systemPresets,
+  );
+  assert(
+    checks.progressChecks.systemPresets.invalidAvatarIds.length === 0 &&
+      new Set(checks.progressChecks.systemPresets.fogbound.avatarIds).size === 4 &&
+      new Set(checks.progressChecks.systemPresets.ember.avatarIds).size === 4 &&
+      new Set(checks.progressChecks.systemPresets.starfall.avatarIds).size === 4 &&
+      checks.progressChecks.systemPresets.avatarMigration.avatars.join("|") ===
+        "tavern-05|tavern-03|tavern-02|tavern-06" &&
+      checks.progressChecks.systemPresets.avatarMigration.systemPresetCharacterIds.join("|") ===
+        "fo-mu-qingyan|fo-luo-yunfan|fo-qin-suye|fo-han-ruosheng",
+    "系统预设角色头像必须使用已注册头像资源，且已保存的旧预设房间应能按当前预设回填头像",
     checks.progressChecks.systemPresets,
   );
   assert(
@@ -2649,72 +2687,77 @@ try {
       checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("手动保留房间") &&
       !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("雾港失物馆") &&
       !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("竹雨驿馆") &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("月下圆桌狼人杀") &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("刀雨驿站"),
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("月下圆桌狼人杀") &&
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("心动争夺赛：谁先赢得你") &&
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("双人攻略：你先打动谁") &&
+      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("刀雨驿站") &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("雾港档案馆问询") &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("余烬集市同盟") &&
+      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("星坠歌剧院彩排"),
     "加载旧酒馆状态时应清理旧系统预设残留，同时保留手动房间并补齐新预设",
     checks.progressChecks.systemPresets.legacyCleanup,
   );
   assert(
-    checks.progressChecks.systemPresets.werewolf.room.settings.informationPolicy.mode === "social_deduction" &&
-      checks.progressChecks.systemPresets.werewolf.room.replyMode === "director" &&
-      checks.progressChecks.systemPresets.werewolf.directorOnlyAtNight &&
-      checks.progressChecks.systemPresets.werewolf.nightScheduledSpeakerIds.length === 0 &&
-      checks.progressChecks.systemPresets.werewolf.fixedOrderDuringDayDiscussion &&
-      checks.progressChecks.systemPresets.werewolf.suppressContinuationDuringDayDiscussion &&
-      checks.progressChecks.systemPresets.werewolf.openingConfig.autoStart &&
-      checks.progressChecks.systemPresets.werewolf.openingConfig.publicEventType === "phase_started" &&
-      checks.progressChecks.systemPresets.werewolf.openingConfig.publicEventValue === "day_discussion" &&
-      checks.progressChecks.systemPresets.werewolf.hiddenThoughts &&
-      checks.progressChecks.systemPresets.werewolf.hiddenFactsEnabled &&
-      checks.progressChecks.systemPresets.werewolf.roleFacts.length === 6 &&
-      checks.progressChecks.systemPresets.werewolf.directorAssignedFacts.length === 6 &&
-      checks.progressChecks.systemPresets.werewolf.directorAssignedPublicFactCount === 0 &&
-      checks.progressChecks.systemPresets.werewolf.directorAssignedUserFactCount >= 1 &&
-      !/狼人|预言家|女巫|村民|wolves|villagers/.test(checks.progressChecks.systemPresets.werewolf.directorAssignedDayAnnouncement) &&
-      checks.progressChecks.systemPresets.werewolf.publicRoleFactCount === 0 &&
-      checks.progressChecks.systemPresets.werewolf.userRoleFactCount >= 1 &&
-      checks.progressChecks.systemPresets.werewolf.directorRoleFactCount === 6 &&
-      checks.progressChecks.systemPresets.werewolf.eliminatedPlayerState === "eliminated" &&
-      checks.progressChecks.systemPresets.werewolf.roundSpeakerIdsAfterEliminate.join("|") ===
-        "wolf-qiao|wolf-tan|wolf-lin|wolf-bai" &&
-      checks.progressChecks.systemPresets.werewolf.roundParticipantIdsAfterEliminate.join("|") ===
-        "user|wolf-qiao|wolf-tan|wolf-lin|wolf-bai" &&
-      checks.progressChecks.systemPresets.werewolf.scheduledSpeakerIdsAfterEliminate.join("|") ===
-        "wolf-qiao|wolf-tan|wolf-lin|wolf-bai",
-    "狼人杀预设应开启导演阶段调度、随机身份、隐藏心理/事实，并在白天固定顺序发言且跳过出局者",
-    checks.progressChecks.systemPresets.werewolf,
+    checks.progressChecks.systemPresets.fogbound.room.presentation.profileId === "third-person-prose" &&
+      checks.progressChecks.systemPresets.fogbound.room.promptStyleId === "grounded" &&
+      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.mode === "mystery" &&
+      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hideCharacterThoughts &&
+      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hiddenFacts.enabled &&
+      checks.progressChecks.systemPresets.fogbound.characterCount === 4 &&
+      checks.progressChecks.systemPresets.fogbound.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.fogbound.lorebookCount >= 4 &&
+      checks.progressChecks.systemPresets.fogbound.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.fogbound.messageProfiles.every((profileId) =>
+        profileId === "third-person-prose"
+      ) &&
+      checks.progressChecks.systemPresets.fogbound.hasMappedCharacterRelationship &&
+      !checks.progressChecks.systemPresets.fogbound.hasUnmappedPresetRelationship &&
+      checks.progressChecks.systemPresets.fogbound.caseClarityBefore === 20 &&
+      checks.progressChecks.systemPresets.fogbound.caseClarityAfter === 55 &&
+      checks.progressChecks.systemPresets.fogbound.witnessSafetyBefore === 55 &&
+      checks.progressChecks.systemPresets.fogbound.verifyTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.fogbound.outcomeStatus === "pending",
+    "雾港预设应完整映射第三人称旁白、关系、世界书、多场景和调查进度规则",
+    checks.progressChecks.systemPresets.fogbound,
   );
   assert(
-    checks.progressChecks.systemPresets.heartRace.xiaFavorBefore === 25 &&
-      checks.progressChecks.systemPresets.heartRace.guFavorBefore === 25 &&
-      checks.progressChecks.systemPresets.heartRace.xiaFavorAfter === 100 &&
-      checks.progressChecks.systemPresets.heartRace.xiaTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.heartRace.xiaOutcomeStatus === "pending",
-    "好感剧本1应按 user -> character 方向推进“你对角色的好感”并触发角色胜利",
-    checks.progressChecks.systemPresets.heartRace,
+    checks.progressChecks.systemPresets.ember.room.presentation.profileId === "dialogue-chat" &&
+      checks.progressChecks.systemPresets.ember.room.promptStyleId === "dramatic" &&
+      checks.progressChecks.systemPresets.ember.room.settings.informationPolicy.mode === "open" &&
+      checks.progressChecks.systemPresets.ember.characterCount === 4 &&
+      checks.progressChecks.systemPresets.ember.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.ember.lorebookCount >= 3 &&
+      checks.progressChecks.systemPresets.ember.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.ember.allianceBefore === 30 &&
+      checks.progressChecks.systemPresets.ember.allianceAfter === 60 &&
+      checks.progressChecks.systemPresets.ember.waterBefore === 35 &&
+      checks.progressChecks.systemPresets.ember.waterAfter === 75 &&
+      checks.progressChecks.systemPresets.ember.yanTrustBefore === 40 &&
+      ["pending", "applied"].includes(checks.progressChecks.systemPresets.ember.trustStatusEvent) &&
+      checks.progressChecks.systemPresets.ember.waterTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.ember.outcomeStatus === "pending",
+    "余烬集市预设应完整映射对话演绎、关系信任、水塔协议任务和谈判进度规则",
+    checks.progressChecks.systemPresets.ember,
   );
   assert(
-    checks.progressChecks.systemPresets.winTheirHearts.yeFavorBefore === 20 &&
-      checks.progressChecks.systemPresets.winTheirHearts.yeFavorAfter === 100 &&
-      checks.progressChecks.systemPresets.winTheirHearts.yeTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.winTheirHearts.yeOutcomeStatus === "pending" &&
-      checks.progressChecks.systemPresets.winTheirHearts.targetCanStaySilent &&
-      checks.progressChecks.systemPresets.winTheirHearts.silentTargetSpeakerIds.length === 0 &&
-      checks.progressChecks.systemPresets.winTheirHearts.motivatedOtherSpeakerIds.join("|") === "route-liu" &&
-      checks.progressChecks.systemPresets.winTheirHearts.nonverbalCueSpeakerIds.join("|") === "route-ye" &&
-      checks.progressChecks.systemPresets.winTheirHearts.nonverbalReplyAllowed &&
-      checks.progressChecks.systemPresets.winTheirHearts.directorNonverbalSpeakerIds.join("|") === "route-ye" &&
-      checks.progressChecks.systemPresets.winTheirHearts.directorNonverbalAllowed,
-    "好感剧本2应按 character -> user 方向推进“角色对你的好感”，并允许被点名目标沉默或让强动机非目标发言",
-    checks.progressChecks.systemPresets.winTheirHearts,
-  );
-  assert(
-    checks.progressChecks.systemPresets.wuxia.bossHealthBefore === 80 &&
-      checks.progressChecks.systemPresets.wuxia.bossHealthAfter === 0 &&
-      checks.progressChecks.systemPresets.wuxia.defeatTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.wuxia.outcomeStatus === "pending",
-    "武侠预设应把预设角色 id 映射到真实角色 id，并由伤害事实完成 Boss 任务和结局",
-    checks.progressChecks.systemPresets.wuxia,
+    checks.progressChecks.systemPresets.starfall.room.presentation.profileId === "novel-prose" &&
+      checks.progressChecks.systemPresets.starfall.room.promptStyleId === "novel" &&
+      checks.progressChecks.systemPresets.starfall.room.settings.informationPolicy.mode === "mystery" &&
+      checks.progressChecks.systemPresets.starfall.characterCount === 4 &&
+      checks.progressChecks.systemPresets.starfall.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.starfall.lorebookCount >= 4 &&
+      checks.progressChecks.systemPresets.starfall.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.starfall.performanceBefore === 55 &&
+      checks.progressChecks.systemPresets.starfall.performanceAfter === 80 &&
+      checks.progressChecks.systemPresets.starfall.cursePressureBefore === 65 &&
+      checks.progressChecks.systemPresets.starfall.voiceBefore === 40 &&
+      ["pending", "applied"].includes(checks.progressChecks.systemPresets.starfall.voiceStatusEvent) &&
+      checks.progressChecks.systemPresets.starfall.stageTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.starfall.outcomeStatus === "pending" &&
+      checks.progressChecks.systemPresets.starfall.replyOptionTargetIds.includes("opera-lu") &&
+      checks.progressChecks.systemPresets.starfall.replyOptionTargetIds.includes("opera-shen"),
+    "星坠预设应完整映射小说正文、舞台状态、角色行动选项和第七场任务结局",
+    checks.progressChecks.systemPresets.starfall,
   );
   assert(
     checks.progressChecks.imports.sillyWorldBookEntries.length === 2 &&

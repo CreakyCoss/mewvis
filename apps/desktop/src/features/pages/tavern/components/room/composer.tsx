@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "../../types";
+import { getTavernPresentationProfile } from "../../presentation-profiles";
 import { useTavernPageContext } from "../context";
 
 type ComposerProps = {
@@ -50,10 +51,13 @@ export const Composer = ({
   const replyMode = activeRoom?.replyMode ?? "active";
   const speakerCount = roomCharacters.length;
   const isManagedAutoRunning = isManagedModeEnabled && isManagedAutoRunStarted;
+  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
   const placeholder = isManagedAutoRunning
     ? "全托管运行中，关闭托管可重新手动发言..."
     : isManagedModeEnabled
     ? "全托管：首次留空发送启动，后续自动运行..."
+    : presentationProfile.userInputMode !== "speech"
+    ? presentationProfile.composerPlaceholder
     : replyMode === "director"
     ? "让导演决定谁来回应..."
     : replyMode === "round" && speakerCount > 1

@@ -12,7 +12,14 @@ import type {
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
 import { getTavernPromptStylePreset } from "../prompt-styles";
+import { getTavernPresentationProfile } from "../presentation-profiles";
 import {
+  getTavernPresentationContract,
+  getTavernPresentationContractForMessageKind,
+} from "../presentation-contracts";
+import {
+  formatTavernMessageSegmentsForPrompt,
+  resolveTavernMessageSegments,
   formatTavernCharacterRelationships,
 } from "../core";
 
@@ -213,18 +220,41 @@ export const buildTavernSystemPrompt = ({
   });
   const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
   const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
-  const coreRules = [
-    `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
-    "- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <reply>...</reply>，不要代码块、解释或标签外文字。",
-    "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
-    "- 默认情况下 <reply> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <reply> 可以只写当前角色的可观察动作而没有直接对白。",
-    `- 角色口吻硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}`,
-    "- 可以承接旁白、动作和其他角色公开发言；不要复述原句，不要声称知道他人未说出口的信息。",
-    "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
-  ];
-  const styleRules = immersiveDescriptionEnabled
+  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const presentationContract = getTavernPresentationContract(presentationProfile);
+  const publicContentTag = presentationContract.publicContentTag;
+  const usesNarrativeBeat = presentationContract.characterMessageKind === "narrative_beat";
+  const coreRules = usesNarrativeBeat
+      ? [
+        `- 这轮只允许围绕「${activeCharacter.name}」贡献下一段第三人称正文；不要替用户完成关键选择，不要替其他角色完整行动闭环。`,
+        `- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}>，不要代码块、解释或标签外文字。`,
+        "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
+        `- <${publicContentTag}> 写一段第三人称叙事片段，包含该角色可贡献的动作、反应、间接表达或公开可观察变化；不要使用角色名冒号的聊天记录格式。`,
+        presentationProfile.dialoguePolicy === "indirect"
+          ? "- 禁止直接第一人称对白；需要表达说话内容时，转成“某某低声表示/承认/追问...”这类间接叙述。"
+          : "- 可以包含少量自然对白，但整体必须是小说正文，不要退回对话气泡写法。",
+        `- 角色表达硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}；当前模式下要转译为第三人称表达习惯。`,
+        "- 可以承接旁白、动作和其他角色公开发言；不要复述原句，不要声称知道他人未说出口的信息。",
+        "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
+      ]
+    : [
+        `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
+        `- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}>，不要代码块、解释或标签外文字。`,
+        "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
+        `- 默认情况下 <${publicContentTag}> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <${publicContentTag}> 可以只写当前角色的可观察动作而没有直接对白。`,
+        `- 角色口吻硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}`,
+        "- 可以承接旁白、动作和其他角色公开发言；不要复述原句，不要声称知道他人未说出口的信息。",
+        "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
+      ];
+  const styleRules = usesNarrativeBeat
     ? [
-        "- <reply> 可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；默认对白优先，只有本轮 turn instruction 明确允许非语言回应时才可以只写动作。",
+        `- <${publicContentTag}> 控制在 1 到 3 个自然段；优先推进当前场景的可观察动作、心理压强和信息增量。`,
+        "- 不要使用第一人称叙事主体；用角色名或他/她承接动作和心理。",
+        "- 不要把房间文风、角色风格或系统规则写成解释；只输出故事正文。",
+      ]
+    : immersiveDescriptionEnabled
+    ? [
+        `- <${publicContentTag}> 可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；默认对白优先，只有本轮 turn instruction 明确允许非语言回应时才可以只写动作。`,
         "- 动作不要用第一人称叙述；可写角色名或他/她的动作，不写心理解释、比喻、环境铺陈或剧情总结。",
         "- 单次回复控制在 1 到 3 个自然段。",
       ]
@@ -253,6 +283,10 @@ export const buildTavernSystemPrompt = ({
     ...characterPromptRules,
     "- 如果引用文件或设定信息不足，不要编造引用内容；可以基于已知场景推进或在角色语气中承认未知，但不要要求用户补充系统上下文。",
     "- 输出中文，保持角色语气和现场连续性，避免解释你是模型或系统。",
+    "",
+    `<presentation_profile id="${presentationProfile.id}" label="${presentationProfile.label}" render="${presentationProfile.renderStyle}" contract="${presentationProfile.generationContract}">`,
+    presentationProfile.characterAddendum,
+    "</presentation_profile>",
     "",
     `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="character">`,
     promptStyle.characterAddendum,
@@ -328,12 +362,16 @@ export const tavernMessagesToRuntimeMessages = ({
 
   return messages.map((message) => {
     if (message.role === "user") {
+      const segments = resolveTavernMessageSegments(message);
       return {
         id: message.id,
         role: "user",
         content: [
           `<history_message role="user" speaker="${escapePromptXmlAttribute(userPersonaName || "用户")}">`,
-          escapePromptXmlText(message.content),
+          formatTavernMessageSegmentsForPrompt(segments, {
+            escapeText: escapePromptXmlText,
+            includeThoughts: false,
+          }) || escapePromptXmlText(message.content),
           "</history_message>",
         ].join("\n"),
         timestamp: message.createdAt,
@@ -342,12 +380,16 @@ export const tavernMessagesToRuntimeMessages = ({
     }
 
     if (message.role === "narrator") {
+      const segments = resolveTavernMessageSegments(message);
       return {
         id: message.id,
         role: "assistant",
         content: [
           "<history_narration>",
-          escapePromptXmlText(message.content),
+          formatTavernMessageSegmentsForPrompt(segments, {
+            escapeText: escapePromptXmlText,
+            includeThoughts: false,
+          }) || escapePromptXmlText(message.content),
           "</history_narration>",
         ].join("\n"),
         timestamp: message.createdAt,
@@ -365,12 +407,18 @@ export const tavernMessagesToRuntimeMessages = ({
         })
       : null;
     const content = parsedReply?.content || message.content.trim();
+    const segments = resolveTavernMessageSegments({
+      ...message,
+      content,
+    });
     const canSeeThought = Boolean(
       visibleThoughtCharacterId && message.characterId === visibleThoughtCharacterId,
     );
     const thought = canSeeThought
       ? message.thought?.trim() || parsedReply?.thought?.trim()
       : "";
+    const publicHistoryTag =
+      getTavernPresentationContractForMessageKind(message.kind).historyContentTag;
     const thoughtLines = thought
       ? [
           '<history_private_thought visibility="self_only">',
@@ -384,9 +432,12 @@ export const tavernMessagesToRuntimeMessages = ({
       role: "assistant",
       content: [
         `<history_message role="character" speaker="${escapePromptXmlAttribute(character?.name ?? "角色")}">`,
-        "<history_public_reply>",
-        escapePromptXmlText(content),
-        "</history_public_reply>",
+        `<${publicHistoryTag}>`,
+        formatTavernMessageSegmentsForPrompt(segments, {
+          escapeText: escapePromptXmlText,
+          includeThoughts: false,
+        }) || escapePromptXmlText(content),
+        `</${publicHistoryTag}>`,
         ...thoughtLines,
         "</history_message>",
       ].join("\n"),

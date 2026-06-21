@@ -2,6 +2,8 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernPageContextValue } from "../../../context";
 import { createTavernMessage } from "../../../../storage";
 import {
+  buildTavernMessageSegments,
+  inferTavernMessageKind,
   canTavernCharacterUseNonverbalReply,
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
@@ -9,6 +11,11 @@ import {
   tavernCharacterAgentRoleId,
 } from "../../../../core";
 import { compactTavernAgentKnowledge } from "../../../../runtime/bridge-session";
+import { getTavernPresentationProfile } from "../../../../presentation-profiles";
+import {
+  getTavernPresentationContract,
+  type TavernPresentationRuntimeContract,
+} from "../../../../presentation-contracts";
 import {
   hasTavernReplyDialogueText,
   parseTavernReplyText,
@@ -50,46 +57,44 @@ const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
 const buildRetryTurnInstruction = ({
   effectiveTurnInstruction,
   nonverbalReplyAllowed,
+  presentationContract,
   speaker,
 }: {
   effectiveTurnInstruction: string;
   nonverbalReplyAllowed: boolean;
+  presentationContract: TavernPresentationRuntimeContract;
   speaker: TavernCharacter;
 }) => [
   effectiveTurnInstruction,
   "",
   "<retry_instruction>",
-  nonverbalReplyAllowed
-    ? "上一次输出没有可展示的公开动作。"
-    : "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
-  nonverbalReplyAllowed
-    ? `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>*一个可被观察到的动作，不写直接对白。*</reply>。`
-    : `请重新以${speaker.name}身份输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。`,
-  nonverbalReplyAllowed
-    ? "本轮允许不开口，但必须给出用户能看到的动作或神态。"
-    : "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
+  presentationContract.buildRetryMissingLine(nonverbalReplyAllowed),
+  presentationContract.buildRetryTemplateLine(speaker, nonverbalReplyAllowed),
+  presentationContract.buildRetryGuidanceLine(nonverbalReplyAllowed),
   "</retry_instruction>",
 ].filter(Boolean).join("\n");
 
 const isFinalReplyUsable = (
   reply: ParsedTavernReply,
-  nonverbalReplyAllowed: boolean,
-) => nonverbalReplyAllowed
+  contentOnlyReplyAllowed: boolean,
+) => contentOnlyReplyAllowed
   ? Boolean(reply.content.trim())
   : Boolean(reply.content.trim() && hasTavernReplyDialogueText(reply.content));
 
 const resolveFinalReplyText = ({
   finalReply,
-  nonverbalReplyAllowed,
+  contentOnlyReplyAllowed,
+  presentationContract,
   speaker,
 }: {
   finalReply: ParsedTavernReply;
-  nonverbalReplyAllowed: boolean;
+  contentOnlyReplyAllowed: boolean;
+  presentationContract: TavernPresentationRuntimeContract;
   speaker: TavernCharacter;
-}) => nonverbalReplyAllowed
+}) => contentOnlyReplyAllowed
   ? (finalReply.content.trim()
       ? finalReply.content
-      : `*${speaker.name}短暂沉默，没有开口。*`)
+      : presentationContract.buildEmptyContentFallback(speaker))
   : finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
   ? finalReply.content
   : "（对方短暂沉默，杯沿映着灯光。）";
@@ -246,6 +251,10 @@ const runSingleSpeakerReply = async ({
       continuationInstruction,
     ].filter(Boolean).join("\n"),
   });
+  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
+  const presentationContract = getTavernPresentationContract(presentationProfile);
+  const contentOnlyReplyAllowed =
+    nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
   ctx.setTurnStatus(mode.isDirectorLikeMode
     ? `${speaker.name} 正在按导演调度回应...`
     : `${speaker.name} 正在回应...`);
@@ -260,6 +269,7 @@ const runSingleSpeakerReply = async ({
     roomId: room.id,
     role: "character",
     characterId: speaker.id,
+    presentationProfileId: runtimeRoom.presentation?.profileId,
     content: "",
     status: "streaming",
     respondsToInteractionIds: activeContinuationInteractionIds.length > 0
@@ -330,7 +340,7 @@ const runSingleSpeakerReply = async ({
     userPersonaName: runtimeRoom.userPersonaName,
   });
 
-  if (!isFinalReplyUsable(finalReply, nonverbalReplyAllowed)) {
+  if (!isFinalReplyUsable(finalReply, contentOnlyReplyAllowed)) {
     ctx.patchExecutionStep(speakerStepId, {
       status: "running",
       detail: "公开回复不完整，正在重试...",
@@ -355,6 +365,7 @@ const runSingleSpeakerReply = async ({
       turnInstruction: buildRetryTurnInstruction({
         effectiveTurnInstruction,
         nonverbalReplyAllowed,
+        presentationContract,
         speaker,
       }),
       allowNonverbalReply: nonverbalReplyAllowed,
@@ -370,7 +381,8 @@ const runSingleSpeakerReply = async ({
 
   const finalText = resolveFinalReplyText({
     finalReply,
-    nonverbalReplyAllowed,
+    contentOnlyReplyAllowed,
+    presentationContract,
     speaker,
   });
   if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
@@ -397,11 +409,21 @@ const runSingleSpeakerReply = async ({
     ...replyMessage,
     content: finalText,
     thought: finalThought,
+    kind: inferTavernMessageKind({
+      role: replyMessage.role,
+      presentationProfileId: replyMessage.presentationProfileId,
+    }),
+    segments: buildTavernMessageSegments({
+      ...replyMessage,
+      content: finalText,
+      thought: finalThought,
+    }),
     status: "done",
   };
   ctx.patchMessage(replyMessage.id, {
     content: finalText,
     thought: finalThought,
+    segments: finalizedMessage.segments,
     status: "done",
   });
   ctx.patchExecutionStep(speakerStepId, {

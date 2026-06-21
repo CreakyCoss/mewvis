@@ -6,6 +6,8 @@ import type {
 } from "../types";
 import { buildTavernSystemPrompt } from "./prompt";
 import { buildTavernBridgeSystemPrompt } from "./bridge-prompt";
+import { getTavernPresentationProfile } from "../presentation-profiles";
+import { getTavernPresentationContract } from "../presentation-contracts";
 import {
   filterTavernFactEventsForAudience,
   formatTavernVisibleMessagesForRequestContext,
@@ -86,6 +88,8 @@ export const buildTavernReplyAgentRequest = ({
   turnInstruction,
   allowNonverbalReply = false,
 }: TavernReplyAgentRequestInput) => {
+  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const presentationContract = getTavernPresentationContract(presentationProfile);
   const promptContext = buildTavernSystemPrompt({
     room,
     activeCharacter,
@@ -107,11 +111,9 @@ export const buildTavernReplyAgentRequest = ({
     agentRoleId: tavernCharacterAgentRoleId(room, activeCharacter),
     systemPrompt: buildTavernBridgeSystemPrompt(room),
     userMessage: [
-      `请以「${activeCharacter.name}」的身份生成本轮回复。`,
-      "输出必须包含 <inner_thought>...</inner_thought> 和 <reply>...</reply>。",
-      allowNonverbalReply
-        ? "<reply> 可以只包含当前角色可被观察到的动作，也可以没有直接对白；不要为了格式强行开口。"
-        : "<reply> 必须非空；即使没有新信息，也要用当前角色口吻说一句简短公开状态。",
+      presentationContract.buildRequestActionLine(activeCharacter),
+      presentationContract.buildRequestRequiredTagsLine(),
+      presentationContract.buildRequestContentLine(allowNonverbalReply),
     ].join("\n"),
     requestContext: [
       promptContext,

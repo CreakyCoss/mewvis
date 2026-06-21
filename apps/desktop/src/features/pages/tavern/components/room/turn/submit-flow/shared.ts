@@ -359,6 +359,7 @@ export const createUserTurnMessage = ({
 }) => createTavernMessage({
   roomId: room.id,
   role: "user",
+  presentationProfileId: room.presentation?.profileId,
   content: text,
   status: "done",
   referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),

@@ -21,6 +21,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  TAVERN_PRESENTATION_PROFILES,
+  normalizeTavernPresentationProfileId,
+} from "../../presentation-profiles";
+import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
 } from "../../prompt-styles";
@@ -55,6 +59,7 @@ type QuickCreateRoomDraft = {
   worldInfo: string;
   storyGoal: string;
   userPersonaName: string;
+  presentationProfileId: string;
   promptStyleId: string;
   informationMode: TavernRoomSettings["informationPolicy"]["mode"];
   characterSeeds: string;
@@ -73,6 +78,7 @@ const createEmptyQuickCreateRoomDraft = (): QuickCreateRoomDraft => ({
   worldInfo: "",
   storyGoal: "",
   userPersonaName: "我",
+  presentationProfileId: "dialogue-chat",
   promptStyleId: "novel",
   informationMode: "open",
   characterSeeds: "",
@@ -181,6 +187,9 @@ export const QuickCreate = ({
       worldInfo: quickCreateDraft.worldInfo.trim(),
       storyGoal: quickCreateDraft.storyGoal.trim(),
       userPersonaName: quickCreateDraft.userPersonaName.trim() || "我",
+      presentationProfileId: normalizeTavernPresentationProfileId(
+        quickCreateDraft.presentationProfileId,
+      ),
       promptStyleId: normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId),
       characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
       advanced: {
@@ -219,6 +228,9 @@ export const QuickCreate = ({
 
   const buildQuickCreateTextFieldAgentContext = () => {
     const promptStyleId = normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId);
+    const presentationProfileId = normalizeTavernPresentationProfileId(
+      quickCreateDraft.presentationProfileId,
+    );
     const characterCount = clampQuickCreateInteger(quickCreateDraft.characterCount, 3, 1, 8);
     const randomEventProbability = clampQuickCreateProbability(
       quickCreateDraft.randomEventProbability,
@@ -232,6 +244,7 @@ export const QuickCreate = ({
         worldInfo: quickCreateDraft.worldInfo,
         storyGoal: quickCreateDraft.storyGoal,
         userPersonaName: quickCreateDraft.userPersonaName,
+        presentationProfileId,
         promptStyleId,
         characterSeedsText: quickCreateDraft.characterSeeds,
         characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
@@ -246,6 +259,7 @@ export const QuickCreate = ({
       },
       existingRooms: rooms.map((room) => ({
         title: room.title,
+        presentationProfileId: normalizeTavernPresentationProfileId(room.presentation?.profileId),
         promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
         characterCount: room.localCharacters?.length ?? 0,
       })),
@@ -403,6 +417,24 @@ export const QuickCreate = ({
                       {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
                         <NativeSelectOption key={preset.id} value={preset.id}>
                           {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+                  <EditorField label="呈现模式" htmlFor="tavern-quick-presentation-profile">
+                    <NativeSelect
+                      id="tavern-quick-presentation-profile"
+                      value={quickCreateDraft.presentationProfileId}
+                      className={editorControlClassName}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        presentationProfileId: event.target.value,
+                      })}
+                    >
+                      {TAVERN_PRESENTATION_PROFILES.map((profile) => (
+                        <NativeSelectOption key={profile.id} value={profile.id}>
+                          {profile.label}
                         </NativeSelectOption>
                       ))}
                     </NativeSelect>

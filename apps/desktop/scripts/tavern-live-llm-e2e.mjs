@@ -29,6 +29,8 @@ const SPEED_TIMEOUT_MS = Number(process.env.NOVEL_CLAW_TAVERN_SPEED_TIMEOUT_MS ?
 const FLOW_TIMEOUT_MS = Number(process.env.NOVEL_CLAW_TAVERN_FLOW_TIMEOUT_MS ?? 10 * 60 * 1000);
 const FLOW_ROUNDS = Number(process.env.NOVEL_CLAW_TAVERN_LIVE_ROUNDS ?? 5);
 const PROMPT_VARIANT = process.env.NOVEL_CLAW_TAVERN_PROMPT_VARIANT?.trim() || "xml_contract";
+const PRESENTATION_PROFILE_ID = process.env.NOVEL_CLAW_TAVERN_PRESENTATION_PROFILE?.trim() ||
+  "dialogue-chat";
 const THINKING_LEVEL = process.env.NOVEL_CLAW_LIVE_THINKING?.trim() || "off";
 const TARGET_SILENCE_CASE = process.env.NOVEL_CLAW_TAVERN_TARGET_SILENCE_CASE === "1";
 const DIRECT_USER_INPUT = process.env.NOVEL_CLAW_TAVERN_DIRECT_USER_INPUT === "1";
@@ -188,6 +190,8 @@ writeFileSync(helperEntryPath, `
   import {
     createTavernRoomFromSystemPreset,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/storage.ts"))};
+  import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-profiles.ts"))};
+  import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-contracts.ts"))};
   import {
     formatTavernLorebookEntries,
     formatTavernTimelineEvents,
@@ -197,10 +201,29 @@ writeFileSync(helperEntryPath, `
   import { formatTavernRuntimeMessagesForSummary } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/conversation.ts"))};
 
   const now = Date.now();
+  const livePresentationProfile = getTavernPresentationProfile(
+    process.env.NOVEL_CLAW_TAVERN_PRESENTATION_PROFILE?.trim() || "dialogue-chat",
+  );
+  const livePresentationContract = getTavernPresentationContract(livePresentationProfile);
+
+  const applyLivePresentation = (room) => ({
+    ...room,
+    presentation: {
+      profileId: livePresentationProfile.id,
+      profileVersion: 1,
+    },
+  });
 
   export const canSelectedTargetsStaySilent = canTavernSelectedTargetsStaySilent;
   export const canCharacterUseNonverbalReply = canTavernCharacterUseNonverbalReply;
   export const advanceProgressFromFacts = advanceTavernProgressFromFactEvents;
+  export const livePresentation = {
+    profileId: livePresentationProfile.id,
+    label: livePresentationProfile.label,
+    publicContentTag: livePresentationContract.publicContentTag,
+    characterMessageKind: livePresentationContract.characterMessageKind,
+    allowsContentOnlyReply: livePresentationContract.allowsContentOnlyReply,
+  };
 
   export const createFixture = () => {
     const fixtureMode = process.env.NOVEL_CLAW_TAVERN_LIVE_FIXTURE?.trim() || "custom";
@@ -219,7 +242,7 @@ writeFileSync(helperEntryPath, `
       });
       return {
         scenario: "werewolf",
-        room: materialized.room,
+        room: applyLivePresentation(materialized.room),
         characters: materialized.characters,
         messages: materialized.messages,
       };
@@ -237,7 +260,7 @@ writeFileSync(helperEntryPath, `
       });
       return {
         scenario: "win-hearts",
-        room: materialized.room,
+        room: applyLivePresentation(materialized.room),
         characters: materialized.characters,
         messages: materialized.messages,
       };
@@ -248,6 +271,10 @@ writeFileSync(helperEntryPath, `
       workspaceId: "live-workspace",
       locked: false,
       title: "身份边界测试酒馆",
+      presentation: {
+        profileId: livePresentationProfile.id,
+        profileVersion: 1,
+      },
       storyOutline: "五名角色在风雨夜的酒馆分工守望，必须保持各自身份、岗位和发言边界。",
       storyGoal: "确认多轮多角色调度后不会串角色、不会泄露心理。",
       activeSceneId: "live-scene-alpha",
@@ -378,7 +405,7 @@ writeFileSync(helperEntryPath, `
         description: "谨慎的屋顶斥候，只汇报自己看见的高处动静。",
         speakingStyle: "短句，谨慎，不替别人说话。",
         goals: "守住屋顶观察点。",
-        relationships: "信任贝拉守门，但不会替贝拉表达。",
+        relationships: [],
         createdAt: now,
         updatedAt: now,
       },
@@ -389,7 +416,7 @@ writeFileSync(helperEntryPath, `
         description: "热情的酒馆守门人，只汇报门口情况。",
         speakingStyle: "轻快直接，不替阿洛判断屋顶。",
         goals: "守住门口。",
-        relationships: "知道阿洛在屋顶观察。",
+        relationships: [],
         createdAt: now,
         updatedAt: now,
       },
@@ -400,7 +427,7 @@ writeFileSync(helperEntryPath, `
         description: "细心的吧台照应者，只汇报酒馆内部、热汤和物资情况。",
         speakingStyle: "温和利落，常用短句确认物资和客人状态。",
         goals: "照看吧台、热汤和应急物资。",
-        relationships: "信任贝拉守门，提醒莫尔记录重要线索。",
+        relationships: [],
         createdAt: now,
         updatedAt: now,
       },
@@ -411,7 +438,7 @@ writeFileSync(helperEntryPath, `
         description: "沉稳的地图记录员，只根据地图和旅人路线发言。",
         speakingStyle: "克制、清楚，喜欢用方位和距离描述。",
         goals: "记录灯影、路线和风雨变化。",
-        relationships: "会向阿洛询问高处观察，但不替阿洛下判断。",
+        relationships: [],
         createdAt: now,
         updatedAt: now,
       },
@@ -422,12 +449,12 @@ writeFileSync(helperEntryPath, `
         description: "寡言的炉火看守，只汇报炉火、灯光和室内安全。",
         speakingStyle: "简短稳定，很少主动扩展话题。",
         goals: "维持炉火、灯光和屋内安全。",
-        relationships: "会配合琪拉照应吧台和客人。",
+        relationships: [],
         createdAt: now,
         updatedAt: now,
       },
     ];
-    return { scenario: "custom", room, characters, messages: [] };
+    return { scenario: "custom", room: applyLivePresentation(room), characters, messages: [] };
   };
 
   const expandRolePool = (rolePool) => rolePool.flatMap((role) =>
@@ -884,7 +911,11 @@ writeFileSync(helperEntryPath, `
       "name: " + character.name,
       "description: " + character.description,
       character.goals ? "goals: " + character.goals : "",
-      character.relationships ? "relationships: " + character.relationships : "",
+      Array.isArray(character.relationships) && character.relationships.length
+        ? "relationships: " + character.relationships.map((relationship) =>
+            [relationship.label, relationship.publicNote].filter(Boolean).join(" ")
+          ).filter(Boolean).join("；")
+        : "",
       room.characterMemories[character.id]?.trim()
         ? "memory: " + room.characterMemories[character.id].trim()
         : "",
@@ -1097,6 +1128,12 @@ writeFileSync(helperEntryPath, `
   });
 
   export const hasCharacterDialogueText = hasTavernReplyDialogueText;
+  export const isContentOnlyReplyAllowed = () => livePresentationContract.allowsContentOnlyReply;
+  export const hasRecognizableCharacterReplyStructure = (text) => {
+    const publicContentTag = livePresentationContract.publicContentTag;
+    return new RegExp("<\\\\s*inner_thought(?:\\\\s+[^>]*)?\\\\s*>", "i").test(text) &&
+      new RegExp("<\\\\s*" + publicContentTag + "(?:\\\\s+[^>]*)?\\\\s*>", "i").test(text);
+  };
 
   export const extractPendingInteractions = ({
     room,
@@ -1339,8 +1376,7 @@ const runAgent = async ({
 };
 
 const hasRecognizableReplyStructure = (text) =>
-  /<\s*inner_thought(?:\s+[^>]*)?\s*>/i.test(text) &&
-  /<\s*reply(?:\s+[^>]*)?\s*>/i.test(text);
+  helper.hasRecognizableCharacterReplyStructure(text);
 
 const foreignSpeakerLinePattern = (activeName, characterNames) => {
   const names = [...characterNames, "旅人", "旁白", "用户"]
@@ -1376,7 +1412,7 @@ const assertCharacterReply = ({
     });
   }
   assert(parsed.content.trim(), `${label} 解析后公开回复不能为空`, { raw, parsed });
-  assert(!/<\/?(?:inner_thought|reply|public_reply|private_thought|thought)[^>]*>/i.test(parsed.content), `${label} 解析后公开回复不应残留格式标签`, {
+  assert(!/<\/?(?:inner_thought|reply|public_reply|narrative_beat|public_narrative_beat|private_thought|thought)[^>]*>/i.test(parsed.content), `${label} 解析后公开回复不应残留格式标签`, {
     raw,
     parsed,
   });
@@ -1389,7 +1425,7 @@ const assertCharacterReply = ({
     parsed,
     },
   );
-  if (!allowNonverbalReply) {
+  if (!allowNonverbalReply && !helper.isContentOnlyReplyAllowed()) {
     assert(stripItalicActionBlocks(parsed.content).trim(), `${label} 不应只输出动作标注，必须包含直接对白`, {
       raw,
       parsed,
@@ -1555,6 +1591,7 @@ try {
       id: "live-opening-narrator-" + (index + 1),
       roomId: room.id,
       role: "narrator",
+      presentationProfileId: room.presentation?.profileId,
       content,
       createdAt: createdAt + index,
       status: "done",
@@ -1836,7 +1873,8 @@ try {
       attemptLabel: label,
       runtimeInstruction: requestInput.runtimeInstruction,
     });
-    if (!attempt.parsed.content.trim() || (!allowNonverbalReply && !helper.hasCharacterDialogueText(attempt.parsed.content))) {
+    const contentOnlyReplyAllowed = allowNonverbalReply || helper.isContentOnlyReplyAllowed();
+    if (!attempt.parsed.content.trim() || (!contentOnlyReplyAllowed && !helper.hasCharacterDialogueText(attempt.parsed.content))) {
       formatWarnings.push({
         label,
         issue: "character_unusable_reply_retry",
@@ -1844,17 +1882,24 @@ try {
         parsed: attempt.parsed,
       });
       retryCount = 1;
+      const publicContentTag = helper.livePresentation.publicContentTag;
       const retryInstruction = [
         requestInput.runtimeInstruction,
         "",
         "<retry_instruction>",
-        allowNonverbalReply
+        helper.isContentOnlyReplyAllowed()
+          ? "上一次输出没有可展示正文。"
+          : allowNonverbalReply
           ? "上一次输出没有可展示的公开动作。"
           : "上一次输出的 <reply> 为空或只有动作标注，不能作为公开回复。",
-        allowNonverbalReply
+        helper.isContentOnlyReplyAllowed()
+          ? `请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><${publicContentTag}>一段可展示的第三人称正文。</${publicContentTag}>。`
+          : allowNonverbalReply
           ? "请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>*一个可被观察到的动作，不写直接对白。*</reply>。"
           : "请重新输出完整 XML：<inner_thought>当前角色自己的心理短句</inner_thought><reply>一句非空直接对白，可选一个动作。</reply>。",
-        allowNonverbalReply
+        helper.isContentOnlyReplyAllowed()
+          ? "本轮可以没有直接对白，但必须有可读正文，不要输出聊天记录格式。"
+          : allowNonverbalReply
           ? "本轮允许不开口，但必须给出用户能看到的动作或神态。"
           : "不能只点头、沉默、看向某处或只写动作；如果角色只想确认，也要先说一句短对白。",
         "</retry_instruction>",
@@ -1904,6 +1949,7 @@ try {
       id: `u-${roundIndex + 1}`,
       roomId: room.id,
       role: "user",
+      presentationProfileId: room.presentation?.profileId,
       content: userText,
       targetCharacterIds: selectedTargetCharacterIds.length > 0
         ? selectedTargetCharacterIds
@@ -1920,6 +1966,7 @@ try {
         id: `n-${roundIndex + 1}`,
         roomId: room.id,
         role: "narrator",
+        presentationProfileId: room.presentation?.profileId,
         content: decision.narrator.trim(),
         createdAt: Date.now(),
         status: "done",
@@ -1938,6 +1985,7 @@ try {
         roomId: room.id,
         role: "narrator",
         characterId: action.characterId,
+        presentationProfileId: room.presentation?.profileId,
         content: action.action,
         createdAt: Date.now(),
         status: "done",
@@ -2029,6 +2077,8 @@ try {
           roomId: room.id,
           role: "character",
           characterId: speakerId,
+          kind: helper.livePresentation.characterMessageKind,
+          presentationProfileId: room.presentation?.profileId,
           content: characterRun.parsed.content,
           thought: [characterRun.parsed.thought ?? "", secret].filter(Boolean).join("\n"),
           respondsToInteractionIds: activeContinuationInteractionIds.length > 0
@@ -2211,6 +2261,10 @@ try {
     summaryOnly: SUMMARY_ONLY,
     selectedModelId: selectedModel.modelId,
     promptVariant: PROMPT_VARIANT,
+    presentation: {
+      requestedProfileId: PRESENTATION_PROFILE_ID,
+      ...helper.livePresentation,
+    },
     rounds: FLOW_ROUNDS,
     speedResults,
     formatWarnings,

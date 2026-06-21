@@ -160,6 +160,7 @@ export const runDirectorTurn = async ({
         createTavernMessage({
           roomId: room.id,
           role: "narrator",
+          presentationProfileId: runtimeRoom.presentation?.profileId,
           content: narratorText,
           status: "done",
         }),
@@ -172,6 +173,7 @@ export const runDirectorTurn = async ({
         createTavernMessage({
           roomId: room.id,
           role: "narrator",
+          presentationProfileId: runtimeRoom.presentation?.profileId,
           content: randomEventText,
           status: "done",
         }),
@@ -189,6 +191,7 @@ export const runDirectorTurn = async ({
         roomId: room.id,
         role: "narrator",
         characterId: action.characterId,
+        presentationProfileId: runtimeRoom.presentation?.profileId,
         content: actionText,
         status: "done",
       });

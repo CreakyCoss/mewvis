@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { normalizeTavernAvatarId } from "@/assets/agent-avatars";
 import {
   DEFAULT_VISUAL_PRESET_ID,
   normalizeVisualPresetId,
@@ -24,6 +25,7 @@ import type {
   TavernGeneratedPresetScene,
   TavernOutcomeEvent,
   TavernPendingInteraction,
+  TavernPresentationSettings,
   TavernProgressCheckpoint,
   TavernProgressTrackerSettings,
   TavernProgressAction,
@@ -56,9 +58,17 @@ import {
   normalizeTavernDirectorProfile,
 } from "./core/scheduling-profile";
 import {
+  buildTavernMessageSegments,
+  inferTavernMessageKind,
+} from "./core/message-segments";
+import {
   DEFAULT_TAVERN_PROMPT_STYLE_ID,
   normalizeTavernPromptStyleId,
 } from "./prompt-styles";
+import {
+  createDefaultTavernPresentation,
+  normalizeTavernPresentation,
+} from "./presentation-profiles";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
 
@@ -155,6 +165,10 @@ type TavernSystemPresetScene = {
 
 type TavernSystemPresetRoom = {
   title: string;
+  presentation?: Partial<TavernPresentationSettings> & {
+    profileId?: unknown;
+  };
+  presentationProfileId?: unknown;
   promptStyleId?: unknown;
   storyOutline?: string;
   storyGoal?: string;
@@ -245,6 +259,10 @@ const LEGACY_TAVERN_SYSTEM_PRESET_TITLES = new Set([
   "星坠补给吧",
   "灰月商队馆",
   "万象问命馆",
+  "月下圆桌狼人杀",
+  "心动争夺赛：谁先赢得你",
+  "双人攻略：你先打动谁",
+  "刀雨驿站",
 ]);
 
 const normalizeSystemPresetId = (presetId: unknown) => {
@@ -293,7 +311,7 @@ const createTavernCharacterFromSystemPresetCharacter = (
   return {
     id: options.id ?? createId("character"),
     name: character.name.trim(),
-    avatar: character.avatar,
+    avatar: normalizeTavernAvatarId(character.avatar),
     description: character.description.trim(),
     speakingStyle: character.speakingStyle.trim(),
     writingStyle: character.writingStyle?.trim() || undefined,
@@ -893,6 +911,35 @@ export const DEFAULT_TAVERN_SCENE_OUTCOMES: TavernSceneOutcomeDefinition[] = [
 
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
   value === "round" || value === "director" ? value : "active";
+
+const normalizeRoomPresentation = ({
+  presentation,
+  presentationProfileId,
+}: {
+  presentation?: unknown;
+  presentationProfileId?: unknown;
+}) => normalizeTavernPresentation(
+  presentation ?? (presentationProfileId ? { profileId: presentationProfileId } : undefined),
+);
+
+const materializeTavernMessage = (
+  message: TavernMessage,
+  presentationProfileId: TavernMessage["presentationProfileId"],
+): TavernMessage => {
+  const nextMessage = {
+    ...message,
+    presentationProfileId: message.presentationProfileId ?? presentationProfileId,
+  };
+
+  return {
+    ...nextMessage,
+    kind: nextMessage.kind ?? inferTavernMessageKind({
+      role: nextMessage.role,
+      presentationProfileId: nextMessage.presentationProfileId,
+    }),
+    segments: nextMessage.segments ?? buildTavernMessageSegments(nextMessage),
+  };
+};
 
 const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
   const numberValue = typeof value === "number" ? value : Number(value);
@@ -1985,6 +2032,7 @@ const normalizeTavernCharacter = (
 
   return {
     ...character,
+    avatar: normalizeTavernAvatarId(character.avatar),
     systemPresetId: normalizedSystemPresetId,
     systemPresetCharacterId,
     systemPresetVersion: systemPreset && normalizedSystemPresetId
@@ -3144,6 +3192,10 @@ export const createTavernRoomFromSystemPreset = (
       : {}),
     locked: false,
     title: preset.room.title.trim(),
+    presentation: normalizeRoomPresentation({
+      presentation: preset.room.presentation,
+      presentationProfileId: preset.room.presentationProfileId,
+    }),
     promptStyleId: normalizeTavernPromptStyleId(preset.room.promptStyleId),
     creationSource: markAsSystemPreset ? "imported" : "manual",
     storyOutline: preset.room.storyOutline?.trim() || "",
@@ -3229,7 +3281,7 @@ export const createTavernRoomFromSystemPreset = (
       createdAt,
       status: "done" as const,
     }];
-  });
+  }).map((message) => materializeTavernMessage(message, room.presentation.profileId));
 
   return {
     preset,
@@ -3798,6 +3850,10 @@ export const createTavernRoomFromGeneratedPresetJson = (
     workspaceId,
     locked: false,
     title,
+    presentation: normalizeRoomPresentation({
+      presentation: roomInput.presentation,
+      presentationProfileId: roomInput.presentationProfileId,
+    }),
     promptStyleId: normalizeTavernPromptStyleId(roomInput.promptStyleId),
     creationSource: options.creationSource ?? "agent_generated",
     storyOutline: trimGeneratedString(roomInput.storyOutline),
@@ -3889,7 +3945,8 @@ export const createTavernRoomFromGeneratedPresetJson = (
         createdAt,
         status: "done" as const,
       }];
-    });
+    })
+    .map((message) => materializeTavernMessage(message, room.presentation.profileId));
 
   return {
     room,
@@ -3900,10 +3957,11 @@ export const createTavernRoomFromGeneratedPresetJson = (
           id: createId("message"),
           roomId,
           role: "narrator" as const,
+          presentationProfileId: room.presentation.profileId,
           content: "智能生成酒馆已创建，新的场景已经准备好。",
           createdAt,
           status: "done" as const,
-        }],
+        }].map((message) => materializeTavernMessage(message, room.presentation.profileId)),
   };
 };
 
@@ -3987,6 +4045,12 @@ const normalizeTavernState = (
   ).map((room) => {
     const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId);
     const systemPreset = getTavernSystemPreset(systemPresetId);
+    const systemPresetCharactersByName = new Map(
+      (systemPreset?.characters ?? []).map((character) => [character.name.trim(), character]),
+    );
+    const systemPresetCharactersById = new Map(
+      (systemPreset?.characters ?? []).map((character) => [character.id, character]),
+    );
     const characterMemories = normalizeStringRecord((room as Partial<TavernRoom>).characterMemories);
     const characterConfigs = normalizeRoomCharacterConfigs(
       (room as Partial<TavernRoom>).characterConfigs,
@@ -3997,9 +4061,25 @@ const normalizeTavernState = (
           .filter((character): character is TavernCharacter =>
             Boolean(character?.id && character.name)
           )
-          .map((character) => normalizeTavernCharacter(character, {
-            allowSystemPreset: false,
-          }))
+          .map((character) => {
+            const presetCharacter = systemPreset
+              ? systemPresetCharactersById.get(
+                (character as Partial<TavernCharacter>).systemPresetCharacterId ?? "",
+              ) ?? systemPresetCharactersByName.get(character.name.trim())
+              : undefined;
+            return normalizeTavernCharacter(
+              presetCharacter
+                ? {
+                    ...character,
+                    avatar: presetCharacter.avatar,
+                    systemPresetId: systemPreset?.id,
+                    systemPresetCharacterId: presetCharacter.id,
+                    systemPresetVersion: systemPreset?.version,
+                  }
+                : character,
+              { allowSystemPreset: Boolean(presetCharacter) },
+            );
+          })
       : [];
 
     const normalizedRoom: TavernRoom = {
@@ -4011,6 +4091,9 @@ const normalizeTavernState = (
           : systemPreset.version
         : undefined,
       locked: Boolean((room as Partial<TavernRoom>).locked),
+      presentation: normalizeRoomPresentation({
+        presentation: (room as Partial<TavernRoom>).presentation,
+      }),
       promptStyleId: normalizeTavernPromptStyleId((room as Partial<TavernRoom>).promptStyleId),
       creationSource:
         (room as Partial<TavernRoom>).creationSource === "quick" ||
@@ -4139,7 +4222,14 @@ const normalizeTavernState = (
         ? sourceMessagesByScene[scene.id] as TavernMessage[]
         : [];
 
-      return [scene.id, sceneMessages] as const;
+      return [
+        scene.id,
+        sceneMessages
+          .filter((message): message is TavernMessage =>
+            Boolean(message?.id && message.roomId && message.role && typeof message.content === "string")
+          )
+          .map((message) => materializeTavernMessage(message, room.presentation.profileId)),
+      ] as const;
     })),
   );
 
@@ -4235,6 +4325,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     workspaceId,
     locked: false,
     title: `新酒馆 ${index}`,
+    presentation: createDefaultTavernPresentation(),
     promptStyleId: DEFAULT_TAVERN_PROMPT_STYLE_ID,
     creationSource: "manual",
     storyOutline: "",
@@ -4402,8 +4493,19 @@ export const createTavernCharacter = (input: {
 
 export const createTavernMessage = (
   input: Omit<TavernMessage, "id" | "createdAt">,
-): TavernMessage => ({
-  ...input,
-  id: createId("message"),
-  createdAt: now(),
-});
+): TavernMessage => {
+  const message = {
+    ...input,
+    id: createId("message"),
+    createdAt: now(),
+  };
+
+  return {
+    ...message,
+    kind: message.kind ?? inferTavernMessageKind({
+      role: message.role,
+      presentationProfileId: message.presentationProfileId,
+    }),
+    segments: message.segments ?? buildTavernMessageSegments(message),
+  };
+};

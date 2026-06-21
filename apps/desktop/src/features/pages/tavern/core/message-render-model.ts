@@ -12,6 +12,7 @@ import {
   filterTavernFactEventsForAudience,
   shouldShowTavernCharacterThoughts,
 } from "./information-policy";
+import { buildTavernMessageSegments } from "./message-segments";
 
 export type TavernRenderableMessage = TavernVisibleMessage & {
   source: TavernMessage;
@@ -232,6 +233,12 @@ export const createTavernRenderableMessages = ({
         role: "narrator",
         characterId: undefined,
         speakerName: "旁白",
+        segments: buildTavernMessageSegments({
+          role: "narrator",
+          content: message.content,
+          thought: undefined,
+          presentationProfileId: message.source.presentationProfileId,
+        }),
         thought: undefined,
         source: {
           ...message.source,

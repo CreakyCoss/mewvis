@@ -41,6 +41,7 @@ import {
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
 import { getTavernPromptStylePreset } from "../prompt-styles";
+import { getTavernPresentationProfile } from "../presentation-profiles";
 
 export {
   parseTavernDirectorDecision,
@@ -151,6 +152,7 @@ export const runTavernDirector = async ({
   ].filter(Boolean).join("\n")).join("\n\n---\n\n");
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
+  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const randomEventSchema = canConsiderRandomEvent
     ? `,"randomEvent":"可选；一句公开可观察的随机事件，不触发则留空字符串"`
@@ -227,6 +229,10 @@ export const runTavernDirector = async ({
     schedulingInstruction
       ? `\n<director_scheduling_rules>\n${schedulingInstruction}\n</director_scheduling_rules>`
       : "",
+    "",
+    `<presentation_profile id="${presentationProfile.id}" label="${presentationProfile.label}" render="${presentationProfile.renderStyle}" contract="${presentationProfile.generationContract}">`,
+    presentationProfile.directorAddendum,
+    "</presentation_profile>",
     "",
     `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="director">`,
     promptStyle.directorAddendum,
@@ -320,6 +326,7 @@ export const runTavernDirector = async ({
     runtimeInstruction: [
       "你是酒馆模式的导演 Agent。",
       "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+      `当前呈现模式：${presentationProfile.label}。${presentationProfile.directorAddendum}`,
       `当前房间提示词风格：${promptStyle.label}。${promptStyle.directorAddendum}`,
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
       canConsiderRandomEvent

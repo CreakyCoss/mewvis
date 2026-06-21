@@ -2,9 +2,17 @@ import {
   cleanTavernThoughtText,
   parseTavernReplyText,
 } from "../runtime/reply-cleanup";
+import { getTavernPresentationContractForMessageKind } from "../presentation-contracts";
+import {
+  buildTavernMessageSegments,
+  formatTavernMessageSegmentsForPrompt,
+  resolveTavernMessageSegments,
+} from "./message-segments";
 import type {
   TavernCharacter,
   TavernMessage,
+  TavernMessageKind,
+  TavernMessageSegment,
 } from "../types";
 
 export type TavernMessageAudience =
@@ -17,10 +25,12 @@ export type TavernMessageAudience =
 
 export type TavernVisibleMessage = {
   id: string;
+  kind?: TavernMessageKind;
   role: TavernMessage["role"];
   characterId?: string;
   speakerName: string;
   content: string;
+  segments: TavernMessageSegment[];
   thought?: string;
   createdAt: number;
   status?: TavernMessage["status"];
@@ -49,6 +59,20 @@ const replyWrapperTagNames = [
   "回复",
   "回应",
   "对白",
+];
+
+const narrativeBeatWrapperTagNames = [
+  "narrative_beat",
+  "public_narrative_beat",
+  "history_narrative_beat",
+  "story_beat",
+  "narrative",
+  "story",
+  "beat",
+  "叙事片段",
+  "故事片段",
+  "小说正文",
+  "叙事正文",
 ];
 
 const historyWrapperTagNames = [
@@ -86,6 +110,7 @@ export const stripTavernPrivateThoughts = (text: string) => {
   const withoutPrivateBlocks = stripKnownTagBlocks(text, privateThoughtTagNames);
   return stripKnownWrapperTags(withoutPrivateBlocks, [
     ...historyWrapperTagNames,
+    ...narrativeBeatWrapperTagNames,
     ...replyWrapperTagNames,
   ]).trim();
 };
@@ -144,11 +169,18 @@ export const normalizeTavernMessageForAudience = ({
   const speakerName = fallbackSpeakerName(message, characterById, userPersonaName);
 
   if (message.role !== "character") {
+    const content = stripTavernPrivateThoughts(message.content);
     return {
       id: message.id,
+      kind: message.kind,
       role: message.role,
       speakerName,
-      content: stripTavernPrivateThoughts(message.content),
+      content,
+      segments: resolveTavernMessageSegments({
+        ...message,
+        content,
+        thought: undefined,
+      }),
       createdAt: message.createdAt,
       status: message.status,
       referencedFiles: message.referencedFiles,
@@ -170,10 +202,18 @@ export const normalizeTavernMessageForAudience = ({
 
   return {
     id: message.id,
+    kind: message.kind,
     role: message.role,
     characterId: message.characterId,
     speakerName,
     content,
+    segments: buildTavernMessageSegments({
+      role: message.role,
+      characterId: message.characterId,
+      content,
+      thought: visibleThought,
+      presentationProfileId: message.presentationProfileId,
+    }),
     thought: visibleThought || undefined,
     createdAt: message.createdAt,
     status: message.status,
@@ -205,21 +245,27 @@ const escapePromptXmlAttribute = (text: string) =>
 export const formatTavernVisibleMessagesForRequestContext = (
   messages: TavernVisibleMessage[],
 ) => messages
-  .filter((message) => message.content.trim() || message.thought?.trim())
+  .filter((message) => message.content.trim() || message.thought?.trim() || message.segments.length > 0)
   .map((message) => {
+    const publicSegments = formatTavernMessageSegmentsForPrompt(message.segments, {
+      escapeText: escapePromptXmlText,
+      includeThoughts: false,
+    });
     if (message.role === "narrator") {
       return [
         "<message role=\"narrator\" speaker=\"旁白\">",
-        escapePromptXmlText(message.content),
+        publicSegments || escapePromptXmlText(message.content),
         "</message>",
       ].join("\n");
     }
 
+    const publicContentTag =
+      getTavernPresentationContractForMessageKind(message.kind).visibleContentTag;
     const lines = [
       `<message role="${message.role}" speaker="${escapePromptXmlAttribute(message.speakerName)}">`,
-      "<public_content>",
-      escapePromptXmlText(message.content),
-      "</public_content>",
+      `<${publicContentTag}>`,
+      publicSegments || escapePromptXmlText(message.content),
+      `</${publicContentTag}>`,
     ];
     if (message.thought?.trim()) {
       lines.push(

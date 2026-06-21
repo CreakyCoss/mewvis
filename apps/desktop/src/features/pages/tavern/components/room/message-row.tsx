@@ -1,4 +1,6 @@
+import type { ReactElement } from "react";
 import type { TavernRenderableMessage } from "../../core";
+import type { TavernCharacter, TavernMessage, TavernRoom } from "../../types";
 import { useTavernPageContext } from "../context";
 import { CharacterMessage } from "./messages/character-message";
 import { NarratorMessage } from "./messages/narrator-message";
@@ -7,6 +9,54 @@ import { UserMessage } from "./messages/user-message";
 type MessageRowProps = {
   message: TavernRenderableMessage;
 };
+
+type MessageRoleRendererContext = {
+  activeRoom: TavernRoom;
+  character: TavernCharacter | null;
+  isSending: boolean;
+  message: TavernRenderableMessage;
+  visualPreset: ReturnType<typeof useTavernPageContext>["visualPreset"];
+};
+
+const messageRoleRenderers: Record<
+  TavernMessage["role"],
+  (context: MessageRoleRendererContext) => ReactElement
+> = {
+  narrator: ({ message, visualPreset }) => (
+    <NarratorMessage
+      content={message.content}
+      factEvents={message.userVisibleFactEvents}
+      isStreaming={message.status === "streaming"}
+      visualPreset={visualPreset}
+    />
+  ),
+  user: ({ activeRoom, isSending, message, visualPreset }) => (
+    <UserMessage
+      content={message.content}
+      createdAt={message.createdAt}
+      factEvents={message.userVisibleFactEvents}
+      isSending={isSending}
+      isStreaming={message.status === "streaming"}
+      referencedFiles={message.referencedFiles}
+      userPersonaName={activeRoom.userPersonaName}
+      visualPreset={visualPreset}
+    />
+  ),
+  character: ({ activeRoom, character, message, visualPreset }) => (
+    <CharacterMessage
+      character={character}
+      content={message.content}
+      createdAt={message.createdAt}
+      factEvents={message.userVisibleFactEvents}
+      immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled !== false}
+      isError={message.status === "error"}
+      isStreaming={message.status === "streaming"}
+      thought={message.thought}
+      visualPreset={visualPreset}
+    />
+  ),
+};
+
 export const MessageRow = ({
   message,
 }: MessageRowProps) => {
@@ -20,45 +70,14 @@ export const MessageRow = ({
     return null;
   }
 
-  const character = message.characterId ? characterById.get(message.characterId) : null;
+  const character = message.characterId ? characterById.get(message.characterId) ?? null : null;
+  const renderMessage = messageRoleRenderers[message.role];
 
-  if (message.role === "narrator") {
-    return (
-      <NarratorMessage
-        content={message.content}
-        factEvents={message.userVisibleFactEvents}
-        isStreaming={message.status === "streaming"}
-        visualPreset={visualPreset}
-      />
-    );
-  }
-
-  if (message.role === "user") {
-    return (
-      <UserMessage
-        content={message.content}
-        createdAt={message.createdAt}
-        factEvents={message.userVisibleFactEvents}
-        isSending={isSending}
-        isStreaming={message.status === "streaming"}
-        referencedFiles={message.referencedFiles}
-        userPersonaName={activeRoom.userPersonaName}
-        visualPreset={visualPreset}
-      />
-    );
-  }
-
-  return (
-    <CharacterMessage
-      character={character}
-      content={message.content}
-      createdAt={message.createdAt}
-      factEvents={message.userVisibleFactEvents}
-      immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled !== false}
-      isError={message.status === "error"}
-      isStreaming={message.status === "streaming"}
-      thought={message.thought}
-      visualPreset={visualPreset}
-    />
-  );
+  return renderMessage({
+    activeRoom,
+    character,
+    isSending,
+    message,
+    visualPreset,
+  });
 };

@@ -2,6 +2,86 @@ import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
 
 export type TavernReplyMode = "active" | "round" | "director";
 
+export type TavernPresentationProfileId =
+  | "dialogue-chat"
+  | "third-person-prose"
+  | "novel-prose";
+
+export type TavernPresentationRenderStyle = "chat" | "prose";
+
+export type TavernPresentationPerspective =
+  | "dialogue"
+  | "third_person_limited"
+  | "third_person_omniscient";
+
+export type TavernPresentationDialoguePolicy = "direct" | "indirect" | "mixed";
+
+export type TavernPresentationUserInputMode = "speech" | "intent" | "story_directive";
+
+export type TavernPresentationGenerationContract =
+  | "character_reply_xml"
+  | "character_narrative_beat";
+
+export type TavernPresentationProfile = {
+  id: TavernPresentationProfileId;
+  label: string;
+  description: string;
+  perspective: TavernPresentationPerspective;
+  dialoguePolicy: TavernPresentationDialoguePolicy;
+  userInputMode: TavernPresentationUserInputMode;
+  renderStyle: TavernPresentationRenderStyle;
+  generationContract: TavernPresentationGenerationContract;
+  bridgeSystemAddendum: string;
+  directorAddendum: string;
+  characterAddendum: string;
+  composerPlaceholder: string;
+};
+
+export type TavernPresentationSettings = {
+  profileId: TavernPresentationProfileId;
+  profileVersion: 1;
+  lockedAt?: number;
+  lockedSceneId?: string;
+};
+
+export type TavernMessageActorRef =
+  | { type: "user" }
+  | { type: "character"; characterId: string }
+  | { type: "narrator" };
+
+export type TavernMessageSegment =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "dialogue";
+      text: string;
+      speaker: TavernMessageActorRef;
+    }
+  | {
+      type: "action";
+      text: string;
+      actor?: TavernMessageActorRef;
+    }
+  | {
+      type: "thought";
+      text: string;
+      owner: TavernMessageActorRef;
+      visibility: "private" | "public";
+    }
+  | {
+      type: "narration";
+      text: string;
+      actor?: TavernMessageActorRef;
+    };
+
+export type TavernMessageKind =
+  | "user_input"
+  | "character_reply"
+  | "narration"
+  | "narrative_beat";
+
 export type TavernPromptStyleId =
   | "silent-law"
   | "novel"
@@ -675,6 +755,7 @@ export type TavernRoom = {
   systemPresetVersion?: number;
   locked: boolean;
   title: string;
+  presentation: TavernPresentationSettings;
   promptStyleId?: TavernPromptStyleId;
   creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   storyOutline: string;
@@ -729,9 +810,12 @@ export type TavernMessage = {
   roomId: string;
   sceneId?: string;
   turnId?: string;
+  kind?: TavernMessageKind;
   role: "user" | "character" | "narrator";
   characterId?: string;
+  presentationProfileId?: TavernPresentationProfileId;
   content: string;
+  segments?: TavernMessageSegment[];
   thought?: string;
   targetCharacterIds?: string[];
   respondsToInteractionIds?: string[];
@@ -795,6 +879,10 @@ export type TavernGeneratedPresetScene = {
 
 export type TavernGeneratedPresetRoom = {
   title?: string;
+  presentation?: Partial<TavernPresentationSettings> & {
+    profileId?: unknown;
+  };
+  presentationProfileId?: unknown;
   promptStyleId?: unknown;
   storyOutline?: string;
   storyGoal?: string;

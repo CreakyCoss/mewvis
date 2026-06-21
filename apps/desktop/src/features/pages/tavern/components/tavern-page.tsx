@@ -1,5 +1,5 @@
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   getActiveReferenceToken,
@@ -26,6 +26,7 @@ import {
   saveTavernState,
   switchTavernRoomScene,
 } from "../storage";
+import { getTavernPresentationProfile } from "../presentation-profiles";
 import {
   advanceTavernProgressFromFactEvents,
   createTavernRenderableMessages,
@@ -57,9 +58,9 @@ import { Composer } from "./room/composer";
 import { ExecutionTrace } from "./room/execution-trace";
 import { Header } from "./room/header";
 import { ManagementPage } from "./manage";
-import { MessageRow } from "./room/message-row";
 import { ProgressPanel } from "./room/progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./room/quick-summary";
+import { resolveTavernTimelineRenderer } from "./room/renderers";
 import { SceneBriefCard } from "./room/scene-brief-card";
 import { SceneSelector } from "./room/scene-selector";
 import { SidePanel, type SidePanelHandle } from "./room/side-panel";
@@ -311,6 +312,11 @@ const TavernPageContent = ({
       : []
   ), [activeRoom, roomCharacters, roomMessages]);
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
+  const presentationProfile = getTavernPresentationProfile(
+    activeRoom?.presentation?.profileId,
+  );
+  const timelineRenderer = resolveTavernTimelineRenderer(presentationProfile.renderStyle);
+  const Timeline = timelineRenderer.Timeline;
   const hasGlobalHeaderProgress = Boolean(
     activeRoom?.progressViews.some((view) => view.placement === "globalHeader"),
   );
@@ -969,28 +975,20 @@ const TavernPageContent = ({
                   />
                 )}
               />
-              {renderableRoomMessages.map((message) => (
-                <Fragment key={message.id}>
-                  <MessageRow
-                    message={message}
+              <Timeline
+                messages={renderableRoomMessages}
+                shouldShowExecutionTrace={shouldShowExecutionTrace}
+                executionTraceAnchorMessageId={executionTraceAnchorMessageId}
+                hasExecutionTraceAnchor={hasExecutionTraceAnchor}
+                renderExecutionTrace={() => (
+                  <ExecutionTrace
+                    steps={executionSteps}
+                    visualPreset={visualPreset}
+                    statusText={turnStatus}
                   />
-                  {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
-                    <ExecutionTrace
-                      steps={executionSteps}
-                      visualPreset={visualPreset}
-                      statusText={turnStatus}
-                    />
-                  )}
-                </Fragment>
-              ))}
-              {shouldShowExecutionTrace && !hasExecutionTraceAnchor && (
-                <ExecutionTrace
-                  steps={executionSteps}
-                  visualPreset={visualPreset}
-                  statusText={turnStatus}
-                />
-              )}
-              <div ref={messageEndRef} />
+                )}
+                messageEndRef={messageEndRef}
+              />
             </div>
           </ScrollArea>
 

@@ -3,8 +3,13 @@ import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
 } from "../prompt-styles";
+import {
+  TAVERN_PRESENTATION_PROFILES,
+  normalizeTavernPresentationProfileId,
+} from "../presentation-profiles";
 import type {
   TavernGeneratedPresetJson,
+  TavernPresentationProfileId,
   TavernPromptStyleId,
   TavernRoomSettings,
 } from "../types";
@@ -14,6 +19,7 @@ import { runTavernOneShotAgent } from "./one-shot";
 export type TavernGeneratedPresetAgentDraft = {
   title?: string;
   promptStyleId?: TavernPromptStyleId;
+  presentationProfileId?: TavernPresentationProfileId;
   userPersonaName?: string;
   premise?: string;
   background?: string;
@@ -47,6 +53,7 @@ export type RunTavernGeneratedPresetAgentInput = {
 
 const GENERATED_PRESET_AGENT_ROLE_ID = "tavern-one-shot-preset-builder";
 const promptStyleIdsSchema = TAVERN_PROMPT_STYLE_PRESETS.map((preset) => preset.id).join(" | ");
+const presentationProfileIdsSchema = TAVERN_PRESENTATION_PROFILES.map((profile) => profile.id).join(" | ");
 
 const generatedPresetSchema = `{
   "version": 1,
@@ -54,6 +61,7 @@ const generatedPresetSchema = `{
   "description": "一句话说明玩法",
   "room": {
     "title": "酒馆标题",
+    "presentation": { "profileId": "${presentationProfileIdsSchema}", "profileVersion": 1 },
     "promptStyleId": "${promptStyleIdsSchema}",
     "storyOutline": "背景故事摘要",
     "storyGoal": "场景长期目标",
@@ -203,7 +211,8 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "所有角色都是 agent 角色，不是 chat 角色；不要设计让角色替用户说话或行动的规则。",
   "角色只根据自己视角和已知信息反应；可写小说化动作、神态、环境描写，但必须属于当前角色或公开环境。",
   "人设优先，不能随意补设定导致漂移；世界书只写稳定设定，不写本轮临时动作。",
-  "必须尊重 request_context 中已填的 title、premise、background、worldInfo、storyGoal、characterSeeds 和 promptStyleId，不要覆盖用户明确设定。",
+  "必须尊重 request_context 中已填的 title、premise、background、worldInfo、storyGoal、characterSeeds、promptStyleId 和 presentationProfileId，不要覆盖用户明确设定。",
+  "room.presentation.profileId 必须等于 request_context.presentationProfileId。对话演绎使用直接对白；第三人称旁白使用间接表达和动作心理转述；小说正文允许少量自然对白但不要输出聊天记录格式。",
   "如果 request_context.advanced.characterCount 存在，characters 数量应尽量等于该数；如果用户给了角色线索，优先保留这些角色。",
   "room.settings.replyOptions 默认启用，count 默认为 3；候选回复内容由运行时生成，预设 JSON 不要提前写死候选回复。",
   "如果 request_context.advanced.enableStatusTracking 为 false，room.settings.statusTracking.enabled 必须为 false，statusDefinitions/statusRules/progressViews 可以为空数组。",
@@ -234,10 +243,15 @@ const buildTavernGeneratedPresetRequestContext = (
   draft: TavernGeneratedPresetAgentDraft,
 ) => {
   const promptStyleId = normalizeTavernPromptStyleId(draft.promptStyleId);
+  const presentationProfileId = normalizeTavernPresentationProfileId(draft.presentationProfileId);
   return JSON.stringify({
     ...draft,
     promptStyleId,
+    presentationProfileId,
     promptStyle: TAVERN_PROMPT_STYLE_PRESETS.find((preset) => preset.id === promptStyleId),
+    presentationProfile: TAVERN_PRESENTATION_PROFILES.find((profile) =>
+      profile.id === presentationProfileId
+    ),
   }, null, 2);
 };
 

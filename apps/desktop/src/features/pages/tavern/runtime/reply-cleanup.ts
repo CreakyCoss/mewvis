@@ -45,6 +45,7 @@ export const cleanTavernReplyText = ({
 export type TavernReplyParts = {
   content: string;
   thought?: string;
+  contentKind?: "reply" | "narrative_beat";
 };
 
 const thoughtTagNames = [
@@ -71,8 +72,29 @@ const replyTagNames = [
   "对白",
 ];
 
+const narrativeBeatTagNames = [
+  "narrative_beat",
+  "public_narrative_beat",
+  "history_narrative_beat",
+  "story_beat",
+  "narrative",
+  "story",
+  "beat",
+  "叙事片段",
+  "故事片段",
+  "小说正文",
+  "叙事正文",
+];
+
+const publicContentTagNames = [
+  ...narrativeBeatTagNames,
+  ...replyTagNames,
+];
+
 const thoughtLabelPattern = "(?:心理想法|内心想法|内心|心想|心理|想法)";
+const narrativeBeatLabelPattern = "(?:叙事片段|故事片段|小说正文|叙事正文)";
 const replyLabelPattern = "(?:公开回应|公开回复|回复|回应|正文|对白)";
+const publicContentLabelPattern = `(?:${narrativeBeatLabelPattern}|${replyLabelPattern})`;
 
 type TaggedBlock = {
   value: string;
@@ -227,7 +249,7 @@ const stripContextWrapperTags = (
   ]);
 
   return (stripReplyTags
-    ? stripKnownWrapperTags(withoutOuterWrappers, replyTagNames)
+    ? stripKnownWrapperTags(withoutOuterWrappers, publicContentTagNames)
     : withoutOuterWrappers
   ).trim();
 };
@@ -236,7 +258,7 @@ const openTagPatternFor = (tagNames: string[]) =>
   new RegExp(`<\\s*(?:${tagNamePattern(tagNames)})(?:\\s+[^>]*)?\\s*>`, "i");
 
 const splitLooseThoughtValue = (value: string) => {
-  const replyOpenMatch = openTagPatternFor(replyTagNames).exec(value);
+  const replyOpenMatch = openTagPatternFor(publicContentTagNames).exec(value);
   if (replyOpenMatch?.index !== undefined) {
     return {
       thought: value.slice(0, replyOpenMatch.index).trim(),
@@ -259,6 +281,26 @@ const splitLooseThoughtValue = (value: string) => {
   };
 };
 
+const extractPublicContentBlock = (text: string) => {
+  const narrativeBeatBlock = extractTaggedBlock(text, narrativeBeatTagNames);
+  if (narrativeBeatBlock) {
+    return {
+      block: narrativeBeatBlock,
+      contentKind: "narrative_beat" as const,
+    };
+  }
+
+  const replyBlock = extractTaggedBlock(text, replyTagNames);
+  if (replyBlock) {
+    return {
+      block: replyBlock,
+      contentKind: "reply" as const,
+    };
+  }
+
+  return null;
+};
+
 const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
   const thoughtBlock = extractTaggedBlock(text, thoughtTagNames);
   const looseThought = thoughtBlock && !thoughtBlock.closed
@@ -269,19 +311,20 @@ const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
       ? [thoughtBlock?.rest ?? "", looseThought.rest].filter(Boolean).join("\n")
       : thoughtBlock?.rest ?? text,
     {
-    stripReplyTags: false,
+      stripReplyTags: false,
     },
   );
-  const replyBlock = extractTaggedBlock(textWithoutThought, replyTagNames);
+  const publicContentBlock = extractPublicContentBlock(textWithoutThought);
 
-  if (!thoughtBlock && !replyBlock) {
+  if (!thoughtBlock && !publicContentBlock) {
     return null;
   }
 
   return {
-    content: replyBlock
-      ? stripContextWrapperTags(replyBlock.value).trim()
+    content: publicContentBlock
+      ? stripContextWrapperTags(publicContentBlock.block.value).trim()
       : stripDanglingTagPrefix(stripContextWrapperTags(textWithoutThought)),
+    contentKind: publicContentBlock?.contentKind,
     thought: thoughtBlock
       ? cleanTavernThoughtText(looseThought?.thought ?? thoughtBlock.value)
       : undefined,
@@ -289,27 +332,32 @@ const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
 };
 
 const parseLabeledReplyParts = (text: string): TavernReplyParts | null => {
+  const narrativeBeatLabelRegex = new RegExp(`^${narrativeBeatLabelPattern}$`);
+  const getLabeledContentKind = (label?: string): TavernReplyParts["contentKind"] =>
+    label && narrativeBeatLabelRegex.test(label.trim()) ? "narrative_beat" : "reply";
   const thoughtFirstPattern = new RegExp(
-    `^\\s*${thoughtLabelPattern}\\s*[:：]\\s*([\\s\\S]*?)\\n+\\s*${replyLabelPattern}\\s*[:：]\\s*([\\s\\S]*)$`,
+    `^\\s*${thoughtLabelPattern}\\s*[:：]\\s*([\\s\\S]*?)\\n+\\s*(${publicContentLabelPattern})\\s*[:：]\\s*([\\s\\S]*)$`,
   );
   const thoughtFirstMatch = thoughtFirstPattern.exec(text);
 
   if (thoughtFirstMatch) {
     return {
       thought: cleanTavernThoughtText(thoughtFirstMatch[1] ?? ""),
-      content: (thoughtFirstMatch[2] ?? "").trim(),
+      content: (thoughtFirstMatch[3] ?? "").trim(),
+      contentKind: getLabeledContentKind(thoughtFirstMatch[2]),
     };
   }
 
   const replyFirstPattern = new RegExp(
-    `^\\s*${replyLabelPattern}\\s*[:：]\\s*([\\s\\S]*?)\\n+\\s*${thoughtLabelPattern}\\s*[:：]\\s*([\\s\\S]*)$`,
+    `^\\s*(${publicContentLabelPattern})\\s*[:：]\\s*([\\s\\S]*?)\\n+\\s*${thoughtLabelPattern}\\s*[:：]\\s*([\\s\\S]*)$`,
   );
   const replyFirstMatch = replyFirstPattern.exec(text);
 
   if (replyFirstMatch) {
     return {
-      content: (replyFirstMatch[1] ?? "").trim(),
-      thought: cleanTavernThoughtText(replyFirstMatch[2] ?? ""),
+      content: (replyFirstMatch[2] ?? "").trim(),
+      thought: cleanTavernThoughtText(replyFirstMatch[3] ?? ""),
+      contentKind: getLabeledContentKind(replyFirstMatch[1]),
     };
   }
 
@@ -496,5 +544,6 @@ export const parseTavernReplyText = ({
   return {
     content,
     thought: thought || undefined,
+    contentKind: parsed?.contentKind,
   };
 };
