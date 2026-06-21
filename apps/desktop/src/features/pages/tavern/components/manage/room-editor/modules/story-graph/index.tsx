@@ -2,6 +2,7 @@ import {
   ArrowRight,
   GitBranch,
   Map as MapIcon,
+  MoreVertical,
   Pencil,
   Plus,
   Trash2,
@@ -10,6 +11,12 @@ import { useState } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
@@ -71,7 +78,8 @@ const getNodeTone = (node: TavernStoryNode) => {
   return "border-primary/35 bg-primary/[0.06]";
 };
 
-const nodeWidth = 100;
+const nodeMinWidth = 100;
+const nodeMaxWidth = 176;
 const nodeHeight = 58;
 const nodeColumnGap = 210;
 const nodeLaneGap = 18;
@@ -83,6 +91,7 @@ type StoryGraphLayoutNode = {
   node: TavernStoryNode;
   x: number;
   y: number;
+  width: number;
   depth: number;
 };
 
@@ -135,10 +144,39 @@ const getStoryNodeTypeBadgeClassName = (node: TavernStoryNode) => {
 
 const entryStoryBadgeClassName = "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
 const storyDetailMetaClassName = "text-[11px] font-medium leading-4 text-muted-foreground";
-const storyDetailTitleClassName = "truncate text-base font-semibold leading-6 text-foreground";
-const storyDetailBadgeClassName = "rounded-sm border px-1.5 py-0.5 text-[11px] font-medium leading-4";
+const storyDetailTitleClassName = "truncate text-[13px] font-semibold leading-5 text-foreground";
+const storyDetailBadgeClassName = "rounded-sm border px-1 py-0.5 text-[9px] font-medium leading-3.5";
 const storyDetailCardClassName = "rounded-md border bg-muted/15 p-2.5";
 const storyDetailBodyClassName = "mt-1 text-xs leading-5 text-foreground/85";
+
+const getStoryTextVisualWidth = (text: string, unitWidth: number) => {
+  return Array.from(text).reduce(
+    (width, character) => width + (/^[\x00-\x7F]$/.test(character) ? unitWidth * 0.58 : unitWidth),
+    0,
+  );
+};
+
+const getStoryNodeCardWidth = (
+  graph: TavernRoom["storyGraph"],
+  node: TavernStoryNode,
+) => {
+  const title = node.title.trim() || emptyValueText;
+  const titleWidth = 64 + getStoryTextVisualWidth(title, 13);
+  const badgeLabels = [
+    node.id === graph.entryNodeId ? "入口" : "",
+    getStoryPathRoleLabel(node),
+    node.type !== "normal" ? getStoryNodeTypeLabel(node) : "",
+  ].filter(Boolean);
+  const badgeWidth = 36 + badgeLabels.reduce(
+    (width, label, index) => width + getStoryTextVisualWidth(label, 9) + 10 + (index > 0 ? 4 : 0),
+    0,
+  );
+
+  return Math.min(
+    nodeMaxWidth,
+    Math.max(nodeMinWidth, Math.ceil(titleWidth), Math.ceil(badgeWidth)),
+  );
+};
 
 const getEdgeVisualTone = (
   edge: TavernStoryEdge,
@@ -170,6 +208,169 @@ const getEdgeVisualTone = (
     text: "text-primary",
     markerId: "story-edge-arrow-primary",
   };
+};
+
+type StoryGraphRouteKind = "ending" | "failure" | "open";
+
+type StoryGraphRouteCandidate = {
+  edgeIds: string[];
+  kind: StoryGraphRouteKind;
+};
+
+type StoryGraphPreviousRouteCandidate = {
+  edgeIds: string[];
+  reachesEntry: boolean;
+};
+
+const getStoryGraphRouteKindRank = (kind: StoryGraphRouteKind) => {
+  if (kind === "ending") {
+    return 2;
+  }
+  if (kind === "failure") {
+    return 1;
+  }
+  return 0;
+};
+
+const isBetterStoryRouteCandidate = (
+  candidate: StoryGraphRouteCandidate,
+  current: StoryGraphRouteCandidate | null,
+) => {
+  if (!current) {
+    return true;
+  }
+
+  const candidateRank = getStoryGraphRouteKindRank(candidate.kind);
+  const currentRank = getStoryGraphRouteKindRank(current.kind);
+  if (candidateRank !== currentRank) {
+    return candidateRank > currentRank;
+  }
+
+  return candidate.edgeIds.length > current.edgeIds.length;
+};
+
+const isBetterPreviousStoryRouteCandidate = (
+  candidate: StoryGraphPreviousRouteCandidate,
+  current: StoryGraphPreviousRouteCandidate | null,
+) => {
+  if (!current) {
+    return true;
+  }
+  if (candidate.reachesEntry !== current.reachesEntry) {
+    return candidate.reachesEntry;
+  }
+
+  return candidate.edgeIds.length > current.edgeIds.length;
+};
+
+const buildSelectedStoryRouteEdgeIds = (
+  graph: TavernRoom["storyGraph"],
+  startNodeId: string | undefined,
+) => {
+  if (!startNodeId) {
+    return new Set<string>();
+  }
+
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const edgesBySourceNodeId = new Map<string, TavernStoryEdge[]>();
+  const edgesByTargetNodeId = new Map<string, TavernStoryEdge[]>();
+  const sortedEdges = [...graph.edges].sort((left, right) =>
+    Number(right.isDefault) - Number(left.isDefault) ||
+    left.priority - right.priority ||
+    left.createdAt - right.createdAt
+  );
+  sortedEdges.forEach((edge) => {
+    const sourceEdges = edgesBySourceNodeId.get(edge.fromNodeId) ?? [];
+    sourceEdges.push(edge);
+    edgesBySourceNodeId.set(edge.fromNodeId, sourceEdges);
+
+    const targetEdges = edgesByTargetNodeId.get(edge.toNodeId) ?? [];
+    targetEdges.push(edge);
+    edgesByTargetNodeId.set(edge.toNodeId, targetEdges);
+  });
+
+  const walkPreviousRoute = (
+    nodeId: string,
+    visitedNodeIds: Set<string>,
+    edgeIds: string[],
+  ): StoryGraphPreviousRouteCandidate => {
+    if (visitedNodeIds.has(nodeId)) {
+      return { edgeIds, reachesEntry: false };
+    }
+    if (nodeId === graph.entryNodeId) {
+      return { edgeIds, reachesEntry: true };
+    }
+
+    const incomingEdges = edgesByTargetNodeId.get(nodeId) ?? [];
+    if (incomingEdges.length === 0) {
+      return { edgeIds, reachesEntry: false };
+    }
+
+    const nextVisitedNodeIds = new Set(visitedNodeIds);
+    nextVisitedNodeIds.add(nodeId);
+
+    let bestCandidate: StoryGraphPreviousRouteCandidate | null = null;
+    incomingEdges.forEach((edge) => {
+      const candidate = walkPreviousRoute(
+        edge.fromNodeId,
+        nextVisitedNodeIds,
+        [edge.id, ...edgeIds],
+      );
+      if (isBetterPreviousStoryRouteCandidate(candidate, bestCandidate)) {
+        bestCandidate = candidate;
+      }
+    });
+
+    return bestCandidate ?? { edgeIds, reachesEntry: false };
+  };
+
+  const walkRoute = (
+    nodeId: string,
+    visitedNodeIds: Set<string>,
+    edgeIds: string[],
+  ): StoryGraphRouteCandidate => {
+    if (visitedNodeIds.has(nodeId)) {
+      return { edgeIds, kind: "open" };
+    }
+
+    const node = nodeById.get(nodeId);
+    if (!node) {
+      return { edgeIds, kind: "open" };
+    }
+    if (node.type === "ending") {
+      return { edgeIds, kind: "ending" };
+    }
+    if (node.type === "failure") {
+      return { edgeIds, kind: "failure" };
+    }
+
+    const outgoingEdges = edgesBySourceNodeId.get(nodeId) ?? [];
+    if (outgoingEdges.length === 0) {
+      return { edgeIds, kind: "open" };
+    }
+
+    const nextVisitedNodeIds = new Set(visitedNodeIds);
+    nextVisitedNodeIds.add(nodeId);
+
+    let bestCandidate: StoryGraphRouteCandidate | null = null;
+    outgoingEdges.forEach((edge) => {
+      const candidate = walkRoute(
+        edge.toNodeId,
+        nextVisitedNodeIds,
+        [...edgeIds, edge.id],
+      );
+      if (isBetterStoryRouteCandidate(candidate, bestCandidate)) {
+        bestCandidate = candidate;
+      }
+    });
+
+    return bestCandidate ?? { edgeIds, kind: "open" };
+  };
+
+  return new Set([
+    ...walkPreviousRoute(startNodeId, new Set(), []).edgeIds,
+    ...walkRoute(startNodeId, new Set(), []).edgeIds,
+  ]);
 };
 
 const canNodeUseMainPathRole = (
@@ -242,10 +443,10 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
     }
   });
 
-  let maxDepth = 0;
   const layoutNodes: StoryGraphLayoutNode[] = [];
   const laneCountByDepth = new Map<number, number>();
   let maxLaneCount = 1;
+  let maxNodeRight = graphPaddingX + nodeMinWidth;
 
   sortByOrder(graph.nodes)
     .sort((left, right) =>
@@ -256,19 +457,23 @@ const buildStoryGraphLayout = (graph: TavernRoom["storyGraph"]): StoryGraphLayou
     .forEach((node) => {
       const depth = depthByNodeId.get(node.id) ?? 0;
       const lane = laneCountByDepth.get(depth) ?? 0;
+      const width = getStoryNodeCardWidth(graph, node);
+      const x = graphPaddingX + depth * nodeColumnGap;
+      const y = graphPaddingY + lane * (nodeHeight + nodeLaneGap);
       laneCountByDepth.set(depth, lane + 1);
       maxLaneCount = Math.max(maxLaneCount, lane + 1);
-      maxDepth = Math.max(maxDepth, depth);
+      maxNodeRight = Math.max(maxNodeRight, x + width);
 
       layoutNodes.push({
         node,
         depth,
-        x: graphPaddingX + depth * nodeColumnGap,
-        y: graphPaddingY + lane * (nodeHeight + nodeLaneGap),
+        x,
+        y,
+        width,
       });
   });
 
-  const width = Math.max(760, graphPaddingX * 2 + (maxDepth + 1) * nodeColumnGap + nodeWidth);
+  const width = Math.max(760, maxNodeRight + graphPaddingX);
   const height = Math.max(
     graphMinHeight,
     graphPaddingY * 2 + maxLaneCount * nodeHeight + (maxLaneCount - 1) * nodeLaneGap,
@@ -552,6 +757,24 @@ export const StoryGraphSection = ({
     }));
   };
 
+  const requestDeleteNode = (node: TavernStoryNode) => {
+    if (data.locked || node.id === graph.entryNodeId || graph.nodes.length <= 1) {
+      return;
+    }
+
+    onRequestDangerAction({
+      title: "删除剧情节点",
+      description: `删除节点「${node.title}」？绑定场景、相关入口和出口分支也会一起移除。`,
+      confirmLabel: "删除节点",
+      onConfirm: () => {
+        deleteNode(node.id);
+        if (editingNodeId === node.id) {
+          setEditingNodeId(null);
+        }
+      },
+    });
+  };
+
   const updateEdge = (edgeId: string, patch: Partial<TavernStoryEdge>) => {
     const updatedAt = now();
     const originalEdge = graph.edges.find((item) => item.id === edgeId);
@@ -633,6 +856,7 @@ export const StoryGraphSection = ({
         .filter((text): text is string => Boolean(text))
         .join(" / ") || "默认进入";
   const graphLayout = buildStoryGraphLayout(graph);
+  const selectedRouteEdgeIds = buildSelectedStoryRouteEdgeIds(graph, activeNode?.id);
   const getSceneCharacters = (scene: TavernScene | null | undefined) =>
     (scene?.characterIds ?? [])
       .map((characterId) => roomCharacterById.get(characterId))
@@ -809,7 +1033,7 @@ export const StoryGraphSection = ({
                       return null;
                     }
 
-                    const startX = fromLayout.x + nodeWidth;
+                    const startX = fromLayout.x + fromLayout.width;
                     const startY = fromLayout.y + nodeHeight / 2;
                     const endX = toLayout.x;
                     const endY = toLayout.y + nodeHeight / 2;
@@ -818,6 +1042,7 @@ export const StoryGraphSection = ({
                       ? `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`
                       : `M ${startX} ${startY} C ${startX + 48} ${startY}, ${endX - 48} ${endY}, ${endX} ${endY}`;
                     const edgeTone = getEdgeVisualTone(edge, toLayout.node);
+                    const isSelectedRouteEdge = selectedRouteEdgeIds.has(edge.id);
 
                     return (
                       <path
@@ -825,12 +1050,12 @@ export const StoryGraphSection = ({
                         d={path}
                         className={cn(
                           "fill-none transition-opacity",
-                          "stroke-[1.75]",
+                          isSelectedRouteEdge ? "stroke-[2.25]" : "stroke-[1.75]",
                           edgeTone.stroke,
                         )}
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeDasharray={edge.isDefault ? undefined : "6 6"}
+                        strokeDasharray={isSelectedRouteEdge ? undefined : "6 6"}
                         markerEnd={`url(#${edgeTone.markerId})`}
                       />
                     );
@@ -845,13 +1070,14 @@ export const StoryGraphSection = ({
                   }
 
                   const edgeTone = getEdgeVisualTone(edge, toLayout.node);
+                  const isSelectedRouteEdge = selectedRouteEdgeIds.has(edge.id);
                   const edgeDisplayText = edge.reason?.trim() || edge.label?.trim() || "继续";
                   const lineMidY = (fromLayout.y + toLayout.y) / 2 + nodeHeight / 2;
                   const labelLeft = Math.max(
                     16,
                     Math.min(
                       graphLayout.width - 128,
-                      (fromLayout.x + nodeWidth + toLayout.x) / 2 - 56,
+                      (fromLayout.x + fromLayout.width + toLayout.x) / 2 - 56,
                     ),
                   );
                   const labelTop = Math.max(
@@ -869,6 +1095,7 @@ export const StoryGraphSection = ({
                       className={cn(
                         "absolute z-20 w-28 truncate px-1 text-center text-[11px] font-medium leading-5 transition-opacity hover:underline",
                         edgeTone.text,
+                        isSelectedRouteEdge && "font-semibold",
                       )}
                       style={{
                         left: labelLeft,
@@ -887,21 +1114,28 @@ export const StoryGraphSection = ({
                   const isActive = activeNode?.id === node.id;
 
 	                  return (
-                    <button
+                    <div
                       key={node.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       className={cn(
-                        "absolute z-30 flex flex-col overflow-hidden rounded-md border px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-background",
+                        "absolute z-30 flex cursor-pointer flex-col overflow-hidden rounded-md border px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-background",
                         getNodeTone(node),
                         isActive && "ring-2 ring-primary/45",
                       )}
                       style={{
                         left: layoutNode.x,
                         top: layoutNode.y,
-                        width: nodeWidth,
+                        width: layoutNode.width,
                         height: nodeHeight,
                       }}
                       onClick={() => selectStoryNode(node.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          selectStoryNode(node.id);
+                        }
+                      }}
                     >
                       <div className="flex h-full min-w-0 flex-col justify-center gap-0.5">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -911,6 +1145,47 @@ export const StoryGraphSection = ({
                           <div className="min-w-0 flex-1 truncate text-[13px] font-medium leading-5">
                             {node.title || emptyValueText}
                           </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex h-4 w-3 shrink-0 items-center justify-center rounded-sm bg-white/45 text-muted-foreground ring-1 ring-border/30 transition-colors hover:bg-white/75 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:outline-none data-[state=open]:bg-white/75 data-[state=open]:text-foreground"
+                                title="节点操作"
+                                aria-label={`${node.title || "节点"} 操作`}
+                                onClick={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
+                              >
+                                <MoreVertical className="size-2" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="flex w-auto min-w-0 gap-1 p-1"
+                            >
+                              <DropdownMenuItem
+                                className="flex size-7 items-center justify-center rounded-md p-0"
+                                title="编辑节点"
+                                aria-label="编辑节点"
+                                disabled={data.locked}
+                                onSelect={() => {
+                                  selectStoryNode(node.id);
+                                  setEditingNodeId(node.id);
+                                }}
+                              >
+                                <Pencil className="size-3.5" />
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                className="flex size-7 items-center justify-center rounded-md p-0"
+                                title="删除节点"
+                                aria-label="删除节点"
+                                disabled={data.locked || node.id === graph.entryNodeId || graph.nodes.length <= 1}
+                                onSelect={() => requestDeleteNode(node)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         <div className="flex flex-wrap gap-1 pl-5">
                           {node.id === graph.entryNodeId && (
@@ -937,7 +1212,7 @@ export const StoryGraphSection = ({
                           )}
                         </div>
                       </div>
-	                    </button>
+	                    </div>
                   );
                 })}
               </div>
@@ -1048,17 +1323,6 @@ export const StoryGraphSection = ({
                       新增节点
                     </Button>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className={editorQuietActionButtonClassName}
-                    disabled={data.locked}
-                    onClick={() => setEditingNodeId(activeNode.id)}
-                  >
-                    <Pencil className="size-3.5" />
-                    编辑节点
-                  </Button>
                 </div>
               </div>
             ) : (
@@ -1189,24 +1453,6 @@ export const StoryGraphSection = ({
               </div>
             </EditorFormLayout>
             <EditorFormFooter status="修改会立即保存到剧情结构。">
-              <Button
-                type="button"
-                variant="outline"
-                className={editorDangerActionButtonClassName}
-                disabled={data.locked || editingNode.id === graph.entryNodeId || graph.nodes.length <= 1}
-                onClick={() => onRequestDangerAction({
-	                  title: "删除剧情节点",
-	                  description: `删除节点「${editingNode.title}」？绑定场景、相关入口和出口分支也会一起移除。`,
-                  confirmLabel: "删除节点",
-                  onConfirm: () => {
-                    deleteNode(editingNode.id);
-                    setEditingNodeId(null);
-                  },
-                })}
-              >
-                <Trash2 className="size-3.5" />
-                删除节点
-              </Button>
               <Button
                 type="button"
                 variant="outline"

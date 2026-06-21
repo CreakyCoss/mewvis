@@ -7,7 +7,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,44 +43,28 @@ import {
   formatCount,
   getRoomCharacterById,
 } from "../../utils";
-import { ScenesEdit, type ScenesEditHandle } from "./edit";
-import type { ModuleEditProps, ModuleSave } from "../types";
+import type { ModuleSave } from "../types";
 
 type ScenesSectionProps = {
   data: TavernRoom;
   characterById: Map<string, TavernCharacter>;
-  focusSceneEditRequest?: {
-    sceneId: string;
-    requestId: number;
-  } | null;
   onSave: ModuleSave;
+  onEditScene: (sceneId: string) => void;
   onRequestDangerAction: (action: PendingDangerAction) => void;
-  renderTextFieldAgentActions: ModuleEditProps["renderTextFieldAgentActions"];
 };
 
 export const ScenesSection = ({
   data,
   characterById,
-  focusSceneEditRequest,
   onSave,
+  onEditScene,
   onRequestDangerAction,
-  renderTextFieldAgentActions,
 }: ScenesSectionProps) => {
-  const editRef = useRef<ScenesEditHandle>(null);
   const scenes = data.scenes ?? [];
   const roomCharacterById = getRoomCharacterById(data, characterById);
   const activeStoryNode = data.storyGraph.nodes.find((node) => node.id === data.storyGraph.activeNodeId) ??
     data.storyGraph.nodes[0] ??
     null;
-
-  useEffect(() => {
-    const sceneId = focusSceneEditRequest?.sceneId;
-    if (!sceneId) {
-      return;
-    }
-
-    editRef.current?.(sceneId);
-  }, [focusSceneEditRequest?.requestId, focusSceneEditRequest?.sceneId]);
 
   const saveRoomProjection = (room: TavernRoom) => {
     onSave(projectTavernSceneOntoRoom(room));
@@ -286,7 +269,6 @@ export const ScenesSection = ({
       .filter((character): character is TavernCharacter => Boolean(character));
 
   return (
-    <>
       <EditorSection
         className="order-last"
         icon={Clapperboard}
@@ -446,7 +428,7 @@ export const ScenesSection = ({
                       variant="outline"
                       className={editorPrimaryActionButtonClassName}
                       aria-label={`编辑${sceneTitle}叙事`}
-                      onClick={() => editRef.current?.(scene.id)}
+                      onClick={() => onEditScene(scene.id)}
                     >
                       <Pencil className="size-3" />
                       编辑
@@ -478,14 +460,5 @@ export const ScenesSection = ({
           </div>
         </TooltipProvider>
       </EditorSection>
-
-      <ScenesEdit
-        bind={editRef}
-        data={data}
-        onSave={onSave}
-        renderTextFieldAgentActions={renderTextFieldAgentActions}
-        roomCharacterById={roomCharacterById}
-      />
-    </>
   );
 };

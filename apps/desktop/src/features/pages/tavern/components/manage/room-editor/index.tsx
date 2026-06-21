@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MouseEvent, Ref } from "react";
-import { useImperativeHandle, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -38,6 +38,7 @@ import { LoreSection } from "./modules/lore";
 import { OverviewSection } from "./modules/overview";
 import { ProgressSection } from "./modules/progress";
 import { ScenesSection } from "./modules/scenes";
+import { ScenesEdit, type ScenesEditHandle } from "./modules/scenes/edit";
 import { SettingsSection } from "./modules/settings";
 import { StoryGraphSection } from "./modules/story-graph";
 import type { TextFieldAgentActionRenderer } from "./modules/types";
@@ -45,6 +46,7 @@ import type { PendingDangerAction } from "./types";
 import {
   cloneTavernRoom,
   getErrorMessage,
+  getRoomCharacterById,
   prepareTavernRoomForSave,
 } from "./utils";
 
@@ -157,6 +159,7 @@ export const RoomEditor = ({
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("overview");
   const [sceneEditRequest, setSceneEditRequest] = useState<SceneEditRequest | null>(null);
+  const sceneEditRef = useRef<ScenesEditHandle>(null);
 
   const openRoomEditor = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
@@ -173,6 +176,15 @@ export const RoomEditor = ({
   };
 
   useImperativeHandle(bind, () => openRoomEditor);
+
+  useEffect(() => {
+    const sceneId = sceneEditRequest?.sceneId;
+    if (!sceneId) {
+      return;
+    }
+
+    sceneEditRef.current?.(sceneId);
+  }, [sceneEditRequest?.requestId, sceneEditRequest?.sceneId]);
 
   const closeRoomEditor = () => {
     setData(null);
@@ -339,6 +351,13 @@ export const RoomEditor = ({
     );
   };
 
+  const requestSceneEdit = (sceneId: string) => {
+    setSceneEditRequest({
+      sceneId,
+      requestId: Date.now(),
+    });
+  };
+
   const runCharacterTextFieldAgent = async (
     request: TavernTextFieldAgentRequest,
   ) => {
@@ -356,6 +375,8 @@ export const RoomEditor = ({
   if (!data) {
     return null;
   }
+
+  const roomCharacterById = getRoomCharacterById(data, characterById);
 
   const renderActiveModule = () => {
     switch (activeModuleId) {
@@ -390,10 +411,9 @@ export const RoomEditor = ({
           <ScenesSection
             data={data}
             characterById={characterById}
-            focusSceneEditRequest={sceneEditRequest}
             onSave={onModuleSave}
+            onEditScene={requestSceneEdit}
             onRequestDangerAction={onRequestDangerAction}
-            renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
       case "story-graph":
@@ -403,13 +423,7 @@ export const RoomEditor = ({
             characterById={characterById}
             onSave={onModuleSave}
             onRequestDangerAction={onRequestDangerAction}
-            onEditScene={(sceneId) => {
-              setSceneEditRequest({
-                sceneId,
-                requestId: Date.now(),
-              });
-              setActiveModuleId("scenes");
-            }}
+            onEditScene={requestSceneEdit}
           />
         );
       case "lore":
@@ -525,6 +539,14 @@ export const RoomEditor = ({
           </div>
         </ScrollArea>
       </div>
+
+      <ScenesEdit
+        bind={sceneEditRef}
+        data={data}
+        onSave={onModuleSave}
+        renderTextFieldAgentActions={renderTextFieldAgentActions}
+        roomCharacterById={roomCharacterById}
+      />
     </div>
   );
 };
