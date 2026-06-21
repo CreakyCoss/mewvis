@@ -39,6 +39,7 @@ import {
 } from "../../../../core";
 import { runTavernProgressTracking } from "../../../../runtime/progress-tracker";
 import {
+  getTavernSceneDisplayTitle,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../../../storage";
@@ -1070,8 +1071,8 @@ export const SceneOverviewSection = ({
   const userPersonaName = activeRoom.userPersonaName.trim();
   const activeScene = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId);
   const sceneOverviewTitle =
+    getTavernSceneDisplayTitle(activeRoom, activeScene?.id, "") ||
     activeRoom.sceneStatus?.location?.trim() ||
-    activeScene?.title?.trim() ||
     activeRoom.title.trim() ||
     "当前场景";
   const sceneOverviewPhase =

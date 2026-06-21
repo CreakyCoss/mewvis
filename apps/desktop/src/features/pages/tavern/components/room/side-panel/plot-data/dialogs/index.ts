@@ -5,6 +5,5 @@ export { PrivateIntelDialog } from "./private-intel-dialog";
 export { ProgressRulesDialog } from "./progress-rules-dialog";
 export { ScriptReviewDialog } from "./script-review-dialog";
 export { TasksOutcomesDialog } from "./tasks-outcomes-dialog";
-export { TimelineDialog } from "./timeline-dialog";
 export { TipsDialog } from "./tips-dialog";
 export type { PlotDataDialogHandle } from "./shared";

@@ -7,7 +7,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   createTavernScene,
+  getTavernSceneDisplayTitle,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../../../../storage";
@@ -42,7 +43,6 @@ import {
   emptyValueText,
   formatCount,
   getRoomCharacterById,
-  getTimelineScopeSummary,
 } from "../../utils";
 import { ScenesEdit, type ScenesEditHandle } from "./edit";
 import type { ModuleEditProps, ModuleSave } from "../types";
@@ -50,6 +50,10 @@ import type { ModuleEditProps, ModuleSave } from "../types";
 type ScenesSectionProps = {
   data: TavernRoom;
   characterById: Map<string, TavernCharacter>;
+  focusSceneEditRequest?: {
+    sceneId: string;
+    requestId: number;
+  } | null;
   onSave: ModuleSave;
   onRequestDangerAction: (action: PendingDangerAction) => void;
   renderTextFieldAgentActions: ModuleEditProps["renderTextFieldAgentActions"];
@@ -58,6 +62,7 @@ type ScenesSectionProps = {
 export const ScenesSection = ({
   data,
   characterById,
+  focusSceneEditRequest,
   onSave,
   onRequestDangerAction,
   renderTextFieldAgentActions,
@@ -65,6 +70,18 @@ export const ScenesSection = ({
   const editRef = useRef<ScenesEditHandle>(null);
   const scenes = data.scenes ?? [];
   const roomCharacterById = getRoomCharacterById(data, characterById);
+  const activeStoryNode = data.storyGraph.nodes.find((node) => node.id === data.storyGraph.activeNodeId) ??
+    data.storyGraph.nodes[0] ??
+    null;
+
+  useEffect(() => {
+    const sceneId = focusSceneEditRequest?.sceneId;
+    if (!sceneId) {
+      return;
+    }
+
+    editRef.current?.(sceneId);
+  }, [focusSceneEditRequest?.requestId, focusSceneEditRequest?.sceneId]);
 
   const saveRoomProjection = (room: TavernRoom) => {
     onSave(projectTavernSceneOntoRoom(room));
@@ -88,10 +105,10 @@ export const ScenesSection = ({
       ]),
     );
     const scene = createTavernScene({
-      title: `阶段 ${currentScenes.length + 1}`,
+      title: `场景 ${currentScenes.length + 1}`,
       order: currentScenes.length,
       scenePresetId: syncedRoom.scenePresetId,
-      scene: "新的故事阶段等待配置。",
+      scene: "新的场景等待配置。",
       sceneGoal: "",
       plot: "",
       storyDirection: "",
@@ -105,11 +122,62 @@ export const ScenesSection = ({
       createdAt,
       updatedAt: createdAt,
     });
+    const nodeId = `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const activeNode = syncedRoom.storyGraph.nodes.find((node) => node.id === syncedRoom.storyGraph.activeNodeId) ??
+      syncedRoom.storyGraph.nodes[0] ??
+      null;
+    if (activeNode && activeNode.type !== "normal") {
+      return;
+    }
+    const outgoingCount = activeNode
+      ? syncedRoom.storyGraph.edges.filter((edge) => edge.fromNodeId === activeNode.id).length
+      : 0;
+    const isEntryNode = syncedRoom.storyGraph.nodes.length === 0;
+    const isDefaultPath = outgoingCount === 0;
+    const node = {
+      id: nodeId,
+      stageId: activeNode?.stageId ?? syncedRoom.storyGraph.stages[0]?.id ?? "",
+      sceneId: scene.id,
+      title: isEntryNode ? "入口节点" : scene.title,
+      type: "normal" as const,
+      pathRole: isEntryNode || (isDefaultPath && activeNode?.pathRole === "main")
+        ? "main" as const
+        : "branch" as const,
+      position: {
+        x: (activeNode?.position?.x ?? 120) + (isEntryNode ? 0 : 240),
+        y: (activeNode?.position?.y ?? 160) + outgoingCount * 160,
+      },
+      status: "ready" as const,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const nextEdges = activeNode
+      ? [
+          ...syncedRoom.storyGraph.edges,
+          {
+            id: `edge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+            fromNodeId: activeNode.id,
+            toNodeId: node.id,
+            label: isDefaultPath ? "继续" : `分支 ${outgoingCount + 1}`,
+            isDefault: isDefaultPath,
+            priority: outgoingCount,
+            createdAt,
+            updatedAt: createdAt,
+          },
+        ]
+      : syncedRoom.storyGraph.edges;
 
     saveRoomProjection({
       ...syncedRoom,
       activeSceneId: scene.id,
       scenes: [...currentScenes, scene],
+      storyGraph: {
+        ...syncedRoom.storyGraph,
+        entryNodeId: syncedRoom.storyGraph.entryNodeId || node.id,
+        activeNodeId: nodeId,
+        nodes: [...syncedRoom.storyGraph.nodes, node],
+        edges: nextEdges,
+      },
       updatedAt: createdAt,
     });
   };
@@ -120,9 +188,16 @@ export const ScenesSection = ({
     }
 
     const syncedRoom = syncTavernRoomActiveScene(data);
+    const targetNode = syncedRoom.storyGraph.nodes.find((node) => node.sceneId === sceneId);
     saveRoomProjection({
       ...syncedRoom,
       activeSceneId: sceneId,
+      storyGraph: targetNode
+        ? {
+            ...syncedRoom.storyGraph,
+            activeNodeId: targetNode.id,
+          }
+        : syncedRoom.storyGraph,
     });
   };
 
@@ -144,11 +219,33 @@ export const ScenesSection = ({
     const nextActiveSceneId = syncedRoom.activeSceneId === sceneId
       ? nextScenes[Math.min(deletedIndex, nextScenes.length - 1)]?.id ?? nextScenes[0]?.id
       : syncedRoom.activeSceneId;
+    const deletedNode = syncedRoom.storyGraph.nodes.find((node) => node.sceneId === sceneId);
+    const nextNodes = deletedNode
+      ? syncedRoom.storyGraph.nodes.filter((node) => node.id !== deletedNode.id)
+      : syncedRoom.storyGraph.nodes;
+    const nextEntryNodeId = deletedNode?.id === syncedRoom.storyGraph.entryNodeId
+      ? nextNodes[0]?.id ?? ""
+      : syncedRoom.storyGraph.entryNodeId;
+    const nextActiveNodeId = deletedNode?.id === syncedRoom.storyGraph.activeNodeId
+      ? nextEntryNodeId
+      : syncedRoom.storyGraph.activeNodeId;
 
     saveRoomProjection({
       ...syncedRoom,
       activeSceneId: nextActiveSceneId,
       scenes: nextScenes,
+      storyGraph: {
+        ...syncedRoom.storyGraph,
+        entryNodeId: nextEntryNodeId,
+        activeNodeId: nextActiveNodeId,
+        nodes: nextNodes,
+        edges: deletedNode
+          ? syncedRoom.storyGraph.edges.filter((edge) => edge.fromNodeId !== deletedNode.id && edge.toNodeId !== deletedNode.id)
+          : syncedRoom.storyGraph.edges,
+        stages: syncedRoom.storyGraph.stages.map((stage) => stage.routeNodeId === deletedNode?.id
+          ? { ...stage, routeNodeId: undefined }
+          : stage),
+      },
       updatedAt: Date.now(),
     });
   };
@@ -194,19 +291,19 @@ export const ScenesSection = ({
         className="order-last"
         icon={Clapperboard}
         title="故事场景"
-        description="编排同一个大故事中的阶段；酒馆内只会切换这里配置好的场景。"
-        meta={formatCount(scenes.length, "阶段")}
+        description="编排同一个大故事中的可切换场景；名称来自绑定的剧情节点。"
+        meta={formatCount(scenes.length, "场景")}
         action={(
           <Button
             type="button"
             size="sm"
             variant="outline"
             className={editorHeaderActionButtonClassName}
-            disabled={data.locked}
+            disabled={data.locked || Boolean(activeStoryNode && activeStoryNode.type !== "normal")}
             onClick={createScene}
           >
             <Plus className="size-3.5" />
-            新增阶段
+            新增场景
           </Button>
         )}
         contentClassName="space-y-2"
@@ -216,7 +313,7 @@ export const ScenesSection = ({
             {scenes.map((scene, index) => {
               const isActiveScene = scene.id === data.activeSceneId;
               const sceneCharacters = renderSceneCharacters(scene);
-              const sceneTitle = scene.title || `阶段 ${index + 1}`;
+              const sceneTitle = getTavernSceneDisplayTitle(data, scene.id, `场景 ${index + 1}`);
 
               return (
                 <div
@@ -299,15 +396,11 @@ export const ScenesSection = ({
                       </div>
                       <div className="mt-3 grid gap-1.5">
                         <SceneSummaryLine label="场景描述" value={scene.scene} />
-                        <SceneSummaryLine label="阶段剧情" value={scene.plot} />
+                        <SceneSummaryLine label="场景剧情" value={scene.plot} />
                         <SceneSummaryLine label="场景目标" value={scene.sceneGoal} />
                         <SceneSummaryLine label="剧情走向" value={scene.storyDirection} />
                         <SceneSummaryLine label="承接关系" value={scene.transition} />
-                        <SceneSummaryLine label="阶段记忆" value={scene.memory} />
-                        <SceneSummaryLine
-                          label="时间线范围"
-                          value={getTimelineScopeSummary(scene.timelineScope, data.timelineEvents)}
-                        />
+                        <SceneSummaryLine label="场景记忆" value={scene.memory} />
                       </div>
                     </div>
                   </div>
@@ -365,12 +458,12 @@ export const ScenesSection = ({
                       className={editorDangerActionButtonClassName}
                       disabled={data.locked || scenes.length <= 1}
                       onClick={() => {
-                        const sceneLabel = scene.title.trim() || `阶段 ${index + 1}`;
+                        const sceneLabel = getTavernSceneDisplayTitle(data, scene.id, `场景 ${index + 1}`);
                         onRequestDangerAction({
-                          title: "删除故事阶段",
+                          title: "删除场景",
                           description:
-                            `删除「${sceneLabel}」？确认后该阶段的剧情配置和对话历史会立即移除。`,
-                          confirmLabel: "删除阶段",
+                            `删除「${sceneLabel}」？确认后该场景、绑定节点和对话历史会立即移除。`,
+                          confirmLabel: "删除场景",
                           onConfirm: () => deleteScene(scene.id),
                         });
                       }}

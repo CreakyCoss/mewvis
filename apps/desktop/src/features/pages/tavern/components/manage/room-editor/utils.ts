@@ -12,8 +12,7 @@ import type {
   TavernStatusDefinition,
   TavernStatusRule,
   TavernTaskDefinition,
-  TavernTimelineEvent,
-  TavernTimelineScope,
+  TavernStoryGraph,
 } from "../../../types";
 
 export const replyModeOptions: Array<{
@@ -78,27 +77,6 @@ export const parseKeywords = (value: string) =>
     .map((keyword) => keyword.trim())
     .filter(Boolean);
 
-export const cloneTimelineScope = (
-  scope: TavernTimelineScope | undefined,
-): TavernTimelineScope => {
-  if (scope?.mode === "range") {
-    return {
-      mode: "range",
-      startEventId: scope.startEventId,
-      endEventId: scope.endEventId,
-    };
-  }
-
-  if (scope?.mode === "selected") {
-    return {
-      mode: "selected",
-      eventIds: [...(scope.eventIds ?? [])],
-    };
-  }
-
-  return { mode: "auto" };
-};
-
 export const cloneRoomCharacterConfigs = (
   configs: Record<string, TavernRoomCharacterConfig> | undefined,
 ): Record<string, TavernRoomCharacterConfig> => Object.fromEntries(
@@ -119,40 +97,15 @@ export const characterMemoriesFromConfigs = (
   }),
 );
 
-export const getTimelineEventLabel = (
-  event: TavernTimelineEvent,
-  index: number,
-) => `${index + 1}. ${event.title.trim() || emptyValueText}`;
-
-export const getTimelineScopeSummary = (
-  scope: TavernTimelineScope | undefined,
-  events: TavernTimelineEvent[],
-) => {
-  if (!scope || scope.mode === "auto") {
-    return events.length > 0 ? "自动：完整共享时间线" : "自动：暂无共享事件";
-  }
-
-  if (scope.mode === "selected") {
-    const count = (scope.eventIds ?? []).filter((eventId) =>
-      events.some((event) => event.id === eventId)
-    ).length;
-    return count > 0 ? `精选：${count} 个事件` : "精选：未选择事件";
-  }
-
-  if (events.length === 0) {
-    return "范围：暂无共享事件";
-  }
-
-  const startIndex = scope.startEventId
-    ? events.findIndex((event) => event.id === scope.startEventId)
-    : 0;
-  const endIndex = scope.endEventId
-    ? events.findIndex((event) => event.id === scope.endEventId)
-    : events.length - 1;
-  const startEvent = events[startIndex >= 0 ? startIndex : 0];
-  const endEvent = events[endIndex >= 0 ? endIndex : events.length - 1];
-  return `范围：${startEvent?.title || emptyValueText} - ${endEvent?.title || emptyValueText}`;
-};
+const cloneStoryGraph = (storyGraph: TavernStoryGraph): TavernStoryGraph => ({
+  ...storyGraph,
+  stages: storyGraph.stages.map((stage) => ({ ...stage })),
+  nodes: storyGraph.nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+  })),
+  edges: storyGraph.edges.map((edge) => ({ ...edge })),
+});
 
 export const editorControlClassName = "w-full bg-background/80 shadow-none";
 export const settingsFlagGridClassName =
@@ -452,18 +405,17 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
 export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   ...room,
   settings: cloneTavernRoomSettings(room.settings),
+  storyGraph: cloneStoryGraph(room.storyGraph),
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
   scenes: room.scenes?.map((scene) => ({
     ...scene,
-    timelineScope: cloneTimelineScope(scene.timelineScope),
     characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
     characterMemories: { ...scene.characterMemories },
     characterIds: [...scene.characterIds],
     assetDrafts: scene.assetDrafts.map((draft) => ({
       ...draft,
       sourceMessageIds: [...draft.sourceMessageIds],
-      timelineEvents: draft.timelineEvents.map((event) => ({ ...event })),
       characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
       lorebookEntries: draft.lorebookEntries.map((entry) => ({
         ...entry,
@@ -479,7 +431,6 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
     ...character,
   })) ?? [],
   characterIds: [...room.characterIds],
-  timelineEvents: room.timelineEvents.map((event) => ({ ...event })),
   lorebookEntries: room.lorebookEntries.map((entry) => ({
     ...entry,
     keywords: [...entry.keywords],
@@ -487,7 +438,6 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   assetDrafts: room.assetDrafts.map((draft) => ({
     ...draft,
     sourceMessageIds: [...draft.sourceMessageIds],
-    timelineEvents: draft.timelineEvents.map((event) => ({ ...event })),
     characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
     lorebookEntries: draft.lorebookEntries.map((entry) => ({
       ...entry,

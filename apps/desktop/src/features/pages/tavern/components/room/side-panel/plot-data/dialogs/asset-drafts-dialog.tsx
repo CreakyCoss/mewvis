@@ -3,7 +3,6 @@ import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createTavernLorebookEntry,
-  createTavernTimelineEvent,
   projectTavernSceneOntoRoom,
 } from "../../../../../storage";
 import type {
@@ -37,7 +36,6 @@ const AssetDraftPreview = ({
 }) => {
   const characterById = new Map(roomCharacters.map((character) => [character.id, character]));
   const draftSummary = [
-    draft.timelineEvents.length > 0 ? `${draft.timelineEvents.length} 时间线` : "",
     draft.characterMemories.length > 0 ? `${draft.characterMemories.length} 记忆` : "",
     draft.lorebookEntries.length > 0 ? `${draft.lorebookEntries.length} 世界书` : "",
   ].filter(Boolean).join(" / ");
@@ -75,20 +73,6 @@ const AssetDraftPreview = ({
           </Button>
         </div>
       </div>
-
-      {draft.timelineEvents.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium opacity-70">时间线</div>
-          {draft.timelineEvents.map((event) => (
-            <div key={event.id} className="rounded-md bg-current/5 px-2.5 py-2">
-              <div className="text-xs font-medium">{event.title || emptyValueText}</div>
-              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
-                {event.summary || emptyValueText}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {draft.characterMemories.length > 0 && (
         <div className="space-y-1.5">
@@ -141,9 +125,6 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
       return;
     }
 
-    const timelineEvents = draft.timelineEvents.filter((event) =>
-      event.title.trim() && event.summary.trim()
-    );
     const memoryDrafts = draft.characterMemories.filter((memory) =>
       memory.characterId.trim() && memory.note.trim()
     );
@@ -167,10 +148,6 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
     patchRoom(activeRoom.id, {
       characterConfigs,
       characterMemories,
-      timelineEvents: [
-        ...activeRoom.timelineEvents,
-        ...timelineEvents.map((event) => createTavernTimelineEvent(event)),
-      ],
       lorebookEntries: [
         ...activeRoom.lorebookEntries,
         ...lorebookEntries.map((entry) => createTavernLorebookEntry(entry)),
@@ -190,7 +167,7 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
     setPendingConfirmAction({
       title: "忽略草稿",
       description:
-        "忽略这份待确认草稿？草稿中的时间线、记忆和世界书建议都会被删除。",
+        "忽略这份待确认草稿？草稿中的记忆和世界书建议都会被删除。",
       confirmLabel: "忽略草稿",
       onConfirm: () => {
         const room = projectTavernSceneOntoRoom(activeRoom);

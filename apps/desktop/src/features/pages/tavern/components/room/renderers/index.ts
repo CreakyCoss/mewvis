@@ -1,18 +1,18 @@
 import type { TavernPresentationRenderStyle } from "../../../types";
-import { chatTimelineRenderer } from "./chat";
-import { proseTimelineRenderer } from "./prose";
-import type { TavernTimelineRenderer } from "./types";
+import { chatConversationRenderer } from "./chat";
+import { proseConversationRenderer } from "./prose";
+import type { TavernConversationRenderer } from "./types";
 
-const timelineRenderers: Record<TavernPresentationRenderStyle, TavernTimelineRenderer> = {
-  chat: chatTimelineRenderer,
-  prose: proseTimelineRenderer,
+const conversationRenderers: Record<TavernPresentationRenderStyle, TavernConversationRenderer> = {
+  chat: chatConversationRenderer,
+  prose: proseConversationRenderer,
 };
 
-export const resolveTavernTimelineRenderer = (
+export const resolveTavernConversationRenderer = (
   renderStyle: TavernPresentationRenderStyle,
-) => timelineRenderers[renderStyle] ?? chatTimelineRenderer;
+) => conversationRenderers[renderStyle] ?? chatConversationRenderer;
 
 export type {
-  TavernTimelineRenderer,
-  TavernTimelineRendererProps,
+  TavernConversationRenderer,
+  TavernConversationRendererProps,
 } from "./types";

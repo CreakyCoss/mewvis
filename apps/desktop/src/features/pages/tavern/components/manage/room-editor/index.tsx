@@ -2,7 +2,7 @@ import {
   Activity,
   BookOpen,
   Clapperboard,
-  Clock,
+  GitBranch,
   House,
   LogOut,
   Pencil,
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { normalizeTavernPromptStyleId } from "../../../prompt-styles";
 import {
   getActiveTavernScene,
+  getTavernSceneDisplayTitle,
   projectTavernSceneOntoRoom,
 } from "../../../storage";
 import type {
@@ -38,7 +39,7 @@ import { OverviewSection } from "./modules/overview";
 import { ProgressSection } from "./modules/progress";
 import { ScenesSection } from "./modules/scenes";
 import { SettingsSection } from "./modules/settings";
-import { TimelineSection } from "./modules/timeline";
+import { StoryGraphSection } from "./modules/story-graph";
 import type { TextFieldAgentActionRenderer } from "./modules/types";
 import type { PendingDangerAction } from "./types";
 import {
@@ -54,10 +55,15 @@ type EditorModuleId =
   | "basic"
   | "characters"
   | "scenes"
-  | "timeline"
+  | "story-graph"
   | "lore"
   | "settings"
   | "progress";
+
+type SceneEditRequest = {
+  sceneId: string;
+  requestId: number;
+};
 
 const editorModules: Array<{
   id: EditorModuleId;
@@ -86,14 +92,14 @@ const editorModules: Array<{
   {
     id: "scenes",
     label: "场景",
-    description: "故事阶段和场景目标",
+    description: "场景内容和场景目标",
     icon: Clapperboard,
   },
   {
-    id: "timeline",
-    label: "时间线",
-    description: "已沉淀的剧情事件",
-    icon: Clock,
+    id: "story-graph",
+    label: "剧情结构",
+    description: "阶段、节点和分支",
+    icon: GitBranch,
   },
   {
     id: "lore",
@@ -150,6 +156,7 @@ export const RoomEditor = ({
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("overview");
+  const [sceneEditRequest, setSceneEditRequest] = useState<SceneEditRequest | null>(null);
 
   const openRoomEditor = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
@@ -160,6 +167,7 @@ export const RoomEditor = ({
     onSelectRoom(roomId);
     setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
     setActiveModuleId("overview");
+    setSceneEditRequest(null);
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -168,6 +176,7 @@ export const RoomEditor = ({
 
   const closeRoomEditor = () => {
     setData(null);
+    setSceneEditRequest(null);
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -211,7 +220,7 @@ export const RoomEditor = ({
       },
       scene: scene
         ? {
-            title: scene.title,
+            title: getTavernSceneDisplayTitle(room, scene.id),
             scene: scene.scene,
             sceneGoal: scene.sceneGoal,
             plot: scene.plot,
@@ -234,10 +243,7 @@ export const RoomEditor = ({
         content: entry.content,
         keywords: entry.keywords,
       })),
-      timelineEvents: room.timelineEvents.map((event) => ({
-        title: event.title,
-        summary: event.summary,
-      })),
+      storyGraph: room.storyGraph,
     };
   };
 
@@ -384,17 +390,26 @@ export const RoomEditor = ({
           <ScenesSection
             data={data}
             characterById={characterById}
+            focusSceneEditRequest={sceneEditRequest}
             onSave={onModuleSave}
             onRequestDangerAction={onRequestDangerAction}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
-      case "timeline":
+      case "story-graph":
         return (
-          <TimelineSection
+          <StoryGraphSection
             data={data}
+            characterById={characterById}
             onSave={onModuleSave}
             onRequestDangerAction={onRequestDangerAction}
+            onEditScene={(sceneId) => {
+              setSceneEditRequest({
+                sceneId,
+                requestId: Date.now(),
+              });
+              setActiveModuleId("scenes");
+            }}
           />
         );
       case "lore":

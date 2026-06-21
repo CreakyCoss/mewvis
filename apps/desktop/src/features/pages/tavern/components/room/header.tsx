@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "../../utils";
+import { getTavernSceneDisplayTitle } from "../../storage";
 import { useTavernPageContext } from "../context";
 import { SceneSelector } from "./scene-selector";
 
@@ -101,6 +102,8 @@ export const Header = ({
           <SceneSelector
             scenes={scenes}
             activeSceneId={activeRoom.activeSceneId}
+            label="节点："
+            getSceneLabel={(scene) => getTavernSceneDisplayTitle(activeRoom, scene.id)}
             onSelectScene={onSelectScene}
           />
         </div>

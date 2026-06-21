@@ -194,18 +194,55 @@ export type TavernLorebookEntry = {
   updatedAt: number;
 };
 
-export type TavernTimelineEvent = {
+export type TavernStoryStage = {
   id: string;
   title: string;
-  summary: string;
+  summary?: string;
+  routeNodeId?: string;
+  order: number;
+  collapsed?: boolean;
+};
+
+export type TavernStoryNodeType = "normal" | "failure" | "ending";
+
+export type TavernStoryPathRole = "main" | "branch";
+
+export type TavernStoryNodeStatus = "draft" | "ready" | "played";
+
+export type TavernStoryNode = {
+  id: string;
+  stageId: string;
+  sceneId?: string;
+  title: string;
+  type: TavernStoryNodeType;
+  pathRole: TavernStoryPathRole;
+  position: {
+    x: number;
+    y: number;
+  };
+  status: TavernStoryNodeStatus;
   createdAt: number;
   updatedAt: number;
 };
 
-export type TavernTimelineDraft = {
+export type TavernStoryEdge = {
   id: string;
-  title: string;
-  summary: string;
+  fromNodeId: string;
+  toNodeId: string;
+  label: string;
+  isDefault?: boolean;
+  priority: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TavernStoryGraph = {
+  version: 1;
+  entryNodeId: string;
+  activeNodeId: string;
+  stages: TavernStoryStage[];
+  nodes: TavernStoryNode[];
+  edges: TavernStoryEdge[];
 };
 
 export type TavernCharacterMemoryDraft = {
@@ -225,7 +262,6 @@ export type TavernLorebookDraft = {
 export type TavernAssetDraft = {
   id: string;
   sourceMessageIds: string[];
-  timelineEvents: TavernTimelineDraft[];
   characterMemories: TavernCharacterMemoryDraft[];
   lorebookEntries: TavernLorebookDraft[];
   createdAt: number;
@@ -703,13 +739,6 @@ export type TavernIllustrationHint = {
   createdAt: number;
 };
 
-export type TavernTimelineScope = {
-  mode: "auto" | "range" | "selected";
-  startEventId?: string;
-  endEventId?: string;
-  eventIds?: string[];
-};
-
 export type TavernScene = {
   id: string;
   order: number;
@@ -720,7 +749,6 @@ export type TavernScene = {
   plot: string;
   storyDirection: string;
   transition: string;
-  timelineScope: TavernTimelineScope;
   memory: string;
   relationshipOverrides: TavernSceneRelationshipOverride[];
   sceneStatus?: TavernSceneStatus;
@@ -760,6 +788,7 @@ export type TavernRoom = {
   creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   storyOutline: string;
   storyGoal: string;
+  storyGraph: TavernStoryGraph;
   activeSceneId?: string;
   scenes?: TavernScene[];
   scenePresetId: VisualPresetId;
@@ -793,7 +822,6 @@ export type TavernRoom = {
   characterMemories: Record<string, string>;
   localCharacters?: TavernCharacter[];
   lorebookEntries: TavernLorebookEntry[];
-  timelineEvents: TavernTimelineEvent[];
   illustrationHints: TavernIllustrationHint[];
   assetDrafts: TavernAssetDraft[];
   characterIds: string[];
@@ -869,10 +897,6 @@ export type TavernGeneratedPresetScene = {
     enabled?: boolean;
     alwaysOn?: boolean;
   }>;
-  timelineEvents?: Array<{
-    title: string;
-    summary: string;
-  }>;
   characterIds?: string[];
   activeCharacterId?: string;
 };
@@ -916,10 +940,6 @@ export type TavernGeneratedPresetRoom = {
     keywords?: string[];
     enabled?: boolean;
     alwaysOn?: boolean;
-  }>;
-  timelineEvents?: Array<{
-    title: string;
-    summary: string;
   }>;
   characterIds?: string[];
   activeCharacterId?: string;

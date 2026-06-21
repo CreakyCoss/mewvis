@@ -39,6 +39,10 @@ import type {
   TavernSceneOutcomeDefinition,
   TavernSceneStatus,
   TavernScene,
+  TavernStoryEdge,
+  TavernStoryGraph,
+  TavernStoryNode,
+  TavernStoryStage,
   TavernRoomSettings,
   TavernState,
   TavernStatusDefinition,
@@ -49,9 +53,6 @@ import type {
   TavernTaskDefinition,
   TavernTaskEvent,
   TavernTaskState,
-  TavernTimelineDraft,
-  TavernTimelineEvent,
-  TavernTimelineScope,
 } from "./types";
 import {
   createTavernDirectorProfileFromCharacters,
@@ -138,16 +139,8 @@ type TavernSystemPresetScene = {
     enabled?: boolean;
     alwaysOn?: boolean;
   }>;
-  timelineEvents?: Array<{
-    title: string;
-    summary: string;
-  }>;
   assetDrafts?: Array<{
     sourceMessageIds?: string[];
-    timelineEvents?: Array<{
-      title: string;
-      summary: string;
-    }>;
     characterMemories?: Array<{
       characterId: string;
       note: string;
@@ -199,16 +192,8 @@ type TavernSystemPresetRoom = {
     enabled?: boolean;
     alwaysOn?: boolean;
   }>;
-  timelineEvents?: Array<{
-    title: string;
-    summary: string;
-  }>;
   assetDrafts?: Array<{
     sourceMessageIds?: string[];
-    timelineEvents?: Array<{
-      title: string;
-      summary: string;
-    }>;
     characterMemories?: Array<{
       characterId: string;
       note: string;
@@ -2087,52 +2072,6 @@ const normalizeLorebookEntry = (
   };
 };
 
-const normalizeTimelineEvent = (
-  value: unknown,
-): TavernTimelineEvent | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernTimelineEvent>;
-  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
-  const summary = typeof candidate.summary === "string" ? candidate.summary.trim() : "";
-  if (!candidate.id || !title || !summary) {
-    return null;
-  }
-
-  const updatedAt = typeof candidate.updatedAt === "number" ? candidate.updatedAt : now();
-
-  return {
-    id: candidate.id,
-    title,
-    summary,
-    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : updatedAt,
-    updatedAt,
-  };
-};
-
-const normalizeTimelineDraft = (
-  value: unknown,
-): TavernTimelineDraft | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernTimelineDraft>;
-  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
-  const summary = typeof candidate.summary === "string" ? candidate.summary.trim() : "";
-  if (!candidate.id || !title || !summary) {
-    return null;
-  }
-
-  return {
-    id: candidate.id,
-    title,
-    summary,
-  };
-};
-
 const normalizeCharacterMemoryDraft = (
   value: unknown,
 ): TavernCharacterMemoryDraft | null => {
@@ -2193,11 +2132,6 @@ const normalizeAssetDraft = (
   const sourceMessageIds = Array.isArray(candidate.sourceMessageIds)
     ? candidate.sourceMessageIds.filter((item): item is string => typeof item === "string")
     : [];
-  const timelineEvents = Array.isArray(candidate.timelineEvents)
-    ? candidate.timelineEvents
-        .map(normalizeTimelineDraft)
-        .filter((draft): draft is TavernTimelineDraft => Boolean(draft))
-    : [];
   const characterMemories = Array.isArray(candidate.characterMemories)
     ? candidate.characterMemories
         .map(normalizeCharacterMemoryDraft)
@@ -2210,7 +2144,6 @@ const normalizeAssetDraft = (
     : [];
 
   if (
-    timelineEvents.length === 0 &&
     characterMemories.length === 0 &&
     lorebookEntries.length === 0
   ) {
@@ -2220,7 +2153,6 @@ const normalizeAssetDraft = (
   return {
     id: candidate.id,
     sourceMessageIds,
-    timelineEvents,
     characterMemories,
     lorebookEntries,
     createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : updatedAt,
@@ -2571,21 +2503,214 @@ const mergeLorebookEntries = (
   });
 };
 
-const mergeTimelineEvents = (
-  ...groups: TavernTimelineEvent[][]
-) => {
-  const seen = new Set<string>();
-  return groups.flat().filter((event) => {
-    const key = [
-      event.title.trim().toLowerCase(),
-      event.summary.trim().toLowerCase(),
-    ].join("|");
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
+const defaultStoryStageTitle = "第一阶段";
+
+const createTavernStoryStage = (
+  input: Partial<TavernStoryStage> = {},
+): TavernStoryStage => ({
+  id: input.id || createId("stage"),
+  title: input.title?.trim() || defaultStoryStageTitle,
+  summary: input.summary?.trim() || undefined,
+  routeNodeId: input.routeNodeId?.trim() || undefined,
+  order: typeof input.order === "number" ? input.order : 0,
+  collapsed: Boolean(input.collapsed),
+});
+
+const normalizeTavernStoryNodeType = (value: unknown): TavernStoryNode["type"] => {
+  if (value === "failure" || value === "ending") {
+    return value;
+  }
+  return "normal";
+};
+
+const normalizeTavernStoryPathRole = (value: unknown): TavernStoryNode["pathRole"] => (
+  value === "branch" ? "branch" : "main"
+);
+
+const createTavernStoryNode = (
+  input: Partial<TavernStoryNode> & {
+    stageId: string;
+    title: string;
+  },
+): TavernStoryNode => {
+  const updatedAt = typeof input.updatedAt === "number" ? input.updatedAt : now();
+
+  return {
+    id: input.id || createId("node"),
+    stageId: input.stageId,
+    sceneId: input.sceneId?.trim() || undefined,
+    title: input.title.trim() || "未命名节点",
+    type: normalizeTavernStoryNodeType(input.type),
+    pathRole: normalizeTavernStoryPathRole(input.pathRole),
+    position: {
+      x: typeof input.position?.x === "number" ? input.position.x : 120,
+      y: typeof input.position?.y === "number" ? input.position.y : 120,
+    },
+    status: input.status ?? (input.sceneId ? "ready" : "draft"),
+    createdAt: typeof input.createdAt === "number" ? input.createdAt : updatedAt,
+    updatedAt,
+  };
+};
+
+const createTavernStoryEdge = (
+  input: Partial<TavernStoryEdge> & {
+    fromNodeId: string;
+    toNodeId: string;
+  },
+): TavernStoryEdge => {
+  const updatedAt = typeof input.updatedAt === "number" ? input.updatedAt : now();
+
+  return {
+    id: input.id || createId("edge"),
+    fromNodeId: input.fromNodeId,
+    toNodeId: input.toNodeId,
+    label: input.label?.trim() || "继续",
+    isDefault: Boolean(input.isDefault),
+    priority: typeof input.priority === "number" ? input.priority : 0,
+    createdAt: typeof input.createdAt === "number" ? input.createdAt : updatedAt,
+    updatedAt,
+  };
+};
+
+const createDefaultStoryGraph = (
+  scenes: TavernScene[],
+): TavernStoryGraph => {
+  const stage = createTavernStoryStage({ title: defaultStoryStageTitle, order: 0 });
+  const nodes = scenes.map((scene, index) =>
+    createTavernStoryNode({
+      stageId: stage.id,
+      sceneId: scene.id,
+      title: scene.title || `节点 ${index + 1}`,
+      type: index === scenes.length - 1 && scenes.length > 1 ? "ending" : "normal",
+      pathRole: "main",
+      position: {
+        x: 120 + index * 240,
+        y: 160,
+      },
+      status: "ready",
+      createdAt: scene.createdAt,
+      updatedAt: scene.updatedAt,
+    })
+  );
+  const entryNode = nodes[0] ??
+    createTavernStoryNode({
+      stageId: stage.id,
+      title: "入口节点",
+      status: "draft",
+    });
+  const edges = nodes.slice(0, -1).map((node, index) =>
+    createTavernStoryEdge({
+      fromNodeId: node.id,
+      toNodeId: nodes[index + 1].id,
+      label: "继续",
+      isDefault: true,
+      priority: index,
+      createdAt: node.createdAt,
+      updatedAt: node.updatedAt,
+    })
+  );
+
+  return {
+    version: 1,
+    entryNodeId: entryNode.id,
+    activeNodeId: entryNode.id,
+    stages: [stage],
+    nodes: nodes.length > 0 ? nodes : [entryNode],
+    edges,
+  };
+};
+
+const normalizeStoryGraph = (
+  value: unknown,
+  scenes: TavernScene[],
+): TavernStoryGraph => {
+  if (!value || typeof value !== "object") {
+    return createDefaultStoryGraph(scenes);
+  }
+
+  const candidate = value as Partial<TavernStoryGraph>;
+  const stages = Array.isArray(candidate.stages)
+    ? candidate.stages
+        .map((stage) => createTavernStoryStage(stage))
+        .filter((stage) => stage.title.trim())
+        .sort((left, right) => left.order - right.order)
+        .map((stage, index) => ({ ...stage, order: index }))
+    : [];
+  const normalizedStages = stages.length > 0
+    ? stages
+    : createDefaultStoryGraph(scenes).stages;
+  const stageIds = new Set(normalizedStages.map((stage) => stage.id));
+  const fallbackStageId = normalizedStages[0]?.id ?? createId("stage");
+  const sceneIds = new Set(scenes.map((scene) => scene.id));
+  const nodes = Array.isArray(candidate.nodes)
+    ? candidate.nodes
+        .map((node) => {
+          const rawNode = node as Partial<TavernStoryNode>;
+          const title = typeof rawNode.title === "string" ? rawNode.title : "";
+          if (!title.trim()) {
+            return null;
+          }
+
+          return createTavernStoryNode({
+            ...rawNode,
+            stageId: rawNode.stageId && stageIds.has(rawNode.stageId)
+              ? rawNode.stageId
+              : fallbackStageId,
+            sceneId: rawNode.sceneId && sceneIds.has(rawNode.sceneId)
+              ? rawNode.sceneId
+              : undefined,
+            title,
+          });
+        })
+        .filter((node): node is TavernStoryNode => Boolean(node))
+    : [];
+  const normalizedNodes = nodes.length > 0
+    ? nodes
+    : createDefaultStoryGraph(scenes).nodes;
+  const nodeIds = new Set(normalizedNodes.map((node) => node.id));
+  const validatedStages = normalizedStages.map((stage) => ({
+    ...stage,
+    routeNodeId: stage.routeNodeId && nodeIds.has(stage.routeNodeId)
+      ? stage.routeNodeId
+      : undefined,
+  }));
+  const edges = Array.isArray(candidate.edges)
+    ? candidate.edges
+        .map((edge) => {
+          const rawEdge = edge as Partial<TavernStoryEdge>;
+          if (
+            !rawEdge.fromNodeId ||
+            !rawEdge.toNodeId ||
+            !nodeIds.has(rawEdge.fromNodeId) ||
+            !nodeIds.has(rawEdge.toNodeId) ||
+            rawEdge.fromNodeId === rawEdge.toNodeId
+          ) {
+            return null;
+          }
+
+          return createTavernStoryEdge({
+            ...rawEdge,
+            fromNodeId: rawEdge.fromNodeId,
+            toNodeId: rawEdge.toNodeId,
+          });
+        })
+        .filter((edge): edge is TavernStoryEdge => Boolean(edge))
+    : [];
+  const entryNodeId = candidate.entryNodeId && nodeIds.has(candidate.entryNodeId)
+    ? candidate.entryNodeId
+    : normalizedNodes[0]?.id ?? "";
+  const activeNodeId = candidate.activeNodeId && nodeIds.has(candidate.activeNodeId)
+    ? candidate.activeNodeId
+    : entryNodeId;
+
+  return {
+    version: 1,
+    entryNodeId,
+    activeNodeId,
+    stages: validatedStages,
+    nodes: normalizedNodes,
+    edges,
+  };
 };
 
 const createPresetLorebookEntry = (
@@ -2610,41 +2735,11 @@ const createPresetLorebookEntry = (
   };
 };
 
-const createPresetTimelineEvent = (
-  event: NonNullable<TavernSystemPresetRoom["timelineEvents"]>[number],
-  createdAt: number,
-): TavernTimelineEvent | null => {
-  const title = typeof event.title === "string" ? event.title.trim() : "";
-  const summary = typeof event.summary === "string" ? event.summary.trim() : "";
-  if (!title || !summary) {
-    return null;
-  }
-
-  return {
-    id: createId("event"),
-    title,
-    summary,
-    createdAt,
-    updatedAt: createdAt,
-  };
-};
-
 const createPresetAssetDraft = (
   draft: NonNullable<TavernSystemPresetRoom["assetDrafts"]>[number],
   characterIdByPresetId: Map<string, string>,
   createdAt: number,
 ): TavernAssetDraft | null => {
-  const timelineEvents = (draft.timelineEvents ?? []).flatMap((event) => {
-    const title = typeof event.title === "string" ? event.title.trim() : "";
-    const summary = typeof event.summary === "string" ? event.summary.trim() : "";
-    return title && summary
-      ? [{
-          id: createId("timeline-draft"),
-          title,
-          summary,
-        }]
-      : [];
-  });
   const characterMemories = (draft.characterMemories ?? []).flatMap((memory) => {
     const characterId = characterIdByPresetId.get(memory.characterId);
     const note = typeof memory.note === "string" ? memory.note.trim() : "";
@@ -2671,7 +2766,6 @@ const createPresetAssetDraft = (
   });
 
   if (
-    timelineEvents.length === 0 &&
     characterMemories.length === 0 &&
     lorebookEntries.length === 0
   ) {
@@ -2683,7 +2777,6 @@ const createPresetAssetDraft = (
     sourceMessageIds: (draft.sourceMessageIds ?? []).filter((item): item is string =>
       typeof item === "string"
     ),
-    timelineEvents,
     characterMemories,
     lorebookEntries,
     createdAt,
@@ -2704,38 +2797,6 @@ const normalizeSceneCharacterIds = (
     : fallbackCharacterIds;
 
   return [...new Set(ids)];
-};
-
-const normalizeTimelineScope = (value: unknown): TavernTimelineScope => {
-  if (!value || typeof value !== "object") {
-    return { mode: "auto" };
-  }
-
-  const candidate = value as Partial<TavernTimelineScope>;
-  if (candidate.mode === "range") {
-    return {
-      mode: "range",
-      startEventId: typeof candidate.startEventId === "string" && candidate.startEventId.trim()
-        ? candidate.startEventId
-        : undefined,
-      endEventId: typeof candidate.endEventId === "string" && candidate.endEventId.trim()
-        ? candidate.endEventId
-        : undefined,
-    };
-  }
-
-  if (candidate.mode === "selected") {
-    return {
-      mode: "selected",
-      eventIds: Array.isArray(candidate.eventIds)
-        ? [...new Set(candidate.eventIds.filter((item): item is string =>
-            typeof item === "string" && item.trim().length > 0
-          ))]
-        : [],
-    };
-  }
-
-  return { mode: "auto" };
 };
 
 const buildTavernScene = (
@@ -2786,7 +2847,6 @@ const buildTavernScene = (
     plot: input.plot?.trim() || fallback.scenePlot?.trim() || "",
     storyDirection: input.storyDirection?.trim() || fallback.sceneDirection?.trim() || "",
     transition: input.transition?.trim() || fallback.sceneTransition?.trim() || "",
-    timelineScope: normalizeTimelineScope(input.timelineScope),
     memory: input.memory?.trim() || fallback.memory?.trim() || "",
     relationshipOverrides: normalizeSceneRelationshipOverrides(
       input.relationshipOverrides ?? (fallback as Partial<TavernScene>).relationshipOverrides,
@@ -2884,12 +2944,51 @@ export const createTavernScene = (
   fallback: Partial<TavernRoom> = {},
 ): TavernScene => buildTavernScene(input, fallback);
 
+export const getActiveTavernStoryNode = (room: TavernRoom | null | undefined) => {
+  if (!room?.storyGraph?.nodes.length) {
+    return null;
+  }
+
+  return room.storyGraph.nodes.find((node) => node.id === room.storyGraph.activeNodeId) ??
+    room.storyGraph.nodes.find((node) => node.id === room.storyGraph.entryNodeId) ??
+    room.storyGraph.nodes[0] ??
+    null;
+};
+
 export const getActiveTavernScene = (room: TavernRoom | null | undefined) => {
   if (!room?.scenes?.length) {
     return null;
   }
 
+  const activeNode = getActiveTavernStoryNode(room);
+  if (activeNode?.sceneId) {
+    const nodeScene = room.scenes.find((scene) => scene.id === activeNode.sceneId);
+    if (nodeScene) {
+      return nodeScene;
+    }
+  }
+
   return room.scenes.find((scene) => scene.id === room.activeSceneId) ?? room.scenes[0] ?? null;
+};
+
+export const getTavernSceneDisplayTitle = (
+  room: Pick<TavernRoom, "storyGraph" | "scenes"> | null | undefined,
+  sceneId: string | undefined,
+  fallback = "默认场景",
+) => {
+  if (!sceneId) {
+    return fallback;
+  }
+
+  const boundNodeTitle = room?.storyGraph?.nodes
+    .find((node) => node.sceneId === sceneId)
+    ?.title
+    ?.trim();
+  if (boundNodeTitle) {
+    return boundNodeTitle;
+  }
+
+  return room?.scenes?.find((scene) => scene.id === sceneId)?.title?.trim() || fallback;
 };
 
 export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
@@ -2983,9 +3082,16 @@ export const switchTavernRoomScene = (
   sceneId: string,
 ): TavernRoom => {
   const scene = room.scenes?.find((item) => item.id === sceneId);
+  const node = room.storyGraph?.nodes.find((item) => item.sceneId === sceneId);
   return scene
     ? projectTavernSceneOntoRoom({
         ...room,
+        storyGraph: node
+          ? {
+              ...room.storyGraph,
+              activeNodeId: node.id,
+            }
+          : room.storyGraph,
         activeSceneId: scene.id,
         updatedAt: Date.now(),
       })
@@ -3074,11 +3180,6 @@ export const createTavernRoomFromSystemPreset = (
     ...presetScenes.flatMap((presetScene) => presetScene.lorebookEntries ?? []),
   ].map((entry) => createPresetLorebookEntry(entry, createdAt))
     .filter((entry): entry is TavernLorebookEntry => Boolean(entry)));
-  const sharedTimelineEvents = mergeTimelineEvents([
-    ...(preset.room.timelineEvents ?? []),
-    ...presetScenes.flatMap((presetScene) => presetScene.timelineEvents ?? []),
-  ].map((event) => createPresetTimelineEvent(event, createdAt))
-    .filter((event): event is TavernTimelineEvent => Boolean(event)));
   const scenes = presetScenes.map((presetScene, index) => {
     const sceneCharacterIds = (presetScene.characterIds?.length
       ? presetScene.characterIds
@@ -3181,6 +3282,7 @@ export const createTavernRoomFromSystemPreset = (
     createdAt,
     updatedAt: createdAt,
   });
+  const storyGraph = createDefaultStoryGraph(scenes.length > 0 ? scenes : [scene]);
   const room: TavernRoom = projectTavernSceneOntoRoom({
     id: roomId,
     workspaceId,
@@ -3200,6 +3302,7 @@ export const createTavernRoomFromSystemPreset = (
     creationSource: markAsSystemPreset ? "imported" : "manual",
     storyOutline: preset.room.storyOutline?.trim() || "",
     storyGoal: preset.room.storyGoal?.trim() || "",
+    storyGraph,
     activeSceneId: scene.id,
     scenes: scenes.length > 0 ? scenes : [scene],
     scenePresetId: scene.scenePresetId,
@@ -3235,7 +3338,6 @@ export const createTavernRoomFromSystemPreset = (
     characterMemories,
     localCharacters: characters,
     lorebookEntries: sharedLorebookEntries,
-    timelineEvents: sharedTimelineEvents,
     illustrationHints: scene.illustrationHints,
     assetDrafts: scene.assetDrafts,
     characterIds,
@@ -3697,7 +3799,6 @@ export const createTavernRoomFromGeneratedPresetJson = (
         sceneOutcomes: roomInput.sceneOutcomes,
         characterMemories: roomInput.characterMemories,
         lorebookEntries: roomInput.lorebookEntries,
-        timelineEvents: roomInput.timelineEvents,
         characterIds: roomInput.characterIds,
         activeCharacterId: roomInput.activeCharacterId,
       }];
@@ -3706,11 +3807,6 @@ export const createTavernRoomFromGeneratedPresetJson = (
     ...generatedScenes.flatMap((scene) => scene.lorebookEntries ?? []),
   ].map((entry) => createPresetLorebookEntry(entry, createdAt))
     .filter((entry): entry is TavernLorebookEntry => Boolean(entry)));
-  const sharedTimelineEvents = mergeTimelineEvents([
-    ...(roomInput.timelineEvents ?? []),
-    ...generatedScenes.flatMap((scene) => scene.timelineEvents ?? []),
-  ].map((event) => createPresetTimelineEvent(event, createdAt))
-    .filter((event): event is TavernTimelineEvent => Boolean(event)));
   const scenes = generatedScenes.map((sceneInput, index) => {
     const sceneCharacterIds = normalizeGeneratedCharacterIds(
       sceneInput.characterIds,
@@ -3842,6 +3938,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
   }).sort((left, right) => left.order - right.order)
     .map((scene, index) => ({ ...scene, order: index }));
   const scene = scenes[0];
+  const storyGraph = createDefaultStoryGraph(scenes);
   const title = trimGeneratedString(roomInput.title) ||
     trimGeneratedString(generated.label) ||
     "智能生成酒馆";
@@ -3858,6 +3955,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
     creationSource: options.creationSource ?? "agent_generated",
     storyOutline: trimGeneratedString(roomInput.storyOutline),
     storyGoal: trimGeneratedString(roomInput.storyGoal),
+    storyGraph,
     activeSceneId: scene.id,
     scenes,
     scenePresetId: scene.scenePresetId,
@@ -3895,7 +3993,6 @@ export const createTavernRoomFromGeneratedPresetJson = (
     characterMemories: roomCharacterMemories,
     localCharacters: characters,
     lorebookEntries: sharedLorebookEntries,
-    timelineEvents: sharedTimelineEvents,
     illustrationHints: scene.illustrationHints,
     assetDrafts: [],
     characterIds: roomCharacterIds,
@@ -4107,6 +4204,7 @@ const normalizeTavernState = (
       storyGoal: typeof (room as Partial<TavernRoom>).storyGoal === "string"
         ? (room as Partial<TavernRoom>).storyGoal ?? ""
         : "",
+      storyGraph: createDefaultStoryGraph([]),
       scenePresetId: normalizeRoomScenePresetId(room),
       memory: typeof (room as Partial<TavernRoom>).memory === "string"
         ? (room as Partial<TavernRoom>).memory ?? ""
@@ -4134,11 +4232,6 @@ const normalizeTavernState = (
         ? ((room as Partial<TavernRoom>).lorebookEntries ?? [])
             .map(normalizeLorebookEntry)
             .filter((entry): entry is TavernLorebookEntry => Boolean(entry))
-        : [],
-      timelineEvents: Array.isArray((room as Partial<TavernRoom>).timelineEvents)
-        ? ((room as Partial<TavernRoom>).timelineEvents ?? [])
-            .map(normalizeTimelineEvent)
-            .filter((event): event is TavernTimelineEvent => Boolean(event))
         : [],
       assetDrafts: Array.isArray((room as Partial<TavernRoom>).assetDrafts)
         ? ((room as Partial<TavernRoom>).assetDrafts ?? [])
@@ -4194,7 +4287,6 @@ const normalizeTavernState = (
     const normalizedScenes = Array.isArray((room as Partial<TavernRoom>).scenes)
       ? ((room as Partial<TavernRoom>).scenes ?? [])
           .map((scene) => buildTavernScene(scene, normalizedRoom))
-          .filter((scene) => scene.title.trim())
       : [];
     const fallbackScene = buildTavernScene({
       title: defaultSceneTitle,
@@ -4208,6 +4300,7 @@ const normalizeTavernState = (
 
     return projectTavernSceneOntoRoom({
       ...normalizedRoom,
+      storyGraph: normalizeStoryGraph((room as Partial<TavernRoom>).storyGraph, scenes),
       activeSceneId,
       scenes,
     });
@@ -4319,6 +4412,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     createdAt,
     updatedAt: createdAt,
   });
+  const storyGraph = createDefaultStoryGraph([scene]);
 
   return projectTavernSceneOntoRoom({
     id: createId("room"),
@@ -4330,6 +4424,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     creationSource: "manual",
     storyOutline: "",
     storyGoal: "",
+    storyGraph,
     activeSceneId: scene.id,
     scenes: [scene],
     scenePresetId: scene.scenePresetId,
@@ -4363,7 +4458,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     characterMemories: {},
     localCharacters: [],
     lorebookEntries: [],
-    timelineEvents: [],
     illustrationHints: scene.illustrationHints,
     assetDrafts: [],
     characterIds: [],
@@ -4374,20 +4468,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     createdAt,
     updatedAt: createdAt,
   });
-};
-
-export const createTavernTimelineEvent = (input: {
-  title: string;
-  summary: string;
-}): TavernTimelineEvent => {
-  const createdAt = now();
-  return {
-    id: createId("event"),
-    title: input.title.trim(),
-    summary: input.summary.trim(),
-    createdAt,
-    updatedAt: createdAt,
-  };
 };
 
 export const createTavernLorebookEntry = (input: {
@@ -4411,10 +4491,6 @@ export const createTavernLorebookEntry = (input: {
 
 export const createTavernAssetDraft = (input: {
   sourceMessageIds: string[];
-  timelineEvents?: Array<{
-    title: string;
-    summary: string;
-  }>;
   characterMemories?: Array<{
     characterId: string;
     note: string;
@@ -4430,11 +4506,6 @@ export const createTavernAssetDraft = (input: {
   return {
     id: createId("draft"),
     sourceMessageIds: input.sourceMessageIds,
-    timelineEvents: input.timelineEvents?.map((event) => ({
-      id: createId("timeline-draft"),
-      title: event.title.trim(),
-      summary: event.summary.trim(),
-    })).filter((event) => event.title && event.summary) ?? [],
     characterMemories: input.characterMemories?.map((memory) => ({
       id: createId("memory-draft"),
       characterId: memory.characterId.trim(),

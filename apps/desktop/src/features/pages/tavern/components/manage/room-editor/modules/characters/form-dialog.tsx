@@ -546,7 +546,7 @@ export const CharacterFormDialog = ({
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="text-xs leading-5 text-muted-foreground">
-                      维护该角色对用户或其他角色的长期基础关系；场景内变化在故事阶段中单独覆盖。
+                      维护该角色对用户或其他角色的长期基础关系；场景内变化在对应场景中单独覆盖。
                     </div>
                     <Button
                       type="button"

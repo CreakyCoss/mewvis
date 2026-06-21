@@ -194,7 +194,7 @@ writeFileSync(helperEntryPath, `
   import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-contracts.ts"))};
   import {
     formatTavernLorebookEntries,
-    formatTavernTimelineEvents,
+    formatTavernStoryGraphContext,
     selectTavernLorebookEntries,
     tavernMessagesToRuntimeMessages,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts"))};
@@ -277,6 +277,29 @@ writeFileSync(helperEntryPath, `
       },
       storyOutline: "五名角色在风雨夜的酒馆分工守望，必须保持各自身份、岗位和发言边界。",
       storyGoal: "确认多轮多角色调度后不会串角色、不会泄露心理。",
+      storyGraph: {
+        version: 1,
+        entryNodeId: "live-node-alpha",
+        activeNodeId: "live-node-alpha",
+        stages: [{
+          id: "live-stage-alpha",
+          title: "第一阶段",
+          order: 0,
+        }],
+        nodes: [{
+          id: "live-node-alpha",
+          stageId: "live-stage-alpha",
+          title: "风雨夜分工",
+          summary: "五名角色在酒馆内分工守望。",
+          type: "scene",
+          pathRole: "main",
+          position: { x: 120, y: 160 },
+          status: "ready",
+          createdAt: now,
+          updatedAt: now,
+        }],
+        edges: [],
+      },
       activeSceneId: "live-scene-alpha",
       scenes: [],
       scenePresetId: "tavern",
@@ -323,7 +346,6 @@ writeFileSync(helperEntryPath, `
       characterMemories: {},
       localCharacters: [],
       lorebookEntries: [],
-      timelineEvents: [],
       illustrationHints: [],
       assetDrafts: [],
       characterIds: ["char-a", "char-b", "char-c", "char-d", "char-e"],
@@ -1011,9 +1033,9 @@ writeFileSync(helperEntryPath, `
       "",
       room.sceneDirection.trim() ? "<scene_direction>\\n" + room.sceneDirection.trim() + "\\n</scene_direction>" : "<scene_direction>（无）</scene_direction>",
       "",
-      "<story_timeline>",
-      formatTavernTimelineEvents(room) || "（无）",
-      "</story_timeline>",
+      "<story_graph>",
+      formatTavernStoryGraphContext(room) || "（无）",
+      "</story_graph>",
       "",
       "<lorebook>",
       lorebookText || "（无）",
@@ -1060,7 +1082,7 @@ writeFileSync(helperEntryPath, `
       requestContext: prompt,
       runtimeInstruction: [
         "你是酒馆模式的导演 Agent。",
-        "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+        "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定下一轮谁应该发言。",
         "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
         "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
         directorOnlyAllowed

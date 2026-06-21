@@ -8,7 +8,6 @@ import type {
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
-  TavernTimelineEvent,
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
 import { getTavernPromptStylePreset } from "../prompt-styles";
@@ -134,51 +133,69 @@ export const formatTavernLorebookEntries = (
   "</lore_entry>",
 ].join("\n")).join("\n\n");
 
-export const resolveTavernTimelineEvents = (
-  room: TavernRoom,
-): TavernTimelineEvent[] => {
-  const events = room.timelineEvents;
-  const activeScene = room.scenes?.find((scene) => scene.id === room.activeSceneId);
-  const scope = activeScene?.timelineScope;
-  if (!scope || scope.mode === "auto") {
-    return events;
-  }
-
-  if (scope.mode === "selected") {
-    const selectedIds = new Set(scope.eventIds ?? []);
-    return events.filter((event) => selectedIds.has(event.id));
-  }
-
-  const startIndex = scope.startEventId
-    ? events.findIndex((event) => event.id === scope.startEventId)
-    : 0;
-  const endIndex = scope.endEventId
-    ? events.findIndex((event) => event.id === scope.endEventId)
-    : events.length - 1;
-  const normalizedStartIndex = startIndex >= 0 ? startIndex : 0;
-  const normalizedEndIndex = endIndex >= 0 ? endIndex : events.length - 1;
-  const from = Math.min(normalizedStartIndex, normalizedEndIndex);
-  const to = Math.max(normalizedStartIndex, normalizedEndIndex);
-  return events.slice(from, to + 1);
-};
-
-export const formatTavernTimelineEvents = (
+export const formatTavernStoryGraphContext = (
   room: TavernRoom,
   {
-    maxEvents,
+    maxEdges,
     maxSummaryChars,
   }: {
-    maxEvents?: number;
+    maxEdges?: number;
     maxSummaryChars?: number;
   } = {},
 ) => {
-  const events = resolveTavernTimelineEvents(room);
-  const visibleEvents = maxEvents ? events.slice(-maxEvents) : events;
+  const graph = room.storyGraph;
+  if (!graph?.nodes?.length) {
+    return "";
+  }
+  const activeNode = graph.nodes.find((node) => node.id === graph.activeNodeId) ??
+    graph.nodes.find((node) => node.id === graph.entryNodeId) ??
+    graph.nodes[0];
+  if (!activeNode) {
+    return "";
+  }
 
-  return visibleEvents.map((event, index) => [
-  `${index + 1}. ${event.title}`,
-  maxSummaryChars ? limitPromptText(event.summary, maxSummaryChars) : event.summary,
-].join("\n")).join("\n\n");
+  const stage = graph.stages.find((item) => item.id === activeNode.stageId);
+  const scene = activeNode.sceneId
+    ? room.scenes?.find((item) => item.id === activeNode.sceneId)
+    : null;
+  const incoming = graph.edges
+    .filter((edge) => edge.toNodeId === activeNode.id)
+    .slice(0, maxEdges ?? 6);
+  const outgoing = graph.edges
+    .filter((edge) => edge.fromNodeId === activeNode.id)
+    .slice(0, maxEdges ?? 6);
+  const getNodeTitle = (nodeId: string) =>
+    graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
+
+  return [
+    `current_node: ${activeNode.title}`,
+    `stage: ${stage?.title ?? "未分组"}`,
+    `node_type: ${activeNode.type}`,
+    `path_role: ${activeNode.pathRole}`,
+    scene ? `scene: ${activeNode.title}` : "scene: 未绑定",
+    scene?.scene
+      ? `scene_description: ${maxSummaryChars ? limitPromptText(scene.scene, maxSummaryChars) : scene.scene}`
+      : "",
+    scene?.sceneGoal
+      ? `scene_goal: ${maxSummaryChars ? limitPromptText(scene.sceneGoal, maxSummaryChars) : scene.sceneGoal}`
+      : "",
+    incoming.length > 0
+      ? [
+          "incoming_edges:",
+          ...incoming.map((edge, index) =>
+            `${index + 1}. ${getNodeTitle(edge.fromNodeId)} -> ${edge.label}`
+          ),
+        ].join("\n")
+      : "incoming_edges: 无",
+    outgoing.length > 0
+      ? [
+          "available_exits:",
+          ...outgoing.map((edge, index) =>
+            `${index + 1}. ${edge.label} -> ${getNodeTitle(edge.toNodeId)}${edge.isDefault ? "（默认）" : ""}`
+          ),
+        ].join("\n")
+      : "available_exits: 无",
+  ].filter(Boolean).join("\n");
 };
 
 export const buildTavernSystemPrompt = ({
@@ -214,8 +231,8 @@ export const buildTavernSystemPrompt = ({
     maxEntries: 4,
     maxContentChars: 700,
   });
-  const timelineText = formatTavernTimelineEvents(room, {
-    maxEvents: 8,
+  const storyGraphText = formatTavernStoryGraphContext(room, {
+    maxEdges: 8,
     maxSummaryChars: 280,
   });
   const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
@@ -330,10 +347,10 @@ export const buildTavernSystemPrompt = ({
     lorebookText,
     lorebookText ? "</lorebook>" : "",
     lorebookText ? "" : "",
-    timelineText ? "<story_timeline instruction=\"past_events; maintain_continuity\">" : "",
-    timelineText,
-    timelineText ? "</story_timeline>" : "",
-    timelineText ? "" : "",
+    storyGraphText ? "<story_graph instruction=\"current_node_and_available_exits\">" : "",
+    storyGraphText,
+    storyGraphText ? "</story_graph>" : "",
+    storyGraphText ? "" : "",
     "<active_character>",
     formatCharacter(activeCharacter, { room, characters }),
     "</active_character>",

@@ -11,7 +11,6 @@ import type {
 } from "../types";
 import {
   formatTavernLorebookEntries,
-  formatTavernTimelineEvents,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
 import {
@@ -26,10 +25,6 @@ import { runTavernRuntimeAgent } from "./agent";
 
 export type TavernExtractedAssetDraft = {
   sourceMessageIds: string[];
-  timelineEvents: Array<{
-    title: string;
-    summary: string;
-  }>;
   characterMemories: Array<{
     characterId: string;
     note: string;
@@ -54,7 +49,6 @@ export type RunTavernAssetExtractionInput = {
   currentUserText: string;
 };
 
-const MAX_TIMELINE_DRAFTS = 3;
 const MAX_CHARACTER_MEMORY_DRAFTS = 4;
 const MAX_LOREBOOK_DRAFTS = 3;
 
@@ -112,12 +106,6 @@ const parseAssetDraft = ({
 }): TavernExtractedAssetDraft => {
   const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
   const characterIds = new Set(characters.map((character) => character.id));
-  const existingTimelineTitles = new Set([
-    ...room.timelineEvents.map((event) => normalizeKey(event.title)),
-    ...room.assetDrafts.flatMap((draft) =>
-      draft.timelineEvents.map((event) => normalizeKey(event.title))
-    ),
-  ]);
   const existingLoreTitles = new Set([
     ...room.lorebookEntries.map((entry) => normalizeKey(entry.title)),
     ...room.assetDrafts.flatMap((draft) =>
@@ -125,24 +113,6 @@ const parseAssetDraft = ({
     ),
   ]);
 
-  const timelineEvents = Array.isArray(parsed.timelineEvents)
-    ? parsed.timelineEvents.flatMap((value) => {
-        if (!value || typeof value !== "object") {
-          return [];
-        }
-
-        const candidate = value as Record<string, unknown>;
-        const title = typeof candidate.title === "string" ? limitText(candidate.title, 80) : "";
-        const summary = typeof candidate.summary === "string" ? limitText(candidate.summary, 360) : "";
-        const normalizedTitle = normalizeKey(title);
-        if (!title || !summary || existingTimelineTitles.has(normalizedTitle)) {
-          return [];
-        }
-
-        existingTimelineTitles.add(normalizedTitle);
-        return [{ title, summary }];
-      }).slice(0, MAX_TIMELINE_DRAFTS)
-    : [];
   const characterMemories = Array.isArray(parsed.characterMemories)
     ? parsed.characterMemories.flatMap((value) => {
         if (!value || typeof value !== "object") {
@@ -186,7 +156,6 @@ const parseAssetDraft = ({
 
   return {
     sourceMessageIds: sourceMessages.map((message) => message.id),
-    timelineEvents,
     characterMemories,
     lorebookEntries,
   };
@@ -215,7 +184,6 @@ export const runTavernAssetExtraction = async ({
   });
   const pendingDraftsText = room.assetDrafts.map((draft, index) => [
     `# draft ${index + 1}`,
-    draft.timelineEvents.map((event) => `timeline: ${event.title}\n${event.summary}`).join("\n"),
     draft.characterMemories.map((memory) => {
       const characterName = characters.find((character) => character.id === memory.characterId)?.name
         ?? memory.characterId;
@@ -227,7 +195,6 @@ export const runTavernAssetExtraction = async ({
     "<output_schema>",
     [
       "{",
-      "\"timelineEvents\":[{\"title\":\"事件标题\",\"summary\":\"发生了什么以及影响\"}],",
       "\"characterMemories\":[{\"characterId\":\"角色 id\",\"note\":\"这个角色需要长期记住的事实\"}],",
       "\"lorebookEntries\":[{\"title\":\"设定名\",\"content\":\"稳定世界设定\",\"keywords\":[\"关键词\"],\"alwaysOn\":false}]",
       "}",
@@ -238,9 +205,9 @@ export const runTavernAssetExtraction = async ({
     "只提取已经在本轮对话中明确发生、达成、暴露或被用户确认的稳定信息。",
     "引用文件只作为背景核对；除非本轮对话明确采用或确认，不要把引用文件内容单独沉淀为资产。",
     "不要把气氛描写、一次性寒暄、推测、模型自我解释写入资产。",
-    "不要重复已有时间线、已有世界书、待确认草稿或角色记忆中已经包含的信息。",
+    "不要重复已有世界书、待确认草稿或角色记忆中已经包含的信息。",
     "characterId 必须来自角色列表。",
-    "如果没有值得沉淀的信息，三个数组都输出空数组。",
+    "如果没有值得沉淀的信息，两个数组都输出空数组。",
     "只输出严格合法 JSON 对象，不要输出 Markdown、代码块或解释。",
     "</rules>",
     "",
@@ -274,10 +241,6 @@ export const runTavernAssetExtraction = async ({
     room.memory.trim()
       ? `<manual_room_memory>\n${room.memory.trim()}\n</manual_room_memory>`
       : "<manual_room_memory>（无）</manual_room_memory>",
-    "",
-    "<story_timeline>",
-    formatTavernTimelineEvents(room) || "（无）",
-    "</story_timeline>",
     "",
     "<character_memories>",
     Object.entries(room.characterMemories)
@@ -339,7 +302,6 @@ export const runTavernAssetExtraction = async ({
   } catch {
     return {
       sourceMessageIds: sourceMessages.map((message) => message.id),
-      timelineEvents: [],
       characterMemories: [],
       lorebookEntries: [],
     };

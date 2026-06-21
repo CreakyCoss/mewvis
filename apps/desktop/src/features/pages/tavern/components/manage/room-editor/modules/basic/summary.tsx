@@ -10,7 +10,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "../../../../../presentation-profiles";
-import { getActiveTavernScene } from "../../../../../storage";
+import {
+  getActiveTavernScene,
+  getTavernSceneDisplayTitle,
+} from "../../../../../storage";
 import type { TavernRoom } from "../../../../../types";
 import {
   emptyValueText,
@@ -119,8 +122,8 @@ export const BasicSummaryContent = ({
         />
         <MetricCard
           icon={Layers}
-          label="默认阶段"
-          value={activeScene?.title || "默认场景"}
+          label="默认场景"
+          value={activeScene ? getTavernSceneDisplayTitle(data, activeScene.id) : "默认场景"}
         />
         <MetricCard
           icon={MessageSquareText}
@@ -134,8 +137,8 @@ export const BasicSummaryContent = ({
         />
         <MetricCard
           icon={Flag}
-          label="故事阶段"
-          value={formatCount(sceneCount, "阶段")}
+          label="故事场景"
+          value={formatCount(sceneCount, "场景")}
         />
       </div>
     </div>

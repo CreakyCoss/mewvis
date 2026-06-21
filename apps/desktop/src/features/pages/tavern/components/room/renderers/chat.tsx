@@ -1,10 +1,10 @@
 import { Fragment } from "react";
 import { MessageRow } from "../message-row";
-import type { TavernTimelineRenderer } from "./types";
+import type { TavernConversationRenderer } from "./types";
 
-export const chatTimelineRenderer: TavernTimelineRenderer = {
+export const chatConversationRenderer: TavernConversationRenderer = {
   id: "chat",
-  Timeline: ({
+  Conversation: ({
     messages,
     shouldShowExecutionTrace,
     executionTraceAnchorMessageId,

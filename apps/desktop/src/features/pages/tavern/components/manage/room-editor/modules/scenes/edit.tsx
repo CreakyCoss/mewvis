@@ -28,14 +28,16 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import { getActiveTavernScene } from "../../../../../storage";
+import {
+  getActiveTavernScene,
+  getTavernSceneDisplayTitle,
+} from "../../../../../storage";
 import type {
   TavernCharacter,
   TavernRelationshipTarget,
   TavernRoomCharacterConfig,
   TavernScene,
   TavernSceneRelationshipOverride,
-  TavernTimelineScope,
 } from "../../../../../types";
 import {
   EditorField,
@@ -51,10 +53,8 @@ import {
 } from "../../primitives";
 import {
   cloneRoomCharacterConfigs,
-  cloneTimelineScope,
   editorControlClassName,
   emptyValueText,
-  getTimelineEventLabel,
 } from "../../utils";
 import type { ModuleEditProps } from "../types";
 
@@ -62,13 +62,11 @@ export type ScenesEditHandle = (sceneId: string) => void;
 
 type ScenesDraft = {
   sceneId: string;
-  sceneTitle: string;
   scene: string;
   sceneGoal: string;
   scenePlot: string;
   sceneDirection: string;
   sceneTransition: string;
-  timelineScope: TavernTimelineScope;
   memory: string;
   relationshipOverrides: TavernSceneRelationshipOverride[];
   characterIds: string[];
@@ -102,13 +100,11 @@ export const ScenesEdit = ({
     setError("");
     setDraft({
       sceneId: scene.id,
-      sceneTitle: scene.title,
       scene: scene.scene,
       sceneGoal: scene.sceneGoal,
       scenePlot: scene.plot,
       sceneDirection: scene.storyDirection,
       sceneTransition: scene.transition,
-      timelineScope: cloneTimelineScope(scene.timelineScope),
       memory: scene.memory,
       relationshipOverrides: scene.relationshipOverrides.map((relationship) => ({
         ...relationship,
@@ -205,13 +201,11 @@ export const ScenesEdit = ({
       scene.id === draft.sceneId
         ? {
             ...scene,
-            title: draft.sceneTitle.trim() || "默认场景",
             scene: draft.scene,
             sceneGoal: draft.sceneGoal,
             plot: draft.scenePlot,
             storyDirection: draft.sceneDirection,
             transition: draft.sceneTransition,
-            timelineScope: cloneTimelineScope(draft.timelineScope),
             memory: draft.memory,
             relationshipOverrides: nextRelationshipOverrides,
             characterIds: nextCharacterIds,
@@ -242,6 +236,9 @@ export const ScenesEdit = ({
     });
     close();
   };
+  const draftSceneTitle = draft
+    ? getTavernSceneDisplayTitle(data, draft.sceneId, "未绑定节点场景")
+    : "场景";
 
   return (
     <Dialog
@@ -256,8 +253,8 @@ export const ScenesEdit = ({
         <EditorFormDialogContent className="sm:max-w-6xl">
           <EditorFormHeader
             icon={Clapperboard}
-            title="编辑故事阶段"
-            description="修改当前故事阶段的描述、剧情、目标、走向、记忆和出场角色。"
+            title="编辑场景"
+            description="修改当前场景的描述、剧情、目标、走向、记忆和出场角色。"
           />
 
           <form
@@ -272,7 +269,7 @@ export const ScenesEdit = ({
                 <>
                   <EditorFormSidebarCard
                     icon={Clapperboard}
-                    title={draft.sceneTitle.trim() || "默认场景"}
+                    title={draftSceneTitle}
                     meta={(
                       <>
                         <EditorStatusPill tone="active">
@@ -288,15 +285,15 @@ export const ScenesEdit = ({
                       {draft.scene.trim() || "还没有填写场景描述。"}
                     </p>
                   </EditorFormSidebarCard>
-                  <EditorFormSidebarPanel title="阶段目标">
+                  <EditorFormSidebarPanel title="场景目标">
                     <p className="line-clamp-4 text-sm leading-5 text-muted-foreground">
                       {draft.sceneGoal.trim() || emptyValueText}
                     </p>
                   </EditorFormSidebarPanel>
                   <EditorFormNav
                     items={[
-                      { href: "#tavern-scenes-content-section", icon: FileText, label: "阶段内容" },
-                      { href: "#tavern-scenes-memory-section", icon: BookOpenText, label: "阶段记忆" },
+                      { href: "#tavern-scenes-content-section", icon: FileText, label: "场景内容" },
+                      { href: "#tavern-scenes-memory-section", icon: BookOpenText, label: "场景记忆" },
                       { href: "#tavern-scenes-characters-section", icon: UsersRound, label: "出场角色" },
                     ]}
                   />
@@ -307,22 +304,10 @@ export const ScenesEdit = ({
                 <EditorFormCard
                   id="tavern-scenes-content-section"
                   icon={FileText}
-                  title="阶段内容"
-                  description="定义阶段基础信息、场景描述、剧情目标和时间线范围。"
+                  title="场景内容"
+                  description="定义场景基础信息、场景描述、剧情目标和承接关系。"
                 >
                   <div className="space-y-3">
-                <EditorField label="当前阶段名称" htmlFor="tavern-scenes-title">
-                  <Input
-                    id="tavern-scenes-title"
-                    value={draft.sceneTitle}
-                    className={editorControlClassName}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      sceneTitle: event.target.value,
-                    })}
-                  />
-                </EditorField>
-
                 <EditorField
                   label="场景描述"
                   htmlFor="tavern-scenes-scene"
@@ -345,11 +330,11 @@ export const ScenesEdit = ({
                 </EditorField>
 
                 <EditorField
-                  label="阶段剧情"
+                  label="场景剧情"
                   htmlFor="tavern-scenes-plot"
                   action={renderTextFieldAgentActions({
                     fieldKey: "scenePlot",
-                    fieldLabel: "阶段剧情",
+                    fieldLabel: "场景剧情",
                     currentText: draft.scenePlot,
                     applyText: (text) => setDraft({ ...draft, scenePlot: text }),
                   })}
@@ -428,141 +413,21 @@ export const ScenesEdit = ({
                   />
                 </EditorField>
 
-                <div className="space-y-3 rounded-md border border-border/70 bg-muted/15 p-3">
-                  <EditorField label="时间线范围" htmlFor="tavern-scenes-timeline-scope">
-                    <NativeSelect
-                      id="tavern-scenes-timeline-scope"
-                      value={draft.timelineScope.mode}
-                      className={editorControlClassName}
-                      onChange={(event) => {
-                        const mode = event.target.value as TavernTimelineScope["mode"];
-                        setDraft({
-                          ...draft,
-                          timelineScope: mode === "range"
-                            ? { mode: "range" }
-                            : mode === "selected"
-                            ? { mode: "selected", eventIds: [] }
-                            : { mode: "auto" },
-                        });
-                      }}
-                    >
-                      <NativeSelectOption value="auto">自动</NativeSelectOption>
-                      <NativeSelectOption value="range">起止范围</NativeSelectOption>
-                      <NativeSelectOption value="selected">精选事件</NativeSelectOption>
-                    </NativeSelect>
-                  </EditorField>
-
-                  {draft.timelineScope.mode === "range" && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <EditorField label="起点事件" htmlFor="tavern-scenes-timeline-start">
-                        <NativeSelect
-                          id="tavern-scenes-timeline-start"
-                          value={draft.timelineScope.startEventId ?? ""}
-                          className={editorControlClassName}
-                          onChange={(event) => setDraft({
-                            ...draft,
-                            timelineScope: {
-                              ...draft.timelineScope,
-                              mode: "range",
-                              startEventId: event.target.value || undefined,
-                            },
-                          })}
-                        >
-                          <NativeSelectOption value="">从第一条</NativeSelectOption>
-                          {data.timelineEvents.map((event, index) => (
-                            <NativeSelectOption key={event.id} value={event.id}>
-                              {getTimelineEventLabel(event, index)}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                      </EditorField>
-                      <EditorField label="终点事件" htmlFor="tavern-scenes-timeline-end">
-                        <NativeSelect
-                          id="tavern-scenes-timeline-end"
-                          value={draft.timelineScope.endEventId ?? ""}
-                          className={editorControlClassName}
-                          onChange={(event) => setDraft({
-                            ...draft,
-                            timelineScope: {
-                              ...draft.timelineScope,
-                              mode: "range",
-                              endEventId: event.target.value || undefined,
-                            },
-                          })}
-                        >
-                          <NativeSelectOption value="">到最后一条</NativeSelectOption>
-                          {data.timelineEvents.map((event, index) => (
-                            <NativeSelectOption key={event.id} value={event.id}>
-                              {getTimelineEventLabel(event, index)}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                      </EditorField>
-                    </div>
-                  )}
-
-                  {draft.timelineScope.mode === "selected" && (
-                    <div className="space-y-2">
-                      {data.timelineEvents.length > 0 ? (
-                        data.timelineEvents.map((event, index) => {
-                          const selectedEventIds = draft.timelineScope.eventIds ?? [];
-                          const isSelected = selectedEventIds.includes(event.id);
-
-                          return (
-                            <label
-                              key={event.id}
-                              className="flex items-start gap-2 rounded-md border bg-background/70 px-3 py-2"
-                              htmlFor={`tavern-scenes-timeline-event-${event.id}`}
-                            >
-                              <input
-                                id={`tavern-scenes-timeline-event-${event.id}`}
-                                type="checkbox"
-                                checked={isSelected}
-                                className="mt-1 size-4"
-                                onChange={(eventChange) => setDraft({
-                                  ...draft,
-                                  timelineScope: {
-                                    mode: "selected",
-                                    eventIds: eventChange.target.checked
-                                      ? [...selectedEventIds, event.id]
-                                      : selectedEventIds.filter((eventId) => eventId !== event.id),
-                                  },
-                                })}
-                              />
-                              <span className="min-w-0">
-                                <span className="block text-sm font-medium leading-5">
-                                  {getTimelineEventLabel(event, index)}
-                                </span>
-                                <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground">
-                                  {event.summary}
-                                </span>
-                              </span>
-                            </label>
-                          );
-                        })
-                      ) : (
-                        <div className="rounded-md border bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
-                          暂无共享剧情事件。
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
                   </div>
                 </EditorFormCard>
 
                 <EditorFormCard
                   id="tavern-scenes-memory-section"
                   icon={BookOpenText}
-                  title="阶段记忆"
+                  title="场景记忆"
                   description="保存本阶段长期可被承接的事实和状态。"
                 >
                 <EditorField
-                  label="阶段记忆"
+                  label="场景记忆"
                   htmlFor="tavern-scenes-memory"
                   action={renderTextFieldAgentActions({
                     fieldKey: "sceneMemory",
-                    fieldLabel: "阶段记忆",
+                    fieldLabel: "场景记忆",
                     currentText: draft.memory,
                     applyText: (text) => setDraft({ ...draft, memory: text }),
                   })}
@@ -856,7 +721,7 @@ export const ScenesEdit = ({
                           <div>
                             <div className="text-sm font-medium leading-5">本场景关系修正</div>
                             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                              只描述当前阶段内发生偏移的关系，不覆盖角色库里的长期基础关系。
+                              只描述当前场景内发生偏移的关系，不覆盖角色库里的长期基础关系。
                             </div>
                           </div>
                           <Button
@@ -1047,7 +912,7 @@ export const ScenesEdit = ({
               )}
             </EditorFormLayout>
 
-            <EditorFormFooter status="保存后会立即更新当前故事阶段。">
+            <EditorFormFooter status="保存后会立即更新当前场景。">
               <Button type="button" variant="outline" onClick={close}>
                 取消
               </Button>

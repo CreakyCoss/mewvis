@@ -447,9 +447,6 @@
                 "alwaysOn": true
               }
             ],
-            "timelineEvents": [
-              { "title": "旧航图失踪", "summary": "昨夜深雾后，标记地下水门的旧航图从封存格中消失。" }
-            ],
             "characterIds": ["fo-mu-qingyan", "fo-luo-yunfan", "fo-qin-suye", "fo-han-ruosheng"],
             "activeCharacterId": "fo-mu-qingyan"
           },
@@ -509,15 +506,9 @@
             "alwaysOn": false
           }
         ],
-        "timelineEvents": [
-          { "title": "三年前沉船旧案", "summary": "罗云帆参与过一次失败查案，唯一目击者后来失踪。" },
-          { "title": "秦素夜查阅航图", "summary": "秦素夜以亡夫遗产纠纷为由查阅旧航图。" },
-          { "title": "夜间递送迟到", "summary": "韩若声递送封蜡档案迟到十三分钟，封蜡在此后被发现有调包痕迹。" }
-        ],
         "assetDrafts": [
           {
             "sourceMessageIds": [],
-            "timelineEvents": [{ "title": "线索板", "summary": "登记簿、潮汐钟、封蜡残片和水门暗号构成初始线索板。" }],
             "characterMemories": [
               { "characterId": "fo-mu-qingyan", "note": "穆青砚对港务署蜡印保持沉默。" }
             ],
@@ -952,9 +943,6 @@
                 "alwaysOn": true
               }
             ],
-            "timelineEvents": [
-              { "title": "水塔阀门损坏", "summary": "阀门卡死后，集市供水只剩诊所和商会库存。" }
-            ],
             "characterIds": ["em-yan-zhuo", "em-lian-shuo", "em-ke-lin", "em-miao-sen"],
             "activeCharacterId": "em-yan-zhuo"
           },
@@ -1007,15 +995,9 @@
             "alwaysOn": false
           }
         ],
-        "timelineEvents": [
-          { "title": "灰税官逼近", "summary": "灰税官要求集市交出水塔管辖权，否则入夜后停止外路通行。" },
-          { "title": "诊所耗水见底", "summary": "柯临报告诊所清水不足一夜，伤员随时可能恶化。" },
-          { "title": "外墙北段破损", "summary": "连朔发现北段外墙缺口扩大，但暂未向集市公开。" }
-        ],
         "assetDrafts": [
           {
             "sourceMessageIds": [],
-            "timelineEvents": [{ "title": "谈判筹码", "summary": "水票、防线图、伤员清单、旧阀门和暗渠图是当前关键筹码。" }],
             "characterMemories": [
               { "characterId": "em-miao-sen", "note": "苗森能修阀门，但必须先得到赦免承诺。" }
             ],
@@ -1453,9 +1435,6 @@
                 "alwaysOn": true
               }
             ],
-            "timelineEvents": [
-              { "title": "彩排失声", "summary": "沈微在第七场高音处失声，彩排被陆隐叫停。" }
-            ],
             "characterIds": ["so-lu-yin", "so-shen-wei", "so-qi-lan", "so-meng-xi"],
             "activeCharacterId": "so-lu-yin"
           },
@@ -1515,15 +1494,9 @@
             "alwaysOn": false
           }
         ],
-        "timelineEvents": [
-          { "title": "三年前主演失踪", "summary": "上一任主演在第七场彩排后失踪，剧院对外称其主动离团。" },
-          { "title": "星砂幕布修复", "summary": "孟曦出资修复幕布，同时追加首演不可延期条款。" },
-          { "title": "首演前夜断音", "summary": "沈微在终场高音处失声，灯控室同时出现焦痕。" }
-        ],
         "assetDrafts": [
           {
             "sourceMessageIds": [],
-            "timelineEvents": [{ "title": "舞台证据", "summary": "旧谱、焦痕、滑轮划痕、录音蜡筒和赞助合同共同指向第七场。" }],
             "characterMemories": [
               { "characterId": "so-qi-lan", "note": "祁岚不相信诅咒，但相信舞台会留下声音。" }
             ],

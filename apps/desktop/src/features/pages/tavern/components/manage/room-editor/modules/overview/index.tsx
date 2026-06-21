@@ -1,10 +1,9 @@
 import {
   BookOpen,
   Clapperboard,
-  Clock,
   FileText,
+  GitBranch,
   Link2,
-  MessageSquareText,
   Pencil,
   Route,
   Target,
@@ -18,7 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getTavernPromptStylePreset } from "../../../../../prompt-styles";
-import { getActiveTavernScene } from "../../../../../storage";
+import {
+  getActiveTavernScene,
+  getTavernSceneDisplayTitle,
+} from "../../../../../storage";
 import type {
   TavernCharacter,
   TavernRoom,
@@ -29,7 +31,6 @@ import {
   formatCount,
   getRoomCharacterById,
   getRoomCharacters,
-  getTimelineScopeSummary,
 } from "../../utils";
 import { BasicSummaryContent } from "../basic/summary";
 import { editorHeaderActionButtonClassName } from "../../primitives";
@@ -38,7 +39,7 @@ type OverviewTargetModuleId =
   | "basic"
   | "characters"
   | "scenes"
-  | "timeline"
+  | "story-graph"
   | "lore"
   | "settings"
   | "progress";
@@ -180,7 +181,12 @@ export const OverviewSection = ({
   const activeScene = getActiveTavernScene(data);
   const activeSceneCharacters = renderSceneCharacters(activeScene, roomCharacterById);
   const scenes = data.scenes ?? [];
-  const timelineEvent = data.timelineEvents[0] ?? null;
+  const activeNode = data.storyGraph.nodes.find((node) => node.id === data.storyGraph.activeNodeId) ??
+    data.storyGraph.nodes[0] ??
+    null;
+  const activeNodeScene = activeNode?.sceneId
+    ? scenes.find((scene) => scene.id === activeNode.sceneId) ?? null
+    : null;
   const lorebookEntry = data.lorebookEntries[0] ?? null;
   const promptStyle = getTavernPromptStylePreset(data.promptStyleId);
 
@@ -189,7 +195,7 @@ export const OverviewSection = ({
       <div className="space-y-1 px-0.5">
         <h2 className="text-lg font-semibold leading-7">故事资源总览</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          集中查看角色、剧情、世界设定与场景阶段，快速判断这个酒馆是否已经可开局。
+          集中查看角色、剧情、世界设定与场景内容，快速判断这个酒馆是否已经可开局。
         </p>
       </div>
 
@@ -252,31 +258,33 @@ export const OverviewSection = ({
         </OverviewCard>
 
         <OverviewCard
-          icon={Clock}
-          title="剧情时间线"
-          meta={formatCount(data.timelineEvents.length, "事件")}
-          actionLabel="管理事件"
-          onAction={() => onOpenModule("timeline")}
+          icon={GitBranch}
+          title="剧情结构"
+          meta={`${formatCount(data.storyGraph.nodes.length, "节点")} · ${formatCount(data.storyGraph.edges.length, "分支")}`}
+          actionLabel="管理结构"
+          onAction={() => onOpenModule("story-graph")}
         >
-          {timelineEvent ? (
+          {activeNode ? (
             <div className="grid min-h-36 grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-lg bg-muted/10 px-5 py-5">
               <span className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Clock className="size-8" />
+                <GitBranch className="size-8" />
               </span>
               <div className="min-w-0">
                 <div className="truncate text-base font-semibold leading-6">
-                  {timelineEvent.title || emptyValueText}
+                  {activeNode.title || emptyValueText}
                 </div>
                 <div className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                  {timelineEvent.summary || emptyValueText}
+                  {activeNodeScene?.scene?.trim() ||
+                    activeNodeScene?.sceneGoal?.trim() ||
+                    "当前剧情节点，场景内容在场景编辑中维护。"}
                 </div>
               </div>
             </div>
           ) : (
             <EmptyPreview
-              icon={Clock}
-              title="暂无剧情事件"
-              description="沉淀已经确定发生过的关键事件，方便后续场景连续推进。"
+              icon={GitBranch}
+              title="暂无剧情节点"
+              description="剧情结构用于组织阶段、节点和分支。"
             />
           )}
         </OverviewCard>
@@ -323,7 +331,7 @@ export const OverviewSection = ({
         <OverviewCard
           icon={Clapperboard}
           title="故事场景"
-          meta={formatCount(scenes.length, "阶段")}
+          meta={formatCount(scenes.length, "场景")}
           actionLabel="管理场景"
           onAction={() => onOpenModule("scenes")}
           className="xl:col-span-1"
@@ -339,7 +347,7 @@ export const OverviewSection = ({
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <h3 className="truncate text-base font-semibold leading-6">
-                        {activeScene.title || "默认场景"}
+                        {getTavernSceneDisplayTitle(data, activeScene.id)}
                       </h3>
                       <Badge variant="secondary">默认</Badge>
                     </div>
@@ -391,18 +399,13 @@ export const OverviewSection = ({
                   label="承接关系"
                   value={getPreviewText(activeScene.transition)}
                 />
-                <SummaryLine
-                  icon={MessageSquareText}
-                  label="时间线范围"
-                  value={getTimelineScopeSummary(activeScene.timelineScope, data.timelineEvents)}
-                />
               </div>
             </div>
           ) : (
             <EmptyPreview
               icon={Clapperboard}
               title="暂无故事场景"
-              description="故事阶段用于组织可切换的叙事场景，建议至少维护一个默认阶段。"
+              description="故事场景用于组织可切换的叙事内容，建议至少维护一个默认场景。"
             />
           )}
         </OverviewCard>

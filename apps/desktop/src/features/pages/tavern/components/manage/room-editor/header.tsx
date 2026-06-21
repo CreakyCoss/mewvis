@@ -1,7 +1,7 @@
 import {
   ArrowRight,
   BookOpen,
-  Clock,
+  GitBranch,
   LockKeyhole,
   MessageSquareText,
   UsersRound,
@@ -56,9 +56,9 @@ export const Header = ({
       label: "消息对话",
     },
     {
-      icon: Clock,
-      value: data.timelineEvents.length,
-      label: "事件时间线",
+      icon: GitBranch,
+      value: data.storyGraph.nodes.length,
+      label: "剧情节点",
     },
     {
       icon: BookOpen,

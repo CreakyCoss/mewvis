@@ -11,7 +11,6 @@ import {
   Activity,
   BookOpen,
   Check,
-  Clock,
   Loader2,
   MessageSquare,
   ShieldCheck,
@@ -32,7 +31,6 @@ import {
 import { runTavernAssetExtraction } from "../../../../runtime/asset-extractor";
 import {
   createTavernAssetDraft,
-  projectTavernSceneOntoRoom,
 } from "../../../../storage";
 import type { TavernAssetDraft } from "../../../../types";
 import { useTavernPageContext } from "../../../context";
@@ -44,7 +42,6 @@ import {
   PrivateIntelDialog,
   ProgressRulesDialog,
   ScriptReviewDialog,
-  TimelineDialog,
   TipsDialog,
   TasksOutcomesDialog,
   type PlotDataDialogHandle,
@@ -73,7 +70,6 @@ const getErrorMessage = (error: unknown) => {
 };
 
 const hasAssetDraftItems = (draft: TavernAssetDraft) =>
-  draft.timelineEvents.some((event) => event.title.trim() && event.summary.trim()) ||
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
@@ -175,7 +171,6 @@ export const PlotDataSection = ({
   } = useTavernPageContext();
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const assetDraftsDialogRef = useRef<PlotDataDialogHandle | null>(null);
-  const timelineDialogRef = useRef<PlotDataDialogHandle | null>(null);
   const lorebookDialogRef = useRef<PlotDataDialogHandle | null>(null);
   const illustrationHintsDialogRef = useRef<PlotDataDialogHandle | null>(null);
   const progressRulesDialogRef = useRef<PlotDataDialogHandle | null>(null);
@@ -187,9 +182,6 @@ export const PlotDataSection = ({
     switch (detailPanel) {
       case "asset-drafts":
         assetDraftsDialogRef.current?.open();
-        break;
-      case "timeline":
-        timelineDialogRef.current?.open();
         break;
       case "lorebook":
         lorebookDialogRef.current?.open();
@@ -298,9 +290,8 @@ export const PlotDataSection = ({
         return;
       }
 
-      const room = projectTavernSceneOntoRoom(activeRoom);
       patchRoom(activeRoom.id, {
-        assetDrafts: [...room.assetDrafts, assetDraft]
+        assetDrafts: [...activeRoom.assetDrafts, assetDraft]
           .slice(-activeRoom.settings.maxAssetDrafts),
       });
       patchExecutionStep("manual-asset-extraction", {
@@ -369,15 +360,6 @@ export const PlotDataSection = ({
         ? `${activeRoom.assetDrafts.length} 个待确认草稿`
         : "暂无待确认草稿",
       bindRef: assetDraftsDialogRef,
-    },
-    {
-      key: "timeline",
-      icon: Clock,
-      title: "时间线",
-      summary: activeRoom.timelineEvents.length > 0
-        ? `${activeRoom.timelineEvents.length} 个剧情事件`
-        : "暂无剧情事件",
-      bindRef: timelineDialogRef,
     },
     {
       key: "lorebook",
@@ -454,7 +436,6 @@ export const PlotDataSection = ({
         </div>
       </section>
       <AssetDraftsDialog bind={assetDraftsDialogRef} isBusy={isBusy} />
-      <TimelineDialog bind={timelineDialogRef} isBusy={isBusy} />
       <LorebookDialog bind={lorebookDialogRef} isBusy={isBusy} />
       <IllustrationHintsDialog bind={illustrationHintsDialogRef} isBusy={isBusy} />
       <ProgressRulesDialog bind={progressRulesDialogRef} isBusy={isBusy} />

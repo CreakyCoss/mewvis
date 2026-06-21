@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import {
   createDefaultTavernState,
   createTavernMessage,
+  getTavernSceneDisplayTitle,
   loadTavernState,
   saveTavernState,
   switchTavernRoomScene,
@@ -60,7 +61,7 @@ import { Header } from "./room/header";
 import { ManagementPage } from "./manage";
 import { ProgressPanel } from "./room/progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./room/quick-summary";
-import { resolveTavernTimelineRenderer } from "./room/renderers";
+import { resolveTavernConversationRenderer } from "./room/renderers";
 import { SceneBriefCard } from "./room/scene-brief-card";
 import { SceneSelector } from "./room/scene-selector";
 import { SidePanel, type SidePanelHandle } from "./room/side-panel";
@@ -347,8 +348,8 @@ const TavernPageContent = ({
   const presentationProfile = getTavernPresentationProfile(
     activeRoom?.presentation?.profileId,
   );
-  const timelineRenderer = resolveTavernTimelineRenderer(presentationProfile.renderStyle);
-  const Timeline = timelineRenderer.Timeline;
+  const conversationRenderer = resolveTavernConversationRenderer(presentationProfile.renderStyle);
+  const Conversation = conversationRenderer.Conversation;
   const hasGlobalHeaderProgress = Boolean(
     activeRoom?.progressViews.some((view) => view.placement === "globalHeader"),
   );
@@ -1028,8 +1029,7 @@ const TavernPageContent = ({
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
-  const activeSceneTitle = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId)?.title ??
-    "默认场景";
+  const activeSceneTitle = getTavernSceneDisplayTitle(activeRoom, activeRoom.activeSceneId);
   const sceneDescription = getTavernSceneText(
     activeRoom.scene,
     "这个房间还没有场景描述。",
@@ -1142,6 +1142,8 @@ const TavernPageContent = ({
                   <SceneSelector
                     scenes={activeRoom.scenes ?? []}
                     activeSceneId={activeRoom.activeSceneId}
+                    label="节点："
+                    getSceneLabel={(scene) => getTavernSceneDisplayTitle(activeRoom, scene.id)}
                     onSelectScene={(sceneId) => selectRoomScene(activeRoom.id, sceneId)}
                   />
                 )}
@@ -1152,7 +1154,7 @@ const TavernPageContent = ({
                   />
                 )}
               />
-              <Timeline
+              <Conversation
                 messages={renderableRoomMessages}
                 shouldShowExecutionTrace={shouldShowExecutionTrace}
                 executionTraceAnchorMessageId={executionTraceAnchorMessageId}

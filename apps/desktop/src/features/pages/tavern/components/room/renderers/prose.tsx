@@ -8,7 +8,7 @@ import {
 import { MessageControls } from "../messages/message-controls";
 import { MessagePrivateIntel } from "../messages/message-private-intel";
 import { formatTavernMessageTime } from "../messages/message-time";
-import type { TavernTimelineRenderer } from "./types";
+import type { TavernConversationRenderer } from "./types";
 
 const roleLabel: Record<TavernRenderableMessage["role"], string> = {
   narrator: "旁白",
@@ -96,9 +96,9 @@ const ProseMessage = ({
   );
 };
 
-export const proseTimelineRenderer: TavernTimelineRenderer = {
+export const proseConversationRenderer: TavernConversationRenderer = {
   id: "prose",
-  Timeline: ({
+  Conversation: ({
     messages,
     shouldShowExecutionTrace,
     executionTraceAnchorMessageId,

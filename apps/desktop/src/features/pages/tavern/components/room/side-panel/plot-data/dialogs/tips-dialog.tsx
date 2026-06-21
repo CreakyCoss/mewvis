@@ -58,7 +58,7 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
           <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
           <TextBlock label="房间记忆" value={activeRoom.memory} />
           <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] px-4 py-3 text-sm leading-6 text-current/70">
-            剧情时间线和世界书是酒馆共享资产；入席角色、场景设定和阶段记忆在对应故事场景中维护。
+            剧情结构和世界书是酒馆共享资产；入席角色、场景设定和场景记忆在对应故事场景中维护。
           </div>
         </div>
       ) : (

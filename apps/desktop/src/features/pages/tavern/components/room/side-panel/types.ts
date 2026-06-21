@@ -21,7 +21,6 @@ export type SidePanelProps = {
 
 export type DetailPanelKey =
   | "asset-drafts"
-  | "timeline"
   | "lorebook"
   | "illustration-hints"
   | "progress-rules"

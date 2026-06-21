@@ -3,6 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom } from "../../../types";
+import { getTavernSceneDisplayTitle } from "../../../storage";
 import { useTavernPageContext } from "../../context";
 import {
   generateQuickNovel,
@@ -305,9 +306,7 @@ export const QuickSummary = ({
     }
 
     try {
-      const activeSceneTitle = activeRoom.scenes?.find((scene) =>
-        scene.id === activeRoom.activeSceneId
-      )?.title ?? "当前场景";
+      const activeSceneTitle = getTavernSceneDisplayTitle(activeRoom, activeRoom.activeSceneId, "当前场景");
       const exportContent = createQuickNovelExportContent({
         format: exportFormat,
         roomTitle: activeRoom.title,

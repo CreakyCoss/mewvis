@@ -20,7 +20,7 @@ import type {
 } from "../types";
 import {
   formatTavernLorebookEntries,
-  formatTavernTimelineEvents,
+  formatTavernStoryGraphContext,
   selectTavernLorebookEntries,
 } from "./prompt";
 import {
@@ -329,9 +329,9 @@ export const runTavernProgressTracking = async ({
       ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
-    "<story_timeline>",
-    formatTavernTimelineEvents(room, { maxEvents: 8, maxSummaryChars: 220 }) || "（无）",
-    "</story_timeline>",
+    "<story_graph>",
+    formatTavernStoryGraphContext(room, { maxEdges: 8, maxSummaryChars: 220 }) || "（无）",
+    "</story_graph>",
     "",
     "<lorebook>",
     lorebookText || "（无）",

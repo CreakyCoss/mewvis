@@ -23,7 +23,6 @@ import {
   createTavernRoomFromGeneratedPresetJson,
   createTavernRoomFromSystemPreset,
   createTavernScene,
-  createTavernTimelineEvent,
   DEFAULT_TAVERN_PROGRESS_TRACKER,
   DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_ROOM_SETTINGS,
@@ -120,7 +119,6 @@ const touchTavernRoomActiveScene = (room: TavernRoom): TavernRoom => ({
 });
 
 const hasAssetDraftItems = (draft: TavernAssetDraft) =>
-  draft.timelineEvents.some((event) => event.title.trim() && event.summary.trim()) ||
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
@@ -756,39 +754,6 @@ export const ManagementProvider = ({
       });
 
       const sceneIdMap = new Map<string, string>();
-      const sourceTimelineEvents = sourceRoom.timelineEvents;
-      const timelineEventIdMap = new Map<string, string>();
-      const copiedTimelineEvents = sourceTimelineEvents.map((event) => {
-        const copiedEventId = createLocalId("event");
-        timelineEventIdMap.set(event.id, copiedEventId);
-        return {
-          ...event,
-          id: copiedEventId,
-          createdAt,
-          updatedAt: createdAt,
-        };
-      });
-      const remapTimelineScope = (scope: TavernScene["timelineScope"]) => {
-        if (scope.mode === "range") {
-          return {
-            mode: "range" as const,
-            startEventId: scope.startEventId ? timelineEventIdMap.get(scope.startEventId) : undefined,
-            endEventId: scope.endEventId ? timelineEventIdMap.get(scope.endEventId) : undefined,
-          };
-        }
-
-        if (scope.mode === "selected") {
-          return {
-            mode: "selected" as const,
-            eventIds: (scope.eventIds ?? []).flatMap((eventId) => {
-              const copiedEventId = timelineEventIdMap.get(eventId);
-              return copiedEventId ? [copiedEventId] : [];
-            }),
-          };
-        }
-
-        return { mode: "auto" as const };
-      };
       const copiedMessagesByScene: Record<string, TavernMessage[]> = {};
       const copiedScenes = sourceScenes.map((scene) => {
         const copiedSceneId = createLocalId("scene");
@@ -868,7 +833,6 @@ export const ManagementProvider = ({
           id: copiedSceneId,
           characterConfigs,
           characterMemories,
-          timelineScope: remapTimelineScope(scene.timelineScope),
           illustrationHints: scene.illustrationHints.map((hint) => ({
             ...hint,
             id: createLocalId("illustration"),
@@ -885,10 +849,6 @@ export const ManagementProvider = ({
               const copiedMessageId = messageIdMap.get(messageId);
               return copiedMessageId ? [copiedMessageId] : [];
             }),
-            timelineEvents: draft.timelineEvents.map((event) => ({
-              ...event,
-              id: createLocalId("timeline-draft"),
-            })),
             characterMemories: draft.characterMemories.flatMap((memory) => {
               const copiedCharacterId = characterIdMap.get(memory.characterId);
               return copiedCharacterId
@@ -921,6 +881,48 @@ export const ManagementProvider = ({
         updatedAt: createdAt,
       }));
       const activeSceneId = sceneIdMap.get(sourceRoom.activeSceneId ?? "") ?? copiedScenes[0]?.id ?? "";
+      const storyNodeIdMap = new Map<string, string>();
+      const storyStageIdMap = new Map<string, string>();
+      const copiedStages = sourceRoom.storyGraph.stages.map((stage) => {
+        const copiedStageId = createLocalId("stage");
+        storyStageIdMap.set(stage.id, copiedStageId);
+        return {
+          ...stage,
+          id: copiedStageId,
+        };
+      });
+      const copiedNodes = sourceRoom.storyGraph.nodes.map((node) => {
+        const copiedNodeId = createLocalId("node");
+        storyNodeIdMap.set(node.id, copiedNodeId);
+        return {
+          ...node,
+          id: copiedNodeId,
+          stageId: storyStageIdMap.get(node.stageId) ?? copiedStages[0]?.id ?? "",
+          sceneId: node.sceneId ? sceneIdMap.get(node.sceneId) : undefined,
+          createdAt,
+          updatedAt: createdAt,
+        };
+      });
+      const copiedEdges = sourceRoom.storyGraph.edges.flatMap((edge) => {
+        const fromNodeId = storyNodeIdMap.get(edge.fromNodeId);
+        const toNodeId = storyNodeIdMap.get(edge.toNodeId);
+        return fromNodeId && toNodeId
+          ? [{
+              ...edge,
+              id: createLocalId("edge"),
+              fromNodeId,
+              toNodeId,
+              createdAt,
+              updatedAt: createdAt,
+            }]
+          : [];
+      });
+      const copiedActiveNodeId = storyNodeIdMap.get(sourceRoom.storyGraph.activeNodeId) ??
+        copiedNodes[0]?.id ??
+        "";
+      const copiedEntryNodeId = storyNodeIdMap.get(sourceRoom.storyGraph.entryNodeId) ??
+        copiedNodes[0]?.id ??
+        copiedActiveNodeId;
       const copiedRoom: TavernRoom = projectTavernSceneOntoRoom({
         ...sourceRoom,
         id: copiedRoomId,
@@ -935,10 +937,17 @@ export const ManagementProvider = ({
         },
         title: `${sourceRoom.title}（副本）`,
         activeSceneId,
+        storyGraph: {
+          version: 1,
+          entryNodeId: copiedEntryNodeId,
+          activeNodeId: copiedActiveNodeId,
+          stages: copiedStages,
+          nodes: copiedNodes,
+          edges: copiedEdges,
+        },
         scenes: copiedScenes,
         localCharacters: copiedCharacters,
         lorebookEntries: copiedLorebookEntries,
-        timelineEvents: copiedTimelineEvents,
         createdAt,
         updatedAt: createdAt,
       });
@@ -1258,15 +1267,6 @@ export const ManagementProvider = ({
         ]];
       }),
     );
-    const importedTimelineEvents = (parsedExport.room.timelineEvents ?? [])
-      .flatMap((event) => (
-        event.title?.trim() && event.summary?.trim()
-          ? [createTavernTimelineEvent({
-              title: event.title,
-              summary: event.summary,
-            })]
-          : []
-      ));
     const importedLorebookEntries = (parsedExport.room.lorebookEntries ?? [])
       .flatMap((entry) => (
         entry.title?.trim() && entry.content?.trim()
@@ -1282,7 +1282,6 @@ export const ManagementProvider = ({
       .flatMap((draft) => {
         const assetDraft = createTavernAssetDraft({
           sourceMessageIds: [],
-          timelineEvents: draft.timelineEvents,
           characterMemories: draft.characterMemories.flatMap((memory) => {
             const mappedId = characterIdMap.get(memory.characterId);
             return mappedId
@@ -1330,6 +1329,31 @@ export const ManagementProvider = ({
       createdAt,
       updatedAt: createdAt,
     });
+    const stageId = createLocalId("stage");
+    const nodeId = createLocalId("node");
+    const storyGraph = {
+      version: 1 as const,
+      entryNodeId: nodeId,
+      activeNodeId: nodeId,
+      stages: [{
+        id: stageId,
+        title: "第一阶段",
+        order: 0,
+      }],
+      nodes: [{
+        id: nodeId,
+        stageId,
+        sceneId: importedScene.id,
+        title: importedScene.title,
+        type: "normal" as const,
+        pathRole: "main" as const,
+        position: { x: 120, y: 160 },
+        status: "ready" as const,
+        createdAt,
+        updatedAt: createdAt,
+      }],
+      edges: [],
+    };
     const importedRoom: TavernRoom = projectTavernSceneOntoRoom({
       id: roomId,
       workspaceId: workspace.id,
@@ -1339,6 +1363,7 @@ export const ManagementProvider = ({
       creationSource: "imported",
       storyOutline: parsedExport.room.storyOutline?.trim() || "",
       storyGoal: parsedExport.room.storyGoal?.trim() || "",
+      storyGraph,
       activeSceneId: importedScene.id,
       scenes: [importedScene],
       scenePresetId: importedScene.scenePresetId,
@@ -1379,7 +1404,6 @@ export const ManagementProvider = ({
       characterMemories,
       localCharacters: importedCharacters,
       lorebookEntries: importedLorebookEntries,
-      timelineEvents: importedTimelineEvents,
       illustrationHints: importedScene.illustrationHints,
       assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
       characterIds,

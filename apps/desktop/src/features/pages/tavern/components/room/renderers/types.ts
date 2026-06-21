@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import type { TavernRenderableMessage } from "../../../core";
 
-export type TavernTimelineRendererProps = {
+export type TavernConversationRendererProps = {
   messages: TavernRenderableMessage[];
   shouldShowExecutionTrace: boolean;
   executionTraceAnchorMessageId: string;
@@ -10,7 +10,7 @@ export type TavernTimelineRendererProps = {
   messageEndRef: RefObject<HTMLDivElement | null>;
 };
 
-export type TavernTimelineRenderer = {
+export type TavernConversationRenderer = {
   id: string;
-  Timeline: (props: TavernTimelineRendererProps) => ReactNode;
+  Conversation: (props: TavernConversationRendererProps) => ReactNode;
 };

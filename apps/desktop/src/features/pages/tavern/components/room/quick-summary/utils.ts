@@ -75,7 +75,7 @@ export const createQuickSummarySignature = (
   scenePlot: room.scenePlot,
   sceneDirection: room.sceneDirection,
   sceneTransition: room.sceneTransition,
-  timelineScope: room.scenes?.find((scene) => scene.id === room.activeSceneId)?.timelineScope ?? { mode: "auto" },
+  storyGraph: room.storyGraph,
   memory: room.memory,
   characterIds: room.characterIds,
   activeCharacterId: room.activeCharacterId,
@@ -89,12 +89,6 @@ export const createQuickSummarySignature = (
     enabled: entry.enabled,
     alwaysOn: entry.alwaysOn,
     updatedAt: entry.updatedAt,
-  })),
-  timelineEvents: room.timelineEvents.map((event) => ({
-    id: event.id,
-    title: event.title,
-    summary: event.summary,
-    updatedAt: event.updatedAt,
   })),
   messages: messages.map((message) => ({
     id: message.id,

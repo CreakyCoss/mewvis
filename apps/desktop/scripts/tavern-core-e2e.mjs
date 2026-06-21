@@ -240,7 +240,6 @@ writeFileSync(entryPath, `
     characterMemories: {},
     localCharacters: [],
     lorebookEntries: [],
-    timelineEvents: [],
     assetDrafts: [],
     characterIds: ["char-a", "char-b"],
     activeCharacterId: "char-a",
@@ -2009,7 +2008,8 @@ writeFileSync(entryPath, `
         characterCount: fogboundMaterialized.characters.length,
         scenesCount: fogboundRoom.scenes?.length ?? 0,
         lorebookCount: fogboundRoom.lorebookEntries.length,
-        timelineCount: fogboundRoom.timelineEvents.length,
+        storyNodeCount: fogboundRoom.storyGraph.nodes.length,
+        storyEdgeCount: fogboundRoom.storyGraph.edges.length,
         messageProfiles: fogboundMaterialized.messages.map((message) => message.presentationProfileId),
         hasMappedCharacterRelationship: fogboundMaterialized.characters.some((character) =>
           character.relationships.some((relationship) =>
@@ -2049,7 +2049,8 @@ writeFileSync(entryPath, `
         characterCount: emberMaterialized.characters.length,
         scenesCount: emberRoom.scenes?.length ?? 0,
         lorebookCount: emberRoom.lorebookEntries.length,
-        timelineCount: emberRoom.timelineEvents.length,
+        storyNodeCount: emberRoom.storyGraph.nodes.length,
+        storyEdgeCount: emberRoom.storyGraph.edges.length,
         allianceBefore: getTavernStatusSnapshotValue(
           emberRoom.statusSnapshot,
           { type: "scene" },
@@ -2089,7 +2090,8 @@ writeFileSync(entryPath, `
         characterCount: starfallMaterialized.characters.length,
         scenesCount: starfallRoom.scenes?.length ?? 0,
         lorebookCount: starfallRoom.lorebookEntries.length,
-        timelineCount: starfallRoom.timelineEvents.length,
+        storyNodeCount: starfallRoom.storyGraph.nodes.length,
+        storyEdgeCount: starfallRoom.storyGraph.edges.length,
         performanceBefore: getTavernStatusSnapshotValue(
           starfallRoom.statusSnapshot,
           { type: "scene" },
@@ -2706,7 +2708,8 @@ try {
       checks.progressChecks.systemPresets.fogbound.characterCount === 4 &&
       checks.progressChecks.systemPresets.fogbound.scenesCount === 3 &&
       checks.progressChecks.systemPresets.fogbound.lorebookCount >= 4 &&
-      checks.progressChecks.systemPresets.fogbound.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.fogbound.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.fogbound.storyEdgeCount >= 2 &&
       checks.progressChecks.systemPresets.fogbound.messageProfiles.every((profileId) =>
         profileId === "third-person-prose"
       ) &&
@@ -2727,7 +2730,8 @@ try {
       checks.progressChecks.systemPresets.ember.characterCount === 4 &&
       checks.progressChecks.systemPresets.ember.scenesCount === 3 &&
       checks.progressChecks.systemPresets.ember.lorebookCount >= 3 &&
-      checks.progressChecks.systemPresets.ember.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.ember.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.ember.storyEdgeCount >= 2 &&
       checks.progressChecks.systemPresets.ember.allianceBefore === 30 &&
       checks.progressChecks.systemPresets.ember.allianceAfter === 60 &&
       checks.progressChecks.systemPresets.ember.waterBefore === 35 &&
@@ -2746,7 +2750,8 @@ try {
       checks.progressChecks.systemPresets.starfall.characterCount === 4 &&
       checks.progressChecks.systemPresets.starfall.scenesCount === 3 &&
       checks.progressChecks.systemPresets.starfall.lorebookCount >= 4 &&
-      checks.progressChecks.systemPresets.starfall.timelineCount >= 4 &&
+      checks.progressChecks.systemPresets.starfall.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.starfall.storyEdgeCount >= 2 &&
       checks.progressChecks.systemPresets.starfall.performanceBefore === 55 &&
       checks.progressChecks.systemPresets.starfall.performanceAfter === 80 &&
       checks.progressChecks.systemPresets.starfall.cursePressureBefore === 65 &&

@@ -11,7 +11,7 @@ import type {
 } from "../types";
 import {
   formatTavernLorebookEntries,
-  formatTavernTimelineEvents,
+  formatTavernStoryGraphContext,
   selectTavernLorebookEntries,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
@@ -282,9 +282,9 @@ export const runTavernDirector = async ({
       ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
-    "<story_timeline>",
-    formatTavernTimelineEvents(room) || "（无）",
-    "</story_timeline>",
+    "<story_graph>",
+    formatTavernStoryGraphContext(room) || "（无）",
+    "</story_graph>",
     "",
     "<lorebook>",
     lorebookText || "（无）",
@@ -353,8 +353,8 @@ export const runTavernDirector = async ({
     runtimeInstruction: [
       "你是酒馆模式的导演 Agent。",
       isSceneDriveTurn
-        ? "你的职责是在没有用户角色发言时，根据场景目标、剧情时间线、近期对话和角色状态，推进下一轮公开场景。"
-        : "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+        ? "你的职责是在没有用户角色发言时，根据场景目标、剧情结构、近期对话和角色状态，推进下一轮公开场景。"
+        : "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定下一轮谁应该发言。",
       isSceneDriveTurn
         ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
         : "",

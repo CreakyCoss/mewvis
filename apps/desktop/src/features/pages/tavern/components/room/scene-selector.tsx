@@ -6,6 +6,8 @@ type SceneSelectorProps = {
   scenes: TavernScene[];
   activeSceneId?: string;
   className?: string;
+  label?: string;
+  getSceneLabel?: (scene: TavernScene) => string;
   onSelectScene: (sceneId: string) => void;
 };
 
@@ -13,11 +15,13 @@ export const SceneSelector = ({
   scenes,
   activeSceneId,
   className,
+  label = "场景：",
+  getSceneLabel,
   onSelectScene,
 }: SceneSelectorProps) => (
   <div className={cn("relative w-full max-w-[15.5rem] min-w-0", className)}>
     <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 select-none text-[13px] font-semibold leading-none text-current/85">
-      场景：
+      {label}
     </span>
     <NativeSelect
       value={activeSceneId ?? scenes[0]?.id ?? ""}
@@ -45,7 +49,7 @@ export const SceneSelector = ({
         "[&_[data-slot=native-select-icon]]:text-current",
         "[&_[data-slot=native-select-icon]]:opacity-70",
       )}
-      aria-label="选择场景"
+      aria-label={`选择${label.replace(/[:：]/g, "")}`}
       onChange={(event) => onSelectScene(event.target.value)}
     >
       {scenes.length === 0 && (
@@ -53,7 +57,7 @@ export const SceneSelector = ({
       )}
       {scenes.map((scene) => (
         <NativeSelectOption key={scene.id} value={scene.id}>
-          {scene.title}
+          {getSceneLabel?.(scene) ?? scene.title}
         </NativeSelectOption>
       ))}
     </NativeSelect>

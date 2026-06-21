@@ -7,7 +7,7 @@ import type {
 } from "../types";
 import {
   formatTavernLorebookEntries,
-  formatTavernTimelineEvents,
+  formatTavernStoryGraphContext,
   tavernMessagesToRuntimeMessages,
 } from "./prompt";
 import {
@@ -107,7 +107,7 @@ const buildTavernQuickContext = ({
   const lorebookText = formatTavernLorebookEntries(
     room.lorebookEntries.filter((entry) => entry.enabled),
   );
-  const timelineText = formatTavernTimelineEvents(room);
+  const storyGraphText = formatTavernStoryGraphContext(room);
   const characterMemoryText = characterMemories(room, characters);
 
   return [
@@ -146,9 +146,9 @@ const buildTavernQuickContext = ({
     characterMemoryText || "（无）",
     "</character_memories>",
     "",
-    "<story_timeline>",
-    timelineText || "（无）",
-    "</story_timeline>",
+    "<story_graph>",
+    storyGraphText || "（无）",
+    "</story_graph>",
     "",
     "<lorebook>",
     lorebookText || "（无）",
@@ -204,7 +204,7 @@ export const runTavernQuickSummary = async ({
     maxSummaryChars: 4200,
     summaryInstruction: [
       "总结当前酒馆故事进展，供用户快速回到现场。",
-      "只基于 bridge session 中已有消息、房间记忆、时间线、世界书和角色设定。",
+      "只基于 bridge session 中已有消息、房间记忆、剧情结构、世界书和角色设定。",
       "不要续写剧情，不要新增事实，不要替任何角色安排新的行动。",
       "优先写清：当前局面、已经确认的线索/事实、人物状态与关系变化、未解决的问题、下一步可跟进的方向。",
       "输出中文 Markdown，使用简短小标题和列表；通常 4 到 8 条要点，内容很多时最多 10 条。",
@@ -230,7 +230,7 @@ export const runTavernQuickNovel = async ({
     "</task>",
     "",
     "<rules>",
-    "只基于已发生的对话、房间记忆、时间线、世界书和角色设定。",
+    "只基于已发生的对话、房间记忆、剧情结构、世界书和角色设定。",
     "可以补足衔接、动作、氛围和视角过渡，但不得新增关键事实、不得推进到当前对话之后、不得替用户做新的选择。",
     "需要覆盖 full_scene_conversation 中当前场景从开端到最近一轮的主要已发生内容，不要只改写最后几轮。",
     "不要只写概括段；需要把关键交流、转折、发现、情绪变化写成连续小说场面。",

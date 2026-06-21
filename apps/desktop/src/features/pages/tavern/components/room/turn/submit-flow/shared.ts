@@ -40,7 +40,6 @@ export const getErrorMessage = (error: unknown) => {
 };
 
 export const hasAssetDraftItems = (draft: TavernAssetDraft) =>
-  draft.timelineEvents.some((event) => event.title.trim() && event.summary.trim()) ||
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
