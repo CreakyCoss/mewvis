@@ -288,6 +288,7 @@ const runSingleSpeakerReply = async ({
     replyMode: mode.replyMode,
     isDirectorLikeMode: mode.isDirectorLikeMode,
     isManagedMode: mode.isManagedMode,
+    isSceneDriveMode: mode.isSceneDriveMode,
     directorReason: directorReasonForCharacter,
     allowNonverbalReply: nonverbalReplyAllowed,
   });

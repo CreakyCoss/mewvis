@@ -55,11 +55,11 @@ export const Composer = ({
   const placeholder = isManagedAutoRunning
     ? "全托管运行中，关闭托管可重新手动发言..."
     : isManagedModeEnabled
-    ? "全托管：首次留空发送启动，后续自动运行..."
+    ? "全托管：首次留空发送启动，后续自动运行；自推按钮会把这里当导演方向..."
     : presentationProfile.userInputMode !== "speech"
     ? presentationProfile.composerPlaceholder
     : replyMode === "director"
-    ? "让导演决定谁来回应..."
+    ? "写给导演的方向，或留空点自推..."
     : replyMode === "round" && speakerCount > 1
       ? `让 ${speakerCount} 位角色依次回应...`
       : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";

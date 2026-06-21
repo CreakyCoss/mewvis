@@ -9,6 +9,7 @@ import {
   abortTurnSubmission,
   beginTurnSubmission,
   createInitialTurnRuntime,
+  createSceneDriveTurnAnchorMessage,
   createSpeakerRuntimeModelResolver,
   createUserTurnMessage,
   findMissingSpeakerModel,
@@ -27,13 +28,20 @@ import {
   syncOpenPendingInteractions,
   validateSubmitReferences,
   type ActiveReplyRef,
+  type TurnTriggerType,
 } from "./submit-flow";
+
+export type SubmitRoomTurnTrigger = {
+  type: TurnTriggerType;
+  directive?: string;
+};
 
 type SubmitRoomTurnParams = {
   ctx: TavernPageContextValue;
   event?: FormEvent;
   submittedText?: string;
   selectedReplyOption?: TavernReplyOption;
+  trigger?: SubmitRoomTurnTrigger;
   ambiguousFileReferences: Array<{ token: string }>;
   readReferencedFiles: () => Promise<TavernReferencedFile[]>;
   referencedFilePreviews: WorkspaceFileEntry[];
@@ -45,6 +53,7 @@ export const submitRoomTurn = async ({
   event,
   submittedText,
   selectedReplyOption,
+  trigger = { type: "user" },
   ambiguousFileReferences,
   readReferencedFiles,
   referencedFilePreviews,
@@ -64,7 +73,12 @@ export const submitRoomTurn = async ({
     runtimeModel,
     setError,
   } = ctx;
-  const draftText = (submittedText ?? draft).trim();
+  const triggerType = trigger.type;
+  const draftText = (
+    trigger.type === "scene_drive"
+      ? trigger.directive ?? submittedText ?? draft
+      : submittedText ?? draft
+  ).trim();
 
   // 1. 前置校验只做“能不能提交”的判断，不改动房间数据。
   if (isSending) {
@@ -86,8 +100,8 @@ export const submitRoomTurn = async ({
     return;
   }
 
-  const mode = resolveTurnMode(activeRoom, isManagedModeEnabled);
-  if (!draftText && !mode.isManagedMode) {
+  const mode = resolveTurnMode(activeRoom, isManagedModeEnabled, triggerType);
+  if (!draftText && !mode.isManagedMode && !mode.isSceneDriveMode) {
     return;
   }
 
@@ -165,22 +179,29 @@ export const submitRoomTurn = async ({
     return;
   }
 
-  if (!text.trim()) {
+  if (!text.trim() && !mode.isSceneDriveMode) {
     setError("全托管没有生成可发送的回复，请重试或输入方向提示。");
     abortTurnSubmission({ ctx, mode });
     return;
   }
 
-  const userMessage = createUserTurnMessage({
+  const visibleUserMessage = mode.isSceneDriveMode
+    ? null
+    : createUserTurnMessage({
+        room: activeRoom,
+        text,
+        referencedFilePreviews: currentReferencedFilePreviews,
+        selectedReplyOption,
+      });
+  const turnAnchorMessage = visibleUserMessage ?? createSceneDriveTurnAnchorMessage({
     room: activeRoom,
-    text,
-    referencedFilePreviews: currentReferencedFilePreviews,
-    selectedReplyOption,
+    directive: text,
   });
   let runtime = createInitialTurnRuntime({
     room: activeRoom,
     roomMessages,
-    userMessage,
+    turnAnchorMessage,
+    visibleUserMessage,
     mode,
   });
   const activeReplyRef: ActiveReplyRef = {
@@ -193,7 +214,8 @@ export const submitRoomTurn = async ({
     prepareTurnTraceAndUserMessage({
       ctx,
       room: activeRoom,
-      userMessage,
+      turnAnchorMessage,
+      visibleUserMessage,
       references,
       runtime,
       mode,
@@ -213,7 +235,8 @@ export const submitRoomTurn = async ({
         turnMessages: runtime.turnMessages,
         references,
         text,
-        userMessage,
+        userMessage: turnAnchorMessage,
+        mode,
         selectedReplyOption,
         availableRoomCharacters: speakerPlan.availableRoomCharacters,
         availableActiveCharacter: speakerPlan.availableActiveCharacter,
@@ -238,7 +261,7 @@ export const submitRoomTurn = async ({
       runtimeRoom: runtime.runtimeRoom,
       runtimeMessages: runtime.runtimeMessages,
       turnMessages: runtime.turnMessages,
-      userMessage,
+      userMessage: turnAnchorMessage,
       text,
       references,
       selectedReplyOption,
@@ -274,7 +297,7 @@ export const submitRoomTurn = async ({
           turnMessages: runtime.turnMessages,
           references,
           text,
-          userMessage,
+          userMessage: turnAnchorMessage,
           runtimeModel,
           shouldShowProgressTrace: runtime.shouldShowProgressTrace,
         }),

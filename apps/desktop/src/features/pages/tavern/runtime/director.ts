@@ -58,6 +58,10 @@ export type RunTavernDirectorInput = {
   messages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  turnTrigger?: {
+    type: "user" | "scene_drive";
+    directive?: string;
+  };
   selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
   randomEventOpportunity?: boolean;
@@ -115,10 +119,17 @@ export const runTavernDirector = async ({
   messages,
   references,
   currentUserText,
+  turnTrigger = { type: "user" },
   selectedTargetCharacterIds = [],
   maxSpeakers = 3,
   randomEventOpportunity,
 }: RunTavernDirectorInput): Promise<TavernDirectorDecision> => {
+  const isSceneDriveTurn = turnTrigger.type === "scene_drive";
+  const sceneDriveDirective = (
+    turnTrigger.directive?.trim() ||
+    currentUserText.trim() ||
+    "继续推进当前场景。"
+  );
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
     characters,
@@ -192,6 +203,12 @@ export const runTavernDirector = async ({
     "",
     `<constraints maxSpeakers="${maxSpeakers}">`,
     "speakerIds 和 nonverbalReplyIds 只能使用下方角色 id；如果需要多人发言，按发言顺序排列。",
+    isSceneDriveTurn
+      ? "本轮是场景自推动，没有用户角色发言；不要把 scene_drive_directive 当作用户说出口的话，也不要替用户角色回答、承诺、行动或做选择。"
+      : "",
+    isSceneDriveTurn
+      ? "自推动优先根据场景目标、剧情方向、近期对话、待回应事项和角色动机推进；可以安排角色互相回应、旁白过渡或公开可观察事件，但必须保留用户未来介入空间。"
+      : "",
     directorOnlyAllowed
       ? "当前阶段允许导演只推进公开流程；如果不应有角色公开发言，可以返回空 speakerIds，并用 narrator 交代公开阶段/结算。"
       : selectedTargetsCanStaySilent
@@ -296,9 +313,17 @@ export const runTavernDirector = async ({
     "</progress_context>",
     "",
     "<current_user_input>",
-    currentUserText,
+    isSceneDriveTurn ? "（本轮无用户输入）" : currentUserText,
     "</current_user_input>",
     "",
+    isSceneDriveTurn
+      ? [
+          "<scene_drive_directive instruction=\"optional_director_direction; not_user_speech; do_not_quote_as_dialogue\">",
+          sceneDriveDirective,
+          "</scene_drive_directive>",
+          "",
+        ].join("\n")
+      : "",
     "<recent_conversation>",
     formatTavernRuntimeMessagesForSummary(runtimeMessages.slice(-DIRECTOR_RECENT_MESSAGE_LIMIT)),
     "</recent_conversation>",
@@ -321,11 +346,18 @@ export const runTavernDirector = async ({
     agentRoleId: tavernDirectorAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
-    userMessage: "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
+    userMessage: isSceneDriveTurn
+      ? "请在没有用户角色发言的前提下，自推动本轮酒馆场景，并只输出严格合法 JSON。"
+      : "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
     requestContext: appendReferencesToPrompt(directorPrompt, references),
     runtimeInstruction: [
       "你是酒馆模式的导演 Agent。",
-      "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+      isSceneDriveTurn
+        ? "你的职责是在没有用户角色发言时，根据场景目标、剧情时间线、近期对话和角色状态，推进下一轮公开场景。"
+        : "你的职责是根据用户输入、场景目标、剧情时间线和角色状态，决定下一轮谁应该发言。",
+      isSceneDriveTurn
+        ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
+        : "",
       `当前呈现模式：${presentationProfile.label}。${presentationProfile.directorAddendum}`,
       `当前房间提示词风格：${promptStyle.label}。${promptStyle.directorAddendum}`,
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",

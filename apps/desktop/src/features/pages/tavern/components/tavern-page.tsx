@@ -69,6 +69,8 @@ import { submitRoomTurn } from "./room/turn/submit";
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 const TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS = 90_000;
+const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
+const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
@@ -108,6 +110,23 @@ const getErrorMessage = (error: unknown) => {
 
 const getTavernSceneText = (value: string, fallback: string) =>
   value.trim() || fallback;
+
+const getSceneDriveAutoPauseReason = (room: TavernRoom) => {
+  const hasUserTargetedInteraction = room.pendingInteractions.some((interaction) =>
+    interaction.status === "open" &&
+    interaction.requiresResponse &&
+    interaction.target.type === "user"
+  );
+  if (hasUserTargetedInteraction) {
+    return "自动自推已暂停：有角色正在等待你的回应。";
+  }
+
+  if (room.outcomeEvents.some((event) => event.status === "applied")) {
+    return "自动自推已暂停：当前场景已达成结局。";
+  }
+
+  return "";
+};
 
 export const TavernPage = ({
   workspace,
@@ -179,9 +198,12 @@ const TavernPageContent = ({
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
   const [viewMode, setViewMode] = useState<"home" | "room">("home");
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
   const workspaceIdRef = useRef(workspace.id);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const managedAutoRunTimerRef = useRef<number | null>(null);
+  const sceneDriveAutoTimerRef = useRef<number | null>(null);
+  const sceneDriveAutoRunCountRef = useRef(0);
   const roleAssignmentRoomIdsRef = useRef<Set<string>>(new Set());
   const roleAssignmentRunIdRef = useRef(0);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -241,6 +263,7 @@ const TavernPageContent = ({
     setIsSidePanelOpen(false);
     setIsManagedModeEnabled(false);
     setIsManagedAutoRunStarted(false);
+    setIsSceneDriveAutoRunning(false);
     setIsSending(false);
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
@@ -248,6 +271,11 @@ const TavernPageContent = ({
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
+    if (sceneDriveAutoTimerRef.current !== null) {
+      window.clearTimeout(sceneDriveAutoTimerRef.current);
+      sceneDriveAutoTimerRef.current = null;
+    }
+    sceneDriveAutoRunCountRef.current = 0;
     roleAssignmentRoomIdsRef.current.clear();
     roleAssignmentRunIdRef.current += 1;
   }, [workspace.id]);
@@ -286,6 +314,10 @@ const TavernPageContent = ({
       if (managedAutoRunTimerRef.current !== null) {
         window.clearTimeout(managedAutoRunTimerRef.current);
         managedAutoRunTimerRef.current = null;
+      }
+      if (sceneDriveAutoTimerRef.current !== null) {
+        window.clearTimeout(sceneDriveAutoTimerRef.current);
+        sceneDriveAutoTimerRef.current = null;
       }
     };
   }, []);
@@ -326,10 +358,16 @@ const TavernPageContent = ({
     setReplySuggestions(activeRoom?.replyOptions ?? []);
     setIsQuickSummaryBusy(false);
     setIsManagedAutoRunStarted(false);
+    setIsSceneDriveAutoRunning(false);
     if (managedAutoRunTimerRef.current !== null) {
       window.clearTimeout(managedAutoRunTimerRef.current);
       managedAutoRunTimerRef.current = null;
     }
+    if (sceneDriveAutoTimerRef.current !== null) {
+      window.clearTimeout(sceneDriveAutoTimerRef.current);
+      sceneDriveAutoTimerRef.current = null;
+    }
+    sceneDriveAutoRunCountRef.current = 0;
   }, [activeRoom?.id, activeRoom?.activeSceneId]);
 
   const scrollMessagesToBottom = useCallback(() => {
@@ -711,12 +749,14 @@ const TavernPageContent = ({
     event?: FormEvent,
     submittedText?: string,
     selectedReplyOption?: TavernReplyOption,
+    trigger?: { type: "user" | "scene_drive"; directive?: string },
   ) => {
     await submitRoomTurn({
       ctx,
       event,
       submittedText,
       selectedReplyOption,
+      trigger,
       ambiguousFileReferences,
       readReferencedFiles,
       referencedFilePreviews,
@@ -729,6 +769,29 @@ const TavernPageContent = ({
     referencedFilePreviews,
     unresolvedFileReferences,
   ]);
+
+  const handleSceneDriveTurn = useCallback(async () => {
+    await handleSubmit(undefined, undefined, undefined, {
+      type: "scene_drive",
+      directive: draft,
+    });
+  }, [draft, handleSubmit]);
+
+  const clearSceneDriveAutoTimer = useCallback(() => {
+    if (sceneDriveAutoTimerRef.current !== null) {
+      window.clearTimeout(sceneDriveAutoTimerRef.current);
+      sceneDriveAutoTimerRef.current = null;
+    }
+  }, []);
+
+  const stopSceneDriveAuto = useCallback((statusText?: string) => {
+    clearSceneDriveAutoTimer();
+    sceneDriveAutoRunCountRef.current = 0;
+    setIsSceneDriveAutoRunning(false);
+    if (statusText) {
+      setTurnStatus(statusText);
+    }
+  }, [clearSceneDriveAutoTimer, setTurnStatus]);
 
   const handleComposerKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
@@ -744,6 +807,9 @@ const TavernPageContent = ({
   const handleToggleManagedMode = useCallback(() => {
     setIsManagedModeEnabled((current) => {
       const next = !current;
+      if (next) {
+        stopSceneDriveAuto();
+      }
       if (!next) {
         setIsManagedAutoRunStarted(false);
         if (managedAutoRunTimerRef.current !== null) {
@@ -753,7 +819,48 @@ const TavernPageContent = ({
       }
       return next;
     });
-  }, []);
+  }, [stopSceneDriveAuto]);
+
+  const handleToggleSceneDriveAuto = useCallback(() => {
+    if (isSceneDriveAutoRunning) {
+      stopSceneDriveAuto("自动自推已停止。");
+      return;
+    }
+
+    if (isSending) {
+      return;
+    }
+
+    if (!activeRoom) {
+      setError("当前房间还没有可推进的场景。");
+      return;
+    }
+
+    const pauseReason = getSceneDriveAutoPauseReason(activeRoom);
+    if (pauseReason) {
+      setTurnStatus(pauseReason);
+      return;
+    }
+
+    setError("");
+    setIsManagedAutoRunStarted(false);
+    if (managedAutoRunTimerRef.current !== null) {
+      window.clearTimeout(managedAutoRunTimerRef.current);
+      managedAutoRunTimerRef.current = null;
+    }
+    setIsSceneDriveAutoRunning(true);
+    sceneDriveAutoRunCountRef.current = 1;
+    void handleSceneDriveTurn();
+  }, [
+    activeRoom,
+    handleSceneDriveTurn,
+    isSceneDriveAutoRunning,
+    isSending,
+    setError,
+    setIsManagedAutoRunStarted,
+    setTurnStatus,
+    stopSceneDriveAuto,
+  ]);
 
   useEffect(() => {
     if (
@@ -800,6 +907,68 @@ const TavernPageContent = ({
     isManagedModeEnabled,
     isSending,
     roomMessages,
+    viewMode,
+  ]);
+
+  useEffect(() => {
+    if (!isSceneDriveAutoRunning) {
+      clearSceneDriveAutoTimer();
+      return;
+    }
+
+    if (viewMode !== "room" || !activeRoom) {
+      stopSceneDriveAuto();
+      return;
+    }
+
+    if (error) {
+      stopSceneDriveAuto();
+      return;
+    }
+
+    if (isSending) {
+      clearSceneDriveAutoTimer();
+      return;
+    }
+
+    const latestRoomMessage = roomMessages[roomMessages.length - 1] ?? null;
+    if (latestRoomMessage?.status === "streaming") {
+      return;
+    }
+
+    if (latestRoomMessage?.status === "error") {
+      stopSceneDriveAuto("自动自推已暂停：上一轮回应失败。");
+      return;
+    }
+
+    const pauseReason = getSceneDriveAutoPauseReason(activeRoom);
+    if (pauseReason) {
+      stopSceneDriveAuto(pauseReason);
+      return;
+    }
+
+    if (sceneDriveAutoRunCountRef.current >= TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS) {
+      stopSceneDriveAuto(`自动自推已暂停：已连续推进 ${TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS} 轮。`);
+      return;
+    }
+
+    clearSceneDriveAutoTimer();
+    sceneDriveAutoTimerRef.current = window.setTimeout(() => {
+      sceneDriveAutoTimerRef.current = null;
+      sceneDriveAutoRunCountRef.current += 1;
+      void handleSceneDriveTurn();
+    }, TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS);
+
+    return clearSceneDriveAutoTimer;
+  }, [
+    activeRoom,
+    clearSceneDriveAutoTimer,
+    error,
+    handleSceneDriveTurn,
+    isSceneDriveAutoRunning,
+    isSending,
+    roomMessages,
+    stopSceneDriveAuto,
     viewMode,
   ]);
 
@@ -910,20 +1079,28 @@ const TavernPageContent = ({
         <main className="flex min-h-0 min-w-0 flex-col">
           <Header
             isManagedModeEnabled={isManagedModeEnabled}
+            isSceneDriveAutoRunning={isSceneDriveAutoRunning}
             isSidePanelOpen={isSidePanelOpen}
             onBack={() => {
               sidePanelRef.current?.hide();
               setIsManagedAutoRunStarted(false);
+              setIsSceneDriveAutoRunning(false);
               if (managedAutoRunTimerRef.current !== null) {
                 window.clearTimeout(managedAutoRunTimerRef.current);
                 managedAutoRunTimerRef.current = null;
               }
+              clearSceneDriveAutoTimer();
+              sceneDriveAutoRunCountRef.current = 0;
               setViewMode("home");
             }}
             onOpenQuickSummary={() => {
               quickSummaryRef.current?.();
             }}
             onSelectScene={(sceneId) => selectRoomScene(activeRoom.id, sceneId)}
+            onSceneDriveTurn={() => {
+              void handleSceneDriveTurn();
+            }}
+            onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
             onToggleManagedMode={handleToggleManagedMode}
             onToggleSidePanel={() => {
               sidePanelRef.current?.toggle();

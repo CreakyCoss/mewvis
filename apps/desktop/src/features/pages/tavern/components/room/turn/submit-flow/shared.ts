@@ -110,10 +110,12 @@ export const shouldCompactCharacterKnowledgeAfterTurn = (
 export type TavernReplyMode = NonNullable<TavernRoom["replyMode"]>;
 export type TavernPendingInteractions = NonNullable<TavernRoom["pendingInteractions"]>;
 export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeModelOption;
+export type TurnTriggerType = "user" | "scene_drive";
 
 export type TurnMode = {
   replyMode: TavernReplyMode;
   isManagedMode: boolean;
+  isSceneDriveMode: boolean;
   isDirectorLikeMode: boolean;
 };
 
@@ -128,6 +130,8 @@ export type TurnRuntimeState = {
   runtimeRoom: TavernRoom;
   runtimeMessages: TavernMessage[];
   turnMessages: TavernMessage[];
+  turnAnchorMessage: TavernMessage;
+  visibleUserMessage: TavernMessage | null;
   shouldRunAssetExtraction: boolean;
   shouldRunProgressTracking: boolean;
   shouldShowProgressTrace: boolean;
@@ -141,14 +145,17 @@ export type ActiveReplyRef = {
 export const resolveTurnMode = (
   room: TavernRoom,
   isManagedModeEnabled: boolean,
+  triggerType: TurnTriggerType = "user",
 ): TurnMode => {
   const replyMode = room.replyMode ?? "active";
-  const isManagedMode = isManagedModeEnabled;
+  const isSceneDriveMode = triggerType === "scene_drive";
+  const isManagedMode = isManagedModeEnabled && !isSceneDriveMode;
 
   return {
     replyMode,
     isManagedMode,
-    isDirectorLikeMode: replyMode === "director" || isManagedMode,
+    isSceneDriveMode,
+    isDirectorLikeMode: replyMode === "director" || isManagedMode || isSceneDriveMode,
   };
 };
 
@@ -279,7 +286,9 @@ export const beginTurnSubmission = ({
   ctx.patchRoom(room.id, {
     replyOptions: [],
   });
-  ctx.setTurnStatus(mode.isManagedMode
+  ctx.setTurnStatus(mode.isSceneDriveMode
+    ? "导演正在自推动场景..."
+    : mode.isManagedMode
     ? "导演正在调度你的回复..."
     : mode.isDirectorLikeMode
     ? "导演正在接收你的消息..."
@@ -369,23 +378,46 @@ export const createUserTurnMessage = ({
     : undefined,
 });
 
+export const createSceneDriveTurnAnchorMessage = ({
+  room,
+  directive,
+}: {
+  room: TavernRoom;
+  directive: string;
+}) => createTavernMessage({
+  roomId: room.id,
+  role: "narrator",
+  presentationProfileId: room.presentation?.profileId,
+  content: directive.trim()
+    ? `场景自推动：${directive.trim()}`
+    : "场景自推动",
+  status: "done",
+});
+
 export const createInitialTurnRuntime = ({
   room,
   roomMessages,
-  userMessage,
+  turnAnchorMessage,
+  visibleUserMessage,
   mode,
 }: {
   room: TavernRoom;
   roomMessages: TavernMessage[];
-  userMessage: TavernMessage;
+  turnAnchorMessage: TavernMessage;
+  visibleUserMessage: TavernMessage | null;
   mode: TurnMode;
 }): TurnRuntimeState => {
-  const runtimeMessages = [...roomMessages, userMessage];
+  const runtimeMessages = visibleUserMessage
+    ? [...roomMessages, visibleUserMessage]
+    : [...roomMessages];
+  const turnMessages = visibleUserMessage ? [visibleUserMessage] : [];
 
   return {
     runtimeRoom: room,
     runtimeMessages,
-    turnMessages: [userMessage],
+    turnMessages,
+    turnAnchorMessage,
+    visibleUserMessage,
     shouldRunAssetExtraction: shouldAutoExtractAssets(room, runtimeMessages),
     shouldRunProgressTracking: shouldAutoTrackProgress(room, runtimeMessages),
     shouldShowProgressTrace: room.settings.showExecutionTrace || mode.isDirectorLikeMode,
@@ -395,27 +427,35 @@ export const createInitialTurnRuntime = ({
 export const prepareTurnTraceAndUserMessage = ({
   ctx,
   room,
-  userMessage,
+  turnAnchorMessage,
+  visibleUserMessage,
   references,
   runtime,
   mode,
 }: {
   ctx: TavernPageContextValue;
   room: TavernRoom;
-  userMessage: TavernMessage;
+  turnAnchorMessage: TavernMessage;
+  visibleUserMessage: TavernMessage | null;
   references: TavernReferencedFile[];
   runtime: TurnRuntimeState;
   mode: TurnMode;
 }) => {
   // 提交流程真正开始后才清空输入和落地用户消息，保证前置失败不会改动页面。
-  ctx.setTurnStatus(mode.isDirectorLikeMode ? "导演正在准备角色状态..." : "正在准备对话...");
+  ctx.setTurnStatus(mode.isSceneDriveMode
+    ? "导演正在准备自推动轮次..."
+    : mode.isDirectorLikeMode
+    ? "导演正在准备角色状态..."
+    : "正在准备对话...");
   if (runtime.shouldShowProgressTrace) {
-    ctx.setExecutionTraceAnchorMessageId(userMessage.id);
+    ctx.setExecutionTraceAnchorMessageId(visibleUserMessage?.id ?? turnAnchorMessage.id);
     ctx.resetExecutionTrace([
       {
         id: "context",
-        label: "准备对话",
-        detail: "读取本轮用户输入与引用文件。",
+        label: mode.isSceneDriveMode ? "准备自推" : "准备对话",
+        detail: mode.isSceneDriveMode
+          ? "读取本轮导演方向与引用文件。"
+          : "读取本轮用户输入与引用文件。",
         status: "running",
       },
     ]);
@@ -425,11 +465,15 @@ export const prepareTurnTraceAndUserMessage = ({
   }
   ctx.setDraft("");
   ctx.setDraftCursor(0);
-  ctx.appendMessagesToRoom(room.id, [userMessage]);
+  if (visibleUserMessage) {
+    ctx.appendMessagesToRoom(room.id, [visibleUserMessage]);
+  }
   ctx.patchExecutionStep("context", {
     status: "done",
     detail: references.length
       ? `已加载 ${references.length} 个引用文件。`
+      : mode.isSceneDriveMode
+      ? "已准备自推动轮次。"
       : "已准备本轮对话。",
   });
 };

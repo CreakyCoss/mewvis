@@ -23,6 +23,7 @@ import type {
 import {
   findMissingSpeakerModel,
   requireTavernRuntimeModelInput,
+  type TurnMode,
 } from "./shared";
 
 const TAVERN_ILLUSTRATION_HINT_LIMIT = 24;
@@ -61,6 +62,7 @@ export const runDirectorTurn = async ({
   references,
   text,
   userMessage,
+  mode,
   selectedReplyOption,
   availableRoomCharacters,
   availableActiveCharacter,
@@ -74,6 +76,7 @@ export const runDirectorTurn = async ({
   references: TavernReferencedFile[];
   text: string;
   userMessage: TavernMessage;
+  mode: TurnMode;
   selectedReplyOption?: TavernReplyOption;
   availableRoomCharacters: TavernCharacter[];
   availableActiveCharacter: TavernCharacter | null;
@@ -107,6 +110,9 @@ export const runDirectorTurn = async ({
     messages: runtimeMessages,
     references,
     currentUserText: text,
+    turnTrigger: mode.isSceneDriveMode
+      ? { type: "scene_drive", directive: text }
+      : { type: "user" },
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     maxSpeakers: isTavernFixedOrderPhase(runtimeRoom)
       ? Math.max(1, availableRoomCharacters.length)
@@ -199,6 +205,9 @@ export const runDirectorTurn = async ({
     .filter((message): message is TavernMessage => Boolean(message));
   appendNarratorMessages(ambientActionMessages);
 
+  const illustrationSourceMessageIds = userMessage.role === "user"
+    ? [userMessage.id]
+    : turnMessages.map((message) => message.id).slice(-4);
   const illustrationHints = room.settings.illustrationHints.enabled
     ? (directorDecision.illustrationHints ?? [])
         .map((hint) => hint.trim())
@@ -206,7 +215,7 @@ export const runDirectorTurn = async ({
         .map((prompt) => createTavernIllustrationHint({
           prompt,
           turnId: userMessage.turnId ?? userMessage.id,
-          sourceMessageIds: [userMessage.id],
+          sourceMessageIds: illustrationSourceMessageIds,
         }))
     : [];
   if (illustrationHints.length > 0) {

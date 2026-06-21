@@ -4,6 +4,8 @@ import {
   Bot,
   PanelRightClose,
   PanelRightOpen,
+  Pause,
+  Sparkles,
   Wine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,10 +17,13 @@ import { SceneSelector } from "./scene-selector";
 
 type HeaderProps = {
   isManagedModeEnabled: boolean;
+  isSceneDriveAutoRunning: boolean;
   isSidePanelOpen: boolean;
   onBack?: () => void;
   onSelectScene: (sceneId: string) => void;
   onOpenQuickSummary: () => void;
+  onSceneDriveTurn: () => void;
+  onToggleSceneDriveAuto: () => void;
   onToggleManagedMode: () => void;
   onToggleSidePanel: () => void;
 };
@@ -28,10 +33,13 @@ const tavernHeaderActionButtonClassName =
 
 export const Header = ({
   isManagedModeEnabled,
+  isSceneDriveAutoRunning,
   isSidePanelOpen,
   onBack,
   onSelectScene,
   onOpenQuickSummary,
+  onSceneDriveTurn,
+  onToggleSceneDriveAuto,
   onToggleManagedMode,
   onToggleSidePanel,
 }: HeaderProps) => {
@@ -39,6 +47,7 @@ export const Header = ({
     activeRoom,
     visualPreset,
     isQuickSummaryBusy,
+    isSending,
   } = useTavernPageContext();
   if (!activeRoom) {
     return null;
@@ -95,6 +104,44 @@ export const Header = ({
             onSelectScene={onSelectScene}
           />
         </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={tavernHeaderActionButtonClassName}
+          title={isSending ? "正在回应" : "自推动一轮"}
+          aria-label={isSending ? "正在回应" : "自推动一轮"}
+          disabled={isSending || isSceneDriveAutoRunning}
+          onClick={onSceneDriveTurn}
+        >
+          <Sparkles className="size-4" />
+          <span className="hidden text-xs font-medium sm:inline">
+            自推
+          </span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={cn(
+            tavernHeaderActionButtonClassName,
+            isSceneDriveAutoRunning && "border-current/30 bg-current/15 text-current",
+          )}
+          title={isSceneDriveAutoRunning ? "停止自动自推" : "自动自推"}
+          aria-label={isSceneDriveAutoRunning ? "停止自动自推" : "自动自推"}
+          aria-pressed={isSceneDriveAutoRunning}
+          disabled={isSending && !isSceneDriveAutoRunning}
+          onClick={onToggleSceneDriveAuto}
+        >
+          {isSceneDriveAutoRunning ? (
+            <Pause className="size-4" />
+          ) : (
+            <Sparkles className="size-4" />
+          )}
+          <span className="hidden text-xs font-medium sm:inline">
+            {isSceneDriveAutoRunning ? "停止" : "自动"}
+          </span>
+        </Button>
         <Button
           type="button"
           size="sm"

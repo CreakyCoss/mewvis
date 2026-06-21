@@ -86,6 +86,7 @@ export const buildTavernCharacterTurnInstruction = ({
   replyMode,
   isDirectorLikeMode,
   isManagedMode,
+  isSceneDriveMode = false,
   directorReason,
   promptVariant = DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
   allowNonverbalReply = false,
@@ -97,6 +98,7 @@ export const buildTavernCharacterTurnInstruction = ({
   replyMode: TavernRoom["replyMode"];
   isDirectorLikeMode: boolean;
   isManagedMode: boolean;
+  isSceneDriveMode?: boolean;
   directorReason?: string | null;
   promptVariant?: TavernCharacterPromptVariant;
   allowNonverbalReply?: boolean;
@@ -159,10 +161,12 @@ export const buildTavernCharacterTurnInstruction = ({
   }
 
   return [
-    `${isManagedMode ? "全托管导演" : "导演调度"}选择你作为第 ${speakerIndex + 1}/${speakerCount} 位发言者。`,
+    `${isSceneDriveMode ? "场景自推动导演" : isManagedMode ? "全托管导演" : "导演调度"}选择你作为第 ${speakerIndex + 1}/${speakerCount} 位发言者。`,
     directorReason ? `导演意图：${directorReason}` : "",
     speakerIndex === 0
-      ? "回应用户输入，并顺着当前场景目标推进。"
+      ? isSceneDriveMode
+        ? "本轮没有用户角色发言；承接最近公开内容、当前场景目标和导演意图推进，不要替用户说话或做选择。"
+        : "回应用户输入，并顺着当前场景目标推进。"
       : "前面角色已经回应，请承接他们的信息，不要重复复述。",
     ownReplyInstruction,
     "不要输出任何角色名加冒号的发言人标签。",
