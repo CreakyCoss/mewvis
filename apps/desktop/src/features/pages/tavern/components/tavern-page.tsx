@@ -13,7 +13,6 @@ import {
   type RuntimeModelOption,
 } from "@/features/pages/settings/llm/store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import {
   readWorkspaceFile,
@@ -62,6 +61,7 @@ import { MessageRow } from "./room/message-row";
 import { ProgressPanel } from "./room/progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./room/quick-summary";
 import { SceneBriefCard } from "./room/scene-brief-card";
+import { SceneSelector } from "./room/scene-selector";
 import { SidePanel, type SidePanelHandle } from "./room/side-panel";
 import { submitRoomTurn } from "./room/turn/submit";
 
@@ -948,31 +948,24 @@ const TavernPageContent = ({
             >
               <SceneBriefCard
                 className={cn(
-                  "self-center",
+                  "w-full self-center",
                   isSidePanelOpen
-                    ? "lg:w-[min(calc(100vw-400px),56rem)]"
-                    : "md:w-[min(calc(100vw-2.5rem),56rem)]",
+                    ? "max-w-[44rem]"
+                    : "max-w-[46rem]",
                 )}
                 visualPreset={visualPreset}
                 content={sceneBriefContent}
                 sceneSelector={(
-                  <NativeSelect
-                    value={activeRoom.activeSceneId ?? activeRoom.scenes?.[0]?.id ?? ""}
-                    className="h-9 min-w-0 bg-current/5 text-xs text-current"
-                    aria-label="选择场景"
-                    onChange={(event) => selectRoomScene(activeRoom.id, event.target.value)}
-                  >
-                    {(activeRoom.scenes ?? []).map((scene) => (
-                      <NativeSelectOption key={scene.id} value={scene.id}>
-                        {scene.title}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                  <SceneSelector
+                    scenes={activeRoom.scenes ?? []}
+                    activeSceneId={activeRoom.activeSceneId}
+                    onSelectScene={(sceneId) => selectRoomScene(activeRoom.id, sceneId)}
+                  />
                 )}
                 progressSlot={(
                   <ProgressPanel
                     placement="sceneHeader"
-                    className="mt-3"
+                    className="mt-2"
                   />
                 )}
               />

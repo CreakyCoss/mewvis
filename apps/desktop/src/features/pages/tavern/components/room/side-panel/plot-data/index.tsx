@@ -105,7 +105,7 @@ const PlotDataCard = ({
   return (
     <button
       type="button"
-      className="flex min-h-[58px] min-w-0 items-center gap-2.5 rounded-lg border border-current/10 bg-background/45 px-2.5 py-2 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-[58px] min-w-0 items-center gap-2.5 rounded-lg border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] px-2.5 py-2 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       title={`${data.title}：${data.summary}`}
       aria-label={`${data.title}：${data.summary}`}
       onClick={() => data.bindRef.current?.open()}
@@ -141,7 +141,7 @@ const PlotDataHeader = ({
       type="button"
       size="xs"
       variant="outline"
-      className="shrink-0 rounded-full border-primary/25 bg-background/45 px-2.5 text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+      className="shrink-0 rounded-full border-primary/25 bg-current/[0.055] dark:bg-current/[0.075] px-2.5 text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
       disabled={isBusy}
       onClick={onExtractRecentAssets}
     >

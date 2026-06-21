@@ -28,26 +28,26 @@ export const PrivateIntelDialog = ({ bind }: PlotDataDialogProps) => {
       {privateIntelEvents.length > 0 ? (
         <div className="space-y-3">
           {privateIntelEvents.slice().reverse().map((event) => (
-            <div key={event.id} className="rounded-md border bg-background/60 p-3">
+            <div key={event.id} className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                   {event.type}
                 </span>
-                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                   {event.visibility ?? "public"}
                 </span>
                 {event.revealWhen && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                     {event.revealWhen}
                   </span>
                 )}
                 {isHiddenFactEvent(event) && (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                     {formatFactAudience(event, characterNameById)}
                   </span>
                 )}
               </div>
-              <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+              <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-current/70">
                 {event.evidence}
               </div>
             </div>

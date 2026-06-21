@@ -110,16 +110,16 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
       description="切换公开、复盘和导演视角，管理可揭示事实。"
     >
       <div className="space-y-4">
-        <div className="rounded-md border bg-background/60 p-3">
+        <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-sm font-medium">{informationViewLabels[currentInformationView]}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
+              <div className="mt-0.5 text-xs text-current/70">
                 {informationViewDescriptions[currentInformationView]}
               </div>
             </div>
             {activeRoom?.outcomeEvents.some((event) => event.status === "applied") && (
-              <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-md bg-current/10 px-2 py-0.5 text-[11px] text-current/70">
                 已结局
               </span>
             )}
@@ -144,11 +144,11 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
         </div>
 
         {roleAssignment?.enabled && (
-          <div className="rounded-md border bg-background/60 p-3">
+          <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">身份分配</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
+                <div className="mt-0.5 text-xs text-current/70">
                   {roleAssignment.rolePool.length} 种身份，已生成 {generatedRoleAssignmentCount} 条身份事实
                 </div>
               </div>
@@ -168,7 +168,7 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                 {roleAssignment.rolePool.map((role) => (
                   <span
                     key={role.id}
-                    className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground"
+                    className="rounded-md bg-current/10 px-2 py-1 text-[11px] text-current/70"
                   >
                     {role.label} x{role.count}
                     {role.factionId ? ` / ${role.factionLabel || role.factionId}` : ""}
@@ -180,18 +180,18 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
         )}
 
         {identityFactEvents.length > 0 && (
-          <div className="space-y-2 rounded-md border bg-background/60 p-3">
+          <div className="space-y-2 rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
             <div className="text-sm font-medium">身份牌</div>
             {identityFactEvents.map((event) => (
               <div
                 key={event.id}
-                className="rounded-md bg-muted/60 px-3 py-2 text-sm leading-6 text-muted-foreground"
+                className="rounded-md bg-current/[0.075] dark:bg-current/[0.1] px-3 py-2 text-sm leading-6 text-current/70"
               >
                 <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-md bg-background px-1.5 py-0.5 text-[11px]">
+                  <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px]">
                     {formatFactType(event.type)}
                   </span>
-                  <span className="rounded-md bg-background px-1.5 py-0.5 text-[11px]">
+                  <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px]">
                     仅你可见
                   </span>
                 </div>
@@ -206,7 +206,7 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
             <div className="text-sm font-medium">
               当前可见事实
             </div>
-            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+            <span className="rounded-md bg-current/10 px-2 py-0.5 text-[11px] text-current/70">
               {reviewFactEvents.length} 条
             </span>
           </div>
@@ -214,12 +214,12 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
             reviewFactEvents.slice().reverse().map((event) => {
               const hidden = isHiddenFactEvent(event);
               return (
-                <div key={event.id} className="space-y-2 rounded-md border bg-background/60 p-3">
+                <div key={event.id} className="space-y-2 rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                    <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                       {formatFactType(event.type)}
                     </span>
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                    <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                       {event.visibility ?? "public"}
                     </span>
                     {event.visibleToUser && (
@@ -228,17 +228,17 @@ export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                       </span>
                     )}
                     {event.revealWhen && (
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                         {event.revealWhen}
                       </span>
                     )}
                     {hidden && (
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
                         {formatFactAudience(event, characterNameById)}
                       </span>
                     )}
                   </div>
-                  <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                  <div className="whitespace-pre-wrap text-sm leading-6 text-current/70">
                     {event.evidence}
                   </div>
                   {hidden && currentInformationView === "director" && (

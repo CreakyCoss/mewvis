@@ -2,17 +2,16 @@ import {
   ArrowLeft,
   BookOpen,
   Bot,
-  Clapperboard,
   PanelRightClose,
   PanelRightOpen,
   Wine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "../../utils";
 import { useTavernPageContext } from "../context";
+import { SceneSelector } from "./scene-selector";
 
 type HeaderProps = {
   isManagedModeEnabled: boolean;
@@ -89,20 +88,12 @@ export const Header = ({
             </p>
           </div>
         </div>
-        <div className="hidden min-w-[180px] max-w-[260px] items-center gap-1.5 md:flex">
-          <Clapperboard className="size-4 shrink-0 text-current opacity-70" />
-          <NativeSelect
-            value={activeRoom.activeSceneId ?? scenes[0]?.id ?? ""}
-            className="h-9 min-w-0 bg-current/5 text-xs text-current"
-            aria-label="选择场景"
-            onChange={(event) => onSelectScene(event.target.value)}
-          >
-            {scenes.map((scene) => (
-              <NativeSelectOption key={scene.id} value={scene.id}>
-                {scene.title}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+        <div className="hidden min-w-[220px] max-w-[280px] md:flex">
+          <SceneSelector
+            scenes={scenes}
+            activeSceneId={activeRoom.activeSceneId}
+            onSelectScene={onSelectScene}
+          />
         </div>
         <Button
           type="button"

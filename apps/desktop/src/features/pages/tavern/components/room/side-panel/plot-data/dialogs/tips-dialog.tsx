@@ -27,11 +27,11 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
     >
       {activeRoom ? (
         <div className="space-y-4">
-          <div className="rounded-md border bg-background/60 p-3">
+          <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">沉浸描写</div>
-                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                <div className="mt-0.5 text-xs leading-5 text-current/70">
                   动作、神态、感官与环境互动
                 </div>
               </div>
@@ -48,7 +48,7 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
                 })}
               />
             </div>
-            <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+            <div className="mt-3 grid gap-1.5 text-xs text-current/70">
               {sceneStatusItems.map((item) => (
                 <div key={item}>{item}</div>
               ))}
@@ -57,7 +57,7 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
           <TextBlock label="场景描述" value={activeRoom.scene} />
           <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
           <TextBlock label="房间记忆" value={activeRoom.memory} />
-          <div className="rounded-md border bg-background/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] px-4 py-3 text-sm leading-6 text-current/70">
             剧情时间线和世界书是酒馆共享资产；入席角色、场景设定和阶段记忆在对应故事场景中维护。
           </div>
         </div>

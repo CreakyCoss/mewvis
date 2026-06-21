@@ -529,7 +529,7 @@ const OverviewHeader = ({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-current/10 bg-background/45 text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="查看对话设置"
             >
               <Settings className="size-4" />
@@ -560,7 +560,7 @@ const SectionCard = ({
   children: ReactNode;
   className?: string;
 }) => (
-  <div className={`rounded-xl border border-current/10 bg-background/35 text-current shadow-sm ${className}`}>
+  <div className={`rounded-xl border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] text-current shadow-sm ${className}`}>
     {children}
   </div>
 );
@@ -605,7 +605,7 @@ const GoalCard = ({
         <div className="mt-1 line-clamp-2 text-[13px] font-semibold leading-5">
           {compactText(sceneGoal)}
         </div>
-        <div className="mt-0.5 text-[11px] leading-4 text-current/55">
+        <div className="mt-0.5 text-[11px] leading-4 text-current/65">
           当前回合最优先处理事项
         </div>
       </div>
@@ -637,7 +637,7 @@ const SituationCard = ({
       <div className="mt-3 rounded-lg border border-current/10 bg-current/5 px-3 py-2.5">
         <div className="flex min-w-0 items-end justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] leading-none text-current/50">
+            <div className="text-[11px] leading-none text-current/60">
               关注指标
             </div>
             <div className="mt-1 truncate text-[13px] font-semibold">
@@ -648,7 +648,7 @@ const SituationCard = ({
             <span className="text-lg font-semibold leading-none text-primary tabular-nums">
               {valueText}
             </span>
-            <span className="ml-0.5 text-xs text-current/45 tabular-nums">
+            <span className="ml-0.5 text-xs text-current/60 tabular-nums">
               /{maxText}
             </span>
           </div>
@@ -659,7 +659,7 @@ const SituationCard = ({
             className={situationMeterClassName(metric)}
           />
         </div>
-        <div className="mt-1 flex items-center justify-between text-[10px] leading-none text-current/40">
+        <div className="mt-1 flex items-center justify-between text-[10px] leading-none text-current/65">
           <span>低</span>
           <span>高</span>
         </div>
@@ -710,7 +710,7 @@ const PendingStatusEvents = ({
                   )}
                 </div>
               </div>
-              <div className="shrink-0 text-[11px] text-current/55">
+              <div className="shrink-0 text-[11px] text-current/65">
                 {Math.round(event.confidence * 100)}%
               </div>
             </div>
@@ -796,7 +796,7 @@ const TaskMetricTrack = ({
   return (
     <span className="mt-2.5 block space-y-1.5">
       <span className="flex min-w-0 items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] leading-4 text-current/55">
+        <span className="min-w-0 truncate text-[11px] leading-4 text-current/65">
           {metric.label}
         </span>
         {metric.targetText && (
@@ -836,7 +836,7 @@ const TaskCard = ({
 }) => (
   <button
     type="button"
-    className="block w-full min-w-0 rounded-lg border border-current/10 bg-background/45 px-3 py-3 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="block w-full min-w-0 rounded-lg border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] px-3 py-3 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     onClick={onClick}
   >
     <span className="flex min-w-0 items-start justify-between gap-3">
@@ -853,7 +853,7 @@ const TaskCard = ({
       </span>
       {data.metric && (
         <span className="shrink-0 text-right">
-          <span className="block text-[11px] leading-none text-current/50">当前</span>
+          <span className="block text-[11px] leading-none text-current/60">当前</span>
           <span className="mt-1 block text-[13px] font-semibold leading-none text-primary tabular-nums">
             {data.metric.valueText}
           </span>
@@ -887,7 +887,7 @@ const TasksSection = ({
         ))}
       </div>
     ) : (
-      <div className="rounded-lg border border-current/10 bg-background/45 px-3 py-4 text-center text-xs text-current/60">
+      <div className="rounded-lg border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] px-3 py-4 text-center text-xs text-current/60">
         当前没有进行中的任务。
       </div>
     )}
@@ -907,7 +907,7 @@ const DetailRow = ({
 }) => (
   <button
     type="button"
-    className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-current/10 bg-background/45 px-3 py-2.5 text-left text-current transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="flex w-full min-w-0 items-center gap-3 rounded-lg border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] px-3 py-2.5 text-left text-current transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     onClick={onClick}
   >
     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -919,7 +919,7 @@ const DetailRow = ({
         {summary}
       </span>
     </span>
-    <ChevronDown className="size-4 shrink-0 text-current/50" />
+    <ChevronDown className="size-4 shrink-0 text-current/60" />
   </button>
 );
 
@@ -944,7 +944,7 @@ const SceneDetailsSection = ({
 }) => (
   <SectionCard className="space-y-2 px-3 py-3">
     <CardHeading icon={BookOpen}>场景详情</CardHeading>
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-current/10 bg-background/45 px-3 py-2.5 text-current">
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] px-3 py-2.5 text-current">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Eye className="size-4" />
       </span>
@@ -1003,7 +1003,7 @@ const ToolActionsSection = ({
         type="button"
         size="xs"
         variant="outline"
-        className="h-8 border-primary/35 bg-background/45 text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+        className="h-8 border-primary/35 bg-current/[0.055] dark:bg-current/[0.075] text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
         disabled={isBusy}
         onClick={onTrackRecentProgress}
       >
@@ -1018,7 +1018,7 @@ const ToolActionsSection = ({
         type="button"
         size="xs"
         variant="outline"
-        className="h-8 border-primary/35 bg-background/45 text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+        className="h-8 border-primary/35 bg-current/[0.055] dark:bg-current/[0.075] text-xs text-primary hover:bg-primary/10 hover:text-primary disabled:opacity-50"
         disabled={isBusy}
         onClick={onRebuildProgress}
       >

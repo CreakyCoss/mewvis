@@ -61,7 +61,7 @@ export const CharacterMetricView = ({
 
   if (variant === "featured") {
     return (
-      <div className="min-w-0 rounded-lg border border-current/10 bg-background/60 px-2 py-1.5 shadow-sm">
+      <div className="min-w-0 rounded-lg border border-current/10 bg-current/[0.065] dark:bg-current/[0.09] px-2 py-1.5 shadow-sm">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-current/75">
             <Icon className="size-3.5 shrink-0 text-primary" />
@@ -70,7 +70,7 @@ export const CharacterMetricView = ({
           <span className="shrink-0 text-xs font-semibold tabular-nums">
             {value}
             {isNumeric && (
-              <span className="ml-0.5 text-[11px] font-normal text-current/55">/{maxValue}</span>
+              <span className="ml-0.5 text-[11px] font-normal text-current/65">/{maxValue}</span>
             )}
           </span>
         </div>
@@ -93,7 +93,7 @@ export const CharacterMetricView = ({
         <span className="shrink-0 text-[13px] font-semibold leading-none tabular-nums text-current/90">
           {value}
           {isNumeric && (
-            <span className="ml-0.5 text-[11px] font-normal text-current/50">/{maxValue}</span>
+            <span className="ml-0.5 text-[11px] font-normal text-current/60">/{maxValue}</span>
           )}
         </span>
       </div>

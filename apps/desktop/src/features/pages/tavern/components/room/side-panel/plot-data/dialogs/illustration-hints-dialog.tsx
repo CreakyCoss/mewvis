@@ -59,12 +59,12 @@ export const IllustrationHintsDialog = ({ bind, isBusy }: PlotDataDialogProps) =
           {activeRoom?.illustrationHints.length ? (
             <div className="space-y-3">
               {activeRoom.illustrationHints.slice().reverse().map((hint, index) => (
-                <div key={hint.id} className="rounded-md border bg-background/60 p-3">
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div key={hint.id} className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
+                  <div className="flex items-center justify-between gap-2 text-xs text-current/70">
                     <span>#{activeRoom.illustrationHints.length - index}</span>
                     <span>{new Date(hint.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                  <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-current/70">
                     {hint.prompt}
                   </div>
                 </div>

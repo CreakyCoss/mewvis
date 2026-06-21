@@ -35,7 +35,7 @@ export const DetailEntry = ({
 }) => (
   <button
     type="button"
-    className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-current/10 bg-background/35 px-3 py-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] px-3 py-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     onClick={onClick}
   >
     <Icon className="size-4 shrink-0 text-primary" />
@@ -89,7 +89,7 @@ export const EmptyPanelCard = ({
 }: {
   children: ReactNode;
 }) => (
-  <div className="rounded-lg border border-current/10 bg-background/35 px-3 py-4 text-center text-xs leading-5 text-current opacity-70 shadow-sm">
+  <div className="rounded-lg border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] px-3 py-4 text-center text-xs leading-5 text-current opacity-70 shadow-sm">
     {children}
   </div>
 );

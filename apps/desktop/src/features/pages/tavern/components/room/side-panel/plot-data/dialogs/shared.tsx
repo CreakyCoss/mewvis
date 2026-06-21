@@ -43,7 +43,7 @@ export const replyModeDescriptions = {
 } as const;
 
 export const EmptyDetailState = ({ children }: { children: ReactNode }) => (
-  <div className="rounded-md border bg-background/60 px-4 py-8 text-center text-sm text-muted-foreground">
+  <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] px-4 py-8 text-center text-sm text-current/70">
     {children}
   </div>
 );

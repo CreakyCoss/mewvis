@@ -33,7 +33,7 @@ export const IllustrationHintsPreviewSection = () => {
           recentIllustrationHints.map((hint) => (
             <div
               key={hint.id}
-              className="rounded-lg border border-current/10 bg-background/35 px-3 py-2.5 text-[11px] leading-4 text-current shadow-sm"
+              className="rounded-lg border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] px-3 py-2.5 text-[11px] leading-4 text-current shadow-sm"
             >
               {hint.prompt}
             </div>

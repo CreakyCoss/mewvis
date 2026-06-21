@@ -29,7 +29,7 @@ const CharacterCardContent = ({
           <img
             src={avatar}
             alt=""
-            className="size-12 shrink-0 rounded-lg border border-background/70 bg-background/40 object-cover shadow-sm"
+            className="size-12 shrink-0 rounded-lg border border-current/15 bg-current/[0.045] dark:bg-current/[0.065] object-cover shadow-sm"
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center">
@@ -53,7 +53,7 @@ const CharacterCardContent = ({
             ))}
           </span>
         ) : (
-          <span className="block rounded-lg border border-current/10 bg-background/55 px-3 py-2.5 text-xs text-current/65">
+          <span className="block rounded-lg border border-current/10 bg-current/[0.06] dark:bg-current/[0.085] px-3 py-2.5 text-xs text-current/65">
             暂无可见状态
           </span>
         )}
@@ -66,7 +66,7 @@ const CharacterCardContent = ({
       <img
         src={avatar}
         alt=""
-        className="size-10 shrink-0 rounded-lg border border-background/70 bg-background/40 object-cover shadow-sm"
+        className="size-10 shrink-0 rounded-lg border border-current/15 bg-current/[0.045] dark:bg-current/[0.065] object-cover shadow-sm"
       />
       <span className="min-w-[3.5rem] max-w-[4.5rem] truncate text-[13px] font-semibold leading-tight">
         {character.name}
@@ -80,7 +80,7 @@ const CharacterCardContent = ({
           <span className="col-span-2 text-[11px] text-current/65">暂无可见状态</span>
         )}
       </span>
-      <ChevronRight className="size-4 shrink-0 text-current/50" />
+      <ChevronRight className="size-4 shrink-0 text-current/60" />
     </span>
   );
 };
@@ -123,7 +123,7 @@ export const CharacterStatusRow = ({
       <button
         type="button"
         className={cn(
-          "w-full min-w-0 rounded-xl border border-current/10 bg-background/45 p-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60",
+          "w-full min-w-0 rounded-xl border border-current/10 bg-current/[0.055] dark:bg-current/[0.075] p-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60",
           isActive && "border-primary/30 bg-primary/10 ring-1 ring-primary/10",
         )}
         disabled={disabled}
