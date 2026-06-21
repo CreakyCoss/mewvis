@@ -1,4 +1,5 @@
-import { Activity, CheckCircle2, Circle, Trophy } from "lucide-react";
+import { Activity, CheckCircle2, Circle, Heart, Swords, Trophy } from "lucide-react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { cn } from "@/lib/utils";
 import {
   getTavernStatusSnapshotValue,
@@ -13,6 +14,7 @@ import type {
   TavernStatusTargetRef,
   TavernStatusValue,
 } from "../../types";
+import type { VisualPresetDefinition } from "../../visual-presets";
 import { useTavernPageContext } from "../context";
 
 type ProgressPanelProps = {
@@ -25,6 +27,7 @@ type ResolvedStatusTarget = {
   key: string;
   label: string;
   target: TavernStatusTargetRef;
+  character?: TavernCharacter;
 };
 
 type ResolvedStatusItem = {
@@ -181,6 +184,7 @@ const resolveStatusTargets = ({
       key: `character:${character.id}`,
       label: character.name,
       target: { type: "character", characterId: character.id },
+      character,
     }));
   }
   if (definition.scope === "relationship") {
@@ -191,6 +195,7 @@ const resolveStatusTargets = ({
       return roomCharacters.map((character) => ({
         key: `relationship:${character.id}->user`,
         label: `${character.name} 对你`,
+        character,
         target: {
           type: "relationship",
           subject: characterRef(character),
@@ -202,6 +207,7 @@ const resolveStatusTargets = ({
       return [{
         key: `relationship:${activeCharacter.id}->user`,
         label: `${activeCharacter.name} 对你`,
+        character: activeCharacter,
         target: {
           type: "relationship",
           subject: characterRef(activeCharacter),
@@ -215,6 +221,7 @@ const resolveStatusTargets = ({
         .map((character) => ({
           key: `relationship:${activeCharacter.id}->${character.id}`,
           label: `${activeCharacter.name} 对 ${character.name}`,
+          character: activeCharacter,
           target: {
             type: "relationship",
             subject: characterRef(activeCharacter),
@@ -226,6 +233,7 @@ const resolveStatusTargets = ({
       return roomCharacters.map((character) => ({
         key: `relationship:user->${character.id}`,
         label: `你对 ${character.name}`,
+        character,
         target: {
           type: "relationship",
           subject: userRef,
@@ -240,6 +248,7 @@ const resolveStatusTargets = ({
           .map((object) => ({
             key: `relationship:${subject.id}->${object.id}`,
             label: `${subject.name} 对 ${object.name}`,
+            character: subject,
             target: {
               type: "relationship",
               subject: characterRef(subject),
@@ -252,6 +261,7 @@ const resolveStatusTargets = ({
       return [{
         key: `relationship:${ownerCharacter.id}->user`,
         label: `${ownerCharacter.name} 对你`,
+        character: ownerCharacter,
         target: {
           type: "relationship",
           subject: characterRef(ownerCharacter),
@@ -317,6 +327,129 @@ const StatusMetric = ({
 
 const compactRelationshipLabel = (label: string) => label.replace(/\s*对你$/, "");
 
+const isFavorabilityMetric = (metric: ResolvedStatusItem) =>
+  metric.definition.id === "favorability" || /好感/.test(metric.definition.label);
+
+const isHostilityMetric = (metric: ResolvedStatusItem) =>
+  metric.definition.id === "hostility" || /敌对|仇恨|威胁/.test(metric.definition.label);
+
+const numericMetricValue = (metric: ResolvedStatusItem) =>
+  typeof metric.value === "number" ? metric.value : null;
+
+const isRelationshipCardDanger = (metrics: ResolvedStatusItem[]) =>
+  metrics.some((metric) => {
+    const value = numericMetricValue(metric);
+    if (value === null) {
+      return false;
+    }
+    if (isFavorabilityMetric(metric)) {
+      return value < 0;
+    }
+    if (isHostilityMetric(metric)) {
+      return value > 0;
+    }
+    return false;
+  });
+
+const RelationshipCompactCard = ({
+  label,
+  character,
+  metrics,
+  visualPreset,
+}: {
+  label: string;
+  character?: TavernCharacter;
+  metrics: ResolvedStatusItem[];
+  visualPreset: VisualPresetDefinition;
+}) => {
+  const danger = isRelationshipCardDanger(metrics);
+  const avatar = character ? resolveAgentAvatar(character.avatar).src : null;
+  const displayLabel = character?.name ?? compactRelationshipLabel(label).replace(/^你对\s*/, "");
+  return (
+    <div
+      className={cn(
+        visualPreset.tavern.sceneCard,
+        "relative flex h-[34px] shrink-0 items-center overflow-hidden rounded-lg px-1.5 text-[11px] leading-none",
+        danger && "border-destructive/20 bg-destructive/5 dark:border-destructive/24 dark:bg-destructive/8",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          danger ? "text-destructive" : visualPreset.tavern.sceneBadge,
+          "pointer-events-none absolute inset-0 rounded-[inherit] bg-current/[0.12] ring-0",
+        )}
+        style={{
+          backgroundColor: danger
+            ? "color-mix(in srgb, currentColor 7%, transparent)"
+            : "color-mix(in srgb, currentColor 14%, transparent)",
+        }}
+      />
+      <div className="relative z-10 mr-1.5 size-6 shrink-0 overflow-hidden rounded-full border border-current/10 bg-muted">
+        {avatar ? (
+          <img
+            src={avatar}
+            alt=""
+            className="size-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="size-full bg-primary/10" />
+        )}
+      </div>
+      <span className="relative z-10 max-w-20 truncate pr-1.5 text-[12px] font-semibold">
+        {displayLabel}
+      </span>
+      <div className="relative z-10 h-4 w-px shrink-0 bg-current/10" />
+      <div className="relative z-10 flex items-center">
+        {metrics.map((metric) => {
+          const isHostility = isHostilityMetric(metric);
+          const isFavorability = isFavorabilityMetric(metric);
+          const value = numericMetricValue(metric);
+          const Icon = isHostility ? Swords : Heart;
+          return (
+            <div key={metric.key} className="flex items-center">
+              <span
+                className="inline-flex min-w-0 items-center gap-1 px-1.5 text-current/70"
+                title={`${metric.definition.label} ${formatStatusValue(metric.value)}`}
+              >
+                <span
+                  className={cn(
+                    visualPreset.tavern.sceneBadge,
+                    "inline-flex size-3 shrink-0 items-center justify-center bg-transparent p-0 ring-0 shadow-none",
+                    isFavorability && (value ?? 0) < 0
+                      ? "text-destructive/75"
+                      : isHostility && (value ?? 0) > 0
+                      ? "text-destructive/75"
+                      : undefined
+                  )}
+                >
+                  <Icon
+                    className="size-3"
+                    fill="currentColor"
+                    strokeWidth={isHostility ? 2.7 : 0}
+                  />
+                </span>
+                <span className="whitespace-nowrap tabular-nums font-medium text-current">
+                  {formatStatusValue(metric.value)}
+                  {metric.item.showDelta && metric.delta !== 0 && (
+                    <span className={cn("ml-1 tabular-nums", metric.delta > 0 ? "text-emerald-500" : "text-destructive")}>
+                      {metric.delta > 0 ? "+" : ""}{metric.delta}
+                    </span>
+                  )}
+                </span>
+              </span>
+              {metric !== metrics[metrics.length - 1] && (
+                <div className="h-4 w-px shrink-0 bg-current/10" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const isGroupedRelationshipView = (view: TavernProgressView) =>
   view.kind === "status" &&
   view.items.some((item) => item.type === "status") &&
@@ -333,6 +466,7 @@ const createGroupedRelationshipRows = ({
   activeCharacter,
   ownerCharacter,
   definitionById,
+  visualPreset,
 }: {
   view: TavernProgressView;
   activeRoom: TavernRoom;
@@ -340,9 +474,11 @@ const createGroupedRelationshipRows = ({
   activeCharacter: TavernCharacter | null;
   ownerCharacter?: TavernCharacter;
   definitionById: Map<string, TavernStatusDefinition>;
+  visualPreset: VisualPresetDefinition;
 }) => {
   const grouped = new Map<string, {
     label: string;
+    character?: TavernCharacter;
     metrics: ResolvedStatusItem[];
   }>();
 
@@ -387,8 +523,12 @@ const createGroupedRelationshipRows = ({
         : 0;
       const group = grouped.get(target.key) ?? {
         label: target.label,
+        character: target.character,
         metrics: [],
       };
+      if (!group.character && target.character) {
+        group.character = target.character;
+      }
       group.metrics.push({
         key: `${view.id}:${definition.id}:${statusTargetKey(target.target)}`,
         definition,
@@ -412,30 +552,13 @@ const createGroupedRelationshipRows = ({
         <div className="min-w-0 overflow-x-auto pb-0.5">
           <div className="flex min-w-max gap-2 pr-1">
             {groups.map(([key, group]) => (
-              <div
+              <RelationshipCompactCard
                 key={key}
-                className="flex h-8 shrink-0 items-center gap-2 rounded-md bg-current/5 px-2.5 text-xs text-current"
-              >
-                <span className="max-w-28 truncate font-medium">
-                  {compactRelationshipLabel(group.label)}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {group.metrics.map((metric) => (
-                    <span
-                      key={metric.key}
-                      className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 tabular-nums"
-                    >
-                      <span className="opacity-60">{metric.definition.label}</span>
-                      <span className="font-medium opacity-80">{formatStatusValue(metric.value)}</span>
-                      {metric.item.showDelta && metric.delta !== 0 && (
-                        <span className={cn(metric.delta > 0 ? "text-emerald-500" : "text-destructive")}>
-                          {metric.delta > 0 ? "+" : ""}{metric.delta}
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                label={group.label}
+                character={group.character}
+                metrics={group.metrics}
+                visualPreset={visualPreset}
+              />
             ))}
           </div>
         </div>
@@ -469,6 +592,7 @@ export const ProgressPanel = ({
     activeRoom,
     roomCharacters,
     activeCharacter,
+    visualPreset,
   } = useTavernPageContext();
   if (!activeRoom) {
     return null;
@@ -495,6 +619,7 @@ export const ProgressPanel = ({
           activeCharacter,
           ownerCharacter,
           definitionById,
+          visualPreset,
         })
       : [];
     const explicitRows = groupedRelationshipRows.length > 0 ? [] : view.items.flatMap((item) => {
@@ -643,6 +768,7 @@ export const ProgressPanel = ({
       id: view.id,
       label: view.label,
       layout: view.layout,
+      hideLabel: placement === "composerBelow" && groupedRelationshipRows.length > 0,
       rows,
     }];
   });
@@ -655,10 +781,12 @@ export const ProgressPanel = ({
     <div className={cn("space-y-3 text-current", className)}>
       {renderedViews.map((view) => (
         <section key={view.id} className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold opacity-80">
-            <Activity className="size-3.5 text-primary" />
-            {view.label}
-          </div>
+          {!view.hideLabel && (
+            <div className="flex items-center gap-2 text-xs font-semibold opacity-80">
+              <Activity className="size-3.5 text-primary" />
+              {view.label}
+            </div>
+          )}
           <div className={cn(
             view.layout === "grid" || view.layout === "matrix"
               ? "grid grid-cols-1 gap-2 sm:grid-cols-2"
