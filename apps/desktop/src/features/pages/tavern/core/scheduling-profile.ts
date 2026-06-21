@@ -22,6 +22,9 @@ import {
   getTavernStatusSnapshotValue,
   tavernRelationshipKey,
 } from "./progress-engine";
+import {
+  formatTavernCharacterRelationships,
+} from "./relationships";
 
 const PROFILE_TAG_LIMIT = 12;
 const PROFILE_TEXT_LIMIT = 160;
@@ -164,13 +167,14 @@ const extractLooseTags = (text: string, maxItems = 6) =>
   )].slice(0, maxItems);
 
 const inferSpeechBias = (character: TavernCharacter): TavernDirectorSpeechBias => {
+  const relationshipText = formatTavernCharacterRelationships({ character });
   const text = normalizeText([
     character.description,
     character.speakingStyle,
     character.writingStyle,
     character.replyStylePrompt,
     character.goals,
-    character.relationships,
+    relationshipText,
   ].filter(Boolean).join(" "));
   if (/沉默|寡言|冷淡|克制|谨慎|观察者|少言|不轻易|内敛|回避/u.test(text)) {
     return "low";
@@ -187,7 +191,8 @@ export const createTavernDirectorCharacterProfile = (
   const speechBias = inferSpeechBias(character);
   const descriptionTags = extractLooseTags(character.description);
   const goalTags = extractLooseTags(character.goals ?? "");
-  const relationshipTags = extractLooseTags(character.relationships ?? "", 4);
+  const relationshipText = formatTavernCharacterRelationships({ character });
+  const relationshipTags = extractLooseTags(relationshipText, 4);
 
   return {
     characterId: character.id,
@@ -199,7 +204,7 @@ export const createTavernDirectorCharacterProfile = (
     knowledgeTags: relationshipTags,
     conflictStyle: /回避|克制|谨慎|冷淡/u.test([
       character.description,
-      character.relationships,
+      relationshipText,
     ].join(" ")) ? "克制或回避" : undefined,
     socialStrategy: character.goals?.trim() || undefined,
     speechTriggers: goalTags,

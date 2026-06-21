@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/tooltip";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom } from "../../../../../types";
+import {
+  formatTavernCharacterRelationshipSummary,
+} from "../../../../../core/relationships";
 import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
 import {
   EditorSection,
@@ -72,6 +75,10 @@ export const CharactersSection = ({
               const referencedSceneCount = scenes.filter((scene) =>
                 scene.characterIds.includes(character.id)
               ).length;
+              const relationshipSummary = formatTavernCharacterRelationshipSummary({
+                character,
+                room: data,
+              });
 
               return (
                 <Tooltip key={character.id}>
@@ -167,7 +174,7 @@ export const CharactersSection = ({
                         <div>
                           <div className="font-medium text-background/90">关系</div>
                           <div className="mt-0.5 whitespace-pre-wrap text-background/80">
-                            {character.relationships || emptyValueText}
+                            {relationshipSummary || emptyValueText}
                           </div>
                         </div>
                       </div>

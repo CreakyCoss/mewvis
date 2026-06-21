@@ -12,6 +12,9 @@ import type {
 } from "../types";
 import { parseTavernReplyText } from "./reply-cleanup";
 import { getTavernPromptStylePreset } from "../prompt-styles";
+import {
+  formatTavernCharacterRelationships,
+} from "../core";
 
 const limitPromptText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
@@ -22,15 +25,30 @@ const formatCharacter = (
   character: TavernCharacter,
   {
     compact = false,
+    room,
+    characters = [],
   }: {
     compact?: boolean;
+    room?: TavernRoom;
+    characters?: TavernCharacter[];
   } = {},
-) => compact
+) => {
+  const relationships = room
+    ? formatTavernCharacterRelationships({
+        character,
+        characters,
+        userPersonaName: room.userPersonaName,
+        relationshipOverrides: room.relationshipOverrides,
+        statusSnapshot: room.statusSnapshot,
+      })
+    : formatTavernCharacterRelationships({ character, characters });
+
+  return compact
   ? [
       `name: ${character.name}`,
       `role: ${limitPromptText(character.description, 140)}`,
       character.goals ? `goals: ${limitPromptText(character.goals, 100)}` : "",
-      character.relationships ? `relationships: ${limitPromptText(character.relationships, 120)}` : "",
+      relationships ? `relationships: ${limitPromptText(relationships, 120)}` : "",
     ].filter(Boolean).join("\n")
   : [
       `name: ${character.name}`,
@@ -39,8 +57,9 @@ const formatCharacter = (
       character.writingStyle ? `writingStyle: ${limitPromptText(character.writingStyle, 260)}` : "",
       character.replyStylePrompt ? `replyStylePrompt: ${limitPromptText(character.replyStylePrompt, 320)}` : "",
       character.goals ? `goals: ${limitPromptText(character.goals, 260)}` : "",
-      character.relationships ? `relationships: ${limitPromptText(character.relationships, 320)}` : "",
+      relationships ? `relationships: ${limitPromptText(relationships, 320)}` : "",
     ].filter(Boolean).join("\n");
+};
 
 const escapePromptXmlText = (text: string) =>
   text
@@ -73,7 +92,14 @@ export const selectTavernLorebookEntries = ({
       character.name,
       character.description,
       character.goals ?? "",
-      character.relationships ?? "",
+      formatTavernCharacterRelationships({
+        character,
+        characters,
+        userPersonaName: room.userPersonaName,
+        relationshipOverrides: room.relationshipOverrides,
+        statusSnapshot: room.statusSnapshot,
+        includePrivate: false,
+      }),
     ].join("\n")).join("\n\n"),
   ].join("\n\n"));
 
@@ -216,7 +242,7 @@ export const buildTavernSystemPrompt = ({
   ].filter(Boolean);
   const compactCharacters = characters
     .filter((character) => character.id !== activeCharacter.id)
-    .map((character) => formatCharacter(character, { compact: true }))
+    .map((character) => formatCharacter(character, { compact: true, room, characters }))
     .join("\n\n---\n\n");
   const basePrompt = [
     "你正在 Novel Claw 的酒馆模式中扮演一个角色。",
@@ -275,7 +301,7 @@ export const buildTavernSystemPrompt = ({
     timelineText ? "</story_timeline>" : "",
     timelineText ? "" : "",
     "<active_character>",
-    formatCharacter(activeCharacter),
+    formatCharacter(activeCharacter, { room, characters }),
     "</active_character>",
     ...turnInstructionSection,
     "",

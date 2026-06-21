@@ -29,6 +29,7 @@ import {
   filterTavernFactEventsForAudience,
   buildTavernSchedulingSignals,
   canTavernSelectedTargetsStaySilent,
+  formatTavernCharacterRelationships,
   formatTavernDirectorProfileForPrompt,
   formatTavernDirectorSchedulingInstruction,
   formatTavernSchedulingSignalsForPrompt,
@@ -134,7 +135,16 @@ export const runTavernDirector = async ({
     character.writingStyle ? `writingStyle: ${character.writingStyle}` : "",
     character.replyStylePrompt ? `replyStylePrompt: ${character.replyStylePrompt}` : "",
     character.goals ? `goals: ${character.goals}` : "",
-    character.relationships ? `relationships: ${character.relationships}` : "",
+    (() => {
+      const relationships = formatTavernCharacterRelationships({
+        character,
+        characters,
+        userPersonaName: room.userPersonaName,
+        relationshipOverrides: room.relationshipOverrides,
+        statusSnapshot: room.statusSnapshot,
+      });
+      return relationships ? `relationships: ${relationships}` : "";
+    })(),
     room.characterMemories[character.id]?.trim()
       ? `memory: ${room.characterMemories[character.id]?.trim()}`
       : "",

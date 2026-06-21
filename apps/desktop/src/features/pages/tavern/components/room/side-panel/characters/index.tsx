@@ -10,7 +10,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernStatusValue } from "../../../../types";
+import type { TavernCharacter, TavernRoom, TavernStatusValue } from "../../../../types";
 import { MeterBar } from "../shared";
 import type { ResolvedStatusMetric } from "../types";
 import { CharacterDetail } from "./detail";
@@ -162,6 +162,7 @@ const CharacterCardContent = ({
 
 export const CharacterStatusRow = ({
   character,
+  room,
   isActive,
   disabled,
   memory,
@@ -172,6 +173,7 @@ export const CharacterStatusRow = ({
   onCompact,
 }: {
   character: TavernCharacter;
+  room: TavernRoom;
   isActive: boolean;
   disabled: boolean;
   memory: string;
@@ -201,6 +203,7 @@ export const CharacterStatusRow = ({
     </HoverCardTrigger>
     <CharacterDetail
       character={character}
+      room={room}
       memory={memory}
       isBusy={isBusy}
       isCompacting={isCompacting}

@@ -24,6 +24,32 @@ export type TavernRoomCharacterConfig = {
   memory?: string;
 };
 
+export type TavernRelationshipTarget =
+  | { type: "user" }
+  | { type: "character"; characterId: string };
+
+export type TavernCharacterRelationship = {
+  id: string;
+  target: TavernRelationshipTarget;
+  label?: string;
+  attitude?: string;
+  publicNote?: string;
+  privateNote?: string;
+  tags: string[];
+  updatedAt: number;
+};
+
+export type TavernSceneRelationshipOverride = {
+  id: string;
+  subjectCharacterId: string;
+  target: TavernRelationshipTarget;
+  label?: string;
+  publicNote?: string;
+  privateNote?: string;
+  tags: string[];
+  updatedAt: number;
+};
+
 export type TavernCharacter = {
   id: string;
   systemPresetId?: string;
@@ -36,7 +62,7 @@ export type TavernCharacter = {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships: TavernCharacterRelationship[];
   createdAt: number;
   updatedAt: number;
 };
@@ -616,6 +642,7 @@ export type TavernScene = {
   transition: string;
   timelineScope: TavernTimelineScope;
   memory: string;
+  relationshipOverrides: TavernSceneRelationshipOverride[];
   sceneStatus?: TavernSceneStatus;
   characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
   characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
@@ -661,6 +688,7 @@ export type TavernRoom = {
   sceneDirection: string;
   sceneTransition: string;
   memory: string;
+  relationshipOverrides: TavernSceneRelationshipOverride[];
   sceneStatus?: TavernSceneStatus;
   characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
   characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
@@ -722,7 +750,7 @@ export type TavernGeneratedPresetCharacter = {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships?: TavernCharacterRelationship[];
   memory?: string;
   publicStatus?: Partial<TavernCharacterPublicStatus>;
   privateStatus?: Partial<TavernCharacterPrivateStatus>;
@@ -738,6 +766,7 @@ export type TavernGeneratedPresetScene = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  relationshipOverrides?: TavernSceneRelationshipOverride[];
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
@@ -776,6 +805,7 @@ export type TavernGeneratedPresetRoom = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  relationshipOverrides?: TavernSceneRelationshipOverride[];
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;

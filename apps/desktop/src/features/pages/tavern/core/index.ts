@@ -7,6 +7,7 @@ export * from "./message-render-model";
 export * from "./message-visibility";
 export * from "./progress-engine";
 export * from "./progress-visibility";
+export * from "./relationships";
 export * from "./role-assignment";
 export * from "./scheduling-profile";
 export * from "./turn-order";

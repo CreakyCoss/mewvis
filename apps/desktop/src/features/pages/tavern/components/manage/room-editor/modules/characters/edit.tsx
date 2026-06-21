@@ -50,7 +50,7 @@ export const CharactersEdit = ({
                 writingStyle: value.writingStyle?.trim() || undefined,
                 replyStylePrompt: value.replyStylePrompt?.trim() || undefined,
                 goals: value.goals?.trim() || undefined,
-                relationships: value.relationships?.trim() || undefined,
+                relationships: value.relationships,
                 updatedAt: Date.now(),
               }
             : character
@@ -73,6 +73,7 @@ export const CharactersEdit = ({
     <CharacterFormDialog
       open={isOpen}
       character={editingCharacter}
+      availableCharacters={data.localCharacters ?? []}
       roomModelLabel={modelLabel}
       onRunTextFieldAgent={onRunTextFieldAgent}
       onOpenChange={(openState) => {

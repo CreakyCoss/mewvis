@@ -1566,6 +1566,7 @@ export const SidePanel = ({
                   <CharacterStatusRow
                     key={character.id}
                     character={character}
+                    room={activeRoom}
                     isActive={character.id === activeCharacter?.id}
                     disabled={isSending}
                     memory={activeRoom.characterMemories[character.id] ?? ""}

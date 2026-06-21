@@ -20,6 +20,7 @@ import {
 import {
   tavernArchivistAgentRoleId,
   tavernBridgeSessionRootDir,
+  formatTavernCharacterRelationships,
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
 
@@ -80,13 +81,22 @@ const normalizeKeywords = (value: unknown) => Array.isArray(value)
 
 const normalizeKey = (value: string) => value.trim().toLowerCase();
 
-const characterBrief = (characters: TavernCharacter[]) =>
+const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
   characters.map((character) => [
     `id: ${character.id}`,
     `name: ${character.name}`,
     `description: ${character.description}`,
     character.goals ? `goals: ${character.goals}` : "",
-    character.relationships ? `relationships: ${character.relationships}` : "",
+    (() => {
+      const relationships = formatTavernCharacterRelationships({
+        character,
+        characters,
+        userPersonaName: room.userPersonaName,
+        relationshipOverrides: room.relationshipOverrides,
+        statusSnapshot: room.statusSnapshot,
+      });
+      return relationships ? `relationships: ${relationships}` : "";
+    })(),
   ].filter(Boolean).join("\n")).join("\n\n---\n\n");
 
 const parseAssetDraft = ({
@@ -288,7 +298,7 @@ export const runTavernAssetExtraction = async ({
     "</pending_asset_drafts>",
     "",
     "<characters>",
-    characterBrief(characters),
+    characterBrief(room, characters),
     "</characters>",
     "",
     "<current_user_input>",

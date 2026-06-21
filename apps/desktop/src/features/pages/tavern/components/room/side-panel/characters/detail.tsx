@@ -1,7 +1,10 @@
 import { Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HoverCardContent } from "@/components/ui/hover-card";
-import type { TavernCharacter } from "../../../../types";
+import type { TavernCharacter, TavernRoom } from "../../../../types";
+import {
+  formatTavernCharacterRelationshipSummary,
+} from "../../../../core/relationships";
 import { compactText } from "../shared";
 
 const TooltipField = ({
@@ -21,17 +24,26 @@ const TooltipField = ({
 
 export const CharacterDetail = ({
   character,
+  room,
   memory,
   isBusy,
   isCompacting,
   onCompact,
 }: {
   character: TavernCharacter;
+  room: TavernRoom;
   memory: string;
   isBusy?: boolean;
   isCompacting?: boolean;
   onCompact?: () => void;
-}) => (
+}) => {
+  const relationshipSummary = formatTavernCharacterRelationshipSummary({
+    character,
+    room,
+    maxItems: 4,
+  });
+
+  return (
   <HoverCardContent
     side="left"
     align="start"
@@ -46,8 +58,8 @@ export const CharacterDetail = ({
     {character.goals?.trim() && (
       <TooltipField label="目标" value={character.goals} />
     )}
-    {character.relationships?.trim() && (
-      <TooltipField label="关系" value={character.relationships} />
+    {relationshipSummary.trim() && (
+      <TooltipField label="关系" value={relationshipSummary} />
     )}
     <TooltipField label="角色记忆" value={memory} />
     {onCompact && (
@@ -68,4 +80,5 @@ export const CharacterDetail = ({
       </Button>
     )}
   </HoverCardContent>
-);
+  );
+};

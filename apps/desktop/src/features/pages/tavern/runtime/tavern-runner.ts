@@ -10,6 +10,7 @@ import {
   buildTavernBridgeSystemPrompt,
 } from "./bridge-session";
 import {
+  formatTavernCharacterRelationships,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
   tavernBridgeSessionRootDir,
@@ -105,6 +106,13 @@ export const runTavernInnerThought = async ({
     audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
   const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
+  const relationshipText = formatTavernCharacterRelationships({
+    character: activeCharacter,
+    characters,
+    userPersonaName: room.userPersonaName,
+    relationshipOverrides: room.relationshipOverrides,
+    statusSnapshot: room.statusSnapshot,
+  });
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
@@ -119,7 +127,7 @@ export const runTavernInnerThought = async ({
         `description: ${activeCharacter.description}`,
         `speakingStyle: ${activeCharacter.speakingStyle}`,
         activeCharacter.goals ? `goals: ${activeCharacter.goals}` : "",
-        activeCharacter.relationships ? `relationships: ${activeCharacter.relationships}` : "",
+        relationshipText ? `relationships: ${relationshipText}` : "",
         characterMemory ? `memory: ${characterMemory}` : "",
         "</active_character>",
         "",

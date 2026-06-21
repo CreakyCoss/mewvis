@@ -19,6 +19,7 @@ import {
 import {
   tavernBridgeSessionRootDir,
   tavernQuickNovelAgentRoleId,
+  formatTavernCharacterRelationships,
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
 
@@ -33,13 +34,22 @@ export type TavernQuickSummaryInput = {
 
 const RECENT_MESSAGE_LIMIT = 80;
 
-const characterBrief = (characters: TavernCharacter[]) =>
+const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
   characters
     .map((character) => [
       `- ${character.name}`,
       `设定：${character.description}`,
       character.goals ? `目标：${character.goals}` : "",
-      character.relationships ? `关系：${character.relationships}` : "",
+      (() => {
+        const relationships = formatTavernCharacterRelationships({
+          character,
+          characters,
+          userPersonaName: room.userPersonaName,
+          relationshipOverrides: room.relationshipOverrides,
+          statusSnapshot: room.statusSnapshot,
+        });
+        return relationships ? `关系：${relationships}` : "";
+      })(),
     ].filter(Boolean).join("\n"))
     .join("\n\n");
 
@@ -145,7 +155,7 @@ const buildTavernQuickContext = ({
     "</lorebook>",
     "",
     "<characters>",
-    characterBrief(characters) || "（无）",
+    characterBrief(room, characters) || "（无）",
     "</characters>",
     "",
     conversationScope === "full"

@@ -6,10 +6,12 @@ import {
   Check,
   MessageCircle,
   Pencil,
+  Plus,
   Save,
   ShieldCheck,
   Sparkles,
   Target,
+  Trash2,
   UserRoundCog,
   UsersRound,
 } from "lucide-react";
@@ -29,12 +31,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter } from "../../../../../types";
+import type {
+  TavernCharacter,
+  TavernCharacterRelationship,
+  TavernRelationshipTarget,
+} from "../../../../../types";
+import {
+  tavernRelationshipTargetLabel,
+} from "../../../../../core/relationships";
 import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
 import {
+  EditorField,
   EditorFormCard,
   EditorFormDialogContent,
   EditorFormFooter,
@@ -53,12 +64,13 @@ export type CharacterFormValue = {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships: TavernCharacterRelationship[];
 };
 
 type CharacterFormDialogProps = {
   open: boolean;
   character: TavernCharacter | null;
+  availableCharacters: TavernCharacter[];
   roomModelLabel?: string;
   onRunTextFieldAgent?: (request: TavernTextFieldAgentRequest) => Promise<string>;
   onOpenChange: (open: boolean) => void;
@@ -68,6 +80,7 @@ type CharacterFormDialogProps = {
 export const CharacterFormDialog = ({
   open,
   character,
+  availableCharacters,
   roomModelLabel = "未选择",
   onRunTextFieldAgent,
   onOpenChange,
@@ -79,7 +92,7 @@ export const CharacterFormDialog = ({
   const [writingStyle, setWritingStyle] = useState("");
   const [replyStylePrompt, setReplyStylePrompt] = useState("");
   const [goals, setGoals] = useState("");
-  const [relationships, setRelationships] = useState("");
+  const [relationships, setRelationships] = useState<TavernCharacterRelationship[]>([]);
   const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
   const [formError, setFormError] = useState("");
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -89,6 +102,20 @@ export const CharacterFormDialog = ({
     () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
     [avatar],
   );
+  const relationshipTargetOptions = useMemo(() => [
+    {
+      value: "user",
+      label: "用户",
+      target: { type: "user" } as TavernRelationshipTarget,
+    },
+    ...availableCharacters
+      .filter((item) => item.id !== character?.id)
+      .map((item) => ({
+        value: `character:${item.id}`,
+        label: item.name,
+        target: { type: "character", characterId: item.id } as TavernRelationshipTarget,
+      })),
+  ], [availableCharacters, character?.id]);
 
   useEffect(() => {
     if (!open) {
@@ -101,7 +128,10 @@ export const CharacterFormDialog = ({
     setWritingStyle(character?.writingStyle ?? "");
     setReplyStylePrompt(character?.replyStylePrompt ?? "");
     setGoals(character?.goals ?? "");
-    setRelationships(character?.relationships ?? "");
+    setRelationships((character?.relationships ?? []).map((relationship) => ({
+      ...relationship,
+      tags: [...relationship.tags],
+    })));
     setAvatar(normalizeTavernAvatarId(character?.avatar ?? tavernAvatarOptions[0]?.id));
     setFormError("");
   }, [character, open]);
@@ -122,6 +152,29 @@ export const CharacterFormDialog = ({
       return;
     }
 
+    const nextRelationships = relationships.flatMap((relationship) => {
+      const label = relationship.label?.trim() || undefined;
+      const attitude = relationship.attitude?.trim() || undefined;
+      const publicNote = relationship.publicNote?.trim() || undefined;
+      const privateNote = relationship.privateNote?.trim() || undefined;
+      const tags = relationship.tags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      if (!label && !attitude && !publicNote && !privateNote && tags.length === 0) {
+        return [];
+      }
+      return [{
+        ...relationship,
+        label,
+        attitude,
+        publicNote,
+        privateNote,
+        tags,
+        updatedAt: Date.now(),
+      }];
+    });
+
     onSubmit({
       name: nextName,
       avatar,
@@ -130,7 +183,7 @@ export const CharacterFormDialog = ({
       writingStyle: writingStyle.trim() || undefined,
       replyStylePrompt: replyStylePrompt.trim() || undefined,
       goals: goals.trim() || undefined,
-      relationships: relationships.trim() || undefined,
+      relationships: nextRelationships,
     });
     onOpenChange(false);
   };
@@ -143,9 +196,62 @@ export const CharacterFormDialog = ({
       writingStyle,
       replyStylePrompt,
       goals,
-      relationships,
+      relationships: relationships.map((relationship) => ({
+        ...relationship,
+        targetLabel: tavernRelationshipTargetLabel(
+          relationship.target,
+          availableCharacters,
+          "用户",
+        ),
+      })),
     },
   });
+
+  const targetToValue = (target: TavernRelationshipTarget) =>
+    target.type === "user" ? "user" : `character:${target.characterId}`;
+
+  const targetFromValue = (value: string): TavernRelationshipTarget => {
+    if (value.startsWith("character:")) {
+      return {
+        type: "character",
+        characterId: value.replace(/^character:/, ""),
+      };
+    }
+    return { type: "user" };
+  };
+
+  const createRelationshipDraft = (): TavernCharacterRelationship => {
+    const usedTargets = new Set(relationships.map((relationship) => targetToValue(relationship.target)));
+    const target = relationshipTargetOptions.find((option) => !usedTargets.has(option.value))?.target
+      ?? relationshipTargetOptions[0]?.target
+      ?? { type: "user" };
+
+    return {
+      id: `relationship-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      target,
+      label: "",
+      attitude: "",
+      publicNote: "",
+      privateNote: "",
+      tags: [],
+      updatedAt: Date.now(),
+    };
+  };
+
+  const updateRelationship = (
+    relationshipId: string,
+    patch: Partial<TavernCharacterRelationship>,
+  ) => {
+    setRelationships((current) => current.map((relationship) =>
+      relationship.id === relationshipId
+        ? {
+            ...relationship,
+            ...patch,
+            updatedAt: Date.now(),
+          }
+        : relationship
+    ));
+  };
 
   const runTextFieldAgent = async ({
     mode,
@@ -413,7 +519,7 @@ export const CharacterFormDialog = ({
               </EditorFormCard>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="space-y-3">
               <EditorFormCard
                 id="tavern-character-goal-section"
                 icon={Target}
@@ -436,20 +542,152 @@ export const CharacterFormDialog = ({
               <EditorFormCard
                 icon={UsersRound}
                 title="关系"
-                action={renderTextFieldHeader({
-                  label: "关系",
-                  fieldKey: "characterRelationships",
-                  fieldLabel: "角色关系",
-                  currentText: relationships,
-                  applyText: setRelationships,
-                })}
               >
-                <Textarea
-                  id="tavern-character-relationships"
-                  value={relationships}
-                  className="min-h-[86px] resize-none text-sm leading-6"
-                  onChange={(event) => setRelationships(event.target.value)}
-                />
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-xs leading-5 text-muted-foreground">
+                      维护该角色对用户或其他角色的长期基础关系；场景内变化在故事阶段中单独覆盖。
+                    </div>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setRelationships((current) => [
+                        ...current,
+                        createRelationshipDraft(),
+                      ])}
+                    >
+                      <Plus className="size-3.5" />
+                      添加
+                    </Button>
+                  </div>
+
+                  {relationships.length > 0 ? (
+                    <div className="space-y-2">
+                      {relationships.map((relationship) => (
+                        <div
+                          key={relationship.id}
+                          className="space-y-3 rounded-md border border-border/70 bg-background/80 p-3"
+                        >
+                          <div className="grid gap-2 md:grid-cols-[minmax(13rem,1fr)_minmax(0,1.15fr)_2rem]">
+                            <EditorField
+                              label="对象"
+                              htmlFor={`tavern-character-relationship-target-${relationship.id}`}
+                              className="min-w-0"
+                            >
+                              <NativeSelect
+                                id={`tavern-character-relationship-target-${relationship.id}`}
+                                className="w-full"
+                                value={targetToValue(relationship.target)}
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  target: targetFromValue(event.target.value),
+                                })}
+                              >
+                                {relationshipTargetOptions.map((option) => (
+                                  <NativeSelectOption key={option.value} value={option.value}>
+                                    {option.label}
+                                  </NativeSelectOption>
+                                ))}
+                              </NativeSelect>
+                            </EditorField>
+                            <EditorField
+                              label="关系标签"
+                              htmlFor={`tavern-character-relationship-label-${relationship.id}`}
+                            >
+                              <Input
+                                id={`tavern-character-relationship-label-${relationship.id}`}
+                                value={relationship.label ?? ""}
+                                placeholder="盟友、旧怨、半信任"
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  label: event.target.value,
+                                })}
+                              />
+                            </EditorField>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              className="self-end justify-self-end"
+                              title="删除关系"
+                              aria-label="删除关系"
+                              onClick={() => setRelationships((current) =>
+                                current.filter((item) => item.id !== relationship.id)
+                              )}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <EditorField
+                              label="稳定态度"
+                              htmlFor={`tavern-character-relationship-attitude-${relationship.id}`}
+                            >
+                              <Input
+                                id={`tavern-character-relationship-attitude-${relationship.id}`}
+                                value={relationship.attitude ?? ""}
+                                placeholder="冷淡克制、话里带锋"
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  attitude: event.target.value,
+                                })}
+                              />
+                            </EditorField>
+                            <EditorField
+                              label="标签"
+                              htmlFor={`tavern-character-relationship-tags-${relationship.id}`}
+                            >
+                              <Input
+                                id={`tavern-character-relationship-tags-${relationship.id}`}
+                                value={relationship.tags.join("、")}
+                                placeholder="逗号或顿号分隔"
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  tags: event.target.value
+                                    .split(/[，,、]/u)
+                                    .map((tag) => tag.trim())
+                                    .filter(Boolean),
+                                })}
+                              />
+                            </EditorField>
+                          </div>
+
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <EditorField
+                              label="明面关系"
+                              htmlFor={`tavern-character-relationship-public-${relationship.id}`}
+                            >
+                              <Textarea
+                                id={`tavern-character-relationship-public-${relationship.id}`}
+                                value={relationship.publicNote ?? ""}
+                                className="min-h-[72px] resize-none text-sm leading-6"
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  publicNote: event.target.value,
+                                })}
+                              />
+                            </EditorField>
+                            <EditorField
+                              label="私下判断"
+                              htmlFor={`tavern-character-relationship-private-${relationship.id}`}
+                            >
+                              <Textarea
+                                id={`tavern-character-relationship-private-${relationship.id}`}
+                                value={relationship.privateNote ?? ""}
+                                className="min-h-[72px] resize-none text-sm leading-6"
+                                onChange={(event) => updateRelationship(relationship.id, {
+                                  privateNote: event.target.value,
+                                })}
+                              />
+                            </EditorField>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-dashed bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                      暂无关系设定。
+                    </div>
+                  )}
+                </div>
               </EditorFormCard>
             </div>
           </EditorFormLayout>

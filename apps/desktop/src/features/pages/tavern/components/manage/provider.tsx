@@ -44,15 +44,18 @@ import { parseTavernExternalImportJson } from "../../import-formats";
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernCharacterRelationship,
   TavernCondition,
   TavernEntityRef,
   TavernFactEvent,
   TavernMessage,
   TavernOutcomeEvent,
   TavernProgressCheckpoint,
+  TavernRelationshipTarget,
   TavernRoom,
   TavernRoomSettings,
   TavernScene,
+  TavernSceneRelationshipOverride,
   TavernSceneOutcomeDefinition,
   TavernState,
   TavernStatusEvent,
@@ -131,6 +134,86 @@ type TavernRoomExportV2 = {
 };
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+
+const remapImportedRelationshipTarget = (
+  value: unknown,
+  characterIdMap: Map<string, string>,
+): TavernRelationshipTarget | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const target = value as Partial<TavernRelationshipTarget>;
+  if (target.type === "user") {
+    return { type: "user" };
+  }
+  if (target.type === "character" && typeof target.characterId === "string") {
+    const characterId = characterIdMap.get(target.characterId);
+    return characterId ? { type: "character", characterId } : null;
+  }
+  return null;
+};
+
+const remapImportedCharacterRelationships = (
+  value: unknown,
+  characterIdMap: Map<string, string>,
+  updatedAt: number,
+): TavernCharacterRelationship[] => Array.isArray(value)
+  ? value.flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+      const relationship = item as Partial<TavernCharacterRelationship>;
+      const target = remapImportedRelationshipTarget(relationship.target, characterIdMap);
+      if (!target) {
+        return [];
+      }
+      return [{
+        id: createLocalId("relationship"),
+        target,
+        label: relationship.label?.trim() || undefined,
+        attitude: relationship.attitude?.trim() || undefined,
+        publicNote: relationship.publicNote?.trim() || undefined,
+        privateNote: relationship.privateNote?.trim() || undefined,
+        tags: Array.isArray(relationship.tags)
+          ? relationship.tags.flatMap((tag) => typeof tag === "string" && tag.trim() ? [tag.trim()] : [])
+          : [],
+        updatedAt: typeof relationship.updatedAt === "number" ? relationship.updatedAt : updatedAt,
+      }];
+    })
+  : [];
+
+const remapImportedSceneRelationshipOverrides = (
+  value: unknown,
+  characterIdMap: Map<string, string>,
+  updatedAt: number,
+): TavernSceneRelationshipOverride[] => Array.isArray(value)
+  ? value.flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+      const override = item as Partial<TavernSceneRelationshipOverride>;
+      const subjectCharacterId = typeof override.subjectCharacterId === "string"
+        ? characterIdMap.get(override.subjectCharacterId)
+        : undefined;
+      const target = remapImportedRelationshipTarget(override.target, characterIdMap);
+      if (!subjectCharacterId || !target) {
+        return [];
+      }
+      return [{
+        id: createLocalId("scene-relationship"),
+        subjectCharacterId,
+        target,
+        label: override.label?.trim() || undefined,
+        publicNote: override.publicNote?.trim() || undefined,
+        privateNote: override.privateNote?.trim() || undefined,
+        tags: Array.isArray(override.tags)
+          ? override.tags.flatMap((tag) => typeof tag === "string" && tag.trim() ? [tag.trim()] : [])
+          : [],
+        updatedAt: typeof override.updatedAt === "number" ? override.updatedAt : updatedAt,
+      }];
+    })
+  : [];
 
 const getRoomActiveSceneId = (room: TavernRoom) =>
   room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
@@ -1092,8 +1175,7 @@ export const ManagementProvider = ({
     const parsedExport = parsed as TavernRoomExportV2;
     const createdAt = Date.now();
     const roomId = createLocalId("room");
-    const characterIdMap = new Map<string, string>();
-    const importedCharacters = parsedExport.characters
+    const importableCharacters = parsedExport.characters
       .flatMap((character) => {
         const name = typeof character.name === "string" ? character.name.trim() : "";
         const description = typeof character.description === "string" ? character.description.trim() : "";
@@ -1102,8 +1184,18 @@ export const ManagementProvider = ({
           return [];
         }
 
-        const nextId = createLocalId("character");
-        characterIdMap.set(character.id, nextId);
+        return [{ character, name, description, speakingStyle }];
+      });
+    const characterIdMap = new Map(
+      importableCharacters.map(({ character }) => [character.id, createLocalId("character")]),
+    );
+    const importedCharacters = importableCharacters
+      .flatMap(({ character, name, description, speakingStyle }) => {
+        const nextId = characterIdMap.get(character.id);
+        if (!nextId) {
+          return [];
+        }
+
         return [{
           id: nextId,
           name,
@@ -1113,7 +1205,11 @@ export const ManagementProvider = ({
           writingStyle: character.writingStyle?.trim() || undefined,
           replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
           goals: character.goals?.trim() || undefined,
-          relationships: character.relationships?.trim() || undefined,
+          relationships: remapImportedCharacterRelationships(
+            character.relationships,
+            characterIdMap,
+            createdAt,
+          ),
           createdAt,
           updatedAt: createdAt,
         } satisfies TavernCharacter];
@@ -1203,6 +1299,11 @@ export const ManagementProvider = ({
           })]
         : []);
     const title = parsedExport.room.title?.trim() || "导入酒馆";
+    const relationshipOverrides = remapImportedSceneRelationshipOverrides(
+      parsedExport.room.relationshipOverrides,
+      characterIdMap,
+      createdAt,
+    );
     const importedScene = createTavernScene({
       title: parsedExport.room.scenes?.find((scene) => scene.id === parsedExport.room.activeSceneId)?.title ?? "默认场景",
       order: 0,
@@ -1213,6 +1314,7 @@ export const ManagementProvider = ({
       storyDirection: parsedExport.room.sceneDirection?.trim() || "",
       transition: parsedExport.room.sceneTransition?.trim() || "",
       memory: parsedExport.room.memory?.trim() || "",
+      relationshipOverrides,
       characterConfigs,
       characterMemories,
       illustrationHints: importedIllustrationHints,
@@ -1240,6 +1342,7 @@ export const ManagementProvider = ({
       sceneTransition: importedScene.transition,
       locked: false,
       memory: importedScene.memory,
+      relationshipOverrides: importedScene.relationshipOverrides,
       sceneStatus: importedScene.sceneStatus,
       characterPublicStatuses: importedScene.characterPublicStatuses,
       characterPrivateStatuses: importedScene.characterPrivateStatuses,

@@ -7,6 +7,9 @@ import type {
 import {
   normalizeTavernDirectorProfile,
 } from "../core/scheduling-profile";
+import {
+  formatTavernCharacterRelationships,
+} from "../core/relationships";
 import { runTavernOneShotAgent } from "./one-shot";
 
 export type RunTavernDirectorProfileAgentInput = {
@@ -137,7 +140,13 @@ const buildDirectorProfileRequestContext = (
     writingStyle: character.writingStyle ?? "",
     replyStylePrompt: character.replyStylePrompt ?? "",
     goals: character.goals ?? "",
-    relationships: character.relationships ?? "",
+    relationships: formatTavernCharacterRelationships({
+      character,
+      characters,
+      userPersonaName: room.userPersonaName,
+      relationshipOverrides: room.relationshipOverrides,
+      statusSnapshot: room.statusSnapshot,
+    }),
     memory: room.characterMemories[character.id] ?? "",
     publicStatus: room.characterPublicStatuses[character.id] ?? null,
     privateStatus: room.characterPrivateStatuses[character.id] ?? null,

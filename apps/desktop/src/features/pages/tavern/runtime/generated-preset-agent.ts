@@ -170,7 +170,18 @@ const generatedPresetSchema = `{
       "writingStyle": "叙事动作和神态风格",
       "replyStylePrompt": "该角色每轮回复的额外约束",
       "goals": "角色目标",
-      "relationships": "与用户和其他角色的关系",
+      "relationships": [
+        {
+          "id": "relationship-short-id",
+          "target": { "type": "user" },
+          "label": "与用户的稳定基础关系",
+          "attitude": "稳定态度",
+          "publicNote": "公开可见的关系说明",
+          "privateNote": "角色私下判断，可省略",
+          "tags": ["关系关键词"],
+          "updatedAt": 0
+        }
+      ],
       "memory": "该角色初始已知信息",
       "publicStatus": {},
       "privateStatus": {}

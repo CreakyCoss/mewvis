@@ -1,4 +1,7 @@
-import type { TavernCharacter } from "./types";
+import type {
+  TavernCharacter,
+  TavernCharacterRelationship,
+} from "./types";
 
 const CHARACTER_CARD_TYPE = "novel-claw:tavern-character";
 
@@ -12,7 +15,7 @@ export type TavernCharacterCard = {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships?: TavernCharacterRelationship[];
 };
 
 export type TavernCharacterCardInput = Pick<
@@ -22,6 +25,9 @@ export type TavernCharacterCardInput = Pick<
 >;
 
 const textValue = (value: unknown) => typeof value === "string" ? value.trim() : "";
+
+const relationshipArrayValue = (value: unknown) =>
+  Array.isArray(value) ? value as TavernCharacterRelationship[] : undefined;
 
 export const tavernCharacterToCard = (
   character: TavernCharacter,
@@ -62,6 +68,6 @@ export const parseTavernCharacterCard = (raw: string): TavernCharacterCardInput 
     writingStyle: textValue(parsed.writingStyle) || undefined,
     replyStylePrompt: textValue(parsed.replyStylePrompt) || undefined,
     goals: textValue(parsed.goals) || undefined,
-    relationships: textValue(parsed.relationships) || undefined,
+    relationships: relationshipArrayValue(parsed.relationships) ?? [],
   };
 };

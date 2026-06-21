@@ -7,6 +7,7 @@ import systemPresetData from "./system-presets/default-taverns.json";
 import type {
   TavernAssetDraft,
   TavernCharacter,
+  TavernCharacterRelationship,
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
   TavernCharacterMemoryDraft,
@@ -29,8 +30,10 @@ import type {
   TavernProgressView,
   TavernReplyMode,
   TavernReplyOption,
+  TavernRelationshipTarget,
   TavernRoom,
   TavernRoomCharacterConfig,
+  TavernSceneRelationshipOverride,
   TavernSceneOutcomeDefinition,
   TavernSceneStatus,
   TavernScene,
@@ -91,7 +94,7 @@ type TavernSystemPresetCharacter = {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships?: TavernCharacterRelationship[];
 };
 
 type TavernSystemPresetMessage = {
@@ -110,6 +113,7 @@ type TavernSystemPresetScene = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  relationshipOverrides?: TavernSceneRelationshipOverride[];
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
@@ -161,6 +165,7 @@ type TavernSystemPresetRoom = {
   storyDirection?: string;
   transition?: string;
   memory?: string;
+  relationshipOverrides?: TavernSceneRelationshipOverride[];
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
@@ -294,7 +299,7 @@ const createTavernCharacterFromSystemPresetCharacter = (
     writingStyle: character.writingStyle?.trim() || undefined,
     replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
     goals: character.goals?.trim() || undefined,
-    relationships: character.relationships?.trim() || undefined,
+    relationships: normalizeCharacterRelationships(character.relationships, createdAt),
     createdAt,
     updatedAt: createdAt,
   };
@@ -1083,6 +1088,95 @@ const normalizeInformationPolicy = (
 const normalizeStringList = (value: unknown, maxItems = 12) => Array.isArray(value)
   ? [...new Set(value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : []))]
       .slice(0, maxItems)
+  : [];
+
+const normalizeRelationshipTarget = (value: unknown): TavernRelationshipTarget | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernRelationshipTarget>;
+  if (candidate.type === "user") {
+    return { type: "user" };
+  }
+  if (candidate.type === "character") {
+    const characterId = typeof candidate.characterId === "string" ? candidate.characterId.trim() : "";
+    return characterId ? { type: "character", characterId } : null;
+  }
+  return null;
+};
+
+const normalizeCharacterRelationships = (
+  value: unknown,
+  updatedAt: number,
+): TavernCharacterRelationship[] => Array.isArray(value)
+  ? value.flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+      const candidate = item as Partial<TavernCharacterRelationship>;
+      const target = normalizeRelationshipTarget(candidate.target);
+      if (!target) {
+        return [];
+      }
+      return [{
+        id: typeof candidate.id === "string" && candidate.id.trim()
+          ? candidate.id.trim()
+          : createId("relationship"),
+        target,
+        label: typeof candidate.label === "string" && candidate.label.trim()
+          ? candidate.label.trim()
+          : undefined,
+        attitude: typeof candidate.attitude === "string" && candidate.attitude.trim()
+          ? candidate.attitude.trim()
+          : undefined,
+        publicNote: typeof candidate.publicNote === "string" && candidate.publicNote.trim()
+          ? candidate.publicNote.trim()
+          : undefined,
+        privateNote: typeof candidate.privateNote === "string" && candidate.privateNote.trim()
+          ? candidate.privateNote.trim()
+          : undefined,
+        tags: normalizeStringList(candidate.tags, 8),
+        updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+      }];
+    })
+  : [];
+
+const normalizeSceneRelationshipOverrides = (
+  value: unknown,
+  updatedAt: number,
+): TavernSceneRelationshipOverride[] => Array.isArray(value)
+  ? value.flatMap((item) => {
+      if (!item || typeof item !== "object") {
+        return [];
+      }
+      const candidate = item as Partial<TavernSceneRelationshipOverride>;
+      const subjectCharacterId = typeof candidate.subjectCharacterId === "string"
+        ? candidate.subjectCharacterId.trim()
+        : "";
+      const target = normalizeRelationshipTarget(candidate.target);
+      if (!subjectCharacterId || !target) {
+        return [];
+      }
+      return [{
+        id: typeof candidate.id === "string" && candidate.id.trim()
+          ? candidate.id.trim()
+          : createId("scene-relationship"),
+        subjectCharacterId,
+        target,
+        label: typeof candidate.label === "string" && candidate.label.trim()
+          ? candidate.label.trim()
+          : undefined,
+        publicNote: typeof candidate.publicNote === "string" && candidate.publicNote.trim()
+          ? candidate.publicNote.trim()
+          : undefined,
+        privateNote: typeof candidate.privateNote === "string" && candidate.privateNote.trim()
+          ? candidate.privateNote.trim()
+          : undefined,
+        tags: normalizeStringList(candidate.tags, 8),
+        updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : updatedAt,
+      }];
+    })
   : [];
 
 const normalizeDirectorScheduling = (
@@ -1904,6 +1998,10 @@ const normalizeTavernCharacter = (
     replyStylePrompt: typeof character.replyStylePrompt === "string" && character.replyStylePrompt.trim()
       ? character.replyStylePrompt.trim()
       : undefined,
+    relationships: normalizeCharacterRelationships(
+      (character as Partial<TavernCharacter>).relationships,
+      typeof character.updatedAt === "number" ? character.updatedAt : now(),
+    ),
   };
 };
 
@@ -2121,6 +2219,33 @@ const mapCharacterId = (
   characterId: string,
   mapper: TavernCharacterIdMapper,
 ) => mapper(characterId) ?? characterId;
+
+const mapTavernRelationshipTarget = (
+  target: TavernRelationshipTarget,
+  mapper: TavernCharacterIdMapper,
+): TavernRelationshipTarget => target.type === "character"
+  ? {
+      type: "character",
+      characterId: mapCharacterId(target.characterId, mapper),
+    }
+  : target;
+
+const mapTavernCharacterRelationships = (
+  relationships: TavernCharacterRelationship[] | undefined,
+  mapper: TavernCharacterIdMapper,
+): TavernCharacterRelationship[] => (relationships ?? []).map((relationship) => ({
+  ...relationship,
+  target: mapTavernRelationshipTarget(relationship.target, mapper),
+}));
+
+const mapTavernSceneRelationshipOverrides = (
+  overrides: TavernSceneRelationshipOverride[] | undefined,
+  mapper: TavernCharacterIdMapper,
+): TavernSceneRelationshipOverride[] => (overrides ?? []).map((override) => ({
+  ...override,
+  subjectCharacterId: mapCharacterId(override.subjectCharacterId, mapper),
+  target: mapTavernRelationshipTarget(override.target, mapper),
+}));
 
 const tavernEntityRefKey = (entity: TavernEntityRef): string => {
   switch (entity.type) {
@@ -2615,6 +2740,10 @@ const buildTavernScene = (
     transition: input.transition?.trim() || fallback.sceneTransition?.trim() || "",
     timelineScope: normalizeTimelineScope(input.timelineScope),
     memory: input.memory?.trim() || fallback.memory?.trim() || "",
+    relationshipOverrides: normalizeSceneRelationshipOverrides(
+      input.relationshipOverrides ?? (fallback as Partial<TavernScene>).relationshipOverrides,
+      updatedAt,
+    ),
     sceneStatus: normalizeSceneStatus(input.sceneStatus, updatedAt) ??
       normalizeSceneStatus((fallback as Partial<TavernScene>).sceneStatus, updatedAt),
     characterPublicStatuses: normalizeCharacterPublicStatuses(
@@ -2730,6 +2859,7 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     sceneDirection: activeScene.storyDirection,
     sceneTransition: activeScene.transition,
     memory: activeScene.memory,
+    relationshipOverrides: activeScene.relationshipOverrides,
     sceneStatus: activeScene.sceneStatus,
     characterPublicStatuses: activeScene.characterPublicStatuses,
     characterPrivateStatuses: activeScene.characterPrivateStatuses,
@@ -2768,6 +2898,7 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
     storyDirection: room.sceneDirection,
     transition: room.sceneTransition,
     memory: room.memory,
+    relationshipOverrides: room.relationshipOverrides,
     sceneStatus: room.sceneStatus,
     characterPublicStatuses: room.characterPublicStatuses,
     characterPrivateStatuses: room.characterPrivateStatuses,
@@ -2832,7 +2963,7 @@ export const createTavernRoomFromSystemPreset = (
   const createdAt = options.createdAt ?? now();
   const roomId = options.roomId ?? createId("room");
   const characterIdByPresetId = new Map<string, string>();
-  const characters: TavernCharacter[] = preset.characters.map((character) => {
+  const rawCharacters: TavernCharacter[] = preset.characters.map((character) => {
     const characterId = options.characterIdByPresetId?.get(character.id) ?? createId("character");
     characterIdByPresetId.set(character.id, characterId);
 
@@ -2841,6 +2972,11 @@ export const createTavernRoomFromSystemPreset = (
       createdAt,
     });
   });
+  const mapSystemCharacterId = (characterId: string) => characterIdByPresetId.get(characterId);
+  const characters = rawCharacters.map((character) => ({
+    ...character,
+    relationships: mapTavernCharacterRelationships(character.relationships, mapSystemCharacterId),
+  }));
   const mappedCharacterIds = preset.room.characterIds
     .flatMap((characterId) => {
       const mappedId = characterIdByPresetId.get(characterId);
@@ -2861,7 +2997,6 @@ export const createTavernRoomFromSystemPreset = (
   );
   const characterConfigs = normalizeRoomCharacterConfigs(undefined, characterMemories);
   const markAsSystemPreset = options.markAsSystemPreset !== false;
-  const mapSystemCharacterId = (characterId: string) => characterIdByPresetId.get(characterId);
   const presetScenes: TavernSystemPresetScene[] = Array.isArray(preset.room.scenes) && preset.room.scenes.length > 0
     ? preset.room.scenes
     : [{
@@ -2874,6 +3009,7 @@ export const createTavernRoomFromSystemPreset = (
         storyDirection: preset.room.storyDirection,
         transition: preset.room.transition,
         memory: preset.room.memory,
+        relationshipOverrides: preset.room.relationshipOverrides,
         sceneStatus: preset.room.sceneStatus,
         characterPublicStatuses: preset.room.characterPublicStatuses,
         characterPrivateStatuses: preset.room.characterPrivateStatuses,
@@ -2943,6 +3079,13 @@ export const createTavernRoomFromSystemPreset = (
       storyDirection: presetScene.storyDirection?.trim() || preset.room.storyDirection?.trim() || "",
       transition: presetScene.transition?.trim() || preset.room.transition?.trim() || "",
       memory: presetScene.memory?.trim() || preset.room.memory?.trim() || "",
+      relationshipOverrides: mapTavernSceneRelationshipOverrides(
+        normalizeSceneRelationshipOverrides(
+          presetScene.relationshipOverrides ?? preset.room.relationshipOverrides,
+          createdAt,
+        ),
+        mapSystemCharacterId,
+      ),
       sceneStatus,
       characterPublicStatuses,
       characterPrivateStatuses,
@@ -3014,6 +3157,7 @@ export const createTavernRoomFromSystemPreset = (
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
+    relationshipOverrides: scene.relationshipOverrides,
     sceneStatus: scene.sceneStatus,
     characterPublicStatuses: scene.characterPublicStatuses,
     characterPrivateStatuses: scene.characterPrivateStatuses,
@@ -3396,7 +3540,7 @@ const createGeneratedCharacter = (
     writingStyle: trimGeneratedString(character.writingStyle) || undefined,
     replyStylePrompt: trimGeneratedString(character.replyStylePrompt) || undefined,
     goals: trimGeneratedString(character.goals) || undefined,
-    relationships: trimGeneratedString(character.relationships) || undefined,
+    relationships: normalizeCharacterRelationships(character.relationships, createdAt),
     createdAt,
     updatedAt: createdAt,
   };
@@ -3438,7 +3582,12 @@ export const createTavernRoomFromGeneratedPresetJson = (
     throw new Error("生成酒馆至少需要一个有效角色");
   }
 
-  const characters = generatedCharacters.map((item) => item.character);
+  const mapGeneratedCharacterId = (characterId: string) =>
+    resolveGeneratedCharacterId(characterId, characterIdByGeneratedKey);
+  const characters = generatedCharacters.map(({ character }) => ({
+    ...character,
+    relationships: mapTavernCharacterRelationships(character.relationships, mapGeneratedCharacterId),
+  }));
   const allCharacterIds = characters.map((character) => character.id);
   const roomCharacterIds = normalizeGeneratedCharacterIds(
     roomInput.characterIds,
@@ -3449,8 +3598,6 @@ export const createTavernRoomFromGeneratedPresetJson = (
     roomInput.activeCharacterId,
     characterIdByGeneratedKey,
   ) ?? roomCharacterIds[0] ?? "";
-  const mapGeneratedCharacterId = (characterId: string) =>
-    resolveGeneratedCharacterId(characterId, characterIdByGeneratedKey);
   const characterMemoryDefaults = Object.fromEntries(
     generatedCharacters.flatMap(({ source, character }) => {
       const memory = trimGeneratedString(source.memory);
@@ -3488,6 +3635,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
         storyDirection: roomInput.storyDirection,
         transition: roomInput.transition,
         memory: roomInput.memory,
+        relationshipOverrides: roomInput.relationshipOverrides,
         sceneStatus: roomInput.sceneStatus,
         characterPublicStatuses: roomInput.characterPublicStatuses,
         characterPrivateStatuses: roomInput.characterPrivateStatuses,
@@ -3579,6 +3727,13 @@ export const createTavernRoomFromGeneratedPresetJson = (
       transition: trimGeneratedString(sceneInput.transition) ||
         trimGeneratedString(roomInput.transition),
       memory: trimGeneratedString(sceneInput.memory) || trimGeneratedString(roomInput.memory),
+      relationshipOverrides: mapTavernSceneRelationshipOverrides(
+        normalizeSceneRelationshipOverrides(
+          sceneInput.relationshipOverrides ?? roomInput.relationshipOverrides,
+          createdAt,
+        ),
+        mapGeneratedCharacterId,
+      ),
       sceneStatus: normalizeSceneStatus(
         sceneInput.sceneStatus ?? roomInput.sceneStatus,
         createdAt,
@@ -3656,6 +3811,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
+    relationshipOverrides: scene.relationshipOverrides,
     sceneStatus: scene.sceneStatus,
     characterPublicStatuses: scene.characterPublicStatuses,
     characterPrivateStatuses: scene.characterPrivateStatuses,
@@ -3884,6 +4040,10 @@ const normalizeTavernState = (
       sceneTransition: typeof (room as Partial<TavernRoom>).sceneTransition === "string"
         ? (room as Partial<TavernRoom>).sceneTransition ?? ""
         : "",
+      relationshipOverrides: normalizeSceneRelationshipOverrides(
+        (room as Partial<TavernRoom>).relationshipOverrides,
+        Date.now(),
+      ),
       characterConfigs,
       characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
       localCharacters,
@@ -4088,6 +4248,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     sceneDirection: scene.storyDirection,
     sceneTransition: scene.transition,
     memory: scene.memory,
+    relationshipOverrides: scene.relationshipOverrides,
     sceneStatus: scene.sceneStatus,
     characterPublicStatuses: scene.characterPublicStatuses,
     characterPrivateStatuses: scene.characterPrivateStatuses,
@@ -4221,7 +4382,7 @@ export const createTavernCharacter = (input: {
   writingStyle?: string;
   replyStylePrompt?: string;
   goals?: string;
-  relationships?: string;
+  relationships?: TavernCharacterRelationship[];
 }): TavernCharacter => {
   const createdAt = now();
   return {
@@ -4233,7 +4394,7 @@ export const createTavernCharacter = (input: {
     writingStyle: input.writingStyle?.trim() || undefined,
     replyStylePrompt: input.replyStylePrompt?.trim() || undefined,
     goals: input.goals?.trim() || undefined,
-    relationships: input.relationships?.trim() || undefined,
+    relationships: normalizeCharacterRelationships(input.relationships, createdAt),
     createdAt,
     updatedAt: createdAt,
   };

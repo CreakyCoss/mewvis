@@ -4,6 +4,7 @@ import {
   FileText,
   Plus,
   Save,
+  Trash2,
   UsersRound,
 } from "lucide-react";
 import type { Ref } from "react";
@@ -30,8 +31,10 @@ import { cn } from "@/lib/utils";
 import { getActiveTavernScene } from "../../../../../storage";
 import type {
   TavernCharacter,
+  TavernRelationshipTarget,
   TavernRoomCharacterConfig,
   TavernScene,
+  TavernSceneRelationshipOverride,
   TavernTimelineScope,
 } from "../../../../../types";
 import {
@@ -67,6 +70,7 @@ type ScenesDraft = {
   sceneTransition: string;
   timelineScope: TavernTimelineScope;
   memory: string;
+  relationshipOverrides: TavernSceneRelationshipOverride[];
   characterIds: string[];
   activeCharacterId: string;
   characterConfigs: Record<string, TavernRoomCharacterConfig>;
@@ -106,6 +110,10 @@ export const ScenesEdit = ({
       sceneTransition: scene.transition,
       timelineScope: cloneTimelineScope(scene.timelineScope),
       memory: scene.memory,
+      relationshipOverrides: scene.relationshipOverrides.map((relationship) => ({
+        ...relationship,
+        tags: [...relationship.tags],
+      })),
       characterIds: [...scene.characterIds],
       activeCharacterId: scene.activeCharacterId,
       characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
@@ -162,6 +170,36 @@ export const ScenesEdit = ({
         return memory ? [[characterId, memory]] : [];
       }),
     );
+    const nextRelationshipOverrides = draft.relationshipOverrides.flatMap((relationship) => {
+      if (!nextCharacterIds.includes(relationship.subjectCharacterId)) {
+        return [];
+      }
+      if (
+        relationship.target.type === "character" &&
+        !nextCharacterIds.includes(relationship.target.characterId)
+      ) {
+        return [];
+      }
+
+      const label = relationship.label?.trim() || undefined;
+      const publicNote = relationship.publicNote?.trim() || undefined;
+      const privateNote = relationship.privateNote?.trim() || undefined;
+      const tags = relationship.tags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      if (!label && !publicNote && !privateNote && tags.length === 0) {
+        return [];
+      }
+      return [{
+        ...relationship,
+        label,
+        publicNote,
+        privateNote,
+        tags,
+        updatedAt,
+      }];
+    });
 
     const updateScene = (scene: TavernScene) =>
       scene.id === draft.sceneId
@@ -175,6 +213,7 @@ export const ScenesEdit = ({
             transition: draft.sceneTransition,
             timelineScope: cloneTimelineScope(draft.timelineScope),
             memory: draft.memory,
+            relationshipOverrides: nextRelationshipOverrides,
             characterIds: nextCharacterIds,
             activeCharacterId: nextActiveCharacterId,
             characterConfigs: nextCharacterConfigs,
@@ -192,6 +231,7 @@ export const ScenesEdit = ({
             sceneDirection: draft.sceneDirection,
             sceneTransition: draft.sceneTransition,
             memory: draft.memory,
+            relationshipOverrides: nextRelationshipOverrides,
             characterIds: nextCharacterIds,
             activeCharacterId: nextActiveCharacterId,
             characterConfigs: nextCharacterConfigs,
@@ -557,6 +597,60 @@ export const ScenesEdit = ({
                   const addableSceneRoleDefinitions = availableSceneRoleDefinitions.filter(
                     (character) => !selectedCharacterIds.has(character.id),
                   );
+                  const targetToValue = (target: TavernRelationshipTarget) =>
+                    target.type === "user" ? "user" : `character:${target.characterId}`;
+                  const targetFromValue = (value: string): TavernRelationshipTarget => {
+                    if (value.startsWith("character:")) {
+                      return {
+                        type: "character",
+                        characterId: value.replace(/^character:/, ""),
+                      };
+                    }
+                    return { type: "user" };
+                  };
+                  const relationshipTargetOptions = (subjectCharacterId: string) => [
+                    {
+                      value: "user",
+                      label: "用户",
+                    },
+                    ...selectedSceneRoleDefinitions
+                      .filter((character) => character.id !== subjectCharacterId)
+                      .map((character) => ({
+                        value: `character:${character.id}`,
+                        label: character.name,
+                      })),
+                  ];
+                  const updateRelationshipOverride = (
+                    relationshipId: string,
+                    patch: Partial<TavernSceneRelationshipOverride>,
+                  ) => {
+                    setDraft({
+                      ...draft,
+                      relationshipOverrides: draft.relationshipOverrides.map((relationship) =>
+                        relationship.id === relationshipId
+                          ? {
+                              ...relationship,
+                              ...patch,
+                              updatedAt: Date.now(),
+                            }
+                          : relationship
+                      ),
+                    });
+                  };
+                  const createRelationshipOverrideDraft = (): TavernSceneRelationshipOverride => {
+                    const subjectCharacterId = draft.activeCharacterId || draft.characterIds[0] || "";
+                    const targetOption = relationshipTargetOptions(subjectCharacterId)[0];
+                    return {
+                      id: `scene-relationship-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                      subjectCharacterId,
+                      target: targetFromValue(targetOption?.value ?? "user"),
+                      label: "",
+                      publicNote: "",
+                      privateNote: "",
+                      tags: [],
+                      updatedAt: Date.now(),
+                    };
+                  };
                   const addSceneCharacter = (character: TavernCharacter) => {
                     const nextCharacterConfigs = {
                       ...draft.characterConfigs,
@@ -592,6 +686,13 @@ export const ScenesEdit = ({
                         : draft.activeCharacterId,
                       characterConfigs: nextCharacterConfigs,
                       characterMemories: nextCharacterMemories,
+                      relationshipOverrides: draft.relationshipOverrides.filter((relationship) =>
+                        relationship.subjectCharacterId !== characterId &&
+                        (
+                          relationship.target.type !== "character" ||
+                          relationship.target.characterId !== characterId
+                        )
+                      ),
                     });
                   };
 
@@ -749,6 +850,190 @@ export const ScenesEdit = ({
                           暂无角色定义。请先在酒馆角色库中新建角色。
                         </div>
                       )}
+
+                      <div className="space-y-3 border-t pt-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium leading-5">本场景关系修正</div>
+                            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                              只描述当前阶段内发生偏移的关系，不覆盖角色库里的长期基础关系。
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="outline"
+                            disabled={selectedSceneRoleDefinitions.length === 0}
+                            onClick={() => setDraft({
+                              ...draft,
+                              relationshipOverrides: [
+                                ...draft.relationshipOverrides,
+                                createRelationshipOverrideDraft(),
+                              ],
+                            })}
+                          >
+                            <Plus className="size-3.5" />
+                            添加修正
+                          </Button>
+                        </div>
+
+                        {draft.relationshipOverrides.length > 0 ? (
+                          <div className="space-y-2">
+                            {draft.relationshipOverrides.map((relationship) => {
+                              const subjectOptions = selectedSceneRoleDefinitions.map((character) => ({
+                                value: character.id,
+                                label: character.name,
+                              }));
+                              const targetOptions = relationshipTargetOptions(relationship.subjectCharacterId);
+                              const targetValue = targetOptions.some((option) =>
+                                option.value === targetToValue(relationship.target)
+                              )
+                                ? targetToValue(relationship.target)
+                                : "user";
+
+                              return (
+                                <div
+                                  key={relationship.id}
+                                  className="space-y-3 rounded-md border border-border/70 bg-background/80 p-3"
+                                >
+                                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                    <EditorField
+                                      label="发起角色"
+                                      htmlFor={`tavern-scenes-relationship-subject-${relationship.id}`}
+                                      className="min-w-0"
+                                    >
+                                      <NativeSelect
+                                        id={`tavern-scenes-relationship-subject-${relationship.id}`}
+                                        className="w-full"
+                                        value={relationship.subjectCharacterId}
+                                        onChange={(event) => {
+                                          const subjectCharacterId = event.target.value;
+                                          const nextTargetOptions = relationshipTargetOptions(subjectCharacterId);
+                                          const currentTargetValue = targetToValue(relationship.target);
+                                          updateRelationshipOverride(relationship.id, {
+                                            subjectCharacterId,
+                                            target: targetFromValue(
+                                              nextTargetOptions.some((option) => option.value === currentTargetValue)
+                                                ? currentTargetValue
+                                                : "user",
+                                            ),
+                                          });
+                                        }}
+                                      >
+                                        {subjectOptions.map((option) => (
+                                          <NativeSelectOption key={option.value} value={option.value}>
+                                            {option.label}
+                                          </NativeSelectOption>
+                                        ))}
+                                      </NativeSelect>
+                                    </EditorField>
+                                    <EditorField
+                                      label="关系对象"
+                                      htmlFor={`tavern-scenes-relationship-target-${relationship.id}`}
+                                      className="min-w-0"
+                                    >
+                                      <NativeSelect
+                                        id={`tavern-scenes-relationship-target-${relationship.id}`}
+                                        className="w-full"
+                                        value={targetValue}
+                                        onChange={(event) => updateRelationshipOverride(relationship.id, {
+                                          target: targetFromValue(event.target.value),
+                                        })}
+                                      >
+                                        {targetOptions.map((option) => (
+                                          <NativeSelectOption key={option.value} value={option.value}>
+                                            {option.label}
+                                          </NativeSelectOption>
+                                        ))}
+                                      </NativeSelect>
+                                    </EditorField>
+                                    <EditorField
+                                      label="修正标签"
+                                      htmlFor={`tavern-scenes-relationship-label-${relationship.id}`}
+                                    >
+                                      <Input
+                                        id={`tavern-scenes-relationship-label-${relationship.id}`}
+                                        value={relationship.label ?? ""}
+                                        placeholder="恶化、暂时联手、起疑"
+                                        className={editorControlClassName}
+                                        onChange={(event) => updateRelationshipOverride(relationship.id, {
+                                          label: event.target.value,
+                                        })}
+                                      />
+                                    </EditorField>
+                                    <Button
+                                      type="button"
+                                      size="icon-xs"
+                                      variant="ghost"
+                                      className="self-end"
+                                      title="删除关系修正"
+                                      aria-label="删除关系修正"
+                                      onClick={() => setDraft({
+                                        ...draft,
+                                        relationshipOverrides: draft.relationshipOverrides.filter((item) =>
+                                          item.id !== relationship.id
+                                        ),
+                                      })}
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.85fr)]">
+                                    <EditorField
+                                      label="明面修正"
+                                      htmlFor={`tavern-scenes-relationship-public-${relationship.id}`}
+                                    >
+                                      <Textarea
+                                        id={`tavern-scenes-relationship-public-${relationship.id}`}
+                                        value={relationship.publicNote ?? ""}
+                                        className={cn("min-h-[72px] resize-none text-sm leading-6", editorControlClassName)}
+                                        onChange={(event) => updateRelationshipOverride(relationship.id, {
+                                          publicNote: event.target.value,
+                                        })}
+                                      />
+                                    </EditorField>
+                                    <EditorField
+                                      label="私下修正"
+                                      htmlFor={`tavern-scenes-relationship-private-${relationship.id}`}
+                                    >
+                                      <Textarea
+                                        id={`tavern-scenes-relationship-private-${relationship.id}`}
+                                        value={relationship.privateNote ?? ""}
+                                        className={cn("min-h-[72px] resize-none text-sm leading-6", editorControlClassName)}
+                                        onChange={(event) => updateRelationshipOverride(relationship.id, {
+                                          privateNote: event.target.value,
+                                        })}
+                                      />
+                                    </EditorField>
+                                    <EditorField
+                                      label="标签"
+                                      htmlFor={`tavern-scenes-relationship-tags-${relationship.id}`}
+                                    >
+                                      <Input
+                                        id={`tavern-scenes-relationship-tags-${relationship.id}`}
+                                        value={relationship.tags.join("、")}
+                                        placeholder="逗号或顿号分隔"
+                                        className={editorControlClassName}
+                                        onChange={(event) => updateRelationshipOverride(relationship.id, {
+                                          tags: event.target.value
+                                            .split(/[，,、]/u)
+                                            .map((tag) => tag.trim())
+                                            .filter(Boolean),
+                                        })}
+                                      />
+                                    </EditorField>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-md border border-dashed bg-background/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                            暂无场景关系修正。
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

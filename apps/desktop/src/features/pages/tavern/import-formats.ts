@@ -1,4 +1,5 @@
 import type {
+  TavernCharacterRelationship,
   TavernGeneratedPresetJson,
   TavernGeneratedPresetRoom,
   TavernProgressVisibility,
@@ -40,6 +41,9 @@ const stringArrayValue = (value: unknown) => Array.isArray(value)
 const recordArrayValue = (value: unknown) => Array.isArray(value)
   ? value.filter(isRecord)
   : [];
+
+const relationshipArrayValue = (value: unknown) =>
+  Array.isArray(value) ? value as TavernCharacterRelationship[] : undefined;
 
 const firstNonEmpty = (...values: unknown[]) => {
   for (const value of values) {
@@ -208,7 +212,7 @@ const createCardGeneratedPreset = (
       writingStyle: textValue(rawData.writingStyle) || undefined,
       replyStylePrompt: systemPrompt || undefined,
       goals: firstNonEmpty(rawData.goals, rawData.creator_notes) || undefined,
-      relationships: firstNonEmpty(rawData.relationships, scenario) || undefined,
+      relationships: relationshipArrayValue(rawData.relationships),
     }],
     messages: firstMessage
       ? [{
@@ -250,7 +254,7 @@ const normalizeScriptCharacters = (characters: unknown) =>
       writingStyle: firstNonEmpty(character.writingStyle, character.narrationStyle) || undefined,
       replyStylePrompt: firstNonEmpty(character.replyStylePrompt, character.systemPrompt) || undefined,
       goals: firstNonEmpty(character.goals, character.objective) || undefined,
-      relationships: firstNonEmpty(character.relationships) || undefined,
+      relationships: relationshipArrayValue(character.relationships),
       memory: firstNonEmpty(character.memory, character.privateMemory) || undefined,
     }];
   });
