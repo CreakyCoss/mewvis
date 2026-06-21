@@ -898,7 +898,7 @@ const TavernPageContent = ({
       <div
         className={[
           "grid h-full min-h-0 w-full grid-cols-1",
-          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_280px]" : "lg:grid-cols-1",
+          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-1",
         ].join(" ")}
       >
         <main className="flex min-h-0 min-w-0 flex-col">
@@ -950,7 +950,7 @@ const TavernPageContent = ({
                 className={cn(
                   "self-center",
                   isSidePanelOpen
-                    ? "lg:w-[min(calc(100vw-320px),56rem)]"
+                    ? "lg:w-[min(calc(100vw-400px),56rem)]"
                     : "md:w-[min(calc(100vw-2.5rem),56rem)]",
                 )}
                 visualPreset={visualPreset}

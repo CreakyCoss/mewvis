@@ -83,6 +83,7 @@ export type LedgerResult = {
   messageRecordId?: string | null;
   messageRecordIds?: string[];
   compacted?: boolean;
+  rebuilt?: boolean;
 };
 
 export type ConversationLedgerHandle = {

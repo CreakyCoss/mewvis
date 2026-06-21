@@ -70,5 +70,6 @@ export type SessionMutationResult = Omit<SessionResult, "type"> & {
   messageRecordId?: string | null;
   messageRecordIds?: string[];
   compacted?: boolean;
+  rebuilt?: boolean;
   displaySummary?: BridgeDisplaySummary | null;
 };

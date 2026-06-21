@@ -38,6 +38,18 @@ pub struct CompactAgentRuntimeSessionInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RebuildAgentRuntimeAgentSessionInput {
+    workspace_path: String,
+    session_root_dir: String,
+    agent_id: Option<String>,
+    agent_role_id: String,
+    rebuild_instruction: Option<String>,
+    user_message: Option<String>,
+    runtime_model: Option<AgentRuntimeModelInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SummarizeAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
@@ -172,6 +184,37 @@ pub async fn compact_agent_runtime_session(
             },
             "options": {
                 "compactInstruction": input.compact_instruction,
+            },
+            "runtime": {
+                "model": input.runtime_model,
+            },
+        }),
+        &["session_mutation_result"],
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn rebuild_agent_runtime_agent_session(
+    app: AppHandle,
+    input: RebuildAgentRuntimeAgentSessionInput,
+) -> Result<Value, String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    call_session_bridge(
+        app,
+        json!({
+            "type": "rebuild_agent_session",
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "target": {
+                "scope": "agent",
+                "agentId": input.agent_id,
+                "agentRoleId": input.agent_role_id,
+            },
+            "options": {
+                "rebuildInstruction": input.rebuild_instruction,
+                "userMessage": input.user_message,
             },
             "runtime": {
                 "model": input.runtime_model,

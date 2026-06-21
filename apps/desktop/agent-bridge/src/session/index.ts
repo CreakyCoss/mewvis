@@ -14,6 +14,7 @@ export {
   deleteBridgeSessionMessage,
   editBridgeSessionMessage,
   readBridgeSession,
+  rebuildBridgeAgentSession,
   rebuildBridgeSession,
   summarizeBridgeSession,
 } from "./operations/session-service.js";

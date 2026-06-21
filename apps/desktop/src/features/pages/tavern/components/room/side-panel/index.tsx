@@ -1,16 +1,8 @@
-import type { Ref } from "react";
-import { useImperativeHandle, useState } from "react";
+import { useImperativeHandle, useRef, useState } from "react";
 import {
-  Activity,
-  BookOpen,
   Check,
-  ChevronRight,
-  Clock,
   Eye,
   EyeOff,
-  Loader2,
-  MessageSquare,
-  RefreshCcw,
   Save,
   ShieldCheck,
   Sparkles,
@@ -29,26 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
@@ -60,12 +34,13 @@ import {
   createTavernTimelineEvent,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../storage";
+} from "../../../storage";
 import {
   advanceTavernProgressFromFactEvents,
   assignTavernRoleFacts,
   createTavernProgressCheckpoint,
   filterTavernFactEventsForAudience,
+  getTavernStatusSnapshotValue,
   isGeneratedTavernRoleAssignmentFactEvent,
   isTavernProgressVisibilityVisibleToUser,
   rebuildTavernProgressFromHistory,
@@ -74,48 +49,47 @@ import {
   resolveTavernPendingStatusEvent,
   tavernCharacterAgentRoleId,
   type TavernInformationView,
-} from "../../core";
-import { runTavernAssetExtraction } from "../../runtime/asset-extractor";
+} from "../../../core";
+import { runTavernAssetExtraction } from "../../../runtime/asset-extractor";
 import {
   compactTavernAgentKnowledge,
-} from "../../runtime/bridge-session";
-import { runTavernProgressTracking } from "../../runtime/progress-tracker";
+} from "../../../runtime/bridge-session";
+import { runTavernProgressTracking } from "../../../runtime/progress-tracker";
 import type {
   TavernAssetDraft,
   TavernCharacter,
   TavernCondition,
   TavernEntityRef,
   TavernFactEvent,
+  TavernProgressView,
   TavernReplyMode,
   TavernRoom,
   TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusEvent,
+  TavernStatusTargetRef,
   TavernStatusRule,
   TavernStatusValue,
-} from "../../types";
-import { CharacterButton } from "./character-button";
-import { useTavernPageContext } from "../context";
-import { ProgressPanel } from "./progress-panel";
-
-export type SidePanelHandle = {
-  show: () => void;
-  hide: () => void;
-  toggle: () => void;
-};
-
-type SidePanelProps = {
-  bind: Ref<SidePanelHandle>;
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-};
-
-type SidePanelDangerAction = {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-};
+  TavernTaskDefinition,
+  TavernTaskState,
+} from "../../../types";
+import { useTavernPageContext } from "../../context";
+import { CharacterStatusRow } from "./characters";
+import { PlotDataSection, type PlotDataSectionHandle } from "./plot-data";
+import { SceneOverviewSection } from "./scene-overview";
+import {
+  EmptyPanelCard,
+  TextBlock,
+} from "./shared";
+import type {
+  ResolvedStatusMetric,
+  SidePanelDangerAction,
+  SidePanelProps,
+  StatusProgressItem,
+  TaskCardData,
+  TaskValueDisplay,
+} from "./types";
+export type { SidePanelHandle } from "./types";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -175,8 +149,6 @@ const informationViewDescriptions: Record<TavernInformationView, string> = {
 };
 
 const emptyValueText = "未设置";
-
-const compactText = (value: string | undefined) => value?.trim() || emptyValueText;
 
 const formatFactType = (type: string) => type.replace(/[_-]+/g, " ").trim();
 
@@ -372,99 +344,381 @@ const formatConditionSummary = (
   return "未知条件";
 };
 
-const TextBlock = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | undefined;
-}) => (
-  <div className="space-y-1.5">
-    <div className="text-xs font-medium text-current opacity-70">{label}</div>
-    <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-current/10 bg-current/5 px-3 py-2 text-sm leading-6 text-current shadow-sm">
-      {compactText(value)}
-    </div>
-  </div>
-);
+const getProgressStatusItems = (
+  views: TavernProgressView[],
+  placement: TavernProgressView["placement"],
+) =>
+  views
+    .filter((view) => view.placement === placement)
+    .flatMap((view) =>
+      view.items.flatMap((item) => item.type === "status" ? [item] : [])
+    );
 
-const TooltipField = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | undefined;
-}) => (
-  <div className="space-y-1">
-    <div className="text-[11px] font-medium text-current opacity-65">{label}</div>
-    <div className="whitespace-pre-wrap text-xs leading-5 text-current">
-      {compactText(value)}
-    </div>
-  </div>
-);
+const numericStatusPercent = (
+  value: TavernStatusValue,
+  definition: TavernStatusDefinition,
+) => {
+  if (typeof value !== "number") {
+    return 0;
+  }
+  const min = typeof definition.min === "number" ? definition.min : 0;
+  const max = typeof definition.max === "number" ? definition.max : 100;
+  if (max <= min) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+};
 
-const CharacterProfileTooltip = ({
-  character,
-  memory,
-}: {
-  character: TavernCharacter;
-  memory: string;
-}) => (
-  <HoverCardContent
-    side="left"
-    align="start"
-    sideOffset={8}
-    className="w-80 max-w-80 space-y-3 p-3 text-left"
-  >
-    <div>
-      <div className="text-sm font-semibold text-popover-foreground">{character.name}</div>
-    </div>
-    <TooltipField label="角色设定" value={character.description} />
-    <TooltipField label="说话方式" value={character.speakingStyle} />
-    {character.goals?.trim() && (
-      <TooltipField label="目标" value={character.goals} />
-    )}
-    {character.relationships?.trim() && (
-      <TooltipField label="关系" value={character.relationships} />
-    )}
-    <TooltipField label="角色记忆" value={memory} />
-  </HoverCardContent>
-);
+const resolveStatusTarget = (
+  definition: TavernStatusDefinition,
+  activeRoom: TavernRoom,
+  ownerCharacter?: TavernCharacter,
+): TavernStatusTargetRef | null => {
+  switch (definition.scope) {
+    case "global":
+      return { type: "global" };
+    case "scene":
+      return { type: "scene", sceneId: activeRoom.activeSceneId };
+    case "party":
+      return { type: "party", partyId: "main" };
+    case "character":
+      return ownerCharacter ? { type: "character", characterId: ownerCharacter.id } : null;
+    case "relationship":
+      return null;
+  }
+};
 
-type DetailPanelKey =
-  | "asset-drafts"
-  | "timeline"
-  | "lorebook"
-  | "illustration-hints"
-  | "progress-rules"
-  | "tasks-outcomes"
-  | "script-review"
-  | "private-intel"
-  | "tips";
-
-const DetailEntry = ({
-  icon: Icon,
-  title,
-  summary,
-  onClick,
+const createResolvedStatusMetric = ({
+  activeRoom,
+  definition,
+  item,
+  ownerCharacter,
 }: {
-  icon: typeof Sparkles;
-  title: string;
-  summary: string;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    className="flex w-full min-w-0 items-center gap-2 rounded-md border border-current/10 bg-current/5 px-3 py-2 text-left text-current transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    onClick={onClick}
-  >
-    <Icon className="size-4 shrink-0 text-primary" />
-    <span className="min-w-0 flex-1">
-      <span className="block truncate text-sm font-medium">{title}</span>
-      <span className="mt-0.5 block truncate text-xs opacity-65">{summary}</span>
-    </span>
-    <ChevronRight className="size-4 shrink-0 opacity-60" />
-  </button>
-);
+  activeRoom: TavernRoom;
+  definition: TavernStatusDefinition;
+  item: StatusProgressItem;
+  ownerCharacter?: TavernCharacter;
+}): ResolvedStatusMetric | null => {
+  const target = resolveStatusTarget(definition, activeRoom, ownerCharacter);
+  if (!target) {
+    return null;
+  }
+  const value = getTavernStatusSnapshotValue(
+    activeRoom.statusSnapshot,
+    target,
+    definition.id,
+  ) ?? definition.defaultValue;
+  return {
+    key: `${definition.id}:${ownerCharacter?.id ?? "room"}`,
+    definition,
+    item,
+    value,
+    percent: numericStatusPercent(value, definition),
+  };
+};
+
+const createFallbackStatusItem = (statusId: string): StatusProgressItem => ({
+  type: "status",
+  statusId,
+  display: "bar",
+});
+
+const conditionReferencesStatus = (
+  condition: TavernCondition | undefined,
+  statusId: string,
+): boolean => {
+  if (!condition) {
+    return false;
+  }
+  if ("status" in condition && "target" in condition) {
+    return condition.status === statusId;
+  }
+  if ("all" in condition) {
+    return condition.all.some((item) => conditionReferencesStatus(item, statusId));
+  }
+  if ("any" in condition) {
+    return condition.any.some((item) => conditionReferencesStatus(item, statusId));
+  }
+  if ("not" in condition) {
+    return conditionReferencesStatus(condition.not, statusId);
+  }
+  return false;
+};
+
+const isDefaultSceneThreatMetric = (metric: ResolvedStatusMetric) =>
+  metric.definition.id === "threat_level" &&
+  metric.definition.scope === "scene" &&
+  metric.definition.label === "威胁";
+
+const roomHasActiveTaskForStatus = (
+  room: TavernRoom,
+  statusId: string,
+) => room.taskDefinitions.some((task) => {
+  if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
+    return false;
+  }
+  const status = room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
+  if (status === "inactive") {
+    return false;
+  }
+  return conditionReferencesStatus(task.lifecycle.startCondition, statusId) ||
+    conditionReferencesStatus(task.lifecycle.completeCondition, statusId) ||
+    conditionReferencesStatus(task.lifecycle.failCondition, statusId);
+});
+
+const shouldUseSituationMetric = (
+  metric: ResolvedStatusMetric,
+  room: TavernRoom,
+) => {
+  if (typeof metric.value !== "number") {
+    return false;
+  }
+  if (!isDefaultSceneThreatMetric(metric)) {
+    return true;
+  }
+  return roomHasActiveTaskForStatus(room, metric.definition.id);
+};
+
+const formatConditionTargetLabel = (
+  target: TavernStatusTargetRef,
+  characterNameById: Map<string, string>,
+) => {
+  switch (target.type) {
+    case "global":
+      return "全局";
+    case "scene":
+      return "";
+    case "party":
+      return `队伍 ${target.partyId}`;
+    case "character":
+      return characterNameById.get(target.characterId) ?? target.characterId;
+    case "relationship": {
+      const subject = target.subject.type === "character"
+        ? characterNameById.get(target.subject.characterId) ?? target.subject.characterId
+        : "你";
+      const object = target.object.type === "character"
+        ? characterNameById.get(target.object.characterId) ?? target.object.characterId
+        : "你";
+      return `${subject}对${object}`;
+    }
+  }
+};
+
+const formatTaskConditionCardText = (
+  condition: TavernCondition | undefined,
+  characterNameById: Map<string, string>,
+  statusDefinitionById: Map<string, TavernStatusDefinition>,
+): string => {
+  if (!condition) {
+    return "无额外条件";
+  }
+  if ("all" in condition) {
+    return condition.all.map((item) =>
+      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
+    ).join(" 且 ");
+  }
+  if ("any" in condition) {
+    return condition.any.map((item) =>
+      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
+    ).join(" 或 ");
+  }
+  if ("not" in condition) {
+    return `非 ${formatTaskConditionCardText(condition.not, characterNameById, statusDefinitionById)}`;
+  }
+  if ("status" in condition && "target" in condition) {
+    const targetLabel = formatConditionTargetLabel(condition.target, characterNameById);
+    const statusLabel = statusDefinitionById.get(condition.status)?.label ?? condition.status;
+    if (condition.lte !== undefined) {
+      return `${targetLabel}${statusLabel}降至 ${condition.lte}`;
+    }
+    if (condition.gte !== undefined) {
+      return `${targetLabel}${statusLabel}达到 ${condition.gte}`;
+    }
+    if (condition.equals !== undefined) {
+      return `${targetLabel}${statusLabel}为 ${formatStatusValue(condition.equals)}`;
+    }
+    if (condition.notEquals !== undefined) {
+      return `${targetLabel}${statusLabel}不是 ${formatStatusValue(condition.notEquals)}`;
+    }
+    return `${targetLabel}${statusLabel}变化`;
+  }
+  if ("factEvent" in condition) {
+    return `出现 ${condition.factEvent} 事件`;
+  }
+  if ("task" in condition && "status" in condition) {
+    return `任务 ${condition.task} ${taskStatusLabels[condition.status]}`;
+  }
+  if ("flag" in condition) {
+    return `标记 ${condition.flag} 为 ${formatStatusValue(condition.equals)}`;
+  }
+  return formatConditionSummary(condition, characterNameById);
+};
+
+const findTaskStatusCondition = (
+  condition: TavernCondition | undefined,
+): Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }> | null => {
+  if (!condition) {
+    return null;
+  }
+  if ("status" in condition && "target" in condition) {
+    return condition;
+  }
+  if ("all" in condition) {
+    return condition.all.map(findTaskStatusCondition).find((item) => item !== null) ?? null;
+  }
+  if ("any" in condition) {
+    return condition.any.map(findTaskStatusCondition).find((item) => item !== null) ?? null;
+  }
+  return null;
+};
+
+const formatTaskNumber = (value: number) =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
+
+const formatTaskMetricValue = (
+  value: TavernStatusValue,
+  definition: TavernStatusDefinition,
+) => {
+  if (typeof value !== "number") {
+    return formatStatusValue(value);
+  }
+  const max = typeof definition.max === "number" ? definition.max : 100;
+  return `${formatTaskNumber(Math.round(value))}/${formatTaskNumber(max)}`;
+};
+
+const formatTaskConditionTargetText = (
+  condition: Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }>,
+) => {
+  if (condition.lte !== undefined) {
+    return `目标 ≤ ${formatTaskNumber(condition.lte)}`;
+  }
+  if (condition.gte !== undefined) {
+    return `目标 ≥ ${formatTaskNumber(condition.gte)}`;
+  }
+  if (condition.equals !== undefined) {
+    return `目标 = ${formatStatusValue(condition.equals)}`;
+  }
+  if (condition.notEquals !== undefined) {
+    return `目标 ≠ ${formatStatusValue(condition.notEquals)}`;
+  }
+  return "等待变化";
+};
+
+const resolveTaskTargetPercent = (
+  condition: Extract<TavernCondition, { status: string; target: TavernStatusTargetRef }>,
+  definition: TavernStatusDefinition,
+) => {
+  const targetValue =
+    condition.lte ??
+    condition.gte ??
+    (typeof condition.equals === "number" ? condition.equals : undefined);
+  return typeof targetValue === "number"
+    ? numericStatusPercent(targetValue, definition)
+    : undefined;
+};
+
+const resolveTaskConditionMetric = ({
+  activeRoom,
+  task,
+  characterNameById,
+  statusDefinitionById,
+}: {
+  activeRoom: TavernRoom;
+  task: TavernTaskDefinition;
+  characterNameById: Map<string, string>;
+  statusDefinitionById: Map<string, TavernStatusDefinition>;
+}) => {
+  const condition = findTaskStatusCondition(task.lifecycle.completeCondition);
+  if (!condition) {
+    return null;
+  }
+
+  const definition = statusDefinitionById.get(condition.status);
+  if (!definition) {
+    return null;
+  }
+
+  const value = getTavernStatusSnapshotValue(
+    activeRoom.statusSnapshot,
+    condition.target,
+    definition.id,
+  ) ?? definition.defaultValue;
+  const targetLabel = formatConditionTargetLabel(condition.target, characterNameById);
+  const metricLabel = `${targetLabel}${definition.label}` || definition.label;
+
+  return {
+    mode: "status",
+    label: metricLabel,
+    valueText: formatTaskMetricValue(value, definition),
+    currentText: `当前：${metricLabel} ${formatStatusValue(value)}`,
+    percent: numericStatusPercent(value, definition),
+    targetText: formatTaskConditionTargetText(condition),
+    targetPercent: resolveTaskTargetPercent(condition, definition),
+  } satisfies TaskValueDisplay;
+};
+
+const resolveTaskProgressDisplay = ({
+  activeRoom,
+  task,
+  state,
+  characterNameById,
+  statusDefinitionById,
+}: {
+  activeRoom: TavernRoom;
+  task: TavernTaskDefinition;
+  state?: TavernTaskState;
+  characterNameById: Map<string, string>;
+  statusDefinitionById: Map<string, TavernStatusDefinition>;
+}): Pick<TaskCardData, "metric"> => {
+  if (state?.progress && state.progress.target > 0) {
+    return {
+      metric: {
+        mode: "progress",
+        label: "任务进度",
+        valueText: `${state.progress.current}/${state.progress.target}`,
+        currentText: `当前：${state.progress.current} / ${state.progress.target}`,
+        percent: Math.max(0, Math.min(100, (state.progress.current / state.progress.target) * 100)),
+        targetText: `目标 ${state.progress.target}`,
+        targetPercent: 100,
+      },
+    };
+  }
+
+  const status = state?.status ?? task.lifecycle.initialStatus;
+  switch (status) {
+    case "completed":
+      return {};
+    case "failed":
+      return {};
+    case "active": {
+      const conditionMetric = resolveTaskConditionMetric({
+        activeRoom,
+        task,
+        characterNameById,
+        statusDefinitionById,
+      });
+      if (conditionMetric) {
+        return { metric: conditionMetric };
+      }
+      if (task.progress?.target) {
+        return {
+          metric: {
+            mode: "progress",
+            label: "任务进度",
+            valueText: `0/${task.progress.target}`,
+            currentText: `当前：0 / ${task.progress.target}`,
+            percent: 0,
+            targetText: `目标 ${task.progress.target}`,
+            targetPercent: 100,
+          },
+        };
+      }
+      return {};
+    }
+    case "inactive":
+      return {};
+  }
+};
 
 const AssetDraftPreview = ({
   draft,
@@ -596,11 +850,11 @@ export const SidePanel = ({
     patchExecutionStep,
     setExecutionTraceAnchorMessageId,
   } = useTavernPageContext();
-  const [detailPanel, setDetailPanel] = useState<DetailPanelKey | null>(null);
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const [isTrackingProgress, setIsTrackingProgress] = useState(false);
   const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
   const [pendingDangerAction, setPendingDangerAction] = useState<SidePanelDangerAction | null>(null);
+  const plotDataRef = useRef<PlotDataSectionHandle | null>(null);
   const isBusy = isSending || isExtractingAssets || isTrackingProgress;
 
   const requestDangerAction = (action: SidePanelDangerAction) => {
@@ -631,6 +885,17 @@ export const SidePanel = ({
   }
 
   const userPersonaName = activeRoom.userPersonaName.trim();
+  const activeScene = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId);
+  const sceneOverviewTitle =
+    activeRoom.sceneStatus?.location?.trim() ||
+    activeScene?.title?.trim() ||
+    activeRoom.title.trim() ||
+    "当前场景";
+  const sceneOverviewPhase =
+    activeRoom.sceneStatus?.scenePhase?.trim() ||
+    activeRoom.sceneStatus?.atmosphere?.trim() ||
+    activeRoom.sceneStatus?.timeLabel?.trim() ||
+    "进行中";
   const sceneStatusItems = [
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
@@ -651,6 +916,56 @@ export const SidePanel = ({
   const visibleStatusDefinitions = activeRoom.statusDefinitions.filter((definition) =>
     isTavernProgressVisibilityVisibleToUser(definition.visibility)
   );
+  const sidePanelStatusItems = getProgressStatusItems(activeRoom.progressViews, "sidePanel");
+  const sidePanelSituationMetrics = sidePanelStatusItems
+    .flatMap((item) => {
+      const definition = statusDefinitionById.get(item.statusId);
+      if (
+        !definition ||
+        !isTavernProgressVisibilityVisibleToUser(definition.visibility) ||
+        !["global", "scene", "party"].includes(definition.scope)
+      ) {
+        return [];
+      }
+      const metric = createResolvedStatusMetric({ activeRoom, definition, item });
+      return metric ? [metric] : [];
+    });
+  const situationMetric =
+    sidePanelSituationMetrics
+      .filter((metric) => shouldUseSituationMetric(metric, activeRoom))
+      .find((metric) => /威胁|风险|危机|局势/.test(metric.definition.label)) ??
+    sidePanelSituationMetrics.find((metric) => shouldUseSituationMetric(metric, activeRoom)) ??
+    null;
+  const configuredCharacterStatusItems = getProgressStatusItems(activeRoom.progressViews, "characterCard")
+    .filter((item) => {
+      const definition = statusDefinitionById.get(item.statusId);
+      return definition?.scope === "character" &&
+        isTavernProgressVisibilityVisibleToUser(definition.visibility);
+    });
+  const fallbackCharacterStatusItems = visibleStatusDefinitions
+    .filter((definition) => definition.scope === "character")
+    .map((definition) => createFallbackStatusItem(definition.id));
+  const characterStatusItems = configuredCharacterStatusItems.length > 0
+    ? configuredCharacterStatusItems
+    : fallbackCharacterStatusItems;
+  const characterMetricsById = new Map(roomCharacters.map((character) => {
+    const metrics = characterStatusItems
+      .flatMap((item) => {
+        const definition = statusDefinitionById.get(item.statusId);
+        if (!definition || definition.scope !== "character") {
+          return [];
+        }
+        const metric = createResolvedStatusMetric({
+          activeRoom,
+          definition,
+          item,
+          ownerCharacter: character,
+        });
+        return metric ? [metric] : [];
+      })
+      .slice(0, 2);
+    return [character.id, metrics] as const;
+  }));
   const visibleStatusRules = activeRoom.statusRules.filter((rule) => {
     const definition = statusDefinitionById.get(rule.apply.statusId);
     return definition ? isTavernProgressVisibilityVisibleToUser(definition.visibility) : true;
@@ -658,9 +973,30 @@ export const SidePanel = ({
   const visibleTaskDefinitions = activeRoom.taskDefinitions.filter((task) =>
     isTavernProgressVisibilityVisibleToUser(task.visibility)
   );
+  const activeTaskCards: TaskCardData[] = visibleTaskDefinitions
+    .map((task) => {
+      const state = activeRoom.taskSnapshot[task.id];
+      const status = state?.status ?? task.lifecycle.initialStatus;
+      const progressDisplay = resolveTaskProgressDisplay({
+        activeRoom,
+        task,
+        state,
+        characterNameById,
+        statusDefinitionById,
+      });
+      return {
+        task,
+        state,
+        status,
+        ...progressDisplay,
+      };
+    })
+    .filter((item) => item.status !== "inactive")
+    .slice(0, 4);
   const visibleSceneOutcomes = activeRoom.sceneOutcomes.filter((outcome) =>
     isTavernProgressVisibilityVisibleToUser(outcome.visibility)
   );
+  const pendingOutcomeEvents = activeRoom.outcomeEvents.filter((event) => event.status === "pending");
   const recentStatusEvents = activeRoom.statusEvents
     .filter((event) => isTavernProgressVisibilityVisibleToUser(event.visibility))
     .slice(-12)
@@ -672,7 +1008,6 @@ export const SidePanel = ({
     })
     .slice(-8)
     .reverse();
-  const pendingOutcomeEvents = activeRoom.outcomeEvents.filter((event) => event.status === "pending");
   const recentIllustrationHints = activeRoom.illustrationHints.slice(-4).reverse();
   const privateIntelEvents = filterTavernFactEventsForAudience({
     factEvents: activeRoom.factEvents,
@@ -1145,28 +1480,14 @@ export const SidePanel = ({
   };
   const shouldShowIllustrationHints =
     activeRoom.settings.illustrationHints.enabled || recentIllustrationHints.length > 0;
-  const detailPanelTitle = {
-    "asset-drafts": "剧情资产草稿",
-    timeline: "剧情时间线",
-    lorebook: "世界书",
-    "illustration-hints": "插图提示",
-    "progress-rules": "状态规则",
-    "tasks-outcomes": "任务与结局",
-    "script-review": "剧本视角",
-    "private-intel": "我的情报",
-    tips: "现场提示",
-  }[detailPanel ?? "tips"];
-  const detailPanelDescription = {
-    "asset-drafts": "确认或忽略系统整理出的剧情资产。",
-    timeline: "查看已沉淀的剧情事件。",
-    lorebook: "查看当前房间可引用的世界设定。",
-    "illustration-hints": "查看导演为当前场景生成的公开画面提示。",
-    "progress-rules": "查看状态定义、触发规则与最近变更。",
-    "tasks-outcomes": "查看个人、团队、全局任务与场景胜负条件。",
-    "script-review": "切换公开、复盘和导演视角，管理可揭示事实。",
-    "private-intel": "汇总当前用户可知但不公开进入聊天正文的事实。",
-    tips: "查看酒馆现场的使用提醒。",
-  }[detailPanel ?? "tips"];
+  const sceneOverviewTaskCards = activeTaskCards.map((data) => ({
+    data,
+    conditionText: formatTaskConditionCardText(
+      data.task.lifecycle.completeCondition,
+      characterNameById,
+      statusDefinitionById,
+    ),
+  }));
 
   return (
     <aside
@@ -1177,177 +1498,38 @@ export const SidePanel = ({
     >
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="size-4 text-primary" />
-                场景概览
-              </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-6 shrink-0 items-center rounded-md border border-current/10 bg-current/5 px-2 text-xs font-medium text-current opacity-80 transition-colors hover:bg-current/10 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      对话设置
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="right"
-                    align="start"
-                    sideOffset={8}
-                    className="block max-w-72 whitespace-normal px-3 py-2 text-left leading-5"
-                  >
-                    <div className="space-y-1">
-                      {sceneStatusItems.map((item) => (
-                        <div key={item}>{item}</div>
-                      ))}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-md border border-current/10 bg-current/5 px-3 py-2.5 text-current">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium">沉浸描写</div>
-                <div className="mt-0.5 text-xs leading-5 opacity-65">
-                  动作、神态、感官与环境互动
-                </div>
-              </div>
-              <Switch
-                size="sm"
-                checked={activeRoom.settings.immersiveDescriptionEnabled}
-                disabled={isSending}
-                aria-label="切换沉浸描写"
-                onCheckedChange={(checked) => patchRoom(activeRoom.id, {
-                  settings: {
-                    ...activeRoom.settings,
-                    immersiveDescriptionEnabled: checked,
-                  },
-                })}
-              />
-            </div>
-            <TextBlock label="场景描述" value={activeRoom.scene} />
-            <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
-            <TextBlock label="房间记忆" value={activeRoom.memory} />
-            {identityFactEvents.length > 0 && (
-              <div className="space-y-2 rounded-md border border-primary/20 bg-primary/10 p-3 text-current">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <ShieldCheck className="size-4 text-primary" />
-                  我的身份
-                </div>
-                {identityFactEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="rounded-md bg-background/40 px-3 py-2 text-xs leading-5">
-                    <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-[4px] bg-current/10 px-1.5 py-0.5 text-[10px] leading-none opacity-70">
-                        {formatFactType(event.type)}
-                      </span>
-                      <span className="rounded-[4px] bg-current/10 px-1.5 py-0.5 text-[10px] leading-none opacity-70">
-                        仅你可见
-                      </span>
-                    </div>
-                    <div className="line-clamp-3 whitespace-pre-wrap opacity-85">{event.evidence}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                disabled={isBusy}
-                onClick={() => void trackRecentProgress()}
-              >
-                {isTrackingProgress ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
-                更新状态
-              </Button>
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                disabled={isBusy}
-                onClick={rebuildProgressFromHistory}
-              >
-                <RefreshCcw className="size-3.5" />
-                重建状态
-              </Button>
-            </div>
-            {pendingStatusEvents.length > 0 && (
-              <div className="space-y-2 rounded-md border border-current/10 bg-current/5 p-2.5 text-current">
-                <div className="text-xs font-semibold opacity-80">待确认状态</div>
-                {pendingStatusEvents.map((event) => {
-                  const definition = statusDefinitionById.get(event.statusId);
-                  const before = Array.isArray(event.before) ? event.before.join("、") : String(event.before ?? "未记录");
-                  const after = Array.isArray(event.after) ? event.after.join("、") : String(event.after ?? "未记录");
-                  return (
-                    <div key={event.id} className="space-y-2 rounded-md bg-current/5 px-2.5 py-2">
-                      <div className="flex min-w-0 items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-xs font-medium">
-                            {definition?.label ?? event.statusId}
-                          </div>
-                          <div className="mt-0.5 text-[11px] tabular-nums opacity-70">
-                            {before}{" -> "}{after}
-                            {typeof event.delta === "number" && (
-                              <span className={event.delta > 0 ? "ml-1 text-emerald-500" : "ml-1 text-destructive"}>
-                                {event.delta > 0 ? "+" : ""}{event.delta}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-[11px] opacity-60">
-                          {Math.round(event.confidence * 100)}%
-                        </div>
-                      </div>
-                      <div className="line-clamp-2 text-[11px] leading-4 opacity-65">
-                        {event.reason}
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="outline"
-                          className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                          disabled={isBusy}
-                          onClick={() => resolvePendingStatusEvent(event.id, "applied")}
-                        >
-                          <Check className="size-3.5" />
-                          应用
-                        </Button>
-                        <Button
-                          type="button"
-                          size="xs"
-                          variant="ghost"
-                          className="text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                          disabled={isBusy}
-                          onClick={() => resolvePendingStatusEvent(event.id, "rejected")}
-                        >
-                          <X className="size-3.5" />
-                          拒绝
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <ProgressPanel
-              placement="sidePanel"
-            />
-          </section>
+          <SceneOverviewSection
+            sceneTitle={sceneOverviewTitle}
+            scenePhase={sceneOverviewPhase}
+            sceneStatusItems={sceneStatusItems}
+            immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
+            scene={activeRoom.scene}
+            sceneGoal={activeRoom.sceneGoal}
+            memory={activeRoom.memory}
+            identityFactEvents={identityFactEvents}
+            pendingStatusEvents={pendingStatusEvents}
+            statusDefinitionById={statusDefinitionById}
+            isSending={isSending}
+            isBusy={isBusy}
+            isTrackingProgress={isTrackingProgress}
+            situationMetric={situationMetric}
+            taskCards={sceneOverviewTaskCards}
+            onOpenDetail={(detailPanel) => plotDataRef.current?.open(detailPanel)}
+            onImmersiveDescriptionChange={(checked) => patchRoom(activeRoom.id, {
+              settings: {
+                ...activeRoom.settings,
+                immersiveDescriptionEnabled: checked,
+              },
+            })}
+            onTrackRecentProgress={() => void trackRecentProgress()}
+            onRebuildProgress={rebuildProgressFromHistory}
+            onResolvePendingStatusEvent={resolvePendingStatusEvent}
+          />
 
           {shouldShowIllustrationHints && (
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-sm font-semibold">
+                <div className="flex items-center gap-2 text-[13px] font-semibold">
                   <Sparkles className="size-4 text-primary" />
                   插图提示
                 </div>
@@ -1360,199 +1542,67 @@ export const SidePanel = ({
                   recentIllustrationHints.map((hint) => (
                     <div
                       key={hint.id}
-                      className="rounded-md border border-current/10 bg-current/5 px-3 py-2 text-xs leading-5 text-current"
+                      className="rounded-lg border border-current/10 bg-background/35 px-3 py-2.5 text-[11px] leading-4 text-current shadow-sm"
                     >
                       {hint.prompt}
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-md border border-current/10 bg-current/5 px-3 py-4 text-center text-sm text-current opacity-70">
-                    本场景还没有生成插图提示。
-                  </div>
+                  <EmptyPanelCard>本场景还没有生成插图提示。</EmptyPanelCard>
                 )}
               </div>
             </section>
           )}
 
           <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <UsersRound className="size-4 text-primary" />
-              入席角色
+            <div className="flex min-h-8 items-center gap-2 text-sm font-semibold leading-tight text-current">
+              <UsersRound className="size-4 shrink-0 text-primary" />
+              <span className="truncate">入席角色</span>
             </div>
             <div className="space-y-2">
               {roomCharacters.map((character) => {
                 const isCompacting = compactingCharacterIds.has(character.id);
                 return (
-                  <div key={character.id} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <HoverCard openDelay={120} closeDelay={120}>
-                        <HoverCardTrigger asChild>
-                          <div className="min-w-0 flex-1">
-                            <CharacterButton
-                              character={character}
-                              isActive={character.id === activeCharacter?.id}
-                              disabled={isSending}
-                              onClick={() => patchRoom(activeRoom.id, { activeCharacterId: character.id })}
-                            />
-                          </div>
-                        </HoverCardTrigger>
-                        <CharacterProfileTooltip
-                          character={character}
-                          memory={activeRoom.characterMemories[character.id] ?? ""}
-                        />
-                      </HoverCard>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="outline"
-                        className="shrink-0 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                        title="压缩角色知识"
-                        aria-label={`压缩${character.name}的角色知识`}
-                        disabled={isBusy || isCompacting}
-                        onClick={() => void compactCharacterKnowledge(character.id)}
-                      >
-                        {isCompacting ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <RefreshCcw className="size-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                    <ProgressPanel
-                      ownerCharacter={character}
-                      placement="characterCard"
-                      className="pl-1"
-                    />
-                  </div>
+                  <CharacterStatusRow
+                    key={character.id}
+                    character={character}
+                    isActive={character.id === activeCharacter?.id}
+                    disabled={isSending}
+                    memory={activeRoom.characterMemories[character.id] ?? ""}
+                    metrics={characterMetricsById.get(character.id) ?? []}
+                    isBusy={isBusy}
+                    isCompacting={isCompacting}
+                    onClick={() => patchRoom(activeRoom.id, { activeCharacterId: character.id })}
+                    onCompact={() => void compactCharacterKnowledge(character.id)}
+                  />
                 );
               })}
               {roomCharacters.length === 0 && (
-                <div className="rounded-md border border-current/10 bg-current/5 px-3 py-4 text-center text-sm text-current opacity-70">
-                  还没有角色入席。
-                </div>
+                <EmptyPanelCard>还没有角色入席。</EmptyPanelCard>
               )}
             </div>
           </section>
 
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <BookOpen className="size-4 text-primary" />
-                剧情资料
-              </div>
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                className="border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current disabled:opacity-50"
-                disabled={isBusy}
-                onClick={() => void extractRecentAssets()}
-              >
-                {isExtractingAssets ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
-                整理最近
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <DetailEntry
-                icon={Sparkles}
-                title="剧情资产草稿"
-                summary={
-                  activeRoom.assetDrafts.length > 0
-                    ? `${activeRoom.assetDrafts.length} 个待确认草稿`
-                    : "暂无待确认草稿"
-                }
-                onClick={() => setDetailPanel("asset-drafts")}
-              />
-              <DetailEntry
-                icon={Clock}
-                title="剧情时间线"
-                summary={
-                  activeRoom.timelineEvents.length > 0
-                    ? `${activeRoom.timelineEvents.length} 个剧情事件`
-                    : "暂无剧情事件"
-                }
-                onClick={() => setDetailPanel("timeline")}
-              />
-              <DetailEntry
-                icon={BookOpen}
-                title="世界书"
-                summary={
-                  activeRoom.lorebookEntries.length > 0
-                    ? `${activeRoom.lorebookEntries.length} 条设定，${enabledLorebookCount} 条启用`
-                    : "暂无世界书"
-                }
-                onClick={() => setDetailPanel("lorebook")}
-              />
-              <DetailEntry
-                icon={Sparkles}
-                title="插图提示"
-                summary={
-                  activeRoom.illustrationHints.length > 0
-                    ? `${activeRoom.illustrationHints.length} 条画面提示`
-                    : activeRoom.settings.illustrationHints.enabled ? "等待导演生成" : "未开启"
-                }
-                onClick={() => setDetailPanel("illustration-hints")}
-              />
-              <DetailEntry
-                icon={Activity}
-                title="状态规则"
-                summary={`${visibleStatusDefinitions.length} 项状态，${visibleStatusRules.length} 条规则，${pendingStatusEvents.length} 条待确认`}
-                onClick={() => setDetailPanel("progress-rules")}
-              />
-              <DetailEntry
-                icon={Check}
-                title="任务与结局"
-                summary={`${visibleTaskDefinitions.length} 个任务，${visibleSceneOutcomes.length} 个结局，${pendingOutcomeEvents.length} 个待确认`}
-                onClick={() => setDetailPanel("tasks-outcomes")}
-              />
-              <DetailEntry
-                icon={ShieldCheck}
-                title="剧本视角"
-                summary={`${informationViewLabels[currentInformationView]}，${reviewHiddenFactCount}/${hiddenFactCount} 条隐藏事实可见`}
-                onClick={() => setDetailPanel("script-review")}
-              />
-              <DetailEntry
-                icon={MessageSquare}
-                title="我的情报"
-                summary={
-                  privateIntelEvents.length > 0
-                    ? `${privateIntelEvents.length} 条事实${identityFactEvents.length > 0 ? `，${identityFactEvents.length} 条身份/阵营` : ""}`
-                    : "暂无仅你可知事实"
-                }
-                onClick={() => setDetailPanel("private-intel")}
-              />
-              <DetailEntry
-                icon={MessageSquare}
-                title="现场提示"
-                summary="内页只保留现场信息，更多配置在首页编辑"
-                onClick={() => setDetailPanel("tips")}
-              />
-            </div>
-          </section>
-        </div>
-      </ScrollArea>
-      <Sheet
-        open={detailPanel !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDetailPanel(null);
-          }
-        }}
-      >
-        <SheetContent
-          side="right"
-          className="!w-[92vw] !max-w-[92vw] gap-0 p-0 sm:!w-[480px] sm:!max-w-[480px]"
-        >
-          <SheetHeader className="border-b px-5 py-4 pr-14">
-            <SheetTitle>{detailPanelTitle}</SheetTitle>
-            <SheetDescription>{detailPanelDescription}</SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-4 p-5">
+          <PlotDataSection
+            activeRoom={activeRoom}
+            isBusy={isBusy}
+            isExtractingAssets={isExtractingAssets}
+            enabledLorebookCount={enabledLorebookCount}
+            visibleStatusDefinitionCount={visibleStatusDefinitions.length}
+            visibleStatusRuleCount={visibleStatusRules.length}
+            pendingStatusEventCount={pendingStatusEvents.length}
+            visibleTaskDefinitionCount={visibleTaskDefinitions.length}
+            visibleSceneOutcomeCount={visibleSceneOutcomes.length}
+            pendingOutcomeEventCount={pendingOutcomeEvents.length}
+            currentInformationViewLabel={informationViewLabels[currentInformationView]}
+            reviewHiddenFactCount={reviewHiddenFactCount}
+            hiddenFactCount={hiddenFactCount}
+            privateIntelCount={privateIntelEvents.length}
+            identityFactCount={identityFactEvents.length}
+            onExtractRecentAssets={() => void extractRecentAssets()}
+            bind={plotDataRef}
+            renderDetailContent={(detailPanel) => (
+              <>
               {detailPanel === "asset-drafts" && (
                 activeRoom.assetDrafts.length > 0 ? (
                   <div className="space-y-3">
@@ -2222,19 +2272,47 @@ export const SidePanel = ({
               )}
 
               {detailPanel === "tips" && (
-                <div className="space-y-3">
-                  <div className="rounded-md border bg-background/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                    更多配置都在首页编辑，内页只保留对话现场需要查看的信息。
+                <div className="space-y-4">
+                  <div className="rounded-md border bg-background/60 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">沉浸描写</div>
+                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                          动作、神态、感官与环境互动
+                        </div>
+                      </div>
+                      <Switch
+                        size="sm"
+                        checked={activeRoom.settings.immersiveDescriptionEnabled}
+                        disabled={isSending}
+                        aria-label="切换沉浸描写"
+                        onCheckedChange={(checked) => patchRoom(activeRoom.id, {
+                          settings: {
+                            ...activeRoom.settings,
+                            immersiveDescriptionEnabled: checked,
+                          },
+                        })}
+                      />
+                    </div>
+                    <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+                      {sceneStatusItems.map((item) => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
                   </div>
+                  <TextBlock label="场景描述" value={activeRoom.scene} />
+                  <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
+                  <TextBlock label="房间记忆" value={activeRoom.memory} />
                   <div className="rounded-md border bg-background/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
                     剧情时间线和世界书是酒馆共享资产；入席角色、场景设定和阶段记忆在对应故事场景中维护。
                   </div>
                 </div>
               )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+              </>
+            )}
+          />
+        </div>
+      </ScrollArea>
 
       <Dialog
         open={Boolean(pendingDangerAction)}

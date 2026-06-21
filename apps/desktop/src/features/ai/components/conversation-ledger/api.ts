@@ -77,6 +77,22 @@ export async function compactLedger(input: {
   return invoke<LedgerResult>("compact_agent_runtime_session", { input });
 }
 
+export async function rebuildAgentLedgerSession(input: {
+  workspacePath: string;
+  sessionRootDir: string;
+  agentId?: string | null;
+  agentRoleId: string;
+  rebuildInstruction?: string | null;
+  userMessage?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+}) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<LedgerResult>("rebuild_agent_runtime_agent_session", { input });
+}
+
 export async function editLedgerMessage(input: {
   workspacePath: string;
   sessionRootDir: string;

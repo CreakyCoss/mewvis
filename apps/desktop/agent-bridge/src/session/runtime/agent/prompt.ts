@@ -260,7 +260,9 @@ export const prepareBridgeRuntimeAgentPrompt = async (
   const sessionContext = buildBridgeSessionContext(storage, contextLeafId);
   const commandWithRecording = {
     ...command,
-    recordUserMessage: shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId),
+    recordUserMessage: command.recordUserMessage === false
+      ? false
+      : shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId),
   };
   const commandWithTurn = withSessionLink(commandWithRecording, {
     turnId: inferCommandTurnId(commandWithRecording, sessionContext.entries),

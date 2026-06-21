@@ -18,6 +18,7 @@ import {
   deleteBridgeSessionMessage,
   editBridgeSessionMessage,
   readBridgeSession,
+  rebuildBridgeAgentSession,
   rebuildBridgeSession,
   summarizeBridgeSession,
 } from "../session/index.js";
@@ -250,6 +251,21 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
           deps.writeJsonLine(await compactBridgeSession(command, {
             askUser: questions.askUser,
             emit: deps.emit,
+          }));
+        } catch (error: unknown) {
+          emitCommandError(command, deps.emit, messageFromError(error));
+        }
+        return true;
+
+      case BridgeContextCommandType.RebuildAgentSession:
+        if (runningTask) {
+          emitCommandError(command, deps.emit, runningTaskMessage);
+          return true;
+        }
+        try {
+          deps.writeJsonLine(await rebuildBridgeAgentSession(command, {
+            askUser: questions.askUser,
+            emit: () => {},
           }));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));

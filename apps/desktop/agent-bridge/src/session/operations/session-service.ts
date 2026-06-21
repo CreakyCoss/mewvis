@@ -6,6 +6,7 @@ import {
   type MessageDeleteCommand,
   type MessageEditCommand,
   type ReadSessionCommand,
+  type RebuildAgentSessionCommand,
   type RebuildCommand,
   type SummarizeSessionCommand,
 } from "../../contracts/protocol.js";
@@ -13,10 +14,15 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type {
+  AgentRunCommand,
   AgentRuntimeContext,
   RuntimeAgentCompactCommand,
 } from "../../runtimes/types.js";
-import { createAgentSessionPlan } from "../runtime/agent/session-plan.js";
+import {
+  createAgentSessionPlan,
+  resolveAgentSessionDir,
+} from "../runtime/agent/session-plan.js";
+import { prepareBridgeRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
 import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
 import { resolveBridgeSessionPaths } from "../storage/paths.js";
 import { buildBridgeSessionContext } from "../core/projection.js";
@@ -50,6 +56,17 @@ const invalidateBridgeAgentSessionCache = async (
   await rm(paths.agentsDir, { recursive: true, force: true });
 };
 
+const defaultAgentSessionRebuildInstruction = [
+  "你正在重建这个 bridge session 中某个 agentRoleId 对应的底层长期 Agent session。",
+  "只吸收 session_bootstrap_context 中的历史事实、角色状态、关系、任务、约束和重要偏好；不要推进剧情，不要新增事实，不要把这次内部重建当作用户的新请求。",
+  "完成后用一句话说明已完成重建。",
+].join("\n");
+
+const defaultAgentSessionRebuildMessage = [
+  "请基于上方 bridge ledger bootstrap context 重建你的长期角色知识。",
+  "这是内部维护任务，不要推进剧情或执行新行动。",
+].join("\n");
+
 const sessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
   context: ReturnType<typeof buildBridgeSessionContext>,
@@ -72,7 +89,7 @@ const sessionResultFrom = (
 const mutationResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
   context: ReturnType<typeof buildBridgeSessionContext>,
-  extra: Pick<SessionMutationResult, "messageRecordId" | "messageRecordIds" | "compacted" | "displaySummary"> = {},
+  extra: Pick<SessionMutationResult, "messageRecordId" | "messageRecordIds" | "compacted" | "rebuilt" | "displaySummary"> = {},
 ): SessionMutationResult => ({
   ...sessionResultFrom(command, context),
   type: BridgeResultType.SessionMutationResult,
@@ -188,6 +205,74 @@ export const compactBridgeSession = async (
   const context = buildBridgeSessionContext(storage);
   return mutationResultFrom(command, context, {
     compacted: compactResult.compacted,
+  });
+};
+
+export const rebuildBridgeAgentSession = async (
+  command: RebuildAgentSessionCommand,
+  runtimeContext?: AgentRuntimeContext,
+): Promise<SessionMutationResult> => {
+  const { storage } = await openSessionStorage(command);
+  const baseLeafId = storage.getLeafId();
+  const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
+  const sessionPlan = await createAgentSessionPlan({
+    workspacePath: command.workspacePath,
+    sessionRootDir: command.sessionRootDir,
+    runtimeId,
+    agentRoleId: command.target.agentRoleId,
+  });
+  await rm(sessionPlan.agentSessionDir, { recursive: true, force: true });
+
+  const taskId = command.requestId?.trim() || `bridge-rebuild-agent-session-${randomUUID()}`;
+  const rebuildCommand: AgentRunCommand = {
+    runtimeMode: "agent",
+    requestId: command.requestId ?? null,
+    agentId: command.target.agentId ?? runtimeId,
+    taskId,
+    workspacePath: command.workspacePath,
+    sessionRootDir: command.sessionRootDir,
+    agentRoleId: sessionPlan.agentRoleId,
+    userMessage: command.options?.userMessage?.trim() || defaultAgentSessionRebuildMessage,
+    recordUserMessage: false,
+    systemPrompt: null,
+    requestContext: null,
+    runtimeInstruction: null,
+    bootstrapInstruction: command.options?.rebuildInstruction?.trim() ||
+      defaultAgentSessionRebuildInstruction,
+    runtimeModel: command.runtime?.model ?? null,
+    resources: command.runtime?.resources ?? null,
+  };
+  const runtimeCommandWithPrompt = await prepareBridgeRuntimeAgentPrompt(rebuildCommand, runtimeId);
+  const agentSessionDir = await resolveAgentSessionDir(runtimeCommandWithPrompt, runtimeId);
+  const runtimeCommand = agentSessionDir
+    ? { ...runtimeCommandWithPrompt, agentSessionDir }
+    : runtimeCommandWithPrompt;
+  const result = await implementation.run(runtimeCommand, runtimeContext ?? {
+    askUser: async () => "",
+    emit: () => {},
+  });
+
+  await storage.appendCustom("agent_session_rebuilt", {
+    ...bridgeLedgerOperationMetadata({
+      source: "bridge_rebuild_agent_session",
+      baseLeafId,
+    }),
+    target: {
+      scope: command.target.scope,
+      runtimeId,
+      agentRoleId: sessionPlan.agentRoleId,
+      agentSessionId: sessionPlan.agentSessionId,
+    },
+    rebuilt: true,
+    message: result.text?.trim() || null,
+    details: {
+      taskId,
+      bootstrapContextChars: runtimeCommand.sessionBootstrapContext?.length ?? 0,
+    },
+  });
+  const context = buildBridgeSessionContext(storage);
+  return mutationResultFrom(command, context, {
+    rebuilt: true,
   });
 };
 

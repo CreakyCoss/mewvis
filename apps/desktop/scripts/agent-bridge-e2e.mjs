@@ -1022,8 +1022,29 @@ try {
     tavernADone.text,
   );
 
-  const tavernASessionDir = join(sessionDirPath, "agents", "mock", tavernARoleId);
-  rmSync(tavernASessionDir, { recursive: true, force: true });
+  const tavernARebuilt = await request({
+    type: "rebuild_agent_session",
+    requestId: "rebuild-tavern-a-agent-session",
+    workspacePath,
+    sessionRootDir,
+    target: { scope: "agent", agentId: "mock", agentRoleId: tavernARoleId },
+    options: { rebuildInstruction: "测试：仅基于 A 自己的 ledger 上下文重建底层 session。" },
+    runtime: {
+      model: { contextWindow: 4096, maxTokens: 1024 },
+      resources: bridgeResources(),
+    },
+  }, "session_mutation_result");
+  assert(tavernARebuilt.rebuilt === true, "rebuild_agent_session 应返回 rebuilt=true", tavernARebuilt);
+  const tavernARebuildEntry = [...readLedger().entries].reverse()
+    .find((entry) => entry.type === "custom" && entry.customType === "agent_session_rebuilt");
+  assert(
+    tavernARebuildEntry?.data?.target?.agentRoleId === tavernARoleId &&
+      tavernARebuildEntry.data?.details?.bootstrapContextChars > 0 &&
+      !tavernARebuildEntry.data?.message?.includes(tavernSecret) &&
+      !tavernARebuildEntry.data?.message?.includes("B 的私密心理描写"),
+    "rebuild_agent_session 应使用非空 ledger bootstrap 初始化，且不泄漏 B 的私密内容",
+    tavernARebuildEntry,
+  );
   const tavernARebuildTaskId = "mock-task-tavern-a-rebuild";
   const tavernARebuildRequestContext = "A 可见信息：B 公开说，火把已经熄灭。";
   send(sendMessageCommand({

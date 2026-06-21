@@ -15,6 +15,7 @@ export enum BridgeTaskCommandType {
 export enum BridgeContextCommandType {
   CreateSession = "create_session",
   Compact = "compact",
+  RebuildAgentSession = "rebuild_agent_session",
   SummarizeSession = "summarize_session",
   MessageEdit = "message_edit",
   MessageDelete = "message_delete",
@@ -176,6 +177,11 @@ export type BridgeCompactOptions = {
   compactInstruction?: string | null;
 };
 
+export type BridgeAgentSessionRebuildOptions = {
+  rebuildInstruction?: string | null;
+  userMessage?: string | null;
+};
+
 export type BridgeSummaryOptions = {
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
@@ -185,6 +191,13 @@ export type CompactCommand = SessionCommandBase & {
   type: BridgeContextCommandType.Compact;
   target: BridgeCompactTarget;
   options?: BridgeCompactOptions | null;
+  runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
+};
+
+export type RebuildAgentSessionCommand = SessionCommandBase & {
+  type: BridgeContextCommandType.RebuildAgentSession;
+  target: BridgeCompactTarget;
+  options?: BridgeAgentSessionRebuildOptions | null;
   runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
 };
 
@@ -277,6 +290,7 @@ export type BridgeTaskCommand =
 export type BridgeContextCommand =
   | CreateSessionCommand
   | CompactCommand
+  | RebuildAgentSessionCommand
   | SummarizeSessionCommand
   | MessageEditCommand
   | MessageDeleteCommand

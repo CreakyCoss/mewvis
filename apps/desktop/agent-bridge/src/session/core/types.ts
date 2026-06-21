@@ -22,6 +22,7 @@ export type BridgeMessageSource =
   | "app_edit"
   | "app_delete"
   | "bridge_compact"
+  | "bridge_rebuild_agent_session"
   | "bridge_display_summary"
   | "bridge_branch";
 
