@@ -1,10 +1,12 @@
 import { getTavernPromptStylePreset } from "../../../prompt-styles";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
+import { resolveTavernPromptRuleStack } from "../../../prompt-registry/rule-layers/resolver";
 import { resolveTavernSystemNarrativePreset } from "../../../prompt-registry/system-narrative-styles";
 import type {
   TavernCharacter,
   TavernRoom,
 } from "../../../types";
+import { formatPromptRuleLayersForCharacterStyle } from "../layers/rule-layers";
 import { joinPromptLines } from "../shared/sections";
 
 export const buildCharacterTurnStyleInstruction = ({
@@ -19,10 +21,16 @@ export const buildCharacterTurnStyleInstruction = ({
   const systemNarrative = resolveTavernSystemNarrativePreset(
     room.settings.systemNarrativePreset,
   );
+  const ruleStack = resolveTavernPromptRuleStack({
+    compositionId: room.settings.platformStyleId,
+    qualityRuleIds: room.settings.qualityRuleIds,
+  });
   const lines = [
     `呈现规则：${presentationProfile.label}。${presentationProfile.characterAddendum}`,
     `系统叙事预设：${systemNarrative.preset.label}。${systemNarrative.preset.description}`,
+    `平台风格：${ruleStack.platformStyle.label}。${ruleStack.platformStyle.characterAddendum}`,
     `酒馆风格：${promptStyle.label}。${promptStyle.characterAddendum}`,
+    ...formatPromptRuleLayersForCharacterStyle(ruleStack.ruleGroups),
   ];
 
   if (systemNarrative.settings.customInstructions) {

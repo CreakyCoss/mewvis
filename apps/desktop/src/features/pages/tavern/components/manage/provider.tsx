@@ -13,6 +13,10 @@ import { normalizeTavernPromptStyleId } from "../../prompt-styles";
 import { normalizeTavernPresentation } from "../../prompt-registry/presentation-rules";
 import { normalizeTavernSystemNarrativePresetSettings } from "../../prompt-registry/system-narrative-styles";
 import {
+  normalizeTavernQualityRuleIds,
+  normalizeTavernRuleCompositionId,
+} from "../../prompt-registry/rule-layers/resolver";
+import {
   createTavernProgressCheckpoint,
 } from "../../core";
 import {
@@ -246,6 +250,8 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
     systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
       candidate.systemNarrativePreset,
     ),
+    platformStyleId: normalizeTavernRuleCompositionId(candidate.platformStyleId),
+    qualityRuleIds: normalizeTavernQualityRuleIds(candidate.qualityRuleIds),
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),

@@ -22,6 +22,7 @@ import {
 } from "../../core";
 import { getTavernPromptStylePreset } from "../../prompt-styles";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
+import { resolveTavernPromptRuleStack } from "../../prompt-registry/rule-layers/resolver";
 import {
   resolveTavernSystemNarrativePreset,
 } from "../../prompt-registry/system-narrative-styles";
@@ -79,6 +80,10 @@ export const buildTavernDirectorPromptContext = ({
   const systemNarrative = resolveTavernSystemNarrativePreset(
     room.settings.systemNarrativePreset,
   );
+  const ruleStack = resolveTavernPromptRuleStack({
+    compositionId: room.settings.platformStyleId,
+    qualityRuleIds: room.settings.qualityRuleIds,
+  });
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
   const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
@@ -128,6 +133,8 @@ export const buildTavernDirectorPromptContext = ({
       schedulingSignalsText,
       presentationProfile,
       promptStyle,
+      platformStyle: ruleStack.platformStyle,
+      ruleGroups: ruleStack.ruleGroups,
       systemNarrative,
     }),
   ].join("\n");

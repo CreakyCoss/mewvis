@@ -12,6 +12,8 @@ import {
   formatTavernSystemNarrativePresetForPrompt,
   type resolveTavernSystemNarrativePreset,
 } from "../../../prompt-registry/system-narrative-styles";
+import type { TavernPromptRuleGroups } from "../../../prompt-registry/rule-layers/resolver";
+import type { TavernPlatformStyle } from "../../../prompt-registry/rule-layers/types";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -20,6 +22,7 @@ import type {
   TavernRoom,
 } from "../../../types";
 import type { TavernRuntimeMessage } from "../../conversation";
+import { formatPromptRuleLayersForDirector } from "../../prompt/layers/rule-layers";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
 
@@ -105,6 +108,8 @@ export const buildTavernDirectorContextSections = ({
   schedulingSignalsText,
   presentationProfile,
   promptStyle,
+  platformStyle,
+  ruleGroups,
   systemNarrative,
 }: {
   room: TavernRoom;
@@ -120,6 +125,8 @@ export const buildTavernDirectorContextSections = ({
   schedulingSignalsText: string;
   presentationProfile: TavernPresentationProfile;
   promptStyle: TavernPromptStylePreset;
+  platformStyle: TavernPlatformStyle;
+  ruleGroups: TavernPromptRuleGroups;
   systemNarrative: TavernResolvedSystemNarrative;
 }) => {
   const selectedTargetCharacters = selectedTargetCharacterIds
@@ -143,6 +150,11 @@ export const buildTavernDirectorContextSections = ({
     promptStyle.directorAddendum,
     "</prompt_style>",
     "",
+    `<platform_style id="${platformStyle.id}" label="${platformStyle.label}" target="director">`,
+    platformStyle.directorAddendum,
+    "</platform_style>",
+    "",
+    formatPromptRuleLayersForDirector(ruleGroups),
     room.storyOutline.trim() || room.storyGoal.trim()
       ? `<story_arc>\n${[
           room.storyOutline.trim(),

@@ -19,6 +19,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { getTavernSystemNarrativePreset } from "../../../../../prompt-registry/system-narrative-styles";
+import { resolveTavernPromptRuleStack } from "../../../../../prompt-registry/rule-layers/resolver";
 import type {
   TavernRoom,
   TavernRoomSettings,
@@ -83,6 +84,16 @@ export const SettingsSection = ({
   const systemNarrativePresetLabel = data.settings.systemNarrativePreset.customInstructions
     ? `${systemNarrativePreset.label} + 自定义`
     : systemNarrativePreset.label;
+  const ruleStack = resolveTavernPromptRuleStack({
+    compositionId: data.settings.platformStyleId,
+    qualityRuleIds: data.settings.qualityRuleIds,
+  });
+  const effectiveRuleCount =
+    ruleStack.ruleGroups.qualityRules.length +
+    ruleStack.ruleGroups.narrativeStyles.length +
+    ruleStack.ruleGroups.genreRules.length +
+    ruleStack.ruleGroups.hookRules.length +
+    ruleStack.ruleGroups.tabooRules.length;
   const randomEventPercentage = Math.round(data.settings.randomEvents.probability * 100);
   const randomEventProgress = data.settings.randomEvents.enabled ? randomEventPercentage : 0;
 
@@ -183,6 +194,18 @@ export const SettingsSection = ({
                 <EditorSettingRow icon={Sparkles} label="叙事风格">
                   <EditorStatusPill tone="info">
                     {systemNarrativePresetLabel}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={PackageCheck} label="写作组合">
+                  <EditorStatusPill tone={ruleStack.composition.id === "none" ? "muted" : "info"}>
+                    {ruleStack.composition.label}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={Target} label="内部规则">
+                  <EditorStatusPill tone={effectiveRuleCount > 0 ? "info" : "muted"}>
+                    {effectiveRuleCount > 0
+                      ? `已组合 ${effectiveRuleCount} 条`
+                      : "未启用"}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={Eye} label="沉浸描写">

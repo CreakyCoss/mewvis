@@ -28,6 +28,12 @@ import {
   normalizeTavernSystemNarrativePresetId,
   normalizeTavernSystemNarrativePresetSettings,
 } from "../../../../../prompt-registry/system-narrative-styles";
+import {
+  TAVERN_RULE_COMPOSITION_OPTIONS,
+  getTavernRuleComposition,
+  normalizeTavernQualityRuleIds,
+  normalizeTavernRuleCompositionId,
+} from "../../../../../prompt-registry/rule-layers/resolver";
 import type {
   TavernProgressTrackerSettings,
   TavernRoleAssignmentDefinition,
@@ -255,6 +261,9 @@ export const SettingsEdit = ({
   const selectedSystemNarrativePreset = draft
     ? getTavernSystemNarrativePreset(draft.systemNarrativePreset.presetId)
     : null;
+  const selectedRuleComposition = draft
+    ? getTavernRuleComposition(draft.platformStyleId)
+    : null;
 
   const open = (nextData = data) => {
     const nextDraft = {
@@ -295,6 +304,8 @@ export const SettingsEdit = ({
         systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
           draft.systemNarrativePreset,
         ),
+        platformStyleId: normalizeTavernRuleCompositionId(draft.platformStyleId),
+        qualityRuleIds: normalizeTavernQualityRuleIds(draft.qualityRuleIds),
         immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
         showExecutionTrace: draft.showExecutionTrace,
         autoAssetExtractionEnabled: draft.autoAssetExtractionEnabled,
@@ -525,6 +536,32 @@ export const SettingsEdit = ({
                       }}
                     />
                   </div>
+                  <SettingsRow
+                    label="写作组合"
+                    description={selectedRuleComposition?.description ?? "选择由平台、质量、叙事、题材、钩子和雷点规则组成的预设。"}
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-platform-style"
+                        value={draft.platformStyleId}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            platformStyleId: normalizeTavernRuleCompositionId(
+                              event.target.value,
+                            ),
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        {TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) => (
+                          <NativeSelectOption key={composition.id} value={composition.id}>
+                            {composition.label}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    )}
+                  />
                 </SettingsSection>
 
                 <SettingsSection

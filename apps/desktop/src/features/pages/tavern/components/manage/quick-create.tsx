@@ -32,6 +32,11 @@ import {
   TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
   normalizeTavernSystemNarrativePresetId,
 } from "../../prompt-registry/system-narrative-styles";
+import {
+  TAVERN_RULE_COMPOSITION_OPTIONS,
+  normalizeTavernRuleCompositionId,
+  resolveTavernPromptRuleStack,
+} from "../../prompt-registry/rule-layers/resolver";
 import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
 import type { TavernGeneratedPresetAgentDraft } from "../../runtime/assistants";
 import type {
@@ -66,6 +71,7 @@ type QuickCreateRoomDraft = {
   presentationProfileId: string;
   promptStyleId: string;
   systemNarrativePresetId: string;
+  platformStyleId: string;
   informationMode: TavernRoomSettings["informationPolicy"]["mode"];
   characterSeeds: string;
   characterCount: string;
@@ -86,6 +92,7 @@ const createEmptyQuickCreateRoomDraft = (): QuickCreateRoomDraft => ({
   presentationProfileId: "dialogue-chat",
   promptStyleId: "novel",
   systemNarrativePresetId: "balanced",
+  platformStyleId: "none",
   informationMode: "open",
   characterSeeds: "",
   characterCount: "3",
@@ -222,6 +229,9 @@ export const QuickCreate = ({
               quickCreateDraft.systemNarrativePresetId,
             ),
           },
+          platformStyleId: normalizeTavernRuleCompositionId(
+            quickCreateDraft.platformStyleId,
+          ),
           informationPolicy,
         },
       },
@@ -245,6 +255,10 @@ export const QuickCreate = ({
     const systemNarrativePresetId = normalizeTavernSystemNarrativePresetId(
       quickCreateDraft.systemNarrativePresetId,
     );
+    const platformStyleId = normalizeTavernRuleCompositionId(quickCreateDraft.platformStyleId);
+    const ruleStack = resolveTavernPromptRuleStack({
+      compositionId: platformStyleId,
+    });
     const characterCount = clampQuickCreateInteger(quickCreateDraft.characterCount, 3, 1, 8);
     const randomEventProbability = clampQuickCreateProbability(
       quickCreateDraft.randomEventProbability,
@@ -261,9 +275,13 @@ export const QuickCreate = ({
         presentationProfileId,
         promptStyleId,
         systemNarrativePresetId,
+        platformStyleId,
         systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.find((preset) =>
           preset.id === systemNarrativePresetId
         ),
+        ruleComposition: ruleStack.composition,
+        platformStyle: ruleStack.platformStyle,
+        ruleGroups: ruleStack.ruleGroups,
         characterSeedsText: quickCreateDraft.characterSeeds,
         characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
         advanced: {
@@ -471,6 +489,24 @@ export const QuickCreate = ({
                       {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
                         <NativeSelectOption key={preset.id} value={preset.id}>
                           {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+                  <EditorField label="写作组合" htmlFor="tavern-quick-platform-style">
+                    <NativeSelect
+                      id="tavern-quick-platform-style"
+                      value={quickCreateDraft.platformStyleId}
+                      className={editorControlClassName}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        platformStyleId: event.target.value,
+                      })}
+                    >
+                      {TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) => (
+                        <NativeSelectOption key={composition.id} value={composition.id}>
+                          {composition.label}
                         </NativeSelectOption>
                       ))}
                     </NativeSelect>

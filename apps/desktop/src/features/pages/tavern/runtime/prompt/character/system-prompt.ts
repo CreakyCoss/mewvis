@@ -6,6 +6,7 @@ import { getTavernPresentationProfile } from "../../../prompt-registry/presentat
 import {
   resolveTavernSystemNarrativePreset,
 } from "../../../prompt-registry/system-narrative-styles";
+import { resolveTavernPromptRuleStack } from "../../../prompt-registry/rule-layers/resolver";
 import { getTavernPromptStylePreset } from "../../../prompt-styles";
 import type {
   TavernCharacter,
@@ -22,7 +23,9 @@ import {
   formatCompactPresentCharacters,
 } from "../layers/character-context";
 import { buildSystemNarrativePresetSection } from "../layers/narrative-style";
+import { buildPlatformStyleSection } from "../layers/platform-style";
 import { buildPresentationProfileSection } from "../layers/presentation";
+import { buildPromptRuleLayerSections } from "../layers/rule-layers";
 import { buildPromptStyleSection } from "../layers/room-style";
 import { buildCharacterSystemContractSection } from "../layers/system-contract";
 import { buildTavernContextSections } from "../layers/tavern-context";
@@ -76,6 +79,10 @@ export const buildTavernSystemPrompt = ({
   const systemNarrative = resolveTavernSystemNarrativePreset(
     room.settings.systemNarrativePreset,
   );
+  const ruleStack = resolveTavernPromptRuleStack({
+    compositionId: room.settings.platformStyleId,
+    qualityRuleIds: room.settings.qualityRuleIds,
+  });
   const publicContentTag = presentationContract.publicContentTag;
   const usesNarrativeBeat = presentationContract.characterMessageKind === "narrative_beat";
   const compactCharacters = formatCompactPresentCharacters({
@@ -104,8 +111,16 @@ export const buildTavernSystemPrompt = ({
       usesNarrativeBeat,
       immersiveDescriptionEnabled,
     }),
+    buildPlatformStyleSection({
+      platformStyle: ruleStack.platformStyle,
+      target: "character",
+    }),
     buildPromptStyleSection({
       promptStyle,
+      target: "character",
+    }),
+    ...buildPromptRuleLayerSections({
+      ruleGroups: ruleStack.ruleGroups,
       target: "character",
     }),
     ...buildTavernContextSections({

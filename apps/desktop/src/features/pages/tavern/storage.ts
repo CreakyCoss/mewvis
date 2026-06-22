@@ -71,6 +71,11 @@ import {
   normalizeTavernSystemNarrativePresetSettings,
 } from "./prompt-registry/system-narrative-styles";
 import {
+  DEFAULT_TAVERN_RULE_COMPOSITION_ID,
+  normalizeTavernQualityRuleIds,
+  normalizeTavernRuleCompositionId,
+} from "./prompt-registry/rule-layers/resolver";
+import {
   createDefaultTavernPresentation,
   normalizeTavernPresentation,
 } from "./prompt-registry/presentation-rules";
@@ -318,6 +323,8 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   systemNarrativePreset: {
     presetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
   },
+  platformStyleId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
+  qualityRuleIds: [],
   immersiveDescriptionEnabled: true,
   showExecutionTrace: false,
   autoAssetExtractionEnabled: false,
@@ -968,6 +975,7 @@ const cloneTavernDirectorProfile = (
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
   systemNarrativePreset: { ...DEFAULT_TAVERN_ROOM_SETTINGS.systemNarrativePreset },
+  qualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.qualityRuleIds],
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
@@ -1373,6 +1381,8 @@ const normalizeRoomSettings = (
     systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
       candidate.systemNarrativePreset,
     ),
+    platformStyleId: normalizeTavernRuleCompositionId(candidate.platformStyleId),
+    qualityRuleIds: normalizeTavernQualityRuleIds(candidate.qualityRuleIds),
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
     assetExtractionIntervalTurns: clampInteger(

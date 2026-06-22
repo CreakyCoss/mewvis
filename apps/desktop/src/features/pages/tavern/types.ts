@@ -1,4 +1,8 @@
 import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
+import type {
+  TavernPlatformStyleId,
+  TavernQualityRuleId,
+} from "./prompt-registry/rule-layers/types";
 
 export type TavernReplyMode = "active" | "round" | "director";
 
@@ -281,6 +285,8 @@ export type TavernAssetDraft = {
 
 export type TavernRoomSettings = {
   systemNarrativePreset: TavernSystemNarrativePresetSettings;
+  platformStyleId: TavernPlatformStyleId;
+  qualityRuleIds: TavernQualityRuleId[];
   immersiveDescriptionEnabled: boolean;
   showExecutionTrace: boolean;
   autoAssetExtractionEnabled: boolean;

@@ -10,6 +10,10 @@ import {
   TAVERN_SYSTEM_NARRATIVE_PRESETS,
   normalizeTavernSystemNarrativePresetSettings,
 } from "../../../prompt-registry/system-narrative-styles";
+import {
+  normalizeTavernRuleCompositionId,
+  resolveTavernPromptRuleStack,
+} from "../../../prompt-registry/rule-layers/resolver";
 import type { TavernGeneratedPresetAgentDraft } from "../generated-preset-agent";
 import {
   generatedPresetSchema,
@@ -25,6 +29,7 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "必须尊重 request_context 中已填的 title、premise、background、worldInfo、storyGoal、characterSeeds、promptStyleId 和 presentationProfileId，不要覆盖用户明确设定。",
   "room.presentation.profileId 必须等于 request_context.presentationProfileId。对话演绎使用直接对白；第三人称旁白使用间接表达和动作心理转述；小说正文允许少量自然对白但不要输出聊天记录格式。",
   "如果 request_context.advanced.settings.systemNarrativePreset 存在，room.settings.systemNarrativePreset 必须沿用它；它只控制叙事风格比例，不改变 room.presentation.profileId 对应的呈现结构。",
+  "如果 request_context.advanced.settings.platformStyleId 存在，room.settings.platformStyleId 必须沿用它；它是写作组合 id，会在运行时组合平台、质量、叙事、题材、钩子和雷点规则，不改变呈现结构或 XML 协议。",
   "如果 request_context.advanced.characterCount 存在，characters 数量应尽量等于该数；如果用户给了角色线索，优先保留这些角色。",
   "room.settings.replyOptions 默认启用，count 默认为 3；候选回复内容由运行时生成，预设 JSON 不要提前写死候选回复。",
   "如果 request_context.advanced.enableStatusTracking 为 false，room.settings.statusTracking.enabled 必须为 false，statusDefinitions/statusRules/progressViews 可以为空数组。",
@@ -59,6 +64,12 @@ export const buildTavernGeneratedPresetRequestContext = (
   const systemNarrativePresetSettings = normalizeTavernSystemNarrativePresetSettings(
     draft.advanced?.settings?.systemNarrativePreset,
   );
+  const platformStyleId = normalizeTavernRuleCompositionId(
+    draft.advanced?.settings?.platformStyleId,
+  );
+  const ruleStack = resolveTavernPromptRuleStack({
+    compositionId: platformStyleId,
+  });
   return JSON.stringify({
     ...draft,
     advanced: draft.advanced
@@ -68,16 +79,21 @@ export const buildTavernGeneratedPresetRequestContext = (
             ? {
                 ...draft.advanced.settings,
                 systemNarrativePreset: systemNarrativePresetSettings,
+                platformStyleId,
               }
             : draft.advanced.settings,
         }
       : draft.advanced,
     promptStyleId,
     presentationProfileId,
+    platformStyleId,
     promptStyle: TAVERN_PROMPT_STYLE_PRESETS.find((preset) => preset.id === promptStyleId),
     presentationProfile: TAVERN_PRESENTATION_PROFILES.find((profile) =>
       profile.id === presentationProfileId
     ),
+    ruleComposition: ruleStack.composition,
+    platformStyle: ruleStack.platformStyle,
+    ruleGroups: ruleStack.ruleGroups,
     systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESETS.find((preset) =>
       preset.id === systemNarrativePresetSettings.presetId
     ),
