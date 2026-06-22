@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getTavernPresentationProfile } from "../../../../../presentation-profiles";
+import { getTavernPresentationProfile } from "../../../../../prompt-registry/presentation-rules";
 import {
   getActiveTavernScene,
   getTavernSceneDisplayTitle,
@@ -117,7 +117,7 @@ export const BasicSummaryContent = ({
       <div className="grid gap-2 sm:grid-cols-2">
         <MetricCard
           icon={PanelTop}
-          label="呈现模式"
+          label="呈现规则"
           value={presentationProfile.label}
         />
         <MetricCard

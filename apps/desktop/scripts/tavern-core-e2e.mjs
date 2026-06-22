@@ -12,10 +12,9 @@ const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director-decision.ts");
 const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
-const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts");
+const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
-const turnInstructionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/turn-instruction.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -96,11 +95,11 @@ writeFileSync(entryPath, `
     parseTavernExternalImportJson,
   } from ${JSON.stringify(importFormatsPath)};
   import {
+    buildTavernCharacterTurnInstruction,
     buildTavernSystemPrompt,
     tavernMessagesToRuntimeMessages,
   } from ${JSON.stringify(promptPath)};
   import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
-  import { buildTavernCharacterTurnInstruction } from ${JSON.stringify(turnInstructionPath)};
 
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
@@ -621,6 +620,13 @@ writeFileSync(entryPath, `
   const styledRoom = {
     ...room,
     promptStyleId: "wuxia",
+    settings: {
+      ...room.settings,
+      systemNarrativePreset: {
+        presetId: "dramatic",
+        customInstructions: "系统叙事层保持雨夜压迫感，但不要覆盖武侠房间风格和角色口吻。",
+      },
+    },
     localCharacters: [styledCharacter, characters[1]],
   };
   const styledPromptForA = buildTavernSystemPrompt({
@@ -2250,14 +2256,17 @@ try {
       !checks.promptForA.includes("这轮只允许以「贝拉」的身份发言"),
     "A 的角色 prompt 必须锁定 A 身份",
     checks.promptForA,
-  );
-  assert(
-    checks.styledPromptForA.includes("prompt_style id=\"wuxia\"") &&
-      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
-      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
-      checks.styledTurnInstructionForA.includes("房间提示词风格：武侠风格") &&
-      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
-    "系统提示词风格和角色级 prompt 必须进入角色请求上下文与 turn instruction",
+	  );
+	  assert(
+	    checks.styledPromptForA.includes("prompt_style id=\"wuxia\"") &&
+	      checks.styledPromptForA.includes("system_narrative_preset id=\"dramatic\"") &&
+	      checks.styledPromptForA.includes("系统叙事层保持雨夜压迫感") &&
+	      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
+	      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
+	      checks.styledTurnInstructionForA.includes("系统叙事预设：张力推进") &&
+		      checks.styledTurnInstructionForA.includes("酒馆风格：武侠风格") &&
+		      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
+		    "系统叙事预设、酒馆风格和角色级 prompt 必须进入角色请求上下文与 turn instruction",
     {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,
@@ -2270,7 +2279,7 @@ try {
       checks.narrativeBeatReply.content.includes("阿洛把披风拢紧") &&
       checks.narrativeContextForA.includes("<narrative_beat>") &&
       checks.narrativeRuntimeHistory.includes("<history_narrative_beat>"),
-    "第三人称/小说呈现模式应使用 narrative_beat 生成合同、解析结果和历史上下文",
+    "第三人称/小说呈现规则应使用 narrative_beat 生成合同、解析结果和历史上下文",
     {
       prompt: checks.narrativePromptForA,
       turnInstruction: checks.narrativeTurnInstructionForA,
@@ -2635,7 +2644,7 @@ try {
       checks.progressChecks.generated.room.settings.randomEvents.enabled &&
       checks.progressChecks.generated.room.settings.randomEvents.probability === 0.25 &&
       checks.progressChecks.generated.room.settings.illustrationHints.enabled,
-    "生成 JSON 导入应保留快速创建来源、提示词风格和高级房间设置",
+	    "生成 JSON 导入应保留快速创建来源、酒馆风格和高级房间设置",
     checks.progressChecks.generated.room,
   );
   assert(

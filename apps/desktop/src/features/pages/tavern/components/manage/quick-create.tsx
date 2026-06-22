@@ -21,13 +21,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  TAVERN_PRESENTATION_PROFILES,
+  TAVERN_PRESENTATION_PROFILE_OPTIONS,
   normalizeTavernPresentationProfileId,
-} from "../../presentation-profiles";
+} from "../../prompt-registry/presentation-rules";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
 } from "../../prompt-styles";
+import {
+  TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
+  normalizeTavernSystemNarrativePresetId,
+} from "../../prompt-registry/system-narrative-styles";
 import type { TavernTextFieldAgentRequest } from "../../runtime/field-polish-agent";
 import type { TavernGeneratedPresetAgentDraft } from "../../runtime/generated-preset-agent";
 import type {
@@ -61,6 +65,7 @@ type QuickCreateRoomDraft = {
   userPersonaName: string;
   presentationProfileId: string;
   promptStyleId: string;
+  systemNarrativePresetId: string;
   informationMode: TavernRoomSettings["informationPolicy"]["mode"];
   characterSeeds: string;
   characterCount: string;
@@ -80,6 +85,7 @@ const createEmptyQuickCreateRoomDraft = (): QuickCreateRoomDraft => ({
   userPersonaName: "我",
   presentationProfileId: "dialogue-chat",
   promptStyleId: "novel",
+  systemNarrativePresetId: "balanced",
   informationMode: "open",
   characterSeeds: "",
   characterCount: "3",
@@ -211,6 +217,11 @@ export const QuickCreate = ({
           illustrationHints: {
             enabled: quickCreateDraft.illustrationHintsEnabled,
           },
+          systemNarrativePreset: {
+            presetId: normalizeTavernSystemNarrativePresetId(
+              quickCreateDraft.systemNarrativePresetId,
+            ),
+          },
           informationPolicy,
         },
       },
@@ -231,6 +242,9 @@ export const QuickCreate = ({
     const presentationProfileId = normalizeTavernPresentationProfileId(
       quickCreateDraft.presentationProfileId,
     );
+    const systemNarrativePresetId = normalizeTavernSystemNarrativePresetId(
+      quickCreateDraft.systemNarrativePresetId,
+    );
     const characterCount = clampQuickCreateInteger(quickCreateDraft.characterCount, 3, 1, 8);
     const randomEventProbability = clampQuickCreateProbability(
       quickCreateDraft.randomEventProbability,
@@ -246,6 +260,10 @@ export const QuickCreate = ({
         userPersonaName: quickCreateDraft.userPersonaName,
         presentationProfileId,
         promptStyleId,
+        systemNarrativePresetId,
+        systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.find((preset) =>
+          preset.id === systemNarrativePresetId
+        ),
         characterSeedsText: quickCreateDraft.characterSeeds,
         characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
         advanced: {
@@ -403,7 +421,7 @@ export const QuickCreate = ({
                       })}
                     />
                   </EditorField>
-                  <EditorField label="系统风格" htmlFor="tavern-quick-prompt-style">
+                  <EditorField label="酒馆风格" htmlFor="tavern-quick-prompt-style">
                     <NativeSelect
                       id="tavern-quick-prompt-style"
                       value={quickCreateDraft.promptStyleId}
@@ -421,7 +439,7 @@ export const QuickCreate = ({
                       ))}
                     </NativeSelect>
                   </EditorField>
-                  <EditorField label="呈现模式" htmlFor="tavern-quick-presentation-profile">
+                  <EditorField label="呈现规则" htmlFor="tavern-quick-presentation-profile">
                     <NativeSelect
                       id="tavern-quick-presentation-profile"
                       value={quickCreateDraft.presentationProfileId}
@@ -432,9 +450,27 @@ export const QuickCreate = ({
                         presentationProfileId: event.target.value,
                       })}
                     >
-                      {TAVERN_PRESENTATION_PROFILES.map((profile) => (
+                      {TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) => (
                         <NativeSelectOption key={profile.id} value={profile.id}>
                           {profile.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+                  <EditorField label="叙事风格" htmlFor="tavern-quick-system-narrative">
+                    <NativeSelect
+                      id="tavern-quick-system-narrative"
+                      value={quickCreateDraft.systemNarrativePresetId}
+                      className={editorControlClassName}
+                      disabled={isQuickCreatingRoom}
+                      onChange={(event) => setQuickCreateDraft({
+                        ...quickCreateDraft,
+                        systemNarrativePresetId: event.target.value,
+                      })}
+                    >
+                      {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
+                        <NativeSelectOption key={preset.id} value={preset.id}>
+                          {preset.label}
                         </NativeSelectOption>
                       ))}
                     </NativeSelect>

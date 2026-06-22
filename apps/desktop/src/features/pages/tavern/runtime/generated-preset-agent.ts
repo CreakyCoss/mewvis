@@ -4,9 +4,15 @@ import {
   normalizeTavernPromptStyleId,
 } from "../prompt-styles";
 import {
+  TAVERN_PRESENTATION_PROFILE_OPTIONS,
   TAVERN_PRESENTATION_PROFILES,
   normalizeTavernPresentationProfileId,
-} from "../presentation-profiles";
+} from "../prompt-registry/presentation-rules";
+import {
+  TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
+  TAVERN_SYSTEM_NARRATIVE_PRESETS,
+  normalizeTavernSystemNarrativePresetSettings,
+} from "../prompt-registry/system-narrative-styles";
 import type {
   TavernGeneratedPresetJson,
   TavernPresentationProfileId,
@@ -53,7 +59,12 @@ export type RunTavernGeneratedPresetAgentInput = {
 
 const GENERATED_PRESET_AGENT_ROLE_ID = "tavern-one-shot-preset-builder";
 const promptStyleIdsSchema = TAVERN_PROMPT_STYLE_PRESETS.map((preset) => preset.id).join(" | ");
-const presentationProfileIdsSchema = TAVERN_PRESENTATION_PROFILES.map((profile) => profile.id).join(" | ");
+const presentationProfileIdsSchema = TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) =>
+  profile.id
+).join(" | ");
+const systemNarrativePresetIdsSchema = TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS
+  .map((preset) => preset.id)
+  .join(" | ");
 
 const generatedPresetSchema = `{
   "version": 1,
@@ -118,6 +129,7 @@ const generatedPresetSchema = `{
         "autoContinuation": "enabled | disabled | disabledForFixedOrder",
         "instruction": "阶段制/点名/固定顺序等调度规则"
       },
+      "systemNarrativePreset": { "presetId": "${systemNarrativePresetIdsSchema}", "customInstructions": "" },
       "replyOptions": { "enabled": true, "count": 3 },
       "statusTracking": { "enabled": true, "visibleToUser": true },
       "randomEvents": { "enabled": false, "probability": 0.15 },
@@ -213,6 +225,7 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "人设优先，不能随意补设定导致漂移；世界书只写稳定设定，不写本轮临时动作。",
   "必须尊重 request_context 中已填的 title、premise、background、worldInfo、storyGoal、characterSeeds、promptStyleId 和 presentationProfileId，不要覆盖用户明确设定。",
   "room.presentation.profileId 必须等于 request_context.presentationProfileId。对话演绎使用直接对白；第三人称旁白使用间接表达和动作心理转述；小说正文允许少量自然对白但不要输出聊天记录格式。",
+  "如果 request_context.advanced.settings.systemNarrativePreset 存在，room.settings.systemNarrativePreset 必须沿用它；它只控制叙事风格比例，不改变 room.presentation.profileId 对应的呈现结构。",
   "如果 request_context.advanced.characterCount 存在，characters 数量应尽量等于该数；如果用户给了角色线索，优先保留这些角色。",
   "room.settings.replyOptions 默认启用，count 默认为 3；候选回复内容由运行时生成，预设 JSON 不要提前写死候选回复。",
   "如果 request_context.advanced.enableStatusTracking 为 false，room.settings.statusTracking.enabled 必须为 false，statusDefinitions/statusRules/progressViews 可以为空数组。",
@@ -244,13 +257,30 @@ const buildTavernGeneratedPresetRequestContext = (
 ) => {
   const promptStyleId = normalizeTavernPromptStyleId(draft.promptStyleId);
   const presentationProfileId = normalizeTavernPresentationProfileId(draft.presentationProfileId);
+  const systemNarrativePresetSettings = normalizeTavernSystemNarrativePresetSettings(
+    draft.advanced?.settings?.systemNarrativePreset,
+  );
   return JSON.stringify({
     ...draft,
+    advanced: draft.advanced
+      ? {
+          ...draft.advanced,
+          settings: draft.advanced.settings
+            ? {
+                ...draft.advanced.settings,
+                systemNarrativePreset: systemNarrativePresetSettings,
+              }
+            : draft.advanced.settings,
+        }
+      : draft.advanced,
     promptStyleId,
     presentationProfileId,
     promptStyle: TAVERN_PROMPT_STYLE_PRESETS.find((preset) => preset.id === promptStyleId),
     presentationProfile: TAVERN_PRESENTATION_PROFILES.find((profile) =>
       profile.id === presentationProfileId
+    ),
+    systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESETS.find((preset) =>
+      preset.id === systemNarrativePresetSettings.presetId
     ),
   }, null, 2);
 };

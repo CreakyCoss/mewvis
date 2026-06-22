@@ -1,7 +1,7 @@
 import { Pencil, Wine } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { getTavernPresentationProfile } from "../../../../../presentation-profiles";
+import { getTavernPresentationProfile } from "../../../../../prompt-registry/presentation-rules";
 import { getTavernPromptStylePreset } from "../../../../../prompt-styles";
 import type { TavernMessage, TavernRoom } from "../../../../../types";
 import {

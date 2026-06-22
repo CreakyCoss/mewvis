@@ -11,7 +11,7 @@ import {
   tavernCharacterAgentRoleId,
 } from "../../../../core";
 import { compactTavernAgentKnowledge } from "../../../../runtime/bridge-session";
-import { getTavernPresentationProfile } from "../../../../presentation-profiles";
+import { getTavernPresentationProfile } from "../../../../prompt-registry/presentation-rules";
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
@@ -21,7 +21,7 @@ import {
   parseTavernReplyText,
 } from "../../../../runtime/reply-cleanup";
 import { runTavernInnerThought, runTavernReply } from "../../../../runtime/tavern-runner";
-import { buildTavernCharacterTurnInstruction } from "../../../../runtime/turn-instruction";
+import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
 import type {
   TavernCharacter,
   TavernMessage,

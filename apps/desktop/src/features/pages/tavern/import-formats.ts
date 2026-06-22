@@ -503,7 +503,7 @@ export const parseTavernExternalImportJson = (
   }
 
   if (looksLikePromptPreset(parsed)) {
-    throw new Error("这是提示词预设，不是角色卡、世界书或酒馆房间；请在系统提示词风格中手动整理后使用。");
+    throw new Error("这是提示词预设，不是角色卡、世界书或酒馆房间；请在酒馆风格中手动整理后使用。");
   }
 
   throw new Error("导入文件格式不受支持。");

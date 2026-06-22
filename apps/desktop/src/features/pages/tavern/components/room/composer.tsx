@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "../../types";
-import { getTavernPresentationProfile } from "../../presentation-profiles";
+import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import { useTavernPageContext } from "../context";
 
 type ComposerProps = {

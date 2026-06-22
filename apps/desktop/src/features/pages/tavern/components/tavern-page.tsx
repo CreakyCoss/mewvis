@@ -27,7 +27,7 @@ import {
   saveTavernState,
   switchTavernRoomScene,
 } from "../storage";
-import { getTavernPresentationProfile } from "../presentation-profiles";
+import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
 import {
   advanceTavernProgressFromFactEvents,
   createTavernRenderableMessages,

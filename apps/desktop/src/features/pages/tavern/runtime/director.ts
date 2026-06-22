@@ -41,7 +41,11 @@ import {
 } from "../core";
 import { runTavernRuntimeAgent } from "./agent";
 import { getTavernPromptStylePreset } from "../prompt-styles";
-import { getTavernPresentationProfile } from "../presentation-profiles";
+import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
+import {
+  formatTavernSystemNarrativePresetForPrompt,
+  resolveTavernSystemNarrativePreset,
+} from "../prompt-registry/system-narrative-styles";
 
 export {
   parseTavernDirectorDecision,
@@ -164,6 +168,9 @@ export const runTavernDirector = async ({
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const systemNarrative = resolveTavernSystemNarrativePreset(
+    room.settings.systemNarrativePreset,
+  );
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const randomEventSchema = canConsiderRandomEvent
     ? `,"randomEvent":"可选；一句公开可观察的随机事件，不触发则留空字符串"`
@@ -250,6 +257,14 @@ export const runTavernDirector = async ({
     `<presentation_profile id="${presentationProfile.id}" label="${presentationProfile.label}" render="${presentationProfile.renderStyle}" contract="${presentationProfile.generationContract}">`,
     presentationProfile.directorAddendum,
     "</presentation_profile>",
+    "",
+    `<system_narrative_preset id="${systemNarrative.preset.id}" label="${systemNarrative.preset.label}" target="director">`,
+    formatTavernSystemNarrativePresetForPrompt({
+      settings: systemNarrative.settings,
+      preset: systemNarrative.preset,
+      target: "director",
+    }),
+    "</system_narrative_preset>",
     "",
     `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="director">`,
     promptStyle.directorAddendum,
@@ -358,8 +373,12 @@ export const runTavernDirector = async ({
       isSceneDriveTurn
         ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
         : "",
-      `当前呈现模式：${presentationProfile.label}。${presentationProfile.directorAddendum}`,
-      `当前房间提示词风格：${promptStyle.label}。${promptStyle.directorAddendum}`,
+      `当前呈现规则：${presentationProfile.label}。${presentationProfile.directorAddendum}`,
+      `当前系统叙事预设：${systemNarrative.preset.label}。${systemNarrative.preset.directorAddendum}`,
+      systemNarrative.settings.customInstructions
+        ? `自定义系统叙事规则：${systemNarrative.settings.customInstructions}`
+        : "",
+      `当前酒馆风格：${promptStyle.label}。${promptStyle.directorAddendum}`,
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
       canConsiderRandomEvent
         ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"

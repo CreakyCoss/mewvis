@@ -368,6 +368,7 @@ const cloneTavernDirectorProfile = (
 
 export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
   ...settings,
+  systemNarrativePreset: { ...settings.systemNarrativePreset },
   continuation: { ...settings.continuation },
   replyOptions: { ...settings.replyOptions },
   statusTracking: { ...settings.statusTracking },

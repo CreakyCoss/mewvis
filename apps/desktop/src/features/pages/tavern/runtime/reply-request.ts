@@ -4,9 +4,11 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../types";
-import { buildTavernSystemPrompt } from "./prompt";
-import { buildTavernBridgeSystemPrompt } from "./bridge-prompt";
-import { getTavernPresentationProfile } from "../presentation-profiles";
+import {
+  buildTavernBridgeSystemPrompt,
+  buildTavernSystemPrompt,
+} from "./prompt";
+import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../presentation-contracts";
 import {
   filterTavernFactEventsForAudience,

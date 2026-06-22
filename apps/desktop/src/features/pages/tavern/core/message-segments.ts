@@ -1,6 +1,6 @@
 import {
   getTavernPresentationProfile,
-} from "../presentation-profiles";
+} from "../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../presentation-contracts";
 import type {
   TavernMessage,

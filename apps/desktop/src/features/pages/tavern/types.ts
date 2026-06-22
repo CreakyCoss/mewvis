@@ -22,6 +22,16 @@ export type TavernPresentationGenerationContract =
   | "character_reply_xml"
   | "character_narrative_beat";
 
+export type TavernSystemNarrativePresetId =
+  | "balanced"
+  | "restrained"
+  | "dramatic";
+
+export type TavernSystemNarrativePresetSettings = {
+  presetId: TavernSystemNarrativePresetId;
+  customInstructions?: string;
+};
+
 export type TavernPresentationProfile = {
   id: TavernPresentationProfileId;
   label: string;
@@ -270,6 +280,7 @@ export type TavernAssetDraft = {
 };
 
 export type TavernRoomSettings = {
+  systemNarrativePreset: TavernSystemNarrativePresetSettings;
   immersiveDescriptionEnabled: boolean;
   showExecutionTrace: boolean;
   autoAssetExtractionEnabled: boolean;

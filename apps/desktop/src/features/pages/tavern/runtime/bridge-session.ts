@@ -23,9 +23,9 @@ import type {
   TavernMessage,
   TavernRoom,
 } from "../types";
-import { buildTavernBridgeSystemPrompt } from "./bridge-prompt";
+import { buildTavernBridgeSystemPrompt } from "./prompt";
 
-export { buildTavernBridgeSystemPrompt } from "./bridge-prompt";
+export { buildTavernBridgeSystemPrompt } from "./prompt";
 
 export type TavernBridgeSessionInput = {
   workspacePath: string;

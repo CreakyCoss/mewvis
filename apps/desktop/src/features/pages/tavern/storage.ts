@@ -67,9 +67,13 @@ import {
   normalizeTavernPromptStyleId,
 } from "./prompt-styles";
 import {
+  DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
+  normalizeTavernSystemNarrativePresetSettings,
+} from "./prompt-registry/system-narrative-styles";
+import {
   createDefaultTavernPresentation,
   normalizeTavernPresentation,
-} from "./presentation-profiles";
+} from "./prompt-registry/presentation-rules";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
 
@@ -311,6 +315,9 @@ const createTavernCharacterFromSystemPresetCharacter = (
 const defaultSceneTitle = "默认场景";
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
+  systemNarrativePreset: {
+    presetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
+  },
   immersiveDescriptionEnabled: true,
   showExecutionTrace: false,
   autoAssetExtractionEnabled: false,
@@ -960,6 +967,7 @@ const cloneTavernDirectorProfile = (
 
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
+  systemNarrativePreset: { ...DEFAULT_TAVERN_ROOM_SETTINGS.systemNarrativePreset },
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
@@ -1362,6 +1370,9 @@ const normalizeRoomSettings = (
     : DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents.probability;
   return {
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
+    systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
+      candidate.systemNarrativePreset,
+    ),
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
     assetExtractionIntervalTurns: clampInteger(

@@ -18,6 +18,7 @@ import {
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { getTavernSystemNarrativePreset } from "../../../../../prompt-registry/system-narrative-styles";
 import type {
   TavernRoom,
   TavernRoomSettings,
@@ -76,6 +77,12 @@ export const SettingsSection = ({
   const directorProfileCharacterCount = data.settings.directorScheduling.profile
     ? Object.keys(data.settings.directorScheduling.profile.characterProfiles).length
     : 0;
+  const systemNarrativePreset = getTavernSystemNarrativePreset(
+    data.settings.systemNarrativePreset.presetId,
+  );
+  const systemNarrativePresetLabel = data.settings.systemNarrativePreset.customInstructions
+    ? `${systemNarrativePreset.label} + 自定义`
+    : systemNarrativePreset.label;
   const randomEventPercentage = Math.round(data.settings.randomEvents.probability * 100);
   const randomEventProgress = data.settings.randomEvents.enabled ? randomEventPercentage : 0;
 
@@ -173,6 +180,11 @@ export const SettingsSection = ({
           <div className="rounded-lg border border-border/70 bg-background/72 px-3.5 py-3.5 shadow-xs">
             <div className="grid gap-4 lg:grid-cols-3 lg:divide-x lg:divide-border/60">
               <EditorSettingGroup title="叙事体验" className="lg:pr-5">
+                <EditorSettingRow icon={Sparkles} label="叙事风格">
+                  <EditorStatusPill tone="info">
+                    {systemNarrativePresetLabel}
+                  </EditorStatusPill>
+                </EditorSettingRow>
                 <EditorSettingRow icon={Eye} label="沉浸描写">
                   <EditorStatusPill tone={booleanTone(data.settings.immersiveDescriptionEnabled)}>
                     {enabledText(data.settings.immersiveDescriptionEnabled)}

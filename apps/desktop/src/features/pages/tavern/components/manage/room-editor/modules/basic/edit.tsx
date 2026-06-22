@@ -15,12 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
 import {
-  TAVERN_PRESENTATION_PROFILES,
+  TAVERN_PRESENTATION_PROFILE_OPTIONS,
   getTavernPresentationProfile,
   isTavernPresentationLocked,
   normalizeTavernPresentation,
   normalizeTavernPresentationProfileId,
-} from "../../../../../presentation-profiles";
+} from "../../../../../prompt-registry/presentation-rules";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
@@ -267,10 +267,10 @@ export const BasicEdit = ({
                 id="tavern-basic-mode-section"
                 icon={MessageSquareText}
                 title="互动方式"
-                description="选择酒馆提示词风格、角色发言模式和玩家称呼。"
+                description="选择呈现规则、酒馆风格和角色发言模式。"
               >
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <EditorField label="提示词风格" htmlFor="tavern-basic-prompt-style">
+                  <EditorField label="酒馆风格" htmlFor="tavern-basic-prompt-style">
                     <NativeSelect
                       id="tavern-basic-prompt-style"
                       value={draft.promptStyleId}
@@ -288,7 +288,7 @@ export const BasicEdit = ({
                     </NativeSelect>
                   </EditorField>
 
-                  <EditorField label="呈现模式" htmlFor="tavern-basic-presentation-profile">
+                  <EditorField label="呈现规则" htmlFor="tavern-basic-presentation-profile">
                     <NativeSelect
                       id="tavern-basic-presentation-profile"
                       value={draft.presentationProfileId}
@@ -301,7 +301,7 @@ export const BasicEdit = ({
                         ),
                       })}
                     >
-                      {TAVERN_PRESENTATION_PROFILES.map((profile) => (
+                      {TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) => (
                         <NativeSelectOption key={profile.id} value={profile.id}>
                           {profile.label}
                         </NativeSelectOption>
@@ -309,7 +309,7 @@ export const BasicEdit = ({
                     </NativeSelect>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       {presentationLocked
-                        ? "场景已开始，呈现模式已锁定。"
+                        ? "场景已开始，呈现规则已锁定。"
                         : getTavernPresentationProfile(draft.presentationProfileId).description}
                     </p>
                   </EditorField>

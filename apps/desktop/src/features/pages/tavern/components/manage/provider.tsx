@@ -10,7 +10,8 @@ import {
 import type { Workspace } from "@/features/pages/workspace/types";
 import { normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import { normalizeTavernPromptStyleId } from "../../prompt-styles";
-import { normalizeTavernPresentation } from "../../presentation-profiles";
+import { normalizeTavernPresentation } from "../../prompt-registry/presentation-rules";
+import { normalizeTavernSystemNarrativePresetSettings } from "../../prompt-registry/system-narrative-styles";
 import {
   createTavernProgressCheckpoint,
 } from "../../core";
@@ -242,6 +243,9 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
   const candidate = value as Partial<TavernRoomSettings>;
   return {
     ...DEFAULT_TAVERN_ROOM_SETTINGS,
+    systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
+      candidate.systemNarrativePreset,
+    ),
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
@@ -1531,13 +1535,23 @@ export const ManagementProvider = ({
           creationSource: "quick",
         },
       );
+      const quickSystemNarrativePreset = normalizeTavernSystemNarrativePresetSettings(
+        quickDraft.advanced?.settings?.systemNarrativePreset,
+      );
+      const room = {
+        ...materialized.room,
+        settings: {
+          ...materialized.room.settings,
+          systemNarrativePreset: quickSystemNarrativePreset,
+        },
+      };
       setState((current) => ({
         ...current,
-        activeRoomId: materialized.room.id,
-        rooms: [...current.rooms, materialized.room],
+        activeRoomId: room.id,
+        rooms: [...current.rooms, room],
         messagesByScene: {
           ...current.messagesByScene,
-          [getRoomActiveSceneId(materialized.room)]: materialized.messages,
+          [getRoomActiveSceneId(room)]: materialized.messages,
         },
       }));
       reportError("");

@@ -14,7 +14,7 @@ import {
 import {
   hasTavernPresentationStarted,
   normalizeTavernPresentation,
-} from "../presentation-profiles";
+} from "../prompt-registry/presentation-rules";
 import { createTavernProgressCheckpoint } from "../core";
 import {
   buildTavernMessageSegments,

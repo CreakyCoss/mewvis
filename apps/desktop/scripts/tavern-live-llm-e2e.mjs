@@ -161,8 +161,10 @@ const runtimeModelFor = (modelId) => {
 
 writeFileSync(helperEntryPath, `
   import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-request.ts"))};
-  import { buildTavernCharacterTurnInstruction } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/turn-instruction.ts"))};
-  import { buildTavernBridgeSystemPrompt } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/bridge-prompt.ts"))};
+  import {
+    buildTavernBridgeSystemPrompt,
+    buildTavernCharacterTurnInstruction,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts"))};
   import {
     hasTavernReplyDialogueText,
     parseTavernReplyText,
@@ -190,14 +192,14 @@ writeFileSync(helperEntryPath, `
   import {
     createTavernRoomFromSystemPreset,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/storage.ts"))};
-  import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-profiles.ts"))};
+  import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
   import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-contracts.ts"))};
   import {
     formatTavernLorebookEntries,
     formatTavernStoryGraphContext,
     selectTavernLorebookEntries,
     tavernMessagesToRuntimeMessages,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts"))};
   import { formatTavernRuntimeMessagesForSummary } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/conversation.ts"))};
 
   const now = Date.now();
