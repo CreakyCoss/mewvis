@@ -166,10 +166,6 @@ writeFileSync(helperEntryPath, `
     buildTavernCharacterTurnInstruction,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts"))};
   import {
-    hasTavernReplyDialogueText,
-    parseTavernReplyText,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts"))};
-  import {
     advanceTavernProgressFromFactEvents,
     canTavernCharacterUseNonverbalReply,
     canTavernSelectedTargetsStaySilent,
@@ -177,10 +173,8 @@ writeFileSync(helperEntryPath, `
     extractTavernPendingInteractionsFromMessages,
     filterTavernFactEventsForAudience,
     formatTavernDirectorSchedulingInstruction,
-    formatTavernVisibleMessagesForRequestContext,
     isTavernDirectorOnlyTurnAllowed,
     isTavernFixedOrderPhase,
-    normalizeTavernMessagesForAudience,
     planTavernContinuation,
     resolveTavernScheduledSpeakers,
     setTavernStatusSnapshotValue,
@@ -189,6 +183,12 @@ writeFileSync(helperEntryPath, `
     tavernDirectorAgentRoleId,
     tavernManagedUserAgentRoleId,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts"))};
+  import {
+    formatTavernVisibleMessagesForRequestContext,
+    hasTavernReplyDialogueText,
+    normalizeTavernMessagesForAudience,
+    parseTavernReplyText,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts"))};
   import {
     createTavernRoomFromSystemPreset,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/storage.ts"))};

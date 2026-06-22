@@ -16,6 +16,8 @@ import type {
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
+} from "../message";
+import {
   tavernBridgeSessionRootDir,
 } from "../core";
 import type {

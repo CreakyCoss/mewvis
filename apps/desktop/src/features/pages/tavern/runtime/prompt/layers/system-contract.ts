@@ -1,4 +1,8 @@
 import type { TavernCharacter } from "../../../types";
+import {
+  formatTavernProtocolTagPair,
+  openTavernProtocolTag,
+} from "../../../message/protocol/schema";
 import type { TavernPromptSection } from "../shared/sections";
 import { limitPromptText } from "../shared/text";
 
@@ -14,10 +18,12 @@ const buildPromptHierarchyRules = () => [
 
 const buildNarrativeCoreRules = ({
   activeCharacter,
+  privateThoughtTag,
   publicContentTag,
   dialoguePolicy,
 }: {
   activeCharacter: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
   dialoguePolicy: string;
 }) => {
@@ -27,8 +33,8 @@ const buildNarrativeCoreRules = ({
 
   return [
     `- 这轮只允许围绕「${activeCharacter.name}」贡献下一段第三人称正文；不要替用户完成关键选择，不要替其他角色完整行动闭环。`,
-    `- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}>，不要代码块、解释或标签外文字。`,
-    "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
+    `- 输出必须且只包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)}，不要代码块、解释或标签外文字。`,
+    `- ${openTavernProtocolTag(privateThoughtTag)} 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。`,
     `- <${publicContentTag}> 写一段第三人称叙事片段，包含该角色可贡献的动作、反应、间接表达或公开可观察变化；不要使用角色名冒号的聊天记录格式。`,
     dialogueRule,
     `- 角色表达硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}；当前模式下要转译为第三人称表达习惯。`,
@@ -39,14 +45,16 @@ const buildNarrativeCoreRules = ({
 
 const buildDialogueCoreRules = ({
   activeCharacter,
+  privateThoughtTag,
   publicContentTag,
 }: {
   activeCharacter: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
 }) => [
   `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
-  `- 输出必须且只包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}>，不要代码块、解释或标签外文字。`,
-  "- <inner_thought> 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。",
+  `- 输出必须且只包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)}，不要代码块、解释或标签外文字。`,
+  `- ${openTavernProtocolTag(privateThoughtTag)} 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。`,
   `- 默认情况下 <${publicContentTag}> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <${publicContentTag}> 可以只写当前角色的可观察动作而没有直接对白。`,
   `- 角色口吻硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}`,
   "- 可以承接旁白、动作和其他角色公开发言；不要复述原句，不要声称知道他人未说出口的信息。",
@@ -55,11 +63,13 @@ const buildDialogueCoreRules = ({
 
 const buildCharacterCoreRules = ({
   activeCharacter,
+  privateThoughtTag,
   publicContentTag,
   usesNarrativeBeat,
   dialoguePolicy,
 }: {
   activeCharacter: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
   usesNarrativeBeat: boolean;
   dialoguePolicy: string;
@@ -67,6 +77,7 @@ const buildCharacterCoreRules = ({
   if (usesNarrativeBeat) {
     return buildNarrativeCoreRules({
       activeCharacter,
+      privateThoughtTag,
       publicContentTag,
       dialoguePolicy,
     });
@@ -74,17 +85,20 @@ const buildCharacterCoreRules = ({
 
   return buildDialogueCoreRules({
     activeCharacter,
+    privateThoughtTag,
     publicContentTag,
   });
 };
 
 export const buildCharacterSystemContractSection = ({
   activeCharacter,
+  privateThoughtTag,
   publicContentTag,
   usesNarrativeBeat,
   dialoguePolicy,
 }: {
   activeCharacter: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
   usesNarrativeBeat: boolean;
   dialoguePolicy: string;
@@ -102,6 +116,7 @@ export const buildCharacterSystemContractSection = ({
     "硬性规则：",
     ...buildCharacterCoreRules({
       activeCharacter,
+      privateThoughtTag,
       publicContentTag,
       usesNarrativeBeat,
       dialoguePolicy,

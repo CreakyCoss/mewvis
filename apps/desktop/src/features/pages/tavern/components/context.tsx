@@ -19,7 +19,7 @@ import { createTavernProgressCheckpoint } from "../core";
 import {
   buildTavernMessageSegments,
   inferTavernMessageKind,
-} from "../core/message-segments";
+} from "../message";
 import type {
   TavernCharacter,
   TavernMessage,

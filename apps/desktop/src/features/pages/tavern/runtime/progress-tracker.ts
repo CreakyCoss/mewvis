@@ -5,6 +5,8 @@ import type { RuntimeModelInput } from "@/agent-client/protocol";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
+} from "../message";
+import {
   tavernBridgeSessionRootDir,
   tavernProgressTrackerAgentRoleId,
 } from "../core";

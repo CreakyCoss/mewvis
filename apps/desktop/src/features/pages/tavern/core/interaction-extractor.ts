@@ -3,15 +3,28 @@ import type {
   TavernMessage,
   TavernPendingInteraction,
 } from "../types";
+import {
+  getTavernProtocolFieldTagNames,
+} from "../message/protocol/schema";
 
 const questionPattern = /[?？]|(?:吗|么|呢|哪|谁|什么|为何|为什么|怎么|如何)(?:[。！？!?」”']|$)/;
 
 const containsQuestion = (text: string) => questionPattern.test(text.trim());
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const privateThoughtTagPattern = getTavernProtocolFieldTagNames("privateThought")
+  .map(escapeRegExp)
+  .join("|");
+
 const trimMessageText = (text: string) =>
   text
-    .replace(/<\s*inner_thought[\s\S]*?<\s*\/\s*inner_thought\s*>/gi, "")
-    .replace(/<\s*thought[\s\S]*?<\s*\/\s*thought\s*>/gi, "")
+    .replace(
+      new RegExp(
+        `<\\s*(?:${privateThoughtTagPattern})(?:\\s+[^>]*)?\\s*>[\\s\\S]*?<\\s*/\\s*(?:${privateThoughtTagPattern})\\s*>`,
+        "gi",
+      ),
+      "",
+    )
     .replace(/<[^>]+>/g, "")
     .trim();
 

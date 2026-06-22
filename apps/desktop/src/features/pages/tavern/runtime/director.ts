@@ -33,12 +33,14 @@ import {
   formatTavernDirectorProfileForPrompt,
   formatTavernDirectorSchedulingInstruction,
   formatTavernSchedulingSignalsForPrompt,
-  formatTavernVisibleMessagesForRequestContext,
   isTavernDirectorOnlyTurnAllowed,
-  normalizeTavernMessagesForAudience,
   tavernBridgeSessionRootDir,
   tavernDirectorAgentRoleId,
 } from "../core";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+} from "../message";
 import { runTavernRuntimeAgent } from "./agent";
 import { getTavernPromptStylePreset } from "../prompt-styles";
 import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";

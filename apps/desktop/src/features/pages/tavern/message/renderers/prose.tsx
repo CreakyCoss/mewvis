@@ -3,11 +3,11 @@ import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import { cn } from "@/lib/utils";
 import {
   formatTavernMessageSegmentsForDisplay,
-  type TavernRenderableMessage,
-} from "../../../core";
-import { MessageControls } from "../messages/message-controls";
-import { MessagePrivateIntel } from "../messages/message-private-intel";
-import { formatTavernMessageTime } from "../messages/message-time";
+} from "../domain/segments";
+import type { TavernRenderableMessage } from "../domain/render-model";
+import { MessageControls } from "../components/message-controls";
+import { MessagePrivateIntel } from "../components/message-private-intel";
+import { formatTavernMessageTime } from "../components/message-time";
 import type { TavernConversationRenderer } from "./types";
 
 const roleLabel: Record<TavernRenderableMessage["role"], string> = {

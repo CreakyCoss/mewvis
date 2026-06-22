@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type {
   TavernFactEvent,
   TavernMessage,
-} from "../../../types";
+} from "../../types";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";

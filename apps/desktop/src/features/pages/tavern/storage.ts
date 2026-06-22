@@ -61,7 +61,7 @@ import {
 import {
   buildTavernMessageSegments,
   inferTavernMessageKind,
-} from "./core/message-segments";
+} from "./message";
 import {
   DEFAULT_TAVERN_PROMPT_STYLE_ID,
   normalizeTavernPromptStyleId,

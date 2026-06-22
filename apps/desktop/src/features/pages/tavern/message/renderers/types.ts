@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from "react";
-import type { TavernRenderableMessage } from "../../../core";
+import type { TavernRenderableMessage } from "../domain/render-model";
 
 export type TavernConversationRendererProps = {
   messages: TavernRenderableMessage[];

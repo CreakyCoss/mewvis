@@ -13,6 +13,8 @@ import {
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
+} from "../message";
+import {
   tavernBridgeSessionRootDir,
   tavernManagedUserAgentRoleId,
   tavernQuickReplyAgentRoleId,

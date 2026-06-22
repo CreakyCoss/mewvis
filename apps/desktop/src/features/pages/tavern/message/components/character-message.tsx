@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import type {
   TavernCharacter,
   TavernFactEvent,
-} from "../../../types";
-import { stripTavernImmersiveDescriptionText } from "../../../runtime/reply-cleanup";
+} from "../../types";
+import { stripTavernImmersiveDescriptionText } from "../protocol/parse-reply";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";

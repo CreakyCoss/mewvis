@@ -1,19 +1,24 @@
 import {
   cleanTavernThoughtText,
   parseTavernReplyText,
-} from "../runtime/reply-cleanup";
-import { getTavernPresentationContractForMessageKind } from "../presentation-contracts";
+} from "../protocol/parse-reply";
+import {
+  getTavernProtocolFieldTagNames,
+  getTavernProtocolVisiblePrivateThoughtTag,
+  TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
+} from "../protocol/schema";
+import { getTavernPresentationContractForMessageKind } from "../../presentation-contracts";
 import {
   buildTavernMessageSegments,
   formatTavernMessageSegmentsForPrompt,
   resolveTavernMessageSegments,
-} from "./message-segments";
+} from "./segments";
 import type {
   TavernCharacter,
   TavernMessage,
   TavernMessageKind,
   TavernMessageSegment,
-} from "../types";
+} from "../../types";
 
 export type TavernMessageAudience =
   | { type: "ui"; characterId?: string | null; includeAllThoughts?: boolean }
@@ -37,57 +42,16 @@ export type TavernVisibleMessage = {
   referencedFiles?: TavernMessage["referencedFiles"];
 };
 
-const privateThoughtTagNames = [
-  "inner_thought",
-  "private_thought",
-  "history_private_thought",
-  "thought",
-  "mind",
-  "心理想法",
-  "内心想法",
-  "心想",
-  "心理",
-];
-
-const replyWrapperTagNames = [
-  "reply",
-  "public_reply",
-  "history_public_reply",
-  "response",
-  "content",
-  "正文",
-  "回复",
-  "回应",
-  "对白",
-];
-
-const narrativeBeatWrapperTagNames = [
-  "narrative_beat",
-  "public_narrative_beat",
-  "history_narrative_beat",
-  "story_beat",
-  "narrative",
-  "story",
-  "beat",
-  "叙事片段",
-  "故事片段",
-  "小说正文",
-  "叙事正文",
-];
-
-const historyWrapperTagNames = [
-  "message",
-  "history_message",
-  "narration",
-  "history_narration",
-];
+const privateThoughtTagNames = getTavernProtocolFieldTagNames("privateThought");
+const replyWrapperTagNames = getTavernProtocolFieldTagNames("publicReply");
+const narrativeBeatWrapperTagNames = getTavernProtocolFieldTagNames("narrativeBeat");
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const tagNamePattern = (tagNames: string[]) =>
+const tagNamePattern = (tagNames: readonly string[]) =>
   tagNames.map(escapeRegExp).join("|");
 
-const stripKnownTagBlocks = (text: string, tagNames: string[]) => {
+const stripKnownTagBlocks = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
   return text.replace(
     new RegExp(
@@ -98,7 +62,7 @@ const stripKnownTagBlocks = (text: string, tagNames: string[]) => {
   );
 };
 
-const stripKnownWrapperTags = (text: string, tagNames: string[]) => {
+const stripKnownWrapperTags = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
   return text.replace(
     new RegExp(`<\\s*/?\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>`, "gi"),
@@ -109,7 +73,7 @@ const stripKnownWrapperTags = (text: string, tagNames: string[]) => {
 export const stripTavernPrivateThoughts = (text: string) => {
   const withoutPrivateBlocks = stripKnownTagBlocks(text, privateThoughtTagNames);
   return stripKnownWrapperTags(withoutPrivateBlocks, [
-    ...historyWrapperTagNames,
+    ...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
     ...narrativeBeatWrapperTagNames,
     ...replyWrapperTagNames,
   ]).trim();
@@ -268,10 +232,11 @@ export const formatTavernVisibleMessagesForRequestContext = (
       `</${publicContentTag}>`,
     ];
     if (message.thought?.trim()) {
+      const privateThoughtTag = getTavernProtocolVisiblePrivateThoughtTag();
       lines.push(
-        "<private_thought visibility=\"self_only\">",
+        `<${privateThoughtTag} visibility="self_only">`,
         escapePromptXmlText(message.thought),
-        "</private_thought>",
+        `</${privateThoughtTag}>`,
       );
     }
     lines.push("</message>");

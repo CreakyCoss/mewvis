@@ -5,14 +5,16 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../types";
-import { cleanTavernThoughtText } from "./reply-cleanup";
+import {
+  cleanTavernThoughtText,
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+} from "../message";
 import {
   buildTavernBridgeSystemPrompt,
 } from "./bridge-session";
 import {
   formatTavernCharacterRelationships,
-  formatTavernVisibleMessagesForRequestContext,
-  normalizeTavernMessagesForAudience,
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
 } from "../core";

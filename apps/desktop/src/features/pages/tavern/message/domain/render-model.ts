@@ -3,16 +3,16 @@ import type {
   TavernFactEvent,
   TavernMessage,
   TavernRoom,
-} from "../types";
+} from "../../types";
 import {
   normalizeTavernMessageForAudience,
   type TavernVisibleMessage,
-} from "./message-visibility";
+} from "./visibility";
 import {
   filterTavernFactEventsForAudience,
   shouldShowTavernCharacterThoughts,
-} from "./information-policy";
-import { buildTavernMessageSegments } from "./message-segments";
+} from "../../core/information-policy";
+import { buildTavernMessageSegments } from "./segments";
 
 export type TavernRenderableMessage = TavernVisibleMessage & {
   source: TavernMessage;

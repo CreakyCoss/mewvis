@@ -12,8 +12,8 @@ const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director-decision.ts");
 const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
+const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
-const replyCleanupPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-cleanup.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
 
 const assert = (condition, message, details) => {
@@ -35,21 +35,18 @@ writeFileSync(entryPath, `
     createTavernDirectorProfileFromCharacters,
     createTavernProgressCheckpoint,
     createTavernRoleAssignmentFactEvents,
-    createTavernRenderableMessages,
     deriveTavernStatusEventsFromFacts,
     evaluateTavernSceneOutcomes,
     extractTavernPendingInteractionsFromMessages,
     filterTavernFactEventsForAudience,
     formatTavernDirectorProfileForPrompt,
     formatTavernSchedulingSignalsForPrompt,
-    formatTavernVisibleMessagesForRequestContext,
     getTavernStatusSnapshotValue,
     isGeneratedTavernRoleAssignmentFactEvent,
     canTavernSelectedTargetsStaySilent,
     isTavernDirectorOnlyTurnAllowed,
     isTavernFixedOrderPhase,
     isTavernProgressVisibilityVisibleToUser,
-    normalizeTavernMessagesForAudience,
     normalizeTavernDirectorProfile,
     orderTavernRoundParticipants,
     orderTavernRoundSpeakers,
@@ -71,6 +68,13 @@ writeFileSync(entryPath, `
     tavernQuickReplyAgentRoleId,
     updateTavernTasks,
   } from ${JSON.stringify(corePath)};
+  import {
+    createTavernRenderableMessages,
+    formatTavernVisibleMessagesForRequestContext,
+    normalizeTavernMessagesForAudience,
+    parseTavernReplyText,
+    TAVERN_PROTOCOL_FIELDS,
+  } from ${JSON.stringify(messagePath)};
   import {
     createDefaultTavernState,
     createTavernRoom,
@@ -99,8 +103,6 @@ writeFileSync(entryPath, `
     buildTavernSystemPrompt,
     tavernMessagesToRuntimeMessages,
   } from ${JSON.stringify(promptPath)};
-  import { parseTavernReplyText } from ${JSON.stringify(replyCleanupPath)};
-
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
   const charARef = { type: "character", characterId: "char-a" };
@@ -673,6 +675,15 @@ writeFileSync(entryPath, `
   });
   const narrativeBeatReply = parseTavernReplyText({
     text: "<inner_thought>他不能先露怯。</inner_thought><narrative_beat>阿洛把披风拢紧，目光停在檐下那串雨珠上，没有急着开口。</narrative_beat>",
+    activeCharacter: characters[0],
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
+  const schemaAliasReply = parseTavernReplyText({
+    text: [
+      "<" + TAVERN_PROTOCOL_FIELDS.privateThought.visibleTag + ">我不能乱。</" + TAVERN_PROTOCOL_FIELDS.privateThought.visibleTag + ">",
+      "<" + TAVERN_PROTOCOL_FIELDS.publicReply.visibleTag + ">我没事，继续看东边。</" + TAVERN_PROTOCOL_FIELDS.publicReply.visibleTag + ">",
+    ].join(""),
     activeCharacter: characters[0],
     characters,
     userPersonaName: room.userPersonaName,
@@ -2151,6 +2162,7 @@ writeFileSync(entryPath, `
     narrativePromptForA,
     narrativeTurnInstructionForA,
     narrativeBeatReply,
+    schemaAliasReply,
     narrativeContextForA,
     narrativeRuntimeHistory,
     mixedSpeakerReply,
@@ -2287,6 +2299,13 @@ try {
       context: checks.narrativeContextForA,
       history: checks.narrativeRuntimeHistory,
     },
+  );
+  assert(
+    checks.schemaAliasReply.contentKind === "reply" &&
+      checks.schemaAliasReply.content === "我没事，继续看东边。" &&
+      checks.schemaAliasReply.thought === "我不能乱。",
+    "协议 schema 中定义的 visible/private 别名应能被解析层统一识别",
+    checks.schemaAliasReply,
   );
   assert(
     checks.promptForA.includes("不要代替用户说话") &&

@@ -1,5 +1,11 @@
 import type { TavernCharacter } from "../../../types";
 import type { TavernPresentationRuntimeContract } from "../../../presentation-contracts";
+import {
+  closeTavernProtocolTag,
+  formatTavernProtocolTagPair,
+  openTavernProtocolTag,
+  wrapTavernProtocolTag,
+} from "../../../message/protocol/schema";
 
 export type TavernCharacterPromptVariant =
   | "xml_contract"
@@ -31,10 +37,12 @@ export const resolveCharacterTurnOutputMode = (
 
 const buildMinimalContractInstruction = ({
   speaker,
+  privateThoughtTag,
   publicContentTag,
   outputMode,
 }: {
   speaker: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
@@ -46,17 +54,19 @@ const buildMinimalContractInstruction = ({
   }
 
   return [
-    `输出只允许包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}> 两段。`,
-    `<inner_thought> 只写${speaker.name}自己的内心短句，不写别人心理。`,
+    `输出只允许包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)} 两段。`,
+    `${openTavernProtocolTag(privateThoughtTag)} 只写${speaker.name}自己的内心短句，不写别人心理。`,
     publicContentRule,
     "不要在标签外输出文字，不要省略结束标签。",
   ].join("\n");
 };
 
 const buildXmlContractInstruction = ({
+  privateThoughtTag,
   publicContentTag,
   outputMode,
 }: {
+  privateThoughtTag: string;
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
@@ -74,9 +84,9 @@ const buildXmlContractInstruction = ({
 
   return [
     "把输出当成一个必须通过解析器的 XML 片段，严格遵守：",
-    "<inner_thought>一句当前角色自己的心理想法</inner_thought>",
+    wrapTavernProtocolTag(privateThoughtTag, "一句当前角色自己的心理想法"),
     templateLine,
-    `四个标签 <inner_thought>、</inner_thought>、<${publicContentTag}>、</${publicContentTag}> 都是必填字符，不能省略、改名或写到代码块里。`,
+    `四个标签 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 都是必填字符，不能省略、改名或写到代码块里。`,
     contentRule,
     `标签外不允许有任何文字；<${publicContentTag}> 中不能包含其他角色名加冒号的发言。`,
   ].join("\n");
@@ -84,10 +94,12 @@ const buildXmlContractInstruction = ({
 
 const buildDialogueFirstInstruction = ({
   speaker,
+  privateThoughtTag,
   publicContentTag,
   outputMode,
 }: {
   speaker: TavernCharacter;
+  privateThoughtTag: string;
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
@@ -96,17 +108,17 @@ const buildDialogueFirstInstruction = ({
     "可选：*当前角色可被观察到的小动作。*",
   ];
   let completionRule =
-    `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 <inner_thought>、</inner_thought>、<${publicContentTag}>、</${publicContentTag}> 任一标签，<${publicContentTag}> 也不能留空。`;
+    `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签，<${publicContentTag}> 也不能留空。`;
 
   if (outputMode === "nonverbal_reply") {
     publicContentExampleLines = ["*当前角色可被观察到的小动作。*"];
     completionRule =
-      `本轮允许不说出口对白；不能省略 <inner_thought>、</inner_thought>、<${publicContentTag}>、</${publicContentTag}> 任一标签。`;
+      `本轮允许不说出口对白；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签。`;
   }
 
   return [
     "必须严格使用下面的输出模板，不要在标签外输出任何文字：",
-    "<inner_thought>当前角色没有说出口的一句心理想法</inner_thought>",
+    wrapTavernProtocolTag(privateThoughtTag, "当前角色没有说出口的一句心理想法"),
     `<${publicContentTag}>`,
     ...publicContentExampleLines,
     `</${publicContentTag}>`,
@@ -121,12 +133,13 @@ export const buildReplyFormatInstruction = (
   outputMode: TavernCharacterTurnOutputMode,
   presentationContract: TavernPresentationRuntimeContract,
 ) => {
+  const privateThoughtTag = presentationContract.privateThoughtTag;
   const publicContentTag = presentationContract.publicContentTag;
 
   if (outputMode === "narrative_beat") {
     return [
-      `输出只允许包含 <inner_thought>...</inner_thought> 和 <${publicContentTag}>...</${publicContentTag}> 两段。`,
-      `<inner_thought> 只写${speaker.name}自己的内心短句，不写系统推理。`,
+      `输出只允许包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)} 两段。`,
+      `${openTavernProtocolTag(privateThoughtTag)} 只写${speaker.name}自己的内心短句，不写系统推理。`,
       `<${publicContentTag}> 写一段围绕${speaker.name}的第三人称小说正文，包含动作、反应、间接表达或公开可观察变化。`,
       "不要在标签外输出文字，不要省略结束标签，不要写角色名冒号的聊天记录。",
     ].join("\n");
@@ -135,6 +148,7 @@ export const buildReplyFormatInstruction = (
   if (variant === "minimal_contract") {
     return buildMinimalContractInstruction({
       speaker,
+      privateThoughtTag,
       publicContentTag,
       outputMode,
     });
@@ -142,6 +156,7 @@ export const buildReplyFormatInstruction = (
 
   if (variant === "xml_contract") {
     return buildXmlContractInstruction({
+      privateThoughtTag,
       publicContentTag,
       outputMode,
     });
@@ -149,6 +164,7 @@ export const buildReplyFormatInstruction = (
 
   return buildDialogueFirstInstruction({
     speaker,
+    privateThoughtTag,
     publicContentTag,
     outputMode,
   });

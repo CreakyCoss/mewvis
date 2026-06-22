@@ -2,24 +2,24 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernPageContextValue } from "../../../context";
 import { createTavernMessage } from "../../../../storage";
 import {
-  buildTavernMessageSegments,
-  inferTavernMessageKind,
   canTavernCharacterUseNonverbalReply,
   extractTavernPendingInteractionsFromMessages,
   planTavernContinuation,
   shouldSuppressTavernAutoContinuation,
   tavernCharacterAgentRoleId,
 } from "../../../../core";
+import {
+  buildTavernMessageSegments,
+  hasTavernReplyDialogueText,
+  inferTavernMessageKind,
+  parseTavernReplyText,
+} from "../../../../message";
 import { compactTavernAgentKnowledge } from "../../../../runtime/bridge-session";
 import { getTavernPresentationProfile } from "../../../../prompt-registry/presentation-rules";
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
 } from "../../../../presentation-contracts";
-import {
-  hasTavernReplyDialogueText,
-  parseTavernReplyText,
-} from "../../../../runtime/reply-cleanup";
 import { runTavernInnerThought, runTavernReply } from "../../../../runtime/tavern-runner";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
 import type {

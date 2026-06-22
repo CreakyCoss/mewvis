@@ -1,4 +1,4 @@
-import type { TavernPresentationRenderStyle } from "../../../types";
+import type { TavernPresentationRenderStyle } from "../../types";
 import { chatConversationRenderer } from "./chat";
 import { proseConversationRenderer } from "./prose";
 import type { TavernConversationRenderer } from "./types";

@@ -30,10 +30,10 @@ import {
 import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
 import {
   advanceTavernProgressFromFactEvents,
-  createTavernRenderableMessages,
   isGeneratedTavernRoleAssignmentFactEvent,
   setTavernStatusSnapshotValue,
 } from "../core";
+import { createTavernRenderableMessages } from "../message";
 import {
   disposeTavernBridgeSessionWorkers,
 } from "../runtime/bridge-session";
@@ -61,7 +61,7 @@ import { Header } from "./room/header";
 import { ManagementPage } from "./manage";
 import { ProgressPanel } from "./room/progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./room/quick-summary";
-import { resolveTavernConversationRenderer } from "./room/renderers";
+import { resolveTavernConversationRenderer } from "../message/renderers";
 import { SceneBriefCard } from "./room/scene-brief-card";
 import { SceneSelector } from "./room/scene-selector";
 import { SidePanel, type SidePanelHandle } from "./room/side-panel";

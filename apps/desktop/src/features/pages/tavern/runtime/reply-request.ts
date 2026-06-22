@@ -11,9 +11,11 @@ import {
 import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../presentation-contracts";
 import {
-  filterTavernFactEventsForAudience,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
+} from "../message";
+import {
+  filterTavernFactEventsForAudience,
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
 } from "../core";

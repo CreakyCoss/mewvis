@@ -1,6 +1,6 @@
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernFactEvent } from "../../../types";
+import type { TavernFactEvent } from "../../types";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 

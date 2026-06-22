@@ -1,14 +1,14 @@
 import {
   getTavernPresentationProfile,
-} from "../prompt-registry/presentation-rules";
-import { getTavernPresentationContract } from "../presentation-contracts";
+} from "../../prompt-registry/presentation-rules";
+import { getTavernPresentationContract } from "../../presentation-contracts";
 import type {
   TavernMessage,
   TavernMessageActorRef,
   TavernMessageKind,
   TavernMessageSegment,
   TavernPresentationProfileId,
-} from "../types";
+} from "../../types";
 
 const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {
   if (message.role === "user") {

@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
-import type { TavernRenderableMessage } from "../../core";
 import type { TavernCharacter, TavernMessage, TavernRoom } from "../../types";
-import { useTavernPageContext } from "../context";
-import { CharacterMessage } from "./messages/character-message";
-import { NarratorMessage } from "./messages/narrator-message";
-import { UserMessage } from "./messages/user-message";
+import { useTavernPageContext } from "../../components/context";
+import type { TavernRenderableMessage } from "../domain/render-model";
+import { CharacterMessage } from "./character-message";
+import { NarratorMessage } from "./narrator-message";
+import { UserMessage } from "./user-message";
 
 type MessageRowProps = {
   message: TavernRenderableMessage;

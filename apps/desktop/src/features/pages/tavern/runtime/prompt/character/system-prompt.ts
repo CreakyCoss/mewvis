@@ -87,6 +87,7 @@ export const buildTavernSystemPrompt = ({
   const sections: TavernPromptSection[] = [
     buildCharacterSystemContractSection({
       activeCharacter,
+      privateThoughtTag: presentationContract.privateThoughtTag,
       publicContentTag,
       usesNarrativeBeat,
       dialoguePolicy: presentationProfile.dialoguePolicy,

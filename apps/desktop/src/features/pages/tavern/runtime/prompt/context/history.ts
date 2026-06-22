@@ -1,16 +1,19 @@
 import type { TavernRuntimeMessage } from "../../conversation";
 import {
   formatTavernMessageSegmentsForPrompt,
+  parseTavernReplyText,
   resolveTavernMessageSegments,
-} from "../../../core";
+} from "../../../message";
 import {
   getTavernPresentationContractForMessageKind,
 } from "../../../presentation-contracts";
+import {
+  getTavernProtocolHistoryPrivateThoughtTag,
+} from "../../../message/protocol/schema";
 import type {
   TavernCharacter,
   TavernMessage,
 } from "../../../types";
-import { parseTavernReplyText } from "../../reply-cleanup";
 import {
   escapePromptXmlAttribute,
   escapePromptXmlText,
@@ -88,11 +91,12 @@ export const tavernMessagesToRuntimeMessages = ({
       : "";
     const publicHistoryTag =
       getTavernPresentationContractForMessageKind(message.kind).historyContentTag;
+    const privateThoughtTag = getTavernProtocolHistoryPrivateThoughtTag();
     const thoughtLines = thought
       ? [
-          '<history_private_thought visibility="self_only">',
+          `<${privateThoughtTag} visibility="self_only">`,
           escapePromptXmlText(thought),
-          "</history_private_thought>",
+          `</${privateThoughtTag}>`,
         ]
       : [];
 

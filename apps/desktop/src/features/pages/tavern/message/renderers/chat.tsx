@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { MessageRow } from "../message-row";
+import { MessageRow } from "../components/message-row";
 import type { TavernConversationRenderer } from "./types";
 
 export const chatConversationRenderer: TavernConversationRenderer = {

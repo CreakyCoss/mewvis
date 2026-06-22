@@ -1,4 +1,11 @@
-import type { TavernCharacter } from "../types";
+import type { TavernCharacter } from "../../types";
+import {
+  getTavernProtocolFieldLabels,
+  getTavernProtocolFieldTagNames,
+  getTavernProtocolPublicContentTagNames,
+  TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
+  type TavernProtocolContentKind,
+} from "./schema";
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -45,55 +52,20 @@ export const cleanTavernReplyText = ({
 export type TavernReplyParts = {
   content: string;
   thought?: string;
-  contentKind?: "reply" | "narrative_beat";
+  contentKind?: TavernProtocolContentKind;
 };
 
-const thoughtTagNames = [
-  "inner_thought",
-  "private_thought",
-  "history_private_thought",
-  "thought",
-  "mind",
-  "心理想法",
-  "内心想法",
-  "心想",
-  "心理",
-];
+const thoughtTagNames = getTavernProtocolFieldTagNames("privateThought");
+const replyTagNames = getTavernProtocolFieldTagNames("publicReply");
+const narrativeBeatTagNames = getTavernProtocolFieldTagNames("narrativeBeat");
+const publicContentTagNames = getTavernProtocolPublicContentTagNames();
 
-const replyTagNames = [
-  "reply",
-  "public_reply",
-  "history_public_reply",
-  "response",
-  "content",
-  "正文",
-  "回复",
-  "回应",
-  "对白",
-];
+const labelPattern = (labels: readonly string[]) =>
+  `(?:${uniqueLabels([...labels]).map(escapeRegExp).join("|")})`;
 
-const narrativeBeatTagNames = [
-  "narrative_beat",
-  "public_narrative_beat",
-  "history_narrative_beat",
-  "story_beat",
-  "narrative",
-  "story",
-  "beat",
-  "叙事片段",
-  "故事片段",
-  "小说正文",
-  "叙事正文",
-];
-
-const publicContentTagNames = [
-  ...narrativeBeatTagNames,
-  ...replyTagNames,
-];
-
-const thoughtLabelPattern = "(?:心理想法|内心想法|内心|心想|心理|想法)";
-const narrativeBeatLabelPattern = "(?:叙事片段|故事片段|小说正文|叙事正文)";
-const replyLabelPattern = "(?:公开回应|公开回复|回复|回应|正文|对白)";
+const thoughtLabelPattern = labelPattern(getTavernProtocolFieldLabels("privateThought"));
+const narrativeBeatLabelPattern = labelPattern(getTavernProtocolFieldLabels("narrativeBeat"));
+const replyLabelPattern = labelPattern(getTavernProtocolFieldLabels("publicReply"));
 const publicContentLabelPattern = `(?:${narrativeBeatLabelPattern}|${replyLabelPattern})`;
 
 type TaggedBlock = {
@@ -102,12 +74,12 @@ type TaggedBlock = {
   closed: boolean;
 };
 
-const tagNamePattern = (tagNames: string[]) =>
+const tagNamePattern = (tagNames: readonly string[]) =>
   tagNames.map(escapeRegExp).join("|");
 
 const extractTaggedBlock = (
   text: string,
-  tagNames: string[],
+  tagNames: readonly string[],
 ): TaggedBlock | null => {
   const pattern = tagNamePattern(tagNames);
   const closedTagPattern = new RegExp(
@@ -212,7 +184,7 @@ export const stripTavernImmersiveDescriptionText = (text: string) =>
 export const hasTavernReplyDialogueText = (text: string) =>
   stripTavernStandaloneActionBlocks(text).trim().length > 0;
 
-const stripKnownTagBlocks = (text: string, tagNames: string[]) => {
+const stripKnownTagBlocks = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
 
   return text.replace(
@@ -224,7 +196,7 @@ const stripKnownTagBlocks = (text: string, tagNames: string[]) => {
   );
 };
 
-const stripKnownWrapperTags = (text: string, tagNames: string[]) => {
+const stripKnownWrapperTags = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
 
   return text.replace(
@@ -242,10 +214,7 @@ const stripContextWrapperTags = (
     thoughtTagNames,
   );
   const withoutOuterWrappers = stripKnownWrapperTags(withoutHiddenBlocks, [
-    "message",
-    "history_message",
-    "narration",
-    "history_narration",
+    ...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
   ]);
 
   return (stripReplyTags
@@ -254,7 +223,7 @@ const stripContextWrapperTags = (
   ).trim();
 };
 
-const openTagPatternFor = (tagNames: string[]) =>
+const openTagPatternFor = (tagNames: readonly string[]) =>
   new RegExp(`<\\s*(?:${tagNamePattern(tagNames)})(?:\\s+[^>]*)?\\s*>`, "i");
 
 const splitLooseThoughtValue = (value: string) => {

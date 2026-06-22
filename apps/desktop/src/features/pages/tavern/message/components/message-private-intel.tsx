@@ -1,6 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { TavernFactEvent } from "../../../types";
+import type { TavernFactEvent } from "../../types";
 
 type MessagePrivateIntelProps = {
   align: "left" | "right" | "center";
