@@ -4,22 +4,22 @@ import type {
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
-} from "../types";
+} from "../../types";
 import {
   cleanTavernThoughtText,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "../message";
+} from "../../message";
 import {
   buildTavernBridgeSystemPrompt,
-} from "./bridge-session";
+} from "../conversation";
 import {
   formatTavernCharacterRelationships,
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
-} from "../core";
-import { runTavernRuntimeAgent } from "./agent";
-import { buildTavernReplyAgentRequest } from "./reply-request";
+} from "../../core";
+import { runTavernRuntimeAgent } from "../agent";
+import { buildTavernReplyAgentRequest } from "./request";
 
 export type RunTavernReplyInput = {
   workspacePath: string;

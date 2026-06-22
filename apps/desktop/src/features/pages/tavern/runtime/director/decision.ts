@@ -1,7 +1,7 @@
 import type {
   TavernCharacter,
   TavernRoom,
-} from "../types";
+} from "../../types";
 
 export type TavernDirectorDecision = {
   speakerIds: string[];

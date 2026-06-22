@@ -1,8 +1,8 @@
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernTextFieldAgentRequest } from "../../runtime/field-polish-agent";
-import type { TavernGeneratedPresetAgentDraft } from "../../runtime/generated-preset-agent";
+import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
+import type { TavernGeneratedPresetAgentDraft } from "../../runtime/assistants";
 import type {
   TavernCharacter,
   TavernMessage,

@@ -13,7 +13,7 @@ import type { TavernRoom } from "../../../../../types";
 import {
   formatTavernCharacterRelationshipSummary,
 } from "../../../../../core/relationships";
-import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
+import type { TavernTextFieldAgentRequest } from "../../../../../runtime/assistants";
 import {
   EditorSection,
   editorHeaderActionButtonClassName,

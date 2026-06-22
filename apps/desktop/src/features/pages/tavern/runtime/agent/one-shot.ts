@@ -5,7 +5,7 @@ import type {
 import {
   runTavernRuntimeAgent,
   type TavernRuntimeAgentOutput,
-} from "./agent";
+} from "./run-agent";
 
 export type RunTavernOneShotAgentInput = {
   agentId?: string | null;

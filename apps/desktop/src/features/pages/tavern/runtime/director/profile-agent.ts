@@ -3,14 +3,14 @@ import type {
   TavernCharacter,
   TavernDirectorProfile,
   TavernRoom,
-} from "../types";
+} from "../../types";
 import {
   normalizeTavernDirectorProfile,
-} from "../core/scheduling-profile";
+} from "../../core/scheduling-profile";
 import {
   formatTavernCharacterRelationships,
-} from "../core/relationships";
-import { runTavernOneShotAgent } from "./one-shot";
+} from "../../core/relationships";
+import { runTavernOneShotAgent } from "../agent";
 
 export type RunTavernDirectorProfileAgentInput = {
   workspacePath: string;

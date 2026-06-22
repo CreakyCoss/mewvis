@@ -2,7 +2,7 @@ import type { Ref } from "react";
 import { useImperativeHandle, useState } from "react";
 import { createTavernCharacter } from "../../../../../storage";
 import type { TavernCharacter, TavernRoom } from "../../../../../types";
-import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
+import type { TavernTextFieldAgentRequest } from "../../../../../runtime/assistants";
 import {
   CharacterFormDialog,
   type CharacterFormValue,

@@ -33,14 +33,14 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../storage";
-import { deleteTavernBridgeSession } from "../../runtime/bridge-session";
-import { runTavernDirectorProfileAgent } from "../../runtime/director-profile-agent";
-import { runTavernTextFieldAgent } from "../../runtime/field-polish-agent";
-import type { TavernTextFieldAgentRequest } from "../../runtime/field-polish-agent";
+import { deleteTavernBridgeSession } from "../../runtime/conversation";
+import { runTavernDirectorProfileAgent } from "../../runtime/director";
+import { runTavernTextFieldAgent } from "../../runtime/assistants";
+import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
 import {
   runTavernGeneratedPresetAgent,
   type TavernGeneratedPresetAgentDraft,
-} from "../../runtime/generated-preset-agent";
+} from "../../runtime/assistants";
 import { parseTavernExternalImportJson } from "../../import-formats";
 import type {
   TavernAssetDraft,

@@ -28,7 +28,7 @@ import {
   isTavernProgressVisibilityVisibleToUser,
   resolveTavernInformationView,
 } from "../../../../core";
-import { runTavernAssetExtraction } from "../../../../runtime/asset-extractor";
+import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import {
   createTavernAssetDraft,
 } from "../../../../storage";

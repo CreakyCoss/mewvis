@@ -1,0 +1,81 @@
+import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
+import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type {
+  TavernCharacter,
+  TavernMessage,
+  TavernReferencedFile,
+  TavernRoom,
+} from "../../types";
+import { buildTavernBridgeSystemPrompt } from "../conversation";
+import {
+  tavernArchivistAgentRoleId,
+  tavernBridgeSessionRootDir,
+} from "../../core";
+import { runTavernRuntimeAgent } from "../agent";
+import { parseTavernAssetDraft } from "./asset-extractor/parsing";
+import { buildTavernAssetExtractionPrompt } from "./asset-extractor/prompt";
+import type { TavernExtractedAssetDraft } from "./asset-extractor/types";
+
+export type { TavernExtractedAssetDraft } from "./asset-extractor/types";
+
+export type RunTavernAssetExtractionInput = {
+  workspacePath: string;
+  runtimeAgentId: string;
+  runtimeModel: RuntimeModelInput;
+  room: TavernRoom;
+  characters: TavernCharacter[];
+  messages: TavernMessage[];
+  sourceMessages: TavernMessage[];
+  references: TavernReferencedFile[];
+  currentUserText: string;
+};
+
+export const runTavernAssetExtraction = async ({
+  workspacePath,
+  runtimeAgentId,
+  runtimeModel,
+  room,
+  characters,
+  messages,
+  sourceMessages,
+  references,
+  currentUserText,
+}: RunTavernAssetExtractionInput): Promise<TavernExtractedAssetDraft> => {
+  const prompt = buildTavernAssetExtractionPrompt({
+    room,
+    characters,
+    messages,
+    sourceMessages,
+    currentUserText,
+  });
+  const result = await runTavernRuntimeAgent({
+    agentId: runtimeAgentId,
+    workspacePath,
+    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    agentRoleId: tavernArchivistAgentRoleId(room),
+    runtimeModel,
+    systemPrompt: buildTavernBridgeSystemPrompt(room),
+    userMessage: "请整理本轮酒馆对话中值得沉淀的剧情资产，并只输出严格合法 JSON。",
+    requestContext: appendReferencesToPrompt(prompt, references),
+    runtimeInstruction: [
+      "你是酒馆模式的剧情资产整理员。",
+      "你的任务是把新一轮对话中值得长期保存的信息整理成待确认草稿。",
+      "你只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
+    ].join("\n"),
+  });
+
+  try {
+    return parseTavernAssetDraft({
+      text: result.text,
+      room,
+      characters,
+      sourceMessages,
+    });
+  } catch {
+    return {
+      sourceMessageIds: sourceMessages.map((message) => message.id),
+      characterMemories: [],
+      lorebookEntries: [],
+    };
+  }
+};

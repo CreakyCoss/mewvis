@@ -19,11 +19,11 @@ import {
   isTavernProgressVisibilityVisibleToUser,
   tavernCharacterAgentRoleId,
 } from "../../../../core";
-import { runTavernAssetExtraction } from "../../../../runtime/asset-extractor";
+import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import {
   compactTavernAgentKnowledge,
   rebuildTavernAgentKnowledge,
-} from "../../../../runtime/bridge-session";
+} from "../../../../runtime/conversation";
 import { useTavernPageContext } from "../../../context";
 import { EmptyPanelCard } from "../shared";
 import {

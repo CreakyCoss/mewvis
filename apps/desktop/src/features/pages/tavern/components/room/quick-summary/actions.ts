@@ -1,8 +1,8 @@
-import type { TavernQuickSummaryInput } from "../../../runtime/quick-summary";
+import type { TavernQuickSummaryInput } from "../../../runtime/assistants";
 import {
   runTavernQuickNovel,
   runTavernQuickSummary,
-} from "../../../runtime/quick-summary";
+} from "../../../runtime/assistants";
 import type { TavernMessage } from "../../../types";
 
 export const getQuickSummarySourceMessages = (messages: TavernMessage[]) =>

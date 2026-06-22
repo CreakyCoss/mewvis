@@ -11,8 +11,8 @@ import {
   orderTavernRoundParticipants,
   orderTavernRoundSpeakers,
 } from "../../../../core";
-import { resolveTavernCharacterModel } from "../../../../runtime/model-selection";
-import { runTavernManagedUserReply } from "../../../../runtime/user-reply-suggestions";
+import { resolveTavernCharacterModel } from "../../../../runtime/agent";
+import { runTavernManagedUserReply } from "../../../../runtime/assistants";
 import type {
   TavernAssetDraft,
   TavernCharacter,

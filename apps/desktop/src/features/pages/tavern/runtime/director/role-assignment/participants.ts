@@ -1,0 +1,35 @@
+import type {
+  TavernCharacter,
+  TavernRoleAssignmentDefinition,
+  TavernRoom,
+} from "../../../types";
+import type { TavernRoleAssignmentParticipant } from "../../../core";
+
+export const expandTavernRoleAssignmentPool = (
+  rolePool: TavernRoleAssignmentDefinition[],
+) => rolePool.flatMap((role) =>
+  Array.from({ length: Math.max(1, Math.round(role.count || 1)) }, () => role)
+);
+
+export const createTavernRoleAssignmentParticipants = (
+  room: TavernRoom,
+  characters: TavernCharacter[],
+): TavernRoleAssignmentParticipant[] => [
+  ...(room.settings.informationPolicy.roleAssignment.includeUser
+    ? [{
+        entity: { type: "user", userId: "user" } as const,
+        label: room.userPersonaName.trim() || "你",
+        isUser: true,
+      }]
+    : []),
+  ...characters.map((character) => ({
+    entity: { type: "character", characterId: character.id } as const,
+    label: character.name,
+    characterId: character.id,
+    isUser: false,
+  })),
+];
+
+export const tavernRoleAssignmentParticipantKey = (
+  participant: TavernRoleAssignmentParticipant,
+) => participant.isUser ? "user:user" : `character:${participant.characterId ?? ""}`;

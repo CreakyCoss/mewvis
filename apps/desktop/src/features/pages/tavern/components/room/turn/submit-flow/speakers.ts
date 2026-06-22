@@ -14,13 +14,13 @@ import {
   inferTavernMessageKind,
   parseTavernReplyText,
 } from "../../../../message";
-import { compactTavernAgentKnowledge } from "../../../../runtime/bridge-session";
+import { compactTavernAgentKnowledge } from "../../../../runtime/conversation";
 import { getTavernPresentationProfile } from "../../../../prompt-registry/presentation-rules";
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
 } from "../../../../presentation-contracts";
-import { runTavernInnerThought, runTavernReply } from "../../../../runtime/tavern-runner";
+import { runTavernInnerThought, runTavernReply } from "../../../../runtime/reply";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
 import type {
   TavernCharacter,

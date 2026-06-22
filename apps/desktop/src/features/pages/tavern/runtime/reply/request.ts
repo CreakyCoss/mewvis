@@ -3,22 +3,22 @@ import type {
   TavernMessage,
   TavernReferencedFile,
   TavernRoom,
-} from "../types";
+} from "../../types";
 import {
   buildTavernBridgeSystemPrompt,
   buildTavernSystemPrompt,
-} from "./prompt";
-import { getTavernPresentationProfile } from "../prompt-registry/presentation-rules";
-import { getTavernPresentationContract } from "../presentation-contracts";
+} from "../prompt";
+import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
+import { getTavernPresentationContract } from "../../presentation-contracts";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "../message";
+} from "../../message";
 import {
   filterTavernFactEventsForAudience,
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
-} from "../core";
+} from "../../core";
 
 export type TavernReplyAgentRequestInput = {
   room: TavernRoom;

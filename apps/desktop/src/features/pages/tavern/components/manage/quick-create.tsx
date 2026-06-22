@@ -32,8 +32,8 @@ import {
   TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
   normalizeTavernSystemNarrativePresetId,
 } from "../../prompt-registry/system-narrative-styles";
-import type { TavernTextFieldAgentRequest } from "../../runtime/field-polish-agent";
-import type { TavernGeneratedPresetAgentDraft } from "../../runtime/generated-preset-agent";
+import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
+import type { TavernGeneratedPresetAgentDraft } from "../../runtime/assistants";
 import type {
   TavernRoom,
   TavernRoomSettings,

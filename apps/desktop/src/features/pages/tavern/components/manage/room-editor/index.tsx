@@ -30,7 +30,7 @@ import type {
   TavernRoom,
   TavernRoomSettings,
 } from "../../../types";
-import type { TavernTextFieldAgentRequest } from "../../../runtime/field-polish-agent";
+import type { TavernTextFieldAgentRequest } from "../../../runtime/assistants";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { CharactersSection } from "./modules/characters";

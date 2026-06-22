@@ -37,7 +37,7 @@ import {
   rebuildTavernProgressFromHistory,
   resolveTavernPendingStatusEvent,
 } from "../../../../core";
-import { runTavernProgressTracking } from "../../../../runtime/progress-tracker";
+import { runTavernProgressTracking } from "../../../../runtime/assistants";
 import {
   getTavernSceneDisplayTitle,
   projectTavernSceneOntoRoom,

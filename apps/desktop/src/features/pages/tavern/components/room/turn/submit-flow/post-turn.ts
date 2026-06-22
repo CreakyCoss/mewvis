@@ -6,8 +6,8 @@ import {
   syncTavernRoomActiveScene,
 } from "../../../../storage";
 import { advanceTavernProgressFromFactEvents } from "../../../../core";
-import { runTavernAssetExtraction } from "../../../../runtime/asset-extractor";
-import { runTavernProgressTracking } from "../../../../runtime/progress-tracker";
+import { runTavernAssetExtraction } from "../../../../runtime/assistants";
+import { runTavernProgressTracking } from "../../../../runtime/assistants";
 import type {
   TavernMessage,
   TavernReferencedFile,

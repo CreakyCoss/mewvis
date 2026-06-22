@@ -36,15 +36,15 @@ import {
 import { createTavernRenderableMessages } from "../message";
 import {
   disposeTavernBridgeSessionWorkers,
-} from "../runtime/bridge-session";
+} from "../runtime/conversation";
 import type {
   TavernFactEvent,
   TavernReferencedFile,
   TavernReplyOption,
   TavernRoom,
 } from "../types";
-import { runTavernUserReplySuggestions } from "../runtime/user-reply-suggestions";
-import { runTavernDirectorRoleAssignment } from "../runtime/role-assignment-director";
+import { runTavernUserReplySuggestions } from "../runtime/assistants";
+import { runTavernDirectorRoleAssignment } from "../runtime/director";
 import { uniqueFilesByPath } from "../utils";
 import {
   TavernPageProvider,

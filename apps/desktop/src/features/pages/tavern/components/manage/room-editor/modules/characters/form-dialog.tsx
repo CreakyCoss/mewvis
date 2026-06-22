@@ -43,7 +43,7 @@ import type {
 import {
   tavernRelationshipTargetLabel,
 } from "../../../../../core/relationships";
-import type { TavernTextFieldAgentRequest } from "../../../../../runtime/field-polish-agent";
+import type { TavernTextFieldAgentRequest } from "../../../../../runtime/assistants";
 import {
   EditorField,
   EditorFormCard,

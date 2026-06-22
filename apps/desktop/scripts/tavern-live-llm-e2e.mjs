@@ -160,7 +160,7 @@ const runtimeModelFor = (modelId) => {
 };
 
 writeFileSync(helperEntryPath, `
-  import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply-request.ts"))};
+  import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply/index.ts"))};
   import {
     buildTavernBridgeSystemPrompt,
     buildTavernCharacterTurnInstruction,
@@ -200,7 +200,7 @@ writeFileSync(helperEntryPath, `
     selectTavernLorebookEntries,
     tavernMessagesToRuntimeMessages,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts"))};
-  import { formatTavernRuntimeMessagesForSummary } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/conversation.ts"))};
+  import { formatTavernRuntimeMessagesForSummary } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/conversation/index.ts"))};
 
   const now = Date.now();
   const livePresentationProfile = getTavernPresentationProfile(
