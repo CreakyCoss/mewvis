@@ -7,11 +7,11 @@ import type { TavernPromptSection } from "../shared/sections";
 import { limitPromptText } from "../shared/text";
 
 const buildPromptHierarchyRules = () => [
-  "规则优先级：system_contract > presentation_profile > system_narrative_preset > platform_style > prompt_style > rule_layers(quality/narrative/genre/hook/taboo) > tavern_context > character_context > turn_instruction > reference_data。",
+  "规则优先级：system_contract > presentation_profile > system_narrative_preset > prompt_style > platform_style > rule_layers(quality/narrative/genre/hook/taboo) > tavern_context > character_context > turn_instruction > reference_data。",
   "系统级规则定义输出合同、可见性和角色边界；后续层级不得放宽、改名或删除这些要求。",
   "呈现规则定义视角、渲染形态和输出合同；系统叙事预设只调整整体节奏、镜头密度、冲突强度和收束方式。",
-  "平台风格定义读者预期、商业节奏和卖点偏好；不能改变呈现规则、XML 标签或事实可见性。",
-  "酒馆风格可以在系统叙事预设内进一步定调；不能改变输出标签、可见性或越权视角。",
+  "酒馆风格在当前房间内进一步定调；不能改变输出标签、可见性或越权视角。",
+  "写作规则组合中的平台偏好定义读者预期、商业节奏和卖点倾向；不能改变呈现规则、XML 标签或事实可见性。",
   "规则层由质量、叙事、题材、钩子和雷点组成；只能补充表达、节奏、题材套路和禁忌边界，不能替代剧情事实或角色人设。",
   "角色级规则只覆盖当前角色的人设、口吻、写作风格、记忆和关系；只能影响该角色表达，不能替用户或其他角色发言。",
   "回合级规则只在本次调用生效；可以收紧发言目标，或在明确允许时开启非语言回应，但不能改变系统级 XML 合同。",

@@ -23,14 +23,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
-  getTavernSystemNarrativePreset,
-  normalizeTavernSystemNarrativePresetId,
   normalizeTavernSystemNarrativePresetSettings,
 } from "../../../../../prompt-registry/system-narrative-styles";
 import {
-  TAVERN_RULE_COMPOSITION_OPTIONS,
-  getTavernRuleComposition,
   normalizeTavernQualityRuleIds,
   normalizeTavernRuleCompositionId,
 } from "../../../../../prompt-registry/rule-layers/resolver";
@@ -80,7 +75,6 @@ const settingsPresets: SettingsPresetDefinition[] = [
     icon: ThumbsUp,
     apply: (draft) => ({
       ...draft,
-      immersiveDescriptionEnabled: true,
       showExecutionTrace: false,
       autoAssetExtractionEnabled: true,
       statusTracking: {
@@ -110,7 +104,6 @@ const settingsPresets: SettingsPresetDefinition[] = [
     icon: Sparkles,
     apply: (draft) => ({
       ...draft,
-      immersiveDescriptionEnabled: true,
       showExecutionTrace: false,
       statusTracking: {
         ...draft.statusTracking,
@@ -180,7 +173,7 @@ const inferPresetId = (draft: SettingsDraft): SettingsPresetId => {
   if (draft.informationPolicy.mode === "open" && draft.randomEvents.enabled) {
     return "free";
   }
-  if (draft.immersiveDescriptionEnabled && draft.illustrationHints.enabled) {
+  if (draft.illustrationHints.enabled && draft.informationPolicy.uiDefaultView === "reveal") {
     return "immersive";
   }
   return "default";
@@ -258,12 +251,6 @@ export const SettingsEdit = ({
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [error, setError] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState<SettingsPresetId>("default");
-  const selectedSystemNarrativePreset = draft
-    ? getTavernSystemNarrativePreset(draft.systemNarrativePreset.presetId)
-    : null;
-  const selectedRuleComposition = draft
-    ? getTavernRuleComposition(draft.platformStyleId)
-    : null;
 
   const open = (nextData = data) => {
     const nextDraft = {
@@ -478,108 +465,9 @@ export const SettingsEdit = ({
                 </SettingsSection>
 
                 <SettingsSection
-                  title="叙事风格"
-                  description="选择可调整的系统叙事预设；它影响对白、动作和环境描写比例，不改变呈现结构。"
-                >
-                  <SettingsRow
-                    label="系统叙事预设"
-                    description={selectedSystemNarrativePreset?.description ?? "选择整体叙事节奏。"}
-                    control={(
-                      <NativeSelect
-                        id="tavern-settings-system-narrative-preset"
-                        value={draft.systemNarrativePreset.presetId}
-                        className={selectClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            systemNarrativePreset: {
-                              ...draft.systemNarrativePreset,
-                              presetId: normalizeTavernSystemNarrativePresetId(
-                                event.target.value,
-                              ),
-                            },
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      >
-                        {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
-                          <NativeSelectOption key={preset.id} value={preset.id}>
-                            {preset.label}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    )}
-                  />
-                  <div className="grid gap-2 rounded-md px-0.5 py-1 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium leading-5 text-foreground/82">
-                        自定义叙事规则
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        可补充对白比例、动作密度、环境描写边界等开发调试规则。
-                      </p>
-                    </div>
-                    <Textarea
-                      id="tavern-settings-system-narrative-custom"
-                      value={draft.systemNarrativePreset.customInstructions ?? ""}
-                      placeholder="例如：对白优先，环境描写仅保留可被角色观察到的变化。"
-                      className={cn("min-h-24 resize-y text-sm leading-6", editorControlClassName)}
-                      onChange={(event) => {
-                        setDraft({
-                          ...draft,
-                          systemNarrativePreset: {
-                            ...draft.systemNarrativePreset,
-                            customInstructions: event.target.value,
-                          },
-                        });
-                        setSelectedPresetId("default");
-                      }}
-                    />
-                  </div>
-                  <SettingsRow
-                    label="写作组合"
-                    description={selectedRuleComposition?.description ?? "选择由平台、质量、叙事、题材、钩子和雷点规则组成的预设。"}
-                    control={(
-                      <NativeSelect
-                        id="tavern-settings-platform-style"
-                        value={draft.platformStyleId}
-                        className={selectClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            platformStyleId: normalizeTavernRuleCompositionId(
-                              event.target.value,
-                            ),
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      >
-                        {TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) => (
-                          <NativeSelectOption key={composition.id} value={composition.id}>
-                            {composition.label}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    )}
-                  />
-                </SettingsSection>
-
-                <SettingsSection
                   title="执行体验"
                   description="控制执行过程中的展示与交互体验。"
                 >
-                  <SettingsSwitch
-                    label="沉浸描写"
-                    description="增强环境与内心描写，提升沉浸感。"
-                    checked={draft.immersiveDescriptionEnabled}
-                    onCheckedChange={(checked) => {
-                      setDraft({
-                        ...draft,
-                        immersiveDescriptionEnabled: checked,
-                      });
-                      setSelectedPresetId("default");
-                    }}
-                  />
                   <SettingsSwitch
                     label="显示执行过程"
                     description="实时展示模型思考与执行过程。"

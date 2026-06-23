@@ -144,6 +144,7 @@ export const buildTavernDirectorPromptContext = ({
     canRequestIllustrationHints,
     directorOnlyAllowed,
     isSceneDriveTurn,
+    platformStyle: ruleStack.platformStyle,
     presentationProfile,
     promptStyle,
     requestContext: appendReferencesToPrompt(directorPrompt, references),

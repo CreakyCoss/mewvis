@@ -28,8 +28,8 @@ export const buildCharacterTurnStyleInstruction = ({
   const lines = [
     `呈现规则：${presentationProfile.label}。${presentationProfile.characterAddendum}`,
     `系统叙事预设：${systemNarrative.preset.label}。${systemNarrative.preset.description}`,
-    `平台风格：${ruleStack.platformStyle.label}。${ruleStack.platformStyle.characterAddendum}`,
     `酒馆风格：${promptStyle.label}。${promptStyle.characterAddendum}`,
+    `写作规则组合：${ruleStack.platformStyle.label}。${ruleStack.platformStyle.characterAddendum}`,
     ...formatPromptRuleLayersForCharacterStyle(ruleStack.ruleGroups),
   ];
 

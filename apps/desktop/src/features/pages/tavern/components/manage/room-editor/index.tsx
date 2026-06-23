@@ -6,6 +6,7 @@ import {
   House,
   LogOut,
   Pencil,
+  ScrollText,
   Settings2,
   Sparkles,
   UsersRound,
@@ -36,6 +37,7 @@ import { BasicSection } from "./modules/basic";
 import { CharactersSection } from "./modules/characters";
 import { LoreSection } from "./modules/lore";
 import { OverviewSection } from "./modules/overview";
+import { PromptSection } from "./modules/prompt";
 import { ProgressSection } from "./modules/progress";
 import { ScenesSection } from "./modules/scenes";
 import { ScenesEdit, type ScenesEditHandle } from "./modules/scenes/edit";
@@ -55,6 +57,7 @@ export type RoomEditorHandle = (roomId: string) => void;
 type EditorModuleId =
   | "overview"
   | "basic"
+  | "prompt"
   | "characters"
   | "scenes"
   | "story-graph"
@@ -82,8 +85,14 @@ const editorModules: Array<{
   {
     id: "basic",
     label: "基础信息",
-    description: "标题、故事目标和视觉主题",
+    description: "标题、称呼和故事目标",
     icon: Wine,
+  },
+  {
+    id: "prompt",
+    label: "提示词",
+    description: "层级、呈现结构和写作规则",
+    icon: ScrollText,
   },
   {
     id: "characters",
@@ -392,9 +401,16 @@ export const RoomEditor = ({
         return (
           <BasicSection
             data={data}
-            messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
+          />
+        );
+      case "prompt":
+        return (
+          <PromptSection
+            data={data}
+            messages={messagesByRoomId[data.id] ?? []}
+            onSave={onModuleSave}
           />
         );
       case "characters":

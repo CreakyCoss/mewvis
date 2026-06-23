@@ -2,7 +2,6 @@ import {
   Activity,
   Box,
   Clock3,
-  Eye,
   FileText,
   Image,
   LayoutDashboard,
@@ -12,14 +11,13 @@ import {
   Sparkles,
   Target,
   UserRoundCog,
+  UserRoundSearch,
   UserRoundMinus,
   UsersRound,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import { getTavernSystemNarrativePreset } from "../../../../../prompt-registry/system-narrative-styles";
-import { resolveTavernPromptRuleStack } from "../../../../../prompt-registry/rule-layers/resolver";
 import type {
   TavernRoom,
   TavernRoomSettings,
@@ -78,22 +76,6 @@ export const SettingsSection = ({
   const directorProfileCharacterCount = data.settings.directorScheduling.profile
     ? Object.keys(data.settings.directorScheduling.profile.characterProfiles).length
     : 0;
-  const systemNarrativePreset = getTavernSystemNarrativePreset(
-    data.settings.systemNarrativePreset.presetId,
-  );
-  const systemNarrativePresetLabel = data.settings.systemNarrativePreset.customInstructions
-    ? `${systemNarrativePreset.label} + 自定义`
-    : systemNarrativePreset.label;
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: data.settings.platformStyleId,
-    qualityRuleIds: data.settings.qualityRuleIds,
-  });
-  const effectiveRuleCount =
-    ruleStack.ruleGroups.qualityRules.length +
-    ruleStack.ruleGroups.narrativeStyles.length +
-    ruleStack.ruleGroups.genreRules.length +
-    ruleStack.ruleGroups.hookRules.length +
-    ruleStack.ruleGroups.tabooRules.length;
   const randomEventPercentage = Math.round(data.settings.randomEvents.probability * 100);
   const randomEventProgress = data.settings.randomEvents.enabled ? randomEventPercentage : 0;
 
@@ -127,7 +109,7 @@ export const SettingsSection = ({
       <EditorSection
         icon={Settings2}
         title="运行设置"
-        description="控制执行过程、剧情资产整理频率和导演调度人数。"
+        description="控制模型执行、自动化、导演调度、状态追踪和信息揭示。"
         action={(
           <div className="flex flex-wrap justify-end gap-1.5">
             <Button
@@ -190,29 +172,7 @@ export const SettingsSection = ({
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="rounded-lg border border-border/70 bg-background/72 px-3.5 py-3.5 shadow-xs">
             <div className="grid gap-4 lg:grid-cols-3 lg:divide-x lg:divide-border/60">
-              <EditorSettingGroup title="叙事体验" className="lg:pr-5">
-                <EditorSettingRow icon={Sparkles} label="叙事风格">
-                  <EditorStatusPill tone="info">
-                    {systemNarrativePresetLabel}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={PackageCheck} label="写作组合">
-                  <EditorStatusPill tone={ruleStack.composition.id === "none" ? "muted" : "info"}>
-                    {ruleStack.composition.label}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={Target} label="内部规则">
-                  <EditorStatusPill tone={effectiveRuleCount > 0 ? "info" : "muted"}>
-                    {effectiveRuleCount > 0
-                      ? `已组合 ${effectiveRuleCount} 条`
-                      : "未启用"}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={Eye} label="沉浸描写">
-                  <EditorStatusPill tone={booleanTone(data.settings.immersiveDescriptionEnabled)}>
-                    {enabledText(data.settings.immersiveDescriptionEnabled)}
-                  </EditorStatusPill>
-                </EditorSettingRow>
+              <EditorSettingGroup title="执行反馈" className="lg:pr-5">
                 <EditorSettingRow icon={FileText} label="显示执行过程">
                   <EditorStatusPill tone={booleanTone(data.settings.showExecutionTrace)}>
                     {enabledText(data.settings.showExecutionTrace)}
@@ -221,6 +181,11 @@ export const SettingsSection = ({
                 <EditorSettingRow icon={Image} label="插图提示">
                   <EditorStatusPill tone={booleanTone(data.settings.illustrationHints.enabled)}>
                     {enabledText(data.settings.illustrationHints.enabled)}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={LayoutDashboard} label="状态栏">
+                  <EditorStatusPill tone={data.settings.statusTracking.enabled ? "active" : "muted"}>
+                    {data.settings.statusTracking.enabled ? "显示" : "隐藏"}
                   </EditorStatusPill>
                 </EditorSettingRow>
               </EditorSettingGroup>
@@ -241,12 +206,28 @@ export const SettingsSection = ({
                     {getProgressModeLabel(data)}
                   </EditorStatusPill>
                 </EditorSettingRow>
+                <EditorSettingRow icon={PackageCheck} label="草稿上限">
+                  <EditorStatusPill tone="info">
+                    {data.settings.maxAssetDrafts} 份
+                  </EditorStatusPill>
+                </EditorSettingRow>
               </EditorSettingGroup>
 
-              <EditorSettingGroup title="界面反馈" className="lg:pl-5">
-                <EditorSettingRow icon={LayoutDashboard} label="状态栏">
-                  <EditorStatusPill tone={data.settings.statusTracking.enabled ? "active" : "muted"}>
-                    {data.settings.statusTracking.enabled ? "显示" : "隐藏"}
+              <EditorSettingGroup title="导演与信息" className="lg:pl-5">
+                <EditorSettingRow icon={Target} label="随机事件">
+                  <EditorStatusPill tone={data.settings.randomEvents.enabled ? "warning" : "muted"}>
+                    {data.settings.randomEvents.enabled ? `${randomEventPercentage}%` : "关闭"}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={UserRoundSearch} label="信息模式">
+                  <EditorStatusPill tone={data.settings.informationPolicy.mode === "open" ? "muted" : "warning"}>
+                    {data.settings.informationPolicy.mode === "open"
+                      ? "开放"
+                      : data.settings.informationPolicy.mode === "mystery"
+                      ? "悬疑"
+                      : data.settings.informationPolicy.mode === "social_deduction"
+                      ? "阵营"
+                      : "自定义"}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UserRoundMinus} label="角色压缩">

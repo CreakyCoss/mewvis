@@ -6,6 +6,7 @@ import {
   Link2,
   Pencil,
   Route,
+  ScrollText,
   Target,
   UsersRound,
   Wine,
@@ -29,14 +30,17 @@ import type {
 import {
   emptyValueText,
   formatCount,
+  getReplyModeLabel,
   getRoomCharacterById,
   getRoomCharacters,
 } from "../../utils";
 import { BasicSummaryContent } from "../basic/summary";
+import { PromptSummaryContent } from "../prompt";
 import { editorHeaderActionButtonClassName } from "../../primitives";
 
 type OverviewTargetModuleId =
   | "basic"
+  | "prompt"
   | "characters"
   | "scenes"
   | "story-graph"
@@ -203,14 +207,26 @@ export const OverviewSection = ({
         <OverviewCard
           icon={Wine}
           title="基础信息"
-          meta={promptStyle.label}
-          metaClassName="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
+          meta={getReplyModeLabel(data.replyMode ?? "active")}
           actionLabel="编辑"
           onAction={() => onOpenModule("basic")}
           className="xl:col-span-2"
           contentClassName="p-4"
         >
           <BasicSummaryContent data={data} />
+        </OverviewCard>
+
+        <OverviewCard
+          icon={ScrollText}
+          title="提示词层级"
+          meta={promptStyle.label}
+          metaClassName="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
+          actionLabel="编辑提示词"
+          onAction={() => onOpenModule("prompt")}
+          className="xl:col-span-2"
+          contentClassName="p-4"
+        >
+          <PromptSummaryContent data={data} />
         </OverviewCard>
 
         <OverviewCard

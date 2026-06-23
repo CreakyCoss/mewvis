@@ -2,14 +2,12 @@ import {
   FileText,
   Flag,
   Goal,
-  Layers,
   PanelTop,
   MessageSquareText,
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getTavernPresentationProfile } from "../../../../../prompt-registry/presentation-rules";
 import {
   getActiveTavernScene,
   getTavernSceneDisplayTitle,
@@ -93,7 +91,6 @@ export const BasicSummaryContent = ({
 }) => {
   const activeScene = getActiveTavernScene(data);
   const sceneCount = data.scenes?.length ?? 1;
-  const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
 
   return (
     <div
@@ -117,11 +114,6 @@ export const BasicSummaryContent = ({
       <div className="grid gap-2 sm:grid-cols-2">
         <MetricCard
           icon={PanelTop}
-          label="呈现规则"
-          value={presentationProfile.label}
-        />
-        <MetricCard
-          icon={Layers}
           label="默认场景"
           value={activeScene ? getTavernSceneDisplayTitle(data, activeScene.id) : "默认场景"}
         />

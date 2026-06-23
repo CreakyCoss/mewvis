@@ -111,12 +111,12 @@ export const buildTavernSystemPrompt = ({
       usesNarrativeBeat,
       immersiveDescriptionEnabled,
     }),
-    buildPlatformStyleSection({
-      platformStyle: ruleStack.platformStyle,
-      target: "character",
-    }),
     buildPromptStyleSection({
       promptStyle,
+      target: "character",
+    }),
+    buildPlatformStyleSection({
+      platformStyle: ruleStack.platformStyle,
       target: "character",
     }),
     ...buildPromptRuleLayerSections({

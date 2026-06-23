@@ -14,20 +14,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import {
-  TAVERN_PRESENTATION_PROFILE_OPTIONS,
-  getTavernPresentationProfile,
-  isTavernPresentationLocked,
-  normalizeTavernPresentation,
-  normalizeTavernPresentationProfileId,
-} from "../../../../../prompt-registry/presentation-rules";
-import {
-  TAVERN_PROMPT_STYLE_PRESETS,
-  normalizeTavernPromptStyleId,
-} from "../../../../../prompt-styles";
 import type {
-  TavernMessage,
-  TavernPresentationProfileId,
   TavernReplyMode,
   TavernRoom,
 } from "../../../../../types";
@@ -57,21 +44,17 @@ type BasicDraft = {
   storyOutline: string;
   storyGoal: string;
   scenePresetId: TavernRoom["scenePresetId"];
-  presentationProfileId: TavernPresentationProfileId;
-  promptStyleId: TavernRoom["promptStyleId"];
   replyMode: TavernReplyMode;
   userPersonaName: string;
 };
 
 type BasicEditProps = ModuleEditProps & {
   bind: Ref<BasicEditHandle>;
-  messages: TavernMessage[];
 };
 
 export const BasicEdit = ({
   bind,
   data,
-  messages,
   onSave,
   renderTextFieldAgentActions,
 }: BasicEditProps) => {
@@ -85,10 +68,6 @@ export const BasicEdit = ({
       storyOutline: nextData.storyOutline,
       storyGoal: nextData.storyGoal,
       scenePresetId: nextData.scenePresetId,
-      presentationProfileId: normalizeTavernPresentationProfileId(
-        nextData.presentation?.profileId,
-      ),
-      promptStyleId: normalizeTavernPromptStyleId(nextData.promptStyleId),
       replyMode: nextData.replyMode ?? "active",
       userPersonaName: nextData.userPersonaName,
     });
@@ -106,11 +85,6 @@ export const BasicEdit = ({
       return;
     }
 
-    const basePresentation = normalizeTavernPresentation(data.presentation);
-    const presentationLocked = isTavernPresentationLocked({
-      presentation: basePresentation,
-      messages,
-    });
     onSave({
       title: draft.title,
       storyOutline: draft.storyOutline,
@@ -124,26 +98,11 @@ export const BasicEdit = ({
               scenePresetId: draft.scenePresetId,
             }
       ),
-      presentation: presentationLocked
-        ? basePresentation
-        : {
-            ...basePresentation,
-            profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-            profileVersion: 1,
-          },
-      promptStyleId: normalizeTavernPromptStyleId(draft.promptStyleId),
       replyMode: draft.replyMode,
       userPersonaName: draft.userPersonaName,
     });
     close();
   };
-
-  const presentationLocked = draft
-    ? isTavernPresentationLocked({
-        presentation: normalizeTavernPresentation(data.presentation),
-        messages,
-      })
-    : false;
 
   return (
     <Dialog
@@ -177,14 +136,6 @@ export const BasicEdit = ({
                     meta={(
                       <>
                         <EditorStatusPill tone="active">
-                          {getTavernPresentationProfile(draft.presentationProfileId).label}
-                        </EditorStatusPill>
-                        <EditorStatusPill>
-                          {TAVERN_PROMPT_STYLE_PRESETS.find((preset) =>
-                            preset.id === normalizeTavernPromptStyleId(draft.promptStyleId)
-                          )?.label ?? "默认风格"}
-                        </EditorStatusPill>
-                        <EditorStatusPill tone="info">
                           {replyModeOptions.find((option) => option.value === draft.replyMode)?.label ?? "发言模式"}
                         </EditorStatusPill>
                         <EditorStatusPill>
@@ -267,53 +218,9 @@ export const BasicEdit = ({
                 id="tavern-basic-mode-section"
                 icon={MessageSquareText}
                 title="互动方式"
-                description="选择呈现规则、酒馆风格和角色发言模式。"
+                description="选择房间里的角色响应方式；提示词结构请到提示词模块调整。"
               >
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <EditorField label="酒馆风格" htmlFor="tavern-basic-prompt-style">
-                    <NativeSelect
-                      id="tavern-basic-prompt-style"
-                      value={draft.promptStyleId}
-                      className={editorControlClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        promptStyleId: normalizeTavernPromptStyleId(event.target.value),
-                      })}
-                    >
-                      {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
-                        <NativeSelectOption key={preset.id} value={preset.id}>
-                          {preset.label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </EditorField>
-
-                  <EditorField label="呈现规则" htmlFor="tavern-basic-presentation-profile">
-                    <NativeSelect
-                      id="tavern-basic-presentation-profile"
-                      value={draft.presentationProfileId}
-                      className={editorControlClassName}
-                      disabled={presentationLocked}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presentationProfileId: normalizeTavernPresentationProfileId(
-                          event.target.value,
-                        ),
-                      })}
-                    >
-                      {TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) => (
-                        <NativeSelectOption key={profile.id} value={profile.id}>
-                          {profile.label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {presentationLocked
-                        ? "场景已开始，呈现规则已锁定。"
-                        : getTavernPresentationProfile(draft.presentationProfileId).description}
-                    </p>
-                  </EditorField>
-
                   <EditorField label="发言模式" htmlFor="tavern-basic-reply-mode">
                     <NativeSelect
                       id="tavern-basic-reply-mode"

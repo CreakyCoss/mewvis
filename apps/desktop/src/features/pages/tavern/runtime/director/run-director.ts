@@ -97,6 +97,7 @@ export const runTavernDirector = async ({
         ? `自定义系统叙事规则：${directorPromptContext.systemNarrative.settings.customInstructions}`
         : "",
       `当前酒馆风格：${directorPromptContext.promptStyle.label}。${directorPromptContext.promptStyle.directorAddendum}`,
+      `当前写作规则组合：${directorPromptContext.platformStyle.label}。${directorPromptContext.platformStyle.directorAddendum}`,
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
       directorPromptContext.canConsiderRandomEvent
         ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"
