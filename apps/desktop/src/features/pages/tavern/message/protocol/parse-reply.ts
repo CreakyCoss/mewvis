@@ -59,6 +59,15 @@ const thoughtTagNames = getTavernProtocolFieldTagNames("privateThought");
 const replyTagNames = getTavernProtocolFieldTagNames("publicReply");
 const narrativeBeatTagNames = getTavernProtocolFieldTagNames("narrativeBeat");
 const publicContentTagNames = getTavernProtocolPublicContentTagNames();
+const canonicalProtocolTagNames = [
+  ...thoughtTagNames,
+  ...publicContentTagNames,
+];
+const compactMalformedProtocolTagNames = [
+  "innerthought",
+  "publicreply",
+  "narrativebeat",
+];
 
 const labelPattern = (labels: readonly string[]) =>
   `(?:${uniqueLabels([...labels]).map(escapeRegExp).join("|")})`;
@@ -205,6 +214,15 @@ const stripKnownWrapperTags = (text: string, tagNames: readonly string[]) => {
   );
 };
 
+const stripMalformedProtocolWrapperTags = (text: string) => {
+  const canonicalPattern = tagNamePattern(canonicalProtocolTagNames);
+  const compactPattern = tagNamePattern(compactMalformedProtocolTagNames);
+
+  return text
+    .replace(new RegExp(`<\\s*/?\\s*(?:${canonicalPattern})\\s*["']\\s*>`, "gi"), "")
+    .replace(new RegExp(`<\\s*/?\\s*(?:${compactPattern})(?:\\s*["']|\\s+[^>]*)?\\s*>`, "gi"), "");
+};
+
 const stripContextWrapperTags = (
   text: string,
   { stripReplyTags = true }: { stripReplyTags?: boolean } = {},
@@ -217,10 +235,11 @@ const stripContextWrapperTags = (
     ...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
   ]);
 
-  return (stripReplyTags
+  const withoutReplyWrappers = stripReplyTags
     ? stripKnownWrapperTags(withoutOuterWrappers, publicContentTagNames)
-    : withoutOuterWrappers
-  ).trim();
+    : withoutOuterWrappers;
+
+  return stripMalformedProtocolWrapperTags(withoutReplyWrappers).trim();
 };
 
 const openTagPatternFor = (tagNames: readonly string[]) =>

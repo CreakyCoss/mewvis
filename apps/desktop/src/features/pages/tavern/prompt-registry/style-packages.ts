@@ -20,7 +20,9 @@ export type TavernPromptStylePackageId =
   | "chat-grounded-roleplay"
   | "novel-default-flow"
   | "novel-cinematic-suspense"
+  | "novel-fanqie-fast-hook"
   | "novel-grounded-literary"
+  | "novel-qidian-longform"
   | "third-person-balanced-observer"
   | "third-person-grounded-observer";
 
@@ -81,6 +83,40 @@ const tavernPromptStylePackages = [
     order: 20,
   },
   {
+    id: "novel-qidian-longform",
+    label: "起点长篇",
+    description: "偏长线升级、信息铺垫和章节推进，适合主线目标清晰的网文正文。",
+    presentationProfileId: "novel-prose",
+    systemNarrativePresetId: "dramatic",
+    promptStyleId: "silent-law",
+    ruleCompositionId: "qidian-longform",
+    qualityRuleIds: ["anti-ai-natural", "concise-no-summary", "reduce-empty-ambience"],
+    immersiveDescriptionEnabled: true,
+    characterStylePresetId: "cinematic-inner",
+    evaluationSummary: "真实场景评估均分 0.79，2/3 有效裁判判可用。短段落达标，最长约 73 字；仍需加强长线主线钩。",
+    codexReviewScore: 76,
+    codexReviewNote: "适合作为悬疑冒险章节开头基线；需要继续加强势力线、路线争夺和长期代价，避免停在单场问询。",
+    strengths: ["长线主线", "升级铺垫", "章尾追读"],
+    order: 30,
+  },
+  {
+    id: "novel-fanqie-fast-hook",
+    label: "番茄快节奏",
+    description: "偏强钩子、快节奏冲突和即时反馈，适合短段高推进的网文正文。",
+    presentationProfileId: "novel-prose",
+    systemNarrativePresetId: "dramatic",
+    promptStyleId: "dramatic",
+    ruleCompositionId: "fanqie-fast-hook",
+    qualityRuleIds: ["anti-ai-natural", "natural-dialogue", "concise-no-summary", "reduce-empty-ambience"],
+    immersiveDescriptionEnabled: true,
+    characterStylePresetId: "cinematic-inner",
+    evaluationSummary: "真实场景评估均分 0.72，2/4 裁判判可用。短段落达标，最长约 89 字；外部压力改善，但仍需更强爆点。",
+    codexReviewScore: 72,
+    codexReviewNote: "快节奏和短段落已经接近番茄读感；仍易变成室内调查纪要，需要事件打断、用户行动后果和更清晰角色差异。",
+    strengths: ["强开篇", "快冲突", "爽点反馈"],
+    order: 40,
+  },
+  {
     id: "novel-cinematic-suspense",
     label: "镜头悬疑",
     description: "更强调场面调度、线索压迫和悬疑推进，适合剧情向长线场景。",
@@ -95,7 +131,7 @@ const tavernPromptStylePackages = [
     codexReviewScore: 88,
     codexReviewNote: "M3 样本很像侦探小说；M2.7 偶尔对白偏长、像案情报告。",
     strengths: ["镜头动作", "悬疑推进", "强场景"],
-    order: 30,
+    order: 50,
   },
   {
     id: "third-person-balanced-observer",
@@ -112,7 +148,7 @@ const tavernPromptStylePackages = [
     codexReviewScore: 86,
     codexReviewNote: "旁白能连起来读；问题在于有时会把下一步写成菜单，第三人称体验略被削弱。",
     strengths: ["间接叙事", "边界稳定", "场景承接"],
-    order: 40,
+    order: 60,
   },
   {
     id: "chat-grounded-roleplay",
@@ -129,7 +165,7 @@ const tavernPromptStylePackages = [
     codexReviewScore: 82,
     codexReviewNote: "M3 样本像现场低声回应；M2.7 偶尔出现“要么 A 要么 B，你定”，已加禁用提示。",
     strengths: ["真人对白", "克制动作", "即时回应"],
-    order: 50,
+    order: 70,
   },
   {
     id: "chat-character-banter",
@@ -146,7 +182,7 @@ const tavernPromptStylePackages = [
     codexReviewScore: 78,
     codexReviewNote: "不稳定：有时很现场，有时像把线索一次性讲完；适合轻快场景但不作为默认推荐。",
     strengths: ["直接对白", "互动抛接", "轻快节奏"],
-    order: 60,
+    order: 80,
   },
   {
     id: "third-person-grounded-observer",
@@ -163,7 +199,7 @@ const tavernPromptStylePackages = [
     codexReviewScore: 82,
     codexReviewNote: "环境和动作扎实；低分样本会退成直接提问或给用户侦查选项。",
     strengths: ["写实动作", "空间明确", "少对白"],
-    order: 70,
+    order: 90,
   },
 ] satisfies TavernPromptStylePackage[];
 

@@ -26,7 +26,7 @@ export const buildTavernDirectorOutputContract = ({
 
   return [
     "<output_schema>",
-    `{"speakerIds":["character-id"],"nonverbalReplyIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白"${randomEventSchema}${illustrationHintsSchema},"reason":"可选简短原因"}`,
+    `{"speakerIds":["character-id"],"nonverbalReplyIds":["character-id"],"ambientActions":[{"characterId":"未发言角色 id","action":"一句可观察动作"}],"narrator":"可选旁白/场景承接"${randomEventSchema}${illustrationHintsSchema},"reason":"可选简短原因"}`,
     "</output_schema>",
     "",
     `<constraints maxSpeakers="${maxSpeakers}">`,
@@ -59,9 +59,10 @@ export const buildTavernDirectorOutputContract = ({
     "director_profile 是稳定角色调度画像；scheduling_signals 是应用侧每轮根据点名、兴趣、目标、关系、事实、任务和近期发言计算的动态动机。导演可以裁决或修正，但必须优先考虑高分信号和强理由。",
     "scheduling_signals 的 reason 只用于内部调度，不能原样复制进公开 narrator 或泄露到角色公开对白；reason 字段仍只能写公开调度理由。",
     `ambientActions 可选，最多 ${ambientActionMax} 条，只能选择未出现在 speakerIds 和 nonverbalReplyIds 里的角色；只写可被观察到的动作/状态，不写对白、心理、意图或新剧情结果。`,
-    "ambientActions 用来让未发言角色保持在场感，例如“莉娜把托盘放回吧台”“莫尔侧身让开门口”；不要为了凑数而生成。",
-    "narrator 只能写已发生状态、环境过渡或镜头提示，不要新增关键事实、行动结果或替角色做决定；可为空，建议 40 字内。",
-    "reason 只能写公开调度理由，不得包含隐藏身份、阵营、未公开心理、夜间私密行动或验人结果。",
+    "ambientActions 用来让未发言角色保持在场感，例如“莉娜把托盘放回吧台”“莫尔侧身让开门口”；不要为了凑数而生成。小说正文/第三人称呈现下尤其要少用零散 ambientActions，能交给发言角色自然带出的动作就不要拆成独立短句。",
+    "narrator 只能写公开可见的场景承接、状态变化、环境压力或镜头提示；可以让已存在的场景元素产生轻微公开变化，例如雨水冲淡脚印、门缝漏风、炉火骤暗、远处脚步压近，但不要新增关键结论、泄露秘密、解决主线或替用户选择行动。",
+    "对话模式 narrator 建议 40 字内；小说正文/第三人称呈现可写 80-120 字的短场景段，用来合并多个零散 ambientActions、承接上一轮尾句、制造公开压力和连续阅读感。",
+    "reason 只能写公开调度理由，不得包含隐藏身份、阵营、未公开心理、夜间私密行动或验人结果；不要只写“用户点名某角色”，还要说明该角色为何最能推进场景目标、压力、冲突或信息增量。",
     canConsiderRandomEvent
       ? "randomEvent 由导演决定是否触发；只能写公开可观察的小事件，例如门外脚步、灯火闪动、远处钟声。不要直接解决主线、不要覆盖用户选择、不要替任何角色做关键行动，不触发则输出空字符串。"
       : "randomEvent 当前不可用，必须输出空字符串。",

@@ -8,7 +8,8 @@ export const dramaticSystemNarrativeStyle: TavernSystemNarrativeStyleRegistratio
   directorAddendum: "导演优先调度最能制造承接、冲突、信息增量或选择压力的角色；随机事件只增加公开压力，不直接解决主线。",
   characterRules: {
     narrativeBeat: [
-      "- 小说正文段控制在 1 到 3 个自然段；每轮至少给出一个公开可观察的张力变化、立场碰撞或信息增量。",
+      "- 小说正文段控制在 2 到 5 个短自然段；每段通常 40 到 120 个中文字符，避免几百字大段。",
+      "- 每轮至少给出一个公开可观察的张力变化、立场碰撞或信息增量。",
       "- 冲突必须来自既有人设、目标、事实或关系，不要为了戏剧性强行反转。",
       "- 推进到可回应的压力点即可停住，不替用户完成关键决定。",
     ],

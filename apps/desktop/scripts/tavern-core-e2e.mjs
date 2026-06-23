@@ -773,6 +773,12 @@ writeFileSync(entryPath, `
     characters,
     userPersonaName: room.userPersonaName,
   });
+  const malformedNarrativeTagReply = parseTavernReplyText({
+    text: "<inner_thought>我得留意东边。</inner_thought><narrative_beat>东边灯影还亮着。\\n\\n<narrativebeat\\\">阿洛把披风拢紧。</narrative_beat>",
+    activeCharacter: characters[0],
+    characters,
+    userPersonaName: room.userPersonaName,
+  });
   const mysteryInformationPolicy = {
     mode: "social_deduction",
     uiDefaultView: "public",
@@ -2187,6 +2193,7 @@ writeFileSync(entryPath, `
     unclosedThoughtWithReply,
     unclosedThoughtWithLooseContent,
     unclosedActionMarkdown,
+    malformedNarrativeTagReply,
     interactionsForA,
     continuationForA,
     interactionsForUser,
@@ -2370,6 +2377,11 @@ try {
     checks.unclosedActionMarkdown.content === "东边灯影还亮着。阿洛把披风拢紧。",
     "解析器应移除未配对的动作 Markdown 标记",
     checks.unclosedActionMarkdown,
+  );
+  assert(
+    checks.malformedNarrativeTagReply.content === "东边灯影还亮着。\n\n阿洛把披风拢紧。",
+    "解析器应移除正文里混入的畸形协议标签残留，并保留后续正文",
+    checks.malformedNarrativeTagReply,
   );
   assert(
     checks.interactionsForA.length === 1 &&

@@ -142,6 +142,17 @@ export const buildTavernDirectorContextSections = ({
       ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
+    "<scene_status instruction=\"public_scene_pressure; use_for_narrator_and_scheduling_without_solving_user_choices\">",
+    JSON.stringify({
+      location: room.sceneStatus?.location ?? "",
+      timeLabel: room.sceneStatus?.timeLabel ?? "",
+      weather: room.sceneStatus?.weather ?? "",
+      atmosphere: room.sceneStatus?.atmosphere ?? "",
+      scenePhase: room.sceneStatus?.scenePhase ?? "",
+      immediateThreat: room.sceneStatus?.immediateThreat ?? "",
+    }, null, 2),
+    "</scene_status>",
+    "",
     room.sceneDirection.trim()
       ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",

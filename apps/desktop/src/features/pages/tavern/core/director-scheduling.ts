@@ -336,6 +336,13 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应把该目标放入 nonverbalReplyIds，让角色 Agent 自己输出心理和动作；不要改用旁白替角色完成这类近景反应。");
   }
 
+  lines.push([
+    "如果最近多轮都只是用户点名问询、角色逐一解释线索，导演不要机械延续问答链。",
+    "应重新评估 sceneGoal、scenePlot、immediateThreat、角色目标和待回应事项，优先安排能带来局势变化、时间压力、关系冲突、风险暴露或下一步行动压力的角色。",
+    "此时 narrator 应优先让公开场景状态发生变化，例如线索被雨水冲淡、脚步靠近、灯火变暗、门闩受力、路线时间被压缩；这些变化不能替用户做选择，但要打破纯问答。",
+    "可以让未被点名但有强动机/关键现场职责的角色插入异议、提醒、打断或行动提议；不要让用户长期沦为只负责点名提问的提词器。",
+  ].join(""));
+
   if (scheduling.speakerMotivation.enabled) {
     const rulesText = scheduling.speakerMotivation.rules
       .slice()

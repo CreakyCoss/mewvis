@@ -44,6 +44,7 @@ const buildOwnReplyInstruction = ({
   nonEmptyReplyInstruction,
   styleInstruction,
   schedulingInstruction,
+  allowNonverbalReply,
 }: {
   outputMode: TavernCharacterTurnOutputMode;
   room: TavernRoom;
@@ -52,11 +53,16 @@ const buildOwnReplyInstruction = ({
   nonEmptyReplyInstruction: string;
   styleInstruction: string;
   schedulingInstruction: string;
+  allowNonverbalReply: boolean;
 }) => {
+  const nonverbalBoundaryInstruction = allowNonverbalReply
+    ? "这是非语言近景回应：公开内容只写当前角色可被看见的动作、神态、位置变化或手头动作；不要写直接对白、自问自答、大段内心独白，也不要替其他角色或用户推进关键决定。最多 1 到 2 个短段。"
+    : "";
   const commonRules = [
     replyFormatInstruction,
     replyPerspectiveInstruction,
     nonEmptyReplyInstruction,
+    nonverbalBoundaryInstruction,
     styleInstruction,
     schedulingInstruction,
   ];
@@ -186,6 +192,7 @@ export const buildTavernCharacterTurnInstruction = ({
     }),
     styleInstruction: buildCharacterTurnStyleInstruction({ room, speaker, publicContentTag }),
     schedulingInstruction: buildSchedulingInstruction(room),
+    allowNonverbalReply,
   });
 
   if (replyMode === "round") {

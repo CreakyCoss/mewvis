@@ -19,11 +19,60 @@ export type TavernDirectorDecision = {
 const extractJsonObject = (text: string) => {
   const trimmed = text.trim();
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return trimmed;
+    try {
+      JSON.parse(trimmed);
+      return trimmed;
+    } catch {
+      // Fall through to balanced-object scanning when the model appended a
+      // second JSON object or self-correction after an otherwise valid object.
+    }
   }
 
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  return match?.[0] ?? "{}";
+  const candidates: string[] = [];
+  let startIndex = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (character === "{") {
+      if (depth === 0) {
+        startIndex = index;
+      }
+      depth += 1;
+    } else if (character === "}") {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0 && startIndex >= 0) {
+        candidates.push(trimmed.slice(startIndex, index + 1));
+        startIndex = -1;
+      }
+    }
+  }
+
+  return candidates.reverse().find((candidate) => {
+    try {
+      JSON.parse(candidate);
+      return true;
+    } catch {
+      return false;
+    }
+  }) ?? candidates.at(-1) ?? "{}";
 };
 
 const limitDirectorText = (text: string, maxChars: number) => {
