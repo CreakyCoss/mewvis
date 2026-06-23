@@ -9,9 +9,11 @@ import { joinPromptLines } from "../shared/sections";
 export const buildCharacterTurnStyleInstruction = ({
   room,
   speaker,
+  publicContentTag,
 }: {
   room: TavernRoom;
   speaker: TavernCharacter;
+  publicContentTag?: string;
 }) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const lines = [
@@ -19,6 +21,7 @@ export const buildCharacterTurnStyleInstruction = ({
     formatTavernPromptBlocksForTarget({
       prompt: room.prompt,
       target: "character",
+      publicContentTag,
     }),
   ];
 

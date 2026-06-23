@@ -184,7 +184,7 @@ export const buildTavernCharacterTurnInstruction = ({
       publicContentTag,
       outputMode,
     }),
-    styleInstruction: buildCharacterTurnStyleInstruction({ room, speaker }),
+    styleInstruction: buildCharacterTurnStyleInstruction({ room, speaker, publicContentTag }),
     schedulingInstruction: buildSchedulingInstruction(room),
   });
 
