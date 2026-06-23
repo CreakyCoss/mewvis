@@ -128,6 +128,7 @@ export const createSystemNarrativePromptBlocks = ({
   const preset = getTavernSystemNarrativePreset(presetId);
   const presentationProfile = getTavernPresentationProfile(presentationProfileId);
   const usesNarrativeBeat = presentationProfile.generationContract === "character_narrative_beat";
+  const publicContentLabel = usesNarrativeBeat ? "小说正文段" : "公开回复段";
 
   return createTargetBlocks({
     sourceType: "system_narrative",
@@ -145,7 +146,7 @@ export const createSystemNarrativePromptBlocks = ({
           }),
           ...formatTavernSystemNarrativeCharacterRules({
             preset,
-            publicContentTag: "{publicContentTag}",
+            publicContentTag: publicContentLabel,
             usesNarrativeBeat,
             immersiveDescriptionEnabled,
           }),

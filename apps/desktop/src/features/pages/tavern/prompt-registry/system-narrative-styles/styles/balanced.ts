@@ -8,12 +8,12 @@ export const balancedSystemNarrativeStyle: TavernSystemNarrativeStyleRegistratio
   directorAddendum: "导演优先安排能推进场景目标、回应用户输入、制造承接关系的角色；节奏保持可继续互动，不急于闭环。",
   characterRules: {
     narrativeBeat: [
-      "- <{publicContentTag}> 控制在 1 到 3 个自然段；优先推进当前场景的可观察动作、心理压强和信息增量。",
+      "- 小说正文段控制在 1 到 3 个自然段；优先推进当前场景的可观察动作、心理压强和信息增量。",
       "- 不要使用第一人称叙事主体；用角色名或他/她承接动作和心理。",
       "- 不要把房间文风、角色风格或系统规则写成解释；只输出故事正文。",
     ],
     dialogueImmersive: [
-      "- <{publicContentTag}> 可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；默认对白优先，只有本轮 turn instruction 明确允许非语言回应时才可以只写动作。",
+      "- 公开回复段可附带 0 到 1 段 Markdown 单星号动作标注，只写可观察小动作；默认对白优先，只有本轮 turn instruction 明确允许非语言回应时才可以只写动作。",
       "- 动作不要用第一人称叙述；可写角色名或他/她的动作，不写心理解释、比喻、环境铺陈或剧情总结。",
       "- 单次回复控制在 1 到 3 个自然段。",
     ],
