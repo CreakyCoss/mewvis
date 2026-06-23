@@ -61,7 +61,9 @@ writeFileSync(entryPath, `
     shouldSuppressTavernAutoContinuation,
     tavernCharacterAgentRoleId,
     tavernArchivistAgentRoleId,
+    tavernBridgeSessionRootDir,
     tavernDirectorAgentRoleId,
+    tavernLegacyBridgeSessionRootDir,
     tavernManagedUserAgentRoleId,
     tavernRelationshipKey,
     tavernProgressTrackerAgentRoleId,
@@ -2234,6 +2236,11 @@ writeFileSync(entryPath, `
       archivist: tavernArchivistAgentRoleId(room),
       progress: tavernProgressTrackerAgentRoleId(room),
     },
+    bridgeSessionRootDirs: {
+      active: tavernBridgeSessionRootDir(room),
+      otherScene: tavernBridgeSessionRootDir({ ...room, activeSceneId: "scene-beta" }),
+      legacy: tavernLegacyBridgeSessionRootDir(room.id),
+    },
     bSecret,
     bSecondSecret,
     aSecret,
@@ -2265,6 +2272,13 @@ try {
   await import(pathToFileURL(bundledPath).href);
   const checks = globalThis.__checks;
 
+  assert(
+    checks.bridgeSessionRootDirs.active === "tavern/room-alpha/scenes/scene-alpha/bridge" &&
+      checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scenes/scene-beta/bridge" &&
+      checks.bridgeSessionRootDirs.legacy === "tavern/room-alpha/bridge",
+    "酒馆 bridge session 必须按当前场景隔离，并保留旧房间级路径仅用于兼容清理",
+    checks.bridgeSessionRootDirs,
+  );
   assert(checks.contextForA.includes(checks.aSecret), "A 应能看到自己的心理");
   assert(checks.contextForA.includes(checks.aSecondSecret), "多轮后 A 仍应能看到自己的心理");
   assert(!checks.contextForA.includes(checks.bSecret), "A 的 request_context 不应包含 B 的心理");

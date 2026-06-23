@@ -74,7 +74,7 @@ export const runTavernQuickNovel = async ({
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernQuickNovelAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),

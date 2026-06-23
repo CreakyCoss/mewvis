@@ -424,6 +424,7 @@ export const PromptEdit = ({
       const isPresentationLocked = isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
         messages,
+        sceneId: data.activeSceneId,
       });
       const nextPresentationProfileId = isPresentationLocked
         ? current.presentationProfileId
@@ -520,6 +521,7 @@ export const PromptEdit = ({
     const presentationLocked = isTavernPresentationLocked({
       presentation: basePresentation,
       messages,
+      sceneId: data.activeSceneId,
     });
     const nextPresentation = presentationLocked
       ? basePresentation
@@ -550,6 +552,7 @@ export const PromptEdit = ({
     ? isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
         messages,
+        sceneId: data.activeSceneId,
       })
     : false;
   const selectedPresentationProfile = draft

@@ -6,6 +6,7 @@ export {
   buildTavernBridgeSystemPrompt,
   compactTavernAgentKnowledge,
   deleteTavernBridgeSession,
+  deleteTavernBridgeSessionsForRoom,
   disposeTavernBridgeSessionWorkers,
   ensureTavernBridgeSession,
   readTavernBridgeSession,

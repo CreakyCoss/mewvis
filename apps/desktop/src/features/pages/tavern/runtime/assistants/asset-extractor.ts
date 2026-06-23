@@ -51,7 +51,7 @@ export const runTavernAssetExtraction = async ({
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernArchivistAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),

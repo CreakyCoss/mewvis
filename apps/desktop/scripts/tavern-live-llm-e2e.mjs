@@ -543,7 +543,7 @@ writeFileSync(helperEntryPath, `
     ].join("\\n");
 
     return {
-      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      sessionRootDir: tavernBridgeSessionRootDir(room),
       agentRoleId: tavernDirectorAgentRoleId(room),
       systemPrompt: buildTavernBridgeSystemPrompt(room),
       userMessage: "请为本局实时分配身份，并输出严格合法 JSON。",
@@ -837,7 +837,7 @@ writeFileSync(helperEntryPath, `
       "</public_visible_messages>",
     ].filter(Boolean).join("\\n");
     return {
-      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      sessionRootDir: tavernBridgeSessionRootDir(room),
       agentRoleId: tavernManagedUserAgentRoleId(room),
       systemPrompt: buildTavernBridgeSystemPrompt(room),
       userMessage: "以导演身份，为酒馆用户「" + (room.userPersonaName || "我") + "」生成本轮要发送的回复。",
@@ -1077,7 +1077,7 @@ writeFileSync(helperEntryPath, `
       "</public_visible_messages>",
     ].join("\\n");
     return {
-      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      sessionRootDir: tavernBridgeSessionRootDir(room),
       agentRoleId: tavernDirectorAgentRoleId(room),
       systemPrompt: buildTavernBridgeSystemPrompt(room),
       userMessage: "请决定本轮酒馆对话的发言顺序和可选在场动作，并只输出严格合法 JSON。",

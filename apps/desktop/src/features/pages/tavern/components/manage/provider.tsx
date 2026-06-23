@@ -44,7 +44,10 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../storage";
-import { deleteTavernBridgeSession } from "../../runtime/conversation";
+import {
+  deleteTavernBridgeSession,
+  deleteTavernBridgeSessionsForRoom,
+} from "../../runtime/conversation";
 import { runTavernDirectorProfileAgent } from "../../runtime/director";
 import { runTavernTextFieldAgent } from "../../runtime/assistants";
 import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
@@ -651,7 +654,7 @@ export const ManagementProvider = ({
       await deleteTavernBridgeSession({ workspacePath: workspace.path, room: targetRoom });
     } catch (resetError) {
       const message = resetError instanceof Error ? resetError.message : String(resetError);
-      reportError(`无法清理酒馆底层会话：${message}`);
+      reportError(`无法清理当前场景底层会话：${message}`);
       return false;
     }
 
@@ -670,11 +673,24 @@ export const ManagementProvider = ({
         ...current,
         rooms: current.rooms.map((room) =>
           room.id === targetRoom.id
-            ? appendProgressCheckpointToRoom(
-                touchTavernRoomActiveScene(room),
-                "before_context_trim",
-                resetMessage.id,
-              )
+            ? (() => {
+                const checkpointRoom = appendProgressCheckpointToRoom(
+                  touchTavernRoomActiveScene(room),
+                  "before_context_trim",
+                  resetMessage.id,
+                );
+                const presentation = normalizeTavernPresentation(checkpointRoom.presentation);
+                return presentation.lockedSceneId === currentSceneId
+                  ? {
+                      ...checkpointRoom,
+                      presentation: {
+                        ...presentation,
+                        lockedAt: undefined,
+                        lockedSceneId: undefined,
+                      },
+                    }
+                  : checkpointRoom;
+              })()
             : room,
         ),
         messagesByScene: {
@@ -986,7 +1002,7 @@ export const ManagementProvider = ({
     }
 
     try {
-      await deleteTavernBridgeSession({ workspacePath: workspace.path, room });
+      await deleteTavernBridgeSessionsForRoom({ workspacePath: workspace.path, room });
     } catch (resetError) {
       const message = resetError instanceof Error ? resetError.message : String(resetError);
       reportError(`无法清理酒馆底层会话：${message}`);

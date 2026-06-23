@@ -239,9 +239,11 @@ export const TavernPageProvider = ({
           }
 
           const presentation = normalizeTavernPresentation(room.presentation);
+          const shouldWritePresentationLock =
+            shouldLockPresentation && presentation.lockedSceneId !== sceneId;
           return {
             ...room,
-            presentation: shouldLockPresentation && !presentation.lockedAt
+            presentation: shouldWritePresentationLock
               ? {
                   ...presentation,
                   lockedAt: updatedAt,

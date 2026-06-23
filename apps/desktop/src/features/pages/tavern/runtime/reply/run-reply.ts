@@ -118,7 +118,7 @@ export const runTavernInnerThought = async ({
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernCharacterAgentRoleId(room, activeCharacter),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),

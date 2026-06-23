@@ -81,10 +81,16 @@ export const hasTavernPresentationStarted = (
 export const isTavernPresentationLocked = ({
   presentation,
   messages,
+  sceneId,
 }: {
   presentation?: TavernPresentationSettings | null;
   messages: Array<Pick<TavernMessage, "role">>;
+  sceneId?: string | null;
 }) => {
   const normalizedPresentation = normalizeTavernPresentation(presentation);
-  return Boolean(normalizedPresentation.lockedAt) || hasTavernPresentationStarted(messages);
+  const lockedSceneId = normalizedPresentation.lockedSceneId?.trim() ?? "";
+  const isCurrentSceneLocked = sceneId
+    ? Boolean(normalizedPresentation.lockedAt && lockedSceneId === sceneId)
+    : Boolean(normalizedPresentation.lockedAt);
+  return isCurrentSceneLocked || hasTavernPresentationStarted(messages);
 };

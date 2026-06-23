@@ -53,7 +53,7 @@ export const runTavernUserReplySuggestions = async ({
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernQuickReplyAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
@@ -99,7 +99,7 @@ export const runTavernManagedUserReply = async ({
     const result = await runTavernRuntimeAgent({
       agentId: runtimeAgentId,
       workspacePath,
-      sessionRootDir: tavernBridgeSessionRootDir(room.id),
+      sessionRootDir: tavernBridgeSessionRootDir(room),
       agentRoleId: tavernManagedUserAgentRoleId(room),
       runtimeModel,
       systemPrompt: buildTavernBridgeSystemPrompt(room),

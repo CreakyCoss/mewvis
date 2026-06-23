@@ -111,7 +111,7 @@ export const buildTavernReplyAgentRequest = ({
   const visibleFactEventsText = formatVisibleFactEventsForRequestContext(room, activeCharacter);
 
   return {
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernCharacterAgentRoleId(room, activeCharacter),
     systemPrompt: buildTavernBridgeSystemPrompt(room),
     userMessage: [

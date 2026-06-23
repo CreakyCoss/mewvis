@@ -9,6 +9,7 @@ import type {
   AgentClientAgentEvent,
   AgentClientSession,
 } from "@/agent-client/contracts";
+import { readLedger } from "@/features/ai/components/conversation-ledger/api";
 import type {
   RuntimeAgentToolName,
   RuntimeModelInput,
@@ -48,6 +49,29 @@ const isOutputEvent = (
   event.type === "replace_text" ||
   event.type === "done";
 
+const resolveTavernRunSystemPrompt = async (
+  input: RunTavernRuntimeAgentInput,
+) => {
+  const currentSystemPrompt = input.systemPrompt?.trim();
+  const sessionRootDir = input.sessionRootDir?.trim();
+  if (!currentSystemPrompt || !sessionRootDir) {
+    return input.systemPrompt;
+  }
+
+  try {
+    const ledger = await readLedger({
+      workspacePath: input.workspacePath,
+      sessionRootDir,
+    });
+    const hasCachedSystemPrompt = ledger?.messages.some((message) =>
+      message.role === "system" && message.content.trim()
+    );
+    return hasCachedSystemPrompt ? null : input.systemPrompt;
+  } catch {
+    return input.systemPrompt;
+  }
+};
+
 export async function runTavernRuntimeAgent(
   input: RunTavernRuntimeAgentInput,
 ): Promise<TavernRuntimeAgentOutput> {
@@ -73,6 +97,7 @@ export async function runTavernRuntimeAgent(
     };
 
     try {
+      const systemPrompt = await resolveTavernRunSystemPrompt(input);
       unlisten = await tavernAgentClient.subscribe((event) => {
         if (!taskId || ("taskId" in event && event.taskId !== taskId)) {
           return;
@@ -125,7 +150,7 @@ export async function runTavernRuntimeAgent(
         sessionRootDir: input.sessionRootDir,
         agentRoleId: input.agentRoleId,
         userMessage: input.userMessage,
-        systemPrompt: input.systemPrompt,
+        systemPrompt,
         requestContext: input.requestContext,
         runtimeInstruction: input.runtimeInstruction,
         bootstrapInstruction: input.bootstrapInstruction,

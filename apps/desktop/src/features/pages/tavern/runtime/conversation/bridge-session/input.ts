@@ -6,5 +6,5 @@ export const tavernBridgeSessionInput = ({
   room,
 }: TavernBridgeSessionInput) => ({
   workspacePath,
-  sessionRootDir: tavernBridgeSessionRootDir(room.id),
+  sessionRootDir: tavernBridgeSessionRootDir(room),
 });

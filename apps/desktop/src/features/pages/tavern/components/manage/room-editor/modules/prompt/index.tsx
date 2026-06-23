@@ -296,6 +296,7 @@ export const PromptSection = ({
   const presentationLocked = isTavernPresentationLocked({
     presentation: data.presentation,
     messages,
+    sceneId: data.activeSceneId,
   });
   const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
 
@@ -324,7 +325,7 @@ export const PromptSection = ({
         <PromptSummaryContent data={data} />
         {presentationLocked && (
           <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700 dark:text-amber-200">
-            当前房间已有对话，呈现规则已锁定；仍可引用预设并调整已保存文本块。
+            当前场景已有对话，呈现规则已锁定；仍可引用预设并调整已保存文本块。
           </div>
         )}
       </EditorSection>

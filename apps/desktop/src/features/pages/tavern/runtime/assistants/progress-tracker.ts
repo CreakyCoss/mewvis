@@ -59,7 +59,7 @@ export const runTavernProgressTracking = async ({
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,
     workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room.id),
+    sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernProgressTrackerAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
