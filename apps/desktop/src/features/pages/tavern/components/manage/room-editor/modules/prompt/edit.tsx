@@ -84,7 +84,7 @@ import {
   editorControlClassName,
   emptyValueText,
 } from "../../utils";
-import type { ModuleSave } from "../types";
+import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 
 export type PromptEditHandle = (data?: TavernRoom) => void;
 
@@ -107,6 +107,7 @@ type PromptEditProps = {
   data: TavernRoom;
   messages: TavernMessage[];
   onSave: ModuleSave;
+  renderTextFieldAgentActions: TextFieldAgentActionRenderer;
 };
 
 const selectClassName = cn(editorControlClassName, "min-h-9");
@@ -271,11 +272,55 @@ const createPromptFallback = (
   immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
 });
 
+const buildPromptBlockAgentContext = ({
+  room,
+  draft,
+  block,
+}: {
+  room: TavernRoom;
+  draft: PromptDraft;
+  block: TavernPromptBlock;
+}) => ({
+  promptEditingMode: "saved_prompt_block",
+  constraints: [
+    "只优化当前提示词文本块，不要输出 JSON、标题或解释。",
+    "不要新增、改名或要求 XML 标签；输出协议由 system_contract 和 presentation_profile 控制。",
+    "不要把文本写成系统底层不可改规则；保持为用户可编辑的风格、节奏、偏好或边界说明。",
+    "保留 target 对应职责：bridge 负责整理，director 负责调度，character 负责角色正文表达。",
+  ],
+  presentationProfile: getTavernPresentationProfile(draft.presentationProfileId),
+  promptBlock: {
+    id: block.id,
+    target: block.target,
+    label: block.label,
+    source: block.source,
+    enabled: block.enabled,
+  },
+  relatedPromptBlocks: draft.prompt.blocks
+    .filter((item) => item.id !== block.id && item.enabled && item.text.trim())
+    .slice(0, 8)
+    .map((item) => ({
+      target: item.target,
+      label: item.label,
+      source: item.source,
+      text: item.text.slice(0, 800),
+    })),
+  roomSnapshot: {
+    title: room.title,
+    storyGoal: room.storyGoal,
+    scene: room.scene,
+    sceneGoal: room.sceneGoal,
+    scenePlot: room.scenePlot,
+    sceneDirection: room.sceneDirection,
+  },
+});
+
 export const PromptEdit = ({
   bind,
   data,
   messages,
   onSave,
+  renderTextFieldAgentActions,
 }: PromptEditProps) => {
   const [draft, setDraft] = useState<PromptDraft | null>(null);
   const [error, setError] = useState("");
@@ -844,9 +889,29 @@ export const PromptEdit = ({
                                   </div>
                                   <label
                                     htmlFor={textAreaId}
-                                    className="mt-2 block text-xs font-medium text-muted-foreground"
+                                    className="mt-2 flex min-h-6 items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
                                   >
-                                    文本
+                                    <span>文本</span>
+                                    <span className="shrink-0">
+                                      {renderTextFieldAgentActions({
+                                        fieldKey: `promptBlock:${block.id}`,
+                                        fieldLabel: `提示词文本块：${block.label}`,
+                                        currentText: block.text,
+                                        applyText: (text) => {
+                                          patchDraftPrompt((prompt) =>
+                                            updatePromptBlock(prompt, block.id, (nextBlock) => ({
+                                              ...nextBlock,
+                                              text,
+                                            }))
+                                          );
+                                        },
+                                        context: buildPromptBlockAgentContext({
+                                          room: data,
+                                          draft,
+                                          block,
+                                        }),
+                                      })}
+                                    </span>
                                   </label>
                                   <Textarea
                                     id={textAreaId}

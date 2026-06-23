@@ -413,6 +413,7 @@ export const RoomEditor = ({
             data={data}
             messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
+            renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
       case "characters":

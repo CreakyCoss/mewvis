@@ -82,6 +82,81 @@ type CharacterFormDialogProps = {
   onSubmit: (value: CharacterFormValue) => void;
 };
 
+type CharacterStyleFieldKey = "speakingStyle" | "writingStyle" | "replyStylePrompt";
+
+const characterStyleSectionLabels: Array<{
+  key: CharacterStyleFieldKey;
+  labels: string[];
+}> = [
+  {
+    key: "speakingStyle",
+    labels: ["说话方式", "角色说话方式"],
+  },
+  {
+    key: "writingStyle",
+    labels: ["写作风格", "角色写作风格"],
+  },
+  {
+    key: "replyStylePrompt",
+    labels: ["回复规则", "角色回复规则"],
+  },
+];
+
+const formatCharacterStyleText = ({
+  speakingStyle,
+  writingStyle,
+  replyStylePrompt,
+}: {
+  speakingStyle: string;
+  writingStyle: string;
+  replyStylePrompt: string;
+}) => [
+  ["说话方式", speakingStyle],
+  ["写作风格", writingStyle],
+  ["回复规则", replyStylePrompt],
+].map(([label, value]) => `${label}：\n${value.trim()}`).join("\n\n");
+
+const parseCharacterStyleText = (text: string): Partial<Record<CharacterStyleFieldKey, string>> | null => {
+  const result: Partial<Record<CharacterStyleFieldKey, string>> = {};
+  let activeKey: CharacterStyleFieldKey | null = null;
+
+  text.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    const normalizedHeader = trimmed
+      .replace(/^#{1,6}\s*/, "")
+      .replace(/^(?:[-*+]|\d+[.、])\s*/, "");
+    const matchedSection = characterStyleSectionLabels.find((section) =>
+      section.labels.some((label) =>
+        normalizedHeader === label ||
+        normalizedHeader === `${label}:` ||
+        normalizedHeader === `${label}：` ||
+        normalizedHeader.startsWith(`${label}:`) ||
+        normalizedHeader.startsWith(`${label}：`)
+      )
+    );
+
+    if (matchedSection) {
+      activeKey = matchedSection.key;
+      const matchedLabel = matchedSection.labels.find((label) =>
+        normalizedHeader.startsWith(`${label}:`) || normalizedHeader.startsWith(`${label}：`)
+      );
+      const inlineText = matchedLabel
+        ? normalizedHeader.slice(matchedLabel.length + 1).trim()
+        : "";
+      if (inlineText) {
+        result[activeKey] = [result[activeKey], inlineText].filter(Boolean).join("\n");
+      }
+      return;
+    }
+
+    if (activeKey && trimmed) {
+      result[activeKey] = [result[activeKey], line].filter(Boolean).join("\n");
+    }
+  });
+
+  return Object.values(result).some((value) => value?.trim()) ? result : null;
+};
+
 export const CharacterFormDialog = ({
   open,
   character,
@@ -279,12 +354,14 @@ export const CharacterFormDialog = ({
     fieldLabel,
     currentText,
     applyText,
+    context,
   }: {
     mode: "polish" | "inspire";
     fieldKey: string;
     fieldLabel: string;
     currentText: string;
     applyText: (text: string) => void;
+    context?: Record<string, unknown>;
   }) => {
     if (!onRunTextFieldAgent) {
       return;
@@ -297,7 +374,10 @@ export const CharacterFormDialog = ({
         mode,
         fieldLabel,
         currentText,
-        context: buildCharacterTextFieldContext(),
+        context: {
+          ...buildCharacterTextFieldContext(),
+          ...(context ?? {}),
+        },
       });
       if (text.trim()) {
         applyText(text);
@@ -367,6 +447,89 @@ export const CharacterFormDialog = ({
             <Sparkles className="size-3" />
             {isInspiring ? "处理中" : "灵感"}
           </Button>
+      </span>
+    );
+  };
+
+  const applyCharacterStyleText = (text: string) => {
+    const parsed = parseCharacterStyleText(text);
+    if (!parsed) {
+      setFormError("AI 返回格式无法识别，请保留“说话方式 / 写作风格 / 回复规则”三段标题后重试。");
+      return;
+    }
+
+    if (parsed.speakingStyle?.trim()) {
+      setSpeakingStyle(parsed.speakingStyle.trim());
+    }
+    if (parsed.writingStyle?.trim()) {
+      setWritingStyle(parsed.writingStyle.trim());
+    }
+    if (parsed.replyStylePrompt?.trim()) {
+      setReplyStylePrompt(parsed.replyStylePrompt.trim());
+    }
+  };
+
+  const renderCharacterStylePresetActions = (): ReactNode => {
+    if (!onRunTextFieldAgent) {
+      return null;
+    }
+
+    const fieldKey = "characterStylePreset";
+    const isPolishing = activeTextFieldAgentKey === `${fieldKey}:polish`;
+    const isInspiring = activeTextFieldAgentKey === `${fieldKey}:inspire`;
+    const isBusy = Boolean(activeTextFieldAgentKey);
+    const currentText = formatCharacterStyleText({
+      speakingStyle: speakingStyle.trim() || selectedCharacterStylePreset.speakingStyle,
+      writingStyle: writingStyle.trim() || selectedCharacterStylePreset.writingStyle,
+      replyStylePrompt: replyStylePrompt.trim() || selectedCharacterStylePreset.replyStylePrompt,
+    });
+    const run = (mode: "polish" | "inspire") => (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void runTextFieldAgent({
+        mode,
+        fieldKey,
+        fieldLabel: "角色风格预设三段",
+        currentText,
+        applyText: applyCharacterStyleText,
+        context: {
+          styleEditingMode: "character_style_preset",
+          selectedCharacterStylePreset,
+          constraints: [
+            "必须输出三段，并保留标题：说话方式、写作风格、回复规则。",
+            "只优化角色表达风格，不新增隐藏事实、剧情结论或用户行动。",
+            "回复规则只约束当前角色表达，不能覆盖酒馆输出协议或系统标签。",
+          ],
+        },
+      });
+    };
+
+    return (
+      <span className="flex shrink-0 items-center gap-1" aria-label="角色风格预设 AI 辅助">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("polish")}
+        >
+          <Pencil className="size-3" />
+          {isPolishing ? "处理中" : "润色"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          disabled={isBusy}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={run("inspire")}
+        >
+          <Sparkles className="size-3" />
+          {isInspiring ? "处理中" : "灵感"}
+        </Button>
       </span>
     );
   };
@@ -505,6 +668,7 @@ export const CharacterFormDialog = ({
                 icon={ShieldCheck}
                 title="角色风格预设"
                 description="引用后会直接填入说话方式、写作风格和回复规则；保存后与预设脱钩。"
+                action={renderCharacterStylePresetActions()}
               >
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <EditorField

@@ -32,12 +32,13 @@ import {
   editorHeaderActionButtonClassName,
 } from "../../primitives";
 import { PromptEdit, type PromptEditHandle } from "./edit";
-import type { ModuleSave } from "../types";
+import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 
 type PromptSectionProps = {
   data: TavernRoom;
   messages: TavernMessage[];
   onSave: ModuleSave;
+  renderTextFieldAgentActions: TextFieldAgentActionRenderer;
 };
 
 type PromptHierarchyStep = {
@@ -288,6 +289,7 @@ export const PromptSection = ({
   data,
   messages,
   onSave,
+  renderTextFieldAgentActions,
 }: PromptSectionProps) => {
   const editRef = useRef<PromptEditHandle>(null);
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
@@ -332,6 +334,7 @@ export const PromptSection = ({
         data={data}
         messages={messages}
         onSave={onSave}
+        renderTextFieldAgentActions={renderTextFieldAgentActions}
       />
     </>
   );
