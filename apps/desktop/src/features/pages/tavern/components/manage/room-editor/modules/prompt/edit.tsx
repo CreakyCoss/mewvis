@@ -1,15 +1,20 @@
 import {
   Braces,
   CheckCircle2,
+  FilePlus2,
   Goal,
   Layers3,
   MessageSquareText,
+  Plus,
+  Save,
   ScrollText,
   ShieldCheck,
   Sparkles,
+  Trash2,
+  Wand2,
 } from "lucide-react";
 import type { Ref } from "react";
-import { useImperativeHandle, useState } from "react";
+import { useImperativeHandle, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog } from "@/components/ui/dialog";
@@ -31,12 +36,22 @@ import {
   normalizeTavernQualityRuleIds,
   normalizeTavernRuleCompositionId,
 } from "../../../../../prompt-registry/rule-layers/resolver";
+import type {
+  TavernPlatformStyleId,
+  TavernQualityRuleId,
+} from "../../../../../prompt-registry/rule-layers/types";
 import {
   TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
   getTavernSystemNarrativePreset,
   normalizeTavernSystemNarrativePresetId,
-  normalizeTavernSystemNarrativePresetSettings,
 } from "../../../../../prompt-registry/system-narrative-styles";
+import {
+  createDefaultTavernPromptSettings,
+  createRoomStylePromptBlocks,
+  createRuleCompositionPromptBlocks,
+  createSystemNarrativePromptBlocks,
+  normalizeTavernPromptSettings,
+} from "../../../../../prompt-registry/text-blocks";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   getTavernPromptStylePreset,
@@ -45,14 +60,14 @@ import {
 import type {
   TavernMessage,
   TavernPresentationProfileId,
+  TavernPromptBlock,
+  TavernPromptBlockSourceType,
+  TavernPromptBlockTarget,
   TavernPromptStyleId,
   TavernRoom,
-  TavernSystemNarrativePresetSettings,
+  TavernRoomPromptSettings,
+  TavernSystemNarrativePresetId,
 } from "../../../../../types";
-import type {
-  TavernPlatformStyleId,
-  TavernQualityRuleId,
-} from "../../../../../prompt-registry/rule-layers/types";
 import {
   EditorField,
   EditorFormCard,
@@ -73,13 +88,18 @@ import type { ModuleSave } from "../types";
 
 export type PromptEditHandle = (data?: TavernRoom) => void;
 
+type PromptPresetDraft = {
+  systemNarrativePresetId: TavernSystemNarrativePresetId;
+  roomStyleId: TavernPromptStyleId;
+  ruleCompositionId: TavernPlatformStyleId;
+  qualityRuleIds: TavernQualityRuleId[];
+};
+
 type PromptDraft = {
   presentationProfileId: TavernPresentationProfileId;
-  promptStyleId: TavernPromptStyleId;
-  systemNarrativePreset: TavernSystemNarrativePresetSettings;
-  platformStyleId: TavernPlatformStyleId;
-  qualityRuleIds: TavernQualityRuleId[];
+  prompt: TavernRoomPromptSettings;
   immersiveDescriptionEnabled: boolean;
+  presets: PromptPresetDraft;
 };
 
 type PromptEditProps = {
@@ -91,6 +111,49 @@ type PromptEditProps = {
 
 const selectClassName = cn(editorControlClassName, "min-h-9");
 
+const promptBlockTargets: Array<{
+  id: TavernPromptBlockTarget;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "bridge",
+    label: "整理员",
+    description: "负责整理历史、资料和请求上下文，不能改变输出协议。",
+  },
+  {
+    id: "director",
+    label: "导演",
+    description: "负责调度发言、节奏和场景推进，不能写最终角色正文。",
+  },
+  {
+    id: "character",
+    label: "角色",
+    description: "负责最终可见内容、角色口吻和局部描写。",
+  },
+];
+
+const ruleSourceTypes: TavernPromptBlockSourceType[] = [
+  "platform_style",
+  "quality_rule",
+  "narrative_style",
+  "genre_rule",
+  "hook_rule",
+  "taboo_rule",
+];
+
+const sourceTypeLabels: Record<TavernPromptBlockSourceType, string> = {
+  system_narrative: "系统叙事",
+  room_style: "酒馆风格",
+  platform_style: "平台偏好",
+  quality_rule: "质量规则",
+  narrative_style: "叙事套路",
+  genre_rule: "题材规则",
+  hook_rule: "钩子规则",
+  taboo_rule: "雷点边界",
+  custom: "自定义",
+};
+
 const getGenerationContractLabel = (profileId: TavernPresentationProfileId) => {
   const profile = getTavernPresentationProfile(profileId);
 
@@ -100,6 +163,113 @@ const getGenerationContractLabel = (profileId: TavernPresentationProfileId) => {
 
   return "角色回复合同";
 };
+
+const sortPromptBlocks = (blocks: TavernPromptBlock[]) =>
+  [...blocks].sort((left, right) =>
+    left.order - right.order || left.label.localeCompare(right.label)
+  );
+
+const clonePromptBlock = (block: TavernPromptBlock): TavernPromptBlock => ({
+  ...block,
+  source: block.source ? { ...block.source } : undefined,
+});
+
+const clonePromptSettings = (
+  prompt: TavernRoomPromptSettings,
+): TavernRoomPromptSettings => ({
+  version: 1,
+  blocks: sortPromptBlocks(prompt.blocks.map(clonePromptBlock)),
+});
+
+const getFirstSourceId = (
+  prompt: TavernRoomPromptSettings,
+  sourceType: TavernPromptBlockSourceType,
+) => prompt.blocks.find((block) => block.source?.type === sourceType)?.source?.id;
+
+const getPromptPresetDraft = (
+  prompt: TavernRoomPromptSettings,
+): PromptPresetDraft => ({
+  systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
+    getFirstSourceId(prompt, "system_narrative"),
+  ),
+  roomStyleId: normalizeTavernPromptStyleId(getFirstSourceId(prompt, "room_style")),
+  ruleCompositionId: normalizeTavernRuleCompositionId(
+    getFirstSourceId(prompt, "platform_style"),
+  ),
+  qualityRuleIds: normalizeTavernQualityRuleIds(
+    prompt.blocks.flatMap((block) =>
+      block.source?.type === "quality_rule" ? [block.source.id] : []
+    ),
+  ),
+});
+
+const replaceBlocksBySourceTypes = ({
+  prompt,
+  sourceTypes,
+  nextBlocks,
+}: {
+  prompt: TavernRoomPromptSettings;
+  sourceTypes: TavernPromptBlockSourceType[];
+  nextBlocks: TavernPromptBlock[];
+}): TavernRoomPromptSettings => ({
+  version: 1,
+  blocks: sortPromptBlocks([
+    ...prompt.blocks.filter((block) =>
+      !block.source || !sourceTypes.includes(block.source.type)
+    ),
+    ...nextBlocks.map(clonePromptBlock),
+  ]),
+});
+
+const updatePromptBlock = (
+  prompt: TavernRoomPromptSettings,
+  blockId: string,
+  updater: (block: TavernPromptBlock) => TavernPromptBlock,
+): TavernRoomPromptSettings => ({
+  version: 1,
+  blocks: sortPromptBlocks(prompt.blocks.map((block) =>
+    block.id === blockId ? updater(clonePromptBlock(block)) : clonePromptBlock(block)
+  )),
+});
+
+const removePromptBlock = (
+  prompt: TavernRoomPromptSettings,
+  blockId: string,
+): TavernRoomPromptSettings => ({
+  version: 1,
+  blocks: prompt.blocks.filter((block) => block.id !== blockId).map(clonePromptBlock),
+});
+
+const createCustomPromptBlock = (
+  prompt: TavernRoomPromptSettings,
+  target: TavernPromptBlockTarget,
+): TavernPromptBlock => {
+  const nextIndex = prompt.blocks.length + 1;
+  const nextOrder = Math.max(0, ...prompt.blocks.map((block) => block.order)) + 10;
+  const id = `custom:${target}:${Date.now().toString(36)}:${nextIndex}`;
+
+  return {
+    id,
+    target,
+    label: "自定义提示词",
+    text: "",
+    enabled: true,
+    order: nextOrder,
+    source: {
+      type: "custom",
+      id,
+      label: "自定义",
+    },
+  };
+};
+
+const createPromptFallback = (
+  room: TavernRoom,
+  presentationProfileId: TavernPresentationProfileId,
+) => createDefaultTavernPromptSettings({
+  presentationProfileId,
+  immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
+});
 
 export const PromptEdit = ({
   bind,
@@ -111,18 +281,20 @@ export const PromptEdit = ({
   const [error, setError] = useState("");
 
   const open = (nextData = data) => {
+    const presentationProfileId = normalizeTavernPresentationProfileId(
+      nextData.presentation?.profileId,
+    );
+    const prompt = normalizeTavernPromptSettings(
+      nextData.prompt,
+      createPromptFallback(nextData, presentationProfileId),
+    );
+
     setError("");
     setDraft({
-      presentationProfileId: normalizeTavernPresentationProfileId(
-        nextData.presentation?.profileId,
-      ),
-      promptStyleId: normalizeTavernPromptStyleId(nextData.promptStyleId),
-      systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
-        nextData.settings.systemNarrativePreset,
-      ),
-      platformStyleId: normalizeTavernRuleCompositionId(nextData.settings.platformStyleId),
-      qualityRuleIds: normalizeTavernQualityRuleIds(nextData.settings.qualityRuleIds),
+      presentationProfileId,
+      prompt: clonePromptSettings(prompt),
       immersiveDescriptionEnabled: nextData.settings.immersiveDescriptionEnabled !== false,
+      presets: getPromptPresetDraft(prompt),
     });
   };
 
@@ -133,18 +305,85 @@ export const PromptEdit = ({
     setError("");
   };
 
+  const patchDraftPrompt = (
+    updater: (prompt: TavernRoomPromptSettings, current: PromptDraft) => TavernRoomPromptSettings,
+  ) => {
+    setDraft((current) => current
+      ? {
+          ...current,
+          prompt: updater(current.prompt, current),
+        }
+      : current);
+  };
+
+  const applySystemNarrativePreset = () => {
+    patchDraftPrompt((prompt, current) =>
+      replaceBlocksBySourceTypes({
+        prompt,
+        sourceTypes: ["system_narrative"],
+        nextBlocks: createSystemNarrativePromptBlocks({
+          presetId: current.presets.systemNarrativePresetId,
+          presentationProfileId: current.presentationProfileId,
+          immersiveDescriptionEnabled: current.immersiveDescriptionEnabled,
+        }),
+      })
+    );
+  };
+
+  const applyRoomStylePreset = () => {
+    patchDraftPrompt((prompt, current) =>
+      replaceBlocksBySourceTypes({
+        prompt,
+        sourceTypes: ["room_style"],
+        nextBlocks: createRoomStylePromptBlocks({
+          promptStyleId: current.presets.roomStyleId,
+        }),
+      })
+    );
+  };
+
+  const applyRuleCompositionPreset = () => {
+    patchDraftPrompt((prompt, current) =>
+      replaceBlocksBySourceTypes({
+        prompt,
+        sourceTypes: ruleSourceTypes,
+        nextBlocks: createRuleCompositionPromptBlocks({
+          compositionId: current.presets.ruleCompositionId,
+          qualityRuleIds: current.presets.qualityRuleIds,
+        }),
+      })
+    );
+  };
+
+  const addCustomBlock = (target: TavernPromptBlockTarget) => {
+    patchDraftPrompt((prompt) => ({
+      version: 1,
+      blocks: sortPromptBlocks([
+        ...prompt.blocks.map(clonePromptBlock),
+        createCustomPromptBlock(prompt, target),
+      ]),
+    }));
+  };
+
   const toggleQualityRule = (ruleId: TavernQualityRuleId, checked: boolean) => {
-    if (!draft) {
-      return;
-    }
+    setDraft((current) => {
+      if (!current) {
+        return current;
+      }
 
-    const nextRuleIds = checked
-      ? Array.from(new Set([...draft.qualityRuleIds, ruleId]))
-      : draft.qualityRuleIds.filter((currentRuleId) => currentRuleId !== ruleId);
+      const nextRuleIds = checked
+        ? Array.from(new Set([...current.presets.qualityRuleIds, ruleId]))
+        : current.presets.qualityRuleIds.filter((currentRuleId) =>
+          currentRuleId !== ruleId
+        );
 
-    setDraft({
-      ...draft,
-      qualityRuleIds: nextRuleIds,
+      return {
+        ...current,
+        presets: {
+          ...current.presets,
+          qualityRuleIds: nextRuleIds,
+        },
+      };
     });
   };
 
@@ -153,37 +392,36 @@ export const PromptEdit = ({
       return;
     }
 
+    const longBlock = draft.prompt.blocks.find((block) => block.text.length > 6000);
+    if (longBlock) {
+      setError(`“${longBlock.label}” 太长，请压缩到 6000 字以内。`);
+      return;
+    }
+
     const basePresentation = normalizeTavernPresentation(data.presentation);
     const presentationLocked = isTavernPresentationLocked({
       presentation: basePresentation,
       messages,
     });
-    const nextSystemNarrativePreset = normalizeTavernSystemNarrativePresetSettings(
-      draft.systemNarrativePreset,
-    );
-
-    if (
-      nextSystemNarrativePreset.customInstructions &&
-      nextSystemNarrativePreset.customInstructions.length > 1800
-    ) {
-      setError("自定义叙事规则太长，请压缩到 1800 字以内。");
-      return;
-    }
+    const nextPresentation = presentationLocked
+      ? basePresentation
+      : {
+          ...basePresentation,
+          profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
+          profileVersion: 1 as const,
+        };
 
     onSave({
-      presentation: presentationLocked
-        ? basePresentation
-        : {
-            ...basePresentation,
-            profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-            profileVersion: 1,
-          },
-      promptStyleId: normalizeTavernPromptStyleId(draft.promptStyleId),
+      presentation: nextPresentation,
+      prompt: normalizeTavernPromptSettings(
+        {
+          version: 1,
+          blocks: sortPromptBlocks(draft.prompt.blocks).map(clonePromptBlock),
+        },
+        createPromptFallback(data, nextPresentation.profileId),
+      ),
       settings: {
         ...data.settings,
-        systemNarrativePreset: nextSystemNarrativePreset,
-        platformStyleId: normalizeTavernRuleCompositionId(draft.platformStyleId),
-        qualityRuleIds: normalizeTavernQualityRuleIds(draft.qualityRuleIds),
         immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
       },
     });
@@ -199,15 +437,29 @@ export const PromptEdit = ({
   const selectedPresentationProfile = draft
     ? getTavernPresentationProfile(draft.presentationProfileId)
     : null;
-  const selectedPromptStyle = draft
-    ? getTavernPromptStylePreset(draft.promptStyleId)
-    : null;
   const selectedSystemNarrativePreset = draft
-    ? getTavernSystemNarrativePreset(draft.systemNarrativePreset.presetId)
+    ? getTavernSystemNarrativePreset(draft.presets.systemNarrativePresetId)
+    : null;
+  const selectedRoomStyle = draft
+    ? getTavernPromptStylePreset(draft.presets.roomStyleId)
     : null;
   const selectedRuleComposition = draft
-    ? getTavernRuleComposition(draft.platformStyleId)
+    ? getTavernRuleComposition(draft.presets.ruleCompositionId)
     : null;
+  const enabledBlockCount = draft
+    ? draft.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length
+    : 0;
+  const totalBlockCount = draft?.prompt.blocks.length ?? 0;
+  const blocksByTarget = useMemo(() => {
+    if (!draft) {
+      return new Map<TavernPromptBlockTarget, TavernPromptBlock[]>();
+    }
+
+    return new Map(promptBlockTargets.map((target) => [
+      target.id,
+      draft.prompt.blocks.filter((block) => block.target === target.id),
+    ]));
+  }, [draft]);
 
   return (
     <Dialog
@@ -223,7 +475,7 @@ export const PromptEdit = ({
           <EditorFormHeader
             icon={ScrollText}
             title="编辑提示词"
-            description="配置房间运行时提示词的呈现结构、叙事调性、房间风格和写作规则。"
+            description="输出协议由系统底层控制；其他提示词以文本块保存，可引用预设后自由调整。"
           />
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -243,8 +495,8 @@ export const PromptEdit = ({
                         <EditorStatusPill tone="info">
                           {selectedPresentationProfile?.label ?? emptyValueText}
                         </EditorStatusPill>
-                        <EditorStatusPill tone="info">
-                          {selectedPromptStyle?.label ?? emptyValueText}
+                        <EditorStatusPill tone={enabledBlockCount > 0 ? "active" : "muted"}>
+                          {enabledBlockCount}/{totalBlockCount} 块启用
                         </EditorStatusPill>
                         <EditorStatusPill tone={draft.immersiveDescriptionEnabled ? "active" : "muted"}>
                           沉浸描写{draft.immersiveDescriptionEnabled ? "开" : "关"}
@@ -256,19 +508,22 @@ export const PromptEdit = ({
                       {selectedPresentationProfile?.description ?? "选择一个呈现结构。"}
                     </p>
                   </EditorFormSidebarCard>
-                  <EditorFormSidebarPanel title="当前输出合同">
-                    <div className="flex items-center gap-2 text-sm font-medium leading-5">
-                      <ShieldCheck className="size-4 text-primary" />
-                      <span className="min-w-0 truncate">
-                        {getGenerationContractLabel(draft.presentationProfileId)}
-                      </span>
+                  <EditorFormSidebarPanel title="系统控制层">
+                    <div className="space-y-2 text-xs leading-5 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-sm font-medium leading-5 text-foreground">
+                        <ShieldCheck className="size-4 text-primary" />
+                        <span className="min-w-0 truncate">
+                          {getGenerationContractLabel(draft.presentationProfileId)}
+                        </span>
+                      </div>
+                      <p>输出协议、XML 标签和可见性边界不会保存为可编辑文本。</p>
                     </div>
                   </EditorFormSidebarPanel>
                   <EditorFormNav
                     items={[
-                      { href: "#tavern-prompt-structure-section", icon: MessageSquareText, label: "呈现结构" },
-                      { href: "#tavern-prompt-narrative-section", icon: Sparkles, label: "叙事调性" },
-                      { href: "#tavern-prompt-rules-section", icon: Layers3, label: "写作规则" },
+                      { href: "#tavern-prompt-structure-section", icon: MessageSquareText, label: "系统层" },
+                      { href: "#tavern-prompt-presets-section", icon: FilePlus2, label: "引用预设" },
+                      { href: "#tavern-prompt-blocks-section", icon: Braces, label: "文本块" },
                     ]}
                   />
                 </>
@@ -277,10 +532,10 @@ export const PromptEdit = ({
               <EditorFormCard
                 id="tavern-prompt-structure-section"
                 icon={MessageSquareText}
-                title="呈现结构"
-                description="先确定输出结构，再叠加叙事风格和写作规则。"
+                title="系统层"
+                description="呈现规则仍由底层协议控制，决定可见标签、输出形态和解析合同。"
               >
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
                   <EditorField
                     label="呈现规则"
                     htmlFor="tavern-prompt-presentation-profile"
@@ -310,94 +565,14 @@ export const PromptEdit = ({
                     </NativeSelect>
                   </EditorField>
 
-                  <EditorField
-                    label="酒馆风格"
-                    htmlFor="tavern-prompt-room-style"
-                    description={selectedPromptStyle?.description}
-                  >
-                    <NativeSelect
-                      id="tavern-prompt-room-style"
-                      value={draft.promptStyleId}
-                      className={selectClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        promptStyleId: normalizeTavernPromptStyleId(event.target.value),
-                      })}
-                    >
-                      {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
-                        <NativeSelectOption key={preset.id} value={preset.id}>
-                          {preset.label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </EditorField>
-                </div>
-              </EditorFormCard>
-
-              <EditorFormCard
-                id="tavern-prompt-narrative-section"
-                icon={Sparkles}
-                title="叙事调性"
-                description="系统叙事控制节奏、镜头密度和描写边界，不改变呈现结构。"
-              >
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_14rem]">
-                  <div className="space-y-3">
-                    <EditorField
-                      label="系统叙事"
-                      htmlFor="tavern-prompt-system-narrative"
-                      description={selectedSystemNarrativePreset?.description}
-                    >
-                      <NativeSelect
-                        id="tavern-prompt-system-narrative"
-                        value={draft.systemNarrativePreset.presetId}
-                        className={selectClassName}
-                        onChange={(event) => setDraft({
-                          ...draft,
-                          systemNarrativePreset: {
-                            ...draft.systemNarrativePreset,
-                            presetId: normalizeTavernSystemNarrativePresetId(
-                              event.target.value,
-                            ),
-                          },
-                        })}
-                      >
-                        {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
-                          <NativeSelectOption key={preset.id} value={preset.id}>
-                            {preset.label}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    </EditorField>
-
-                    <EditorField
-                      label="自定义叙事规则"
-                      htmlFor="tavern-prompt-custom-narrative"
-                      description="只写全局写作边界，角色口吻请放到角色设置里。"
-                    >
-                      <Textarea
-                        id="tavern-prompt-custom-narrative"
-                        value={draft.systemNarrativePreset.customInstructions ?? ""}
-                        placeholder="例如：对白优先；环境描写只写角色能观察到的变化；结尾保留可承接动作。"
-                        className={cn("min-h-28 resize-y text-sm leading-6", editorControlClassName)}
-                        onChange={(event) => setDraft({
-                          ...draft,
-                          systemNarrativePreset: {
-                            ...draft.systemNarrativePreset,
-                            customInstructions: event.target.value,
-                          },
-                        })}
-                      />
-                    </EditorField>
-                  </div>
-
-                  <div className="rounded-lg border bg-background/72 p-3 shadow-xs">
+                  <div className="rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold leading-5">
                           沉浸描写
                         </div>
                         <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                          控制角色公开内容中的动作、环境和心理承载量。
+                          作为系统叙事文本块的引用参数；已编辑文本不会被自动覆盖。
                         </div>
                       </div>
                       <Switch
@@ -414,24 +589,99 @@ export const PromptEdit = ({
               </EditorFormCard>
 
               <EditorFormCard
-                id="tavern-prompt-rules-section"
-                icon={Layers3}
-                title="写作规则"
-                description="规则组合会注入平台偏好、质量护栏、题材套路、钩子和雷点边界。"
+                id="tavern-prompt-presets-section"
+                icon={FilePlus2}
+                title="引用预设"
+                description="引用会替换同类来源文本块；保存后只保留文本，之后预设更新不会影响当前房间。"
               >
-                <div className="space-y-3">
+                <div className="grid gap-3 xl:grid-cols-3">
                   <EditorField
-                    label="写作规则组合"
-                    htmlFor="tavern-prompt-rule-composition"
-                    description={selectedRuleComposition?.description}
+                    label="系统叙事"
+                    htmlFor="tavern-prompt-system-narrative-preset"
+                    description={selectedSystemNarrativePreset?.description}
+                    action={(
+                      <Button type="button" size="sm" variant="outline" onClick={applySystemNarrativePreset}>
+                        <Sparkles className="size-3.5" />
+                        引用
+                      </Button>
+                    )}
                   >
                     <NativeSelect
-                      id="tavern-prompt-rule-composition"
-                      value={draft.platformStyleId}
+                      id="tavern-prompt-system-narrative-preset"
+                      value={draft.presets.systemNarrativePresetId}
                       className={selectClassName}
                       onChange={(event) => setDraft({
                         ...draft,
-                        platformStyleId: normalizeTavernRuleCompositionId(event.target.value),
+                        presets: {
+                          ...draft.presets,
+                          systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
+                            event.target.value,
+                          ),
+                        },
+                      })}
+                    >
+                      {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
+                        <NativeSelectOption key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+
+                  <EditorField
+                    label="酒馆风格"
+                    htmlFor="tavern-prompt-room-style-preset"
+                    description={selectedRoomStyle?.description}
+                    action={(
+                      <Button type="button" size="sm" variant="outline" onClick={applyRoomStylePreset}>
+                        <Wand2 className="size-3.5" />
+                        引用
+                      </Button>
+                    )}
+                  >
+                    <NativeSelect
+                      id="tavern-prompt-room-style-preset"
+                      value={draft.presets.roomStyleId}
+                      className={selectClassName}
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        presets: {
+                          ...draft.presets,
+                          roomStyleId: normalizeTavernPromptStyleId(event.target.value),
+                        },
+                      })}
+                    >
+                      {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
+                        <NativeSelectOption key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+
+                  <EditorField
+                    label="写作规则组合"
+                    htmlFor="tavern-prompt-rule-composition-preset"
+                    description={selectedRuleComposition?.description}
+                    action={(
+                      <Button type="button" size="sm" variant="outline" onClick={applyRuleCompositionPreset}>
+                        <Layers3 className="size-3.5" />
+                        引用
+                      </Button>
+                    )}
+                  >
+                    <NativeSelect
+                      id="tavern-prompt-rule-composition-preset"
+                      value={draft.presets.ruleCompositionId}
+                      className={selectClassName}
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        presets: {
+                          ...draft.presets,
+                          ruleCompositionId: normalizeTavernRuleCompositionId(
+                            event.target.value,
+                          ),
+                        },
                       })}
                     >
                       {TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) => (
@@ -441,71 +691,188 @@ export const PromptEdit = ({
                       ))}
                     </NativeSelect>
                   </EditorField>
+                </div>
 
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {TAVERN_QUALITY_RULES.map((rule) => {
-                      const checked = draft.qualityRuleIds.includes(rule.id);
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {TAVERN_QUALITY_RULES.map((rule) => {
+                    const checked = draft.presets.qualityRuleIds.includes(rule.id);
 
-                      return (
-                        <label
-                          key={rule.id}
-                          className={cn(
-                            "grid cursor-pointer gap-3 rounded-lg border bg-background/72 p-3 shadow-xs transition-colors sm:grid-cols-[auto_minmax(0,1fr)]",
-                            checked && "border-primary/35 bg-primary/[0.06]",
-                          )}
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(nextChecked) => {
-                              toggleQualityRule(rule.id, nextChecked === true);
-                            }}
-                            aria-label={rule.label}
-                            className="mt-0.5"
-                          />
-                          <span className="min-w-0">
-                            <span className="flex items-center gap-2 text-sm font-semibold leading-5">
-                              <CheckCircle2 className={cn(
-                                "size-3.5",
-                                checked ? "text-primary" : "text-muted-foreground",
-                              )}
-                              />
-                              {rule.label}
-                            </span>
-                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                              {rule.description}
-                            </span>
+                    return (
+                      <label
+                        key={rule.id}
+                        className={cn(
+                          "grid cursor-pointer gap-3 rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs transition-colors sm:grid-cols-[auto_minmax(0,1fr)]",
+                          checked && "border-primary/35 bg-primary/[0.06]",
+                        )}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            toggleQualityRule(rule.id, nextChecked === true);
+                          }}
+                          aria-label={rule.label}
+                          className="mt-0.5"
+                        />
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2 text-sm font-semibold leading-5">
+                            <CheckCircle2 className={cn(
+                              "size-3.5",
+                              checked ? "text-primary" : "text-muted-foreground",
+                            )}
+                            />
+                            {rule.label}
                           </span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {rule.description}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </EditorFormCard>
 
               <EditorFormCard
+                id="tavern-prompt-blocks-section"
                 icon={Braces}
-                title="层级顺序"
-                description="运行时按这个顺序注入，后面的层级只能收紧或补充，不能覆盖前面的合同。"
+                title="文本块"
+                description="运行时按 target 注入对应 Agent；可关闭、删除或直接改写任意文本块。"
               >
-                <div className="grid gap-2 text-xs leading-5 text-muted-foreground md:grid-cols-3">
-                  {[
-                    "system_contract",
-                    "presentation_profile",
-                    "system_narrative_preset",
-                    "prompt_style",
-                    "platform_style / rule_layers",
-                    "tavern_context / character_context / turn_instruction",
-                  ].map((item, index) => (
-                    <div
-                      key={item}
-                      className="flex min-w-0 items-center gap-2 rounded-md bg-background/70 px-2.5 py-2 shadow-xs"
-                    >
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
-                        {index + 1}
-                      </span>
-                      <span className="min-w-0 truncate font-mono">{item}</span>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  {promptBlockTargets.map((target) => {
+                    const blocks = blocksByTarget.get(target.id) ?? [];
+
+                    return (
+                      <section key={target.id} className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-sm font-semibold leading-5">
+                              <EditorStatusPill tone={blocks.length > 0 ? "info" : "muted"}>
+                                {target.label}
+                              </EditorStatusPill>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {blocks.filter((block) => block.enabled).length}/{blocks.length} 块启用
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              {target.description}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => addCustomBlock(target.id)}
+                          >
+                            <Plus className="size-3.5" />
+                            添加
+                          </Button>
+                        </div>
+
+                        {blocks.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-border/80 px-3 py-4 text-center text-xs leading-5 text-muted-foreground">
+                            暂无文本块。
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {blocks.map((block) => {
+                              const textAreaId = `tavern-prompt-block-${block.id}`;
+                              const sourceLabel = block.source
+                                ? `${sourceTypeLabels[block.source.type]} / ${block.source.label}`
+                                : "自定义";
+
+                              return (
+                                <div
+                                  key={block.id}
+                                  className={cn(
+                                    "rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs",
+                                    !block.enabled && "opacity-70",
+                                  )}
+                                >
+                                  <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                                    <div className="min-w-0 space-y-2">
+                                      <input
+                                        value={block.label}
+                                        className={cn(
+                                          editorControlClassName,
+                                          "h-9 w-full px-3 text-sm font-semibold",
+                                        )}
+                                        aria-label={`${target.label}文本块标题`}
+                                        onChange={(event) => {
+                                          patchDraftPrompt((prompt) =>
+                                            updatePromptBlock(prompt, block.id, (nextBlock) => ({
+                                              ...nextBlock,
+                                              label: event.target.value,
+                                            }))
+                                          );
+                                        }}
+                                      />
+                                      <div className="flex flex-wrap items-center gap-1.5 text-xs leading-5 text-muted-foreground">
+                                        <EditorStatusPill tone={block.enabled ? "active" : "muted"}>
+                                          {block.enabled ? "启用" : "关闭"}
+                                        </EditorStatusPill>
+                                        <span>{sourceLabel}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Switch
+                                        checked={block.enabled}
+                                        onCheckedChange={(checked) => {
+                                          patchDraftPrompt((prompt) =>
+                                            updatePromptBlock(prompt, block.id, (nextBlock) => ({
+                                              ...nextBlock,
+                                              enabled: checked === true,
+                                            }))
+                                          );
+                                        }}
+                                        aria-label={`切换${block.label}`}
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          patchDraftPrompt((prompt) =>
+                                            removePromptBlock(prompt, block.id)
+                                          );
+                                        }}
+                                        aria-label={`删除${block.label}`}
+                                      >
+                                        <Trash2 className="size-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <label
+                                    htmlFor={textAreaId}
+                                    className="mt-2 block text-xs font-medium text-muted-foreground"
+                                  >
+                                    文本
+                                  </label>
+                                  <Textarea
+                                    id={textAreaId}
+                                    value={block.text}
+                                    placeholder="写入要注入到该 Agent 的提示词文本。"
+                                    className={cn(
+                                      "mt-1 min-h-32 resize-y text-sm leading-6",
+                                      editorControlClassName,
+                                    )}
+                                    onChange={(event) => {
+                                      patchDraftPrompt((prompt) =>
+                                        updatePromptBlock(prompt, block.id, (nextBlock) => ({
+                                          ...nextBlock,
+                                          text: event.target.value,
+                                        }))
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
               </EditorFormCard>
 
@@ -520,7 +887,7 @@ export const PromptEdit = ({
               status={(
                 <span className="inline-flex items-center gap-1.5">
                   <Goal className="size-3.5" />
-                  保存后会影响后续角色、导演与整理员请求
+                  保存后会影响后续整理员、导演与角色请求
                 </span>
               )}
             >
@@ -528,7 +895,7 @@ export const PromptEdit = ({
                 取消
               </Button>
               <Button type="submit">
-                <ScrollText className="size-4" />
+                <Save className="size-4" />
                 保存提示词
               </Button>
             </EditorFormFooter>

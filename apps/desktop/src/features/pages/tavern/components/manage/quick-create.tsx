@@ -204,6 +204,14 @@ export const QuickCreate = ({
         quickCreateDraft.presentationProfileId,
       ),
       promptStyleId: normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId),
+      promptSeed: {
+        systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
+          quickCreateDraft.systemNarrativePresetId,
+        ),
+        ruleCompositionId: normalizeTavernRuleCompositionId(
+          quickCreateDraft.platformStyleId,
+        ),
+      },
       characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
       advanced: {
         characterCount,
@@ -224,14 +232,6 @@ export const QuickCreate = ({
           illustrationHints: {
             enabled: quickCreateDraft.illustrationHintsEnabled,
           },
-          systemNarrativePreset: {
-            presetId: normalizeTavernSystemNarrativePresetId(
-              quickCreateDraft.systemNarrativePresetId,
-            ),
-          },
-          platformStyleId: normalizeTavernRuleCompositionId(
-            quickCreateDraft.platformStyleId,
-          ),
           informationPolicy,
         },
       },
@@ -273,15 +273,17 @@ export const QuickCreate = ({
         storyGoal: quickCreateDraft.storyGoal,
         userPersonaName: quickCreateDraft.userPersonaName,
         presentationProfileId,
-        promptStyleId,
-        systemNarrativePresetId,
-        platformStyleId,
-        systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.find((preset) =>
-          preset.id === systemNarrativePresetId
-        ),
-        ruleComposition: ruleStack.composition,
-        platformStyle: ruleStack.platformStyle,
-        ruleGroups: ruleStack.ruleGroups,
+        promptSeed: {
+          promptStyleId,
+          systemNarrativePresetId,
+          ruleCompositionId: platformStyleId,
+          systemNarrativePreset: TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.find((preset) =>
+            preset.id === systemNarrativePresetId
+          ),
+          ruleComposition: ruleStack.composition,
+          platformStyle: ruleStack.platformStyle,
+          ruleGroups: ruleStack.ruleGroups,
+        },
         characterSeedsText: quickCreateDraft.characterSeeds,
         characterSeeds: parseQuickCreateCharacterSeeds(quickCreateDraft.characterSeeds),
         advanced: {
@@ -296,7 +298,9 @@ export const QuickCreate = ({
       existingRooms: rooms.map((room) => ({
         title: room.title,
         presentationProfileId: normalizeTavernPresentationProfileId(room.presentation?.profileId),
-        promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
+        promptBlockCount: room.prompt.blocks.filter((block) =>
+          block.enabled && block.text.trim()
+        ).length,
         characterCount: room.localCharacters?.length ?? 0,
       })),
     };
@@ -323,7 +327,6 @@ export const QuickCreate = ({
         mode,
         fieldLabel,
         currentText,
-        promptStyleId: normalizeTavernPromptStyleId(quickCreateDraft.promptStyleId),
         context: {
           ...buildQuickCreateTextFieldAgentContext(),
           targetField: {

@@ -3,8 +3,13 @@ import type {
   TavernGeneratedPresetJson,
   TavernPresentationProfileId,
   TavernPromptStyleId,
+  TavernSystemNarrativePresetId,
   TavernRoomSettings,
 } from "../../types";
+import type {
+  TavernPlatformStyleId,
+  TavernQualityRuleId,
+} from "../../prompt-registry/rule-layers/types";
 import { parseTavernGeneratedPresetJsonText } from "../../storage";
 import { runTavernOneShotAgent } from "../agent";
 import {
@@ -19,6 +24,11 @@ export {
 export type TavernGeneratedPresetAgentDraft = {
   title?: string;
   promptStyleId?: TavernPromptStyleId;
+  promptSeed?: {
+    systemNarrativePresetId?: TavernSystemNarrativePresetId;
+    ruleCompositionId?: TavernPlatformStyleId;
+    qualityRuleIds?: TavernQualityRuleId[];
+  };
   presentationProfileId?: TavernPresentationProfileId;
   userPersonaName?: string;
   premise?: string;

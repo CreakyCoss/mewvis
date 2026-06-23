@@ -45,6 +45,11 @@ import {
 } from "../../../../../core/relationships";
 import type { TavernTextFieldAgentRequest } from "../../../../../runtime/assistants";
 import {
+  TAVERN_CHARACTER_STYLE_PRESETS,
+  getTavernCharacterStylePreset,
+  normalizeTavernCharacterStylePresetId,
+} from "../../../../../prompt-registry/character-style-presets";
+import {
   EditorField,
   EditorFormCard,
   EditorFormDialogContent,
@@ -92,6 +97,9 @@ export const CharacterFormDialog = ({
   const [writingStyle, setWritingStyle] = useState("");
   const [replyStylePrompt, setReplyStylePrompt] = useState("");
   const [goals, setGoals] = useState("");
+  const [characterStylePresetId, setCharacterStylePresetId] = useState(
+    TAVERN_CHARACTER_STYLE_PRESETS[0]?.id ?? "natural-roleplay",
+  );
   const [relationships, setRelationships] = useState<TavernCharacterRelationship[]>([]);
   const [avatar, setAvatar] = useState(normalizeTavernAvatarId(tavernAvatarOptions[0]?.id));
   const [formError, setFormError] = useState("");
@@ -101,6 +109,10 @@ export const CharacterFormDialog = ({
   const selectedAvatar = useMemo(
     () => tavernAvatarOptions.find((option) => option.id === avatar) ?? defaultTavernAvatar,
     [avatar],
+  );
+  const selectedCharacterStylePreset = useMemo(
+    () => getTavernCharacterStylePreset(characterStylePresetId),
+    [characterStylePresetId],
   );
   const relationshipTargetOptions = useMemo(() => [
     {
@@ -127,6 +139,7 @@ export const CharacterFormDialog = ({
     setSpeakingStyle(character?.speakingStyle ?? "");
     setWritingStyle(character?.writingStyle ?? "");
     setReplyStylePrompt(character?.replyStylePrompt ?? "");
+    setCharacterStylePresetId(TAVERN_CHARACTER_STYLE_PRESETS[0]?.id ?? "natural-roleplay");
     setGoals(character?.goals ?? "");
     setRelationships((character?.relationships ?? []).map((relationship) => ({
       ...relationship,
@@ -251,6 +264,13 @@ export const CharacterFormDialog = ({
           }
         : relationship
     ));
+  };
+
+  const applyCharacterStylePreset = () => {
+    const preset = getTavernCharacterStylePreset(characterStylePresetId);
+    setSpeakingStyle(preset.speakingStyle);
+    setWritingStyle(preset.writingStyle);
+    setReplyStylePrompt(preset.replyStylePrompt);
   };
 
   const runTextFieldAgent = async ({
@@ -482,6 +502,39 @@ export const CharacterFormDialog = ({
             <div className="grid gap-3 lg:grid-cols-2">
               <EditorFormCard
                 id="tavern-character-style-section"
+                icon={ShieldCheck}
+                title="角色风格预设"
+                description="引用后会直接填入说话方式、写作风格和回复规则；保存后与预设脱钩。"
+              >
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                  <EditorField
+                    label="引用预设"
+                    htmlFor="tavern-character-style-preset"
+                    description={selectedCharacterStylePreset.description}
+                  >
+                    <NativeSelect
+                      id="tavern-character-style-preset"
+                      value={characterStylePresetId}
+                      className="w-full"
+                      onChange={(event) => setCharacterStylePresetId(
+                        normalizeTavernCharacterStylePresetId(event.target.value),
+                      )}
+                    >
+                      {TAVERN_CHARACTER_STYLE_PRESETS.map((preset) => (
+                        <NativeSelectOption key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+                  <Button type="button" variant="outline" onClick={applyCharacterStylePreset}>
+                    <Sparkles className="size-4" />
+                    引用
+                  </Button>
+                </div>
+              </EditorFormCard>
+
+              <EditorFormCard
                 icon={ShieldCheck}
                 title="写作风格"
                 action={renderTextFieldHeader({

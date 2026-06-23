@@ -1,12 +1,9 @@
-import { getTavernPromptStylePreset } from "../../../prompt-styles";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import { resolveTavernPromptRuleStack } from "../../../prompt-registry/rule-layers/resolver";
-import { resolveTavernSystemNarrativePreset } from "../../../prompt-registry/system-narrative-styles";
+import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
 import type {
   TavernCharacter,
   TavernRoom,
 } from "../../../types";
-import { formatPromptRuleLayersForCharacterStyle } from "../layers/rule-layers";
 import { joinPromptLines } from "../shared/sections";
 
 export const buildCharacterTurnStyleInstruction = ({
@@ -16,26 +13,14 @@ export const buildCharacterTurnStyleInstruction = ({
   room: TavernRoom;
   speaker: TavernCharacter;
 }) => {
-  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const systemNarrative = resolveTavernSystemNarrativePreset(
-    room.settings.systemNarrativePreset,
-  );
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: room.settings.platformStyleId,
-    qualityRuleIds: room.settings.qualityRuleIds,
-  });
   const lines = [
     `呈现规则：${presentationProfile.label}。${presentationProfile.characterAddendum}`,
-    `系统叙事预设：${systemNarrative.preset.label}。${systemNarrative.preset.description}`,
-    `酒馆风格：${promptStyle.label}。${promptStyle.characterAddendum}`,
-    `写作规则组合：${ruleStack.platformStyle.label}。${ruleStack.platformStyle.characterAddendum}`,
-    ...formatPromptRuleLayersForCharacterStyle(ruleStack.ruleGroups),
+    formatTavernPromptBlocksForTarget({
+      prompt: room.prompt,
+      target: "character",
+    }),
   ];
-
-  if (systemNarrative.settings.customInstructions) {
-    lines.push(`自定义系统叙事规则：${systemNarrative.settings.customInstructions}`);
-  }
 
   if (speaker.writingStyle) {
     lines.push(`当前角色写作风格：${speaker.writingStyle}`);

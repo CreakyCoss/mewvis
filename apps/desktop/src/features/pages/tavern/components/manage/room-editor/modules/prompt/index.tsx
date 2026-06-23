@@ -1,6 +1,7 @@
 import {
   Braces,
   Eye,
+  FileText,
   Layers3,
   MessageSquareText,
   Pencil,
@@ -17,11 +18,11 @@ import {
   getTavernPresentationProfile,
   isTavernPresentationLocked,
 } from "../../../../../prompt-registry/presentation-rules";
-import { resolveTavernPromptRuleStack } from "../../../../../prompt-registry/rule-layers/resolver";
-import { getTavernSystemNarrativePreset } from "../../../../../prompt-registry/system-narrative-styles";
-import { getTavernPromptStylePreset } from "../../../../../prompt-styles";
 import type {
   TavernMessage,
+  TavernPromptBlock,
+  TavernPromptBlockSourceType,
+  TavernPromptBlockTarget,
   TavernRoom,
 } from "../../../../../types";
 import {
@@ -47,6 +48,33 @@ type PromptHierarchyStep = {
   tone?: "active" | "muted" | "info" | "warning";
 };
 
+const targetLabels: Record<TavernPromptBlockTarget, string> = {
+  bridge: "整理员",
+  director: "导演",
+  character: "角色",
+};
+
+const sourceTypeLabels: Record<TavernPromptBlockSourceType, string> = {
+  system_narrative: "系统叙事",
+  room_style: "酒馆风格",
+  platform_style: "平台偏好",
+  quality_rule: "质量规则",
+  narrative_style: "叙事套路",
+  genre_rule: "题材规则",
+  hook_rule: "钩子规则",
+  taboo_rule: "雷点边界",
+  custom: "自定义",
+};
+
+const writingRuleSourceTypes: TavernPromptBlockSourceType[] = [
+  "platform_style",
+  "quality_rule",
+  "narrative_style",
+  "genre_rule",
+  "hook_rule",
+  "taboo_rule",
+];
+
 const getPresentationContractLabel = (room: TavernRoom) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
 
@@ -57,18 +85,38 @@ const getPresentationContractLabel = (room: TavernRoom) => {
   return "角色回复";
 };
 
-const getEffectiveRuleCount = (room: TavernRoom) => {
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: room.settings.platformStyleId,
-    qualityRuleIds: room.settings.qualityRuleIds,
-  });
+const getEnabledPromptBlocks = (blocks: TavernPromptBlock[]) =>
+  blocks.filter((block) => block.enabled && block.text.trim());
 
-  return ruleStack.ruleGroups.qualityRules.length +
-    ruleStack.ruleGroups.narrativeStyles.length +
-    ruleStack.ruleGroups.genreRules.length +
-    ruleStack.ruleGroups.hookRules.length +
-    ruleStack.ruleGroups.tabooRules.length;
-};
+const countBlocksByTarget = (
+  blocks: TavernPromptBlock[],
+  target: TavernPromptBlockTarget,
+) => blocks.filter((block) => block.target === target).length;
+
+const countEnabledBlocksBySource = (
+  blocks: TavernPromptBlock[],
+  sourceTypes: TavernPromptBlockSourceType[],
+) => getEnabledPromptBlocks(blocks).filter((block) =>
+  block.source && sourceTypes.includes(block.source.type)
+).length;
+
+const getSourceLabels = (
+  blocks: TavernPromptBlock[],
+  sourceTypes?: TavernPromptBlockSourceType[],
+) => Array.from(new Set(
+  getEnabledPromptBlocks(blocks).flatMap((block) => {
+    if (!block.source) {
+      return [];
+    }
+    if (sourceTypes && !sourceTypes.includes(block.source.type)) {
+      return [];
+    }
+    return [`${sourceTypeLabels[block.source.type]}：${block.source.label}`];
+  }),
+));
+
+const formatCompactList = (items: string[], fallback: string) =>
+  items.length > 0 ? items.slice(0, 3).join(" / ") : fallback;
 
 const PromptHierarchy = ({
   steps,
@@ -113,24 +161,23 @@ export const PromptSummaryContent = ({
   data: TavernRoom;
 }) => {
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
-  const promptStyle = getTavernPromptStylePreset(data.promptStyleId);
-  const systemNarrativePreset = getTavernSystemNarrativePreset(
-    data.settings.systemNarrativePreset.presetId,
-  );
-  const systemNarrativeLabel = data.settings.systemNarrativePreset.customInstructions
-    ? `${systemNarrativePreset.label} + 自定义`
-    : systemNarrativePreset.label;
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: data.settings.platformStyleId,
-    qualityRuleIds: data.settings.qualityRuleIds,
-  });
-  const effectiveRuleCount = getEffectiveRuleCount(data);
+  const blocks = data.prompt.blocks;
+  const enabledBlocks = getEnabledPromptBlocks(blocks);
+  const systemNarrativeCount = countEnabledBlocksBySource(blocks, ["system_narrative"]);
+  const roomStyleCount = countEnabledBlocksBySource(blocks, ["room_style"]);
+  const writingRuleCount = countEnabledBlocksBySource(blocks, writingRuleSourceTypes);
+  const sourceLabels = getSourceLabels(blocks);
+  const systemNarrativeLabels = getSourceLabels(blocks, ["system_narrative"]);
+  const writingRuleLabels = getSourceLabels(blocks, writingRuleSourceTypes);
+  const targetCoverage = (["bridge", "director", "character"] as const)
+    .map((target) => `${targetLabels[target]} ${countBlocksByTarget(blocks, target)}`)
+    .join(" / ");
   const hierarchySteps: PromptHierarchyStep[] = [
     {
       icon: ShieldCheck,
       label: "输出合同",
       value: getPresentationContractLabel(data),
-      description: "固定角色边界、可见性、标签和输出形态。",
+      description: "固定角色边界、可见性、XML 标签和输出形态，由系统底层控制。",
       tone: "active",
     },
     {
@@ -142,24 +189,24 @@ export const PromptSummaryContent = ({
     },
     {
       icon: Sparkles,
-      label: "系统叙事",
-      value: systemNarrativeLabel,
-      description: "调整节奏、镜头密度、冲突强度和收束方式。",
-      tone: "info",
+      label: "叙事文本",
+      value: systemNarrativeCount > 0 ? `${systemNarrativeCount} 块` : "未启用",
+      description: "系统叙事预设引用后已保存为可编辑文本。",
+      tone: systemNarrativeCount > 0 ? "info" : "muted",
     },
     {
       icon: Wand2,
-      label: "酒馆风格",
-      value: promptStyle.label,
-      description: "给当前房间定调，例如武侠、轻小说、写实克制。",
-      tone: "info",
+      label: "风格文本",
+      value: roomStyleCount > 0 ? `${roomStyleCount} 块` : "未启用",
+      description: "酒馆风格预设引用后已保存为可编辑文本。",
+      tone: roomStyleCount > 0 ? "info" : "muted",
     },
     {
       icon: Layers3,
-      label: "写作规则组合",
-      value: ruleStack.composition.label,
-      description: "组合平台偏好、质量规则、题材套路、钩子和雷点边界。",
-      tone: ruleStack.composition.id === "none" ? "muted" : "info",
+      label: "写作规则",
+      value: writingRuleCount > 0 ? `${writingRuleCount} 块` : "未启用",
+      description: "平台偏好、质量规则、题材套路、钩子和雷点边界以文本块注入。",
+      tone: writingRuleCount > 0 ? "info" : "muted",
     },
     {
       icon: Braces,
@@ -180,20 +227,21 @@ export const PromptSummaryContent = ({
             value: presentationProfile.label,
           },
           {
-            icon: Sparkles,
-            label: "系统叙事",
-            value: systemNarrativeLabel,
+            icon: FileText,
+            label: "文本块",
+            value: `${enabledBlocks.length}/${blocks.length} 启用`,
+            description: targetCoverage,
           },
           {
-            icon: Wand2,
-            label: "酒馆风格",
-            value: promptStyle.label,
+            icon: Sparkles,
+            label: "叙事来源",
+            value: formatCompactList(systemNarrativeLabels, "未启用"),
           },
           {
             icon: Layers3,
-            label: "写作规则",
-            value: effectiveRuleCount > 0 ? `${effectiveRuleCount} 条` : "未启用",
-            description: ruleStack.composition.label,
+            label: "规则文本",
+            value: writingRuleCount > 0 ? `${writingRuleCount} 块` : "未启用",
+            description: formatCompactList(writingRuleLabels, ""),
           },
         ]}
       />
@@ -208,19 +256,26 @@ export const PromptSummaryContent = ({
             当前效果
           </div>
           <div className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
+            <p>{presentationProfile.description}</p>
             <p>
-              {presentationProfile.description}
-            </p>
-            <p>
-              {promptStyle.description}
+              {enabledBlocks.length > 0
+                ? `后续请求会注入 ${enabledBlocks.length} 个已保存文本块。`
+                : "后续请求只使用系统合同和上下文资料。"}
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
               <EditorStatusPill tone={data.settings.immersiveDescriptionEnabled ? "active" : "muted"}>
                 沉浸描写{data.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}
               </EditorStatusPill>
-              <EditorStatusPill tone={data.settings.systemNarrativePreset.customInstructions ? "warning" : "muted"}>
-                {data.settings.systemNarrativePreset.customInstructions ? "有自定义规则" : "无自定义规则"}
-              </EditorStatusPill>
+              {sourceLabels.slice(0, 5).map((label) => (
+                <EditorStatusPill key={label} tone="info">
+                  {label}
+                </EditorStatusPill>
+              ))}
+              {sourceLabels.length > 5 && (
+                <EditorStatusPill tone="muted">
+                  +{sourceLabels.length - 5}
+                </EditorStatusPill>
+              )}
             </div>
           </div>
         </aside>
@@ -236,19 +291,19 @@ export const PromptSection = ({
 }: PromptSectionProps) => {
   const editRef = useRef<PromptEditHandle>(null);
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
-  const promptStyle = getTavernPromptStylePreset(data.promptStyleId);
   const presentationLocked = isTavernPresentationLocked({
     presentation: data.presentation,
     messages,
   });
+  const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
 
   return (
     <>
       <EditorSection
         icon={ScrollText}
         title="提示词"
-        description="管理酒馆运行时提示词的层级、呈现结构、叙事调性和写作规则。"
-        meta={`${presentationProfile.label} / ${promptStyle.label}`}
+        description="管理系统控制层和酒馆保存的可编辑提示词文本块。"
+        meta={`${presentationProfile.label} / ${enabledBlockCount} 块启用`}
         metaClassName="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
         action={(
           <Button
@@ -267,7 +322,7 @@ export const PromptSection = ({
         <PromptSummaryContent data={data} />
         {presentationLocked && (
           <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700 dark:text-amber-200">
-            当前房间已有对话，呈现规则已锁定；仍可调整叙事调性、酒馆风格和写作规则。
+            当前房间已有对话，呈现规则已锁定；仍可引用预设并调整已保存文本块。
           </div>
         )}
       </EditorSection>

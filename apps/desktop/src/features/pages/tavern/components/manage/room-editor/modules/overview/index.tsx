@@ -17,7 +17,6 @@ import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getTavernPromptStylePreset } from "../../../../../prompt-styles";
 import {
   getActiveTavernScene,
   getTavernSceneDisplayTitle,
@@ -192,7 +191,9 @@ export const OverviewSection = ({
     ? scenes.find((scene) => scene.id === activeNode.sceneId) ?? null
     : null;
   const lorebookEntry = data.lorebookEntries[0] ?? null;
-  const promptStyle = getTavernPromptStylePreset(data.promptStyleId);
+  const enabledPromptBlockCount = data.prompt.blocks.filter((block) =>
+    block.enabled && block.text.trim()
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -219,7 +220,7 @@ export const OverviewSection = ({
         <OverviewCard
           icon={ScrollText}
           title="提示词层级"
-          meta={promptStyle.label}
+          meta={`${enabledPromptBlockCount} 块启用`}
           metaClassName="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
           actionLabel="编辑提示词"
           onAction={() => onOpenModule("prompt")}

@@ -3,11 +3,7 @@ import {
 } from "@/features/ai/components/context-tools";
 import { getTavernPresentationContract } from "../../../presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import {
-  resolveTavernSystemNarrativePreset,
-} from "../../../prompt-registry/system-narrative-styles";
-import { resolveTavernPromptRuleStack } from "../../../prompt-registry/rule-layers/resolver";
-import { getTavernPromptStylePreset } from "../../../prompt-styles";
+import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
 import type {
   TavernCharacter,
   TavernReferencedFile,
@@ -22,11 +18,7 @@ import {
   buildCharacterContextSections,
   formatCompactPresentCharacters,
 } from "../layers/character-context";
-import { buildSystemNarrativePresetSection } from "../layers/narrative-style";
-import { buildPlatformStyleSection } from "../layers/platform-style";
 import { buildPresentationProfileSection } from "../layers/presentation";
-import { buildPromptRuleLayerSections } from "../layers/rule-layers";
-import { buildPromptStyleSection } from "../layers/room-style";
 import { buildCharacterSystemContractSection } from "../layers/system-contract";
 import { buildTavernContextSections } from "../layers/tavern-context";
 import {
@@ -48,6 +40,22 @@ const buildTurnInstructionSection = (turnInstruction?: string): TavernPromptSect
   layer: "turn",
   tag: "turn_instruction",
   content: turnInstruction ?? "",
+});
+
+const buildSavedPromptBlocksSection = ({
+  room,
+  publicContentTag,
+}: {
+  room: TavernRoom;
+  publicContentTag: string;
+}): TavernPromptSection => ({
+  id: "prompt-blocks",
+  layer: "tavern",
+  content: formatTavernPromptBlocksForTarget({
+    prompt: room.prompt,
+    target: "character",
+    publicContentTag,
+  }),
 });
 
 export const buildTavernSystemPrompt = ({
@@ -72,17 +80,8 @@ export const buildTavernSystemPrompt = ({
     maxEdges: 8,
     maxSummaryChars: 280,
   });
-  const immersiveDescriptionEnabled = room.settings.immersiveDescriptionEnabled !== false;
-  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
-  const systemNarrative = resolveTavernSystemNarrativePreset(
-    room.settings.systemNarrativePreset,
-  );
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: room.settings.platformStyleId,
-    qualityRuleIds: room.settings.qualityRuleIds,
-  });
   const publicContentTag = presentationContract.publicContentTag;
   const usesNarrativeBeat = presentationContract.characterMessageKind === "narrative_beat";
   const compactCharacters = formatCompactPresentCharacters({
@@ -103,25 +102,9 @@ export const buildTavernSystemPrompt = ({
       presentationProfile,
       target: "character",
     }),
-    buildSystemNarrativePresetSection({
-      settings: systemNarrative.settings,
-      preset: systemNarrative.preset,
-      target: "character",
+    buildSavedPromptBlocksSection({
+      room,
       publicContentTag,
-      usesNarrativeBeat,
-      immersiveDescriptionEnabled,
-    }),
-    buildPromptStyleSection({
-      promptStyle,
-      target: "character",
-    }),
-    buildPlatformStyleSection({
-      platformStyle: ruleStack.platformStyle,
-      target: "character",
-    }),
-    ...buildPromptRuleLayerSections({
-      ruleGroups: ruleStack.ruleGroups,
-      target: "character",
     }),
     ...buildTavernContextSections({
       room,

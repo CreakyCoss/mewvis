@@ -14,6 +14,7 @@ const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/r
 const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
 const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
+const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
 
 const assert = (condition, message, details) => {
@@ -103,6 +104,9 @@ writeFileSync(entryPath, `
     buildTavernSystemPrompt,
     tavernMessagesToRuntimeMessages,
   } from ${JSON.stringify(promptPath)};
+  import {
+    createDefaultTavernPromptSettings,
+  } from ${JSON.stringify(promptTextBlocksPath)};
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
   const charARef = { type: "character", characterId: "char-a" };
@@ -619,15 +623,25 @@ writeFileSync(entryPath, `
     writingStyle: "用冷峻短句写可观察动作。",
     replyStylePrompt: "每次回复保留江湖身份分寸，不自称旁白。",
   };
+  const styledPrompt = createDefaultTavernPromptSettings({
+    presentationProfileId: room.presentation?.profileId ?? "dialogue-chat",
+    promptStyleId: "wuxia",
+    systemNarrativePresetId: "dramatic",
+    immersiveDescriptionEnabled: true,
+  });
   const styledRoom = {
     ...room,
-    promptStyleId: "wuxia",
-    settings: {
-      ...room.settings,
-      systemNarrativePreset: {
-        presetId: "dramatic",
-        customInstructions: "系统叙事层保持雨夜压迫感，但不要覆盖武侠房间风格和角色口吻。",
-      },
+    prompt: {
+      ...styledPrompt,
+      blocks: styledPrompt.blocks.map((block) => block.source?.type === "system_narrative"
+        ? {
+            ...block,
+            text: [
+              block.text,
+              "系统叙事层保持雨夜压迫感，但不要覆盖武侠房间风格和角色口吻。",
+            ].join("\\n"),
+          }
+        : block),
     },
     localCharacters: [styledCharacter, characters[1]],
   };
@@ -2270,15 +2284,15 @@ try {
     checks.promptForA,
 	  );
 	  assert(
-	    checks.styledPromptForA.includes("prompt_style id=\"wuxia\"") &&
-	      checks.styledPromptForA.includes("system_narrative_preset id=\"dramatic\"") &&
+	    checks.styledPromptForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
+	      checks.styledPromptForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
 	      checks.styledPromptForA.includes("系统叙事层保持雨夜压迫感") &&
 	      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
 	      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
-	      checks.styledTurnInstructionForA.includes("系统叙事预设：张力推进") &&
-		      checks.styledTurnInstructionForA.includes("酒馆风格：武侠风格") &&
+	      checks.styledTurnInstructionForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
+		      checks.styledTurnInstructionForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
 		      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
-		    "系统叙事预设、酒馆风格和角色级 prompt 必须进入角色请求上下文与 turn instruction",
+		    "已保存提示词文本块和角色级 prompt 必须进入角色请求上下文与 turn instruction",
     {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,
@@ -2658,12 +2672,14 @@ try {
   );
   assert(
     checks.progressChecks.generated.room.title === "雨巷旧灯" &&
-      checks.progressChecks.generated.room.promptStyleId === "light-novel" &&
+      checks.progressChecks.generated.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "light-novel"
+      ) &&
       checks.progressChecks.generated.room.creationSource === "quick" &&
       checks.progressChecks.generated.room.settings.randomEvents.enabled &&
       checks.progressChecks.generated.room.settings.randomEvents.probability === 0.25 &&
       checks.progressChecks.generated.room.settings.illustrationHints.enabled,
-	    "生成 JSON 导入应保留快速创建来源、酒馆风格和高级房间设置",
+	    "生成 JSON 导入应保留快速创建来源、酒馆风格文本块和高级房间设置",
     checks.progressChecks.generated.room,
   );
   assert(
@@ -2729,7 +2745,9 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.fogbound.room.presentation.profileId === "third-person-prose" &&
-      checks.progressChecks.systemPresets.fogbound.room.promptStyleId === "grounded" &&
+      checks.progressChecks.systemPresets.fogbound.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "grounded"
+      ) &&
       checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.mode === "mystery" &&
       checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hideCharacterThoughts &&
       checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hiddenFacts.enabled &&
@@ -2753,7 +2771,9 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.ember.room.presentation.profileId === "dialogue-chat" &&
-      checks.progressChecks.systemPresets.ember.room.promptStyleId === "dramatic" &&
+      checks.progressChecks.systemPresets.ember.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "dramatic"
+      ) &&
       checks.progressChecks.systemPresets.ember.room.settings.informationPolicy.mode === "open" &&
       checks.progressChecks.systemPresets.ember.characterCount === 4 &&
       checks.progressChecks.systemPresets.ember.scenesCount === 3 &&
@@ -2773,7 +2793,9 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.starfall.room.presentation.profileId === "novel-prose" &&
-      checks.progressChecks.systemPresets.starfall.room.promptStyleId === "novel" &&
+      checks.progressChecks.systemPresets.starfall.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "novel"
+      ) &&
       checks.progressChecks.systemPresets.starfall.room.settings.informationPolicy.mode === "mystery" &&
       checks.progressChecks.systemPresets.starfall.characterCount === 4 &&
       checks.progressChecks.systemPresets.starfall.scenesCount === 3 &&

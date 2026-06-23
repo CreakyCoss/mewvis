@@ -1,9 +1,4 @@
 import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
-import type {
-  TavernPlatformStyleId,
-  TavernQualityRuleId,
-} from "./prompt-registry/rule-layers/types";
-
 export type TavernReplyMode = "active" | "round" | "director";
 
 export type TavernPresentationProfileId =
@@ -56,6 +51,38 @@ export type TavernPresentationSettings = {
   profileVersion: 1;
   lockedAt?: number;
   lockedSceneId?: string;
+};
+
+export type TavernPromptBlockTarget = "bridge" | "director" | "character";
+
+export type TavernPromptBlockSourceType =
+  | "system_narrative"
+  | "room_style"
+  | "platform_style"
+  | "quality_rule"
+  | "narrative_style"
+  | "genre_rule"
+  | "hook_rule"
+  | "taboo_rule"
+  | "custom";
+
+export type TavernPromptBlock = {
+  id: string;
+  target: TavernPromptBlockTarget;
+  label: string;
+  text: string;
+  enabled: boolean;
+  order: number;
+  source?: {
+    type: TavernPromptBlockSourceType;
+    id: string;
+    label: string;
+  };
+};
+
+export type TavernRoomPromptSettings = {
+  version: 1;
+  blocks: TavernPromptBlock[];
 };
 
 export type TavernMessageActorRef =
@@ -284,9 +311,6 @@ export type TavernAssetDraft = {
 };
 
 export type TavernRoomSettings = {
-  systemNarrativePreset: TavernSystemNarrativePresetSettings;
-  platformStyleId: TavernPlatformStyleId;
-  qualityRuleIds: TavernQualityRuleId[];
   immersiveDescriptionEnabled: boolean;
   showExecutionTrace: boolean;
   autoAssetExtractionEnabled: boolean;
@@ -802,7 +826,7 @@ export type TavernRoom = {
   locked: boolean;
   title: string;
   presentation: TavernPresentationSettings;
-  promptStyleId?: TavernPromptStyleId;
+  prompt: TavernRoomPromptSettings;
   creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   storyOutline: string;
   storyGoal: string;
@@ -925,6 +949,7 @@ export type TavernGeneratedPresetRoom = {
     profileId?: unknown;
   };
   presentationProfileId?: unknown;
+  prompt?: Partial<TavernRoomPromptSettings>;
   promptStyleId?: unknown;
   storyOutline?: string;
   storyGoal?: string;

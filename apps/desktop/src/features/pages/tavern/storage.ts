@@ -79,6 +79,10 @@ import {
   createDefaultTavernPresentation,
   normalizeTavernPresentation,
 } from "./prompt-registry/presentation-rules";
+import {
+  createDefaultTavernPromptSettings,
+  normalizeTavernPromptSettings,
+} from "./prompt-registry/text-blocks";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
 
@@ -104,6 +108,16 @@ const createId = (prefix: string) => {
 };
 
 const now = () => Date.now();
+
+const createDefaultPromptForPresentation = (
+  presentation: TavernPresentationSettings,
+) => createDefaultTavernPromptSettings({
+  presentationProfileId: presentation.profileId,
+  promptStyleId: DEFAULT_TAVERN_PROMPT_STYLE_ID,
+  systemNarrativePresetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
+  ruleCompositionId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
+  immersiveDescriptionEnabled: DEFAULT_TAVERN_ROOM_SETTINGS.immersiveDescriptionEnabled,
+});
 
 type TavernSystemPresetCharacter = {
   id: string;
@@ -320,11 +334,6 @@ const createTavernCharacterFromSystemPresetCharacter = (
 const defaultSceneTitle = "默认场景";
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
-  systemNarrativePreset: {
-    presetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
-  },
-  platformStyleId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
-  qualityRuleIds: [],
   immersiveDescriptionEnabled: true,
   showExecutionTrace: false,
   autoAssetExtractionEnabled: false,
@@ -974,8 +983,6 @@ const cloneTavernDirectorProfile = (
 
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
-  systemNarrativePreset: { ...DEFAULT_TAVERN_ROOM_SETTINGS.systemNarrativePreset },
-  qualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.qualityRuleIds],
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
@@ -1378,11 +1385,6 @@ const normalizeRoomSettings = (
     : DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents.probability;
   return {
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
-    systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
-      candidate.systemNarrativePreset,
-    ),
-    platformStyleId: normalizeTavernRuleCompositionId(candidate.platformStyleId),
-    qualityRuleIds: normalizeTavernQualityRuleIds(candidate.qualityRuleIds),
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
     assetExtractionIntervalTurns: clampInteger(
@@ -3305,6 +3307,10 @@ export const createTavernRoomFromSystemPreset = (
     updatedAt: createdAt,
   });
   const storyGraph = createDefaultStoryGraph(scenes.length > 0 ? scenes : [scene]);
+  const presentation = normalizeRoomPresentation({
+    presentation: preset.room.presentation,
+    presentationProfileId: preset.room.presentationProfileId,
+  });
   const room: TavernRoom = projectTavernSceneOntoRoom({
     id: roomId,
     workspaceId,
@@ -3316,11 +3322,14 @@ export const createTavernRoomFromSystemPreset = (
       : {}),
     locked: false,
     title: preset.room.title.trim(),
-    presentation: normalizeRoomPresentation({
-      presentation: preset.room.presentation,
-      presentationProfileId: preset.room.presentationProfileId,
+    presentation,
+    prompt: createDefaultTavernPromptSettings({
+      presentationProfileId: presentation.profileId,
+      promptStyleId: normalizeTavernPromptStyleId(preset.room.promptStyleId),
+      systemNarrativePresetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
+      ruleCompositionId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
+      immersiveDescriptionEnabled: true,
     }),
-    promptStyleId: normalizeTavernPromptStyleId(preset.room.promptStyleId),
     creationSource: markAsSystemPreset ? "imported" : "manual",
     storyOutline: preset.room.storyOutline?.trim() || "",
     storyGoal: preset.room.storyGoal?.trim() || "",
@@ -3964,16 +3973,34 @@ export const createTavernRoomFromGeneratedPresetJson = (
   const title = trimGeneratedString(roomInput.title) ||
     trimGeneratedString(generated.label) ||
     "智能生成酒馆";
+  const presentation = normalizeRoomPresentation({
+    presentation: roomInput.presentation,
+    presentationProfileId: roomInput.presentationProfileId,
+  });
+  const generatedPromptSettings = roomInput.settings && typeof roomInput.settings === "object"
+    ? roomInput.settings as Partial<TavernRoomSettings> & {
+        systemNarrativePreset?: unknown;
+        platformStyleId?: unknown;
+        qualityRuleIds?: unknown;
+      }
+    : {};
+  const generatedSystemNarrative = normalizeTavernSystemNarrativePresetSettings(
+    generatedPromptSettings.systemNarrativePreset,
+  );
   const room: TavernRoom = projectTavernSceneOntoRoom({
     id: roomId,
     workspaceId,
     locked: false,
     title,
-    presentation: normalizeRoomPresentation({
-      presentation: roomInput.presentation,
-      presentationProfileId: roomInput.presentationProfileId,
-    }),
-    promptStyleId: normalizeTavernPromptStyleId(roomInput.promptStyleId),
+    presentation,
+    prompt: normalizeTavernPromptSettings(roomInput.prompt, createDefaultTavernPromptSettings({
+      presentationProfileId: presentation.profileId,
+      promptStyleId: normalizeTavernPromptStyleId(roomInput.promptStyleId),
+      systemNarrativePresetId: generatedSystemNarrative.presetId,
+      ruleCompositionId: normalizeTavernRuleCompositionId(generatedPromptSettings.platformStyleId),
+      qualityRuleIds: normalizeTavernQualityRuleIds(generatedPromptSettings.qualityRuleIds),
+      immersiveDescriptionEnabled: true,
+    })),
     creationSource: options.creationSource ?? "agent_generated",
     storyOutline: trimGeneratedString(roomInput.storyOutline),
     storyGoal: trimGeneratedString(roomInput.storyGoal),
@@ -4213,7 +4240,12 @@ const normalizeTavernState = (
       presentation: normalizeRoomPresentation({
         presentation: (room as Partial<TavernRoom>).presentation,
       }),
-      promptStyleId: normalizeTavernPromptStyleId((room as Partial<TavernRoom>).promptStyleId),
+      prompt: normalizeTavernPromptSettings(
+        (room as Partial<TavernRoom>).prompt,
+        createDefaultPromptForPresentation(normalizeRoomPresentation({
+          presentation: (room as Partial<TavernRoom>).presentation,
+        })),
+      ),
       creationSource:
         (room as Partial<TavernRoom>).creationSource === "quick" ||
         (room as Partial<TavernRoom>).creationSource === "imported" ||
@@ -4435,14 +4467,15 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     updatedAt: createdAt,
   });
   const storyGraph = createDefaultStoryGraph([scene]);
+  const presentation = createDefaultTavernPresentation();
 
   return projectTavernSceneOntoRoom({
     id: createId("room"),
     workspaceId,
     locked: false,
     title: `新酒馆 ${index}`,
-    presentation: createDefaultTavernPresentation(),
-    promptStyleId: DEFAULT_TAVERN_PROMPT_STYLE_ID,
+    presentation,
+    prompt: createDefaultPromptForPresentation(presentation),
     creationSource: "manual",
     storyOutline: "",
     storyGoal: "",

@@ -10,12 +10,19 @@ import {
 import type { Workspace } from "@/features/pages/workspace/types";
 import { normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import { normalizeTavernPromptStyleId } from "../../prompt-styles";
-import { normalizeTavernPresentation } from "../../prompt-registry/presentation-rules";
-import { normalizeTavernSystemNarrativePresetSettings } from "../../prompt-registry/system-narrative-styles";
+import {
+  normalizeTavernPresentation,
+  normalizeTavernPresentationProfileId,
+} from "../../prompt-registry/presentation-rules";
+import { normalizeTavernSystemNarrativePresetId } from "../../prompt-registry/system-narrative-styles";
 import {
   normalizeTavernQualityRuleIds,
   normalizeTavernRuleCompositionId,
 } from "../../prompt-registry/rule-layers/resolver";
+import {
+  createDefaultTavernPromptSettings,
+  normalizeTavernPromptSettings,
+} from "../../prompt-registry/text-blocks";
 import {
   createTavernProgressCheckpoint,
 } from "../../core";
@@ -247,11 +254,6 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
   const candidate = value as Partial<TavernRoomSettings>;
   return {
     ...DEFAULT_TAVERN_ROOM_SETTINGS,
-    systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
-      candidate.systemNarrativePreset,
-    ),
-    platformStyleId: normalizeTavernRuleCompositionId(candidate.platformStyleId),
-    qualityRuleIds: normalizeTavernQualityRuleIds(candidate.qualityRuleIds),
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
     showExecutionTrace: Boolean(candidate.showExecutionTrace),
     autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
@@ -1364,12 +1366,23 @@ export const ManagementProvider = ({
       }],
       edges: [],
     };
+    const importedPresentation = normalizeTavernPresentation(parsedExport.room.presentation);
+    const importedLegacyPromptStyleId =
+      (parsedExport.room as Partial<TavernRoom> & { promptStyleId?: unknown }).promptStyleId;
     const importedRoom: TavernRoom = projectTavernSceneOntoRoom({
       id: roomId,
       workspaceId: workspace.id,
       title: `${title}（导入）`,
-      presentation: normalizeTavernPresentation(parsedExport.room.presentation),
-      promptStyleId: normalizeTavernPromptStyleId(parsedExport.room.promptStyleId),
+      presentation: importedPresentation,
+      prompt: normalizeTavernPromptSettings(
+        parsedExport.room.prompt,
+        createDefaultTavernPromptSettings({
+          presentationProfileId: importedPresentation.profileId,
+          promptStyleId: normalizeTavernPromptStyleId(importedLegacyPromptStyleId),
+          immersiveDescriptionEnabled:
+            parsedExport.room.settings?.immersiveDescriptionEnabled !== false,
+        }),
+      ),
       creationSource: "imported",
       storyOutline: parsedExport.room.storyOutline?.trim() || "",
       storyGoal: parsedExport.room.storyGoal?.trim() || "",
@@ -1524,6 +1537,24 @@ export const ManagementProvider = ({
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         draft: quickDraft,
       });
+      const quickPresentationProfileId = normalizeTavernPresentationProfileId(
+        quickDraft.presentationProfileId,
+      );
+      const quickPrompt = createDefaultTavernPromptSettings({
+        presentationProfileId: quickPresentationProfileId,
+        promptStyleId: normalizeTavernPromptStyleId(quickDraft.promptStyleId),
+        systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
+          quickDraft.promptSeed?.systemNarrativePresetId,
+        ),
+        ruleCompositionId: normalizeTavernRuleCompositionId(
+          quickDraft.promptSeed?.ruleCompositionId,
+        ),
+        qualityRuleIds: normalizeTavernQualityRuleIds(
+          quickDraft.promptSeed?.qualityRuleIds,
+        ),
+        immersiveDescriptionEnabled:
+          quickDraft.advanced?.settings?.immersiveDescriptionEnabled !== false,
+      });
       const materialized = createTavernRoomFromGeneratedPresetJson(
         workspace.id,
         {
@@ -1531,26 +1562,18 @@ export const ManagementProvider = ({
           room: {
             ...(result.preset.room ?? {}),
             presentation: {
-              profileId: quickDraft.presentationProfileId,
+              profileId: quickPresentationProfileId,
               profileVersion: 1,
             },
-            presentationProfileId: quickDraft.presentationProfileId,
+            presentationProfileId: quickPresentationProfileId,
+            prompt: quickPrompt,
           },
         },
         {
           creationSource: "quick",
         },
       );
-      const quickSystemNarrativePreset = normalizeTavernSystemNarrativePresetSettings(
-        quickDraft.advanced?.settings?.systemNarrativePreset,
-      );
-      const room = {
-        ...materialized.room,
-        settings: {
-          ...materialized.room.settings,
-          systemNarrativePreset: quickSystemNarrativePreset,
-        },
-      };
+      const room = materialized.room;
       setState((current) => ({
         ...current,
         activeRoomId: room.id,

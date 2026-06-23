@@ -1,17 +1,9 @@
 import { TAVERN_PROMPT_STYLE_PRESETS } from "../../../prompt-styles";
 import { TAVERN_PRESENTATION_PROFILE_OPTIONS } from "../../../prompt-registry/presentation-rules";
-import { TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS } from "../../../prompt-registry/system-narrative-styles";
-import { TAVERN_RULE_COMPOSITION_OPTIONS } from "../../../prompt-registry/rule-layers/resolver";
 
 const promptStyleIdsSchema = TAVERN_PROMPT_STYLE_PRESETS.map((preset) => preset.id).join(" | ");
 const presentationProfileIdsSchema = TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) =>
   profile.id
-).join(" | ");
-const systemNarrativePresetIdsSchema = TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS
-  .map((preset) => preset.id)
-  .join(" | ");
-const ruleCompositionIdsSchema = TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) =>
-  composition.id
 ).join(" | ");
 
 export const generatedPresetSchema = `{
@@ -77,8 +69,6 @@ export const generatedPresetSchema = `{
         "autoContinuation": "enabled | disabled | disabledForFixedOrder",
         "instruction": "阶段制/点名/固定顺序等调度规则"
       },
-      "systemNarrativePreset": { "presetId": "${systemNarrativePresetIdsSchema}", "customInstructions": "" },
-      "platformStyleId": "${ruleCompositionIdsSchema}",
       "replyOptions": { "enabled": true, "count": 3 },
       "statusTracking": { "enabled": true, "visibleToUser": true },
       "randomEvents": { "enabled": false, "probability": 0.15 },

@@ -22,13 +22,6 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import {
-  normalizeTavernSystemNarrativePresetSettings,
-} from "../../../../../prompt-registry/system-narrative-styles";
-import {
-  normalizeTavernQualityRuleIds,
-  normalizeTavernRuleCompositionId,
-} from "../../../../../prompt-registry/rule-layers/resolver";
 import type {
   TavernProgressTrackerSettings,
   TavernRoleAssignmentDefinition,
@@ -288,11 +281,6 @@ export const SettingsEdit = ({
     onSave({
       settings: {
         ...data.settings,
-        systemNarrativePreset: normalizeTavernSystemNarrativePresetSettings(
-          draft.systemNarrativePreset,
-        ),
-        platformStyleId: normalizeTavernRuleCompositionId(draft.platformStyleId),
-        qualityRuleIds: normalizeTavernQualityRuleIds(draft.qualityRuleIds),
         immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
         showExecutionTrace: draft.showExecutionTrace,
         autoAssetExtractionEnabled: draft.autoAssetExtractionEnabled,

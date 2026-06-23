@@ -8,25 +8,15 @@ import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "../../../message";
-import {
-  formatTavernSystemNarrativePresetForPrompt,
-  type resolveTavernSystemNarrativePreset,
-} from "../../../prompt-registry/system-narrative-styles";
-import type { TavernPromptRuleGroups } from "../../../prompt-registry/rule-layers/resolver";
-import type { TavernPlatformStyle } from "../../../prompt-registry/rule-layers/types";
 import type {
   TavernCharacter,
   TavernMessage,
   TavernPresentationProfile,
-  TavernPromptStylePreset,
   TavernRoom,
 } from "../../../types";
 import type { TavernRuntimeMessage } from "../../conversation";
-import { formatPromptRuleLayersForDirector } from "../../prompt/layers/rule-layers";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
-
-type TavernResolvedSystemNarrative = ReturnType<typeof resolveTavernSystemNarrativePreset>;
 
 const limitDirectorContextText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
@@ -107,10 +97,7 @@ export const buildTavernDirectorContextSections = ({
   directorProfileText,
   schedulingSignalsText,
   presentationProfile,
-  promptStyle,
-  platformStyle,
-  ruleGroups,
-  systemNarrative,
+  promptBlocksText,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -124,10 +111,7 @@ export const buildTavernDirectorContextSections = ({
   directorProfileText: string;
   schedulingSignalsText: string;
   presentationProfile: TavernPresentationProfile;
-  promptStyle: TavernPromptStylePreset;
-  platformStyle: TavernPlatformStyle;
-  ruleGroups: TavernPromptRuleGroups;
-  systemNarrative: TavernResolvedSystemNarrative;
+  promptBlocksText: string;
 }) => {
   const selectedTargetCharacters = selectedTargetCharacterIds
     .map((characterId) => characters.find((character) => character.id === characterId))
@@ -138,23 +122,7 @@ export const buildTavernDirectorContextSections = ({
     presentationProfile.directorAddendum,
     "</presentation_profile>",
     "",
-    `<system_narrative_preset id="${systemNarrative.preset.id}" label="${systemNarrative.preset.label}" target="director">`,
-    formatTavernSystemNarrativePresetForPrompt({
-      settings: systemNarrative.settings,
-      preset: systemNarrative.preset,
-      target: "director",
-    }),
-    "</system_narrative_preset>",
-    "",
-    `<prompt_style id="${promptStyle.id}" label="${promptStyle.label}" target="director">`,
-    promptStyle.directorAddendum,
-    "</prompt_style>",
-    "",
-    `<platform_style id="${platformStyle.id}" label="${platformStyle.label}" target="director">`,
-    platformStyle.directorAddendum,
-    "</platform_style>",
-    "",
-    formatPromptRuleLayersForDirector(ruleGroups),
+    promptBlocksText,
     room.storyOutline.trim() || room.storyGoal.trim()
       ? `<story_arc>\n${[
           room.storyOutline.trim(),

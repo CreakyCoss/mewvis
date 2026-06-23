@@ -120,7 +120,14 @@ const buildDirectorProfileRequestContext = (
 ) => JSON.stringify({
   room: {
     title: room.title,
-    promptStyleId: room.promptStyleId,
+    promptBlocks: room.prompt.blocks
+      .filter((block) => block.enabled && block.text.trim())
+      .map((block) => ({
+        target: block.target,
+        label: block.label,
+        source: block.source,
+        text: block.text,
+      })),
     storyOutline: room.storyOutline,
     storyGoal: room.storyGoal,
     scene: room.scene,

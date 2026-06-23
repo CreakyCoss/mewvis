@@ -92,12 +92,7 @@ export const runTavernDirector = async ({
         ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
         : "",
       `当前呈现规则：${directorPromptContext.presentationProfile.label}。${directorPromptContext.presentationProfile.directorAddendum}`,
-      `当前系统叙事预设：${directorPromptContext.systemNarrative.preset.label}。${directorPromptContext.systemNarrative.preset.directorAddendum}`,
-      directorPromptContext.systemNarrative.settings.customInstructions
-        ? `自定义系统叙事规则：${directorPromptContext.systemNarrative.settings.customInstructions}`
-        : "",
-      `当前酒馆风格：${directorPromptContext.promptStyle.label}。${directorPromptContext.promptStyle.directorAddendum}`,
-      `当前写作规则组合：${directorPromptContext.platformStyle.label}。${directorPromptContext.platformStyle.directorAddendum}`,
+      "当前系统叙事、酒馆风格和写作规则来自 requestContext 中 target=\"director\" 的 prompt_block；这些是用户保存后的文本，必须按文本执行。",
       "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
       directorPromptContext.canConsiderRandomEvent
         ? "本轮可以考虑随机事件；如果触发，只写公开可观察且不解决主线的小事件。"

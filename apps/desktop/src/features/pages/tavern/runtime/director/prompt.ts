@@ -20,12 +20,8 @@ import {
   formatTavernSchedulingSignalsForPrompt,
   isTavernDirectorOnlyTurnAllowed,
 } from "../../core";
-import { getTavernPromptStylePreset } from "../../prompt-styles";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
-import { resolveTavernPromptRuleStack } from "../../prompt-registry/rule-layers/resolver";
-import {
-  resolveTavernSystemNarrativePreset,
-} from "../../prompt-registry/system-narrative-styles";
+import { formatTavernPromptBlocksForTarget } from "../../prompt-registry/text-blocks";
 import {
   shouldOfferTavernDirectorRandomEvent,
 } from "./decision";
@@ -75,14 +71,10 @@ export const buildTavernDirectorPromptContext = ({
     currentUserText,
   }));
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
-  const promptStyle = getTavernPromptStylePreset(room.promptStyleId);
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const systemNarrative = resolveTavernSystemNarrativePreset(
-    room.settings.systemNarrativePreset,
-  );
-  const ruleStack = resolveTavernPromptRuleStack({
-    compositionId: room.settings.platformStyleId,
-    qualityRuleIds: room.settings.qualityRuleIds,
+  const promptBlocksText = formatTavernPromptBlocksForTarget({
+    prompt: room.prompt,
+    target: "director",
   });
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
@@ -132,10 +124,7 @@ export const buildTavernDirectorPromptContext = ({
       directorProfileText,
       schedulingSignalsText,
       presentationProfile,
-      promptStyle,
-      platformStyle: ruleStack.platformStyle,
-      ruleGroups: ruleStack.ruleGroups,
-      systemNarrative,
+      promptBlocksText,
     }),
   ].join("\n");
 
@@ -144,12 +133,10 @@ export const buildTavernDirectorPromptContext = ({
     canRequestIllustrationHints,
     directorOnlyAllowed,
     isSceneDriveTurn,
-    platformStyle: ruleStack.platformStyle,
     presentationProfile,
-    promptStyle,
+    promptBlocksText,
     requestContext: appendReferencesToPrompt(directorPrompt, references),
     schedulingInstruction,
     selectedTargetsCanStaySilent,
-    systemNarrative,
   };
 };

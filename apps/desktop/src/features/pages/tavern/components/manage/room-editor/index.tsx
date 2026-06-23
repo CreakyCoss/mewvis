@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import { normalizeTavernPromptStyleId } from "../../../prompt-styles";
 import {
   getActiveTavernScene,
   getTavernSceneDisplayTitle,
@@ -234,7 +233,14 @@ export const RoomEditor = ({
     return {
       room: {
         title: room.title,
-        promptStyleId: room.promptStyleId,
+        promptBlocks: room.prompt.blocks
+          .filter((block) => block.enabled && block.text.trim())
+          .map((block) => ({
+            target: block.target,
+            label: block.label,
+            source: block.source,
+            text: block.text,
+          })),
         storyOutline: room.storyOutline,
         storyGoal: room.storyGoal,
         userPersonaName: room.userPersonaName,
@@ -283,7 +289,6 @@ export const RoomEditor = ({
     applyText: (text: string) => void;
     context?: Record<string, unknown>;
   }) => {
-    const room = data ?? activeRoom;
     setActiveTextFieldAgentKey(`${fieldKey}:${mode}`);
     setTextFieldAgentError("");
     try {
@@ -291,7 +296,6 @@ export const RoomEditor = ({
         mode,
         fieldLabel,
         currentText,
-        promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
         context: {
           ...buildTextFieldAgentContext(),
           ...(context ?? {}),
@@ -370,10 +374,8 @@ export const RoomEditor = ({
   const runCharacterTextFieldAgent = async (
     request: TavernTextFieldAgentRequest,
   ) => {
-    const room = data ?? activeRoom;
     return onRunTextFieldAgent({
       ...request,
-      promptStyleId: normalizeTavernPromptStyleId(room.promptStyleId),
       context: {
         ...buildTextFieldAgentContext(),
         ...(request.context ?? {}),
