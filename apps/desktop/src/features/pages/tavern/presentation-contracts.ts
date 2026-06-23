@@ -117,7 +117,7 @@ const presentationContracts: Record<
     buildRequestRequiredTagsLine: () =>
       formatRequiredTagsLine(narrativeBeatTag),
     buildRequestContentLine: () =>
-      `${formatTavernProtocolTagPair(narrativeBeatTag)} 必须是一段可展示的第三人称正文；可以没有直接对白，但不要输出聊天记录格式。`,
+      `${formatTavernProtocolTagPair(narrativeBeatTag)} 必须逐字使用 <${narrativeBeatTag}> 标签输出一段可展示的第三人称正文；可以没有直接对白，但不要使用标签别名或聊天记录格式。`,
     buildRetryMissingLine: () => "上一次输出没有可展示的第三人称正文。",
     buildRetryTemplateLine: (speaker) =>
       formatRetryTemplateLine({

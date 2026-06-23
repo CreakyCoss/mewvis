@@ -2299,8 +2299,8 @@ try {
     },
   );
   assert(
-    checks.narrativePromptForA.includes("<narrative_beat> 写一段第三人称叙事片段") &&
-      checks.narrativeTurnInstructionForA.includes("<narrative_beat> 写一段围绕阿洛的第三人称小说正文") &&
+    checks.narrativePromptForA.includes("<narrative_beat> 写 1 到 3 个自然段的第三人称小说片段") &&
+      checks.narrativeTurnInstructionForA.includes("<narrative_beat> 写 1 到 3 个自然段，围绕阿洛形成") &&
       checks.narrativeBeatReply.contentKind === "narrative_beat" &&
       checks.narrativeBeatReply.content.includes("阿洛把披风拢紧") &&
       checks.narrativeContextForA.includes("<narrative_beat>") &&

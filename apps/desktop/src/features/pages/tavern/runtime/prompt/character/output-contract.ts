@@ -139,8 +139,11 @@ export const buildReplyFormatInstruction = (
   if (outputMode === "narrative_beat") {
     return [
       `输出只允许包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)} 两段。`,
+      `必须逐字使用标签 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)}；不要使用 public_narrative_beat、story_beat、正文、回复等别名。`,
       `${openTavernProtocolTag(privateThoughtTag)} 只写${speaker.name}自己的内心短句，不写系统推理。`,
-      `<${publicContentTag}> 写一段围绕${speaker.name}的第三人称小说正文，包含动作、反应、间接表达或公开可观察变化。`,
+      `<${publicContentTag}> 写 1 到 3 个自然段，围绕${speaker.name}形成“动作/观察 -> 线索或情绪判断 -> 留给用户可回应余地”的小说正文。`,
+      `正文必须有具体现场细节和行动承接，优先回应当前用户输入与场景目标；不要只写气氛、总结或空泛判断。`,
+      "不要把推理写成完整报告或“要么 A 要么 B，你决定/你定”的选项菜单；只保留当前角色能确认的关键判断，用自然停顿、动作或短问句留下接续。",
       "不要在标签外输出文字，不要省略结束标签，不要写角色名冒号的聊天记录。",
     ].join("\n");
   }
@@ -181,10 +184,10 @@ export const buildReplyPerspectiveInstruction = ({
 }) => {
   if (outputMode === "narrative_beat") {
     if (dialoguePolicy === "indirect") {
-      return `公开正文必须是第三人称间接叙事，禁止${speaker.name}用“我”直接自述；把角色口吻转译为动作、心理和“${speaker.name}表示/追问/承认...”这类间接表达。`;
+      return `公开正文必须是第三人称间接叙事，禁止${speaker.name}用“我”直接自述，禁止引号对白；把角色口吻转译为动作、心理压强和“${speaker.name}低声表示/追问/承认...”这类间接表达。`;
     }
 
-    return "公开正文必须是第三人称小说片段，可以包含少量自然对白，但不要写聊天气泡、角色名冒号或一问一答记录。";
+    return "公开正文必须是第三人称小说片段，可以包含少量当前角色自然对白；对白前后要有动作、环境或因果承接，不要写聊天气泡、角色名冒号或一问一答记录。";
   }
 
   if (outputMode === "nonverbal_reply") {

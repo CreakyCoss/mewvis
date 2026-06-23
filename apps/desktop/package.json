@@ -16,6 +16,7 @@
     "test:tavern:core": "node scripts/tavern-core-e2e.mjs",
     "test:tavern:preset-20": "node scripts/tavern-preset-20-round-e2e.mjs",
     "test:tavern:live": "node scripts/tavern-live-llm-e2e.mjs",
+    "test:tavern:prompt-quality": "node scripts/tavern-prompt-quality-eval.mjs",
     "build:mac": "node scripts/build-macos.mjs",
     "build:mac:arm64": "node scripts/build-macos.mjs --target darwin-arm64",
     "build:mac:x64": "node scripts/build-macos.mjs --target darwin-x64",

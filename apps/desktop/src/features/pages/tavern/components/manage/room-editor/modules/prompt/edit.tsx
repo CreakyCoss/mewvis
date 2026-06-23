@@ -23,6 +23,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  getTavernCharacterStylePreset,
+} from "../../../../../prompt-registry/character-style-presets";
+import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
   getTavernPresentationProfile,
   isTavernPresentationLocked,
@@ -45,6 +48,15 @@ import {
   getTavernSystemNarrativePreset,
   normalizeTavernSystemNarrativePresetId,
 } from "../../../../../prompt-registry/system-narrative-styles";
+import {
+  DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID,
+  TAVERN_PROMPT_STYLE_PACKAGE_OPTIONS,
+  TAVERN_PROMPT_STYLE_PACKAGES,
+  createTavernPromptSettingsFromStylePackage,
+  getTavernPromptStylePackage,
+  normalizeTavernPromptStylePackageId,
+  type TavernPromptStylePackageId,
+} from "../../../../../prompt-registry/style-packages";
 import {
   createDefaultTavernPromptSettings,
   createRoomStylePromptBlocks,
@@ -89,6 +101,7 @@ import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 export type PromptEditHandle = (data?: TavernRoom) => void;
 
 type PromptPresetDraft = {
+  stylePackageId: TavernPromptStylePackageId;
   systemNarrativePresetId: TavernSystemNarrativePresetId;
   roomStyleId: TavernPromptStyleId;
   ruleCompositionId: TavernPlatformStyleId;
@@ -187,22 +200,48 @@ const getFirstSourceId = (
   sourceType: TavernPromptBlockSourceType,
 ) => prompt.blocks.find((block) => block.source?.type === sourceType)?.source?.id;
 
+const hasSameQualityRuleIds = (
+  left: TavernQualityRuleId[],
+  right: TavernQualityRuleId[],
+) => {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+
+  return leftSet.size === rightSet.size && [...leftSet].every((id) => rightSet.has(id));
+};
+
 const getPromptPresetDraft = (
   prompt: TavernRoomPromptSettings,
-): PromptPresetDraft => ({
-  systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
+  presentationProfileId: TavernPresentationProfileId,
+): PromptPresetDraft => {
+  const systemNarrativePresetId = normalizeTavernSystemNarrativePresetId(
     getFirstSourceId(prompt, "system_narrative"),
-  ),
-  roomStyleId: normalizeTavernPromptStyleId(getFirstSourceId(prompt, "room_style")),
-  ruleCompositionId: normalizeTavernRuleCompositionId(
+  );
+  const roomStyleId = normalizeTavernPromptStyleId(getFirstSourceId(prompt, "room_style"));
+  const ruleCompositionId = normalizeTavernRuleCompositionId(
     getFirstSourceId(prompt, "platform_style"),
-  ),
-  qualityRuleIds: normalizeTavernQualityRuleIds(
+  );
+  const qualityRuleIds = normalizeTavernQualityRuleIds(
     prompt.blocks.flatMap((block) =>
       block.source?.type === "quality_rule" ? [block.source.id] : []
     ),
-  ),
-});
+  );
+  const matchedStylePackage = TAVERN_PROMPT_STYLE_PACKAGES.find((stylePackage) =>
+    stylePackage.presentationProfileId === presentationProfileId &&
+    stylePackage.systemNarrativePresetId === systemNarrativePresetId &&
+    stylePackage.promptStyleId === roomStyleId &&
+    stylePackage.ruleCompositionId === ruleCompositionId &&
+    hasSameQualityRuleIds(stylePackage.qualityRuleIds, qualityRuleIds)
+  );
+
+  return {
+    stylePackageId: matchedStylePackage?.id ?? DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID,
+    systemNarrativePresetId,
+    roomStyleId,
+    ruleCompositionId,
+    qualityRuleIds,
+  };
+};
 
 const replaceBlocksBySourceTypes = ({
   prompt,
@@ -339,7 +378,7 @@ export const PromptEdit = ({
       presentationProfileId,
       prompt: clonePromptSettings(prompt),
       immersiveDescriptionEnabled: nextData.settings.immersiveDescriptionEnabled !== false,
-      presets: getPromptPresetDraft(prompt),
+      presets: getPromptPresetDraft(prompt, presentationProfileId),
     });
   };
 
@@ -373,6 +412,40 @@ export const PromptEdit = ({
         }),
       })
     );
+  };
+
+  const applyStylePackagePreset = () => {
+    setDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const stylePackage = getTavernPromptStylePackage(current.presets.stylePackageId);
+      const isPresentationLocked = isTavernPresentationLocked({
+        presentation: normalizeTavernPresentation(data.presentation),
+        messages,
+      });
+      const nextPresentationProfileId = isPresentationLocked
+        ? current.presentationProfileId
+        : stylePackage.presentationProfileId;
+
+      return {
+        ...current,
+        presentationProfileId: nextPresentationProfileId,
+        immersiveDescriptionEnabled: stylePackage.immersiveDescriptionEnabled,
+        presets: {
+          stylePackageId: stylePackage.id,
+          systemNarrativePresetId: stylePackage.systemNarrativePresetId,
+          roomStyleId: stylePackage.promptStyleId,
+          ruleCompositionId: stylePackage.ruleCompositionId,
+          qualityRuleIds: [...stylePackage.qualityRuleIds],
+        },
+        prompt: createTavernPromptSettingsFromStylePackage({
+          stylePackageId: stylePackage.id,
+          presentationProfileId: nextPresentationProfileId,
+        }),
+      };
+    });
   };
 
   const applyRoomStylePreset = () => {
@@ -481,6 +554,12 @@ export const PromptEdit = ({
     : false;
   const selectedPresentationProfile = draft
     ? getTavernPresentationProfile(draft.presentationProfileId)
+    : null;
+  const selectedStylePackage = draft
+    ? getTavernPromptStylePackage(draft.presets.stylePackageId)
+    : null;
+  const selectedPackageCharacterStyle = selectedStylePackage
+    ? getTavernCharacterStylePreset(selectedStylePackage.characterStylePresetId)
     : null;
   const selectedSystemNarrativePreset = draft
     ? getTavernSystemNarrativePreset(draft.presets.systemNarrativePresetId)
@@ -639,6 +718,67 @@ export const PromptEdit = ({
                 title="引用预设"
                 description="引用会替换同类来源文本块；保存后只保留文本，之后预设更新不会影响当前房间。"
               >
+                <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                  <EditorField
+                    label="风格套餐"
+                    htmlFor="tavern-prompt-style-package-preset"
+                    description={selectedStylePackage?.description}
+                    action={(
+                      <Button type="button" size="sm" variant="outline" onClick={applyStylePackagePreset}>
+                        <Sparkles className="size-3.5" />
+                        引用套餐
+                      </Button>
+                    )}
+                  >
+                    <NativeSelect
+                      id="tavern-prompt-style-package-preset"
+                      value={draft.presets.stylePackageId}
+                      className={selectClassName}
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        presets: {
+                          ...draft.presets,
+                          stylePackageId: normalizeTavernPromptStylePackageId(event.target.value),
+                        },
+                      })}
+                    >
+                      {TAVERN_PROMPT_STYLE_PACKAGE_OPTIONS.map((stylePackage) => (
+                        <NativeSelectOption key={stylePackage.id} value={stylePackage.id}>
+                          {stylePackage.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </EditorField>
+
+                  <div className="rounded-lg border border-border/70 bg-background/72 p-3 text-xs leading-5 text-muted-foreground shadow-xs">
+                    <div className="font-medium text-foreground">
+                      {selectedStylePackage?.evaluationSummary ?? "选择一套推荐组合。"}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {selectedStylePackage && (
+                        <EditorStatusPill tone="active">
+                          Codex {selectedStylePackage.codexReviewScore}
+                        </EditorStatusPill>
+                      )}
+                      {selectedStylePackage?.strengths.map((strength) => (
+                        <EditorStatusPill key={strength} tone="info">
+                          {strength}
+                        </EditorStatusPill>
+                      ))}
+                      {selectedStylePackage && (
+                        <EditorStatusPill tone="muted">
+                          角色风格：{selectedPackageCharacterStyle?.label ?? selectedStylePackage.characterStylePresetId}
+                        </EditorStatusPill>
+                      )}
+                    </div>
+                    {selectedStylePackage && (
+                      <div className="mt-2">
+                        {selectedStylePackage.codexReviewNote}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid gap-3 xl:grid-cols-3">
                   <EditorField
                     label="系统叙事"
