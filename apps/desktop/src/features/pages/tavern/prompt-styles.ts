@@ -36,8 +36,8 @@ export const TAVERN_PROMPT_STYLE_PRESETS: TavernPromptStylePreset[] = [
     label: "小说风格",
     description: "重视镜头、氛围和多轮演绎，导演可以缓慢铺陈但不跳过用户选择。",
     bridgeSystemAddendum: "整体以小说化多 agent 演绎为主，保留场景连续性、人物动机和镜头感。",
-    directorAddendum: "导演应像小说分镜师一样安排节奏：允许多轮铺陈、环境转场和角色反应，但不要直接替用户解决冲突或跳到结局。",
-    characterAddendum: "角色回复可以有克制的小说化动作和神态，但公开对白必须清楚，动作不能替代回应。",
+    directorAddendum: "导演应像小说分镜师一样安排节奏：允许多轮铺陈、环境转场和角色反应；优先安排能互相接话、立场碰撞的角色组合，不要只让一个角色独白，也不要直接替用户解决冲突或跳到结局。",
+    characterAddendum: "角色回复可以有克制的小说化动作和神态；公开对白必须清楚，且可以对其他角色刚说内容做出可见反应（回应、反驳、追问、确认或沉默压力），动作不能替代对白。",
   },
   {
     id: "wuxia",

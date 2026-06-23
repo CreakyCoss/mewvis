@@ -175,6 +175,7 @@ export const buildTavernCharacterTurnInstruction = ({
     promptVariant,
     outputMode,
     presentationContract,
+    presentationProfile.dialoguePolicy,
   );
   const ownReplyInstruction = buildOwnReplyInstruction({
     outputMode,
