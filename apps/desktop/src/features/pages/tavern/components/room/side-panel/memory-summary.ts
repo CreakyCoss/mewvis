@@ -28,12 +28,23 @@ const uniqueBlocks = (values: Array<string | undefined>) => {
 
 const formatMemorySections = (
   sections: Array<{ title: string; values: Array<string | undefined> }>,
-) => sections
-  .flatMap((section) => {
-    const lines = uniqueBlocks(section.values);
-    return lines.length > 0 ? [`## ${section.title}\n${lines.join("\n")}`] : [];
+) => {
+  const seen = new Set<string>();
+
+  return sections.flatMap((section) => {
+    const lines = section.values.flatMap((value) => {
+      const text = trimmed(value);
+      if (!text || seen.has(text)) {
+        return [];
+      }
+
+      seen.add(text);
+      return [text];
+    });
+    return lines.length > 0 ? [`【${section.title}】\n${lines.join("\n")}`] : [];
   })
   .join("\n\n");
+};
 
 const visibleSceneLayerValues = (layers: TavernSceneMemoryLayers | undefined) => [
   layers?.required,
@@ -69,12 +80,10 @@ export const buildTavernCharacterMemoryText = (
   const layers = activeInstance?.characterMemoryLayers?.[character.id];
 
   return formatMemorySections([
-    { title: `${character.name} 基础角色记忆`, values: [room.characterMemories[character.id]] },
-    { title: `${character.name} 当前节点角色记忆`, values: [activeInstance?.characterMemories?.[character.id]] },
-    { title: `${character.name} 节点必须记忆`, values: [layers?.required] },
-    { title: `${character.name} 节点公开记忆`, values: [layers?.public] },
-    { title: `${character.name} 角色已知`, values: [layers?.known] },
-    { title: `${character.name} 角色私有`, values: [layers?.privateSelf] },
+    { title: "节点必须记忆", values: [layers?.required] },
+    { title: "节点公开记忆", values: [layers?.public] },
+    { title: "角色已知", values: [layers?.known] },
+    { title: "角色私有", values: [layers?.privateSelf] },
   ]);
 };
 
@@ -93,10 +102,9 @@ export const buildTavernMemoryOverviewSummary = (
   const activeInstance = getActiveSceneInstance(room);
   const sceneLayers = activeInstance?.memoryLayers;
   const characterValues = characters.flatMap((character) => [
-    room.characterMemories[character.id],
-    activeInstance?.characterMemories?.[character.id],
     ...visibleCharacterLayerValues(activeInstance?.characterMemoryLayers?.[character.id]),
   ]);
+  const seenLines = new Set<string>();
 
   const lines = uniqueBlocks([
     room.memory,
@@ -104,8 +112,15 @@ export const buildTavernMemoryOverviewSummary = (
     ...characterValues,
   ])
     .flatMap((block) => block.split(/\n+/))
-    .map((line) => line.replace(/^#+\s*/, "").trim())
-    .filter(Boolean);
+    .map((line) => line.replace(/^#+\s*/, "").replace(/^【(.+)】$/, "$1").trim())
+    .flatMap((line) => {
+      if (!line || seenLines.has(line)) {
+        return [];
+      }
+
+      seenLines.add(line);
+      return [line];
+    });
 
   return lines.length > 0 ? lines.join("；") : "";
 };

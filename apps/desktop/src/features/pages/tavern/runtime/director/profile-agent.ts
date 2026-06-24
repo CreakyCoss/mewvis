@@ -117,7 +117,21 @@ const buildDirectorProfileSystemPrompt = () => [
 const buildDirectorProfileRequestContext = (
   room: TavernRoom,
   characters: TavernCharacter[],
-) => JSON.stringify({
+) => {
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const characterMemoryText = (characterId: string) => {
+    const layers = activeInstance?.characterMemoryLayers?.[characterId];
+    return [
+      layers?.required,
+      layers?.public,
+      layers?.known,
+      layers?.privateSelf,
+    ].map((value) => value?.trim()).filter(Boolean).join("\n");
+  };
+
+  return JSON.stringify({
   room: {
     title: room.title,
     promptBlocks: room.prompt.blocks
@@ -154,11 +168,12 @@ const buildDirectorProfileRequestContext = (
       relationshipOverrides: room.relationshipOverrides,
       statusSnapshot: room.statusSnapshot,
     }),
-    memory: room.characterMemories[character.id] ?? "",
+    memory: characterMemoryText(character.id),
     publicStatus: room.characterPublicStatuses[character.id] ?? null,
     privateStatus: room.characterPrivateStatuses[character.id] ?? null,
   })),
 }, null, 2);
+};
 
 export const runTavernDirectorProfileAgent = async ({
   workspacePath,

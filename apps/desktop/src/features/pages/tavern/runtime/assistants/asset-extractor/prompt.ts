@@ -28,6 +28,24 @@ const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
     })(),
   ].filter(Boolean).join("\n")).join("\n\n---\n\n");
 
+const characterMemoryBrief = (room: TavernRoom, characters: TavernCharacter[]) => {
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+
+  return characters.map((character) => {
+    const layers = activeInstance?.characterMemoryLayers?.[character.id];
+    const memory = [
+      layers?.required,
+      layers?.public,
+      layers?.known,
+      layers?.privateSelf,
+    ].map((value) => value?.trim()).filter(Boolean).join("\n");
+
+    return memory ? `## ${character.name}\n${memory}` : "";
+  }).filter(Boolean).join("\n\n");
+};
+
 export const buildTavernAssetExtractionPrompt = ({
   room,
   characters,
@@ -123,15 +141,7 @@ export const buildTavernAssetExtractionPrompt = ({
       : "<manual_room_memory>（无）</manual_room_memory>",
     "",
     "<character_memories>",
-    Object.entries(room.characterMemories)
-      .map(([characterId, memory]) => {
-        const characterName = characters.find((character) =>
-          character.id === characterId
-        )?.name ?? characterId;
-        return memory.trim() ? `## ${characterName}\n${memory.trim()}` : "";
-      })
-      .filter(Boolean)
-      .join("\n\n") || "（无）",
+    characterMemoryBrief(room, characters) || "（无）",
     "</character_memories>",
     "",
     "<lorebook>",

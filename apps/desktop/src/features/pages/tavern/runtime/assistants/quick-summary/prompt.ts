@@ -35,20 +35,24 @@ const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
 const characterMemories = (
   room: TavernRoom,
   characters: TavernCharacter[],
-) => Object.entries(room.characterMemories)
-  .map(([characterId, memory]) => {
-    const trimmed = memory.trim();
-    if (!trimmed) {
-      return "";
-    }
+) => {
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
 
-    const characterName = characters.find((character) =>
-      character.id === characterId
-    )?.name ?? characterId;
-    return `## ${characterName}\n${trimmed}`;
+  return characters.map((character) => {
+    const layers = activeInstance?.characterMemoryLayers?.[character.id];
+    const memory = [
+      layers?.required,
+      layers?.public,
+      layers?.known,
+      layers?.privateSelf,
+    ].map((value) => value?.trim()).filter(Boolean).join("\n");
+    return memory ? `## ${character.name}\n${memory}` : "";
   })
   .filter(Boolean)
   .join("\n\n");
+};
 
 const quickNovelLengthInstruction = (messageCount: number) => {
   if (messageCount >= 120) {

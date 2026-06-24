@@ -45,7 +45,7 @@ const formatDirectorCharacterMemory = (
   const layers = activeInstance?.characterMemoryLayers?.[characterId];
 
   return [
-    room.characterMemories[characterId]?.trim() ?? "",
+    layers?.required?.trim() ?? "",
     layers?.public?.trim() ?? "",
     layers?.known?.trim() ?? "",
   ].filter(Boolean).join("\n\n");

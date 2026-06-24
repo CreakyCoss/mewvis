@@ -19,6 +19,9 @@ import {
   isTavernProgressVisibilityVisibleToUser,
   tavernCharacterAgentRoleId,
 } from "../../../../core";
+import {
+  updateTavernActiveCharacterMemoryLayers,
+} from "../../../../storage";
 import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import {
   compactTavernAgentKnowledge,
@@ -182,21 +185,18 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    const characterMemories = { ...activeRoom.characterMemories };
-    const characterConfigs = { ...(activeRoom.characterConfigs ?? {}) };
-    const existing = characterMemories[characterId]?.trim() ?? "";
-    characterMemories[characterId] = existing
+    const activeInstance = activeRoom.sceneInstances.find((instance) =>
+      instance.id === activeRoom.activeSceneInstanceId
+    );
+    const existing = activeInstance?.characterMemoryLayers?.[characterId]?.known.trim() ?? "";
+    const nextKnownMemory = existing
       ? [existing, nextNote].join("\n")
       : nextNote;
-    characterConfigs[characterId] = {
-      ...(characterConfigs[characterId] ?? { characterId }),
-      memory: characterMemories[characterId],
-    };
-
-    patchRoom(activeRoom.id, {
-      characterConfigs,
-      characterMemories,
+    const nextRoom = updateTavernActiveCharacterMemoryLayers(activeRoom, characterId, {
+      known: nextKnownMemory,
     });
+
+    patchRoom(activeRoom.id, nextRoom);
     closeMemoryDraftDialog();
     toast.success(`已添加 ${character.name} 的角色记忆。`);
   };

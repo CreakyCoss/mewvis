@@ -126,7 +126,16 @@ export const parseTavernAssetDraft = ({
               typeof item === "string" && characterIds.has(item.trim()) ? [item.trim()] : []
             )
           : [];
-        const currentMemory = room.characterMemories[characterId] ?? "";
+        const activeInstance = room.sceneInstances.find((instance) =>
+          instance.id === room.activeSceneInstanceId
+        ) ?? room.sceneInstances[0];
+        const layers = activeInstance?.characterMemoryLayers?.[characterId];
+        const currentMemory = [
+          layers?.required,
+          layers?.public,
+          layers?.known,
+          layers?.privateSelf,
+        ].filter(Boolean).join("\n");
         if (
           !characterIds.has(characterId) ||
           !note ||

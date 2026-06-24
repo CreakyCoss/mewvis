@@ -107,7 +107,16 @@ export const runTavernInnerThought = async ({
     userPersonaName: room.userPersonaName,
     audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
-  const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const characterMemoryLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
+  const characterMemory = [
+    characterMemoryLayers?.required?.trim() ?? "",
+    characterMemoryLayers?.public?.trim() ?? "",
+    characterMemoryLayers?.known?.trim() ?? "",
+    characterMemoryLayers?.privateSelf?.trim() ?? "",
+  ].filter(Boolean).join("\n\n");
   const relationshipText = formatTavernCharacterRelationships({
     character: activeCharacter,
     characters,

@@ -80,7 +80,9 @@ export const createQuickSummarySignature = (
   characterIds: room.characterIds,
   activeCharacterId: room.activeCharacterId,
   replyMode: room.replyMode,
-  characterMemories: room.characterMemories,
+  characterMemoryLayers: room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  )?.characterMemoryLayers ?? {},
   lorebookEntries: room.lorebookEntries.map((entry) => ({
     id: entry.id,
     title: entry.title,

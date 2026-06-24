@@ -6,6 +6,7 @@ import {
   createTavernLorebookEntry,
   projectTavernSceneOntoRoom,
   revealTavernSecretMemory,
+  updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
 } from "../../../../../storage";
 import type {
@@ -203,19 +204,16 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
         });
       }
     }
-    const characterMemories = { ...activeRoom.characterMemories };
-    const characterConfigs = { ...(activeRoom.characterConfigs ?? {}) };
     for (const memory of memoryDrafts) {
       const nextNote = memory.note.trim();
       if (memory.visibility === "public") {
-        const existing = characterMemories[memory.characterId]?.trim() ?? "";
-        characterMemories[memory.characterId] = existing
-          ? [existing, nextNote].join("\n")
-          : nextNote;
-        characterConfigs[memory.characterId] = {
-          ...(characterConfigs[memory.characterId] ?? { characterId: memory.characterId }),
-          memory: characterMemories[memory.characterId],
-        };
+        const activeInstance = nextRoom.sceneInstances.find((instance) =>
+          instance.id === nextRoom.activeSceneInstanceId
+        );
+        const existing = activeInstance?.characterMemoryLayers?.[memory.characterId]?.public.trim() ?? "";
+        nextRoom = updateTavernActiveCharacterMemoryLayers(nextRoom, memory.characterId, {
+          public: [existing, nextNote].filter(Boolean).join("\n"),
+        });
         continue;
       }
 
@@ -237,8 +235,6 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
 
     patchRoom(activeRoom.id, {
       sceneInstances: nextRoom.sceneInstances,
-      characterConfigs,
-      characterMemories,
       lorebookEntries: [
         ...activeRoom.lorebookEntries,
         ...lorebookEntries.map((entry) => createTavernLorebookEntry(entry)),

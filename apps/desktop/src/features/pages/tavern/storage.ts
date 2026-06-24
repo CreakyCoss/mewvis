@@ -224,7 +224,7 @@ const formatTavernMemoryBlocks = (
 ) => blocks
   .flatMap((block) => {
     const lines = collectUniqueTrimmedLines(block.lines);
-    return lines.length > 0 ? [`## ${block.title}\n${lines.join("\n")}`] : [];
+    return lines.length > 0 ? [`【${block.title}】\n${lines.join("\n")}`] : [];
   })
   .join("\n\n");
 
@@ -3828,7 +3828,6 @@ export const loadTavernBranchUpstreamMemory = (
     ...activeInstance.characterIds,
     ...upstreamInstances.flatMap((instance) => [
       ...instance.characterIds,
-      ...Object.keys(instance.characterMemories ?? {}),
       ...Object.keys(instance.characterMemoryLayers ?? {}),
     ]),
   ]));
@@ -3845,7 +3844,6 @@ export const loadTavernBranchUpstreamMemory = (
         title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
         lines: [
           layers.required,
-          instance.characterMemories?.[characterId],
           layers.public,
           layers.known,
           layers.privateSelf,

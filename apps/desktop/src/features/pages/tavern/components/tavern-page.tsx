@@ -126,6 +126,66 @@ const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
+const parseTavernMemoryPreviewBlocks = (value: string) => {
+  const blocks: Array<{ title?: string; content: string }> = [];
+  let currentTitle: string | undefined;
+  let currentLines: string[] = [];
+
+  const pushCurrent = () => {
+    const content = currentLines.join("\n").trim();
+    if (content) {
+      blocks.push({ title: currentTitle, content });
+    }
+    currentLines = [];
+  };
+
+  for (const line of value.trim().split(/\n/)) {
+    const trimmedLine = line.trim();
+    const titleMatch = trimmedLine.match(/^【(.+)】$/) ?? trimmedLine.match(/^##\s+(.+)$/);
+    if (titleMatch) {
+      pushCurrent();
+      currentTitle = titleMatch[1]?.trim();
+      continue;
+    }
+
+    currentLines.push(line);
+  }
+
+  pushCurrent();
+  return blocks;
+};
+
+const TavernMemoryPreviewText = ({
+  value,
+  emptyText,
+}: {
+  value: string;
+  emptyText: string;
+}) => {
+  const blocks = parseTavernMemoryPreviewBlocks(value);
+
+  if (blocks.length === 0) {
+    return <div className="mt-2 text-xs leading-5 text-muted-foreground">{emptyText}</div>;
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {blocks.map((block, index) => (
+        <div key={`${block.title ?? "memory"}-${index}`} className="space-y-1">
+          {block.title ? (
+            <div className="text-[11px] font-medium leading-4 text-muted-foreground">
+              {block.title}
+            </div>
+          ) : null}
+          <div className="whitespace-pre-wrap break-words text-xs leading-5">
+            {block.content}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const getTavernSceneText = (value: string, fallback: string) =>
   value.trim() || fallback;
 
@@ -1426,9 +1486,10 @@ const TavernPageContent = ({
               <div className="space-y-3">
                 <section className="rounded-md border bg-background px-3 py-2">
                   <div className="text-xs font-medium text-muted-foreground">场景上游记忆</div>
-                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs leading-5">
-                    {branchMemoryPreview.sceneMemory.trim() || "无可汇总场景记忆。"}
-                  </pre>
+                  <TavernMemoryPreviewText
+                    value={branchMemoryPreview.sceneMemory}
+                    emptyText="无可汇总场景记忆。"
+                  />
                 </section>
                 {branchMemoryPreviewCharacterEntries.length > 0 ? (
                   branchMemoryPreviewCharacterEntries.map(([characterId, memory]) => (
@@ -1436,9 +1497,10 @@ const TavernPageContent = ({
                       <div className="text-xs font-medium text-muted-foreground">
                         {branchMemoryPreviewCharacterNameById.get(characterId) ?? characterId}
                       </div>
-                      <pre className="mt-2 whitespace-pre-wrap break-words text-xs leading-5">
-                        {memory}
-                      </pre>
+                      <TavernMemoryPreviewText
+                        value={memory}
+                        emptyText="无可汇总角色记忆。"
+                      />
                     </section>
                   ))
                 ) : (

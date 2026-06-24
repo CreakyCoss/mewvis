@@ -118,7 +118,7 @@ export const buildTavernCharacterPromptParts = ({
   ) ?? room.sceneInstances[0];
   const characterLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
   const characterMemory = [
-    room.characterMemories[activeCharacter.id]?.trim() ?? "",
+    characterLayers?.required?.trim() ?? "",
     characterLayers?.public?.trim() ?? "",
     characterLayers?.known?.trim() ?? "",
     characterLayers?.privateSelf?.trim() ?? "",

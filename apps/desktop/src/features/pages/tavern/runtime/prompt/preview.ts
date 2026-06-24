@@ -308,6 +308,18 @@ const buildEditableTagWarnings = (
   room: TavernRoom,
   characters: TavernCharacter[],
 ) => {
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const characterMemoryText = (characterId: string) => {
+    const layers = activeInstance?.characterMemoryLayers?.[characterId];
+    return [
+      layers?.required,
+      layers?.public,
+      layers?.known,
+      layers?.privateSelf,
+    ].map((value) => value?.trim()).filter(Boolean).join("\n");
+  };
   const candidates: Array<{
     id: string;
     label: string;
@@ -345,7 +357,7 @@ const buildEditableTagWarnings = (
       { id: `character:${character.id}:writingStyle`, label: `角色“${character.name}”写作风格`, text: character.writingStyle ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "writingStyle", `角色“${character.name}”写作风格`) },
       { id: `character:${character.id}:replyStylePrompt`, label: `角色“${character.name}”回复规则`, text: character.replyStylePrompt ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "replyStylePrompt", `角色“${character.name}”回复规则`) },
       { id: `character:${character.id}:goals`, label: `角色“${character.name}”目标`, text: character.goals ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "goals", `角色“${character.name}”目标`) },
-      { id: `character:${character.id}:memory`, label: `角色“${character.name}”记忆`, text: room.characterMemories[character.id] ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "memory", `角色“${character.name}”记忆`) },
+      { id: `character:${character.id}:memory`, label: `角色“${character.name}”记忆`, text: characterMemoryText(character.id), target: "character" as const, location: createCharacterFieldLocation(character.id, "memory", `角色“${character.name}”记忆`) },
     ]),
   ];
 
