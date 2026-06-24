@@ -85,6 +85,14 @@ const settingsPresets: SettingsPresetDefinition[] = [
         ...draft.randomEvents,
         enabled: false,
       },
+      directorNarrativeControl: {
+        responseScale: "balanced",
+        narratorPressure: "balanced",
+        eventInterruption: "auto",
+        userActionConsequence: "visible",
+        mainHook: "auto",
+        qnaBreak: "auto",
+      },
       illustrationHints: {
         ...draft.illustrationHints,
         enabled: true,
@@ -106,6 +114,12 @@ const settingsPresets: SettingsPresetDefinition[] = [
       illustrationHints: {
         ...draft.illustrationHints,
         enabled: true,
+      },
+      directorNarrativeControl: {
+        ...draft.directorNarrativeControl,
+        narratorPressure: "high",
+        userActionConsequence: "visible",
+        mainHook: "auto",
       },
       informationPolicy: {
         ...draft.informationPolicy,
@@ -130,6 +144,14 @@ const settingsPresets: SettingsPresetDefinition[] = [
         enabled: true,
         applyMode: "review",
       },
+      directorNarrativeControl: {
+        responseScale: "balanced",
+        narratorPressure: "high",
+        eventInterruption: "forceOnStall",
+        userActionConsequence: "strict",
+        mainHook: "forceOnStall",
+        qnaBreak: "aggressive",
+      },
       informationPolicy: {
         ...draft.informationPolicy,
         uiDefaultView: "director",
@@ -150,6 +172,12 @@ const settingsPresets: SettingsPresetDefinition[] = [
       randomEvents: {
         ...draft.randomEvents,
         enabled: true,
+      },
+      directorNarrativeControl: {
+        ...draft.directorNarrativeControl,
+        responseScale: "ensemble",
+        eventInterruption: "auto",
+        qnaBreak: "auto",
       },
       informationPolicy: applyInformationPolicyModePreset(
         "open",
@@ -297,6 +325,7 @@ export const SettingsEdit = ({
           50,
           Math.max(0, Number(draft.agentKnowledgeCompactIntervalTurns) || 0),
         ),
+        directorNarrativeControl: { ...draft.directorNarrativeControl },
         statusTracking: {
           ...data.settings.statusTracking,
           ...draft.statusTracking,
@@ -771,6 +800,156 @@ export const SettingsEdit = ({
                           setSelectedPresetId("default");
                         }}
                       />
+                    )}
+                  />
+                  <SettingsRow
+                    label="调度规模"
+                    description="控制导演默认偏单角色、均衡接力或多人群像。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-response-scale"
+                        value={draft.directorNarrativeControl.responseScale}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              responseScale: event.target.value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="focused">聚焦单人</NativeSelectOption>
+                        <NativeSelectOption value="balanced">均衡接力</NativeSelectOption>
+                        <NativeSelectOption value="ensemble">多人群像</NativeSelectOption>
+                      </NativeSelect>
+                    )}
+                  />
+                  <SettingsRow
+                    label="旁白压力"
+                    description="控制导演用旁白承接环境、压力和未发言动作的积极程度。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-narrator-pressure"
+                        value={draft.directorNarrativeControl.narratorPressure}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              narratorPressure: event.target.value as TavernRoomSettings["directorNarrativeControl"]["narratorPressure"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="low">低</NativeSelectOption>
+                        <NativeSelectOption value="balanced">均衡</NativeSelectOption>
+                        <NativeSelectOption value="high">高</NativeSelectOption>
+                      </NativeSelect>
+                    )}
+                  />
+                  <SettingsRow
+                    label="事件打断"
+                    description="控制导演是否在问答停滞时引入公开局势变化。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-event-interruption"
+                        value={draft.directorNarrativeControl.eventInterruption}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              eventInterruption: event.target.value as TavernRoomSettings["directorNarrativeControl"]["eventInterruption"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="off">关闭</NativeSelectOption>
+                        <NativeSelectOption value="auto">自动</NativeSelectOption>
+                        <NativeSelectOption value="forceOnStall">停滞强制</NativeSelectOption>
+                      </NativeSelect>
+                    )}
+                  />
+                  <SettingsRow
+                    label="行动后果"
+                    description="控制用户行动是否必须带来公开可见后果。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-user-consequence"
+                        value={draft.directorNarrativeControl.userActionConsequence}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              userActionConsequence: event.target.value as TavernRoomSettings["directorNarrativeControl"]["userActionConsequence"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="light">轻量</NativeSelectOption>
+                        <NativeSelectOption value="visible">可见</NativeSelectOption>
+                        <NativeSelectOption value="strict">严格</NativeSelectOption>
+                      </NativeSelect>
+                    )}
+                  />
+                  <SettingsRow
+                    label="主线钩子"
+                    description="控制局部线索是否要接回长期目标、代价或势力压力。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-main-hook"
+                        value={draft.directorNarrativeControl.mainHook}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              mainHook: event.target.value as TavernRoomSettings["directorNarrativeControl"]["mainHook"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="off">关闭</NativeSelectOption>
+                        <NativeSelectOption value="auto">自动</NativeSelectOption>
+                        <NativeSelectOption value="forceOnStall">停滞强制</NativeSelectOption>
+                      </NativeSelect>
+                    )}
+                  />
+                  <SettingsRow
+                    label="问答打断"
+                    description="控制连续问询时导演打破解释链的积极程度。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-qna-break"
+                        value={draft.directorNarrativeControl.qnaBreak}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              qnaBreak: event.target.value as TavernRoomSettings["directorNarrativeControl"]["qnaBreak"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="off">关闭</NativeSelectOption>
+                        <NativeSelectOption value="auto">自动</NativeSelectOption>
+                        <NativeSelectOption value="aggressive">积极</NativeSelectOption>
+                      </NativeSelect>
                     )}
                   />
                   <SettingsRow

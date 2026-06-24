@@ -341,6 +341,14 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
   agentKnowledgeCompactIntervalTurns: 0,
+  directorNarrativeControl: {
+    responseScale: "balanced",
+    narratorPressure: "balanced",
+    eventInterruption: "auto",
+    userActionConsequence: "visible",
+    mainHook: "auto",
+    qnaBreak: "auto",
+  },
   directorScheduling: {
     targetedReplyPolicy: "prefer",
     maxExtraSpeakersOnTargetedReply: 2,
@@ -983,6 +991,7 @@ const cloneTavernDirectorProfile = (
 
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
+  directorNarrativeControl: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl },
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
@@ -1346,6 +1355,49 @@ const normalizeDirectorScheduling = (
   };
 };
 
+const normalizeDirectorNarrativeControl = (
+  value: unknown,
+): TavernRoomSettings["directorNarrativeControl"] => {
+  const defaults = cloneDefaultRoomSettings().directorNarrativeControl;
+  if (!value || typeof value !== "object") {
+    return defaults;
+  }
+
+  const candidate = value as Partial<TavernRoomSettings["directorNarrativeControl"]>;
+  return {
+    responseScale: candidate.responseScale === "focused" ||
+        candidate.responseScale === "balanced" ||
+        candidate.responseScale === "ensemble"
+      ? candidate.responseScale
+      : defaults.responseScale,
+    narratorPressure: candidate.narratorPressure === "low" ||
+        candidate.narratorPressure === "balanced" ||
+        candidate.narratorPressure === "high"
+      ? candidate.narratorPressure
+      : defaults.narratorPressure,
+    eventInterruption: candidate.eventInterruption === "off" ||
+        candidate.eventInterruption === "auto" ||
+        candidate.eventInterruption === "forceOnStall"
+      ? candidate.eventInterruption
+      : defaults.eventInterruption,
+    userActionConsequence: candidate.userActionConsequence === "light" ||
+        candidate.userActionConsequence === "visible" ||
+        candidate.userActionConsequence === "strict"
+      ? candidate.userActionConsequence
+      : defaults.userActionConsequence,
+    mainHook: candidate.mainHook === "off" ||
+        candidate.mainHook === "auto" ||
+        candidate.mainHook === "forceOnStall"
+      ? candidate.mainHook
+      : defaults.mainHook,
+    qnaBreak: candidate.qnaBreak === "off" ||
+        candidate.qnaBreak === "auto" ||
+        candidate.qnaBreak === "aggressive"
+      ? candidate.qnaBreak
+      : defaults.qnaBreak,
+  };
+};
+
 const normalizeRoomSettings = (
   value: unknown,
   options: {
@@ -1411,6 +1463,7 @@ const normalizeRoomSettings = (
       0,
       50,
     ),
+    directorNarrativeControl: normalizeDirectorNarrativeControl(candidate.directorNarrativeControl),
     directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling, options),
     continuation: {
       enabled: continuation.enabled !== false,

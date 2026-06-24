@@ -1,6 +1,7 @@
 import {
   Activity,
   Box,
+  Clapperboard,
   Clock3,
   FileText,
   Image,
@@ -46,6 +47,16 @@ type SettingsSectionProps = {
 
 const booleanTone = (value: boolean) => value ? "active" : "muted";
 const enabledText = (value: boolean) => value ? "开启" : "关闭";
+const directorScaleLabel = {
+  focused: "聚焦",
+  balanced: "均衡",
+  ensemble: "群像",
+} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["responseScale"], string>;
+const qnaBreakLabel = {
+  off: "问答不断",
+  auto: "自动打断",
+  aggressive: "积极打断",
+} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["qnaBreak"], string>;
 
 const getProgressModeLabel = (data: TavernRoom) => {
   if (data.progressTracker.mode === "manual") {
@@ -217,6 +228,11 @@ export const SettingsSection = ({
                 <EditorSettingRow icon={Target} label="随机事件">
                   <EditorStatusPill tone={data.settings.randomEvents.enabled ? "warning" : "muted"}>
                     {data.settings.randomEvents.enabled ? `${randomEventPercentage}%` : "关闭"}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={Clapperboard} label="推进策略">
+                  <EditorStatusPill tone="info">
+                    {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UserRoundSearch} label="信息模式">

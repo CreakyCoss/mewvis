@@ -36,6 +36,7 @@ export const buildTavernGeneratedPresetAgentSystemPrompt = () => [
   "如果 request_context.advanced.enableStatusTracking 为 true，可以生成少量通用状态面板，但每个可变数值状态都必须有明确事件驱动的 statusRules。",
   "如果 request_context.advanced.enableIllustrationHints 为 false，room.settings.illustrationHints.enabled 必须为 false；为 true 时只开启配置，不要生成与当前公开场景矛盾的插图内容。",
   "如果 request_context.advanced.enableRandomEvents 为 false，room.settings.randomEvents.enabled 必须为 false；为 true 时使用 request_context.advanced.randomEventProbability，随机事件仍只由导演运行时决定。",
+  "room.settings.directorNarrativeControl 是应用操作策略，不是提示词风格：普通互动使用 balanced/visible/auto；强剧情网文可提高 narratorPressure、eventInterruption、mainHook 和 qnaBreak；阶段制投票或严格问答可降低或关闭。",
   "狼人杀、推理悬疑或阵营剧本必须设置 room.settings.informationPolicy：公共聊天只显示 public，用户私密情报用 visibleToUser 事实表达，角色/阵营私密事实用 visibleToCharacterIds/visibleToFactionIds 表达；需要每局随机身份时，填写 roleAssignment.rolePool，由导演运行时生成本局身份事实；若进入房间就应开局，设置 roleAssignment.opening.autoStart，并用 opening.publicEventType/publicEventValue/globalStatusPatches 声明分配后要产生的公开事件和状态变化。",
   "狼人杀、辩论投票、回合制推理等阶段制剧本应设置 room.settings.directorScheduling：夜晚/投票/结算阶段可 allowDirectorOnly，白天发言阶段用 fixedOrder 绑定全局阶段状态并禁用自动续调度，避免被点名角色同轮插队；若用户也在固定座次中，设置 fixedOrder.includeUser 和 userPosition。",
   "普通互动剧本的 targetedReplyPolicy 优先使用 prefer：被点名者应被导演优先考虑；如果需要回应但不适合开口，应进入 nonverbalReplyIds，由角色 Agent 输出心理和动作，直接对白可为空。只有完全无需近景反应时才用 ambientActions/旁白处理；只有确实要求目标必须开口时才用 include/exclusive。",

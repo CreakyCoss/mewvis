@@ -24,6 +24,14 @@ export const generatedPresetSchema = `{
     "userPersonaName": "用户称呼",
     "settings": {
       "directorMaxSpeakers": 3,
+      "directorNarrativeControl": {
+        "responseScale": "focused | balanced | ensemble",
+        "narratorPressure": "low | balanced | high",
+        "eventInterruption": "off | auto | forceOnStall",
+        "userActionConsequence": "light | visible | strict",
+        "mainHook": "off | auto | forceOnStall",
+        "qnaBreak": "off | auto | aggressive"
+      },
       "directorScheduling": {
         "targetedReplyPolicy": "director | prefer | include | exclusive",
         "maxExtraSpeakersOnTargetedReply": 2,

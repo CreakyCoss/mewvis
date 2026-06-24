@@ -653,6 +653,32 @@ writeFileSync(entryPath, `
     messages,
     currentUserText: "我从后厨绕到窗外，推开后门查看泥印。",
   });
+  const disabledDriveGuidance = buildTavernSceneDriveGuidance({
+    room: {
+      ...driveGuidanceRoom,
+      settings: {
+        ...driveGuidanceRoom.settings,
+        directorNarrativeControl: {
+          ...driveGuidanceRoom.settings.directorNarrativeControl,
+          eventInterruption: "off",
+          mainHook: "off",
+          qnaBreak: "off",
+        },
+      },
+    },
+    messages: [
+      ...messages,
+      {
+        id: "m-user-q3",
+        roomId: room.id,
+        role: "user",
+        content: "贝拉，这个味道说明什么？",
+        createdAt: now + 9,
+        status: "done",
+      },
+    ],
+    currentUserText: "阿洛，这个味道说明什么？",
+  });
   const sceneNovelSource = collectTavernSceneNovelSource({
     room: schedulingSignalRoom,
     messages,
@@ -2276,6 +2302,7 @@ writeFileSync(entryPath, `
     quietSignals,
     qnaDriveGuidance,
     actionDriveGuidance,
+    disabledDriveGuidance,
     sceneNovelSource,
     directorProfilePrompt,
     schedulingSignalsPrompt,
@@ -2409,6 +2436,13 @@ try {
       checks.actionDriveGuidance.needsUserActionConsequence,
     "用户具体行动应触发公开行动后果诊断",
     checks.actionDriveGuidance,
+  );
+  assert(
+    !checks.disabledDriveGuidance.qnaChainRisk &&
+      !checks.disabledDriveGuidance.needsEventInterruption &&
+      !checks.disabledDriveGuidance.needsMainHook,
+    "导演操作策略关闭后不应强制问答打断、事件打断或主线钩子",
+    checks.disabledDriveGuidance,
   );
   assert(
     checks.narrativePromptForA.includes("<narrative_beat> 写 1 到 3 个自然段的第三人称小说片段") &&

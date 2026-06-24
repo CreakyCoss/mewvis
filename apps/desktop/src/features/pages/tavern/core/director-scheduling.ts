@@ -30,6 +30,15 @@ const defaultDirectorScheduling = {
   instruction: "",
 };
 
+const defaultDirectorNarrativeControl: TavernRoom["settings"]["directorNarrativeControl"] = {
+  responseScale: "balanced",
+  narratorPressure: "balanced",
+  eventInterruption: "auto",
+  userActionConsequence: "visible",
+  mainHook: "auto",
+  qnaBreak: "auto",
+};
+
 const getDirectorScheduling = (
   room: Pick<TavernRoom, "settings">,
 ) => {
@@ -54,6 +63,13 @@ const getDirectorScheduling = (
     },
   };
 };
+
+const getDirectorNarrativeControl = (
+  room: Pick<TavernRoom, "settings">,
+) => ({
+  ...defaultDirectorNarrativeControl,
+  ...room.settings.directorNarrativeControl,
+});
 
 const normalizeStatusValue = (value: TavernStatusValue) =>
   typeof value === "string" ? value.trim() : "";
@@ -187,6 +203,7 @@ const classifyCurrentUserMove = (text: string, isSceneDriveTurn: boolean) => {
 
 export type TavernSceneDriveGuidance = {
   currentMove: "scene_drive" | "continue" | "action" | "question" | "statement" | "empty";
+  controls: TavernRoom["settings"]["directorNarrativeControl"];
   qnaChainRisk: boolean;
   needsUserActionConsequence: boolean;
   needsEventInterruption: boolean;
@@ -201,11 +218,12 @@ export const buildTavernSceneDriveGuidance = ({
   currentUserText,
   isSceneDriveTurn = false,
 }: {
-  room: Pick<TavernRoom, "sceneGoal" | "scenePlot" | "storyGoal" | "sceneStatus">;
+  room: Pick<TavernRoom, "sceneGoal" | "scenePlot" | "storyGoal" | "sceneStatus" | "settings">;
   messages: TavernMessage[];
   currentUserText: string;
   isSceneDriveTurn?: boolean;
 }): TavernSceneDriveGuidance => {
+  const controls = getDirectorNarrativeControl(room);
   const currentMove = classifyCurrentUserMove(currentUserText, isSceneDriveTurn);
   const recent = recentText(messages);
   const recentUserQuestionCount = countRecentUserQuestions(messages);
@@ -214,20 +232,37 @@ export const buildTavernSceneDriveGuidance = ({
   const hasRecentMainHook = mainHookPattern.test(recent);
   const hasSceneGoal =
     Boolean(room.sceneGoal.trim() || room.storyGoal.trim() || room.scenePlot.trim());
+  const qnaQuestionThreshold = controls.qnaBreak === "aggressive" ? 1 : 2;
   const qnaChainRisk =
-    recentUserQuestionCount >= 2 &&
+    controls.qnaBreak !== "off" &&
+    recentUserQuestionCount >= qnaQuestionThreshold &&
     currentMove !== "action" &&
     !hasRecentInterruption;
   const needsUserActionConsequence =
-    currentMove === "action" ||
-    (currentMove === "continue" && !hasRecentConsequence && hasSceneGoal);
+    controls.userActionConsequence === "strict"
+      ? (currentMove === "action" || (hasSceneGoal && !hasRecentConsequence))
+      : controls.userActionConsequence === "visible"
+      ? (currentMove === "action" || (currentMove === "continue" && !hasRecentConsequence && hasSceneGoal))
+      : currentMove === "action";
   const needsEventInterruption =
-    qnaChainRisk ||
-    (hasSceneGoal && !hasRecentInterruption && (currentMove === "continue" || currentMove === "question"));
+    controls.eventInterruption !== "off" &&
+    (qnaChainRisk ||
+      (controls.eventInterruption === "forceOnStall" &&
+        hasSceneGoal &&
+        !hasRecentInterruption &&
+        (currentMove === "continue" || currentMove === "question" || currentMove === "scene_drive")) ||
+      (controls.eventInterruption === "auto" &&
+        hasSceneGoal &&
+        !hasRecentInterruption &&
+        (currentMove === "continue" || currentMove === "question")));
   const needsMainHook =
+    controls.mainHook !== "off" &&
     hasSceneGoal &&
     !hasRecentMainHook &&
-    (qnaChainRisk || currentMove === "continue" || currentMove === "scene_drive");
+    (qnaChainRisk ||
+      currentMove === "continue" ||
+      currentMove === "scene_drive" ||
+      (controls.mainHook === "forceOnStall" && currentMove === "question"));
   const suggestedPublicPressure = [
     room.sceneStatus?.immediateThreat
       ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}`
@@ -253,6 +288,7 @@ export const buildTavernSceneDriveGuidance = ({
 
   return {
     currentMove,
+    controls,
     qnaChainRisk,
     needsUserActionConsequence,
     needsEventInterruption,
@@ -413,6 +449,7 @@ export const formatTavernDirectorSchedulingInstruction = (
   room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
 ) => {
   const scheduling = getDirectorScheduling(room);
+  const narrativeControl = getDirectorNarrativeControl(room);
   const lines = [];
   const customInstruction = scheduling.instruction.trim();
   const fixedOrderPhaseValue = getPhaseValue(room, scheduling.fixedOrder.phaseStatusId);
@@ -421,6 +458,13 @@ export const formatTavernDirectorSchedulingInstruction = (
   if (customInstruction) {
     lines.push(customInstruction);
   }
+
+  lines.push([
+    "导演操作策略由应用设置控制，优先级高于呈现风格提示。",
+    `调度规模：${narrativeControl.responseScale}。focused=通常 1 个关键角色；balanced=1-2 个角色；ensemble=冲突/会议/多人目标时可接近上限，但仍不得凑人数。`,
+    `旁白压力：${narrativeControl.narratorPressure}。low=少旁白；balanced=用短旁白承接场景压力；high=更积极用 narrator 整合环境变化、未发言动作和公开压力。`,
+    `问答链打断：${narrativeControl.qnaBreak}；事件打断：${narrativeControl.eventInterruption}；用户行动后果：${narrativeControl.userActionConsequence}；主线钩子：${narrativeControl.mainHook}。`,
+  ].join("\n"));
 
   if (isTavernFixedOrderPhase(room)) {
     lines.push([

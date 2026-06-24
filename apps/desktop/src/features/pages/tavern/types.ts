@@ -318,6 +318,14 @@ export type TavernRoomSettings = {
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
   agentKnowledgeCompactIntervalTurns: number;
+  directorNarrativeControl: {
+    responseScale: "focused" | "balanced" | "ensemble";
+    narratorPressure: "low" | "balanced" | "high";
+    eventInterruption: "off" | "auto" | "forceOnStall";
+    userActionConsequence: "light" | "visible" | "strict";
+    mainHook: "off" | "auto" | "forceOnStall";
+    qnaBreak: "off" | "auto" | "aggressive";
+  };
   directorScheduling: {
     targetedReplyPolicy: "director" | "prefer" | "include" | "exclusive";
     maxExtraSpeakersOnTargetedReply: number;

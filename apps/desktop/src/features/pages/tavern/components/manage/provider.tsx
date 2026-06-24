@@ -284,6 +284,10 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    directorNarrativeControl: {
+      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl,
+      ...(candidate.directorNarrativeControl ?? {}),
+    },
     directorScheduling: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
       ...(candidate.directorScheduling ?? {}),
