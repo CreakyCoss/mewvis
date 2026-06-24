@@ -3,6 +3,7 @@ import { BookOpenText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { RuntimeModelInput } from "@/agent-client/protocol";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,12 @@ import {
   SCENE_NOVELIZER_PLATFORM_PACKAGES,
 } from "../prompt-registry/packages";
 import {
+  getDefaultSceneNovelizerRuleOptionIds,
+  normalizeSceneNovelizerRuleOptionIds,
+  SCENE_NOVELIZER_RULE_CATEGORY_LABELS,
+  SCENE_NOVELIZER_RULE_OPTIONS,
+} from "../prompt-registry/rule-options";
+import {
   evaluateSceneNovelDraft,
 } from "../quality/metrics";
 import {
@@ -25,6 +32,8 @@ import type {
   SceneNovelDraft,
   SceneNovelSource,
   SceneNovelizerPlatformStyleId,
+  SceneNovelizerRuleCategory,
+  SceneNovelizerRuleOptionId,
 } from "../types";
 import { SceneNovelizerDraftView } from "./SceneNovelizerDraftView";
 
@@ -58,6 +67,20 @@ const materialKindLabels: Record<string, string> = {
   hook: "主线钩子",
 };
 
+const ruleCategoryOrder: SceneNovelizerRuleCategory[] = [
+  "quality",
+  "narrative",
+  "genre",
+  "hook",
+  "taboo",
+];
+
+const ruleOptionGroups = ruleCategoryOrder.map((category) => ({
+  category,
+  label: SCENE_NOVELIZER_RULE_CATEGORY_LABELS[category],
+  options: SCENE_NOVELIZER_RULE_OPTIONS.filter((option) => option.category === category),
+}));
+
 const createLocalDraft = (
   source: SceneNovelSource,
   text: string,
@@ -83,6 +106,13 @@ export const SceneNovelizerPanel = ({
   const [platformStyleId, setPlatformStyleId] = useState<SceneNovelizerPlatformStyleId>(
     source.platformStyleId,
   );
+  const [selectedRuleIds, setSelectedRuleIds] = useState<SceneNovelizerRuleOptionId[]>(
+    () => normalizeSceneNovelizerRuleOptionIds(
+      source.ruleOptionIds.length > 0
+        ? source.ruleOptionIds
+        : getDefaultSceneNovelizerRuleOptionIds(source.platformStyleId),
+    ),
+  );
   const [draft, setDraft] = useState<SceneNovelDraft | null>(null);
   const [streamingText, setStreamingText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -91,6 +121,7 @@ export const SceneNovelizerPanel = ({
     return {
       ...source,
       platformStyleId,
+      ruleOptionIds: selectedRuleIds,
       constraints: {
         ...source.constraints,
         paragraphMaxChars: platformStyleId === "fanqie" ? 160 : 180,
@@ -99,13 +130,31 @@ export const SceneNovelizerPanel = ({
         ? source.unresolvedHooks
         : platformPackage.judgeFocus,
     };
-  }, [platformStyleId, source]);
+  }, [platformStyleId, selectedRuleIds, source]);
   const platformPackage = getSceneNovelizerPlatformPackage(platformStyleId);
+  const selectedRuleIdSet = useMemo(() => new Set(selectedRuleIds), [selectedRuleIds]);
   const canGenerate =
     !disabled &&
     !isGenerating &&
     Boolean(runtimeModel) &&
     effectiveSource.materials.length > 0;
+
+  const changePlatformStyle = (value: string) => {
+    const nextPlatformStyleId = value as SceneNovelizerPlatformStyleId;
+    setPlatformStyleId(nextPlatformStyleId);
+    setSelectedRuleIds(getDefaultSceneNovelizerRuleOptionIds(nextPlatformStyleId));
+  };
+
+  const toggleRuleOption = (
+    ruleId: SceneNovelizerRuleOptionId,
+    checked: boolean,
+  ) => {
+    setSelectedRuleIds((current) =>
+      checked
+        ? Array.from(new Set([...current, ruleId]))
+        : current.filter((currentRuleId) => currentRuleId !== ruleId)
+    );
+  };
 
   const generateDraft = async () => {
     if (!runtimeModel) {
@@ -169,9 +218,7 @@ export const SceneNovelizerPanel = ({
         </div>
         <Select
           value={platformStyleId}
-          onValueChange={(value) =>
-            setPlatformStyleId(value as SceneNovelizerPlatformStyleId)
-          }
+          onValueChange={changePlatformStyle}
           disabled={isGenerating}
         >
           <SelectTrigger size="sm" className="h-8 max-w-24 text-xs">
@@ -223,6 +270,52 @@ export const SceneNovelizerPanel = ({
           ))}
         </div>
       </div>
+
+      <details className="rounded-md border border-current/10 bg-current/[0.035] px-3 py-2 text-xs">
+        <summary className="flex cursor-pointer select-none items-center justify-between gap-2 font-medium">
+          <span>写作规则</span>
+          <span className="text-[10px] opacity-60">{selectedRuleIds.length}</span>
+        </summary>
+        <div className="mt-2 max-h-72 space-y-3 overflow-y-auto pr-1">
+          {ruleOptionGroups.map((group) => (
+            <div key={group.category} className="space-y-1.5">
+              <div className="text-[10px] font-semibold opacity-60">{group.label}</div>
+              <div className="grid gap-1.5">
+                {group.options.map((option) => {
+                  const checked = selectedRuleIdSet.has(option.id);
+
+                  return (
+                    <label
+                      key={option.id}
+                      className={cn(
+                        "grid cursor-pointer grid-cols-[auto_minmax(0,1fr)] gap-2 rounded-md border border-current/10 bg-background/55 p-2 transition-colors",
+                        checked && "border-primary/35 bg-primary/[0.06]",
+                        isGenerating && "cursor-not-allowed opacity-60",
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={isGenerating}
+                        onCheckedChange={(nextChecked) => {
+                          toggleRuleOption(option.id, nextChecked === true);
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate text-[11px] font-medium">
+                          {option.label}
+                        </span>
+                        <span className="line-clamp-2 text-[10px] leading-4 opacity-60">
+                          {option.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {isGenerating && streamingText.trim() && (
         <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-md border border-current/10 bg-background/70 p-3 font-serif text-xs leading-6 shadow-sm">

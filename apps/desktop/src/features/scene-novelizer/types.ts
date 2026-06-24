@@ -2,6 +2,15 @@ import type { RuntimeModelInput } from "@/agent-client/protocol";
 
 export type SceneNovelizerPlatformStyleId = "fanqie" | "qidian";
 
+export type SceneNovelizerRuleCategory =
+  | "quality"
+  | "narrative"
+  | "genre"
+  | "hook"
+  | "taboo";
+
+export type SceneNovelizerRuleOptionId = string;
+
 export type SceneNovelMaterialSource =
   | "user"
   | "character"
@@ -61,6 +70,7 @@ export type SceneNovelSource = {
   id: string;
   title: string;
   platformStyleId: SceneNovelizerPlatformStyleId;
+  ruleOptionIds: SceneNovelizerRuleOptionId[];
   sceneSummary: string;
   sceneGoal: string;
   sceneStatus: string;

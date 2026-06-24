@@ -2447,6 +2447,8 @@ try {
   );
   assert(
     checks.sceneNovelSource.platformStyleId === "qidian" &&
+      checks.sceneNovelSource.ruleOptionIds.includes("webnovel-high-density") &&
+      checks.sceneNovelSource.ruleOptionIds.includes("promise-mismatch") &&
       checks.sceneNovelSource.stats.userActionCount >= 2 &&
       checks.sceneNovelSource.materials.some((material) =>
         material.kind === "dialogue" && material.text.includes("第二道影子")

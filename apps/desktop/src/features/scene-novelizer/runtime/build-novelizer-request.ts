@@ -2,6 +2,10 @@ import type { SceneNovelSource } from "../types";
 import {
   getSceneNovelizerPlatformPackage,
 } from "../prompt-registry/packages";
+import {
+  getSceneNovelizerRuleOptions,
+  SCENE_NOVELIZER_RULE_CATEGORY_LABELS,
+} from "../prompt-registry/rule-options";
 
 const materialKindLabel: Record<string, string> = {
   user_action: "用户行动",
@@ -32,6 +36,7 @@ export const buildSceneNovelizerRequestContext = (
   feedback?: string,
 ) => {
   const platformPackage = getSceneNovelizerPlatformPackage(source.platformStyleId);
+  const ruleOptions = getSceneNovelizerRuleOptions(source.ruleOptionIds);
   const visibleMaterials = source.materials.filter((material) =>
     material.text.trim() &&
     (source.constraints.thoughtMode !== "user_visible_only" ||
@@ -58,6 +63,17 @@ export const buildSceneNovelizerRequestContext = (
     ...platformPackage.writingRules.map((rule) => `- ${rule}`),
     "</platform_rules>",
     "",
+    ruleOptions.length > 0
+      ? [
+          "<writing_rule_layers instruction=\"user_selected_realtime_writing_rules; lower_priority_than_facts_and_platform_rules\">",
+          ...ruleOptions.map((option) => [
+            `## ${SCENE_NOVELIZER_RULE_CATEGORY_LABELS[option.category]} / ${option.label}`,
+            ...option.writingRules.map((rule) => `- ${rule}`),
+          ].join("\n")),
+          "</writing_rule_layers>",
+          "",
+        ].join("\n")
+      : "",
     "<confirmed_facts>",
     ...(source.confirmedFacts.length > 0 ? source.confirmedFacts.map((fact) => `- ${fact}`) : ["- 无"]),
     "</confirmed_facts>",
@@ -90,10 +106,14 @@ export const buildSceneNovelizerRuntimeInstruction = (
   feedback?: string,
 ) => {
   const platformPackage = getSceneNovelizerPlatformPackage(source.platformStyleId);
+  const ruleOptions = getSceneNovelizerRuleOptions(source.ruleOptionIds);
 
   return [
     feedback ? "根据 rewrite_feedback 重写正文。" : "根据素材生成本场景小说稿。",
     `目标风格：${platformPackage.label}。`,
+    ruleOptions.length > 0
+      ? `已启用 ${ruleOptions.length} 个实时写作规则；这些规则用于成稿表达，不得覆盖素材事实。`
+      : "",
     `目标长度约 ${source.constraints.targetChars} 字；允许上下浮动，但不能低于素材所需信息量。`,
     `段落要短，单段尽量不超过 ${source.constraints.paragraphMaxChars} 字。`,
     "保留用户行动的因果地位，把角色动作、实际话语、心理和线索织成连续正文。",

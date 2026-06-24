@@ -10,6 +10,12 @@ export {
   SCENE_NOVELIZER_PLATFORM_PACKAGES,
 } from "./prompt-registry/packages";
 export {
+  getDefaultSceneNovelizerRuleOptionIds,
+  getSceneNovelizerRuleOptions,
+  SCENE_NOVELIZER_RULE_CATEGORY_LABELS,
+  SCENE_NOVELIZER_RULE_OPTIONS,
+} from "./prompt-registry/rule-options";
+export {
   evaluateSceneNovelDraft,
 } from "./quality/metrics";
 export {
@@ -21,4 +27,6 @@ export type {
   SceneNovelMaterialBeat,
   SceneNovelSource,
   SceneNovelizerPlatformStyleId,
+  SceneNovelizerRuleCategory,
+  SceneNovelizerRuleOptionId,
 } from "./types";

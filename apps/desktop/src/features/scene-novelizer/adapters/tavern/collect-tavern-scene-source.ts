@@ -13,6 +13,9 @@ import type {
 import {
   DEFAULT_SCENE_NOVELIZER_PLATFORM_ID,
 } from "../../prompt-registry/packages";
+import {
+  getDefaultSceneNovelizerRuleOptionIds,
+} from "../../prompt-registry/rule-options";
 import type {
   SceneNovelMaterialBeat,
   SceneNovelMaterialKind,
@@ -313,6 +316,7 @@ export const collectTavernSceneNovelSource = ({
     id: `${room.id}-${room.activeSceneId ?? room.id}-${messages.length}`,
     title: room.title,
     platformStyleId,
+    ruleOptionIds: getDefaultSceneNovelizerRuleOptionIds(platformStyleId),
     sceneSummary: textSnippet(room.scene || room.storyOutline || room.title, 360),
     sceneGoal: textSnippet(room.sceneGoal || room.storyGoal || "", 240),
     sceneStatus: summarizeSceneStatus(room),
