@@ -1347,6 +1347,7 @@ const TavernPageContent = ({
                 shouldShowExecutionTrace={shouldShowExecutionTrace}
                 executionTraceAnchorMessageId={executionTraceAnchorMessageId}
                 hasExecutionTraceAnchor={hasExecutionTraceAnchor}
+                isSidePanelOpen={isSidePanelOpen}
                 renderExecutionTrace={() => (
                   <ExecutionTrace
                     steps={executionSteps}

@@ -6,6 +6,7 @@ export type TavernConversationRendererProps = {
   shouldShowExecutionTrace: boolean;
   executionTraceAnchorMessageId: string;
   hasExecutionTraceAnchor: boolean;
+  isSidePanelOpen?: boolean;
   renderExecutionTrace: () => ReactNode;
   messageEndRef: RefObject<HTMLDivElement | null>;
 };

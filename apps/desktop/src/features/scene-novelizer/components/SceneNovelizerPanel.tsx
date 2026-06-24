@@ -325,7 +325,7 @@ export const SceneNovelizerPanel = ({
           <span>写作规则</span>
           <span className="text-[10px] opacity-60">{selectedRuleIds.length}</span>
         </summary>
-        <div className="mt-2 max-h-72 space-y-3 overflow-y-auto pr-1">
+        <div className="mt-2 space-y-2.5 pr-1">
           <div className="space-y-2">
             <Select
               value={selectedPackageId}
@@ -359,9 +359,9 @@ export const SceneNovelizerPanel = ({
             )}
           </div>
           {ruleOptionGroups.map((group) => (
-            <div key={group.category} className="space-y-1.5">
+            <div key={group.category} className="space-y-1">
               <div className="text-[10px] font-semibold opacity-60">{group.label}</div>
-              <div className="grid gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
                 {group.options.map((option) => {
                   const checked = selectedRuleIdSet.has(option.id);
 
@@ -369,12 +369,13 @@ export const SceneNovelizerPanel = ({
                     <label
                       key={option.id}
                       className={cn(
-                        "grid cursor-pointer grid-cols-[auto_minmax(0,1fr)] gap-2 rounded-md border border-current/10 bg-background/55 p-2 transition-colors",
+                        "grid min-h-12 cursor-pointer grid-cols-[auto_minmax(0,1fr)] gap-1.5 rounded-md border border-current/10 bg-background/55 px-1.5 py-1.5 transition-colors",
                         checked && "border-primary/35 bg-primary/[0.06]",
                         isGenerating && "cursor-not-allowed opacity-60",
                       )}
                     >
                       <Checkbox
+                        className="mt-0.5 size-3.5 [&_svg]:size-3"
                         checked={checked}
                         disabled={isGenerating}
                         onCheckedChange={(nextChecked) => {
@@ -382,10 +383,10 @@ export const SceneNovelizerPanel = ({
                         }}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-[11px] font-medium">
+                        <span className="block truncate text-[10px] font-medium leading-4">
                           {option.label}
                         </span>
-                        <span className="line-clamp-2 text-[10px] leading-4 opacity-60">
+                        <span className="line-clamp-1 text-[9px] leading-3.5 opacity-60">
                           {option.description}
                         </span>
                       </span>

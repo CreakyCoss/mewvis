@@ -17,8 +17,8 @@ const roleLabel: Record<TavernRenderableMessage["role"], string> = {
 };
 
 const proseBlockClassName: Record<TavernRenderableMessage["role"], string> = {
-  narrator: "border-l-2 border-current/35",
-  character: "border-l-2 border-current/50",
+  narrator: "",
+  character: "",
   user: "rounded-md bg-current/[0.045] ring-1 ring-current/10",
 };
 
@@ -50,12 +50,12 @@ const ProseMessage = ({
   return (
     <article
       className={cn(
-        "group/message relative w-full py-2 pl-4 pr-9 sm:pl-5 sm:pr-12",
+        "group/message relative w-full py-2 pl-0 pr-9 sm:pr-12",
         proseBlockClassName[message.role],
       )}
     >
       <header
-        className="mb-1 flex min-w-0 items-center gap-2 text-[11px] leading-4 text-current opacity-70"
+        className="pointer-events-none absolute left-0 top-0 z-10 flex min-w-0 -translate-y-1/2 items-center gap-2 rounded-sm bg-background/80 px-1 text-[11px] leading-4 text-current opacity-0 shadow-sm backdrop-blur transition-opacity duration-150 group-hover/message:opacity-70 group-focus-within/message:opacity-70"
       >
         <span className="shrink-0 font-medium">
           {message.role === "character" ? message.speakerName : roleLabel[message.role]}
@@ -67,7 +67,7 @@ const ProseMessage = ({
       {content && (
         <SmoothMarkdownContent
           className={cn(
-            "tavern-immersive-markdown break-words font-serif text-sm leading-7",
+            "tavern-immersive-markdown break-words font-serif text-sm leading-7 [&_p]:mb-1.5",
             proseTextClassName[message.role],
           )}
           content={content}
@@ -103,10 +103,16 @@ export const proseConversationRenderer: TavernConversationRenderer = {
     shouldShowExecutionTrace,
     executionTraceAnchorMessageId,
     hasExecutionTraceAnchor,
+    isSidePanelOpen,
     renderExecutionTrace,
     messageEndRef,
   }) => (
-    <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-2 py-1">
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-col gap-1 py-1",
+        isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]",
+      )}
+    >
       {messages.map((message) => (
         <div key={message.id} className="contents">
           <ProseMessage message={message} />
