@@ -6,7 +6,11 @@ import type {
   TavernLorebookEntry,
   TavernRoom,
 } from "../../../types";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlAttribute,
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
 
 const normalizeMatchText = (text: string) => text.toLowerCase();
 
@@ -60,7 +64,7 @@ export const formatTavernLorebookEntries = (
 ) => entries
   .slice(0, maxEntries ?? entries.length)
   .map((entry) => [
-    `<lore_entry title="${entry.title}" keywords="${entry.keywords.join(", ")}">`,
-    maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content,
+    `<lore_entry title="${escapePromptXmlAttribute(entry.title)}" keywords="${escapePromptXmlAttribute(entry.keywords.join(", "))}">`,
+    escapePromptXmlText(maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content),
     "</lore_entry>",
   ].join("\n")).join("\n\n");

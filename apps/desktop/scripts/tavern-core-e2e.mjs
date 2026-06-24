@@ -2448,10 +2448,10 @@ try {
 	      checks.styledPromptForA.includes("系统叙事层保持雨夜压迫感") &&
 	      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
 	      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
-	      checks.styledTurnInstructionForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
-		      checks.styledTurnInstructionForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
-		      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
-		    "已保存提示词文本块和角色级 prompt 必须进入角色请求上下文与 turn instruction",
+	      !checks.styledTurnInstructionForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
+	      !checks.styledTurnInstructionForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
+	      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
+	    "已保存提示词文本块只进入角色 prompt 一次；turn instruction 只保留本轮和角色局部规则",
     {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,

@@ -1,5 +1,5 @@
 import { Pencil, Plus, UsersRound } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import {
 } from "../../primitives";
 import {
   emptyValueText,
+  focusRoomEditorElementById,
   formatCount,
 } from "../../utils";
 import { CharactersEdit, type CharactersEditHandle } from "./edit";
@@ -30,6 +31,11 @@ type CharactersSectionProps = {
   data: TavernRoom;
   globalRuntimeModel: RuntimeModelOption | null;
   onSave: ModuleSave;
+  openRequest?: {
+    requestId: number;
+    characterId?: string;
+    focusElementId?: string;
+  } | null;
   onRunTextFieldAgent?: (request: TavernTextFieldAgentRequest) => Promise<string>;
 };
 
@@ -37,6 +43,7 @@ export const CharactersSection = ({
   data,
   globalRuntimeModel,
   onSave,
+  openRequest,
   onRunTextFieldAgent,
 }: CharactersSectionProps) => {
   const editRef = useRef<CharactersEditHandle>(null);
@@ -47,6 +54,18 @@ export const CharactersSection = ({
         globalRuntimeModel.modelName || globalRuntimeModel.modelId
       }`
     : "未选择";
+
+  useEffect(() => {
+    if (!openRequest) {
+      return;
+    }
+
+    const character = localCharacters.find((item) =>
+      item.id === openRequest.characterId
+    ) ?? null;
+    editRef.current?.(character);
+    focusRoomEditorElementById(openRequest.focusElementId);
+  }, [openRequest?.requestId]);
 
   return (
     <>

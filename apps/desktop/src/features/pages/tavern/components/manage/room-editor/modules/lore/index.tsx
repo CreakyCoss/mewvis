@@ -6,7 +6,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TavernRoom } from "../../../../../types";
@@ -20,7 +20,7 @@ import {
   editorListEntryTitleClassName,
   editorListKeywordClassName,
 } from "../../primitives";
-import { emptyValueText, formatCount } from "../../utils";
+import { emptyValueText, focusRoomEditorElementById, formatCount } from "../../utils";
 import type { PendingDangerAction } from "../../types";
 import { LoreEdit, type LoreEditHandle } from "./edit";
 import type { ModuleEditProps, ModuleSave } from "../types";
@@ -28,6 +28,11 @@ import type { ModuleEditProps, ModuleSave } from "../types";
 type LoreSectionProps = {
   data: TavernRoom;
   onSave: ModuleSave;
+  openRequest?: {
+    requestId: number;
+    entryId?: string;
+    focusElementId?: string;
+  } | null;
   onRequestDangerAction: (action: PendingDangerAction) => void;
   renderTextFieldAgentActions: ModuleEditProps["renderTextFieldAgentActions"];
 };
@@ -35,6 +40,7 @@ type LoreSectionProps = {
 export const LoreSection = ({
   data,
   onSave,
+  openRequest,
   onRequestDangerAction,
   renderTextFieldAgentActions,
 }: LoreSectionProps) => {
@@ -49,6 +55,16 @@ export const LoreSection = ({
       data.lorebookEntries.map((entry) => [entry.id, collapsed]),
     ));
   };
+
+  useEffect(() => {
+    if (!openRequest) {
+      return;
+    }
+
+    const entry = data.lorebookEntries.find((item) => item.id === openRequest.entryId) ?? null;
+    editRef.current?.(entry);
+    focusRoomEditorElementById(openRequest.focusElementId);
+  }, [openRequest?.requestId]);
 
   return (
     <>

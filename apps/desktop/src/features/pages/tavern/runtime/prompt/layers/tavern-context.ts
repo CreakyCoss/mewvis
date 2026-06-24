@@ -3,7 +3,13 @@ import {
   joinPromptLines,
   type TavernPromptSection,
 } from "../shared/sections";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
+
+const limitEscapedPromptText = (text: string, maxChars: number) =>
+  escapePromptXmlText(limitPromptText(text, maxChars));
 
 const buildStoryArcContent = (room: TavernRoom) => {
   if (!room.storyOutline.trim() && !room.storyGoal.trim()) {
@@ -11,8 +17,8 @@ const buildStoryArcContent = (room: TavernRoom) => {
   }
 
   return joinPromptLines([
-    room.storyOutline.trim() ? limitPromptText(room.storyOutline, 900) : "",
-    room.storyGoal.trim() ? `<final_goal>${limitPromptText(room.storyGoal, 500)}</final_goal>` : "",
+    room.storyOutline.trim() ? limitEscapedPromptText(room.storyOutline, 900) : "",
+    room.storyGoal.trim() ? `<final_goal>${limitEscapedPromptText(room.storyGoal, 500)}</final_goal>` : "",
   ]);
 };
 
@@ -37,8 +43,8 @@ export const buildTavernContextSections = ({
     layer: "tavern",
     tag: "room_scene",
     content: [
-      `room: ${room.title}`,
-      limitPromptText(room.scene, 900),
+      `room: ${escapePromptXmlText(limitPromptText(room.title, 120))}`,
+      limitEscapedPromptText(room.scene, 900),
     ],
   },
   {
@@ -46,35 +52,35 @@ export const buildTavernContextSections = ({
     layer: "tavern",
     tag: "scene_plot",
     attributes: { instruction: "current_story_stage_plot" },
-    content: limitPromptText(room.scenePlot, 700),
+    content: limitEscapedPromptText(room.scenePlot, 700),
   },
   {
     id: "scene-goal",
     layer: "tavern",
     tag: "scene_goal",
     attributes: { instruction: "current_scene_direction" },
-    content: limitPromptText(room.sceneGoal, 500),
+    content: limitEscapedPromptText(room.sceneGoal, 500),
   },
   {
     id: "scene-direction",
     layer: "tavern",
     tag: "scene_direction",
     attributes: { instruction: "intended_development; do_not_jump_to_resolution" },
-    content: limitPromptText(room.sceneDirection, 700),
+    content: limitEscapedPromptText(room.sceneDirection, 700),
   },
   {
     id: "scene-transition",
     layer: "tavern",
     tag: "scene_transition",
     attributes: { instruction: "continuity_to_adjacent_stages" },
-    content: limitPromptText(room.sceneTransition, 500),
+    content: limitEscapedPromptText(room.sceneTransition, 500),
   },
   {
     id: "room-memory",
     layer: "tavern",
     tag: "room_memory",
     attributes: { instruction: "persistent_story_state" },
-    content: limitPromptText(room.memory, 1200),
+    content: limitEscapedPromptText(room.memory, 1200),
   },
   {
     id: "lorebook",

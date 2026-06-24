@@ -16,6 +16,10 @@ import type {
   TavernRoom,
 } from "../../../types";
 import type { TavernRuntimeMessage } from "../../conversation";
+import {
+  escapePromptXmlAttribute,
+  escapePromptXmlText,
+} from "../../prompt/shared/text";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
 
@@ -23,6 +27,9 @@ const limitDirectorContextText = (text: string, maxChars: number) => {
   const trimmed = text.trim();
   return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars)}...`;
 };
+
+const limitEscapedDirectorText = (text: string, maxChars: number) =>
+  escapePromptXmlText(limitDirectorContextText(text, maxChars));
 
 const formatDirectorProgressContext = (room: TavernRoom) => JSON.stringify({
   statusSnapshot: room.statusSnapshot,
@@ -64,12 +71,12 @@ const buildTavernDirectorCharacterList = (
   room: TavernRoom,
   characters: TavernCharacter[],
 ) => characters.map((character) => [
-  `id: ${character.id}`,
-  `name: ${character.name}`,
-  `description: ${character.description}`,
-  character.writingStyle ? `writingStyle: ${character.writingStyle}` : "",
-  character.replyStylePrompt ? `replyStylePrompt: ${character.replyStylePrompt}` : "",
-  character.goals ? `goals: ${character.goals}` : "",
+  `id: ${escapePromptXmlText(character.id)}`,
+  `name: ${escapePromptXmlText(character.name)}`,
+  `description: ${escapePromptXmlText(character.description)}`,
+  character.writingStyle ? `writingStyle: ${escapePromptXmlText(character.writingStyle)}` : "",
+  character.replyStylePrompt ? `replyStylePrompt: ${escapePromptXmlText(character.replyStylePrompt)}` : "",
+  character.goals ? `goals: ${escapePromptXmlText(character.goals)}` : "",
   (() => {
     const relationships = formatTavernCharacterRelationships({
       character,
@@ -78,10 +85,10 @@ const buildTavernDirectorCharacterList = (
       relationshipOverrides: room.relationshipOverrides,
       statusSnapshot: room.statusSnapshot,
     });
-    return relationships ? `relationships: ${relationships}` : "";
+    return relationships ? `relationships: ${escapePromptXmlText(relationships)}` : "";
   })(),
   room.characterMemories[character.id]?.trim()
-    ? `memory: ${room.characterMemories[character.id]?.trim()}`
+    ? `memory: ${escapePromptXmlText(room.characterMemories[character.id]?.trim() ?? "")}`
     : "",
 ].filter(Boolean).join("\n")).join("\n\n---\n\n");
 
@@ -126,28 +133,28 @@ export const buildTavernDirectorContextSections = ({
   const directorOperationPolicy = room.settings.directorNarrativeControl;
 
   return [
-    `<presentation_profile id="${presentationProfile.id}" label="${presentationProfile.label}" render="${presentationProfile.renderStyle}" contract="${presentationProfile.generationContract}">`,
-    presentationProfile.directorAddendum,
+    `<presentation_profile id="${escapePromptXmlAttribute(presentationProfile.id)}" label="${escapePromptXmlAttribute(presentationProfile.label)}" render="${escapePromptXmlAttribute(presentationProfile.renderStyle)}" contract="${escapePromptXmlAttribute(presentationProfile.generationContract)}">`,
+    escapePromptXmlText(presentationProfile.directorAddendum),
     "</presentation_profile>",
     "",
     promptBlocksText,
     room.storyOutline.trim() || room.storyGoal.trim()
       ? `<story_arc>\n${[
-          room.storyOutline.trim(),
-          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+          escapePromptXmlText(room.storyOutline.trim()),
+          room.storyGoal.trim() ? `终局目标：${escapePromptXmlText(room.storyGoal.trim())}` : "",
         ].filter(Boolean).join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${room.title}">`,
-    room.scene,
+    `<room title="${escapePromptXmlAttribute(room.title)}">`,
+    escapePromptXmlText(room.scene),
     "</room>",
     "",
     room.scenePlot.trim()
-      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+      ? `<scene_plot>\n${limitEscapedDirectorText(room.scenePlot, 3000)}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
     room.sceneGoal.trim()
-      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+      ? `<scene_goal>\n${limitEscapedDirectorText(room.sceneGoal, 2000)}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
     "<scene_status instruction=\"public_scene_pressure; use_for_narrator_and_scheduling_without_solving_user_choices\">",
@@ -170,11 +177,11 @@ export const buildTavernDirectorContextSections = ({
     "</scene_drive_guidance>",
     "",
     room.sceneDirection.trim()
-      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+      ? `<scene_direction>\n${limitEscapedDirectorText(room.sceneDirection, 3000)}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
     room.sceneTransition.trim()
-      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+      ? `<scene_transition>\n${limitEscapedDirectorText(room.sceneTransition, 2000)}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
     "<story_graph>",
@@ -193,6 +200,7 @@ export const buildTavernDirectorContextSections = ({
     selectedTargetCharacters.length > 0
       ? selectedTargetCharacters
           .map((character) => `id: ${character.id}\nname: ${character.name}`)
+          .map(escapePromptXmlText)
           .join("\n\n---\n\n")
       : "（无）",
     "</selected_reply_targets>",
@@ -210,13 +218,13 @@ export const buildTavernDirectorContextSections = ({
     "</progress_context>",
     "",
     "<current_user_input>",
-    isSceneDriveTurn ? "（本轮无用户输入）" : currentUserText,
+    isSceneDriveTurn ? "（本轮无用户输入）" : escapePromptXmlText(currentUserText),
     "</current_user_input>",
     "",
     isSceneDriveTurn
       ? [
           "<scene_drive_directive instruction=\"optional_director_direction; not_user_speech; do_not_quote_as_dialogue\">",
-          sceneDriveDirective,
+          escapePromptXmlText(sceneDriveDirective),
           "</scene_drive_directive>",
           "",
         ].join("\n")

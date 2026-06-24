@@ -37,6 +37,7 @@ import { CharactersSection } from "./modules/characters";
 import { LoreSection } from "./modules/lore";
 import { OverviewSection } from "./modules/overview";
 import { PromptSection } from "./modules/prompt";
+import type { TavernPromptWarningNavigationRequest } from "./modules/prompt/warning-navigation";
 import { ProgressSection } from "./modules/progress";
 import { ScenesSection } from "./modules/scenes";
 import { ScenesEdit, type ScenesEditHandle } from "./modules/scenes/edit";
@@ -46,6 +47,7 @@ import type { TextFieldAgentActionRenderer } from "./modules/types";
 import type { PendingDangerAction } from "./types";
 import {
   cloneTavernRoom,
+  focusRoomEditorElementById,
   getErrorMessage,
   getRoomCharacterById,
   prepareTavernRoomForSave,
@@ -66,6 +68,11 @@ type EditorModuleId =
 
 type SceneEditRequest = {
   sceneId: string;
+  focusElementId?: string;
+  requestId: number;
+};
+
+type ModuleOpenRequest = TavernPromptWarningNavigationRequest & {
   requestId: number;
 };
 
@@ -167,6 +174,7 @@ export const RoomEditor = ({
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("overview");
   const [sceneEditRequest, setSceneEditRequest] = useState<SceneEditRequest | null>(null);
+  const [moduleOpenRequest, setModuleOpenRequest] = useState<ModuleOpenRequest | null>(null);
   const sceneEditRef = useRef<ScenesEditHandle>(null);
 
   const openRoomEditor = (roomId: string) => {
@@ -179,6 +187,7 @@ export const RoomEditor = ({
     setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
     setActiveModuleId("overview");
     setSceneEditRequest(null);
+    setModuleOpenRequest(null);
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -192,11 +201,13 @@ export const RoomEditor = ({
     }
 
     sceneEditRef.current?.(sceneId);
-  }, [sceneEditRequest?.requestId, sceneEditRequest?.sceneId]);
+    focusRoomEditorElementById(sceneEditRequest?.focusElementId);
+  }, [sceneEditRequest?.focusElementId, sceneEditRequest?.requestId, sceneEditRequest?.sceneId]);
 
   const closeRoomEditor = () => {
     setData(null);
     setSceneEditRequest(null);
+    setModuleOpenRequest(null);
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -364,11 +375,31 @@ export const RoomEditor = ({
     );
   };
 
-  const requestSceneEdit = (sceneId: string) => {
+  const requestSceneEdit = (sceneId: string, focusElementId?: string) => {
     setSceneEditRequest({
       sceneId,
+      focusElementId,
       requestId: Date.now(),
     });
+  };
+
+  const requestPromptWarningNavigation = (
+    request: TavernPromptWarningNavigationRequest,
+  ) => {
+    const requestId = Date.now();
+    setActiveModuleId(request.moduleId);
+    setModuleOpenRequest({
+      ...request,
+      requestId,
+    });
+
+    if (request.moduleId === "scenes" && request.sceneId) {
+      setSceneEditRequest({
+        sceneId: request.sceneId,
+        focusElementId: request.focusElementId,
+        requestId,
+      });
+    }
   };
 
   const runCharacterTextFieldAgent = async (
@@ -404,6 +435,7 @@ export const RoomEditor = ({
           <BasicSection
             data={data}
             onSave={onModuleSave}
+            openRequest={moduleOpenRequest?.moduleId === "basic" ? moduleOpenRequest : null}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
@@ -413,6 +445,7 @@ export const RoomEditor = ({
             data={data}
             messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
+            onOpenWarningNavigation={requestPromptWarningNavigation}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
@@ -422,6 +455,7 @@ export const RoomEditor = ({
             data={data}
             globalRuntimeModel={globalRuntimeModel}
             onSave={onModuleSave}
+            openRequest={moduleOpenRequest?.moduleId === "characters" ? moduleOpenRequest : null}
             onRunTextFieldAgent={runCharacterTextFieldAgent}
           />
         );
@@ -450,6 +484,7 @@ export const RoomEditor = ({
           <LoreSection
             data={data}
             onSave={onModuleSave}
+            openRequest={moduleOpenRequest?.moduleId === "lore" ? moduleOpenRequest : null}
             onRequestDangerAction={onRequestDangerAction}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />

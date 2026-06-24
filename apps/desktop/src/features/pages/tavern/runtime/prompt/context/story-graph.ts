@@ -1,5 +1,11 @@
 import type { TavernRoom } from "../../../types";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
+
+const limitEscapedPromptText = (text: string, maxChars?: number) =>
+  escapePromptXmlText(maxChars ? limitPromptText(text, maxChars) : text);
 
 export const formatTavernStoryGraphContext = (
   room: TavernRoom,
@@ -33,25 +39,25 @@ export const formatTavernStoryGraphContext = (
     .filter((edge) => edge.fromNodeId === activeNode.id)
     .slice(0, maxEdges ?? 6);
   const getNodeTitle = (nodeId: string) =>
-    graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
+    escapePromptXmlText(graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId);
 
   return [
-    `current_node: ${activeNode.title}`,
-    `stage: ${stage?.title ?? "未分组"}`,
-    `node_type: ${activeNode.type}`,
-    `path_role: ${activeNode.pathRole}`,
-    scene ? `scene: ${activeNode.title}` : "scene: 未绑定",
+    `current_node: ${escapePromptXmlText(activeNode.title)}`,
+    `stage: ${escapePromptXmlText(stage?.title ?? "未分组")}`,
+    `node_type: ${escapePromptXmlText(activeNode.type)}`,
+    `path_role: ${escapePromptXmlText(activeNode.pathRole)}`,
+    scene ? `scene: ${escapePromptXmlText(activeNode.title)}` : "scene: 未绑定",
     scene?.scene
-      ? `scene_description: ${maxSummaryChars ? limitPromptText(scene.scene, maxSummaryChars) : scene.scene}`
+      ? `scene_description: ${limitEscapedPromptText(scene.scene, maxSummaryChars)}`
       : "",
     scene?.sceneGoal
-      ? `scene_goal: ${maxSummaryChars ? limitPromptText(scene.sceneGoal, maxSummaryChars) : scene.sceneGoal}`
+      ? `scene_goal: ${limitEscapedPromptText(scene.sceneGoal, maxSummaryChars)}`
       : "",
     incoming.length > 0
       ? [
           "incoming_edges:",
           ...incoming.map((edge, index) =>
-            `${index + 1}. ${getNodeTitle(edge.fromNodeId)} -> ${edge.label}`
+            `${index + 1}. ${getNodeTitle(edge.fromNodeId)} -> ${escapePromptXmlText(edge.label)}`
           ),
         ].join("\n")
       : "incoming_edges: 无",
@@ -59,7 +65,7 @@ export const formatTavernStoryGraphContext = (
       ? [
           "available_exits:",
           ...outgoing.map((edge, index) =>
-            `${index + 1}. ${edge.label} -> ${getNodeTitle(edge.toNodeId)}${edge.isDefault ? "（默认）" : ""}`
+            `${index + 1}. ${escapePromptXmlText(edge.label)} -> ${getNodeTitle(edge.toNodeId)}${edge.isDefault ? "（默认）" : ""}`
           ),
         ].join("\n")
       : "available_exits: 无",

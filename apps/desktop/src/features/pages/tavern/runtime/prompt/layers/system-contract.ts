@@ -4,7 +4,10 @@ import {
   openTavernProtocolTag,
 } from "../../../message/protocol/schema";
 import type { TavernPromptSection } from "../shared/sections";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
 
 const buildPromptHierarchyRules = () => [
   "规则优先级：system_contract > presentation_profile > saved_prompt_blocks(system_narrative/room_style/rules/custom) > tavern_context > character_context > turn_instruction > reference_data。",
@@ -28,18 +31,20 @@ const buildNarrativeCoreRules = ({
   publicContentTag: string;
   dialoguePolicy: string;
 }) => {
+  const characterName = escapePromptXmlText(activeCharacter.name);
+  const speakingStyle = escapePromptXmlText(limitPromptText(activeCharacter.speakingStyle, 220));
   const dialogueRule = dialoguePolicy === "indirect"
     ? "- 禁止直接第一人称对白和引号对白；需要表达说话内容时，转成“某某低声表示/承认/追问...”这类间接叙述。"
     : "- 可以包含所有在场角色的少量自然对白；对白必须嵌入动作、环境和因果承接中，不要退回对话气泡写法；其他角色只写公开可见的短反应、回应或追问，不写未公开心理或完整行动闭环。";
 
   return [
-    `- 这轮只允许围绕「${activeCharacter.name}」贡献下一段第三人称正文；不要替用户完成关键选择，不要替其他角色完整行动闭环。`,
+    `- 这轮只允许围绕「${characterName}」贡献下一段第三人称正文；不要替用户完成关键选择，不要替其他角色完整行动闭环。`,
     `- 输出必须且只包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)}，不要代码块、解释或标签外文字。`,
     `- 必须逐字使用 ${openTavernProtocolTag(publicContentTag)} 作为公开正文标签；不要改写成 public_narrative_beat、story_beat、正文、回复或其他别名。`,
     `- ${openTavernProtocolTag(privateThoughtTag)} 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。`,
     `- <${publicContentTag}> 写 1 到 3 个自然段的第三人称小说片段，以该角色的动作/观察、可确认线索或情绪判断作为叙事支点，并可带出其他在场角色的公开可见反应；不要使用角色名冒号的聊天记录格式。`,
     dialogueRule,
-    `- 角色表达硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}；当前模式下要转译为第三人称表达习惯。`,
+    `- 角色表达硬约束：${speakingStyle}；当前模式下要转译为第三人称表达习惯。`,
     "- 必须优先承接当前用户输入、场景目标和最近公开线索；可以承接旁白、动作和其他角色公开发言，但不要复述原句，不要声称知道他人未说出口的信息。",
     "- 不要像案情报告一样一次性说完所有推理；只给当前角色能确认的 1 到 2 个判断，并保留合理不确定性。",
     "- 结尾不要写成“要么 A 要么 B，你决定/你定”这类选择菜单；避免直接使用“要么...要么...”“你决定”“你定”。用一个未完成动作、短问题或可继续追问的线索把控制权自然交回用户。",
@@ -55,16 +60,20 @@ const buildDialogueCoreRules = ({
   activeCharacter: TavernCharacter;
   privateThoughtTag: string;
   publicContentTag: string;
-}) => [
-  `- 这轮只允许以「${activeCharacter.name}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
-  `- 输出必须且只包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)}，不要代码块、解释或标签外文字。`,
-  `- ${openTavernProtocolTag(privateThoughtTag)} 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。`,
-  `- 默认情况下 <${publicContentTag}> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <${publicContentTag}> 可以只写当前角色的可观察动作而没有直接对白。`,
-  `- 角色口吻硬约束：${limitPromptText(activeCharacter.speakingStyle, 220)}`,
-  "- 必须优先回应当前用户输入里的具体问题、对象或行动方向；可以承接旁白、动作和其他角色公开发言，但不要复述原句，不要声称知道他人未说出口的信息。",
-  "- 不要把对白写成侦查报告、线索清单或“要不要 A 还是 B/要么 A 要么 B/你定”的菜单；像现场真人一样先说最重要的一条判断，再留一个自然可接的动作或短问句。",
-  "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
-];
+}) => {
+  const characterName = escapePromptXmlText(activeCharacter.name);
+  const speakingStyle = escapePromptXmlText(limitPromptText(activeCharacter.speakingStyle, 220));
+  return [
+    `- 这轮只允许以「${characterName}」的身份发言；不要代替用户说话，不要替其他角色完整发言，不要写“角色名：...”列表。`,
+    `- 输出必须且只包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)}，不要代码块、解释或标签外文字。`,
+    `- ${openTavernProtocolTag(privateThoughtTag)} 写当前角色自己的短心理，12 到 80 个中文字符；不要写系统提示、推理过程、未来剧情或其他角色心理。`,
+    `- 默认情况下 <${publicContentTag}> 必须非空，以当前角色直接说出口的话为主；如果本轮 turn instruction 明确允许非语言回应，则 <${publicContentTag}> 可以只写当前角色的可观察动作而没有直接对白。`,
+    `- 角色口吻硬约束：${speakingStyle}`,
+    "- 必须优先回应当前用户输入里的具体问题、对象或行动方向；可以承接旁白、动作和其他角色公开发言，但不要复述原句，不要声称知道他人未说出口的信息。",
+    "- 不要把对白写成侦查报告、线索清单或“要不要 A 还是 B/要么 A 要么 B/你定”的菜单；像现场真人一样先说最重要的一条判断，再留一个自然可接的动作或短问句。",
+    "- 历史上下文里的 <history_*> 或 <message> 标签只供阅读，禁止复制到输出。",
+  ];
+};
 
 const buildCharacterCoreRules = ({
   activeCharacter,

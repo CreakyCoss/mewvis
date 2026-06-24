@@ -1,8 +1,3 @@
-import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import {
-  formatTavernInteractionQualityRulesForTarget,
-  formatTavernPromptBlocksForTarget,
-} from "../../../prompt-registry/text-blocks";
 import type {
   TavernCharacter,
   TavernRoom,
@@ -12,25 +7,14 @@ import { joinPromptLines } from "../shared/sections";
 export const buildCharacterTurnStyleInstruction = ({
   room,
   speaker,
-  publicContentTag,
 }: {
   room: TavernRoom;
   speaker: TavernCharacter;
-  publicContentTag?: string;
 }) => {
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const lines = [
-    `呈现规则：${presentationProfile.label}。${presentationProfile.characterAddendum}`,
-    formatTavernPromptBlocksForTarget({
-      prompt: room.prompt,
-      target: "character",
-      publicContentTag,
-    }),
-    formatTavernInteractionQualityRulesForTarget({
-      qualityRuleIds: room.settings.interactionQualityRuleIds,
-      target: "character",
-      publicContentTag,
-    }),
+    room.settings.immersiveDescriptionEnabled === false
+      ? "当前房间关闭沉浸描写；动作和场景互动只在必要时简短使用。"
+      : "",
   ];
 
   if (speaker.writingStyle) {

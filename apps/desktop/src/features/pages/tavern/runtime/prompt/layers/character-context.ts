@@ -4,14 +4,20 @@ import type {
 } from "../../../types";
 import { formatTavernPromptCharacter } from "../context/characters";
 import type { TavernPromptSection } from "../shared/sections";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
+
+const limitEscapedPromptText = (text: string, maxChars: number) =>
+  escapePromptXmlText(limitPromptText(text, maxChars));
 
 const buildCharacterPromptRules = (activeCharacter: TavernCharacter) => [
   activeCharacter.writingStyle
-    ? `- 角色写作风格：${limitPromptText(activeCharacter.writingStyle, 240)}`
+    ? `- 角色写作风格：${limitEscapedPromptText(activeCharacter.writingStyle, 240)}`
     : "",
   activeCharacter.replyStylePrompt
-    ? `- 角色级回复规则：${limitPromptText(activeCharacter.replyStylePrompt, 320)}`
+    ? `- 角色级回复规则：${limitEscapedPromptText(activeCharacter.replyStylePrompt, 320)}`
     : "",
 ].filter(Boolean);
 
@@ -59,7 +65,7 @@ export const buildCharacterContextSections = ({
     layer: "character",
     tag: "active_character_memory",
     attributes: { instruction: "room_scoped_character_memory" },
-    content: limitPromptText(characterMemory, 1200),
+    content: limitEscapedPromptText(characterMemory, 1200),
   },
   {
     id: "present-characters",

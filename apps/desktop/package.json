@@ -14,6 +14,8 @@
     "test:agent-bridge:e2e": "node scripts/agent-bridge-e2e.mjs",
     "test:agent-bridge:live": "node scripts/agent-bridge-live-e2e.mjs",
     "test:tavern:core": "node scripts/tavern-core-e2e.mjs",
+    "test:tavern:prompt-layer": "node scripts/tavern-prompt-layer-e2e.mjs",
+    "test:tavern:prompt-preview": "node scripts/tavern-prompt-preview-e2e.mjs",
     "test:tavern:preset-20": "node scripts/tavern-preset-20-round-e2e.mjs",
     "test:tavern:live": "node scripts/tavern-live-llm-e2e.mjs",
     "test:tavern:prompt-quality": "node scripts/tavern-prompt-quality-eval.mjs",

@@ -113,6 +113,27 @@ export const settingsFlagGridClassName =
 export const settingsEditorMetricGridClassName =
   "grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3";
 
+export const focusRoomEditorElementById = (
+  elementId: string | undefined,
+  delayMs = 80,
+) => {
+  if (!elementId || typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+
+  window.setTimeout(() => {
+    const element = document.getElementById(elementId) as HTMLElement | null;
+    if (!element) {
+      return;
+    }
+
+    element.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      element.focus({ preventScroll: true });
+    });
+  }, delayMs);
+};
+
 export const getReplyModeLabel = (replyMode: TavernReplyMode) =>
   replyModeOptions.find((option) => option.value === replyMode)?.label ?? "当前角色";
 

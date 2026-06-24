@@ -1,7 +1,9 @@
 export { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";
 export {
+  buildTavernCharacterPromptParts,
   buildTavernSystemPrompt,
   type BuildTavernSystemPromptInput,
+  type TavernCharacterPromptParts,
 } from "./character/system-prompt";
 export {
   DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,

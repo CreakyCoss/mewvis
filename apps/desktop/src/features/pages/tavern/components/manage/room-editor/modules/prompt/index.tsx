@@ -32,12 +32,14 @@ import {
   editorHeaderActionButtonClassName,
 } from "../../primitives";
 import { PromptEdit, type PromptEditHandle } from "./edit";
+import type { TavernPromptWarningNavigationRequest } from "./warning-navigation";
 import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 
 type PromptSectionProps = {
   data: TavernRoom;
   messages: TavernMessage[];
   onSave: ModuleSave;
+  onOpenWarningNavigation?: (request: TavernPromptWarningNavigationRequest) => void;
   renderTextFieldAgentActions: TextFieldAgentActionRenderer;
 };
 
@@ -289,6 +291,7 @@ export const PromptSection = ({
   data,
   messages,
   onSave,
+  onOpenWarningNavigation,
   renderTextFieldAgentActions,
 }: PromptSectionProps) => {
   const editRef = useRef<PromptEditHandle>(null);
@@ -335,6 +338,7 @@ export const PromptSection = ({
         data={data}
         messages={messages}
         onSave={onSave}
+        onOpenWarningNavigation={onOpenWarningNavigation}
         renderTextFieldAgentActions={renderTextFieldAgentActions}
       />
     </>

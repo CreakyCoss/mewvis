@@ -5,7 +5,13 @@ import type {
   TavernCharacter,
   TavernRoom,
 } from "../../../types";
-import { limitPromptText } from "../shared/text";
+import {
+  escapePromptXmlText,
+  limitPromptText,
+} from "../shared/text";
+
+const formatField = (label: string, value: string, maxChars: number) =>
+  `${label}: ${escapePromptXmlText(limitPromptText(value, maxChars))}`;
 
 export const formatTavernPromptCharacter = (
   character: TavernCharacter,
@@ -31,20 +37,20 @@ export const formatTavernPromptCharacter = (
 
   if (compact) {
     return [
-      `name: ${character.name}`,
-      `role: ${limitPromptText(character.description, 140)}`,
-      character.goals ? `goals: ${limitPromptText(character.goals, 100)}` : "",
-      relationships ? `relationships: ${limitPromptText(relationships, 120)}` : "",
+      formatField("name", character.name, 80),
+      formatField("role", character.description, 140),
+      character.goals ? formatField("goals", character.goals, 100) : "",
+      relationships ? formatField("relationships", relationships, 120) : "",
     ].filter(Boolean).join("\n");
   }
 
   return [
-    `name: ${character.name}`,
-    `description: ${limitPromptText(character.description, 700)}`,
-    `speakingStyle: ${limitPromptText(character.speakingStyle, 260)}`,
-    character.writingStyle ? `writingStyle: ${limitPromptText(character.writingStyle, 260)}` : "",
-    character.replyStylePrompt ? `replyStylePrompt: ${limitPromptText(character.replyStylePrompt, 320)}` : "",
-    character.goals ? `goals: ${limitPromptText(character.goals, 260)}` : "",
-    relationships ? `relationships: ${limitPromptText(relationships, 320)}` : "",
+    formatField("name", character.name, 80),
+    formatField("description", character.description, 700),
+    formatField("speakingStyle", character.speakingStyle, 260),
+    character.writingStyle ? formatField("writingStyle", character.writingStyle, 260) : "",
+    character.replyStylePrompt ? formatField("replyStylePrompt", character.replyStylePrompt, 320) : "",
+    character.goals ? formatField("goals", character.goals, 260) : "",
+    relationships ? formatField("relationships", relationships, 320) : "",
   ].filter(Boolean).join("\n");
 };

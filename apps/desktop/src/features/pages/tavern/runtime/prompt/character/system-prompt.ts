@@ -38,6 +38,12 @@ export type BuildTavernSystemPromptInput = {
   turnInstruction?: string;
 };
 
+export type TavernCharacterPromptParts = {
+  runtimeInstruction: string;
+  requestContext: string;
+  fullPrompt: string;
+};
+
 const buildTurnInstructionSection = (turnInstruction?: string): TavernPromptSection => ({
   id: "turn-instruction",
   layer: "turn",
@@ -75,7 +81,24 @@ export const buildTavernSystemPrompt = ({
   references,
   currentUserText,
   turnInstruction,
-}: BuildTavernSystemPromptInput) => {
+}: BuildTavernSystemPromptInput) =>
+  buildTavernCharacterPromptParts({
+    room,
+    activeCharacter,
+    characters,
+    references,
+    currentUserText,
+    turnInstruction,
+  }).fullPrompt;
+
+export const buildTavernCharacterPromptParts = ({
+  room,
+  activeCharacter,
+  characters,
+  references,
+  currentUserText,
+  turnInstruction,
+}: BuildTavernSystemPromptInput): TavernCharacterPromptParts => {
   const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
   const lorebookText = formatTavernLorebookEntries(selectTavernLorebookEntries({
     room,
@@ -100,7 +123,7 @@ export const buildTavernSystemPrompt = ({
     characters,
   });
 
-  const sections: TavernPromptSection[] = [
+  const instructionSections: TavernPromptSection[] = [
     buildCharacterSystemContractSection({
       activeCharacter,
       privateThoughtTag: presentationContract.privateThoughtTag,
@@ -116,6 +139,9 @@ export const buildTavernSystemPrompt = ({
       room,
       publicContentTag,
     }),
+    buildTurnInstructionSection(turnInstruction),
+  ];
+  const contextSections: TavernPromptSection[] = [
     ...buildTavernContextSections({
       room,
       lorebookText,
@@ -128,11 +154,19 @@ export const buildTavernSystemPrompt = ({
       characterMemory,
       compactCharacters,
     }),
-    buildTurnInstructionSection(turnInstruction),
   ];
-
-  return appendReferencesToPrompt(
-    renderTavernPromptSections(sections),
+  const runtimeInstruction = renderTavernPromptSections(instructionSections);
+  const requestContext = appendReferencesToPrompt(
+    renderTavernPromptSections(contextSections),
     references,
   );
+
+  return {
+    runtimeInstruction,
+    requestContext,
+    fullPrompt: [
+      runtimeInstruction,
+      requestContext,
+    ].filter(Boolean).join("\n\n"),
+  };
 };

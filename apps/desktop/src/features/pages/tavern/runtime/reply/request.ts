@@ -6,7 +6,7 @@ import type {
 } from "../../types";
 import {
   buildTavernBridgeSystemPrompt,
-  buildTavernSystemPrompt,
+  buildTavernCharacterPromptParts,
 } from "../prompt";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../../presentation-contracts";
@@ -94,7 +94,7 @@ export const buildTavernReplyAgentRequest = ({
 }: TavernReplyAgentRequestInput) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
-  const promptContext = buildTavernSystemPrompt({
+  const promptParts = buildTavernCharacterPromptParts({
     room,
     activeCharacter,
     characters,
@@ -120,7 +120,7 @@ export const buildTavernReplyAgentRequest = ({
       presentationContract.buildRequestContentLine(allowNonverbalReply),
     ].join("\n"),
     requestContext: [
-      promptContext,
+      promptParts.requestContext,
       "",
       "<visible_turn_messages>",
       formatTavernVisibleMessagesForRequestContext(visibleMessages),
@@ -134,6 +134,6 @@ export const buildTavernReplyAgentRequest = ({
           ].join("\n")
         : "",
     ].join("\n"),
-    runtimeInstruction: turnInstruction ?? null,
+    runtimeInstruction: promptParts.runtimeInstruction || turnInstruction || null,
   };
 };

@@ -51,6 +51,15 @@ type PromptRuleLike = {
   characterAddendum: string;
 };
 
+const escapePromptXmlText = (text: string) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const escapePromptXmlAttribute = (text: string) =>
+  escapePromptXmlText(text).replace(/"/g, "&quot;");
+
 const getTargetText = (
   rule: PromptRuleLike,
   target: TavernPromptBlockTarget,
@@ -397,8 +406,8 @@ export const formatTavernPromptBlocksForTarget = ({
   .filter((block) => block.enabled && block.target === target && block.text.trim())
   .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
   .map((block) => [
-    `<prompt_block id="${block.id}" label="${block.label}" target="${block.target}">`,
-    block.text.split("{publicContentTag}").join(publicContentTag ?? "reply"),
+    `<prompt_block id="${escapePromptXmlAttribute(block.id)}" label="${escapePromptXmlAttribute(block.label)}" target="${escapePromptXmlAttribute(block.target)}">`,
+    escapePromptXmlText(block.text.split("{publicContentTag}").join(publicContentTag ?? "reply")),
     "</prompt_block>",
   ].join("\n"))
   .join("\n\n");
@@ -424,8 +433,8 @@ export const formatTavernInteractionQualityRulesForTarget = ({
       }
 
       return [
-        `<interaction_quality_rule id="${rule.id}" label="${rule.label}" target="${target}">`,
-        text.trim(),
+        `<interaction_quality_rule id="${escapePromptXmlAttribute(rule.id)}" label="${escapePromptXmlAttribute(rule.label)}" target="${escapePromptXmlAttribute(target)}">`,
+        escapePromptXmlText(text.trim()),
         "</interaction_quality_rule>",
       ].join("\n");
     })
