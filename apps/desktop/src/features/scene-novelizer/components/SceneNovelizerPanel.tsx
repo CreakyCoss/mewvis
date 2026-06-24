@@ -17,10 +17,14 @@ import {
   SCENE_NOVELIZER_PLATFORM_PACKAGES,
 } from "../prompt-registry/packages";
 import {
+  DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID,
   getDefaultSceneNovelizerRuleOptionIds,
+  getSceneNovelizerRulePackage,
   normalizeSceneNovelizerRuleOptionIds,
   SCENE_NOVELIZER_RULE_CATEGORY_LABELS,
   SCENE_NOVELIZER_RULE_OPTIONS,
+  SCENE_NOVELIZER_RULE_PACKAGES,
+  type SceneNovelizerRulePackageId,
 } from "../prompt-registry/rule-options";
 import {
   evaluateSceneNovelDraft,
@@ -81,6 +85,34 @@ const ruleOptionGroups = ruleCategoryOrder.map((category) => ({
   options: SCENE_NOVELIZER_RULE_OPTIONS.filter((option) => option.category === category),
 }));
 
+type RulePackageSelectValue = SceneNovelizerRulePackageId | "custom";
+
+const hasSameRuleIds = (
+  left: SceneNovelizerRuleOptionId[],
+  right: SceneNovelizerRuleOptionId[],
+) => {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+
+  return leftSet.size === rightSet.size && [...leftSet].every((id) => rightSet.has(id));
+};
+
+const getInitialRuleIds = (source: SceneNovelSource) =>
+  normalizeSceneNovelizerRuleOptionIds(
+    source.ruleOptionIds.length > 0
+      ? source.ruleOptionIds
+      : getDefaultSceneNovelizerRuleOptionIds(source.platformStyleId),
+  );
+
+const getInitialRulePackageId = (
+  platformStyleId: SceneNovelizerPlatformStyleId,
+  ruleIds: SceneNovelizerRuleOptionId[],
+): RulePackageSelectValue =>
+  SCENE_NOVELIZER_RULE_PACKAGES.find((item) =>
+    item.platformStyleId === platformStyleId &&
+    hasSameRuleIds(item.ruleOptionIds, ruleIds)
+  )?.id ?? "custom";
+
 const createLocalDraft = (
   source: SceneNovelSource,
   text: string,
@@ -107,11 +139,10 @@ export const SceneNovelizerPanel = ({
     source.platformStyleId,
   );
   const [selectedRuleIds, setSelectedRuleIds] = useState<SceneNovelizerRuleOptionId[]>(
-    () => normalizeSceneNovelizerRuleOptionIds(
-      source.ruleOptionIds.length > 0
-        ? source.ruleOptionIds
-        : getDefaultSceneNovelizerRuleOptionIds(source.platformStyleId),
-    ),
+    () => getInitialRuleIds(source),
+  );
+  const [selectedPackageId, setSelectedPackageId] = useState<RulePackageSelectValue>(
+    () => getInitialRulePackageId(source.platformStyleId, getInitialRuleIds(source)),
   );
   const [draft, setDraft] = useState<SceneNovelDraft | null>(null);
   const [streamingText, setStreamingText] = useState("");
@@ -132,6 +163,9 @@ export const SceneNovelizerPanel = ({
     };
   }, [platformStyleId, selectedRuleIds, source]);
   const platformPackage = getSceneNovelizerPlatformPackage(platformStyleId);
+  const selectedRulePackage = selectedPackageId === "custom"
+    ? null
+    : getSceneNovelizerRulePackage(selectedPackageId);
   const selectedRuleIdSet = useMemo(() => new Set(selectedRuleIds), [selectedRuleIds]);
   const canGenerate =
     !disabled &&
@@ -141,14 +175,29 @@ export const SceneNovelizerPanel = ({
 
   const changePlatformStyle = (value: string) => {
     const nextPlatformStyleId = value as SceneNovelizerPlatformStyleId;
+    const nextRuleIds = getDefaultSceneNovelizerRuleOptionIds(nextPlatformStyleId);
     setPlatformStyleId(nextPlatformStyleId);
-    setSelectedRuleIds(getDefaultSceneNovelizerRuleOptionIds(nextPlatformStyleId));
+    setSelectedRuleIds(nextRuleIds);
+    setSelectedPackageId(getInitialRulePackageId(nextPlatformStyleId, nextRuleIds));
+  };
+
+  const applyRulePackage = (value: string) => {
+    if (value === "custom") {
+      setSelectedPackageId("custom");
+      return;
+    }
+
+    const nextPackage = getSceneNovelizerRulePackage(value);
+    setSelectedPackageId(nextPackage.id);
+    setPlatformStyleId(nextPackage.platformStyleId);
+    setSelectedRuleIds(normalizeSceneNovelizerRuleOptionIds(nextPackage.ruleOptionIds));
   };
 
   const toggleRuleOption = (
     ruleId: SceneNovelizerRuleOptionId,
     checked: boolean,
   ) => {
+    setSelectedPackageId("custom");
     setSelectedRuleIds((current) =>
       checked
         ? Array.from(new Set([...current, ruleId]))
@@ -277,6 +326,38 @@ export const SceneNovelizerPanel = ({
           <span className="text-[10px] opacity-60">{selectedRuleIds.length}</span>
         </summary>
         <div className="mt-2 max-h-72 space-y-3 overflow-y-auto pr-1">
+          <div className="space-y-2">
+            <Select
+              value={selectedPackageId}
+              onValueChange={applyRulePackage}
+              disabled={isGenerating}
+            >
+              <SelectTrigger size="sm" className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID}>
+                  番茄快节奏
+                </SelectItem>
+                {SCENE_NOVELIZER_RULE_PACKAGES
+                  .filter((item) => item.id !== DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID)
+                  .map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                <SelectItem value="custom">自定义</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedRulePackage && (
+              <div className="rounded-md bg-current/5 px-2 py-1.5 text-[10px] leading-4 opacity-70">
+                {selectedRulePackage.description}
+                <span className="ml-1">
+                  {selectedRulePackage.strengths.join(" / ")}
+                </span>
+              </div>
+            )}
+          </div>
           {ruleOptionGroups.map((group) => (
             <div key={group.category} className="space-y-1.5">
               <div className="text-[10px] font-semibold opacity-60">{group.label}</div>

@@ -1,9 +1,7 @@
 import {
   Braces,
-  CheckCircle2,
   FilePlus2,
   Goal,
-  Layers3,
   MessageSquareText,
   Plus,
   Save,
@@ -16,7 +14,6 @@ import {
 import type { Ref } from "react";
 import { useImperativeHandle, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog } from "@/components/ui/dialog";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
@@ -32,17 +29,6 @@ import {
   normalizeTavernPresentation,
   normalizeTavernPresentationProfileId,
 } from "../../../../../prompt-registry/presentation-rules";
-import {
-  TAVERN_QUALITY_RULES,
-  TAVERN_RULE_COMPOSITION_OPTIONS,
-  getTavernRuleComposition,
-  normalizeTavernQualityRuleIds,
-  normalizeTavernRuleCompositionId,
-} from "../../../../../prompt-registry/rule-layers/resolver";
-import type {
-  TavernPlatformStyleId,
-  TavernQualityRuleId,
-} from "../../../../../prompt-registry/rule-layers/types";
 import {
   TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
   getTavernSystemNarrativePreset,
@@ -60,7 +46,6 @@ import {
 import {
   createDefaultTavernPromptSettings,
   createRoomStylePromptBlocks,
-  createRuleCompositionPromptBlocks,
   createSystemNarrativePromptBlocks,
   normalizeTavernPromptSettings,
 } from "../../../../../prompt-registry/text-blocks";
@@ -104,8 +89,6 @@ type PromptPresetDraft = {
   stylePackageId: TavernPromptStylePackageId;
   systemNarrativePresetId: TavernSystemNarrativePresetId;
   roomStyleId: TavernPromptStyleId;
-  ruleCompositionId: TavernPlatformStyleId;
-  qualityRuleIds: TavernQualityRuleId[];
 };
 
 type PromptDraft = {
@@ -145,15 +128,6 @@ const promptBlockTargets: Array<{
     label: "角色",
     description: "负责最终可见内容、角色口吻和局部描写。",
   },
-];
-
-const ruleSourceTypes: TavernPromptBlockSourceType[] = [
-  "platform_style",
-  "quality_rule",
-  "narrative_style",
-  "genre_rule",
-  "hook_rule",
-  "taboo_rule",
 ];
 
 const sourceTypeLabels: Record<TavernPromptBlockSourceType, string> = {
@@ -200,16 +174,6 @@ const getFirstSourceId = (
   sourceType: TavernPromptBlockSourceType,
 ) => prompt.blocks.find((block) => block.source?.type === sourceType)?.source?.id;
 
-const hasSameQualityRuleIds = (
-  left: TavernQualityRuleId[],
-  right: TavernQualityRuleId[],
-) => {
-  const leftSet = new Set(left);
-  const rightSet = new Set(right);
-
-  return leftSet.size === rightSet.size && [...leftSet].every((id) => rightSet.has(id));
-};
-
 const getPromptPresetDraft = (
   prompt: TavernRoomPromptSettings,
   presentationProfileId: TavernPresentationProfileId,
@@ -218,28 +182,16 @@ const getPromptPresetDraft = (
     getFirstSourceId(prompt, "system_narrative"),
   );
   const roomStyleId = normalizeTavernPromptStyleId(getFirstSourceId(prompt, "room_style"));
-  const ruleCompositionId = normalizeTavernRuleCompositionId(
-    getFirstSourceId(prompt, "platform_style"),
-  );
-  const qualityRuleIds = normalizeTavernQualityRuleIds(
-    prompt.blocks.flatMap((block) =>
-      block.source?.type === "quality_rule" ? [block.source.id] : []
-    ),
-  );
   const matchedStylePackage = TAVERN_PROMPT_STYLE_PACKAGES.find((stylePackage) =>
     stylePackage.presentationProfileId === presentationProfileId &&
     stylePackage.systemNarrativePresetId === systemNarrativePresetId &&
-    stylePackage.promptStyleId === roomStyleId &&
-    stylePackage.ruleCompositionId === ruleCompositionId &&
-    hasSameQualityRuleIds(stylePackage.qualityRuleIds, qualityRuleIds)
+    stylePackage.promptStyleId === roomStyleId
   );
 
   return {
     stylePackageId: matchedStylePackage?.id ?? DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID,
     systemNarrativePresetId,
     roomStyleId,
-    ruleCompositionId,
-    qualityRuleIds,
   };
 };
 
@@ -438,8 +390,6 @@ export const PromptEdit = ({
           stylePackageId: stylePackage.id,
           systemNarrativePresetId: stylePackage.systemNarrativePresetId,
           roomStyleId: stylePackage.promptStyleId,
-          ruleCompositionId: stylePackage.ruleCompositionId,
-          qualityRuleIds: [...stylePackage.qualityRuleIds],
         },
         prompt: createTavernPromptSettingsFromStylePackage({
           stylePackageId: stylePackage.id,
@@ -461,19 +411,6 @@ export const PromptEdit = ({
     );
   };
 
-  const applyRuleCompositionPreset = () => {
-    patchDraftPrompt((prompt, current) =>
-      replaceBlocksBySourceTypes({
-        prompt,
-        sourceTypes: ruleSourceTypes,
-        nextBlocks: createRuleCompositionPromptBlocks({
-          compositionId: current.presets.ruleCompositionId,
-          qualityRuleIds: current.presets.qualityRuleIds,
-        }),
-      })
-    );
-  };
-
   const addCustomBlock = (target: TavernPromptBlockTarget) => {
     patchDraftPrompt((prompt) => ({
       version: 1,
@@ -482,28 +419,6 @@ export const PromptEdit = ({
         createCustomPromptBlock(prompt, target),
       ]),
     }));
-  };
-
-  const toggleQualityRule = (ruleId: TavernQualityRuleId, checked: boolean) => {
-    setDraft((current) => {
-      if (!current) {
-        return current;
-      }
-
-      const nextRuleIds = checked
-        ? Array.from(new Set([...current.presets.qualityRuleIds, ruleId]))
-        : current.presets.qualityRuleIds.filter((currentRuleId) =>
-          currentRuleId !== ruleId
-        );
-
-      return {
-        ...current,
-        presets: {
-          ...current.presets,
-          qualityRuleIds: nextRuleIds,
-        },
-      };
-    });
   };
 
   const save = () => {
@@ -569,9 +484,6 @@ export const PromptEdit = ({
     : null;
   const selectedRoomStyle = draft
     ? getTavernPromptStylePreset(draft.presets.roomStyleId)
-    : null;
-  const selectedRuleComposition = draft
-    ? getTavernRuleComposition(draft.presets.ruleCompositionId)
     : null;
   const enabledBlockCount = draft
     ? draft.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length
@@ -782,7 +694,7 @@ export const PromptEdit = ({
                   </div>
                 </div>
 
-                <div className="grid gap-3 xl:grid-cols-3">
+                <div className="grid gap-3 xl:grid-cols-2">
                   <EditorField
                     label="系统叙事"
                     htmlFor="tavern-prompt-system-narrative-preset"
@@ -847,76 +759,6 @@ export const PromptEdit = ({
                     </NativeSelect>
                   </EditorField>
 
-                  <EditorField
-                    label="写作规则组合"
-                    htmlFor="tavern-prompt-rule-composition-preset"
-                    description={selectedRuleComposition?.description}
-                    action={(
-                      <Button type="button" size="sm" variant="outline" onClick={applyRuleCompositionPreset}>
-                        <Layers3 className="size-3.5" />
-                        引用
-                      </Button>
-                    )}
-                  >
-                    <NativeSelect
-                      id="tavern-prompt-rule-composition-preset"
-                      value={draft.presets.ruleCompositionId}
-                      className={selectClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presets: {
-                          ...draft.presets,
-                          ruleCompositionId: normalizeTavernRuleCompositionId(
-                            event.target.value,
-                          ),
-                        },
-                      })}
-                    >
-                      {TAVERN_RULE_COMPOSITION_OPTIONS.map((composition) => (
-                        <NativeSelectOption key={composition.id} value={composition.id}>
-                          {composition.label}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </EditorField>
-                </div>
-
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {TAVERN_QUALITY_RULES.map((rule) => {
-                    const checked = draft.presets.qualityRuleIds.includes(rule.id);
-
-                    return (
-                      <label
-                        key={rule.id}
-                        className={cn(
-                          "grid cursor-pointer gap-3 rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs transition-colors sm:grid-cols-[auto_minmax(0,1fr)]",
-                          checked && "border-primary/35 bg-primary/[0.06]",
-                        )}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(nextChecked) => {
-                            toggleQualityRule(rule.id, nextChecked === true);
-                          }}
-                          aria-label={rule.label}
-                          className="mt-0.5"
-                        />
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-2 text-sm font-semibold leading-5">
-                            <CheckCircle2 className={cn(
-                              "size-3.5",
-                              checked ? "text-primary" : "text-muted-foreground",
-                            )}
-                            />
-                            {rule.label}
-                          </span>
-                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                            {rule.description}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
                 </div>
               </EditorFormCard>
 

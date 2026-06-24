@@ -1,5 +1,8 @@
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
+import {
+  formatTavernInteractionQualityRulesForTarget,
+  formatTavernPromptBlocksForTarget,
+} from "../../../prompt-registry/text-blocks";
 import type { TavernRoom } from "../../../types";
 import { buildPresentationProfileSection } from "../layers/presentation";
 import {
@@ -30,10 +33,16 @@ export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
     {
       id: "prompt-blocks",
       layer: "tavern",
-      content: formatTavernPromptBlocksForTarget({
-        prompt: room.prompt,
-        target: "bridge",
-      }),
+      content: [
+        formatTavernPromptBlocksForTarget({
+          prompt: room.prompt,
+          target: "bridge",
+        }),
+        formatTavernInteractionQualityRulesForTarget({
+          qualityRuleIds: room.settings.interactionQualityRuleIds,
+          target: "bridge",
+        }),
+      ].filter(Boolean).join("\n\n"),
     },
   ];
 

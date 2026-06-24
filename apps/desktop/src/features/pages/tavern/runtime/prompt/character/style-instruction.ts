@@ -1,5 +1,8 @@
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
+import {
+  formatTavernInteractionQualityRulesForTarget,
+  formatTavernPromptBlocksForTarget,
+} from "../../../prompt-registry/text-blocks";
 import type {
   TavernCharacter,
   TavernRoom,
@@ -20,6 +23,11 @@ export const buildCharacterTurnStyleInstruction = ({
     `呈现规则：${presentationProfile.label}。${presentationProfile.characterAddendum}`,
     formatTavernPromptBlocksForTarget({
       prompt: room.prompt,
+      target: "character",
+      publicContentTag,
+    }),
+    formatTavernInteractionQualityRulesForTarget({
+      qualityRuleIds: room.settings.interactionQualityRuleIds,
       target: "character",
       publicContentTag,
     }),

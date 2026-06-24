@@ -1,4 +1,5 @@
 import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
+import type { TavernQualityRuleId } from "./prompt-registry/rule-layers/types";
 export type TavernReplyMode = "active" | "round" | "director";
 
 export type TavernPresentationProfileId =
@@ -318,6 +319,7 @@ export type TavernRoomSettings = {
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
   agentKnowledgeCompactIntervalTurns: number;
+  interactionQualityRuleIds: TavernQualityRuleId[];
   directorNarrativeControl: {
     agencyMode: "player_protagonist" | "story_directive" | "scene_drive";
     responseScale: "focused" | "balanced" | "ensemble";

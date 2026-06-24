@@ -21,7 +21,10 @@ import {
   isTavernDirectorOnlyTurnAllowed,
 } from "../../core";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
-import { formatTavernPromptBlocksForTarget } from "../../prompt-registry/text-blocks";
+import {
+  formatTavernInteractionQualityRulesForTarget,
+  formatTavernPromptBlocksForTarget,
+} from "../../prompt-registry/text-blocks";
 import {
   shouldOfferTavernDirectorRandomEvent,
 } from "./decision";
@@ -72,10 +75,16 @@ export const buildTavernDirectorPromptContext = ({
   }));
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const promptBlocksText = formatTavernPromptBlocksForTarget({
-    prompt: room.prompt,
-    target: "director",
-  });
+  const promptBlocksText = [
+    formatTavernPromptBlocksForTarget({
+      prompt: room.prompt,
+      target: "director",
+    }),
+    formatTavernInteractionQualityRulesForTarget({
+      qualityRuleIds: room.settings.interactionQualityRuleIds,
+      target: "director",
+    }),
+  ].filter(Boolean).join("\n\n");
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
   const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);

@@ -265,6 +265,12 @@ writeFileSync(entryPath, `
       agentKnowledgeCompactIntervalTurns: 0,
       maxAssetDrafts: 5,
       directorMaxSpeakers: 3,
+      interactionQualityRuleIds: [
+        "anti-ai-natural",
+        "natural-dialogue",
+        "concise-no-summary",
+        "reduce-empty-ambience",
+      ],
       directorNarrativeControl: {
         agencyMode: "player_protagonist",
         responseScale: "balanced",
@@ -2430,6 +2436,12 @@ try {
     "A 的角色 prompt 必须锁定 A 身份",
     checks.promptForA,
 	  );
+  assert(
+    checks.promptForA.includes("interaction_quality_rule id=\"anti-ai-natural\"") &&
+      checks.promptForA.includes("interaction_quality_rule id=\"natural-dialogue\""),
+    "酒馆互动质量护栏应由设置实时注入角色 prompt，而不是依赖提示词编辑页文本块",
+    checks.promptForA,
+  );
 	  assert(
 	    checks.styledPromptForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
 	      checks.styledPromptForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&

@@ -3,7 +3,10 @@ import {
 } from "@/features/ai/components/context-tools";
 import { getTavernPresentationContract } from "../../../presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
+import {
+  formatTavernInteractionQualityRulesForTarget,
+  formatTavernPromptBlocksForTarget,
+} from "../../../prompt-registry/text-blocks";
 import type {
   TavernCharacter,
   TavernReferencedFile,
@@ -51,11 +54,18 @@ const buildSavedPromptBlocksSection = ({
 }): TavernPromptSection => ({
   id: "prompt-blocks",
   layer: "tavern",
-  content: formatTavernPromptBlocksForTarget({
-    prompt: room.prompt,
-    target: "character",
-    publicContentTag,
-  }),
+  content: [
+    formatTavernPromptBlocksForTarget({
+      prompt: room.prompt,
+      target: "character",
+      publicContentTag,
+    }),
+    formatTavernInteractionQualityRulesForTarget({
+      qualityRuleIds: room.settings.interactionQualityRuleIds,
+      target: "character",
+      publicContentTag,
+    }),
+  ].filter(Boolean).join("\n\n"),
 });
 
 export const buildTavernSystemPrompt = ({

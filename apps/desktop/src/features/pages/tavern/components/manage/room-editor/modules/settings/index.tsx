@@ -9,6 +9,7 @@ import {
   PackageCheck,
   Pencil,
   Settings2,
+  ShieldCheck,
   Sparkles,
   Target,
   UserRoundCog,
@@ -238,6 +239,13 @@ export const SettingsSection = ({
                 <EditorSettingRow icon={Clapperboard} label="推进策略">
                   <EditorStatusPill tone="info">
                     {agencyModeLabel[data.settings.directorNarrativeControl.agencyMode]} / {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
+                  </EditorStatusPill>
+                </EditorSettingRow>
+                <EditorSettingRow icon={ShieldCheck} label="质量护栏">
+                  <EditorStatusPill tone={data.settings.interactionQualityRuleIds.length > 0 ? "active" : "muted"}>
+                    {data.settings.interactionQualityRuleIds.length > 0
+                      ? `${data.settings.interactionQualityRuleIds.length} 项`
+                      : "关闭"}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UserRoundSearch} label="信息模式">

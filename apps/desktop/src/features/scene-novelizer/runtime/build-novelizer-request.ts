@@ -72,6 +72,13 @@ export const buildSceneNovelizerRequestContext = (
           ].join("\n")),
           "</writing_rule_layers>",
           "",
+          "<writing_rule_judge_focus instruction=\"local_quality_checker_focus; use_to_self_check_before_final_output\">",
+          ...ruleOptions.map((option) => [
+            `## ${option.label}`,
+            ...option.judgeFocus.map((focus) => `- ${focus}`),
+          ].join("\n")),
+          "</writing_rule_judge_focus>",
+          "",
         ].join("\n")
       : "",
     "<confirmed_facts>",

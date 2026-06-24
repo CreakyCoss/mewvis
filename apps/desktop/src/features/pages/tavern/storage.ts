@@ -71,6 +71,7 @@ import {
   normalizeTavernSystemNarrativePresetSettings,
 } from "./prompt-registry/system-narrative-styles";
 import {
+  DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS,
   DEFAULT_TAVERN_RULE_COMPOSITION_ID,
   normalizeTavernQualityRuleIds,
   normalizeTavernRuleCompositionId,
@@ -341,6 +342,7 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
   agentKnowledgeCompactIntervalTurns: 0,
+  interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
   directorNarrativeControl: {
     agencyMode: "player_protagonist",
     responseScale: "balanced",
@@ -992,6 +994,7 @@ const cloneTavernDirectorProfile = (
 
 const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
+  interactionQualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds],
   directorNarrativeControl: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl },
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
@@ -1468,6 +1471,9 @@ const normalizeRoomSettings = (
       DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,
       0,
       50,
+    ),
+    interactionQualityRuleIds: normalizeTavernQualityRuleIds(
+      candidate.interactionQualityRuleIds ?? DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds,
     ),
     directorNarrativeControl: normalizeDirectorNarrativeControl(candidate.directorNarrativeControl),
     directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling, options),

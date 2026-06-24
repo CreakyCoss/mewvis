@@ -4,7 +4,9 @@ import {
 import {
   DEFAULT_TAVERN_RULE_COMPOSITION_ID,
   getTavernRuleComposition,
+  normalizeTavernQualityRuleIds,
   resolveTavernPromptRuleStack,
+  TAVERN_QUALITY_RULES,
 } from "./rule-layers/resolver";
 import type {
   TavernPromptRuleGroups,
@@ -400,3 +402,33 @@ export const formatTavernPromptBlocksForTarget = ({
     "</prompt_block>",
   ].join("\n"))
   .join("\n\n");
+
+export const formatTavernInteractionQualityRulesForTarget = ({
+  qualityRuleIds,
+  target,
+  publicContentTag,
+}: {
+  qualityRuleIds?: unknown;
+  target: TavernPromptBlockTarget;
+  publicContentTag?: string;
+}) => {
+  const enabledIds = new Set(normalizeTavernQualityRuleIds(qualityRuleIds));
+  return TAVERN_QUALITY_RULES
+    .filter((rule) => enabledIds.has(rule.id))
+    .map((rule) => {
+      const text = getTargetText(rule, target)
+        .split("{publicContentTag}")
+        .join(publicContentTag ?? "reply");
+      if (!text.trim()) {
+        return "";
+      }
+
+      return [
+        `<interaction_quality_rule id="${rule.id}" label="${rule.label}" target="${target}">`,
+        text.trim(),
+        "</interaction_quality_rule>",
+      ].join("\n");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+};

@@ -9,6 +9,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,11 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS,
+  TAVERN_QUALITY_RULES,
+} from "../../../../../prompt-registry/rule-layers/resolver";
+import type { TavernQualityRuleId } from "../../../../../prompt-registry/rule-layers/types";
 import type {
   TavernProgressTrackerSettings,
   TavernRoleAssignmentDefinition,
@@ -85,6 +91,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         ...draft.randomEvents,
         enabled: false,
       },
+      interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         agencyMode: "player_protagonist",
         responseScale: "balanced",
@@ -116,6 +123,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         ...draft.illustrationHints,
         enabled: true,
       },
+      interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         ...draft.directorNarrativeControl,
         agencyMode: "player_protagonist",
@@ -146,6 +154,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         enabled: true,
         applyMode: "review",
       },
+      interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         agencyMode: "story_directive",
         responseScale: "balanced",
@@ -176,6 +185,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         ...draft.randomEvents,
         enabled: true,
       },
+      interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         ...draft.directorNarrativeControl,
         agencyMode: "scene_drive",
@@ -329,6 +339,7 @@ export const SettingsEdit = ({
           50,
           Math.max(0, Number(draft.agentKnowledgeCompactIntervalTurns) || 0),
         ),
+        interactionQualityRuleIds: [...draft.interactionQualityRuleIds],
         directorNarrativeControl: { ...draft.directorNarrativeControl },
         statusTracking: {
           ...data.settings.statusTracking,
@@ -372,6 +383,23 @@ export const SettingsEdit = ({
       },
     });
     close();
+  };
+
+  const toggleInteractionQualityRule = (
+    ruleId: TavernQualityRuleId,
+    checked: boolean,
+  ) => {
+    if (!draft) {
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      interactionQualityRuleIds: checked
+        ? Array.from(new Set([...draft.interactionQualityRuleIds, ruleId]))
+        : draft.interactionQualityRuleIds.filter((currentRuleId) => currentRuleId !== ruleId),
+    });
+    setSelectedPresetId("default");
   };
 
   return (
@@ -776,6 +804,44 @@ export const SettingsEdit = ({
                       setSelectedPresetId("default");
                     }}
                   />
+                </SettingsSection>
+
+                <SettingsSection
+                  title="互动质量"
+                  description="控制实时酒馆回复的基础文本质量护栏；不保存为提示词编辑页文本块。"
+                >
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {TAVERN_QUALITY_RULES.map((rule) => {
+                      const checked = draft.interactionQualityRuleIds.includes(rule.id);
+
+                      return (
+                        <label
+                          key={rule.id}
+                          className={cn(
+                            "grid cursor-pointer gap-3 rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs transition-colors sm:grid-cols-[auto_minmax(0,1fr)]",
+                            checked && "border-primary/35 bg-primary/[0.06]",
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(nextChecked) => {
+                              toggleInteractionQualityRule(rule.id, nextChecked === true);
+                            }}
+                            aria-label={rule.label}
+                            className="mt-0.5"
+                          />
+                          <span className="min-w-0">
+                            <span className="text-sm font-semibold leading-5">
+                              {rule.label}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                              {rule.description}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </SettingsSection>
 
                 <SettingsSection

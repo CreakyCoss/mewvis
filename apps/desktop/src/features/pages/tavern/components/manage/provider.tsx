@@ -284,6 +284,9 @@ const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
       0,
       50,
     ),
+    interactionQualityRuleIds: normalizeTavernQualityRuleIds(
+      candidate.interactionQualityRuleIds ?? DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds,
+    ),
     directorNarrativeControl: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl,
       ...(candidate.directorNarrativeControl ?? {}),
