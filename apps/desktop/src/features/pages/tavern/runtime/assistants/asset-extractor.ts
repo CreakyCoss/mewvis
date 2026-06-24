@@ -74,6 +74,7 @@ export const runTavernAssetExtraction = async ({
   } catch {
     return {
       sourceMessageIds: sourceMessages.map((message) => message.id),
+      sceneMemories: [],
       characterMemories: [],
       lorebookEntries: [],
     };

@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../../visual-presets";
-import { getTavernSceneDisplayTitle } from "../../storage";
 import type { TavernCharacter, TavernRoom } from "../../types";
 import { compactScene } from "../../utils";
 import { useManagementContext } from "./context";
@@ -90,7 +89,6 @@ export const RoomCard = ({
     restoreSystemPresetRoom,
     setRoomLocked,
     deleteRoom,
-    clearRoomMessages,
     exportRoom,
   } = useManagementContext();
   const {
@@ -112,11 +110,6 @@ export const RoomCard = ({
     roomCharacters.length - visibleCharacters.length,
   );
   const sceneCount = Math.max(1, room.scenes?.length ?? 1);
-  const activeSceneTitle = getTavernSceneDisplayTitle(
-    room,
-    room.activeSceneId,
-    "当前场景",
-  );
   const roomBadgeClassName = room.systemPresetId
     ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
     : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
@@ -163,36 +156,12 @@ export const RoomCard = ({
     }
   };
 
-  const handleClearRoomMessages = () => {
-    if (room.locked) {
-      return;
-    }
-
-    onRequestDangerAction({
-      title: "清空对话",
-      description:
-        `清空「${room.title}」当前场景「${activeSceneTitle}」的对话记录？系统会先保存状态检查点，再把该场景现有消息替换为一条重置提示。`,
-      confirmLabel: "清空对话",
-      onConfirm: () => {
-        void clearRoomMessages(room.id).then((applied) => {
-          if (!applied) {
-            setOperationStatus(`清空「${room.title}」当前场景失败`);
-            return;
-          }
-
-          setOperationStatus(`已清空「${room.title}」当前场景的对话`);
-          onRoomChange?.(room.id);
-        });
-      },
-    });
-  };
-
   const handleRoomLockChange = () => {
     const nextLocked = !room.locked;
     const actionLabel = nextLocked ? "锁定酒馆" : "解锁酒馆";
     const consequence = nextLocked
-      ? "锁定后将不能删除该酒馆、恢复系统默认或清空当前场景对话。"
-      : "解锁后将重新允许删除该酒馆、恢复系统默认或清空当前场景对话。";
+      ? "锁定后将不能删除该酒馆或恢复系统默认。"
+      : "解锁后将重新允许删除该酒馆或恢复系统默认。";
 
     onRequestDangerAction({
       title: actionLabel,
@@ -439,15 +408,6 @@ export const RoomCard = ({
                   恢复默认
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                variant="destructive"
-                className="h-8 gap-2 rounded-md px-2 text-sm"
-                disabled={room.locked}
-                onSelect={handleClearRoomMessages}
-              >
-                <RotateCcw className="size-4" />
-                清空对话
-              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 className="h-8 gap-2 rounded-md px-2 text-sm"

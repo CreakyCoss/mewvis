@@ -2,6 +2,8 @@ import {
   ArrowLeft,
   BookOpen,
   Bot,
+  Eraser,
+  History,
   PanelRightClose,
   PanelRightOpen,
   Pause,
@@ -12,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "../../utils";
-import { getTavernSceneDisplayTitle } from "../../storage";
+import { getTavernSceneInstanceDisplayTitle } from "../../storage";
 import { useTavernPageContext } from "../context";
 import { SceneSelector } from "./scene-selector";
 
@@ -21,7 +23,9 @@ type HeaderProps = {
   isSceneDriveAutoRunning: boolean;
   isSidePanelOpen: boolean;
   onBack?: () => void;
-  onSelectScene: (sceneId: string) => void;
+  onClearCurrentSceneMessages: () => void;
+  onLoadBranchMemory: () => void;
+  onSelectSceneInstance: (sceneInstanceId: string) => void;
   onOpenQuickSummary: () => void;
   onSceneDriveTurn: () => void;
   onToggleSceneDriveAuto: () => void;
@@ -37,7 +41,9 @@ export const Header = ({
   isSceneDriveAutoRunning,
   isSidePanelOpen,
   onBack,
-  onSelectScene,
+  onClearCurrentSceneMessages,
+  onLoadBranchMemory,
+  onSelectSceneInstance,
   onOpenQuickSummary,
   onSceneDriveTurn,
   onToggleSceneDriveAuto,
@@ -54,7 +60,10 @@ export const Header = ({
     return null;
   }
 
-  const scenes = activeRoom.scenes ?? [];
+  const sceneInstanceOptions = activeRoom.sceneInstances.map((instance) => ({
+    id: instance.id,
+    label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
+  }));
 
   return (
     <header
@@ -100,11 +109,10 @@ export const Header = ({
         </div>
         <div className="hidden min-w-[220px] max-w-[280px] md:flex">
           <SceneSelector
-            scenes={scenes}
-            activeSceneId={activeRoom.activeSceneId}
+            options={sceneInstanceOptions}
+            activeValue={activeRoom.activeSceneInstanceId}
             label="节点："
-            getSceneLabel={(scene) => getTavernSceneDisplayTitle(activeRoom, scene.id)}
-            onSelectScene={onSelectScene}
+            onSelectScene={onSelectSceneInstance}
           />
         </div>
         <Button
@@ -162,6 +170,32 @@ export const Header = ({
           <span className="hidden text-xs font-medium sm:inline">
             {isManagedModeEnabled ? "托管中" : "托管"}
           </span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={tavernHeaderActionButtonClassName}
+          title={activeRoom.locked ? "酒馆已锁定" : "加载上游记忆"}
+          aria-label={activeRoom.locked ? "酒馆已锁定" : "加载上游记忆"}
+          disabled={activeRoom.locked || isSending}
+          onClick={onLoadBranchMemory}
+        >
+          <History className="size-4" />
+          <span className="hidden text-xs font-medium sm:inline">记忆</span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={tavernHeaderActionButtonClassName}
+          title={activeRoom.locked ? "酒馆已锁定" : "清空当前节点对话"}
+          aria-label={activeRoom.locked ? "酒馆已锁定" : "清空当前节点对话"}
+          disabled={activeRoom.locked || isSending || isSceneDriveAutoRunning}
+          onClick={onClearCurrentSceneMessages}
+        >
+          <Eraser className="size-4" />
+          <span className="hidden text-xs font-medium sm:inline">清空</span>
         </Button>
         <Button
           type="button"

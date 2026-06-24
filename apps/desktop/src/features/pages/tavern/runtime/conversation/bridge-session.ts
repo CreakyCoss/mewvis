@@ -60,6 +60,7 @@ export const ensureTavernBridgeSession = async ({
     metadata: {
       tavernRoomId: room.id,
       tavernSceneId: room.activeSceneId ?? null,
+      tavernSceneInstanceId: room.activeSceneInstanceId ?? null,
     },
   });
 };
@@ -76,7 +77,7 @@ export const deleteTavernBridgeSession = async ({
   room,
 }: {
   workspacePath: string;
-  room: Pick<TavernRoom, "id" | "activeSceneId" | "scenes">;
+  room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
 }) => {
   const sessionRootDirs = Array.from(new Set([
     tavernBridgeSessionRootDir(room),
@@ -98,7 +99,7 @@ export const deleteTavernBridgeSessionsForRoom = async ({
   room,
 }: {
   workspacePath: string;
-  room: Pick<TavernRoom, "id" | "activeSceneId" | "scenes">;
+  room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
 }) => {
   const results = await Promise.allSettled(
     tavernBridgeSessionRootDirsForRoom(room).map((sessionRootDir) =>
@@ -118,7 +119,7 @@ export const disposeTavernBridgeSessionWorkers = async ({
   room,
 }: {
   workspacePath: string;
-  room: Pick<TavernRoom, "id" | "activeSceneId" | "scenes">;
+  room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
 }) => {
   const results = await Promise.allSettled(
     tavernBridgeSessionRootDirsForRoom(room).map((sessionRootDir) =>
@@ -154,6 +155,7 @@ export const rebuildTavernBridgeSessionFromMessages = async ({
         metadata: {
           tavernRoomId: room.id,
           tavernSceneId: room.activeSceneId ?? null,
+          tavernSceneInstanceId: room.activeSceneInstanceId ?? null,
         },
       },
       ...tavernMessagesToLedgerMessages({

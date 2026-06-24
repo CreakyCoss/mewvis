@@ -11,7 +11,7 @@ import type {
 } from "../../types";
 
 export type PageNavigationHandle = {
-  open: (room: TavernRoom) => void;
+  open: (room: TavernRoom, sceneInstanceId?: string) => void;
 };
 
 export type ManagementContextValue = {
@@ -27,7 +27,6 @@ export type ManagementContextValue = {
   restoreSystemPresetRoom: (roomId: string) => Promise<boolean>;
   setRoomLocked: (roomId: string, locked: boolean) => boolean;
   deleteRoom: (roomId: string) => boolean;
-  clearRoomMessages: (roomId: string) => Promise<boolean>;
   exportRoom: (roomId: string) => boolean;
   importRoom: (raw: string) => string | null;
   globalRuntimeModel: RuntimeModelOption | null;

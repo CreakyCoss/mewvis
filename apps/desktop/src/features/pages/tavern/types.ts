@@ -86,6 +86,11 @@ export type TavernRoomPromptSettings = {
   blocks: TavernPromptBlock[];
 };
 
+export type TavernScenePromptOverrides = {
+  version: 1;
+  blocks: TavernPromptBlock[];
+};
+
 export type TavernMessageActorRef =
   | { type: "user" }
   | { type: "character"; characterId: string }
@@ -292,6 +297,16 @@ export type TavernCharacterMemoryDraft = {
   id: string;
   characterId: string;
   note: string;
+  visibility: "public" | "hidden" | "character";
+  secretId?: string;
+  revealToCharacterIds: string[];
+};
+
+export type TavernSceneMemoryDraft = {
+  id: string;
+  note: string;
+  visibility: "public" | "hidden" | "director";
+  secretId?: string;
 };
 
 export type TavernLorebookDraft = {
@@ -305,6 +320,7 @@ export type TavernLorebookDraft = {
 export type TavernAssetDraft = {
   id: string;
   sourceMessageIds: string[];
+  sceneMemories: TavernSceneMemoryDraft[];
   characterMemories: TavernCharacterMemoryDraft[];
   lorebookEntries: TavernLorebookDraft[];
   createdAt: number;
@@ -829,6 +845,84 @@ export type TavernScene = {
   updatedAt: number;
 };
 
+export type TavernSceneMemoryLayers = {
+  required: string;
+  upstream: string;
+  private: string;
+  public: string;
+  directorSecret: string;
+  entries?: TavernMemoryEntry[];
+  updatedAt?: number;
+};
+
+export type TavernCharacterMemoryLayers = {
+  required: string;
+  public: string;
+  known: string;
+  privateSelf: string;
+  directorSecret: string;
+  entries?: TavernMemoryEntry[];
+  updatedAt?: number;
+};
+
+export type TavernMemoryVisibility =
+  | "public"
+  | "character_known"
+  | "private_self"
+  | "director"
+  | "hidden";
+
+export type TavernMemoryEntry = {
+  id: string;
+  text: string;
+  visibility: TavernMemoryVisibility;
+  secretId?: string;
+  ownerCharacterId?: string;
+  visibleToCharacterIds?: string[];
+  sourceMessageIds?: string[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TavernSecretRevealScope =
+  | { type: "scene"; sceneId: string }
+  | { type: "node"; nodeId: string }
+  | { type: "sceneInstance"; sceneInstanceId: string }
+  | { type: "run"; runId: string };
+
+export type TavernSecretReveal = {
+  id: string;
+  secretId: string;
+  scope: TavernSecretRevealScope;
+  visibility: "public" | "character";
+  targetCharacterIds: string[];
+  sourceMessageIds: string[];
+  note?: string;
+  revealedAt: number;
+};
+
+export type TavernStoryRun = {
+  id: string;
+  title: string;
+  pathNodeIds: string[];
+  pathEdgeIds: string[];
+  activeNodeId: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type TavernSceneInstance = TavernScene & {
+  sceneId: string;
+  nodeId: string;
+  runIds: string[];
+  pathNodeIds: string[];
+  pathEdgeIds: string[];
+  promptOverrides: TavernScenePromptOverrides;
+  memoryLayers: TavernSceneMemoryLayers;
+  characterMemoryLayers: Record<string, TavernCharacterMemoryLayers>;
+  secretReveals: TavernSecretReveal[];
+};
+
 export type TavernRoom = {
   id: string;
   workspaceId: string;
@@ -842,6 +936,10 @@ export type TavernRoom = {
   storyOutline: string;
   storyGoal: string;
   storyGraph: TavernStoryGraph;
+  storyRuns: TavernStoryRun[];
+  activeRunId?: string;
+  activeSceneInstanceId?: string;
+  sceneInstances: TavernSceneInstance[];
   activeSceneId?: string;
   scenes?: TavernScene[];
   scenePresetId: VisualPresetId;
@@ -890,6 +988,7 @@ export type TavernMessage = {
   id: string;
   roomId: string;
   sceneId?: string;
+  sceneInstanceId?: string;
   turnId?: string;
   kind?: TavernMessageKind;
   role: "user" | "character" | "narrator";
@@ -1016,10 +1115,10 @@ export type TavernGeneratedPresetJson = {
 };
 
 export type TavernState = {
-  version: 2;
+  version: 3;
   activeRoomId: string;
   rooms: TavernRoom[];
-  messagesByScene: Record<string, TavernMessage[]>;
+  messagesByInstance: Record<string, TavernMessage[]>;
 };
 
 export type TavernReferencedFile = {

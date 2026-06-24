@@ -24,9 +24,6 @@ import {
   normalizeTavernPromptSettings,
 } from "../../prompt-registry/text-blocks";
 import {
-  createTavernProgressCheckpoint,
-} from "../../core";
-import {
   createTavernAssetDraft,
   createTavernIllustrationHint,
   createTavernLorebookEntry,
@@ -45,7 +42,6 @@ import {
   syncTavernRoomActiveScene,
 } from "../../storage";
 import {
-  deleteTavernBridgeSession,
   deleteTavernBridgeSessionsForRoom,
 } from "../../runtime/conversation";
 import { runTavernDirectorProfileAgent } from "../../runtime/director";
@@ -65,7 +61,6 @@ import type {
   TavernFactEvent,
   TavernMessage,
   TavernOutcomeEvent,
-  TavernProgressCheckpoint,
   TavernRelationshipTarget,
   TavernRoom,
   TavernRoomSettings,
@@ -126,25 +121,19 @@ const cloneTavernDirectorProfile = (
     }
   : undefined;
 
-const touchTavernRoomActiveScene = (room: TavernRoom): TavernRoom => ({
-  ...syncTavernRoomActiveScene({
-    ...room,
-    updatedAt: Date.now(),
-  }),
-});
-
 const hasAssetDraftItems = (draft: TavernAssetDraft) =>
+  draft.sceneMemories.some((memory) => memory.note.trim()) ||
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
-type TavernRoomExportV2 = {
+type TavernRoomExportV3 = {
   schema: typeof TAVERN_ROOM_EXPORT_SCHEMA;
-  version: 2;
+  version: 3;
   exportedAt: string;
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
-  messagesByScene: Record<string, TavernMessage[]>;
+  messagesByInstance: Record<string, TavernMessage[]>;
 };
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
@@ -232,12 +221,15 @@ const remapImportedSceneRelationshipOverrides = (
 const getRoomActiveSceneId = (room: TavernRoom) =>
   room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
+const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
+  room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
+
 const getSceneMessages = (
   room: TavernRoom,
-  state: Pick<TavernState, "messagesByScene">,
+  state: Pick<TavernState, "messagesByInstance">,
 ) => {
-  const sceneId = getRoomActiveSceneId(room);
-  return state.messagesByScene[sceneId] ?? [];
+  const sceneInstanceId = getRoomActiveSceneInstanceId(room);
+  return state.messagesByInstance[sceneInstanceId] ?? [];
 };
 
 const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
@@ -574,10 +566,10 @@ export const ManagementProvider = ({
     () => Object.fromEntries(
       state.rooms.map((room) => [
         room.id,
-        state.messagesByScene[getRoomActiveSceneId(room)] ?? [],
+        state.messagesByInstance[getRoomActiveSceneInstanceId(room)] ?? [],
       ]),
     ),
-    [state.messagesByScene, state.rooms],
+    [state.messagesByInstance, state.rooms],
   );
   const runtimeModel = runtimeModels[0] ?? null;
 
@@ -634,82 +626,6 @@ export const ManagementProvider = ({
       };
     });
   }, [setState]);
-  const appendProgressCheckpointToRoom = useCallback((
-    room: TavernRoom,
-    reason: TavernProgressCheckpoint["reason"],
-    turnId?: string,
-  ): TavernRoom => {
-    const checkpoint = createTavernProgressCheckpoint({
-      room,
-      turnId,
-      reason,
-      createdAt: Date.now(),
-    });
-    return syncTavernRoomActiveScene({
-      ...room,
-      statusCheckpoints: [...room.statusCheckpoints, checkpoint].slice(-20),
-    });
-  }, []);
-
-  const clearRoomMessages = useCallback(async (roomId: string) => {
-    const targetRoom = state.rooms.find((room) => room.id === roomId);
-    if (targetRoom?.locked || !targetRoom) {
-      return false;
-    }
-
-    try {
-      await deleteTavernBridgeSession({ workspacePath: workspace.path, room: targetRoom });
-    } catch (resetError) {
-      const message = resetError instanceof Error ? resetError.message : String(resetError);
-      reportError(`无法清理当前场景底层会话：${message}`);
-      return false;
-    }
-
-    const sceneId = getRoomActiveSceneId(targetRoom);
-    const resetMessage = createTavernMessage({
-      roomId: targetRoom.id,
-      role: "narrator",
-      content: "这个场景的桌面被重新擦亮，旧谈话暂时收进抽屉。",
-      status: "done",
-    });
-    setState((current) => {
-      const currentRoom = current.rooms.find((room) => room.id === targetRoom.id);
-      const currentSceneId = currentRoom ? getRoomActiveSceneId(currentRoom) : sceneId;
-
-      return {
-        ...current,
-        rooms: current.rooms.map((room) =>
-          room.id === targetRoom.id
-            ? (() => {
-                const checkpointRoom = appendProgressCheckpointToRoom(
-                  touchTavernRoomActiveScene(room),
-                  "before_context_trim",
-                  resetMessage.id,
-                );
-                const presentation = normalizeTavernPresentation(checkpointRoom.presentation);
-                return presentation.lockedSceneId === currentSceneId
-                  ? {
-                      ...checkpointRoom,
-                      presentation: {
-                        ...presentation,
-                        lockedAt: undefined,
-                        lockedSceneId: undefined,
-                      },
-                    }
-                  : checkpointRoom;
-              })()
-            : room,
-        ),
-        messagesByScene: {
-          ...current.messagesByScene,
-          [currentSceneId]: [resetMessage],
-        },
-      };
-    });
-    reportError("");
-    return true;
-  }, [appendProgressCheckpointToRoom, reportError, setState, state.rooms, workspace.path]);
-
   const deleteRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
     if (!targetRoom || targetRoom.locked || state.rooms.length <= 1) {
@@ -723,9 +639,10 @@ export const ManagementProvider = ({
       }
 
       const nextRooms = current.rooms.filter((room) => room.id !== roomId);
-      const nextMessagesByScene = { ...current.messagesByScene };
-      for (const scene of currentTargetRoom.scenes ?? []) {
-        delete nextMessagesByScene[scene.id];
+      const runtimeTargetRoom = projectTavernSceneOntoRoom(currentTargetRoom);
+      const nextMessagesByInstance = { ...current.messagesByInstance };
+      for (const instance of runtimeTargetRoom.sceneInstances) {
+        delete nextMessagesByInstance[instance.id];
       }
       const activeRoomId = current.activeRoomId === roomId
         ? nextRooms[0]?.id ?? current.activeRoomId
@@ -735,7 +652,7 @@ export const ManagementProvider = ({
         ...current,
         activeRoomId,
         rooms: nextRooms,
-        messagesByScene: nextMessagesByScene,
+        messagesByInstance: nextMessagesByInstance,
       };
     });
     if (activeRoom?.id === roomId) {
@@ -789,11 +706,13 @@ export const ManagementProvider = ({
       });
 
       const sceneIdMap = new Map<string, string>();
-      const copiedMessagesByScene: Record<string, TavernMessage[]> = {};
+      const draftMessagesByCopiedSceneId: Record<string, TavernMessage[]> = {};
       const copiedScenes = sourceScenes.map((scene) => {
         const copiedSceneId = createLocalId("scene");
         sceneIdMap.set(scene.id, copiedSceneId);
-        const sourceMessages = current.messagesByScene[scene.id] ?? [];
+        const sourceMessages = scene.id === sourceRoom.activeSceneId
+          ? current.messagesByInstance[getRoomActiveSceneInstanceId(sourceRoom)] ?? []
+          : [];
         const messageIdMap = new Map<string, string>();
         const copiedMessages = sourceMessages.flatMap((message) => {
           const copiedMessageId = createLocalId("message");
@@ -827,7 +746,7 @@ export const ManagementProvider = ({
             referencedFiles: message.referencedFiles?.map((file) => ({ ...file })),
           }];
         });
-        copiedMessagesByScene[copiedSceneId] = copiedMessages.length > 0
+        draftMessagesByCopiedSceneId[copiedSceneId] = copiedMessages.length > 0
           ? copiedMessages
           : [
               createTavernMessage({
@@ -891,6 +810,10 @@ export const ManagementProvider = ({
                     ...memory,
                     id: createLocalId("memory-draft"),
                     characterId: copiedCharacterId,
+                    revealToCharacterIds: memory.revealToCharacterIds.flatMap((targetCharacterId) => {
+                      const copiedTargetId = characterIdMap.get(targetCharacterId);
+                      return copiedTargetId ? [copiedTargetId] : [];
+                    }),
                   }]
                 : [];
             }),
@@ -986,14 +909,21 @@ export const ManagementProvider = ({
         createdAt,
         updatedAt: createdAt,
       });
+      const copiedActiveSceneInstanceId = getRoomActiveSceneInstanceId(copiedRoom);
+      const copiedActiveMessages = (draftMessagesByCopiedSceneId[activeSceneId] ?? [])
+        .map((message) => ({
+          ...message,
+          sceneId: copiedRoom.activeSceneId,
+          sceneInstanceId: copiedActiveSceneInstanceId,
+        }));
 
       return {
         ...current,
         activeRoomId: copiedRoomId,
         rooms: [...current.rooms, copiedRoom],
-        messagesByScene: {
-          ...current.messagesByScene,
-          ...copiedMessagesByScene,
+        messagesByInstance: {
+          ...current.messagesByInstance,
+          [copiedActiveSceneInstanceId]: copiedActiveMessages,
         },
       };
     });
@@ -1034,9 +964,9 @@ export const ManagementProvider = ({
         rooms: current.rooms.map((item) =>
           item.id === sourceRoom.id ? restored.room : item
         ),
-        messagesByScene: {
-          ...current.messagesByScene,
-          [restored.room.activeSceneId ?? sourceRoom.id]: restored.messages,
+        messagesByInstance: {
+          ...current.messagesByInstance,
+          [getRoomActiveSceneInstanceId(restored.room)]: restored.messages,
         },
       };
     });
@@ -1076,21 +1006,21 @@ export const ManagementProvider = ({
       const projectedTargetRoom = projectTavernSceneOntoRoom(targetRoom);
       const targetCharacters = projectedTargetRoom.localCharacters ?? [];
       const targetMessages = getSceneMessages(projectedTargetRoom, state);
-      const messagesByScene = Object.fromEntries(
-        (projectedTargetRoom.scenes ?? []).map((scene) => [
-          scene.id,
-          state.messagesByScene[scene.id] ??
-            (scene.id === projectedTargetRoom.activeSceneId ? targetMessages : []),
+      const messagesByInstance = Object.fromEntries(
+        projectedTargetRoom.sceneInstances.map((instance) => [
+          instance.id,
+          state.messagesByInstance[instance.id] ??
+            (instance.id === projectedTargetRoom.activeSceneInstanceId ? targetMessages : []),
         ]),
       );
-      const payload: TavernRoomExportV2 = {
+      const payload: TavernRoomExportV3 = {
         schema: TAVERN_ROOM_EXPORT_SCHEMA,
-        version: 2,
+        version: 3,
         exportedAt: new Date().toISOString(),
         room: projectedTargetRoom,
         characters: targetCharacters,
         messages: targetMessages,
-        messagesByScene,
+        messagesByInstance,
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
@@ -1124,10 +1054,10 @@ export const ManagementProvider = ({
         return getErrorMessage(error);
       }
     };
-    const parsedRoomExport = parsed as Partial<TavernRoomExportV2>;
+    const parsedRoomExport = parsed as Partial<TavernRoomExportV3>;
     if (
       parsedRoomExport.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
-      parsedRoomExport.version !== 2 ||
+      parsedRoomExport.version !== 3 ||
       !parsedRoomExport.room ||
       !Array.isArray(parsedRoomExport.characters)
     ) {
@@ -1154,9 +1084,9 @@ export const ManagementProvider = ({
             ...current,
             activeRoomId: materialized.room.id,
             rooms: [...current.rooms, materialized.room],
-            messagesByScene: {
-              ...current.messagesByScene,
-              [getRoomActiveSceneId(materialized.room)]: materialized.messages,
+            messagesByInstance: {
+              ...current.messagesByInstance,
+              [getRoomActiveSceneInstanceId(materialized.room)]: materialized.messages,
             },
           }));
           reportError("");
@@ -1192,7 +1122,7 @@ export const ManagementProvider = ({
             return current;
           }
 
-          const sceneId = getRoomActiveSceneId(targetRoom);
+          const sceneInstanceId = getRoomActiveSceneInstanceId(targetRoom);
           const nextRoom = syncTavernRoomActiveScene({
             ...projectTavernSceneOntoRoom(targetRoom),
             lorebookEntries: [
@@ -1206,11 +1136,15 @@ export const ManagementProvider = ({
             rooms: current.rooms.map((room) =>
               room.id === targetRoom.id ? nextRoom : room
             ),
-            messagesByScene: {
-              ...current.messagesByScene,
-              [sceneId]: [
-                ...(current.messagesByScene[sceneId] ?? []),
-                importMessage,
+            messagesByInstance: {
+              ...current.messagesByInstance,
+              [sceneInstanceId]: [
+                ...(current.messagesByInstance[sceneInstanceId] ?? []),
+                {
+                  ...importMessage,
+                  sceneId: importMessage.sceneId ?? targetRoom.activeSceneId,
+                  sceneInstanceId: importMessage.sceneInstanceId ?? sceneInstanceId,
+                },
               ],
             },
           };
@@ -1222,7 +1156,7 @@ export const ManagementProvider = ({
       return "导入文件格式不受支持。";
     }
 
-    const parsedExport = parsed as TavernRoomExportV2;
+    const parsedExport = parsed as TavernRoomExportV3;
     const createdAt = Date.now();
     const roomId = createLocalId("room");
     const importableCharacters = parsedExport.characters
@@ -1317,12 +1251,19 @@ export const ManagementProvider = ({
       .flatMap((draft) => {
         const assetDraft = createTavernAssetDraft({
           sourceMessageIds: [],
+          sceneMemories: draft.sceneMemories,
           characterMemories: draft.characterMemories.flatMap((memory) => {
             const mappedId = characterIdMap.get(memory.characterId);
             return mappedId
               ? [{
                   characterId: mappedId,
                   note: memory.note,
+                  visibility: memory.visibility,
+                  secretId: memory.secretId,
+                  revealToCharacterIds: memory.revealToCharacterIds.flatMap((targetCharacterId) => {
+                    const mappedTargetId = characterIdMap.get(targetCharacterId);
+                    return mappedTargetId ? [mappedTargetId] : [];
+                  }),
                 }]
               : [];
           }),
@@ -1410,6 +1351,10 @@ export const ManagementProvider = ({
       storyOutline: parsedExport.room.storyOutline?.trim() || "",
       storyGoal: parsedExport.room.storyGoal?.trim() || "",
       storyGraph,
+      storyRuns: [],
+      activeRunId: undefined,
+      activeSceneInstanceId: undefined,
+      sceneInstances: [],
       activeSceneId: importedScene.id,
       scenes: [importedScene],
       scenePresetId: importedScene.scenePresetId,
@@ -1510,9 +1455,13 @@ export const ManagementProvider = ({
       ...current,
       activeRoomId: roomId,
       rooms: [...current.rooms, importedRoom],
-      messagesByScene: {
-        ...current.messagesByScene,
-        [importedScene.id]: messages,
+      messagesByInstance: {
+        ...current.messagesByInstance,
+        [getRoomActiveSceneInstanceId(importedRoom)]: messages.map((message) => ({
+          ...message,
+          sceneId: message.sceneId ?? importedRoom.activeSceneId,
+          sceneInstanceId: message.sceneInstanceId ?? getRoomActiveSceneInstanceId(importedRoom),
+        })),
       },
     }));
     reportError("");
@@ -1525,6 +1474,8 @@ export const ManagementProvider = ({
     };
     const openingMessage = createTavernMessage({
       roomId: nextRoom.id,
+      sceneId: nextRoom.activeSceneId,
+      sceneInstanceId: getRoomActiveSceneInstanceId(nextRoom),
       role: "narrator",
       content: "新的桌边留出空位，灯光落在还没有写下的第一行。",
       status: "done",
@@ -1534,9 +1485,9 @@ export const ManagementProvider = ({
       ...current,
       activeRoomId: nextRoom.id,
       rooms: [...current.rooms, nextRoom],
-      messagesByScene: {
-        ...current.messagesByScene,
-        [getRoomActiveSceneId(nextRoom)]: [openingMessage],
+      messagesByInstance: {
+        ...current.messagesByInstance,
+        [getRoomActiveSceneInstanceId(nextRoom)]: [openingMessage],
       },
     }));
     return nextRoom.id;
@@ -1601,9 +1552,9 @@ export const ManagementProvider = ({
         ...current,
         activeRoomId: room.id,
         rooms: [...current.rooms, room],
-        messagesByScene: {
-          ...current.messagesByScene,
-          [getRoomActiveSceneId(room)]: materialized.messages,
+        messagesByInstance: {
+          ...current.messagesByInstance,
+          [getRoomActiveSceneInstanceId(room)]: materialized.messages,
         },
       }));
       reportError("");
@@ -1683,7 +1634,6 @@ export const ManagementProvider = ({
         restoreSystemPresetRoom,
         setRoomLocked,
         deleteRoom,
-        clearRoomMessages,
         exportRoom,
         importRoom,
         globalRuntimeModel: runtimeModel,
@@ -1693,7 +1643,6 @@ export const ManagementProvider = ({
     : null, [
     activeRoom,
     characterById,
-    clearRoomMessages,
     copyRoom,
     createRoom,
     deleteRoom,

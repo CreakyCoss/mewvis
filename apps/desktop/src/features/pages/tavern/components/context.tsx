@@ -92,15 +92,15 @@ export type TavernPageContextValue = TavernPageProviderProps & {
   reportError: (message: string) => void;
 };
 
-const getRoomActiveSceneId = (room: TavernRoom) =>
-  room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
+const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
+  room.activeSceneInstanceId ?? room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
 const getSceneMessages = (
   room: TavernRoom,
-  state: Pick<TavernState, "messagesByScene">,
+  state: Pick<TavernState, "messagesByInstance">,
 ) => {
-  const sceneId = getRoomActiveSceneId(room);
-  return state.messagesByScene[sceneId] ?? [];
+  const sceneInstanceId = getRoomActiveSceneInstanceId(room);
+  return state.messagesByInstance[sceneInstanceId] ?? [];
 };
 
 const TavernPageContext = createContext<TavernPageContextValue | null>(null);
@@ -223,12 +223,18 @@ export const TavernPageProvider = ({
   const appendMessagesToRoom = useCallback((roomId: string, messages: TavernMessage[]) => {
     setState((current) => {
       const room = current.rooms.find((item) => item.id === roomId);
-      const sceneId = room ? getRoomActiveSceneId(room) : roomId;
+      const sceneInstanceId = room ? getRoomActiveSceneInstanceId(room) : roomId;
+      const sceneId = room?.activeSceneId;
       const updatedAt = Date.now();
       const shouldLockPresentation = hasTavernPresentationStarted(messages);
+      const materializedMessages = messages.map((message) => ({
+        ...message,
+        sceneId: message.sceneId ?? sceneId,
+        sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
+      }));
       const nextSceneMessages = [
-        ...(current.messagesByScene[sceneId] ?? []),
-        ...messages,
+        ...(current.messagesByInstance[sceneInstanceId] ?? []),
+        ...materializedMessages,
       ];
 
       return {
@@ -240,22 +246,22 @@ export const TavernPageProvider = ({
 
           const presentation = normalizeTavernPresentation(room.presentation);
           const shouldWritePresentationLock =
-            shouldLockPresentation && presentation.lockedSceneId !== sceneId;
+            shouldLockPresentation && presentation.lockedSceneId !== sceneInstanceId;
           return {
             ...room,
             presentation: shouldWritePresentationLock
               ? {
                   ...presentation,
                   lockedAt: updatedAt,
-                  lockedSceneId: sceneId,
+                  lockedSceneId: sceneInstanceId,
                 }
               : presentation,
             updatedAt,
           };
         }),
-        messagesByScene: {
-          ...current.messagesByScene,
-          [sceneId]: nextSceneMessages,
+        messagesByInstance: {
+          ...current.messagesByInstance,
+          [sceneInstanceId]: nextSceneMessages,
         },
       };
     });
@@ -263,8 +269,8 @@ export const TavernPageProvider = ({
   const patchMessage = useCallback((messageId: string, patch: Partial<TavernMessage>) => {
     setState((current) => {
       let patchedSceneId = "";
-      const nextMessagesByScene = Object.fromEntries(
-        Object.entries(current.messagesByScene).map(([sceneId, messages]) => {
+      const nextMessagesByInstance = Object.fromEntries(
+        Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
           const nextMessages = messages.map((message) => {
             if (message.id !== messageId) {
               return message;
@@ -303,15 +309,15 @@ export const TavernPageProvider = ({
 
       return {
         ...current,
-        messagesByScene: nextMessagesByScene,
+        messagesByInstance: nextMessagesByInstance,
       };
     });
   }, []);
   const removeMessage = useCallback((messageId: string) => {
     setState((current) => {
       let removedSceneId = "";
-      const nextMessagesByScene = Object.fromEntries(
-        Object.entries(current.messagesByScene).map(([sceneId, messages]) => {
+      const nextMessagesByInstance = Object.fromEntries(
+        Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
           const nextMessages = messages.filter((message) => {
             const shouldKeep = message.id !== messageId;
 
@@ -328,14 +334,16 @@ export const TavernPageProvider = ({
       if (!removedSceneId) {
         return current;
       }
-      const removedRoom = current.rooms.find((room) => getRoomActiveSceneId(room) === removedSceneId);
+      const removedRoom = current.rooms.find((room) =>
+        getRoomActiveSceneInstanceId(room) === removedSceneId
+      );
 
       return {
         ...current,
         rooms: current.rooms.map((room) =>
           removedRoom && room.id === removedRoom.id ? { ...room, updatedAt: Date.now() } : room
         ),
-        messagesByScene: nextMessagesByScene,
+        messagesByInstance: nextMessagesByInstance,
       };
     });
   }, []);

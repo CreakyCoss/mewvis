@@ -45,6 +45,7 @@ export const tavernMessagesToLedgerMessages = ({
         metadata: {
           tavernRoomId: room.id,
           tavernSceneId: room.activeSceneId ?? null,
+          tavernSceneInstanceId: room.activeSceneInstanceId ?? null,
           tavernMessageId: message.id,
           tavernRole: message.role,
           tavernCharacterId: message.characterId ?? null,

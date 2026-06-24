@@ -24,6 +24,9 @@ const buildBridgeSystemContractSection = (): TavernPromptSection => ({
 
 export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
   const sections: TavernPromptSection[] = [
     buildBridgeSystemContractSection(),
     buildPresentationProfileSection({
@@ -36,6 +39,10 @@ export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
       content: [
         formatTavernPromptBlocksForTarget({
           prompt: room.prompt,
+          target: "bridge",
+        }),
+        formatTavernPromptBlocksForTarget({
+          prompt: activeInstance?.promptOverrides,
           target: "bridge",
         }),
         formatTavernInteractionQualityRulesForTarget({

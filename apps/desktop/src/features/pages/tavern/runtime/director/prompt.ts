@@ -75,9 +75,16 @@ export const buildTavernDirectorPromptContext = ({
   }));
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
   const promptBlocksText = [
     formatTavernPromptBlocksForTarget({
       prompt: room.prompt,
+      target: "director",
+    }),
+    formatTavernPromptBlocksForTarget({
+      prompt: activeInstance?.promptOverrides,
       target: "director",
     }),
     formatTavernInteractionQualityRulesForTarget({

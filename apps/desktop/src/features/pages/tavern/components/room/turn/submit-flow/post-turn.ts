@@ -15,7 +15,7 @@ import type {
 } from "../../../../types";
 import {
   getErrorMessage,
-  getRoomActiveSceneId,
+  getRoomActiveSceneInstanceId,
   hasAssetDraftItems,
   requireTavernRuntimeModelInput,
   type TavernPendingInteractions,
@@ -113,7 +113,13 @@ export const runProgressTrackingStep = async ({
       );
       ctx.setState((current) => {
         const currentRoom = current.rooms.find((item) => item.id === room.id);
-        const sceneId = currentRoom ? getRoomActiveSceneId(currentRoom) : room.id;
+        const sceneInstanceId = currentRoom ? getRoomActiveSceneInstanceId(currentRoom) : room.id;
+        const sceneId = currentRoom?.activeSceneId;
+        const materializedActionMessages = actionMessages.map((message) => ({
+          ...message,
+          sceneId: message.sceneId ?? sceneId,
+          sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
+        }));
         return {
           ...current,
           rooms: current.rooms.map((currentRoom) =>
@@ -129,15 +135,15 @@ export const runProgressTrackingStep = async ({
                 )
               : currentRoom
           ),
-          messagesByScene: actionMessages.length > 0
+          messagesByInstance: actionMessages.length > 0
             ? {
-                ...current.messagesByScene,
-                [sceneId]: [
-                  ...(current.messagesByScene[sceneId] ?? []),
-                  ...actionMessages,
+                ...current.messagesByInstance,
+                [sceneInstanceId]: [
+                  ...(current.messagesByInstance[sceneInstanceId] ?? []),
+                  ...materializedActionMessages,
                 ],
               }
-            : current.messagesByScene,
+            : current.messagesByInstance,
         };
       });
     }

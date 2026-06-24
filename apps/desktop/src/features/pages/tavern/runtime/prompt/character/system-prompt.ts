@@ -28,6 +28,7 @@ import {
   renderTavernPromptSections,
   type TavernPromptSection,
 } from "../shared/sections";
+import { buildTavernSecretMemoryProtocol } from "../shared/secret-policy";
 
 export type BuildTavernSystemPromptInput = {
   room: TavernRoom;
@@ -66,12 +67,25 @@ const buildSavedPromptBlocksSection = ({
       target: "character",
       publicContentTag,
     }),
+    formatTavernPromptBlocksForTarget({
+      prompt: room.sceneInstances.find((instance) =>
+        instance.id === room.activeSceneInstanceId
+      )?.promptOverrides,
+      target: "character",
+      publicContentTag,
+    }),
     formatTavernInteractionQualityRulesForTarget({
       qualityRuleIds: room.settings.interactionQualityRuleIds,
       target: "character",
       publicContentTag,
     }),
   ].filter(Boolean).join("\n\n"),
+});
+
+const buildSecretMemoryProtocolSection = (): TavernPromptSection => ({
+  id: "secret-memory-protocol",
+  layer: "system",
+  content: buildTavernSecretMemoryProtocol("character"),
 });
 
 export const buildTavernSystemPrompt = ({
@@ -99,7 +113,16 @@ export const buildTavernCharacterPromptParts = ({
   currentUserText,
   turnInstruction,
 }: BuildTavernSystemPromptInput): TavernCharacterPromptParts => {
-  const characterMemory = room.characterMemories[activeCharacter.id]?.trim() ?? "";
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const characterLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
+  const characterMemory = [
+    room.characterMemories[activeCharacter.id]?.trim() ?? "",
+    characterLayers?.public?.trim() ?? "",
+    characterLayers?.known?.trim() ?? "",
+    characterLayers?.privateSelf?.trim() ?? "",
+  ].filter(Boolean).join("\n\n");
   const lorebookText = formatTavernLorebookEntries(selectTavernLorebookEntries({
     room,
     activeCharacter,
@@ -131,6 +154,7 @@ export const buildTavernCharacterPromptParts = ({
       usesNarrativeBeat,
       dialoguePolicy: presentationProfile.dialoguePolicy,
     }),
+    buildSecretMemoryProtocolSection(),
     buildPresentationProfileSection({
       presentationProfile,
       target: "character",

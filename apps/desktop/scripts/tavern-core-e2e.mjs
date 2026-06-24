@@ -11,12 +11,14 @@ const bundledPath = join(tempDir, "runner.mjs");
 const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/decision.ts");
+const directorPromptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/prompt.ts");
 const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
 const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
 const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const assetExtractorParsingPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/assistants/asset-extractor/parsing.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -90,9 +92,16 @@ writeFileSync(entryPath, `
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
+    addTavernSecretMemoryEntry,
+    createTavernAssetDraft,
+    listTavernBranchSecretMemoryEntries,
     parseTavernGeneratedPresetJsonText,
+    projectTavernSceneOntoRoom,
+    loadTavernBranchUpstreamMemory,
+    revealTavernSecretMemory,
     saveTavernState,
     syncTavernRoomActiveScene,
+    switchTavernRoomSceneInstance,
     tavernSystemPresets,
   } from ${JSON.stringify(storagePath)};
   import {
@@ -100,10 +109,14 @@ writeFileSync(entryPath, `
     shouldOfferTavernDirectorRandomEvent,
   } from ${JSON.stringify(directorDecisionPath)};
   import {
+    buildTavernDirectorPromptContext,
+  } from ${JSON.stringify(directorPromptPath)};
+  import {
     parseSillyTavernWorldBookJson,
     parseTavernExternalImportJson,
   } from ${JSON.stringify(importFormatsPath)};
   import {
+    buildTavernBridgeSystemPrompt,
     buildTavernCharacterTurnInstruction,
     buildTavernSystemPrompt,
     tavernMessagesToRuntimeMessages,
@@ -114,12 +127,17 @@ writeFileSync(entryPath, `
   import {
     collectTavernSceneNovelSource,
   } from ${JSON.stringify(sceneNovelizerPath)};
+  import {
+    parseTavernAssetDraft,
+  } from ${JSON.stringify(assetExtractorParsingPath)};
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
   const charARef = { type: "character", characterId: "char-a" };
   const charBRef = { type: "character", characterId: "char-b" };
   const bossRef = { type: "character", characterId: "boss" };
   const globalRef = { type: "global" };
+  const activeSceneInstanceIdForRoom = (targetRoom) =>
+    targetRoom.activeSceneInstanceId ?? targetRoom.activeSceneId ?? targetRoom.id;
   const knownAvatarIds = new Set(allAgentAvatarOptions.map((option) => option.id));
   const statusDefinitions = [
     {
@@ -214,6 +232,9 @@ writeFileSync(entryPath, `
     title: "测试酒馆",
     storyOutline: "",
     storyGoal: "",
+    storyRuns: [],
+    activeSceneInstanceId: "scene-instance-alpha",
+    sceneInstances: [{ id: "scene-instance-alpha", sceneId: "scene-alpha" }],
     activeSceneId: "scene-alpha",
     scenes: [],
     scenePresetId: "tavern",
@@ -457,6 +478,200 @@ writeFileSync(entryPath, `
     characters,
     mapCharacterId: (characterId) => characterId === "seed-b" ? "char-b" : undefined,
   });
+  const branchBaseRoom = createTavernRoom("workspace", 42);
+  const branchSceneTemplate = branchBaseRoom.scenes[0];
+  const makeBranchScene = (id, title, order) => ({
+    ...branchSceneTemplate,
+    id,
+    title,
+    order,
+    scene: \`节点 \${title} 的场景。\`,
+    sceneGoal: \`完成节点 \${title}。\`,
+    createdAt: now,
+    updatedAt: now,
+  });
+  const branchScenes = [
+    makeBranchScene("scene-1", "1", 0),
+    makeBranchScene("scene-1-5", "1.5", 1),
+    makeBranchScene("scene-2", "2", 2),
+    makeBranchScene("scene-3", "3", 3),
+  ];
+  const convergedBranchRoom = projectTavernSceneOntoRoom({
+    ...branchBaseRoom,
+    id: "room-converged-branch",
+    activeSceneId: "scene-1",
+    scenes: branchScenes,
+    storyRuns: [],
+    activeRunId: undefined,
+    activeSceneInstanceId: undefined,
+    sceneInstances: [],
+    storyGraph: {
+      version: 1,
+      entryNodeId: "node-1",
+      activeNodeId: "node-1",
+      stages: [{ id: "stage-1", title: "测试分支", order: 0 }],
+      nodes: [
+        { id: "node-1", stageId: "stage-1", sceneId: "scene-1", title: "1", type: "normal", pathRole: "main", position: { x: 0, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-1-5", stageId: "stage-1", sceneId: "scene-1-5", title: "1.5", type: "normal", pathRole: "branch", position: { x: 120, y: 80 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-2", stageId: "stage-1", sceneId: "scene-2", title: "2", type: "normal", pathRole: "main", position: { x: 240, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-3", stageId: "stage-1", sceneId: "scene-3", title: "3", type: "ending", pathRole: "main", position: { x: 360, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+      ],
+      edges: [
+        { id: "edge-1-2", fromNodeId: "node-1", toNodeId: "node-2", label: "直接进入 2", isDefault: true, priority: 0, createdAt: now, updatedAt: now },
+        { id: "edge-1-1-5", fromNodeId: "node-1", toNodeId: "node-1-5", label: "插入 1.5", isDefault: false, priority: 1, createdAt: now, updatedAt: now },
+        { id: "edge-1-5-2", fromNodeId: "node-1-5", toNodeId: "node-2", label: "汇入 2", isDefault: true, priority: 0, createdAt: now, updatedAt: now },
+        { id: "edge-2-3", fromNodeId: "node-2", toNodeId: "node-3", label: "继续到 3", isDefault: true, priority: 0, createdAt: now, updatedAt: now },
+      ],
+    },
+  });
+  const convergedNodeOneInstances = convergedBranchRoom.sceneInstances.filter((instance) =>
+    instance.nodeId === "node-1"
+  );
+  const convergedNodeTwoInstances = convergedBranchRoom.sceneInstances.filter((instance) =>
+    instance.nodeId === "node-2"
+  );
+  const switchedConvergedBranchRoom = switchTavernRoomSceneInstance(
+    convergedBranchRoom,
+    convergedNodeTwoInstances[1]?.id ?? "",
+  );
+  const branchInstanceChecks = {
+    nodeOneInstanceCount: convergedNodeOneInstances.length,
+    nodeTwoInstanceCount: convergedNodeTwoInstances.length,
+    nodeTwoInstanceIds: convergedNodeTwoInstances.map((instance) => instance.id),
+    nodeTwoPathSignatures: convergedNodeTwoInstances.map((instance) => instance.pathNodeIds.join(">")),
+    switchedInstanceId: switchedConvergedBranchRoom.activeSceneInstanceId,
+    switchedActiveNodeId: switchedConvergedBranchRoom.storyGraph.activeNodeId,
+    switchedPath: switchedConvergedBranchRoom.sceneInstances.find((instance) =>
+      instance.id === switchedConvergedBranchRoom.activeSceneInstanceId
+    )?.pathNodeIds.join(">"),
+  };
+  const branchMemorySeedRoom = projectTavernSceneOntoRoom({
+    ...switchedConvergedBranchRoom,
+    sceneInstances: switchedConvergedBranchRoom.sceneInstances.map((instance) => {
+      if (instance.nodeId === "node-1") {
+        return {
+          ...instance,
+          memoryLayers: {
+            ...instance.memoryLayers,
+            required: "入口共通知识：旅人已经拿到铜钥匙。",
+            private: "入口分支私有：旅人答应不惊动柜台。",
+          },
+          characterMemoryLayers: {
+            ...instance.characterMemoryLayers,
+            "char-a": {
+              ...(instance.characterMemoryLayers["char-a"] ?? {
+                required: "",
+                public: "",
+                known: "",
+                privateSelf: "",
+                directorSecret: "",
+              }),
+              public: "阿洛知道旅人拿过铜钥匙。",
+            },
+          },
+        };
+      }
+      if (instance.nodeId === "node-1-5") {
+        return {
+          ...instance,
+          memoryLayers: {
+            ...instance.memoryLayers,
+            private: "1.5分支私有：旅人绕路检查了后门。",
+            entries: [{
+              id: "entry-hidden-door",
+              text: "公开解密秘密：后门的铁铃被提前剪断。",
+              visibility: "hidden",
+              secretId: "secret-hidden-door",
+              createdAt: now,
+              updatedAt: now,
+            }],
+          },
+          characterMemoryLayers: {
+            ...instance.characterMemoryLayers,
+            "char-a": {
+              ...(instance.characterMemoryLayers["char-a"] ?? {
+                required: "",
+                public: "",
+                known: "",
+                privateSelf: "",
+                directorSecret: "",
+              }),
+              entries: [{
+                id: "entry-ally-code",
+                text: "阿洛专属解密：旅人说出了屋顶暗号。",
+                visibility: "hidden",
+                secretId: "secret-ally-code",
+                ownerCharacterId: "char-a",
+                createdAt: now,
+                updatedAt: now,
+              }],
+            },
+          },
+          secretReveals: [{
+            id: "reveal-hidden-door",
+            secretId: "secret-hidden-door",
+            scope: { type: "node", nodeId: "node-1-5" },
+            visibility: "public",
+            targetCharacterIds: [],
+            sourceMessageIds: [],
+            revealedAt: now,
+          }],
+        };
+      }
+      if (instance.id === switchedConvergedBranchRoom.activeSceneInstanceId) {
+        return {
+          ...instance,
+          secretReveals: [{
+            id: "reveal-ally-code",
+            secretId: "secret-ally-code",
+            scope: { type: "sceneInstance", sceneInstanceId: instance.id },
+            visibility: "character",
+            targetCharacterIds: ["char-a"],
+            sourceMessageIds: [],
+            revealedAt: now,
+          }],
+        };
+      }
+      return instance;
+    }),
+  });
+  const branchMemoryLoadResult = loadTavernBranchUpstreamMemory(branchMemorySeedRoom);
+  const branchMemoryLoadedInstance = branchMemoryLoadResult.room.sceneInstances.find((instance) =>
+    instance.id === branchMemoryLoadResult.room.activeSceneInstanceId
+  );
+  const branchMemoryChecks = {
+    sourceCount: branchMemoryLoadResult.sourceInstanceIds.length,
+    sceneMemory: branchMemoryLoadedInstance?.memoryLayers.upstream ?? "",
+    charAMemory: branchMemoryLoadedInstance?.characterMemoryLayers["char-a"]?.known ?? "",
+    charBMemory: branchMemoryLoadedInstance?.characterMemoryLayers["char-b"]?.known ?? "",
+    revealedSecretIds: branchMemoryLoadResult.revealedSecretIds,
+  };
+  const addedSecretResult = addTavernSecretMemoryEntry(switchedConvergedBranchRoom, {
+    target: { type: "character", characterId: "char-a" },
+    text: "helper新增秘密：阿洛知道镜框背后有夹层。",
+    secretId: "secret-helper-added",
+  });
+  const helperSecretOptions = listTavernBranchSecretMemoryEntries(addedSecretResult.room);
+  const helperRevealResult = revealTavernSecretMemory(addedSecretResult.room, {
+    secretId: "secret-helper-added",
+    visibility: "character",
+    targetCharacterIds: ["char-a"],
+  });
+  const helperRevealInstance = helperRevealResult.room.sceneInstances.find((instance) =>
+    instance.id === helperRevealResult.room.activeSceneInstanceId
+  );
+  const secretMemoryHelperChecks = {
+    hasAddedSecret: helperSecretOptions.some((option) =>
+      option.secretId === "secret-helper-added" &&
+      option.characterId === "char-a" &&
+      option.text.includes("镜框背后有夹层")
+    ),
+    revealVisibility: helperRevealResult.reveal?.visibility,
+    revealTargetIds: helperRevealResult.reveal?.targetCharacterIds ?? [],
+    persistedRevealCount: helperRevealInstance?.secretReveals.filter((reveal) =>
+      reveal.secretId === "secret-helper-added"
+    ).length ?? 0,
+  };
   const parsedDirectorRandomEvent = parseTavernDirectorDecision(JSON.stringify({
     speakerIds: ["char-a", "missing-character"],
     ambientActions: [{ characterId: "char-b", action: "擦亮杯沿，望向门口。" }],
@@ -576,6 +791,71 @@ writeFileSync(entryPath, `
       status: "done",
     },
   ];
+  const parsedAssetDraft = parseTavernAssetDraft({
+    text: JSON.stringify({
+      sceneMemories: [
+        {
+          note: "场景公开记忆：门口风铃已经断线。",
+          visibility: "public",
+        },
+        {
+          note: "场景隐藏记忆：井盖下有逃生绳。",
+          visibility: "hidden",
+          secretId: "secret-well-rope",
+        },
+        {
+          note: "导演场景记忆：追兵会在三轮后抵达。",
+          visibility: "director",
+        },
+      ],
+      characterMemories: [
+        {
+          characterId: "char-a",
+          note: "阿洛确认旅人已经掌握屋顶暗号。",
+          visibility: "character",
+          secretId: "secret-rooftop-code",
+          revealToCharacterIds: ["char-a"],
+        },
+        {
+          characterId: "char-b",
+          note: "贝拉记得旅人公开答应守住门口。",
+          visibility: "public",
+          revealToCharacterIds: [],
+        },
+        {
+          characterId: "char-b",
+          note: "贝拉隐瞒自己听过追兵口令。",
+          visibility: "hidden",
+          secretId: "secret-bella-password",
+          revealToCharacterIds: [],
+        },
+        {
+          characterId: "char-a",
+          note: "缺少可见性应被丢弃。",
+        },
+      ],
+      lorebookEntries: [],
+    }),
+    room,
+    characters,
+    sourceMessages: messages.slice(-2),
+  });
+  const createdAssetDraft = createTavernAssetDraft(parsedAssetDraft);
+  const assetExtractionMemoryChecks = {
+    parsedSceneCount: parsedAssetDraft.sceneMemories.length,
+    createdSceneVisibilities: createdAssetDraft.sceneMemories.map((memory) => memory.visibility),
+    sceneHiddenSecretId: createdAssetDraft.sceneMemories.find((memory) =>
+      memory.visibility === "hidden"
+    )?.secretId,
+    parsedCount: parsedAssetDraft.characterMemories.length,
+    createdVisibilities: createdAssetDraft.characterMemories.map((memory) => memory.visibility),
+    characterRevealTargets: createdAssetDraft.characterMemories.find((memory) =>
+      memory.visibility === "character"
+    )?.revealToCharacterIds ?? [],
+    hiddenSecretId: createdAssetDraft.characterMemories.find((memory) =>
+      memory.visibility === "hidden"
+    )?.secretId,
+  };
   const currentTurnMessages = messages.slice(3, 5);
   const schedulingSignalRoom = {
     ...room,
@@ -738,6 +1018,143 @@ writeFileSync(entryPath, `
     currentUserText: "第二轮，先确认各自位置。",
     turnInstruction: "本轮只测试身份约束。",
   });
+  const unrevealedHiddenMemoryText = "未公开秘密：地下室有第二把钥匙。";
+  const directorOnlySceneMemoryText = "导演秘密：钟下藏着钥匙。";
+  const directorOnlyCharacterMemoryText = "贝拉导演秘密：她已经认出访客。";
+  const characterKnownMemoryText = "阿洛已知：铜牌有裂纹。";
+  const publicSceneMemoryText = "公开线索：灯芯被人换过。";
+  const secretPolicyBaseRoom = projectTavernSceneOntoRoom(room);
+  const secretPolicyRoom = projectTavernSceneOntoRoom({
+    ...secretPolicyBaseRoom,
+    sceneInstances: secretPolicyBaseRoom.sceneInstances.map((instance) => {
+      if (instance.id !== activeSceneInstanceIdForRoom(secretPolicyBaseRoom)) {
+        return instance;
+      }
+
+      return {
+        ...instance,
+        memoryLayers: {
+          ...instance.memoryLayers,
+          public: publicSceneMemoryText,
+          directorSecret: directorOnlySceneMemoryText,
+          entries: [
+            ...(instance.memoryLayers?.entries ?? []),
+            {
+              id: "entry-unrevealed-basement-key",
+              text: unrevealedHiddenMemoryText,
+              visibility: "hidden",
+              secretId: "secret-basement-key",
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        },
+        characterMemoryLayers: {
+          ...instance.characterMemoryLayers,
+          "char-a": {
+            ...(instance.characterMemoryLayers?.["char-a"] ?? {
+              required: "",
+              public: "",
+              known: "",
+              privateSelf: "",
+              directorSecret: "",
+            }),
+            known: characterKnownMemoryText,
+          },
+          "char-b": {
+            ...(instance.characterMemoryLayers?.["char-b"] ?? {
+              required: "",
+              public: "",
+              known: "",
+              privateSelf: "",
+              directorSecret: "",
+            }),
+            directorSecret: directorOnlyCharacterMemoryText,
+          },
+        },
+      };
+    }),
+  });
+  const secretPolicyPromptForA = buildTavernSystemPrompt({
+    room: secretPolicyRoom,
+    activeCharacter: characters[0],
+    characters,
+    references: [],
+    currentUserText: "检查灯芯。",
+  });
+  const secretPolicyDirectorPrompt = buildTavernDirectorPromptContext({
+    room: secretPolicyRoom,
+    characters,
+    messages,
+    references: [],
+    currentUserText: "检查灯芯。",
+    turnTrigger: { type: "user" },
+    selectedTargetCharacterIds: ["char-a"],
+    maxSpeakers: 2,
+  }).requestContext;
+  const nodeBridgePromptOverrideText = "节点 Bridge 补充：摘要保持雨夜口吻。";
+  const nodeDirectorPromptOverrideText = "节点导演补充：优先让门口压力进入下一轮调度。";
+  const nodeCharacterPromptOverrideText = "节点角色补充：公开对白压低声音，动作更克制。";
+  const nodePromptOverrideBaseRoom = projectTavernSceneOntoRoom(room);
+  const nodePromptOverrideRoom = projectTavernSceneOntoRoom({
+    ...nodePromptOverrideBaseRoom,
+    sceneInstances: nodePromptOverrideBaseRoom.sceneInstances.map((instance) => {
+      if (instance.id !== activeSceneInstanceIdForRoom(nodePromptOverrideBaseRoom)) {
+        return instance;
+      }
+
+      return {
+        ...instance,
+        promptOverrides: {
+          version: 1,
+          blocks: [
+            {
+              id: "node-prompt-override:bridge",
+              target: "bridge",
+              label: "节点风格补充：底层会话",
+              text: nodeBridgePromptOverrideText,
+              enabled: true,
+              order: 9000,
+            },
+            {
+              id: "node-prompt-override:director",
+              target: "director",
+              label: "节点风格补充：导演",
+              text: nodeDirectorPromptOverrideText,
+              enabled: true,
+              order: 9001,
+            },
+            {
+              id: "node-prompt-override:character",
+              target: "character",
+              label: "节点风格补充：角色",
+              text: nodeCharacterPromptOverrideText,
+              enabled: true,
+              order: 9002,
+            },
+          ],
+        },
+      };
+    }),
+  });
+  const nodePromptOverrideForA = buildTavernSystemPrompt({
+    room: nodePromptOverrideRoom,
+    activeCharacter: characters[0],
+    characters,
+    references: [],
+    currentUserText: "门口是谁？",
+  });
+  const nodePromptOverrideDirectorPrompt = buildTavernDirectorPromptContext({
+    room: nodePromptOverrideRoom,
+    characters,
+    messages,
+    references: [],
+    currentUserText: "门口是谁？",
+    turnTrigger: { type: "user" },
+    selectedTargetCharacterIds: ["char-a"],
+    maxSpeakers: 2,
+  }).requestContext;
+  const nodePromptOverrideBridgePrompt = buildTavernBridgeSystemPrompt(nodePromptOverrideRoom);
   const styledCharacter = {
     ...characters[0],
     writingStyle: "用冷峻短句写可观察动作。",
@@ -1969,8 +2386,9 @@ writeFileSync(entryPath, `
     removeItem: () => undefined,
   };
   globalThis.window = avatarMigrationPreviousWindow ?? { localStorage: avatarMigrationLocalStorageStub };
+  const avatarMigrationInstanceId = activeSceneInstanceIdForRoom(avatarMigrationMaterialized.room);
   const avatarMigrationState = await saveTavernState("", avatarMigrationWorkspaceId, {
-    version: 2,
+    version: 3,
     activeRoomId: avatarMigrationMaterialized.room.id,
     rooms: [{
       ...avatarMigrationMaterialized.room,
@@ -1981,9 +2399,12 @@ writeFileSync(entryPath, `
         systemPresetCharacterId: undefined,
       })),
     }],
-    messagesByScene: {
-      [avatarMigrationMaterialized.room.activeSceneId ?? avatarMigrationMaterialized.room.id]:
-        avatarMigrationMaterialized.messages,
+    messagesByInstance: {
+      [avatarMigrationInstanceId]: avatarMigrationMaterialized.messages.map((message) => ({
+        ...message,
+        sceneId: message.sceneId ?? avatarMigrationMaterialized.room.activeSceneId,
+        sceneInstanceId: message.sceneInstanceId ?? avatarMigrationInstanceId,
+      })),
     },
   });
   if (avatarMigrationPreviousWindow === undefined) {
@@ -2020,13 +2441,13 @@ writeFileSync(entryPath, `
   };
   globalThis.window = previousWindow ?? { localStorage: localStorageStub };
   const legacyCleanupState = await saveTavernState("", legacyCleanupWorkspaceId, {
-    version: 2,
+    version: 3,
     activeRoomId: legacySystemRoom.id,
     rooms: [legacySystemRoom, legacyManualizedRoom, legacyManualRoom],
-    messagesByScene: {
-      [legacySystemRoom.activeSceneId ?? legacySystemRoom.id]: [],
-      [legacyManualizedRoom.activeSceneId ?? legacyManualizedRoom.id]: [],
-      [legacyManualRoom.activeSceneId ?? legacyManualRoom.id]: [],
+    messagesByInstance: {
+      [activeSceneInstanceIdForRoom(legacySystemRoom)]: [],
+      [activeSceneInstanceIdForRoom(legacyManualizedRoom)]: [],
+      [activeSceneInstanceIdForRoom(legacyManualRoom)]: [],
     },
   });
   if (previousWindow === undefined) {
@@ -2306,6 +2727,23 @@ writeFileSync(entryPath, `
     contextForA,
     currentTurnContextForA,
     promptForA,
+    secretPolicyPromptForA,
+    secretPolicyDirectorPrompt,
+    secretPolicyTexts: {
+      unrevealedHiddenMemoryText,
+      directorOnlySceneMemoryText,
+      directorOnlyCharacterMemoryText,
+      characterKnownMemoryText,
+      publicSceneMemoryText,
+    },
+    nodePromptOverrideChecks: {
+      characterPrompt: nodePromptOverrideForA,
+      directorPrompt: nodePromptOverrideDirectorPrompt,
+      bridgePrompt: nodePromptOverrideBridgePrompt,
+      bridgeText: nodeBridgePromptOverrideText,
+      directorText: nodeDirectorPromptOverrideText,
+      characterText: nodeCharacterPromptOverrideText,
+    },
     styledPromptForA,
     styledTurnInstructionForA,
     narrativePromptForA,
@@ -2350,6 +2788,10 @@ writeFileSync(entryPath, `
     roleAssignmentChecks,
     progressVisibilityChecks,
     outcomeResolutionChecks,
+    branchInstanceChecks,
+    branchMemoryChecks,
+    secretMemoryHelperChecks,
+    assetExtractionMemoryChecks,
     renderable: createTavernRenderableMessages({
       messages,
       characters,
@@ -2370,7 +2812,11 @@ writeFileSync(entryPath, `
     },
     bridgeSessionRootDirs: {
       active: tavernBridgeSessionRootDir(room),
-      otherScene: tavernBridgeSessionRootDir({ ...room, activeSceneId: "scene-beta" }),
+      otherScene: tavernBridgeSessionRootDir({
+        ...room,
+        activeSceneId: "scene-beta",
+        activeSceneInstanceId: "scene-instance-beta",
+      }),
       legacy: tavernLegacyBridgeSessionRootDir(room.id),
     },
     bSecret,
@@ -2405,11 +2851,58 @@ try {
   const checks = globalThis.__checks;
 
   assert(
-    checks.bridgeSessionRootDirs.active === "tavern/room-alpha/scenes/scene-alpha/bridge" &&
-      checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scenes/scene-beta/bridge" &&
+    checks.bridgeSessionRootDirs.active === "tavern/room-alpha/scene-instances/scene-instance-alpha/bridge" &&
+      checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scene-instances/scene-instance-beta/bridge" &&
       checks.bridgeSessionRootDirs.legacy === "tavern/room-alpha/bridge",
-    "酒馆 bridge session 必须按当前场景隔离，并保留旧房间级路径仅用于兼容清理",
+    "酒馆 bridge session 必须按当前节点场景实例隔离，并保留旧房间级路径仅用于兼容清理",
     checks.bridgeSessionRootDirs,
+  );
+  assert(
+    checks.branchInstanceChecks.nodeOneInstanceCount === 1 &&
+      checks.branchInstanceChecks.nodeTwoInstanceCount === 2 &&
+      new Set(checks.branchInstanceChecks.nodeTwoInstanceIds).size === 2 &&
+      checks.branchInstanceChecks.nodeTwoPathSignatures.includes("node-1>node-2") &&
+      checks.branchInstanceChecks.nodeTwoPathSignatures.includes("node-1>node-1-5>node-2") &&
+      checks.branchInstanceChecks.switchedActiveNodeId === "node-2" &&
+      checks.branchInstanceChecks.switchedPath === "node-1>node-1-5>node-2",
+    "分支汇合节点必须按路径前缀生成不同 sceneInstance，入口节点仍复用同一个实例",
+    checks.branchInstanceChecks,
+  );
+  assert(
+    checks.branchMemoryChecks.sourceCount === 2 &&
+      checks.branchMemoryChecks.sceneMemory.includes("入口共通知识：旅人已经拿到铜钥匙。") &&
+      checks.branchMemoryChecks.sceneMemory.includes("1.5分支私有：旅人绕路检查了后门。") &&
+      checks.branchMemoryChecks.sceneMemory.includes("公开解密秘密：后门的铁铃被提前剪断。") &&
+      checks.branchMemoryChecks.charAMemory.includes("阿洛知道旅人拿过铜钥匙。") &&
+      checks.branchMemoryChecks.charAMemory.includes("阿洛专属解密：旅人说出了屋顶暗号。") &&
+      !checks.branchMemoryChecks.charBMemory.includes("阿洛专属解密") &&
+      checks.branchMemoryChecks.revealedSecretIds.includes("secret-hidden-door") &&
+      checks.branchMemoryChecks.revealedSecretIds.includes("secret-ally-code"),
+    "加载上游记忆必须只汇总当前分支路径，并按公开/指定角色解密规则过滤秘密",
+    checks.branchMemoryChecks,
+  );
+  assert(
+    checks.secretMemoryHelperChecks.hasAddedSecret &&
+      checks.secretMemoryHelperChecks.revealVisibility === "character" &&
+      checks.secretMemoryHelperChecks.revealTargetIds.includes("char-a") &&
+      checks.secretMemoryHelperChecks.persistedRevealCount === 1,
+    "秘密记忆 helper 必须能在当前节点记录隐藏记忆并写入指定角色解密标记",
+    checks.secretMemoryHelperChecks,
+  );
+  assert(
+    checks.assetExtractionMemoryChecks.parsedSceneCount === 3 &&
+      checks.assetExtractionMemoryChecks.createdSceneVisibilities.includes("public") &&
+      checks.assetExtractionMemoryChecks.createdSceneVisibilities.includes("hidden") &&
+      checks.assetExtractionMemoryChecks.createdSceneVisibilities.includes("director") &&
+      checks.assetExtractionMemoryChecks.sceneHiddenSecretId === "secret-well-rope" &&
+    checks.assetExtractionMemoryChecks.parsedCount === 3 &&
+      checks.assetExtractionMemoryChecks.createdVisibilities.includes("public") &&
+      checks.assetExtractionMemoryChecks.createdVisibilities.includes("hidden") &&
+      checks.assetExtractionMemoryChecks.createdVisibilities.includes("character") &&
+      checks.assetExtractionMemoryChecks.characterRevealTargets.includes("char-a") &&
+      checks.assetExtractionMemoryChecks.hiddenSecretId === "secret-bella-password",
+    "资产抽取草稿必须强制 scene/character visibility，并保留隐藏/指定角色可见记忆协议字段",
+    checks.assetExtractionMemoryChecks,
   );
   assert(checks.contextForA.includes(checks.aSecret), "A 应能看到自己的心理");
   assert(checks.contextForA.includes(checks.aSecondSecret), "多轮后 A 仍应能看到自己的心理");
@@ -2441,6 +2934,35 @@ try {
       checks.promptForA.includes("interaction_quality_rule id=\"natural-dialogue\""),
     "酒馆互动质量护栏应由设置实时注入角色 prompt，而不是依赖提示词编辑页文本块",
     checks.promptForA,
+  );
+  assert(
+    checks.secretPolicyPromptForA.includes("secret_memory_protocol") &&
+      checks.secretPolicyPromptForA.includes(checks.secretPolicyTexts.publicSceneMemoryText) &&
+      checks.secretPolicyPromptForA.includes(checks.secretPolicyTexts.characterKnownMemoryText) &&
+      !checks.secretPolicyPromptForA.includes(checks.secretPolicyTexts.unrevealedHiddenMemoryText) &&
+      !checks.secretPolicyPromptForA.includes(checks.secretPolicyTexts.directorOnlySceneMemoryText) &&
+      !checks.secretPolicyPromptForA.includes(checks.secretPolicyTexts.directorOnlyCharacterMemoryText),
+    "角色 prompt 必须注入秘密协议，只包含公开/该角色已知记忆，不泄露未公开或导演秘密",
+    checks.secretPolicyPromptForA,
+  );
+  assert(
+    checks.secretPolicyDirectorPrompt.includes("secret_memory_protocol") &&
+      checks.secretPolicyDirectorPrompt.includes("director_secret_memory") &&
+      checks.secretPolicyDirectorPrompt.includes(checks.secretPolicyTexts.directorOnlySceneMemoryText) &&
+      checks.secretPolicyDirectorPrompt.includes(checks.secretPolicyTexts.directorOnlyCharacterMemoryText) &&
+      !checks.secretPolicyDirectorPrompt.includes(checks.secretPolicyTexts.unrevealedHiddenMemoryText) &&
+      checks.secretPolicyDirectorPrompt.includes("never_leak_to_public_output"),
+    "导演 prompt 必须注入秘密协议和 directorSecret 上下文，但不直接注入未解密 hidden entry",
+    checks.secretPolicyDirectorPrompt,
+  );
+  assert(
+    checks.nodePromptOverrideChecks.characterPrompt.includes(checks.nodePromptOverrideChecks.characterText) &&
+      !checks.nodePromptOverrideChecks.characterPrompt.includes(checks.nodePromptOverrideChecks.directorText) &&
+      checks.nodePromptOverrideChecks.directorPrompt.includes(checks.nodePromptOverrideChecks.directorText) &&
+      !checks.nodePromptOverrideChecks.directorPrompt.includes(checks.nodePromptOverrideChecks.characterText) &&
+      checks.nodePromptOverrideChecks.bridgePrompt.includes(checks.nodePromptOverrideChecks.bridgeText),
+    "节点级提示词补充必须按 bridge/director/character 目标分别注入，并继承酒馆级提示词",
+    checks.nodePromptOverrideChecks,
   );
 	  assert(
 	    checks.styledPromptForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&

@@ -46,6 +46,9 @@ export const hasAssetDraftItems = (draft: TavernAssetDraft) =>
 export const getRoomActiveSceneId = (room: TavernRoom) =>
   room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
+export const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
+  room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
+
 export const shouldAutoExtractAssets = (
   room: TavernRoom,
   messagesAfterUser: TavernMessage[],
@@ -366,6 +369,8 @@ export const createUserTurnMessage = ({
   selectedReplyOption?: TavernReplyOption;
 }) => createTavernMessage({
   roomId: room.id,
+  sceneId: room.activeSceneId,
+  sceneInstanceId: getRoomActiveSceneInstanceId(room),
   role: "user",
   presentationProfileId: room.presentation?.profileId,
   content: text,
@@ -385,6 +390,8 @@ export const createSceneDriveTurnAnchorMessage = ({
   directive: string;
 }) => createTavernMessage({
   roomId: room.id,
+  sceneId: room.activeSceneId,
+  sceneInstanceId: getRoomActiveSceneInstanceId(room),
   role: "narrator",
   presentationProfileId: room.presentation?.profileId,
   content: directive.trim()

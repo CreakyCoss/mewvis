@@ -1,11 +1,14 @@
 import type {
   TavernCharacter,
+  TavernCharacterMemoryDraft,
   TavernMessage,
   TavernRoom,
+  TavernSceneMemoryDraft,
 } from "../../../types";
 import type { TavernExtractedAssetDraft } from "./types";
 
 const MAX_CHARACTER_MEMORY_DRAFTS = 4;
+const MAX_SCENE_MEMORY_DRAFTS = 3;
 const MAX_LOREBOOK_DRAFTS = 3;
 
 const extractJsonObject = (text: string) => {
@@ -31,6 +34,18 @@ const normalizeKeywords = (value: unknown) => Array.isArray(value)
 
 const normalizeKey = (value: string) => value.trim().toLowerCase();
 
+const normalizeMemoryVisibility = (
+  value: unknown,
+): TavernCharacterMemoryDraft["visibility"] | null => (
+  value === "public" || value === "hidden" || value === "character" ? value : null
+);
+
+const normalizeSceneMemoryVisibility = (
+  value: unknown,
+): TavernSceneMemoryDraft["visibility"] | null => (
+  value === "public" || value === "hidden" || value === "director" ? value : null
+);
+
 export const parseTavernAssetDraft = ({
   text,
   room,
@@ -50,6 +65,44 @@ export const parseTavernAssetDraft = ({
       draft.lorebookEntries.map((entry) => normalizeKey(entry.title))
     ),
   ]);
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const existingSceneMemoryText = [
+    room.memory,
+    activeInstance?.memoryLayers?.required,
+    activeInstance?.memoryLayers?.public,
+    activeInstance?.memoryLayers?.private,
+    activeInstance?.memoryLayers?.directorSecret,
+    ...(activeInstance?.memoryLayers?.entries ?? []).map((entry) => entry.text),
+    ...room.assetDrafts.flatMap((draft) => draft.sceneMemories.map((memory) => memory.note)),
+  ].join("\n");
+
+  const sceneMemories = Array.isArray(parsed.sceneMemories)
+    ? parsed.sceneMemories.flatMap((value) => {
+        if (!value || typeof value !== "object") {
+          return [];
+        }
+
+        const candidate = value as Record<string, unknown>;
+        const note = typeof candidate.note === "string"
+          ? limitText(candidate.note, 360)
+          : "";
+        const visibility = normalizeSceneMemoryVisibility(candidate.visibility);
+        const secretId = typeof candidate.secretId === "string"
+          ? candidate.secretId.trim()
+          : "";
+        if (!note || !visibility || existingSceneMemoryText.includes(note)) {
+          return [];
+        }
+
+        return [{
+          note,
+          visibility,
+          secretId: secretId || undefined,
+        }];
+      }).slice(0, MAX_SCENE_MEMORY_DRAFTS)
+    : [];
 
   const characterMemories = Array.isArray(parsed.characterMemories)
     ? parsed.characterMemories.flatMap((value) => {
@@ -64,12 +117,33 @@ export const parseTavernAssetDraft = ({
         const note = typeof candidate.note === "string"
           ? limitText(candidate.note, 280)
           : "";
+        const visibility = normalizeMemoryVisibility(candidate.visibility);
+        const secretId = typeof candidate.secretId === "string"
+          ? candidate.secretId.trim()
+          : "";
+        const revealToCharacterIds = Array.isArray(candidate.revealToCharacterIds)
+          ? candidate.revealToCharacterIds.flatMap((item) =>
+              typeof item === "string" && characterIds.has(item.trim()) ? [item.trim()] : []
+            )
+          : [];
         const currentMemory = room.characterMemories[characterId] ?? "";
-        if (!characterIds.has(characterId) || !note || currentMemory.includes(note)) {
+        if (
+          !characterIds.has(characterId) ||
+          !note ||
+          !visibility ||
+          (visibility === "character" && revealToCharacterIds.length === 0) ||
+          currentMemory.includes(note)
+        ) {
           return [];
         }
 
-        return [{ characterId, note }];
+        return [{
+          characterId,
+          note,
+          visibility,
+          secretId: secretId || undefined,
+          revealToCharacterIds,
+        }];
       }).slice(0, MAX_CHARACTER_MEMORY_DRAFTS)
     : [];
 
@@ -103,6 +177,7 @@ export const parseTavernAssetDraft = ({
 
   return {
     sourceMessageIds: sourceMessages.map((message) => message.id),
+    sceneMemories,
     characterMemories,
     lorebookEntries,
   };

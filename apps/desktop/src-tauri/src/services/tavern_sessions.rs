@@ -15,7 +15,7 @@ const META_FILE_NAME: &str = "meta.json";
 const ROOM_FILE_NAME: &str = "room.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
 const CONVERSATION_FILE_NAME: &str = "conversation.json";
-const TAVERN_STATE_VERSION: u8 = 2;
+const TAVERN_STATE_VERSION: u8 = 3;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +46,8 @@ struct TavernSessionMeta {
     path: String,
     workspace_id: Option<String>,
     active_scene_id: Option<String>,
+    active_scene_instance_id: Option<String>,
+    active_run_id: Option<String>,
     system_preset_id: Option<String>,
     locked: bool,
     created_at: i64,
@@ -70,7 +72,7 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
         return Ok(None);
     }
     let mut rooms = Vec::new();
-    let mut messages_by_scene = Map::new();
+    let mut messages_by_instance = Map::new();
 
     for room_id in index.room_ids {
         let room_dir = tavern_session_dir(&input.workspace_path, &room_id)?;
@@ -86,11 +88,11 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
             continue;
         }
 
-        if let Some(Value::Object(scene_messages)) =
+        if let Some(Value::Object(instance_messages)) =
             read_optional_json_file::<Value>(&room_dir.join(CONVERSATION_FILE_NAME))?
         {
-            for (scene_id, messages) in scene_messages {
-                messages_by_scene.insert(scene_id, messages);
+            for (instance_id, messages) in instance_messages {
+                messages_by_instance.insert(instance_id, messages);
             }
         }
 
@@ -115,8 +117,8 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
     state.insert("activeRoomId".to_string(), Value::from(active_room_id));
     state.insert("rooms".to_string(), Value::Array(rooms));
     state.insert(
-        "messagesByScene".to_string(),
-        Value::Object(messages_by_scene),
+        "messagesByInstance".to_string(),
+        Value::Object(messages_by_instance),
     );
 
     Ok(Some(Value::Object(state)))
@@ -137,11 +139,11 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    let messages_by_scene = input
+    let messages_by_instance = input
         .state
-        .get("messagesByScene")
+        .get("messagesByInstance")
         .and_then(Value::as_object)
-        .ok_or_else(|| "酒馆状态缺少 messagesByScene".to_string())?;
+        .ok_or_else(|| "酒馆状态缺少 messagesByInstance".to_string())?;
 
     let mut room_ids = Vec::new();
     let mut room_id_set = HashSet::new();
@@ -156,8 +158,8 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         let room_dir = tavern_session_dir(&input.workspace_path, &room_id)?;
         fs::create_dir_all(&room_dir).map_err(|error| format!("无法创建酒馆会话目录：{error}"))?;
 
-        let messages = active_scene_messages(room, messages_by_scene);
-        let conversation = collect_room_scene_messages(room, messages_by_scene);
+        let messages = active_scene_messages(room, messages_by_instance);
+        let conversation = collect_room_scene_messages(room, messages_by_instance);
         write_json_file(&room_dir.join(ROOM_FILE_NAME), room)?;
         write_json_file(&room_dir.join(MESSAGES_FILE_NAME), &messages)?;
         write_json_file(&room_dir.join(CONVERSATION_FILE_NAME), &conversation)?;
@@ -188,6 +190,8 @@ fn tavern_session_meta(room_id: &str, room: &Value, messages: &Value) -> TavernS
         path: format!("{}/{}/{}", tavern_dir_display(), room_id, META_FILE_NAME),
         workspace_id: value_string(room, "workspaceId"),
         active_scene_id: value_string(room, "activeSceneId"),
+        active_scene_instance_id: value_string(room, "activeSceneInstanceId"),
+        active_run_id: value_string(room, "activeRunId"),
         system_preset_id: value_string(room, "systemPresetId"),
         locked: room.get("locked").and_then(Value::as_bool).unwrap_or(false),
         created_at: value_i64(room, "createdAt").unwrap_or(0),
@@ -196,32 +200,32 @@ fn tavern_session_meta(room_id: &str, room: &Value, messages: &Value) -> TavernS
     }
 }
 
-fn collect_room_scene_messages(room: &Value, messages_by_scene: &Map<String, Value>) -> Value {
-    let mut scene_ids = HashSet::new();
-    if let Some(active_scene_id) = value_string(room, "activeSceneId") {
-        scene_ids.insert(active_scene_id);
+fn collect_room_scene_messages(room: &Value, messages_by_instance: &Map<String, Value>) -> Value {
+    let mut instance_ids = HashSet::new();
+    if let Some(active_instance_id) = value_string(room, "activeSceneInstanceId") {
+        instance_ids.insert(active_instance_id);
     }
-    if let Some(scenes) = room.get("scenes").and_then(Value::as_array) {
-        for scene in scenes {
-            if let Some(scene_id) = value_string(scene, "id") {
-                scene_ids.insert(scene_id);
+    if let Some(instances) = room.get("sceneInstances").and_then(Value::as_array) {
+        for instance in instances {
+            if let Some(instance_id) = value_string(instance, "id") {
+                instance_ids.insert(instance_id);
             }
         }
     }
 
     let mut conversation = Map::new();
-    for scene_id in scene_ids {
-        if let Some(messages) = messages_by_scene.get(&scene_id) {
-            conversation.insert(scene_id, messages.clone());
+    for instance_id in instance_ids {
+        if let Some(messages) = messages_by_instance.get(&instance_id) {
+            conversation.insert(instance_id, messages.clone());
         }
     }
 
     Value::Object(conversation)
 }
 
-fn active_scene_messages(room: &Value, messages_by_scene: &Map<String, Value>) -> Value {
-    value_string(room, "activeSceneId")
-        .and_then(|scene_id| messages_by_scene.get(&scene_id).cloned())
+fn active_scene_messages(room: &Value, messages_by_instance: &Map<String, Value>) -> Value {
+    value_string(room, "activeSceneInstanceId")
+        .and_then(|instance_id| messages_by_instance.get(&instance_id).cloned())
         .unwrap_or_else(|| Value::Array(Vec::new()))
 }
 
@@ -351,16 +355,19 @@ mod tests {
 
     fn test_tavern_state(workspace_id: &str, room_id: &str) -> Value {
         let scene_id = "scene-main";
+        let scene_instance_id = "scene-instance-main";
         let message = json!({
             "id": "message-one",
             "roomId": room_id,
+            "sceneId": scene_id,
+            "sceneInstanceId": scene_instance_id,
             "role": "user",
             "content": "开场",
             "createdAt": 3,
             "status": "done"
         });
-        let mut messages_by_scene = Map::new();
-        messages_by_scene.insert(scene_id.to_string(), Value::Array(vec![message]));
+        let mut messages_by_instance = Map::new();
+        messages_by_instance.insert(scene_instance_id.to_string(), Value::Array(vec![message]));
 
         let mut state = Map::new();
         state.insert("version".to_string(), Value::from(TAVERN_STATE_VERSION));
@@ -375,15 +382,17 @@ mod tests {
                 "storyOutline": "",
                 "storyGoal": "",
                 "activeSceneId": scene_id,
+                "activeSceneInstanceId": scene_instance_id,
                 "scenes": [{ "id": scene_id, "title": "默认场景" }],
+                "sceneInstances": [{ "id": scene_instance_id, "sceneId": scene_id }],
                 "memory": "长期记忆",
                 "createdAt": 1,
                 "updatedAt": 2
             }]),
         );
         state.insert(
-            "messagesByScene".to_string(),
-            Value::Object(messages_by_scene),
+            "messagesByInstance".to_string(),
+            Value::Object(messages_by_instance),
         );
         Value::Object(state)
     }
@@ -426,9 +435,9 @@ mod tests {
             Some(room_id)
         );
         assert!(loaded
-            .get("messagesByScene")
+            .get("messagesByInstance")
             .and_then(Value::as_object)
-            .and_then(|items| items.get("scene-main"))
+            .and_then(|items| items.get("scene-instance-main"))
             .and_then(Value::as_array)
             .is_some_and(|messages| messages.len() == 1));
     }

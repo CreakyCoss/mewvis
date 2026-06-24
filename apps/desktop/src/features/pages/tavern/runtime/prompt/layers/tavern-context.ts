@@ -11,6 +11,10 @@ import {
 const limitEscapedPromptText = (text: string, maxChars: number) =>
   escapePromptXmlText(limitPromptText(text, maxChars));
 
+const getActiveSceneInstance = (room: TavernRoom) =>
+  room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ??
+  room.sceneInstances[0];
+
 const buildStoryArcContent = (room: TavernRoom) => {
   if (!room.storyOutline.trim() && !room.storyGoal.trim()) {
     return "";
@@ -19,6 +23,24 @@ const buildStoryArcContent = (room: TavernRoom) => {
   return joinPromptLines([
     room.storyOutline.trim() ? limitEscapedPromptText(room.storyOutline, 900) : "",
     room.storyGoal.trim() ? `<final_goal>${limitEscapedPromptText(room.storyGoal, 500)}</final_goal>` : "",
+  ]);
+};
+
+const buildRoomMemoryContent = (room: TavernRoom) => {
+  const activeInstance = getActiveSceneInstance(room);
+  const memoryLayers = activeInstance?.memoryLayers;
+
+  return joinPromptLines([
+    room.memory.trim() ? limitEscapedPromptText(room.memory, 900) : "",
+    memoryLayers?.upstream?.trim()
+      ? `<branch_upstream_memory>${limitEscapedPromptText(memoryLayers.upstream, 1200)}</branch_upstream_memory>`
+      : "",
+    memoryLayers?.public?.trim()
+      ? `<branch_public_memory>${limitEscapedPromptText(memoryLayers.public, 600)}</branch_public_memory>`
+      : "",
+    memoryLayers?.private?.trim()
+      ? `<branch_private_memory>${limitEscapedPromptText(memoryLayers.private, 700)}</branch_private_memory>`
+      : "",
   ]);
 };
 
@@ -80,7 +102,7 @@ export const buildTavernContextSections = ({
     layer: "tavern",
     tag: "room_memory",
     attributes: { instruction: "persistent_story_state" },
-    content: limitEscapedPromptText(room.memory, 1200),
+    content: buildRoomMemoryContent(room),
   },
   {
     id: "lorebook",

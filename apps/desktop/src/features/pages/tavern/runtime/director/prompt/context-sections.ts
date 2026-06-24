@@ -20,6 +20,10 @@ import {
   escapePromptXmlAttribute,
   escapePromptXmlText,
 } from "../../prompt/shared/text";
+import {
+  buildTavernDirectorSecretMemoryContext,
+  buildTavernSecretMemoryProtocol,
+} from "../../prompt/shared/secret-policy";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
 
@@ -30,6 +34,22 @@ const limitDirectorContextText = (text: string, maxChars: number) => {
 
 const limitEscapedDirectorText = (text: string, maxChars: number) =>
   escapePromptXmlText(limitDirectorContextText(text, maxChars));
+
+const formatDirectorCharacterMemory = (
+  room: TavernRoom,
+  characterId: string,
+) => {
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  const layers = activeInstance?.characterMemoryLayers?.[characterId];
+
+  return [
+    room.characterMemories[characterId]?.trim() ?? "",
+    layers?.public?.trim() ?? "",
+    layers?.known?.trim() ?? "",
+  ].filter(Boolean).join("\n\n");
+};
 
 const formatDirectorProgressContext = (room: TavernRoom) => JSON.stringify({
   statusSnapshot: room.statusSnapshot,
@@ -87,8 +107,8 @@ const buildTavernDirectorCharacterList = (
     });
     return relationships ? `relationships: ${escapePromptXmlText(relationships)}` : "";
   })(),
-  room.characterMemories[character.id]?.trim()
-    ? `memory: ${escapePromptXmlText(room.characterMemories[character.id]?.trim() ?? "")}`
+  formatDirectorCharacterMemory(room, character.id)
+    ? `memory: ${escapePromptXmlText(formatDirectorCharacterMemory(room, character.id))}`
     : "",
 ].filter(Boolean).join("\n")).join("\n\n---\n\n");
 
@@ -136,6 +156,8 @@ export const buildTavernDirectorContextSections = ({
     `<presentation_profile id="${escapePromptXmlAttribute(presentationProfile.id)}" label="${escapePromptXmlAttribute(presentationProfile.label)}" render="${escapePromptXmlAttribute(presentationProfile.renderStyle)}" contract="${escapePromptXmlAttribute(presentationProfile.generationContract)}">`,
     escapePromptXmlText(presentationProfile.directorAddendum),
     "</presentation_profile>",
+    "",
+    buildTavernSecretMemoryProtocol("director"),
     "",
     promptBlocksText,
     room.storyOutline.trim() || room.storyGoal.trim()
@@ -195,6 +217,8 @@ export const buildTavernDirectorContextSections = ({
     "<characters>",
     buildTavernDirectorCharacterList(room, characters),
     "</characters>",
+    "",
+    buildTavernDirectorSecretMemoryContext({ room, characters }),
     "",
     "<selected_reply_targets instruction=\"targets_addressed_by_user_or_reply_option; may_speak_or_react_nonverbally_depending_on_relationship_and_context\">",
     selectedTargetCharacters.length > 0

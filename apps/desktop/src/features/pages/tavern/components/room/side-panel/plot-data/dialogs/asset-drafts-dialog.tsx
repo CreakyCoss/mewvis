@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  addTavernSecretMemoryEntry,
   createTavernLorebookEntry,
   projectTavernSceneOntoRoom,
+  revealTavernSecretMemory,
+  updateTavernActiveSceneMemoryLayers,
 } from "../../../../../storage";
 import type {
   TavernAssetDraft,
@@ -35,7 +38,18 @@ const AssetDraftPreview = ({
   onDelete: () => void;
 }) => {
   const characterById = new Map(roomCharacters.map((character) => [character.id, character]));
+  const memoryVisibilityLabel = {
+    public: "公开",
+    hidden: "隐藏",
+    character: "指定角色可见",
+  } as const;
+  const sceneMemoryVisibilityLabel = {
+    public: "公开",
+    hidden: "隐藏",
+    director: "导演",
+  } as const;
   const draftSummary = [
+    draft.sceneMemories.length > 0 ? `${draft.sceneMemories.length} 场景记忆` : "",
     draft.characterMemories.length > 0 ? `${draft.characterMemories.length} 记忆` : "",
     draft.lorebookEntries.length > 0 ? `${draft.lorebookEntries.length} 世界书` : "",
   ].filter(Boolean).join(" / ");
@@ -74,6 +88,22 @@ const AssetDraftPreview = ({
         </div>
       </div>
 
+      {draft.sceneMemories.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium opacity-70">场景记忆</div>
+          {draft.sceneMemories.map((memory) => (
+            <div key={memory.id} className="rounded-md bg-current/5 px-2.5 py-2">
+              <div className="text-[11px] opacity-55">
+                {sceneMemoryVisibilityLabel[memory.visibility]}
+              </div>
+              <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
+                {memory.note || emptyValueText}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {draft.characterMemories.length > 0 && (
         <div className="space-y-1.5">
           <div className="text-xs font-medium opacity-70">角色记忆</div>
@@ -81,6 +111,14 @@ const AssetDraftPreview = ({
             <div key={memory.id} className="rounded-md bg-current/5 px-2.5 py-2">
               <div className="text-xs font-medium">
                 {characterById.get(memory.characterId)?.name ?? "角色"}
+              </div>
+              <div className="mt-0.5 text-[11px] opacity-55">
+                {memoryVisibilityLabel[memory.visibility]}
+                {memory.visibility === "character" && memory.revealToCharacterIds.length
+                  ? `：${memory.revealToCharacterIds
+                      .map((characterId) => characterById.get(characterId)?.name ?? characterId)
+                      .join("、")}`
+                  : ""}
               </div>
               <div className="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-70">
                 {memory.note || emptyValueText}
@@ -128,24 +166,77 @@ export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
     const memoryDrafts = draft.characterMemories.filter((memory) =>
       memory.characterId.trim() && memory.note.trim()
     );
+    const sceneMemoryDrafts = draft.sceneMemories.filter((memory) => memory.note.trim());
     const lorebookEntries = draft.lorebookEntries.filter((entry) =>
       entry.title.trim() && entry.content.trim()
     );
+    let nextRoom = projectTavernSceneOntoRoom(activeRoom);
+    for (const memory of sceneMemoryDrafts) {
+      const nextNote = memory.note.trim();
+      if (memory.visibility === "hidden") {
+        const addResult = addTavernSecretMemoryEntry(nextRoom, {
+          target: { type: "scene" },
+          text: nextNote,
+          secretId: memory.secretId,
+        });
+        nextRoom = addResult.room;
+        continue;
+      }
+
+      const activeInstance = nextRoom.sceneInstances.find((instance) =>
+        instance.id === nextRoom.activeSceneInstanceId
+      );
+      const layers = activeInstance?.memoryLayers;
+      if (memory.visibility === "director") {
+        nextRoom = updateTavernActiveSceneMemoryLayers(nextRoom, {
+          directorSecret: [
+            layers?.directorSecret?.trim() ?? "",
+            nextNote,
+          ].filter(Boolean).join("\n"),
+        });
+      } else {
+        nextRoom = updateTavernActiveSceneMemoryLayers(nextRoom, {
+          public: [
+            layers?.public?.trim() ?? "",
+            nextNote,
+          ].filter(Boolean).join("\n"),
+        });
+      }
+    }
     const characterMemories = { ...activeRoom.characterMemories };
     const characterConfigs = { ...(activeRoom.characterConfigs ?? {}) };
     for (const memory of memoryDrafts) {
-      const existing = characterMemories[memory.characterId]?.trim() ?? "";
       const nextNote = memory.note.trim();
-      characterMemories[memory.characterId] = existing
-        ? [existing, nextNote].join("\n")
-        : nextNote;
-      characterConfigs[memory.characterId] = {
-        ...(characterConfigs[memory.characterId] ?? { characterId: memory.characterId }),
-        memory: characterMemories[memory.characterId],
-      };
+      if (memory.visibility === "public") {
+        const existing = characterMemories[memory.characterId]?.trim() ?? "";
+        characterMemories[memory.characterId] = existing
+          ? [existing, nextNote].join("\n")
+          : nextNote;
+        characterConfigs[memory.characterId] = {
+          ...(characterConfigs[memory.characterId] ?? { characterId: memory.characterId }),
+          memory: characterMemories[memory.characterId],
+        };
+        continue;
+      }
+
+      const addResult = addTavernSecretMemoryEntry(nextRoom, {
+        target: { type: "character", characterId: memory.characterId },
+        text: nextNote,
+        secretId: memory.secretId,
+      });
+      nextRoom = addResult.room;
+      if (memory.visibility === "character" && addResult.entry) {
+        const revealResult = revealTavernSecretMemory(nextRoom, {
+          secretId: addResult.entry.secretId ?? memory.secretId ?? "",
+          visibility: "character",
+          targetCharacterIds: memory.revealToCharacterIds,
+        });
+        nextRoom = revealResult.room;
+      }
     }
 
     patchRoom(activeRoom.id, {
+      sceneInstances: nextRoom.sceneInstances,
       characterConfigs,
       characterMemories,
       lorebookEntries: [
