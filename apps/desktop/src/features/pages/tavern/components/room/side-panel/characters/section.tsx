@@ -25,6 +25,7 @@ import {
   rebuildTavernAgentKnowledge,
 } from "../../../../runtime/conversation";
 import { useTavernPageContext } from "../../../context";
+import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard } from "../shared";
 import {
   createFallbackStatusItem,
@@ -420,6 +421,7 @@ export const CharacterStatusSection = ({
           const isCompacting = compactingCharacterIds.has(character.id);
           const isRebuilding = rebuildingCharacterIds.has(character.id);
           const isExtractingMemory = extractingCharacterMemoryIds.has(character.id);
+          const characterMemory = buildTavernCharacterMemoryText(activeRoom, character);
           return (
             <CharacterStatusRow
               key={character.id}
@@ -427,7 +429,7 @@ export const CharacterStatusSection = ({
               room={activeRoom}
               isActive={character.id === activeCharacter?.id}
               disabled={isSending}
-              memory={activeRoom.characterMemories[character.id] ?? ""}
+              memory={characterMemory}
               metrics={metricsByCharacterId.get(character.id) ?? []}
               isBusy={isBusy}
               isCompacting={isCompacting}

@@ -3814,7 +3814,8 @@ export const loadTavernBranchUpstreamMemory = (
     return {
       title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
       lines: [
-        layers.required || instance.memory,
+        layers.required,
+        instance.memory,
         layers.public,
         layers.private,
         ...entryLines,
@@ -3843,7 +3844,8 @@ export const loadTavernBranchUpstreamMemory = (
       return {
         title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
         lines: [
-          layers.required || instance.characterMemories?.[characterId],
+          layers.required,
+          instance.characterMemories?.[characterId],
           layers.public,
           layers.known,
           layers.privateSelf,

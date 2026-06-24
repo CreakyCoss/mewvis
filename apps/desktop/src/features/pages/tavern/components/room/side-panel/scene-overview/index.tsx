@@ -82,6 +82,7 @@ import {
   compactText,
   MeterBar,
 } from "../shared";
+import { buildTavernMemoryOverviewSummary } from "../memory-summary";
 import {
   createResolvedStatusMetric,
   getProgressStatusItems,
@@ -949,7 +950,7 @@ const DetailRow = ({
 const SceneDetailsSection = ({
   immersiveDescriptionEnabled,
   scene,
-  memory,
+  memorySummary,
   identityFactEvents,
   isSending,
   onOpenTipsDetail,
@@ -958,7 +959,7 @@ const SceneDetailsSection = ({
 }: {
   immersiveDescriptionEnabled: boolean;
   scene: string | undefined;
-  memory: string | undefined;
+  memorySummary: string | undefined;
   identityFactEvents: TavernFactEvent[];
   isSending: boolean;
   onOpenTipsDetail: () => void;
@@ -993,8 +994,8 @@ const SceneDetailsSection = ({
     />
     <DetailRow
       icon={Brain}
-      title="房间记忆"
-      summary={compactText(memory)}
+      title="节点记忆"
+      summary={compactText(memorySummary)}
       onClick={onOpenTipsDetail}
     />
     {identityFactEvents.length > 0 && (
@@ -1280,6 +1281,7 @@ export const SceneOverviewSection = ({
   ].filter(Boolean);
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const branchSecretOptions = listTavernBranchSecretMemoryEntries(activeRoom);
+  const memoryOverviewSummary = buildTavernMemoryOverviewSummary(activeRoom, roomCharacters);
   const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
   const pendingStatusEvents = activeRoom.statusEvents
     .filter((event) => event.status === "pending")
@@ -1650,7 +1652,7 @@ export const SceneOverviewSection = ({
       <SceneDetailsSection
         immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
         scene={activeRoom.scene}
-        memory={activeRoom.memory}
+        memorySummary={memoryOverviewSummary}
         identityFactEvents={identityFactEvents}
         isSending={isSending}
         onOpenTipsDetail={onOpenTipsDetail}

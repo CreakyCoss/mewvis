@@ -1,5 +1,9 @@
 import { Switch } from "@/components/ui/switch";
 import { useTavernPageContext } from "../../../../context";
+import {
+  buildTavernCurrentCharacterMemoriesText,
+  buildTavernCurrentSceneMemoryText,
+} from "../../memory-summary";
 import { TextBlock } from "../../shared";
 import {
   EmptyDetailState,
@@ -9,7 +13,7 @@ import {
 } from "./shared";
 
 export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
-  const { activeRoom, isSending, patchRoom } = useTavernPageContext();
+  const { activeRoom, isSending, patchRoom, roomCharacters } = useTavernPageContext();
   const userPersonaName = activeRoom?.userPersonaName.trim() ?? "";
   const sceneStatusItems = activeRoom ? [
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
@@ -18,6 +22,12 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
     `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean) : [];
+  const currentSceneMemoryText = activeRoom
+    ? buildTavernCurrentSceneMemoryText(activeRoom)
+    : "";
+  const currentCharacterMemoriesText = activeRoom
+    ? buildTavernCurrentCharacterMemoriesText(activeRoom, roomCharacters)
+    : "";
 
   return (
     <PlotDataSheet
@@ -57,6 +67,8 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
           <TextBlock label="场景描述" value={activeRoom.scene} />
           <TextBlock label="场景目标" value={activeRoom.sceneGoal} />
           <TextBlock label="房间记忆" value={activeRoom.memory} />
+          <TextBlock label="当前节点场景记忆" value={currentSceneMemoryText} />
+          <TextBlock label="当前节点角色记忆" value={currentCharacterMemoriesText} />
           <div className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] px-4 py-3 text-sm leading-6 text-current/70">
             剧情结构和世界书是酒馆共享资产；入席角色、场景设定和场景记忆在对应故事场景中维护。
           </div>
