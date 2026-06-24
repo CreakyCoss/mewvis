@@ -265,6 +265,15 @@ writeFileSync(entryPath, `
       agentKnowledgeCompactIntervalTurns: 0,
       maxAssetDrafts: 5,
       directorMaxSpeakers: 3,
+      directorNarrativeControl: {
+        agencyMode: "player_protagonist",
+        responseScale: "balanced",
+        narratorPressure: "balanced",
+        eventInterruption: "auto",
+        userActionConsequence: "visible",
+        mainHook: "auto",
+        qnaBreak: "auto",
+      },
       directorScheduling: {
         targetedReplyPolicy: "prefer",
         maxExtraSpeakersOnTargetedReply: 2,
@@ -652,6 +661,20 @@ writeFileSync(entryPath, `
     room: driveGuidanceRoom,
     messages,
     currentUserText: "我从后厨绕到窗外，推开后门查看泥印。",
+  });
+  const sceneDriveAgencyGuidance = buildTavernSceneDriveGuidance({
+    room: {
+      ...driveGuidanceRoom,
+      settings: {
+        ...driveGuidanceRoom.settings,
+        directorNarrativeControl: {
+          ...driveGuidanceRoom.settings.directorNarrativeControl,
+          agencyMode: "scene_drive",
+        },
+      },
+    },
+    messages,
+    currentUserText: "继续",
   });
   const disabledDriveGuidance = buildTavernSceneDriveGuidance({
     room: {
@@ -1544,6 +1567,15 @@ writeFileSync(entryPath, `
       userPersonaName: "旅人",
       settings: {
         directorMaxSpeakers: 4,
+        directorNarrativeControl: {
+          agencyMode: "story_directive",
+          responseScale: "balanced",
+          narratorPressure: "high",
+          eventInterruption: "auto",
+          userActionConsequence: "visible",
+          mainHook: "auto",
+          qnaBreak: "auto",
+        },
         randomEvents: { enabled: true, probability: 0.25 },
         illustrationHints: { enabled: true },
       },
@@ -2302,6 +2334,7 @@ writeFileSync(entryPath, `
     quietSignals,
     qnaDriveGuidance,
     actionDriveGuidance,
+    sceneDriveAgencyGuidance,
     disabledDriveGuidance,
     sceneNovelSource,
     directorProfilePrompt,
@@ -2425,6 +2458,7 @@ try {
   );
   assert(
     checks.qnaDriveGuidance.qnaChainRisk &&
+      checks.qnaDriveGuidance.controls.agencyMode === "player_protagonist" &&
       checks.qnaDriveGuidance.needsEventInterruption &&
       checks.qnaDriveGuidance.needsMainHook &&
       checks.qnaDriveGuidance.requiredMoves.length >= 2,
@@ -2436,6 +2470,15 @@ try {
       checks.actionDriveGuidance.needsUserActionConsequence,
     "用户具体行动应触发公开行动后果诊断",
     checks.actionDriveGuidance,
+  );
+  assert(
+    checks.sceneDriveAgencyGuidance.currentMove === "scene_drive" &&
+      checks.sceneDriveAgencyGuidance.needsSceneDriveProgression &&
+      checks.sceneDriveAgencyGuidance.needsEventInterruption &&
+      checks.sceneDriveAgencyGuidance.needsMainHook &&
+      checks.sceneDriveAgencyGuidance.requiredMoves.some((move) => move.includes("场景自推动")),
+    "场景自推模式下短确认应触发主动推进诊断",
+    checks.sceneDriveAgencyGuidance,
   );
   assert(
     !checks.disabledDriveGuidance.qnaChainRisk &&

@@ -123,6 +123,7 @@ export const buildTavernDirectorContextSections = ({
     currentUserText,
     isSceneDriveTurn,
   });
+  const directorOperationPolicy = room.settings.directorNarrativeControl;
 
   return [
     `<presentation_profile id="${presentationProfile.id}" label="${presentationProfile.label}" render="${presentationProfile.renderStyle}" contract="${presentationProfile.generationContract}">`,
@@ -159,6 +160,10 @@ export const buildTavernDirectorContextSections = ({
       immediateThreat: room.sceneStatus?.immediateThreat ?? "",
     }, null, 2),
     "</scene_status>",
+    "",
+    "<director_operation_policy instruction=\"application_level_director_controls; higher_priority_than_presentation_profile\">",
+    JSON.stringify(directorOperationPolicy, null, 2),
+    "</director_operation_policy>",
     "",
     "<scene_drive_guidance instruction=\"director_must_satisfy_required_moves_when_present; improve_event_interruptions_user_consequences_and_main_hooks_without_solving_user_choice\">",
     JSON.stringify(sceneDriveGuidance, null, 2),

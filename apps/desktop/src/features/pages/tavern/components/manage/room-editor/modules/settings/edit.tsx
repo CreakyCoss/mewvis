@@ -86,6 +86,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         enabled: false,
       },
       directorNarrativeControl: {
+        agencyMode: "player_protagonist",
         responseScale: "balanced",
         narratorPressure: "balanced",
         eventInterruption: "auto",
@@ -117,6 +118,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
       },
       directorNarrativeControl: {
         ...draft.directorNarrativeControl,
+        agencyMode: "player_protagonist",
         narratorPressure: "high",
         userActionConsequence: "visible",
         mainHook: "auto",
@@ -145,6 +147,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         applyMode: "review",
       },
       directorNarrativeControl: {
+        agencyMode: "story_directive",
         responseScale: "balanced",
         narratorPressure: "high",
         eventInterruption: "forceOnStall",
@@ -175,6 +178,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
       },
       directorNarrativeControl: {
         ...draft.directorNarrativeControl,
+        agencyMode: "scene_drive",
         responseScale: "ensemble",
         eventInterruption: "auto",
         qnaBreak: "auto",
@@ -800,6 +804,31 @@ export const SettingsEdit = ({
                           setSelectedPresetId("default");
                         }}
                       />
+                    )}
+                  />
+                  <SettingsRow
+                    label="用户控制权"
+                    description="决定用户输入被导演视为主角行动、剧情指令还是场景自推动信号。"
+                    control={(
+                      <NativeSelect
+                        id="tavern-settings-layout-director-agency-mode"
+                        value={draft.directorNarrativeControl.agencyMode}
+                        className={selectClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorNarrativeControl: {
+                              ...draft.directorNarrativeControl,
+                              agencyMode: event.target.value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
+                            },
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      >
+                        <NativeSelectOption value="player_protagonist">主角扮演</NativeSelectOption>
+                        <NativeSelectOption value="story_directive">剧情指令</NativeSelectOption>
+                        <NativeSelectOption value="scene_drive">场景自推</NativeSelectOption>
+                      </NativeSelect>
                     )}
                   />
                   <SettingsRow

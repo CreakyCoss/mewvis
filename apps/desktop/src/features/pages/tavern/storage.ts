@@ -342,6 +342,7 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   directorMaxSpeakers: 3,
   agentKnowledgeCompactIntervalTurns: 0,
   directorNarrativeControl: {
+    agencyMode: "player_protagonist",
     responseScale: "balanced",
     narratorPressure: "balanced",
     eventInterruption: "auto",
@@ -1365,6 +1366,11 @@ const normalizeDirectorNarrativeControl = (
 
   const candidate = value as Partial<TavernRoomSettings["directorNarrativeControl"]>;
   return {
+    agencyMode: candidate.agencyMode === "player_protagonist" ||
+        candidate.agencyMode === "story_directive" ||
+        candidate.agencyMode === "scene_drive"
+      ? candidate.agencyMode
+      : defaults.agencyMode,
     responseScale: candidate.responseScale === "focused" ||
         candidate.responseScale === "balanced" ||
         candidate.responseScale === "ensemble"

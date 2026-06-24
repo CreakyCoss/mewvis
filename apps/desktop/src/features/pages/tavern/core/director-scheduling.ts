@@ -31,6 +31,7 @@ const defaultDirectorScheduling = {
 };
 
 const defaultDirectorNarrativeControl: TavernRoom["settings"]["directorNarrativeControl"] = {
+  agencyMode: "player_protagonist",
   responseScale: "balanced",
   narratorPressure: "balanced",
   eventInterruption: "auto",
@@ -184,9 +185,16 @@ const recentText = (messages: TavernMessage[]) =>
     .map((message) => message.content)
     .join("\n");
 
-const classifyCurrentUserMove = (text: string, isSceneDriveTurn: boolean) => {
+const classifyCurrentUserMove = (
+  text: string,
+  isSceneDriveTurn: boolean,
+  agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"],
+) => {
   const trimmed = text.trim();
   if (isSceneDriveTurn) {
+    return "scene_drive";
+  }
+  if (agencyMode === "scene_drive" && (!trimmed || shortContinuePattern.test(trimmed))) {
     return "scene_drive";
   }
   if (shortContinuePattern.test(trimmed)) {
@@ -208,6 +216,7 @@ export type TavernSceneDriveGuidance = {
   needsUserActionConsequence: boolean;
   needsEventInterruption: boolean;
   needsMainHook: boolean;
+  needsSceneDriveProgression: boolean;
   requiredMoves: string[];
   suggestedPublicPressure: string[];
 };
@@ -224,7 +233,7 @@ export const buildTavernSceneDriveGuidance = ({
   isSceneDriveTurn?: boolean;
 }): TavernSceneDriveGuidance => {
   const controls = getDirectorNarrativeControl(room);
-  const currentMove = classifyCurrentUserMove(currentUserText, isSceneDriveTurn);
+  const currentMove = classifyCurrentUserMove(currentUserText, isSceneDriveTurn, controls.agencyMode);
   const recent = recentText(messages);
   const recentUserQuestionCount = countRecentUserQuestions(messages);
   const hasRecentConsequence = consequencePattern.test(recent);
@@ -254,7 +263,7 @@ export const buildTavernSceneDriveGuidance = ({
       (controls.eventInterruption === "auto" &&
         hasSceneGoal &&
         !hasRecentInterruption &&
-        (currentMove === "continue" || currentMove === "question")));
+        (currentMove === "continue" || currentMove === "question" || currentMove === "scene_drive")));
   const needsMainHook =
     controls.mainHook !== "off" &&
     hasSceneGoal &&
@@ -263,6 +272,7 @@ export const buildTavernSceneDriveGuidance = ({
       currentMove === "continue" ||
       currentMove === "scene_drive" ||
       (controls.mainHook === "forceOnStall" && currentMove === "question"));
+  const needsSceneDriveProgression = currentMove === "scene_drive" && hasSceneGoal;
   const suggestedPublicPressure = [
     room.sceneStatus?.immediateThreat
       ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}`
@@ -272,6 +282,9 @@ export const buildTavernSceneDriveGuidance = ({
     room.sceneStatus?.location ? `利用当前地点制造空间变化：${room.sceneStatus.location}` : "",
   ].filter(Boolean);
   const requiredMoves = [
+    needsSceneDriveProgression
+      ? "本轮是场景自推动，必须主动安排合适角色、公开旁白或可观察事件推进场景目标；不要停在等待用户输入。"
+      : "",
     needsUserActionConsequence
       ? "本轮必须让用户行动产生公开可见后果，写进 narrator、randomEvent 或被调度角色的正文；不要只让角色继续解释。"
       : "",
@@ -293,9 +306,33 @@ export const buildTavernSceneDriveGuidance = ({
     needsUserActionConsequence,
     needsEventInterruption,
     needsMainHook,
+    needsSceneDriveProgression,
     requiredMoves,
     suggestedPublicPressure,
   };
+};
+
+const formatAgencyModeInstruction = (
+  agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"],
+) => {
+  if (agencyMode === "scene_drive") {
+    return [
+      "用户控制权：scene_drive。用户短确认、空输入或续写信号表示希望场景自推动；导演应根据场景目标、近期矛盾、角色动机和公开压力主动调度合适角色互相推进。",
+      "即使自推动，也不能替用户角色做关键选择、承诺、攻击、逃跑、告白、认罪或内心定论；推进应停在新的公开压力、线索变化、角色行动或需要用户介入的位置。",
+    ].join("\n");
+  }
+
+  if (agencyMode === "story_directive") {
+    return [
+      "用户控制权：story_directive。用户输入优先视为剧情指令、镜头方向或想看的推进，而不是用户角色逐字说出口的话。",
+      "导演可以把用户指令拆成公开场景变化、角色调度和旁白承接，但不能违背指令，也不能替用户补完未选择的关键行动或结果。",
+    ].join("\n");
+  }
+
+  return [
+    "用户控制权：player_protagonist。用户输入优先视为用户扮演主角的行动、话语或意图。",
+    "导演必须尊重用户主角能动性：可以安排 NPC 回应、环境后果和公开压力，但不能替用户角色继续行动、代替用户选择路线、写用户未公开心理或把用户台词改成剧情指令。",
+  ].join("\n");
 };
 
 export const canTavernCharacterUseNonverbalReply = ({
@@ -461,6 +498,7 @@ export const formatTavernDirectorSchedulingInstruction = (
 
   lines.push([
     "导演操作策略由应用设置控制，优先级高于呈现风格提示。",
+    formatAgencyModeInstruction(narrativeControl.agencyMode),
     `调度规模：${narrativeControl.responseScale}。focused=通常 1 个关键角色；balanced=1-2 个角色；ensemble=冲突/会议/多人目标时可接近上限，但仍不得凑人数。`,
     `旁白压力：${narrativeControl.narratorPressure}。low=少旁白；balanced=用短旁白承接场景压力；high=更积极用 narrator 整合环境变化、未发言动作和公开压力。`,
     `问答链打断：${narrativeControl.qnaBreak}；事件打断：${narrativeControl.eventInterruption}；用户行动后果：${narrativeControl.userActionConsequence}；主线钩子：${narrativeControl.mainHook}。`,

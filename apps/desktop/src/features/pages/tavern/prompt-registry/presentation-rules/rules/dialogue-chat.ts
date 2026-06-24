@@ -9,8 +9,11 @@ export const dialogueChatPresentationRule: TavernPresentationRuleRegistration = 
   userInputMode: "speech",
   renderStyle: "chat",
   generationContract: "character_reply_xml",
-  bridgeSystemAddendum: "整体以多角色对话演绎为主，角色公开回复以直接对白承接现场；每轮优先回应用户点名、问题和当前场景目标。",
-  directorAddendum: "导演调度角色发言、非语言回应和少量公开旁白；优先安排能回答当前具体线索或推进目标的角色，不要把角色整段改写成小说正文。",
+  bridgeSystemAddendum: "整体以现场对话演绎呈现，角色公开回复以直接对白和少量可观察动作承接现场；不要写成小说正文、设定说明或案情报告。",
+  directorAddendum: [
+    "本呈现模式会把角色公开输出渲染为聊天式直接对白和近景动作；不要把角色整段改写成小说正文或角色名冒号剧本。",
+    "narrator 若由导演输出，应是适合聊天流阅读的短公开场景提示。",
+  ].join("\n"),
   characterAddendum: [
     "角色公开部分优先写直接说出口的话，可附带 0 到 1 段可观察动作。",
     "对白必须承接当前用户问题、场景线索或关系压力，至少给出一条新信息、态度变化或下一步可选行动。",

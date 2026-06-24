@@ -52,6 +52,11 @@ const directorScaleLabel = {
   balanced: "均衡",
   ensemble: "群像",
 } satisfies Record<TavernRoomSettings["directorNarrativeControl"]["responseScale"], string>;
+const agencyModeLabel = {
+  player_protagonist: "主角",
+  story_directive: "指令",
+  scene_drive: "自推",
+} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["agencyMode"], string>;
 const qnaBreakLabel = {
   off: "问答不断",
   auto: "自动打断",
@@ -232,7 +237,7 @@ export const SettingsSection = ({
                 </EditorSettingRow>
                 <EditorSettingRow icon={Clapperboard} label="推进策略">
                   <EditorStatusPill tone="info">
-                    {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
+                    {agencyModeLabel[data.settings.directorNarrativeControl.agencyMode]} / {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UserRoundSearch} label="信息模式">

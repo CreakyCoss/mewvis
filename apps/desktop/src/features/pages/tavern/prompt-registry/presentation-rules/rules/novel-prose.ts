@@ -11,8 +11,8 @@ export const novelProsePresentationRule: TavernPresentationRuleRegistration = {
   generationContract: "character_narrative_beat",
   bridgeSystemAddendum: "整体以连贯小说正文推进，保留人物、场景、因果和节奏连续性；公开正文应像小说段落，而不是聊天记录或设定说明。",
   directorAddendum: [
-    "本呈现模式会把 narrator、角色正文片段和用户剧情指令渲染为连续小说段落；不要输出聊天记录、角色冒号或设定说明。",
-    "narrator 若由导演输出，应是可并入小说正文的短场景段；调度人数、旁白强度、事件打断和主线钩子由导演操作策略控制，不由呈现规则决定。",
+    "本呈现模式会把 narrator、角色正文片段和当前用户输入渲染为连续小说段落；不要输出聊天记录、角色冒号或设定说明。",
+    "narrator 若由导演输出，应是可并入小说正文的短场景段。",
   ].join("\n"),
   characterAddendum: [
     "公开内容写成 2 到 5 个短自然段的第三人称小说正文，以当前被调度角色的动作/观察、线索或情绪判断作为叙事支点，并可带出其他在场角色的可见反应、短对白和互相接话。",

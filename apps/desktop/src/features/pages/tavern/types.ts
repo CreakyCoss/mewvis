@@ -319,6 +319,7 @@ export type TavernRoomSettings = {
   directorMaxSpeakers: number;
   agentKnowledgeCompactIntervalTurns: number;
   directorNarrativeControl: {
+    agencyMode: "player_protagonist" | "story_directive" | "scene_drive";
     responseScale: "focused" | "balanced" | "ensemble";
     narratorPressure: "low" | "balanced" | "high";
     eventInterruption: "off" | "auto" | "forceOnStall";

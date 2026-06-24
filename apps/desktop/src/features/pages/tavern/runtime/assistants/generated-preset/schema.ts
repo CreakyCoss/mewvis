@@ -25,6 +25,7 @@ export const generatedPresetSchema = `{
     "settings": {
       "directorMaxSpeakers": 3,
       "directorNarrativeControl": {
+        "agencyMode": "player_protagonist | story_directive | scene_drive",
         "responseScale": "focused | balanced | ensemble",
         "narratorPressure": "low | balanced | high",
         "eventInterruption": "off | auto | forceOnStall",

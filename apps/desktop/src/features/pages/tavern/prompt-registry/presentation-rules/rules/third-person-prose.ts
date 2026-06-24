@@ -9,8 +9,11 @@ export const thirdPersonProsePresentationRule: TavernPresentationRuleRegistratio
   userInputMode: "intent",
   renderStyle: "prose",
   generationContract: "character_narrative_beat",
-  bridgeSystemAddendum: "整体以第三人称间接叙事推进；公开内容应像小说正文，而不是聊天记录、剧本台词或第一人称自述。",
-  directorAddendum: "导演选择应贡献下一段叙事推进的角色；旁白可承接环境、公开后果和角色可见反应，但不要直接替用户做关键选择。",
+  bridgeSystemAddendum: "整体以第三人称间接叙事呈现；公开内容应像小说正文，而不是聊天记录、剧本台词或第一人称自述。",
+  directorAddendum: [
+    "本呈现模式会把角色输出渲染为第三人称间接叙事；不要输出聊天记录、角色冒号、引号对白或第一人称自述。",
+    "narrator 若由导演输出，应是可并入第三人称正文的短公开承接。",
+  ].join("\n"),
   characterAddendum: [
     "将角色说话风格转译为第三人称间接表达、动作、停顿和可见反应。",
     "不要输出角色名冒号、聊天气泡式对白、引号对白或第一人称自述。",
