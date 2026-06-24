@@ -32,6 +32,7 @@ writeFileSync(entryPath, `
     applyTavernStatusEventsToSnapshot,
     assignTavernRoleFacts,
     buildTavernSchedulingSignals,
+    buildTavernSceneDriveGuidance,
     canTavernCharacterUseNonverbalReply,
     createEmptyTavernStatusSnapshot,
     createTavernDirectorProfileFromCharacters,
@@ -599,6 +600,58 @@ writeFileSync(entryPath, `
   const schedulingSignalsPrompt = formatTavernSchedulingSignalsForPrompt({
     signals: directTargetSignals,
     characters,
+  });
+  const driveGuidanceRoom = {
+    ...schedulingSignalRoom,
+    storyGoal: "找到追兵封锁东口前离开酒馆。",
+    sceneGoal: "查明门口化学气味和铜牌来源，决定是否从后厨绕路。",
+    scenePlot: "追兵正在缩小包围，后门钥匙和铜牌可能牵出更大的势力。",
+    sceneStatus: {
+      location: "雨夜酒馆",
+      timeLabel: "午夜前一刻",
+      weather: "大雨",
+      atmosphere: "门闩发紧，灯火忽明忽暗",
+      scenePhase: "调查转入逃离决策",
+      immediateThreat: "东口可能已有追兵等候",
+      updatedAt: now + 11,
+    },
+  };
+  const qnaDriveGuidance = buildTavernSceneDriveGuidance({
+    room: driveGuidanceRoom,
+    messages: [
+      ...messages,
+      {
+        id: "m-user-q1",
+        roomId: room.id,
+        role: "user",
+        content: "贝拉，门口的化学气味是谁留下的？",
+        createdAt: now + 6,
+        status: "done",
+      },
+      {
+        id: "m-b-q1",
+        roomId: room.id,
+        role: "character",
+        characterId: "char-b",
+        content: "我只知道味道是从门缝外飘进来的。",
+        createdAt: now + 7,
+        status: "done",
+      },
+      {
+        id: "m-user-q2",
+        roomId: room.id,
+        role: "user",
+        content: "莫尔，这个味道说明什么？",
+        createdAt: now + 8,
+        status: "done",
+      },
+    ],
+    currentUserText: "阿洛，这个气味说明什么？",
+  });
+  const actionDriveGuidance = buildTavernSceneDriveGuidance({
+    room: driveGuidanceRoom,
+    messages,
+    currentUserText: "我从后厨绕到窗外，推开后门查看泥印。",
   });
   const sceneNovelSource = collectTavernSceneNovelSource({
     room: schedulingSignalRoom,
@@ -2221,6 +2274,8 @@ writeFileSync(entryPath, `
     normalizedMappedProfile,
     directTargetSignals,
     quietSignals,
+    qnaDriveGuidance,
+    actionDriveGuidance,
     sceneNovelSource,
     directorProfilePrompt,
     schedulingSignalsPrompt,
@@ -2340,6 +2395,20 @@ try {
       checks.sceneNovelSource.constraints.paragraphMaxChars === 180,
     "场景小说编写器 tavern adapter 应抽取用户行动、角色公开话语和公开事实",
     checks.sceneNovelSource,
+  );
+  assert(
+    checks.qnaDriveGuidance.qnaChainRisk &&
+      checks.qnaDriveGuidance.needsEventInterruption &&
+      checks.qnaDriveGuidance.needsMainHook &&
+      checks.qnaDriveGuidance.requiredMoves.length >= 2,
+    "连续问询场景应触发事件打断和主线钩子诊断",
+    checks.qnaDriveGuidance,
+  );
+  assert(
+    checks.actionDriveGuidance.currentMove === "action" &&
+      checks.actionDriveGuidance.needsUserActionConsequence,
+    "用户具体行动应触发公开行动后果诊断",
+    checks.actionDriveGuidance,
   );
   assert(
     checks.narrativePromptForA.includes("<narrative_beat> 写 1 到 3 个自然段的第三人称小说片段") &&

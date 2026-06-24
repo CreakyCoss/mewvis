@@ -1,5 +1,6 @@
 import type {
   TavernCharacter,
+  TavernMessage,
   TavernRoom,
   TavernStatusValue,
 } from "../types";
@@ -142,6 +143,124 @@ export const canTavernSelectedTargetsStaySilent = (
 
 export const hasTavernNonverbalTargetCue = (text: string) =>
   /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)|保持沉默|沉默回应|没有开口|不出声/u.test(text);
+
+const userQuestionPattern =
+  /[?？]|(?:谁|什么|为何|为什么|怎么|怎样|是否|是不是|哪里|哪儿|能不能|可以吗|告诉|解释|确认|问)/u;
+const userActionPattern =
+  /(?:我|旅人|主角|咱们)?(?:走|冲|推|拉|打开|关上|检查|查看|摸|拿|递|绕|躲|追|靠近|离开|拔|点燃|敲|砸|观察|搜|翻|准备|尝试|试图|决定|选择|跟|进入|退出|守|挡|按住|递给|交给|藏|放下|拾起|行动)/u;
+const shortContinuePattern = /^(?:嗯|好|继续|接着|然后|行|可以|下一步|往下|看看|走吧)[。.!！\s]*$/u;
+const consequencePattern =
+  /(?:于是|因此|导致|换来|逼得|不得不|惊动|暴露|锁死|受伤|失去|来不及|已经|变成|推开|打开|关上|断了|裂开|响起|熄灭|暗下|冲淡|留下|发现|逼近|压近)/u;
+const interruptionPattern =
+  /(?:忽然|突然|门外|窗外|脚步|敲门|撞门|门闩|灯灭|火光|钟声|警报|有人来了|追兵|雨声变大|风灌进来|锁响|杯盏一震)/u;
+const mainHookPattern =
+  /(?:真相|铜牌|令牌|名单|钥匙|老板娘|东口|后门|路线|失踪|血|追兵|势力|规矩|代价|身份|下一步|来不及|目标|主线|终局|阶段)/u;
+
+const countRecentUserQuestions = (messages: TavernMessage[]) =>
+  messages
+    .filter((message) => message.role === "user")
+    .slice(-4)
+    .filter((message) => userQuestionPattern.test(message.content)).length;
+
+const recentText = (messages: TavernMessage[]) =>
+  messages
+    .slice(-8)
+    .map((message) => message.content)
+    .join("\n");
+
+const classifyCurrentUserMove = (text: string, isSceneDriveTurn: boolean) => {
+  const trimmed = text.trim();
+  if (isSceneDriveTurn) {
+    return "scene_drive";
+  }
+  if (shortContinuePattern.test(trimmed)) {
+    return "continue";
+  }
+  if (userActionPattern.test(trimmed)) {
+    return "action";
+  }
+  if (userQuestionPattern.test(trimmed)) {
+    return "question";
+  }
+  return trimmed ? "statement" : "empty";
+};
+
+export type TavernSceneDriveGuidance = {
+  currentMove: "scene_drive" | "continue" | "action" | "question" | "statement" | "empty";
+  qnaChainRisk: boolean;
+  needsUserActionConsequence: boolean;
+  needsEventInterruption: boolean;
+  needsMainHook: boolean;
+  requiredMoves: string[];
+  suggestedPublicPressure: string[];
+};
+
+export const buildTavernSceneDriveGuidance = ({
+  room,
+  messages,
+  currentUserText,
+  isSceneDriveTurn = false,
+}: {
+  room: Pick<TavernRoom, "sceneGoal" | "scenePlot" | "storyGoal" | "sceneStatus">;
+  messages: TavernMessage[];
+  currentUserText: string;
+  isSceneDriveTurn?: boolean;
+}): TavernSceneDriveGuidance => {
+  const currentMove = classifyCurrentUserMove(currentUserText, isSceneDriveTurn);
+  const recent = recentText(messages);
+  const recentUserQuestionCount = countRecentUserQuestions(messages);
+  const hasRecentConsequence = consequencePattern.test(recent);
+  const hasRecentInterruption = interruptionPattern.test(recent);
+  const hasRecentMainHook = mainHookPattern.test(recent);
+  const hasSceneGoal =
+    Boolean(room.sceneGoal.trim() || room.storyGoal.trim() || room.scenePlot.trim());
+  const qnaChainRisk =
+    recentUserQuestionCount >= 2 &&
+    currentMove !== "action" &&
+    !hasRecentInterruption;
+  const needsUserActionConsequence =
+    currentMove === "action" ||
+    (currentMove === "continue" && !hasRecentConsequence && hasSceneGoal);
+  const needsEventInterruption =
+    qnaChainRisk ||
+    (hasSceneGoal && !hasRecentInterruption && (currentMove === "continue" || currentMove === "question"));
+  const needsMainHook =
+    hasSceneGoal &&
+    !hasRecentMainHook &&
+    (qnaChainRisk || currentMove === "continue" || currentMove === "scene_drive");
+  const suggestedPublicPressure = [
+    room.sceneStatus?.immediateThreat
+      ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}`
+      : "",
+    room.sceneStatus?.weather ? `让天气影响线索或行动：${room.sceneStatus.weather}` : "",
+    room.sceneStatus?.timeLabel ? `体现时间压力：${room.sceneStatus.timeLabel}` : "",
+    room.sceneStatus?.location ? `利用当前地点制造空间变化：${room.sceneStatus.location}` : "",
+  ].filter(Boolean);
+  const requiredMoves = [
+    needsUserActionConsequence
+      ? "本轮必须让用户行动产生公开可见后果，写进 narrator、randomEvent 或被调度角色的正文；不要只让角色继续解释。"
+      : "",
+    needsEventInterruption
+      ? "本轮必须打断纯问答链：加入公开可观察的局势变化、时间压力、外部声音、线索状态变化或角色主动行动。"
+      : "",
+    needsMainHook
+      ? "本轮必须把局部信息接回主线目标、长期代价、势力压力、路线阻断或阶段目标，但不能新增关键真相或替用户选择。"
+      : "",
+    qnaChainRisk
+      ? "如果用户继续点名问询，角色可以先答关键点，再把压力推回现场行动，而不是完整讲解报告。"
+      : "",
+  ].filter(Boolean);
+
+  return {
+    currentMove,
+    qnaChainRisk,
+    needsUserActionConsequence,
+    needsEventInterruption,
+    needsMainHook,
+    requiredMoves,
+    suggestedPublicPressure,
+  };
+};
 
 export const canTavernCharacterUseNonverbalReply = ({
   room,
