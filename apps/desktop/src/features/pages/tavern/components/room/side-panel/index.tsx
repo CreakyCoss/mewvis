@@ -1,5 +1,6 @@
 import { useImperativeHandle, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TavernSceneNovelizerSection } from "@/features/scene-novelizer/adapters/tavern/TavernSceneNovelizerSection";
 import { cn } from "@/lib/utils";
 import { useTavernPageContext } from "../../context";
 import { CharacterStatusSection } from "./characters/section";
@@ -18,18 +19,25 @@ export const SidePanel = ({
 }: SidePanelProps) => {
   const {
     activeRoom,
+    roomCharacters,
+    roomMessages,
+    runtimeAgentId,
+    runtimeModel,
     visualPreset,
+    workspace,
     isSending,
   } = useTavernPageContext();
   const [isSceneOperationBusy, setIsSceneOperationBusy] = useState(false);
   const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
   const [isCharacterOperationBusy, setIsCharacterOperationBusy] = useState(false);
+  const [isNovelizerOperationBusy, setIsNovelizerOperationBusy] = useState(false);
   const plotDataRef = useRef<PlotDataSectionHandle | null>(null);
   const isBusy =
     isSending ||
     isSceneOperationBusy ||
     isPlotDataOperationBusy ||
-    isCharacterOperationBusy;
+    isCharacterOperationBusy ||
+    isNovelizerOperationBusy;
 
   useImperativeHandle(bind, () => ({
     show: () => onOpenChange(true),
@@ -59,6 +67,17 @@ export const SidePanel = ({
           />
 
           <IllustrationHintsPreviewSection />
+
+          <TavernSceneNovelizerSection
+            room={activeRoom}
+            messages={roomMessages}
+            characters={roomCharacters}
+            workspace={workspace}
+            runtimeAgentId={runtimeAgentId}
+            runtimeModel={runtimeModel}
+            disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
+            onBusyChange={setIsNovelizerOperationBusy}
+          />
 
           <CharacterStatusSection
             externalBusy={isBusy}

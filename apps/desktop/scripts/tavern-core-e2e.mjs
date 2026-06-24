@@ -15,6 +15,7 @@ const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/impo
 const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
+const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
 
 const assert = (condition, message, details) => {
@@ -109,6 +110,9 @@ writeFileSync(entryPath, `
   import {
     createDefaultTavernPromptSettings,
   } from ${JSON.stringify(promptTextBlocksPath)};
+  import {
+    collectTavernSceneNovelSource,
+  } from ${JSON.stringify(sceneNovelizerPath)};
   const now = Date.now();
   const userRef = { type: "user", userId: "user" };
   const charARef = { type: "character", characterId: "char-a" };
@@ -595,6 +599,12 @@ writeFileSync(entryPath, `
   const schedulingSignalsPrompt = formatTavernSchedulingSignalsForPrompt({
     signals: directTargetSignals,
     characters,
+  });
+  const sceneNovelSource = collectTavernSceneNovelSource({
+    room: schedulingSignalRoom,
+    messages,
+    characters,
+    platformStyleId: "qidian",
   });
 
   const visibleToA = normalizeTavernMessagesForAudience({
@@ -2211,6 +2221,7 @@ writeFileSync(entryPath, `
     normalizedMappedProfile,
     directTargetSignals,
     quietSignals,
+    sceneNovelSource,
     directorProfilePrompt,
     schedulingSignalsPrompt,
     randomEventOpportunityChecks,
@@ -2318,6 +2329,17 @@ try {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,
     },
+  );
+  assert(
+    checks.sceneNovelSource.platformStyleId === "qidian" &&
+      checks.sceneNovelSource.stats.userActionCount >= 2 &&
+      checks.sceneNovelSource.materials.some((material) =>
+        material.kind === "dialogue" && material.text.includes("第二道影子")
+      ) &&
+      checks.sceneNovelSource.confirmedFacts.some((fact) => fact.includes("化学气味")) &&
+      checks.sceneNovelSource.constraints.paragraphMaxChars === 180,
+    "场景小说编写器 tavern adapter 应抽取用户行动、角色公开话语和公开事实",
+    checks.sceneNovelSource,
   );
   assert(
     checks.narrativePromptForA.includes("<narrative_beat> 写 1 到 3 个自然段的第三人称小说片段") &&
