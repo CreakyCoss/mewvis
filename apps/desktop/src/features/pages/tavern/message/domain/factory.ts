@@ -19,12 +19,24 @@ export const createTavernMessage = (
     createdAt: now(),
   };
 
-  return {
+  return materializeTavernMessage(message, message.presentationProfileId);
+};
+
+export const materializeTavernMessage = (
+  message: TavernMessage,
+  presentationProfileId: TavernMessage["presentationProfileId"],
+): TavernMessage => {
+  const nextMessage = {
     ...message,
-    kind: message.kind ?? inferTavernMessageKind({
-      role: message.role,
-      presentationProfileId: message.presentationProfileId,
+    presentationProfileId: message.presentationProfileId ?? presentationProfileId,
+  };
+
+  return {
+    ...nextMessage,
+    kind: nextMessage.kind ?? inferTavernMessageKind({
+      role: nextMessage.role,
+      presentationProfileId: nextMessage.presentationProfileId,
     }),
-    segments: message.segments ?? buildTavernMessageSegments(message),
+    segments: nextMessage.segments ?? buildTavernMessageSegments(nextMessage),
   };
 };

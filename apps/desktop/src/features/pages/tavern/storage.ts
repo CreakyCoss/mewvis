@@ -61,8 +61,7 @@ import {
   normalizeTavernDirectorProfile,
 } from "./core/scheduling-profile";
 import {
-  buildTavernMessageSegments,
-  inferTavernMessageKind,
+  materializeTavernMessage,
 } from "./message";
 import {
   DEFAULT_TAVERN_PROMPT_STYLE_ID,
@@ -342,25 +341,6 @@ const normalizeRoomPresentation = ({
 }) => normalizeTavernPresentation(
   presentation ?? (presentationProfileId ? { profileId: presentationProfileId } : undefined),
 );
-
-const materializeTavernMessage = (
-  message: TavernMessage,
-  presentationProfileId: TavernMessage["presentationProfileId"],
-): TavernMessage => {
-  const nextMessage = {
-    ...message,
-    presentationProfileId: message.presentationProfileId ?? presentationProfileId,
-  };
-
-  return {
-    ...nextMessage,
-    kind: nextMessage.kind ?? inferTavernMessageKind({
-      role: nextMessage.role,
-      presentationProfileId: nextMessage.presentationProfileId,
-    }),
-    segments: nextMessage.segments ?? buildTavernMessageSegments(nextMessage),
-  };
-};
 
 const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
   const numberValue = typeof value === "number" ? value : Number(value);

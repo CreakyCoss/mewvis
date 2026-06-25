@@ -35,6 +35,7 @@ export {
 } from "./domain/segments";
 export {
   createTavernMessage,
+  materializeTavernMessage,
 } from "./domain/factory";
 export {
   formatTavernVisibleMessagesForRequestContext,
