@@ -1,13 +1,19 @@
-import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useCallback, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { createAgentClient } from "@/agent-client/runtime";
+import { WindowDragRegion } from "@/components/window-drag-region";
 import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
+import {
+  STORIES_FULLSCREEN_SEARCH_PARAM,
+  STORIES_STORY_SEARCH_PARAM,
+  buildStoryOpenSearch,
+  isStoriesFullscreenSearch,
+} from "../navigation";
 import { StoryImportDialog } from "./import-dialog";
 import { useStoryPresentationActions } from "./presentation-actions";
 import { StoryContent } from "./story-content";
 import { StoryHeader } from "./story-header";
-import { StorySidebar } from "./story-sidebar";
 import { useStoryImport } from "./use-story-import";
 import { useStoryManuscripts } from "./use-story-manuscripts";
 import { useStoryState } from "./use-story-state";
@@ -25,8 +31,11 @@ export const StoriesPage = () => {
     agentClient,
     capability: "chat",
   });
-  const [searchParams] = useSearchParams();
-  const requestedStoryId = searchParams.get("storyId")?.trim() ?? "";
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const isHomeFullscreen = isStoriesFullscreenSearch(location.search);
+  const requestedStoryId = searchParams.get(STORIES_STORY_SEARCH_PARAM)?.trim() ?? "";
   const { activeWorkspace, defaultWorkspace, overview } = useWorkspaceOverview();
   const workspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
@@ -43,6 +52,9 @@ export const StoriesPage = () => {
     workspace,
     requestedStoryId,
   });
+  const isEditorOpen = isHomeFullscreen &&
+    Boolean(requestedStoryId) &&
+    activeStory?.id === requestedStoryId;
   const {
     openingStoryId,
     openStoryPresentation,
@@ -104,28 +116,71 @@ export const StoriesPage = () => {
     });
   };
 
-  return (
-    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
-      <StorySidebar
-        activeStoryId={activeStory?.id}
-        canCreateStory={Boolean(workspace)}
-        isSaving={isSaving}
-        onCreateStory={createStory}
-        onSelectStory={selectStory}
-        stories={storyState.stories}
-      />
+  const replaceStorySearch = useCallback((search: string) => {
+    navigate(
+      {
+        pathname: location.pathname,
+        search,
+        hash: location.hash,
+      },
+      { replace: true },
+    );
+  }, [location.hash, location.pathname, navigate]);
 
+  const exitHomeFullscreen = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.delete(STORIES_FULLSCREEN_SEARCH_PARAM);
+
+    const nextSearch = params.toString();
+    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
+  }, [location.search, replaceStorySearch]);
+
+  const backToStoryHome = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.set(STORIES_FULLSCREEN_SEARCH_PARAM, "1");
+    params.delete(STORIES_STORY_SEARCH_PARAM);
+
+    const nextSearch = params.toString();
+    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
+  }, [location.search, replaceStorySearch]);
+
+  const openStoryEditor = useCallback((story: NonNullable<typeof activeStory>) => {
+    selectStory(story);
+    setActiveTab("overview");
+    replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
+  }, [replaceStorySearch, selectStory]);
+
+  const handleCreateStory = () => {
+    const story = createStory();
+    if (!story) {
+      return;
+    }
+    setActiveTab("overview");
+    replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
+  };
+
+  const handleSelectStory = (story: NonNullable<typeof activeStory>) => {
+    selectStory(story);
+    setActiveTab("overview");
+  };
+
+  const content = (
+    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
       <div className="flex min-w-0 flex-1 flex-col">
-        <StoryHeader
-          activeStory={activeStory}
-          canCreateStory={Boolean(workspace)}
-          isSaving={isSaving}
-          onCreateStory={createStory}
-          onOpenImportDialog={openImportDialog}
-          onOpenStoryPresentation={openStoryPresentation}
-          openingStoryId={openingStoryId}
-          workspaceName={workspace?.name}
-        />
+        {isEditorOpen ? (
+          <StoryHeader
+            activeStory={activeStory}
+            canCreateStory={Boolean(workspace)}
+            isSaving={isSaving}
+            onBackToList={backToStoryHome}
+            onCreateStory={handleCreateStory}
+            onOpenImportDialog={openImportDialog}
+            onOpenStoryPresentation={openStoryPresentation}
+            openingStoryId={openingStoryId}
+            pendingDraftCount={pendingDraftCount}
+            workspaceName={workspace?.name}
+          />
+        ) : null}
 
         <StoryContent
           activeTab={activeTab}
@@ -133,16 +188,21 @@ export const StoriesPage = () => {
           isLoading={isLoading}
           onAcceptManuscript={acceptManuscript}
           onCreateManuscriptDraft={createManuscriptDraft}
-          onCreateStory={createStory}
+          onCreateStory={handleCreateStory}
+          onOpenImportDialog={openImportDialog}
           onOpenStoryPresentation={openStoryPresentation}
           onPolishManuscriptDraft={polishManuscriptDraft}
           onRejectManuscript={rejectManuscript}
           onSaveManuscriptDraft={saveManuscriptDraft}
           onSaveOverviewDraft={saveOverviewDraft}
           onSaveStory={persistStory}
+          onSelectStory={handleSelectStory}
           onSetActiveTab={setActiveTab}
-          pendingDraftCount={pendingDraftCount}
+          onStartEditing={openStoryEditor}
+          onExitHomeFullscreen={isHomeFullscreen ? exitHomeFullscreen : undefined}
+          isEditing={isEditorOpen}
           story={activeStory}
+          stories={storyState.stories}
         />
       </div>
 
@@ -162,4 +222,15 @@ export const StoriesPage = () => {
       />
     </section>
   );
+
+  if (isHomeFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[45] flex h-screen min-h-0 w-screen flex-col bg-background text-foreground">
+        <WindowDragRegion className="h-10 shrink-0" />
+        <div className="flex min-h-0 flex-1">{content}</div>
+      </div>
+    );
+  }
+
+  return content;
 };

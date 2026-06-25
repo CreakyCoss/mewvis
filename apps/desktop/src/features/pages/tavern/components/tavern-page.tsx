@@ -1242,16 +1242,6 @@ const TavernPageContent = ({
     viewMode,
   ]);
 
-  if (!activeRoom) {
-    return (
-      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6">
-        <div className="rounded-md border bg-card px-5 py-4 text-sm text-muted-foreground">
-          酒馆初始化失败，请重新进入工作区。
-        </div>
-      </div>
-    );
-  }
-
   if (viewMode === "home") {
     const managementPage = (
       <ManagementProvider
@@ -1283,6 +1273,16 @@ const TavernPageContent = ({
     }
 
     return managementPage;
+  }
+
+  if (!activeRoom) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6">
+        <div className="rounded-md border bg-card px-5 py-4 text-sm text-muted-foreground">
+          当前没有可进入的酒馆房间，请先从故事节点打开酒馆。
+        </div>
+      </div>
+    );
   }
 
   const shouldShowExecutionTrace = (

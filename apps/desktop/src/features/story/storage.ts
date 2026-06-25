@@ -4,6 +4,9 @@ import {
   submitStoryManuscriptToState,
   type StoryState,
 } from "./application/state";
+import {
+  createDefaultStoryState,
+} from "./application/default-stories";
 import { normalizeStoryState } from "./application/state-normalize";
 import type { StoryManuscriptSubmissionInput } from "./application/manuscript-inbox";
 
@@ -12,6 +15,13 @@ const STORY_STORAGE_PREFIX = "novel-claw:story";
 const storyStorageKeyForWorkspace = (workspaceId: string) =>
   `${STORY_STORAGE_PREFIX}:${workspaceId}`;
 
+const withDefaultStories = (
+  workspaceId: string,
+  state: StoryState | null,
+) => state && state.stories.length > 0
+  ? state
+  : createDefaultStoryState(workspaceId);
+
 const loadStoryStateFromLocalStorage = (workspaceId: string): StoryState => {
   if (typeof window === "undefined") {
     return createEmptyStoryState();
@@ -19,10 +29,13 @@ const loadStoryStateFromLocalStorage = (workspaceId: string): StoryState => {
 
   try {
     const raw = window.localStorage.getItem(storyStorageKeyForWorkspace(workspaceId));
+    if (!raw) {
+      return createDefaultStoryState(workspaceId);
+    }
     const parsed = raw ? JSON.parse(raw) : null;
-    return normalizeStoryState(workspaceId, parsed) ?? createEmptyStoryState();
+    return withDefaultStories(workspaceId, normalizeStoryState(workspaceId, parsed));
   } catch {
-    return createEmptyStoryState();
+    return createDefaultStoryState(workspaceId);
   }
 };
 
@@ -62,7 +75,11 @@ export const loadStoryState = async (
     input: { workspacePath },
   });
 
-  return normalizeStoryState(workspaceId, storedState) ?? createEmptyStoryState();
+  if (!storedState) {
+    return createDefaultStoryState(workspaceId);
+  }
+
+  return withDefaultStories(workspaceId, normalizeStoryState(workspaceId, storedState));
 };
 
 export const saveStoryState = async (

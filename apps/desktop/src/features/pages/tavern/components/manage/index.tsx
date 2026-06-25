@@ -104,7 +104,7 @@ export const ManagementPage = ({
   const ordinaryCreateRef = useRef<OrdinaryCreateHandle>(null);
   const roomEditorRef = useRef<RoomEditorHandle>(null);
 
-  const activeRoomMessages = messagesByRoomId[activeRoom.id] ?? [];
+  const activeRoomMessages = activeRoom ? messagesByRoomId[activeRoom.id] ?? [] : [];
   const pendingEntryRoom = pendingEntryRoomId
     ? rooms.find((room) => room.id === pendingEntryRoomId) ?? null
     : null;
@@ -240,14 +240,16 @@ export const ManagementPage = ({
                 className="hidden"
                 onChange={handleImportRoomFile}
               />
-              <QuickCreate
-                bind={quickCreateRef}
-                rooms={rooms}
-                activeRoom={activeRoom}
-                onQuickCreateRoom={quickCreateRoom}
-                onRunTextFieldAgent={runTextFieldAgent}
-                onOperationStatusChange={setRoomOperationStatus}
-              />
+              {activeRoom && (
+                <QuickCreate
+                  bind={quickCreateRef}
+                  rooms={rooms}
+                  activeRoom={activeRoom}
+                  onQuickCreateRoom={quickCreateRoom}
+                  onRunTextFieldAgent={runTextFieldAgent}
+                  onOperationStatusChange={setRoomOperationStatus}
+                />
+              )}
               <OrdinaryCreate
                 bind={ordinaryCreateRef}
                 onCreateRoom={createRoom}
@@ -299,13 +301,19 @@ export const ManagementPage = ({
               }}
             >
               <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
-                {rooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    onOpenRoom={openRoomEntrySelector}
-                  />
-                ))}
+                {rooms.length > 0 ? (
+                  rooms.map((room) => (
+                    <RoomCard
+                      key={room.id}
+                      room={room}
+                      onOpenRoom={openRoomEntrySelector}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+                    酒馆暂无房间。请从故事页选择节点进入酒馆，或手动创建一个空房间。
+                  </div>
+                )}
               </div>
             </RoomCardRuntimeProvider>
           </section>
@@ -461,19 +469,21 @@ export const ManagementPage = ({
         )}
       </Dialog>
 
-      <RoomEditor
-        bind={roomEditorRef}
-        rooms={rooms}
-        activeRoom={activeRoom}
-        characterById={characterById}
-        messagesByRoomId={messagesByRoomId}
-        globalRuntimeModel={globalRuntimeModel}
-        onSelectRoom={selectRoom}
-        onPatchRoom={patchRoom}
-        onRunTextFieldAgent={runTextFieldAgent}
-        onRegenerateDirectorProfile={regenerateDirectorProfile}
-        onOpenRoom={openRoomEntrySelector}
-      />
+      {activeRoom && (
+        <RoomEditor
+          bind={roomEditorRef}
+          rooms={rooms}
+          activeRoom={activeRoom}
+          characterById={characterById}
+          messagesByRoomId={messagesByRoomId}
+          globalRuntimeModel={globalRuntimeModel}
+          onSelectRoom={selectRoom}
+          onPatchRoom={patchRoom}
+          onRunTextFieldAgent={runTextFieldAgent}
+          onRegenerateDirectorProfile={regenerateDirectorProfile}
+          onOpenRoom={openRoomEntrySelector}
+        />
+      )}
     </div>
   );
 };

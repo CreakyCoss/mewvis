@@ -14,6 +14,7 @@ writeFileSync(entryPath, `
   import {
     acceptStoryManuscriptDraft,
     buildStoryContextPackageFromAsset,
+    createDefaultStoryState,
     createEmptyStoryState,
     createStoryAssetFromContextPackage,
     createStoryAssetFromImportDraft,
@@ -37,6 +38,20 @@ writeFileSync(entryPath, `
   };
 
   const workspaceId = "workspace-story-core";
+  const defaultStoryState = createDefaultStoryState(workspaceId, 1_800_000_000_000);
+  assert(
+    defaultStoryState.stories.length === 3 &&
+      defaultStoryState.activeStoryId === "story-raincity-silent-manuscript" &&
+      defaultStoryState.stories.every((story) => story.workspaceId === workspaceId) &&
+      defaultStoryState.stories.every((story) =>
+        story.scenes.length >= 3 &&
+        story.characters.length >= 4 &&
+        story.graph.nodes.length >= 3
+      ),
+    "默认故事应作为故事侧资产提供，而不是默认酒馆房间。",
+    defaultStoryState,
+  );
+
   const draft = createStoryImportDraft({
     sourceKind: "json",
     label: "雾港档案",

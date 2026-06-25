@@ -99,7 +99,7 @@ writeFileSync(entryPath, `
   assert(
     parseTavernRuntimeRoomSnapshot({
       schema: "novel-claw.tavern-room",
-      version: 3,
+      version: 4,
       room,
       messagesByInstance: {},
     }) === null,

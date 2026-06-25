@@ -193,13 +193,13 @@ export const ManagementProvider = ({
   }, [setState]);
   const deleteRoom = useCallback((roomId: string) => {
     const targetRoom = state.rooms.find((room) => room.id === roomId);
-    if (!targetRoom || targetRoom.locked || state.rooms.length <= 1) {
+    if (!targetRoom || targetRoom.locked) {
       return false;
     }
 
     setState((current) => {
       const currentTargetRoom = current.rooms.find((room) => room.id === roomId);
-      if (!currentTargetRoom || currentTargetRoom.locked || current.rooms.length <= 1) {
+      if (!currentTargetRoom || currentTargetRoom.locked) {
         return current;
       }
 
@@ -210,7 +210,7 @@ export const ManagementProvider = ({
         delete nextMessagesByInstance[instance.id];
       }
       const activeRoomId = current.activeRoomId === roomId
-        ? nextRooms[0]?.id ?? current.activeRoomId
+        ? nextRooms[0]?.id ?? ""
         : current.activeRoomId;
 
       return {
@@ -787,8 +787,7 @@ export const ManagementProvider = ({
     });
   }, [characterById, runtimeAgentId, runtimeModel, workspace.path]);
 
-  const value = useMemo<ManagementContextValue | null>(() => activeRoom
-    ? {
+  const value = useMemo<ManagementContextValue>(() => ({
         rooms: state.rooms,
         activeRoom,
         characterById,
@@ -806,8 +805,7 @@ export const ManagementProvider = ({
         globalRuntimeModel: runtimeModel,
         runTextFieldAgent,
         regenerateDirectorProfile,
-      }
-    : null, [
+      }), [
     activeRoom,
     characterById,
     copyRoom,
@@ -826,10 +824,6 @@ export const ManagementProvider = ({
     setRoomLocked,
     state.rooms,
   ]);
-
-  if (!value) {
-    return null;
-  }
 
   return (
     <ManagementContextProvider value={value}>

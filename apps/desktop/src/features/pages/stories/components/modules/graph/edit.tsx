@@ -1,151 +1,255 @@
-import type { Ref } from "react";
-import { useImperativeHandle, useState } from "react";
-import { GitBranch, Save } from "lucide-react";
+import { ArrowRight, GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type {
   StoryAsset,
   StoryContextEdge,
   StoryContextNode,
-  StoryContextStage,
 } from "@/features/story";
-import type { StoryModuleSave } from "../types";
-import { StoryGraphEdgeSection } from "./edge-section";
-import { StoryGraphNodeSection } from "./node-section";
-import { StoryGraphStageSection } from "./stage-section";
+import {
+  EditorField,
+  editorControlClassName,
+  editorDangerActionButtonClassName,
+  editorPrimaryActionButtonClassName,
+  editorQuietActionButtonClassName,
+  emptyValueText,
+} from "../../story-primitives";
 
-export type StoryGraphEditHandle = (story?: StoryAsset) => void;
-
-type StoryGraphEditProps = {
-  bind: Ref<StoryGraphEditHandle>;
+type StoryGraphNodeEditDialogProps = {
+  canChooseMainPath: boolean;
+  node: StoryContextNode | null;
+  open: boolean;
   story: StoryAsset;
-  onSave: StoryModuleSave;
+  onCreateNextNode: (node: StoryContextNode) => void;
+  onDeleteEdge: (edgeId: string) => void;
+  onOpenChange: (open: boolean) => void;
+  onUpdateEdge: (edgeId: string, patch: Partial<StoryContextEdge>) => void;
+  onUpdateNode: (nodeId: string, patch: Partial<StoryContextNode>) => void;
 };
 
-export const StoryGraphEdit = ({
-  bind,
+const getNodeSelectLabel = (node: StoryContextNode) =>
+  node.title.trim() || node.id;
+
+const isNormalNode = (node: StoryContextNode | undefined) =>
+  !node || node.type === "normal" || node.type.trim() === "";
+
+export const StoryGraphNodeEditDialog = ({
+  canChooseMainPath,
+  node,
+  open,
   story,
-  onSave,
-}: StoryGraphEditProps) => {
-  const [draft, setDraft] = useState<StoryAsset | null>(null);
-
-  const open = (nextStory = story) => setDraft(nextStory);
-
-  useImperativeHandle(bind, () => open);
-
-  const close = () => setDraft(null);
-
-  const updateStage = (
-    stageId: string,
-    updater: (stage: StoryContextStage) => StoryContextStage,
+  onCreateNextNode,
+  onDeleteEdge,
+  onOpenChange,
+  onUpdateEdge,
+  onUpdateNode,
+}: StoryGraphNodeEditDialogProps) => {
+  const graph = story.graph;
+  const renderEdgeEditor = (
+    edge: StoryContextEdge,
+    direction: "outgoing" | "incoming",
   ) => {
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            graph: {
-              ...current.graph,
-              stages: current.graph.stages.map((stage) =>
-                stage.id === stageId ? updater(stage) : stage
-              ),
-            },
-          }
-        : current
-    );
-  };
+    const isOutgoing = direction === "outgoing";
+    const selectValue = isOutgoing ? edge.toNodeId : edge.fromNodeId;
+    const blockedNodeId = isOutgoing ? edge.fromNodeId : edge.toNodeId;
 
-  const updateNode = (
-    nodeId: string,
-    updater: (node: StoryContextNode) => StoryContextNode,
-  ) => {
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            graph: {
-              ...current.graph,
-              nodes: current.graph.nodes.map((node) => node.id === nodeId ? updater(node) : node),
-            },
-          }
-        : current
+    return (
+      <div key={edge.id} className="rounded-md border bg-muted/15 p-2">
+        <NativeSelect
+          value={selectValue}
+          size="sm"
+          className="w-full"
+          onChange={(event) =>
+            onUpdateEdge(edge.id, isOutgoing
+              ? { toNodeId: event.target.value }
+              : { fromNodeId: event.target.value })}
+        >
+          {graph.nodes
+            .filter((candidate) => candidate.id !== blockedNodeId)
+            .filter((candidate) => isOutgoing || isNormalNode(candidate))
+            .map((candidate) => (
+              <NativeSelectOption key={candidate.id} value={candidate.id}>
+                {getNodeSelectLabel(candidate)}
+              </NativeSelectOption>
+            ))}
+        </NativeSelect>
+        {isOutgoing ? (
+          <Input
+            value={edge.reason ?? ""}
+            placeholder="出口原因"
+            className="mt-2 h-8 bg-background/80 text-xs"
+            onChange={(event) => onUpdateEdge(edge.id, { reason: event.target.value })}
+          />
+        ) : (
+          <div className="mt-2 rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground">
+            <span className="font-medium">入口原因：</span>
+            {edge.reason?.trim() || emptyValueText}
+          </div>
+        )}
+        <Input
+          value={edge.label}
+          placeholder="分支标签"
+          className="mt-2 h-8 bg-background/80 text-xs"
+          onChange={(event) => onUpdateEdge(edge.id, { label: event.target.value })}
+        />
+        <div className="mt-2 flex justify-between gap-2">
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            className={edge.isDefault
+              ? editorPrimaryActionButtonClassName
+              : editorQuietActionButtonClassName}
+            onClick={() => onUpdateEdge(edge.id, { isDefault: true })}
+          >
+            默认
+          </Button>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            className={editorDangerActionButtonClassName}
+            title="删除分支"
+            aria-label="删除分支"
+            onClick={() => onDeleteEdge(edge.id)}
+          >
+            <Trash2 className="size-3" />
+          </Button>
+        </div>
+      </div>
     );
-  };
-
-  const updateEdge = (
-    edgeId: string,
-    updater: (edge: StoryContextEdge) => StoryContextEdge,
-  ) => {
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            graph: {
-              ...current.graph,
-              edges: current.graph.edges.map((edge) => edge.id === edgeId ? updater(edge) : edge),
-            },
-          }
-        : current
-    );
-  };
-
-  const save = () => {
-    if (!draft) {
-      return;
-    }
-    onSave(draft);
-    close();
   };
 
   return (
-    <Dialog
-      open={Boolean(draft)}
-      onOpenChange={(openState) => {
-        if (!openState) {
-          close();
-        }
-      }}
-    >
-      {draft ? (
-        <DialogContent className="max-h-[min(90vh,52rem)] overflow-hidden sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GitBranch className="size-4" />
-              编辑故事结构
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[min(68vh,40rem)] pr-3">
-            <div className="space-y-5">
-              <StoryGraphStageSection
-                draft={draft}
-                onDraftChange={setDraft}
-                onUpdateStage={updateStage}
-              />
-              <StoryGraphNodeSection
-                draft={draft}
-                onDraftChange={setDraft}
-                onUpdateNode={updateNode}
-              />
-              <StoryGraphEdgeSection
-                draft={draft}
-                onDraftChange={setDraft}
-                onUpdateEdge={updateEdge}
-              />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {node ? (
+        <DialogContent className="max-h-[min(760px,calc(100vh-2rem))] overflow-hidden p-0 sm:max-w-6xl">
+          <div className="border-b px-5 py-4">
+            <DialogHeader className="gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Pencil className="size-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <DialogTitle className="truncate text-base">编辑节点</DialogTitle>
+                  <DialogDescription className="mt-1 text-xs">
+                    编辑节点内容，以及入口/出口分支关系。
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+
+          <div className="min-h-0 overflow-y-auto px-5 py-4">
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <EditorField label="节点标题" htmlFor="story-node-dialog-title">
+                  <Input
+                    id="story-node-dialog-title"
+                    value={node.title}
+                    className={editorControlClassName}
+                    onChange={(event) => onUpdateNode(node.id, { title: event.target.value })}
+                  />
+                </EditorField>
+                <EditorField label="节点类型" htmlFor="story-node-dialog-type">
+                  <NativeSelect
+                    id="story-node-dialog-type"
+                    value={node.type || "normal"}
+                    className="w-full"
+                    onChange={(event) => onUpdateNode(node.id, { type: event.target.value })}
+                  >
+                    <NativeSelectOption value="normal">普通</NativeSelectOption>
+                    <NativeSelectOption value="failure">失败</NativeSelectOption>
+                    <NativeSelectOption value="ending">结局</NativeSelectOption>
+                  </NativeSelect>
+                </EditorField>
+                <EditorField label="路径角色" htmlFor="story-node-dialog-path-role">
+                  <NativeSelect
+                    id="story-node-dialog-path-role"
+                    value={node.pathRole || "main"}
+                    className="w-full"
+                    onChange={(event) => {
+                      const pathRole = event.target.value;
+                      if (pathRole === "main" && !canChooseMainPath) {
+                        return;
+                      }
+                      onUpdateNode(node.id, { pathRole });
+                    }}
+                  >
+                    <NativeSelectOption value="main" disabled={!canChooseMainPath}>
+                      主线
+                    </NativeSelectOption>
+                    <NativeSelectOption value="branch">支线</NativeSelectOption>
+                  </NativeSelect>
+                </EditorField>
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <section className="rounded-md border bg-background/70 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <ArrowRight className="size-4 text-primary" />
+                      出口分支
+                    </div>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      className={editorQuietActionButtonClassName}
+                      disabled={!isNormalNode(node)}
+                      onClick={() => onCreateNextNode(node)}
+                    >
+                      <Plus className="size-3" />
+                      新增节点
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {graph.edges
+                      .filter((edge) => edge.fromNodeId === node.id)
+                      .map((edge) => renderEdgeEditor(edge, "outgoing"))}
+                    {graph.edges.every((edge) => edge.fromNodeId !== node.id) ? (
+                      <div className="rounded-md border bg-muted/15 px-3 py-4 text-center text-xs text-muted-foreground">
+                        暂无出口分支。
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+
+                <section className="rounded-md border bg-background/70 p-3">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <GitBranch className="size-4 text-primary" />
+                    入口分支
+                  </div>
+                  <div className="space-y-2">
+                    {graph.edges
+                      .filter((edge) => edge.toNodeId === node.id)
+                      .map((edge) => renderEdgeEditor(edge, "incoming"))}
+                    {graph.edges.every((edge) => edge.toNodeId !== node.id) ? (
+                      <div className="rounded-md border bg-muted/15 px-3 py-4 text-center text-xs text-muted-foreground">
+                        暂无入口分支。
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              </div>
             </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={close}>
-              取消
-            </Button>
-            <Button type="button" className="gap-2" onClick={save}>
-              <Save className="size-4" />
-              保存
+          </div>
+
+          <DialogFooter className="border-t bg-muted/10 px-5 py-3">
+            <div className="mr-auto text-xs leading-8 text-muted-foreground">
+              修改会立即保存到故事结构。
+            </div>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              关闭
             </Button>
           </DialogFooter>
         </DialogContent>

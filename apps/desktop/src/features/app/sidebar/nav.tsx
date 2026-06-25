@@ -4,6 +4,7 @@ import type { To } from "react-router";
 import { NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
 import { TAVERN_FULLSCREEN_SEARCH } from "@/features/pages/tavern/navigation";
+import { STORIES_FULLSCREEN_SEARCH } from "@/features/pages/stories/navigation";
 import { cn } from "@/lib/utils";
 
 type NavProps = {
@@ -20,7 +21,12 @@ type NavItem = {
 const navItems: NavItem[] = [
   { id: "skills", to: "/skills", label: "技能广场", icon: Wrench },
   { id: "knowledge", to: "/knowledge", label: "知识库", icon: Database },
-  { id: "stories", to: "/stories", label: "故事", icon: BookOpen },
+  {
+    id: "stories",
+    to: { pathname: "/stories", search: STORIES_FULLSCREEN_SEARCH },
+    label: "故事",
+    icon: BookOpen,
+  },
   {
     id: "tavern",
     to: { pathname: "/tavern", search: TAVERN_FULLSCREEN_SEARCH },

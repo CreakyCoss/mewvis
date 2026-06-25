@@ -80,7 +80,6 @@ export const RoomCard = ({
   onOpenRoom,
 }: RoomCardProps) => {
   const {
-    rooms,
     activeRoom,
     characterById,
     messagesByRoomId,
@@ -97,8 +96,7 @@ export const RoomCard = ({
     onOperationStatusChange,
   } = useRoomCardRuntime();
 
-  const isActive = room.id === activeRoom.id;
-  const hasMultipleRooms = rooms.length > 1;
+  const isActive = room.id === activeRoom?.id;
   const roomCharacters = room.characterIds
     .map((characterId) => characterById.get(characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
@@ -205,7 +203,7 @@ export const RoomCard = ({
   };
 
   const handleDeleteRoom = () => {
-    if (!hasMultipleRooms || room.locked) {
+    if (room.locked) {
       return;
     }
 
@@ -411,7 +409,7 @@ export const RoomCard = ({
               <DropdownMenuItem
                 variant="destructive"
                 className="h-8 gap-2 rounded-md px-2 text-sm"
-                disabled={!hasMultipleRooms || room.locked}
+                disabled={room.locked}
                 onSelect={handleDeleteRoom}
               >
                 <Trash2 className="size-4" />

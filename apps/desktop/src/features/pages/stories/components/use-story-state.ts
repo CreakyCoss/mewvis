@@ -121,7 +121,7 @@ export const useStoryState = ({
 
   const createStory = () => {
     if (!workspace) {
-      return;
+      return null;
     }
 
     const story = createStandaloneStoryAsset({
@@ -135,6 +135,7 @@ export const useStoryState = ({
       }, story),
       activeStoryId: story.id,
     });
+    return story;
   };
 
   return {

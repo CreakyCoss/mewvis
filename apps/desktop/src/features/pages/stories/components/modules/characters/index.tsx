@@ -1,8 +1,16 @@
-import { Pencil, UsersRound } from "lucide-react";
+import { Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { StoryAsset } from "@/features/story";
-import { EmptyBlock, StorySection } from "../../story-primitives";
+import {
+  EmptyBlock,
+  StorySection,
+  editorHeaderActionButtonClassName,
+  editorDangerIconActionButtonClassName,
+  editorIconActionButtonClassName,
+  emptyValueText,
+} from "../../story-primitives";
+import { formatCount } from "../../story-form-utils";
 import type { StoryModuleSave } from "../types";
 import { StoryCharactersEdit, type StoryCharactersEditHandle } from "./edit";
 
@@ -16,6 +24,13 @@ export const StoryCharactersModule = ({
   onSave,
 }: StoryCharactersModuleProps) => {
   const editRef = useRef<StoryCharactersEditHandle>(null);
+  const deleteCharacter = (characterId: string) => {
+    onSave({
+      ...story,
+      characters: story.characters.filter((character) => character.id !== characterId),
+      updatedAt: Date.now(),
+    });
+  };
 
   return (
     <>
@@ -23,28 +38,68 @@ export const StoryCharactersModule = ({
         icon={UsersRound}
         title="角色"
         description="维护角色人设、说话风格、关系和角色记忆。"
+        meta={formatCount(story.characters.length, "角色")}
         action={(
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="gap-2"
-            onClick={() => editRef.current?.(story)}
+            className={editorHeaderActionButtonClassName}
+            onClick={() => editRef.current?.(null)}
           >
-            <Pencil className="size-4" />
-            编辑
+            <Plus className="size-3.5" />
+            新建
           </Button>
         )}
+        contentClassName="space-y-0"
       >
         {story.characters.length === 0 ? (
           <EmptyBlock text="暂无角色" />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
             {story.characters.map((character) => (
-              <div key={character.id} className="rounded-md border px-3 py-2">
-                <div className="truncate text-sm font-medium">{character.name}</div>
-                <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                  {character.description || character.speakingStyle || "未填写人设"}
+              <div
+                key={character.id}
+                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border bg-background/80 p-2.5"
+              >
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-primary/10 text-sm font-semibold text-primary">
+                    {(character.name.trim() || "?").slice(0, 1)}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium leading-5">
+                      {character.name || emptyValueText}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {character.speakingStyle.trim() ||
+                        character.description.trim() ||
+                        emptyValueText}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    className={editorIconActionButtonClassName}
+                    title="编辑角色资料"
+                    aria-label={`编辑${character.name || "角色"}的角色资料`}
+                    onClick={() => editRef.current?.(character)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    className={editorDangerIconActionButtonClassName}
+                    title="删除角色"
+                    aria-label={`删除${character.name || "角色"}`}
+                    onClick={() => deleteCharacter(character.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
               </div>
             ))}

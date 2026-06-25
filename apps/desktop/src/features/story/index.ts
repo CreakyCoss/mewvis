@@ -26,6 +26,9 @@ export {
   type StoryPresentationSeed,
 } from "./application/presentation-seed";
 export {
+  createDefaultStoryState,
+} from "./application/default-stories";
+export {
   createStoryImportDraftFromJsonValue,
   createStoryImportDraftFromText,
 } from "./application/import-bridge";

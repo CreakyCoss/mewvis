@@ -16,7 +16,7 @@ export type PageNavigationHandle = {
 
 export type ManagementContextValue = {
   rooms: TavernRoom[];
-  activeRoom: TavernRoom;
+  activeRoom: TavernRoom | null;
   characterById: Map<string, TavernCharacter>;
   messagesByRoomId: Record<string, TavernMessage[]>;
   createRoom: () => string | void;

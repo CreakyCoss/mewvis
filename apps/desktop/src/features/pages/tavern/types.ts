@@ -1125,7 +1125,7 @@ export type TavernGeneratedPresetJson = {
 };
 
 export type TavernState = {
-  version: 3;
+  version: 4;
   activeRoomId: string;
   rooms: TavernRoom[];
   messagesByInstance: Record<string, TavernMessage[]>;

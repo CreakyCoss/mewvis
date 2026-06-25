@@ -2422,7 +2422,6 @@ writeFileSync(entryPath, `
             : [preset.id + ":" + character.id + ":" + character.avatar]
         )
       ),
-      defaultStateRoomTitles: defaultSystemPresetState.rooms.map((item) => item.title),
       defaultStateRoomCount: defaultSystemPresetState.rooms.length,
       raincity: {
         room: raincityRoom,
@@ -3277,14 +3276,8 @@ try {
   assert(
     checks.progressChecks.systemPresets.presetIds.join("|") ===
       "raincity-silent-manuscript|snowridge-sword-oath|orbital-ashes-letter" &&
-      checks.progressChecks.systemPresets.defaultStateRoomCount === 3 &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雨城失语书") &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雪岭照夜剑") &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("环轨余烬信") &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港档案馆问询") &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("余烬集市同盟") &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("星坠歌剧院彩排"),
-    "系统预设应只包含当前三个小说风格故事",
+      checks.progressChecks.systemPresets.defaultStateRoomCount === 0,
+    "系统预设注册仍可用，但默认酒馆状态不应自动创建故事房间",
     checks.progressChecks.systemPresets,
   );
   assert(

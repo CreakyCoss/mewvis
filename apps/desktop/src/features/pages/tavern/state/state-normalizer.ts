@@ -11,9 +11,6 @@ import {
   normalizeTavernCharacter,
 } from "../normalizers/character-normalizers";
 import {
-  now,
-} from "../ids";
-import {
   materializeTavernMessage,
 } from "../message";
 import {
@@ -39,12 +36,8 @@ import {
   normalizeTavernStoryBinding,
 } from "../story-model/story-binding";
 import {
-  createTavernRoomFromSystemPreset,
-} from "../factories/system-preset-room";
-import {
   getTavernSystemPreset,
   normalizeSystemPresetId,
-  tavernSystemPresets,
 } from "../system-preset-registry";
 import {
   normalizeProgressTracker,
@@ -60,62 +53,12 @@ import type {
   TavernState,
 } from "../types";
 
-export const createDefaultTavernState = (workspaceId: string): TavernState => {
-  const createdAt = now();
-  const materializedPresets = tavernSystemPresets.map((preset) =>
-    createTavernRoomFromSystemPreset(workspaceId, preset.id, { createdAt })
-  );
-  const firstRoom = materializedPresets[0]?.room;
-
+export const createDefaultTavernState = (_workspaceId: string): TavernState => {
   return {
-    version: 3,
-    activeRoomId: firstRoom?.id ?? "",
-    rooms: materializedPresets.map((preset) => preset.room),
-    messagesByInstance: Object.fromEntries(
-      materializedPresets.map((preset) => [
-        preset.room.activeSceneInstanceId ?? preset.room.activeSceneId ?? preset.room.id,
-        preset.messages,
-      ]),
-    ),
-  };
-};
-
-const ensureSystemPresetRooms = (
-  workspaceId: string,
-  state: TavernState,
-): TavernState => {
-  let nextRooms = [...state.rooms];
-  let nextMessagesByInstance = { ...state.messagesByInstance };
-  const existingPresetIds = new Set(
-    nextRooms.flatMap((room) => room.systemPresetId ? [room.systemPresetId] : []),
-  );
-  const createdAt = now();
-
-  for (const preset of tavernSystemPresets) {
-    if (existingPresetIds.has(preset.id)) {
-      continue;
-    }
-
-    const materialized = createTavernRoomFromSystemPreset(workspaceId, preset.id, {
-      createdAt,
-    });
-
-    nextRooms = [...nextRooms, materialized.room];
-    nextMessagesByInstance = {
-      ...nextMessagesByInstance,
-      [materialized.room.activeSceneInstanceId ?? materialized.room.activeSceneId ?? materialized.room.id]:
-        materialized.messages,
-    };
-    existingPresetIds.add(preset.id);
-  }
-
-  return {
-    ...state,
-    activeRoomId: nextRooms.some((room) => room.id === state.activeRoomId)
-      ? state.activeRoomId
-      : nextRooms[0]?.id ?? "",
-    rooms: nextRooms,
-    messagesByInstance: nextMessagesByInstance,
+    version: 4,
+    activeRoomId: "",
+    rooms: [],
+    messagesByInstance: {},
   };
 };
 
@@ -129,7 +72,7 @@ export const normalizeTavernState = (
 
   const candidate = value as Partial<TavernState>;
   if (
-    candidate.version !== 3 ||
+    candidate.version !== 4 ||
     !Array.isArray(candidate.rooms) ||
     !candidate.messagesByInstance ||
     typeof candidate.messagesByInstance !== "object"
@@ -264,7 +207,7 @@ export const normalizeTavernState = (
     return projectTavernSceneOntoRoom(normalizedRoom);
   });
   if (rooms.length === 0) {
-    return null;
+    return createDefaultTavernState(workspaceId);
   }
   const normalizedRooms = rooms;
   const messagesByInstance = Object.fromEntries(
@@ -292,10 +235,10 @@ export const normalizeTavernState = (
     ? candidate.activeRoomId ?? rooms[0].id
     : normalizedRooms[0].id;
 
-  return ensureSystemPresetRooms(workspaceId, {
-    version: 3,
+  return {
+    version: 4,
     activeRoomId,
     rooms: normalizedRooms,
     messagesByInstance,
-  });
+  };
 };
