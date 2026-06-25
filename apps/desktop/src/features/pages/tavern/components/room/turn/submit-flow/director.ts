@@ -3,10 +3,12 @@ import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
   createTavernIllustrationHint,
-  createTavernMessage,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../../../storage";
+import {
+  createTavernMessage,
+} from "../../../../message";
 import {
   buildTavernSchedulingSignals,
   isTavernFixedOrderPhase,

@@ -34,6 +34,9 @@ export {
   resolveTavernMessageSegments,
 } from "./domain/segments";
 export {
+  createTavernMessage,
+} from "./domain/factory";
+export {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessageForAudience,
   normalizeTavernMessagesForAudience,

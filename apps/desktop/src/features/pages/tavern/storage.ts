@@ -95,6 +95,10 @@ import {
   normalizeTavernPromptSettings,
 } from "./prompt-registry/text-blocks";
 import {
+  createTavernId as createId,
+  now,
+} from "./ids";
+import {
   getTavernSceneInstanceDisplayTitle,
 } from "./scene-selectors";
 
@@ -104,29 +108,13 @@ export {
   getTavernSceneDisplayTitle,
   getTavernSceneInstanceDisplayTitle,
 } from "./scene-selectors";
+export {
+  createTavernMessage,
+} from "./message";
 
 const STORAGE_PREFIX = "novel-claw:tavern";
 
 const storageKeyForWorkspace = (workspaceId: string) => `${STORAGE_PREFIX}:${workspaceId}`;
-
-const padIdPart = (value: number, length = 2) => value.toString().padStart(length, "0");
-
-const formatTimestampId = (date: Date) => [
-  date.getFullYear(),
-  padIdPart(date.getMonth() + 1),
-  padIdPart(date.getDate()),
-  "-",
-  padIdPart(date.getHours()),
-  padIdPart(date.getMinutes()),
-  padIdPart(date.getSeconds()),
-  "-",
-  padIdPart(date.getMilliseconds(), 3),
-].join("");
-
-const createId = (prefix: string) => {
-  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  return `${prefix}-${formatTimestampId(new Date())}-${suffix}`;
-};
 
 const createTavernStoryBinding = (
   storyId: string,
@@ -348,8 +336,6 @@ const getTavernBranchPathInstances = (
 
   return { upstreamInstances, pathInstances: [...upstreamInstances, activeInstance] };
 };
-
-const now = () => Date.now();
 
 const createDefaultPromptForPresentation = (
   presentation: TavernPresentationSettings,
@@ -5920,24 +5906,5 @@ export const createTavernCharacter = (input: {
     relationships: normalizeCharacterRelationships(input.relationships, createdAt),
     createdAt,
     updatedAt: createdAt,
-  };
-};
-
-export const createTavernMessage = (
-  input: Omit<TavernMessage, "id" | "createdAt">,
-): TavernMessage => {
-  const message = {
-    ...input,
-    id: createId("message"),
-    createdAt: now(),
-  };
-
-  return {
-    ...message,
-    kind: message.kind ?? inferTavernMessageKind({
-      role: message.role,
-      presentationProfileId: message.presentationProfileId,
-    }),
-    segments: message.segments ?? buildTavernMessageSegments(message),
   };
 };

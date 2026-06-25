@@ -20,7 +20,6 @@ import {
   createDefaultTavernPromptSettings,
 } from "../../prompt-registry/text-blocks";
 import {
-  createTavernMessage,
   createTavernRoom,
   createTavernRoomFromGeneratedPresetJson,
   createTavernRoomFromSystemPreset,
@@ -29,6 +28,9 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../storage";
+import {
+  createTavernMessage,
+} from "../../message";
 import {
   deleteTavernBridgeSessionsForRoom,
 } from "../../runtime/conversation";

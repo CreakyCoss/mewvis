@@ -5,7 +5,7 @@ import {
 import type { StoryContextPackage } from "@/features/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernPageContextValue } from "../../../context";
-import { createTavernMessage } from "../../../../storage";
+import { createTavernMessage } from "../../../../message";
 import {
   isTavernCharacterAvailableForSpeech,
   isTavernFixedOrderPhase,

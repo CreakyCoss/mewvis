@@ -30,7 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   createDefaultTavernState,
-  createTavernMessage,
   loadTavernBranchUpstreamMemory,
   loadTavernState,
   saveTavernState,
@@ -38,6 +37,9 @@ import {
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,
 } from "../storage";
+import {
+  createTavernMessage,
+} from "../message";
 import { getTavernSceneInstanceDisplayTitle } from "../scene-selectors";
 import {
   getTavernPresentationProfile,
