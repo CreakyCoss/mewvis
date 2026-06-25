@@ -2,9 +2,6 @@ import {
   buildSceneInstancesForRuns,
 } from "./scene-instances";
 import {
-  buildTavernScene,
-} from "../story-model/scene-builder";
-import {
   createDefaultStoryGraph,
   normalizeStoryGraph,
 } from "../story-model/story-graph";
@@ -22,9 +19,11 @@ import type {
 } from "../types";
 
 export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
-  const scenes = room.scenes?.length
-    ? room.scenes
-    : [buildTavernScene()];
+  if (!room.scenes?.length) {
+    throw new Error("酒馆房间缺少标准故事场景，无法初始化运行时。");
+  }
+
+  const scenes = room.scenes;
   const graph = room.storyGraph?.nodes?.length
     ? normalizeStoryGraph(room.storyGraph, scenes)
     : createDefaultStoryGraph(scenes);

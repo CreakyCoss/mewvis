@@ -20,6 +20,9 @@ import {
   tavernCharacterAgentRoleId,
 } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";
+import {
+  getActiveTavernScene,
+} from "../scene-selectors";
 import { buildTavernReplyAgentRequest } from "./request";
 
 export type RunTavernReplyInput = {
@@ -95,6 +98,30 @@ export type RunTavernInnerThoughtInput = {
   storyContext?: StoryContextPackage;
 };
 
+const resolveInnerThoughtSceneText = (
+  room: TavernRoom,
+  storyContext?: StoryContextPackage,
+) => {
+  const storyScene = storyContext?.graph.activeScene;
+  if (storyScene) {
+    return storyScene.scene;
+  }
+
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0];
+  if (activeInstance) {
+    return activeInstance.scene;
+  }
+
+  const activeScene = getActiveTavernScene(room);
+  if (!activeScene) {
+    throw new Error("当前酒馆缺少标准故事场景，无法生成角色内心想法。");
+  }
+
+  return activeScene.scene;
+};
+
 export const runTavernInnerThought = async ({
   workspacePath,
   runtimeAgentId,
@@ -149,7 +176,7 @@ export const runTavernInnerThought = async ({
         "</active_character>",
         "",
         `<room title="${room.title}">`,
-        storyContext?.graph.activeScene?.scene ?? room.scene,
+        resolveInnerThoughtSceneText(room, storyContext),
         "</room>",
         "",
         "<current_user_input>",

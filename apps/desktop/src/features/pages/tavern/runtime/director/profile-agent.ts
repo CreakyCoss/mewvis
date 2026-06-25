@@ -116,6 +116,47 @@ const buildDirectorProfileSystemPrompt = () => [
   "</json_schema>",
 ].join("\n");
 
+const resolveRoomDirectorProfileScene = (room: TavernRoom) => {
+  if (!room.scenes?.length) {
+    throw new Error("当前酒馆缺少标准故事场景，无法生成调度画像。");
+  }
+
+  const activeInstance = room.sceneInstances.find((instance) =>
+    instance.id === room.activeSceneInstanceId
+  ) ?? room.sceneInstances[0] ?? null;
+  const activeSceneId = activeInstance?.sceneId ?? room.activeSceneId;
+  const activeScene = room.scenes.find((scene) => scene.id === activeSceneId) ??
+    room.scenes.find((scene) => scene.id === room.activeSceneId) ??
+    room.scenes[0];
+  const scene = activeInstance?.sceneId === activeScene.id ? activeInstance : activeScene;
+
+  return {
+    scene: scene.scene,
+    goal: scene.sceneGoal,
+    plot: scene.plot,
+    direction: scene.storyDirection,
+    memory: scene.memory,
+  };
+};
+
+const resolveDirectorProfileScene = (
+  room: TavernRoom,
+  storyContext?: StoryContextPackage,
+) => {
+  const activeScene = storyContext?.graph.activeScene;
+  if (activeScene) {
+    return {
+      scene: activeScene.scene,
+      goal: activeScene.goal,
+      plot: activeScene.plot,
+      direction: activeScene.direction,
+      memory: storyContext.memory.manual,
+    };
+  }
+
+  return resolveRoomDirectorProfileScene(room);
+};
+
 const buildDirectorProfileRequestContext = (
   room: TavernRoom,
   characters: TavernCharacter[],
@@ -133,7 +174,7 @@ const buildDirectorProfileRequestContext = (
       layers?.privateSelf,
     ].map((value) => value?.trim()).filter(Boolean).join("\n");
   };
-  const activeScene = storyContext?.graph.activeScene;
+  const activeScene = resolveDirectorProfileScene(room, storyContext);
 
   return JSON.stringify({
   room: {
@@ -148,11 +189,11 @@ const buildDirectorProfileRequestContext = (
       })),
     storyOutline: storyContext?.story.outline ?? room.storyOutline,
     storyGoal: storyContext?.story.goal ?? room.storyGoal,
-    scene: activeScene?.scene ?? room.scene,
-    sceneGoal: activeScene?.goal ?? room.sceneGoal,
-    scenePlot: activeScene?.plot ?? room.scenePlot,
-    sceneDirection: activeScene?.direction ?? room.sceneDirection,
-    memory: storyContext?.memory.manual ?? room.memory,
+    scene: activeScene.scene,
+    sceneGoal: activeScene.goal,
+    scenePlot: activeScene.plot,
+    sceneDirection: activeScene.direction,
+    memory: activeScene.memory,
     directorSchedulingRules: room.settings.directorScheduling.speakerMotivation.rules,
     directorSchedulingInstruction: room.settings.directorScheduling.instruction,
     currentProfile: room.settings.directorScheduling.profile ?? null,
