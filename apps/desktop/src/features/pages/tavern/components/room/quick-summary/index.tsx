@@ -2,10 +2,12 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import { submitStoryManuscript } from "@/features/story/storage";
 import type { TavernRoom } from "../../../types";
 import { getTavernSceneInstanceDisplayTitle } from "../../../storage";
-import { getTavernRuntimeStoryProjection } from "../../../adapters/story";
+import {
+  getTavernRuntimeStoryProjection,
+  submitTavernStoryManuscript,
+} from "../../../adapters/story";
 import { useTavernPageContext } from "../../context";
 import {
   generateQuickNovel,
@@ -388,19 +390,23 @@ export const QuickSummary = ({
     );
     const sourceMessages = getQuickSummarySourceMessages(roomMessages);
     setIsSubmittingNovelToStory(true);
-    void submitStoryManuscript(workspace.path, workspace.id, {
-      storyId,
-      nodeId,
-      source: "tavern",
-      sourceRunId: activeRoom.activeRunId ?? activeRoom.id,
-      sourceMessageIds: sourceMessages.map((message) => message.id),
-      title: `${activeRoom.title} - ${activeSceneTitle} 小说稿`,
-      content: novelContent,
-      summary: (activeCache?.content || novelContent).replace(/\s+/g, " ").trim().slice(0, 160),
-      metadata: {
-        channel: "tavern-quick-novel",
-        roomId: activeRoom.id,
-        sceneInstanceId: activeRoom.activeSceneInstanceId,
+    void submitTavernStoryManuscript({
+      workspacePath: workspace.path,
+      workspaceId: workspace.id,
+      input: {
+        storyId,
+        nodeId,
+        source: "tavern",
+        sourceRunId: activeRoom.activeRunId ?? activeRoom.id,
+        sourceMessageIds: sourceMessages.map((message) => message.id),
+        title: `${activeRoom.title} - ${activeSceneTitle} 小说稿`,
+        content: novelContent,
+        summary: (activeCache?.content || novelContent).replace(/\s+/g, " ").trim().slice(0, 160),
+        metadata: {
+          channel: "tavern-quick-novel",
+          roomId: activeRoom.id,
+          sceneInstanceId: activeRoom.activeSceneInstanceId,
+        },
       },
     })
       .then(() => {

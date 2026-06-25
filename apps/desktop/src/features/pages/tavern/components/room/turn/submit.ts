@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import { loadStoryState } from "@/features/story/storage";
 import type { TavernPageContextValue } from "../../context";
 import {
+  loadTavernStoryState,
   resolveTavernRuntimeStoryContextPackage,
 } from "../../../adapters/story";
 import type {
@@ -169,7 +169,10 @@ export const submitRoomTurn = async ({
   }
 
   let text = draftText;
-  const storyState = await loadStoryState(ctx.workspace.path, ctx.workspace.id).catch(() => null);
+  const storyState = await loadTavernStoryState({
+    workspacePath: ctx.workspace.path,
+    workspaceId: ctx.workspace.id,
+  }).catch(() => null);
   const preliminaryStoryContext = resolveTavernRuntimeStoryContextPackage({
     room: activeRoom,
     characters: roomCharacters,

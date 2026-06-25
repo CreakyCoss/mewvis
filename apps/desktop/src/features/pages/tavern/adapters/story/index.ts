@@ -16,6 +16,10 @@ export {
   createTavernGeneratedPresetFromStoryPresentationSeed,
 } from "./export-to-preset";
 export {
+  loadTavernStoryState,
+  submitTavernStoryManuscript,
+} from "./storage";
+export {
   cloneTavernRuntimeStoryProjectionFields,
   getTavernActiveSceneInstance,
   getTavernRuntimeStoryProjection,
