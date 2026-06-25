@@ -41,15 +41,15 @@ writeFileSync(entryPath, `
 
   const materialized = createTavernRoomFromSystemPreset(
     "workspace-prompt-preview",
-    "fogbound-archive-inquest",
+    "raincity-silent-manuscript",
     {
       roomId: "room-prompt-preview",
       createdAt: 1_800_000_000_000,
       characterIdByPresetId: new Map([
-        ["fo-mu-qingyan", "char-mu"],
-        ["fo-luo-yunfan", "char-luo"],
-        ["fo-qin-suye", "char-qin"],
-        ["fo-han-ruosheng", "char-han"],
+        ["rc-ji-ling", "char-ji"],
+        ["rc-yuan-ci", "char-yuan"],
+        ["rc-su-yan", "char-su"],
+        ["rc-he-mu", "char-he"],
       ]),
       markAsSystemPreset: false,
     },
@@ -218,7 +218,7 @@ writeFileSync(entryPath, `
     ? resolveTavernPromptWarningNavigation(loreWarning, room)
     : null;
   assert(loreNavigation?.target === "storyConfig", "世界书诊断应导航到故事配置。", loreNavigation);
-  const characterWarning = findWarning(preview, "editable-system-like-tag:character:char-mu:description");
+  const characterWarning = findWarning(preview, "editable-system-like-tag:character:char-ji:description");
   const characterNavigation = characterWarning
     ? resolveTavernPromptWarningNavigation(characterWarning, room)
     : null;

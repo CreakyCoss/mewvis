@@ -2106,155 +2106,165 @@ writeFileSync(entryPath, `
   const generatedRoom = generatedMaterialized.room;
   const generatedScene = generatedRoom.scenes[0];
   const defaultSystemPresetState = createDefaultTavernState("workspace-system-defaults");
-  const fogboundMaterialized = createTavernRoomFromSystemPreset(
+  const raincityMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
-    "fogbound-archive-inquest",
+    "raincity-silent-manuscript",
     {
-      roomId: "system-fogbound-room",
+      roomId: "system-raincity-room",
       createdAt: now + 70,
       characterIdByPresetId: new Map([
-        ["fo-mu-qingyan", "fog-mu"],
-        ["fo-luo-yunfan", "fog-luo"],
-        ["fo-qin-suye", "fog-qin"],
-        ["fo-han-ruosheng", "fog-han"],
+        ["rc-ji-ling", "rain-ji"],
+        ["rc-yuan-ci", "rain-yuan"],
+        ["rc-su-yan", "rain-su"],
+        ["rc-he-mu", "rain-he"],
       ]),
     },
   );
-  const fogboundRoom = fogboundMaterialized.room;
-  const fogboundAdvance = advanceTavernProgressFromFactEvents({
-    room: fogboundRoom,
+  const raincityRoom = raincityMaterialized.room;
+  const rainYuanRef = { type: "character", characterId: "rain-yuan" };
+  const raincityAdvance = advanceTavernProgressFromFactEvents({
+    room: raincityRoom,
     factEvents: [
       {
-        id: "system-fogbound-clue",
-        turnId: "system-fogbound-turn",
-        sourceMessageIds: ["system-fogbound-message"],
-        type: "clue_verified",
-        target: { type: "scene", sceneId: fogboundRoom.activeSceneId },
-        evidence: "调查人把潮汐钟停摆时刻与巡检表缺口对应起来，确认三点十七分不是自然停摆。",
+        id: "system-raincity-fragment",
+        turnId: "system-raincity-turn",
+        sourceMessageIds: ["system-raincity-message"],
+        type: "fragment_found",
+        target: { type: "scene", sceneId: raincityRoom.activeSceneId },
+        evidence: "用户把灰蓝装订线与复印稿页边批注对应起来，确认第一章缺页被修进旧书封底。",
         confidence: 0.96,
         createdAt: now + 71,
       },
       {
-        id: "system-fogbound-protect",
-        turnId: "system-fogbound-turn",
-        sourceMessageIds: ["system-fogbound-message"],
-        type: "witness_protected",
+        id: "system-raincity-shelter",
+        turnId: "system-raincity-turn",
+        sourceMessageIds: ["system-raincity-message"],
+        type: "author_sheltered",
         target: { type: "global" },
-        evidence: "调查人先转移秦素夜的住客，再让她交出备用齿轮线索。",
+        evidence: "用户阻止众人朗读新章节，让袁辞只用便签指出下一处线索。",
         confidence: 0.9,
         createdAt: now + 71,
       },
+      {
+        id: "system-raincity-voice",
+        turnId: "system-raincity-turn",
+        sourceMessageIds: ["system-raincity-message"],
+        type: "voice_fragment",
+        target: rainYuanRef,
+        evidence: "袁辞在安全距离外写下完整短句，并用敲击确认录音时间。",
+        confidence: 0.88,
+        createdAt: now + 71,
+      },
     ],
-    turnId: "system-fogbound-turn",
+    turnId: "system-raincity-turn",
     createdAt: now + 72,
   });
 
-  const emberMaterialized = createTavernRoomFromSystemPreset(
+  const snowridgeMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
-    "ember-market-alliance",
+    "snowridge-sword-oath",
     {
-      roomId: "system-ember-room",
+      roomId: "system-snowridge-room",
       createdAt: now + 73,
       characterIdByPresetId: new Map([
-        ["em-yan-zhuo", "ember-yan"],
-        ["em-lian-shuo", "ember-lian"],
-        ["em-ke-lin", "ember-ke"],
-        ["em-miao-sen", "ember-miao"],
+        ["sx-lin-zhaoye", "snow-lin"],
+        ["sx-gu-tingxue", "snow-gu"],
+        ["sx-qiu-heng", "snow-qiu"],
+        ["sx-jingchen", "snow-jing"],
       ]),
     },
   );
-  const emberRoom = emberMaterialized.room;
-  const emberYanRef = { type: "character", characterId: "ember-yan" };
-  const emberAdvance = advanceTavernProgressFromFactEvents({
-    room: emberRoom,
+  const snowridgeRoom = snowridgeMaterialized.room;
+  const snowLinRef = { type: "character", characterId: "snow-lin" };
+  const snowridgeAdvance = advanceTavernProgressFromFactEvents({
+    room: snowridgeRoom,
     factEvents: [
       {
-        id: "system-ember-water-deal",
-        turnId: "system-ember-turn",
-        sourceMessageIds: ["system-ember-message"],
-        type: "water_deal_secured",
-        target: { type: "global" },
-        evidence: "四方接受诊所保底供水、商会监督账本和守备队夜间通行的临时组合条件。",
+        id: "system-snowridge-oath",
+        turnId: "system-snowridge-turn",
+        sourceMessageIds: ["system-snowridge-message"],
+        type: "oath_verified",
+        target: { type: "scene", sceneId: snowridgeRoom.activeSceneId },
+        evidence: "用户把剑书暗纹与旧碑林拓片对应起来，证明旧誓原文不是追杀令。",
         confidence: 0.95,
         createdAt: now + 74,
       },
       {
-        id: "system-ember-deal-secured",
-        turnId: "system-ember-turn",
-        sourceMessageIds: ["system-ember-message"],
-        type: "deal_secured",
-        target: { type: "scene", sceneId: emberRoom.activeSceneId },
-        evidence: "燕灼、连朔和柯临都给出明确让步，苗森同意以赦免换完整暗渠图。",
+        id: "system-snowridge-ambush",
+        turnId: "system-snowridge-turn",
+        sourceMessageIds: ["system-snowridge-message"],
+        type: "ambush_deflected",
+        target: { type: "global" },
+        evidence: "众人在不让林照夜强行出剑的情况下，用断桥雪雾挡住第一波追兵。",
         confidence: 0.92,
         createdAt: now + 74,
       },
       {
-        id: "system-ember-promise-kept",
-        turnId: "system-ember-turn",
-        sourceMessageIds: ["system-ember-message"],
-        type: "promise_kept",
-        actor: emberYanRef,
-        target: userRef,
-        evidence: "用户把监督条款写入协议，兑现了让商会不被单方接管的承诺。",
+        id: "system-snowridge-wound",
+        turnId: "system-snowridge-turn",
+        sourceMessageIds: ["system-snowridge-message"],
+        type: "wound_treated",
+        target: snowLinRef,
+        evidence: "顾听雪用药方残页反证毒案，同时稳住林照夜右手旧伤。",
         confidence: 0.91,
         createdAt: now + 74,
       },
     ],
-    turnId: "system-ember-turn",
+    turnId: "system-snowridge-turn",
     createdAt: now + 75,
   });
 
-  const starfallMaterialized = createTavernRoomFromSystemPreset(
+  const orbitalMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
-    "starfall-opera-rehearsal",
+    "orbital-ashes-letter",
     {
-      roomId: "system-starfall-room",
+      roomId: "system-orbital-room",
       createdAt: now + 76,
       characterIdByPresetId: new Map([
-        ["so-lu-yin", "opera-lu"],
-        ["so-shen-wei", "opera-shen"],
-        ["so-qi-lan", "opera-qi"],
-        ["so-meng-xi", "opera-meng"],
+        ["oa-lan-qiao", "orbit-lan"],
+        ["oa-mira", "orbit-mira"],
+        ["oa-ren-ke", "orbit-ren"],
+        ["oa-yi-sen", "orbit-yi"],
       ]),
     },
   );
-  const starfallRoom = starfallMaterialized.room;
-  const starfallShenRef = { type: "character", characterId: "opera-shen" };
-  const starfallAdvance = advanceTavernProgressFromFactEvents({
-    room: starfallRoom,
+  const orbitalRoom = orbitalMaterialized.room;
+  const orbitalRenRef = { type: "character", characterId: "orbit-ren" };
+  const orbitalAdvance = advanceTavernProgressFromFactEvents({
+    room: orbitalRoom,
     factEvents: [
       {
-        id: "system-starfall-stage-repaired",
-        turnId: "system-starfall-turn",
-        sourceMessageIds: ["system-starfall-message"],
-        type: "stage_repaired",
-        target: { type: "scene", sceneId: starfallRoom.activeSceneId },
-        evidence: "祁岚确认升降台滑轮被重新校准，灯控焦痕不再影响第七场走位。",
+        id: "system-orbital-signal",
+        turnId: "system-orbital-turn",
+        sourceMessageIds: ["system-orbital-message"],
+        type: "signal_decoded",
+        target: { type: "scene", sceneId: orbitalRoom.activeSceneId },
+        evidence: "米拉把余烬信第一段与实体信纸校验一致，确认信号来自旧核心。",
         confidence: 0.95,
         createdAt: now + 77,
       },
       {
-        id: "system-starfall-curse-clue",
-        turnId: "system-starfall-turn",
-        sourceMessageIds: ["system-starfall-message"],
-        type: "curse_clue_resolved",
+        id: "system-orbital-stabilize",
+        turnId: "system-orbital-turn",
+        sourceMessageIds: ["system-orbital-message"],
+        type: "orbit_stabilized",
         target: { type: "global" },
-        evidence: "录音蜡筒证明三年前的坠幕声来自绞盘倒转，而不是不可验证的诅咒。",
+        evidence: "伊森和任珂手动重启推进环，让环轨站获得转存档案的时间。",
         confidence: 0.93,
         createdAt: now + 77,
       },
       {
-        id: "system-starfall-voice",
-        turnId: "system-starfall-turn",
-        sourceMessageIds: ["system-starfall-message"],
-        type: "voice_recovered",
-        target: starfallShenRef,
-        evidence: "沈微在旧谱被移出星砂幕布后，能够轻声唱完第七场关键音阶。",
+        id: "system-orbital-oxygen",
+        turnId: "system-orbital-turn",
+        sourceMessageIds: ["system-orbital-message"],
+        type: "oxygen_restored",
+        target: orbitalRenRef,
+        evidence: "任珂在外舱走廊接回氧气旁路，能继续携带信袋行动。",
         confidence: 0.9,
         createdAt: now + 77,
       },
     ],
-    turnId: "system-starfall-turn",
+    turnId: "system-orbital-turn",
     createdAt: now + 78,
   });
   const progressChecks = {
@@ -2377,124 +2387,142 @@ writeFileSync(entryPath, `
       ),
       defaultStateRoomTitles: defaultSystemPresetState.rooms.map((item) => item.title),
       defaultStateRoomCount: defaultSystemPresetState.rooms.length,
-      fogbound: {
-        room: fogboundRoom,
-        avatarIds: fogboundRoom.localCharacters.map((character) => character.avatar),
-        characterCount: fogboundMaterialized.characters.length,
-        scenesCount: fogboundRoom.scenes?.length ?? 0,
-        lorebookCount: fogboundRoom.lorebookEntries.length,
-        storyNodeCount: fogboundRoom.storyGraph.nodes.length,
-        storyEdgeCount: fogboundRoom.storyGraph.edges.length,
-        messageProfiles: fogboundMaterialized.messages.map((message) => message.presentationProfileId),
-        hasMappedCharacterRelationship: fogboundMaterialized.characters.some((character) =>
+      raincity: {
+        room: raincityRoom,
+        avatarIds: raincityRoom.localCharacters.map((character) => character.avatar),
+        characterCount: raincityMaterialized.characters.length,
+        scenesCount: raincityRoom.scenes?.length ?? 0,
+        lorebookCount: raincityRoom.lorebookEntries.length,
+        storyNodeCount: raincityRoom.storyGraph.nodes.length,
+        storyEdgeCount: raincityRoom.storyGraph.edges.length,
+        messageProfiles: raincityMaterialized.messages.map((message) => message.presentationProfileId),
+        hasMappedCharacterRelationship: raincityMaterialized.characters.some((character) =>
           character.relationships.some((relationship) =>
             relationship.target.type === "character" &&
-            ["fog-mu", "fog-luo", "fog-qin", "fog-han"].includes(relationship.target.characterId)
+            ["rain-ji", "rain-yuan", "rain-su", "rain-he"].includes(relationship.target.characterId)
           )
         ),
-        hasUnmappedPresetRelationship: fogboundMaterialized.characters.some((character) =>
+        hasUnmappedPresetRelationship: raincityMaterialized.characters.some((character) =>
           character.relationships.some((relationship) =>
             relationship.target.type === "character" &&
-            relationship.target.characterId.startsWith("fo-")
+            relationship.target.characterId.startsWith("rc-")
           )
         ),
-        caseClarityBefore: getTavernStatusSnapshotValue(
-          fogboundRoom.statusSnapshot,
+        manuscriptIntegrityBefore: getTavernStatusSnapshotValue(
+          raincityRoom.statusSnapshot,
           { type: "scene" },
-          "case_clarity",
+          "manuscript_integrity",
         ),
-        caseClarityAfter: getTavernStatusSnapshotValue(
-          fogboundAdvance.statusSnapshot,
+        manuscriptIntegrityAfter: getTavernStatusSnapshotValue(
+          raincityAdvance.statusSnapshot,
           { type: "scene" },
-          "case_clarity",
+          "manuscript_integrity",
         ),
-        witnessSafetyBefore: getTavernStatusSnapshotValue(
-          fogboundRoom.statusSnapshot,
+        authorSafetyBefore: getTavernStatusSnapshotValue(
+          raincityRoom.statusSnapshot,
           { type: "global" },
-          "witness_safety",
+          "author_safety",
         ),
-        verifyTaskStatus: fogboundAdvance.taskSnapshot["fo-verify-tide-clock"]?.status,
-        outcomeStatus: fogboundAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "fo-truth-reconstructed"
-        )?.status,
-      },
-      ember: {
-        room: emberRoom,
-        avatarIds: emberRoom.localCharacters.map((character) => character.avatar),
-        characterCount: emberMaterialized.characters.length,
-        scenesCount: emberRoom.scenes?.length ?? 0,
-        lorebookCount: emberRoom.lorebookEntries.length,
-        storyNodeCount: emberRoom.storyGraph.nodes.length,
-        storyEdgeCount: emberRoom.storyGraph.edges.length,
-        allianceBefore: getTavernStatusSnapshotValue(
-          emberRoom.statusSnapshot,
-          { type: "scene" },
-          "alliance_stability",
-        ),
-        allianceAfter: getTavernStatusSnapshotValue(
-          emberAdvance.statusSnapshot,
-          { type: "scene" },
-          "alliance_stability",
-        ),
-        waterBefore: getTavernStatusSnapshotValue(
-          emberRoom.statusSnapshot,
+        authorSafetyAfter: getTavernStatusSnapshotValue(
+          raincityAdvance.statusSnapshot,
           { type: "global" },
-          "water_security",
-        ),
-        waterAfter: getTavernStatusSnapshotValue(
-          emberAdvance.statusSnapshot,
-          { type: "global" },
-          "water_security",
-        ),
-        yanTrustBefore: getTavernStatusSnapshotValue(
-          emberRoom.statusSnapshot,
-          { type: "relationship", subject: emberYanRef, object: userRef },
-          "trust_to_mediator",
-        ),
-        trustStatusEvent: emberAdvance.statusEvents.find((event) =>
-          event.statusId === "trust_to_mediator"
-        )?.status,
-        waterTaskStatus: emberAdvance.taskSnapshot["em-seal-water-truce"]?.status,
-        outcomeStatus: emberAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "em-alliance-formed"
-        )?.status,
-      },
-      starfall: {
-        room: starfallRoom,
-        avatarIds: starfallRoom.localCharacters.map((character) => character.avatar),
-        characterCount: starfallMaterialized.characters.length,
-        scenesCount: starfallRoom.scenes?.length ?? 0,
-        lorebookCount: starfallRoom.lorebookEntries.length,
-        storyNodeCount: starfallRoom.storyGraph.nodes.length,
-        storyEdgeCount: starfallRoom.storyGraph.edges.length,
-        performanceBefore: getTavernStatusSnapshotValue(
-          starfallRoom.statusSnapshot,
-          { type: "scene" },
-          "performance_integrity",
-        ),
-        performanceAfter: getTavernStatusSnapshotValue(
-          starfallAdvance.statusSnapshot,
-          { type: "scene" },
-          "performance_integrity",
-        ),
-        cursePressureBefore: getTavernStatusSnapshotValue(
-          starfallRoom.statusSnapshot,
-          { type: "global" },
-          "curse_pressure",
+          "author_safety",
         ),
         voiceBefore: getTavernStatusSnapshotValue(
-          starfallRoom.statusSnapshot,
-          { type: "character", characterId: "opera-shen" },
-          "voice_stability",
+          raincityRoom.statusSnapshot,
+          rainYuanRef,
+          "voice_recovery",
         ),
-        voiceStatusEvent: starfallAdvance.statusEvents.find((event) =>
-          event.statusId === "voice_stability"
+        voiceStatusEvent: raincityAdvance.statusEvents.find((event) =>
+          event.statusId === "voice_recovery"
         )?.status,
-        stageTaskStatus: starfallAdvance.taskSnapshot["so-secure-seventh-scene"]?.status,
-        outcomeStatus: starfallAdvance.outcomeEvents.find((event) =>
-          event.outcomeId === "so-seventh-scene-saved"
+        firstChapterTaskStatus: raincityAdvance.taskSnapshot["rc-recover-first-chapter"]?.status,
+        outcomeStatus: raincityAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "rc-manuscript-remembers"
         )?.status,
-        replyOptionTargetIds: starfallAdvance.replyOptions.flatMap((option) => option.targetCharacterIds),
+      },
+      snowridge: {
+        room: snowridgeRoom,
+        avatarIds: snowridgeRoom.localCharacters.map((character) => character.avatar),
+        characterCount: snowridgeMaterialized.characters.length,
+        scenesCount: snowridgeRoom.scenes?.length ?? 0,
+        lorebookCount: snowridgeRoom.lorebookEntries.length,
+        storyNodeCount: snowridgeRoom.storyGraph.nodes.length,
+        storyEdgeCount: snowridgeRoom.storyGraph.edges.length,
+        oathBefore: getTavernStatusSnapshotValue(
+          snowridgeRoom.statusSnapshot,
+          { type: "scene" },
+          "oath_clarity",
+        ),
+        oathAfter: getTavernStatusSnapshotValue(
+          snowridgeAdvance.statusSnapshot,
+          { type: "scene" },
+          "oath_clarity",
+        ),
+        sectPressureBefore: getTavernStatusSnapshotValue(
+          snowridgeRoom.statusSnapshot,
+          { type: "global" },
+          "sect_pressure",
+        ),
+        sectPressureAfter: getTavernStatusSnapshotValue(
+          snowridgeAdvance.statusSnapshot,
+          { type: "global" },
+          "sect_pressure",
+        ),
+        woundRiskBefore: getTavernStatusSnapshotValue(
+          snowridgeRoom.statusSnapshot,
+          snowLinRef,
+          "wound_risk",
+        ),
+        woundStatusEvent: snowridgeAdvance.statusEvents.find((event) =>
+          event.statusId === "wound_risk"
+        )?.status,
+        oathTaskStatus: snowridgeAdvance.taskSnapshot["sx-read-oath-stone"]?.status,
+        outcomeStatus: snowridgeAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "sx-oath-restored"
+        )?.status,
+      },
+      orbital: {
+        room: orbitalRoom,
+        avatarIds: orbitalRoom.localCharacters.map((character) => character.avatar),
+        characterCount: orbitalMaterialized.characters.length,
+        scenesCount: orbitalRoom.scenes?.length ?? 0,
+        lorebookCount: orbitalRoom.lorebookEntries.length,
+        storyNodeCount: orbitalRoom.storyGraph.nodes.length,
+        storyEdgeCount: orbitalRoom.storyGraph.edges.length,
+        signalBefore: getTavernStatusSnapshotValue(
+          orbitalRoom.statusSnapshot,
+          { type: "scene" },
+          "signal_integrity",
+        ),
+        signalAfter: getTavernStatusSnapshotValue(
+          orbitalAdvance.statusSnapshot,
+          { type: "scene" },
+          "signal_integrity",
+        ),
+        stationDecayBefore: getTavernStatusSnapshotValue(
+          orbitalRoom.statusSnapshot,
+          { type: "global" },
+          "station_decay",
+        ),
+        stationDecayAfter: getTavernStatusSnapshotValue(
+          orbitalAdvance.statusSnapshot,
+          { type: "global" },
+          "station_decay",
+        ),
+        oxygenBefore: getTavernStatusSnapshotValue(
+          orbitalRoom.statusSnapshot,
+          orbitalRenRef,
+          "oxygen_margin",
+        ),
+        oxygenStatusEvent: orbitalAdvance.statusEvents.find((event) =>
+          event.statusId === "oxygen_margin"
+        )?.status,
+        signalTaskStatus: orbitalAdvance.taskSnapshot["oa-decode-ember-letter"]?.status,
+        outcomeStatus: orbitalAdvance.outcomeEvents.find((event) =>
+          event.outcomeId === "oa-letter-opened"
+        )?.status,
+        replyOptionTargetIds: orbitalAdvance.replyOptions.flatMap((option) => option.targetCharacterIds),
       },
     },
   };
@@ -3209,94 +3237,98 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.presetIds.join("|") ===
-      "fogbound-archive-inquest|ember-market-alliance|starfall-opera-rehearsal" &&
+      "raincity-silent-manuscript|snowridge-sword-oath|orbital-ashes-letter" &&
       checks.progressChecks.systemPresets.defaultStateRoomCount === 3 &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港档案馆问询") &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("余烬集市同盟") &&
-      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("星坠歌剧院彩排") &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆") &&
-      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("月下圆桌狼人杀"),
-    "系统预设应只包含当前三个完整剧本",
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雨城失语书") &&
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雪岭照夜剑") &&
+      checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("环轨余烬信") &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港档案馆问询") &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("余烬集市同盟") &&
+      !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("星坠歌剧院彩排"),
+    "系统预设应只包含当前三个小说风格故事",
     checks.progressChecks.systemPresets,
   );
   assert(
     checks.progressChecks.systemPresets.invalidAvatarIds.length === 0 &&
-      new Set(checks.progressChecks.systemPresets.fogbound.avatarIds).size === 4 &&
-      new Set(checks.progressChecks.systemPresets.ember.avatarIds).size === 4 &&
-      new Set(checks.progressChecks.systemPresets.starfall.avatarIds).size === 4,
+      new Set(checks.progressChecks.systemPresets.raincity.avatarIds).size === 4 &&
+      new Set(checks.progressChecks.systemPresets.snowridge.avatarIds).size === 4 &&
+      new Set(checks.progressChecks.systemPresets.orbital.avatarIds).size === 4,
     "系统预设角色头像必须使用已注册头像资源",
     checks.progressChecks.systemPresets,
   );
   assert(
-    checks.progressChecks.systemPresets.fogbound.room.presentation.profileId === "third-person-prose" &&
-      checks.progressChecks.systemPresets.fogbound.room.prompt.blocks.some((block) =>
-        block.source?.type === "room_style" && block.source.id === "grounded"
-      ) &&
-      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.mode === "mystery" &&
-      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hideCharacterThoughts &&
-      checks.progressChecks.systemPresets.fogbound.room.settings.informationPolicy.hiddenFacts.enabled &&
-      checks.progressChecks.systemPresets.fogbound.characterCount === 4 &&
-      checks.progressChecks.systemPresets.fogbound.scenesCount === 3 &&
-      checks.progressChecks.systemPresets.fogbound.lorebookCount >= 4 &&
-      checks.progressChecks.systemPresets.fogbound.storyNodeCount >= 3 &&
-      checks.progressChecks.systemPresets.fogbound.storyEdgeCount >= 2 &&
-      checks.progressChecks.systemPresets.fogbound.messageProfiles.every((profileId) =>
-        profileId === "third-person-prose"
-      ) &&
-      checks.progressChecks.systemPresets.fogbound.hasMappedCharacterRelationship &&
-      !checks.progressChecks.systemPresets.fogbound.hasUnmappedPresetRelationship &&
-      checks.progressChecks.systemPresets.fogbound.caseClarityBefore === 20 &&
-      checks.progressChecks.systemPresets.fogbound.caseClarityAfter === 55 &&
-      checks.progressChecks.systemPresets.fogbound.witnessSafetyBefore === 55 &&
-      checks.progressChecks.systemPresets.fogbound.verifyTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.fogbound.outcomeStatus === "pending",
-    "雾港预设应完整映射第三人称旁白、关系、世界书、多场景和调查进度规则",
-    checks.progressChecks.systemPresets.fogbound,
-  );
-  assert(
-    checks.progressChecks.systemPresets.ember.room.presentation.profileId === "dialogue-chat" &&
-      checks.progressChecks.systemPresets.ember.room.prompt.blocks.some((block) =>
-        block.source?.type === "room_style" && block.source.id === "dramatic"
-      ) &&
-      checks.progressChecks.systemPresets.ember.room.settings.informationPolicy.mode === "open" &&
-      checks.progressChecks.systemPresets.ember.characterCount === 4 &&
-      checks.progressChecks.systemPresets.ember.scenesCount === 3 &&
-      checks.progressChecks.systemPresets.ember.lorebookCount >= 3 &&
-      checks.progressChecks.systemPresets.ember.storyNodeCount >= 3 &&
-      checks.progressChecks.systemPresets.ember.storyEdgeCount >= 2 &&
-      checks.progressChecks.systemPresets.ember.allianceBefore === 30 &&
-      checks.progressChecks.systemPresets.ember.allianceAfter === 60 &&
-      checks.progressChecks.systemPresets.ember.waterBefore === 35 &&
-      checks.progressChecks.systemPresets.ember.waterAfter === 75 &&
-      checks.progressChecks.systemPresets.ember.yanTrustBefore === 40 &&
-      ["pending", "applied"].includes(checks.progressChecks.systemPresets.ember.trustStatusEvent) &&
-      checks.progressChecks.systemPresets.ember.waterTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.ember.outcomeStatus === "pending",
-    "余烬集市预设应完整映射对话演绎、关系信任、水塔协议任务和谈判进度规则",
-    checks.progressChecks.systemPresets.ember,
-  );
-  assert(
-    checks.progressChecks.systemPresets.starfall.room.presentation.profileId === "novel-prose" &&
-      checks.progressChecks.systemPresets.starfall.room.prompt.blocks.some((block) =>
+    checks.progressChecks.systemPresets.raincity.room.presentation.profileId === "novel-prose" &&
+      checks.progressChecks.systemPresets.raincity.room.prompt.blocks.some((block) =>
         block.source?.type === "room_style" && block.source.id === "novel"
       ) &&
-      checks.progressChecks.systemPresets.starfall.room.settings.informationPolicy.mode === "mystery" &&
-      checks.progressChecks.systemPresets.starfall.characterCount === 4 &&
-      checks.progressChecks.systemPresets.starfall.scenesCount === 3 &&
-      checks.progressChecks.systemPresets.starfall.lorebookCount >= 4 &&
-      checks.progressChecks.systemPresets.starfall.storyNodeCount >= 3 &&
-      checks.progressChecks.systemPresets.starfall.storyEdgeCount >= 2 &&
-      checks.progressChecks.systemPresets.starfall.performanceBefore === 55 &&
-      checks.progressChecks.systemPresets.starfall.performanceAfter === 80 &&
-      checks.progressChecks.systemPresets.starfall.cursePressureBefore === 65 &&
-      checks.progressChecks.systemPresets.starfall.voiceBefore === 40 &&
-      ["pending", "applied"].includes(checks.progressChecks.systemPresets.starfall.voiceStatusEvent) &&
-      checks.progressChecks.systemPresets.starfall.stageTaskStatus === "completed" &&
-      checks.progressChecks.systemPresets.starfall.outcomeStatus === "pending" &&
-      checks.progressChecks.systemPresets.starfall.replyOptionTargetIds.includes("opera-lu") &&
-      checks.progressChecks.systemPresets.starfall.replyOptionTargetIds.includes("opera-shen"),
-    "星坠预设应完整映射小说正文、舞台状态、角色行动选项和第七场任务结局",
-    checks.progressChecks.systemPresets.starfall,
+      checks.progressChecks.systemPresets.raincity.room.settings.informationPolicy.mode === "mystery" &&
+      checks.progressChecks.systemPresets.raincity.room.settings.informationPolicy.hideCharacterThoughts &&
+      checks.progressChecks.systemPresets.raincity.room.settings.informationPolicy.hiddenFacts.enabled &&
+      checks.progressChecks.systemPresets.raincity.characterCount === 4 &&
+      checks.progressChecks.systemPresets.raincity.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.raincity.lorebookCount >= 4 &&
+      checks.progressChecks.systemPresets.raincity.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.raincity.storyEdgeCount >= 2 &&
+      checks.progressChecks.systemPresets.raincity.messageProfiles.every((profileId) =>
+        profileId === "novel-prose"
+      ) &&
+      checks.progressChecks.systemPresets.raincity.hasMappedCharacterRelationship &&
+      !checks.progressChecks.systemPresets.raincity.hasUnmappedPresetRelationship &&
+      checks.progressChecks.systemPresets.raincity.manuscriptIntegrityBefore === 35 &&
+      checks.progressChecks.systemPresets.raincity.manuscriptIntegrityAfter === 60 &&
+      checks.progressChecks.systemPresets.raincity.authorSafetyBefore === 45 &&
+      checks.progressChecks.systemPresets.raincity.authorSafetyAfter === 70 &&
+      checks.progressChecks.systemPresets.raincity.voiceBefore === 20 &&
+      ["pending", "applied"].includes(checks.progressChecks.systemPresets.raincity.voiceStatusEvent) &&
+      checks.progressChecks.systemPresets.raincity.firstChapterTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.raincity.outcomeStatus === "pending",
+    "雨城预设应完整映射小说正文、角色关系、世界书、多场景和手稿进度规则",
+    checks.progressChecks.systemPresets.raincity,
+  );
+  assert(
+    checks.progressChecks.systemPresets.snowridge.room.presentation.profileId === "novel-prose" &&
+      checks.progressChecks.systemPresets.snowridge.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "wuxia"
+      ) &&
+      checks.progressChecks.systemPresets.snowridge.room.settings.informationPolicy.mode === "open" &&
+      checks.progressChecks.systemPresets.snowridge.characterCount === 4 &&
+      checks.progressChecks.systemPresets.snowridge.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.snowridge.lorebookCount >= 4 &&
+      checks.progressChecks.systemPresets.snowridge.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.snowridge.storyEdgeCount >= 2 &&
+      checks.progressChecks.systemPresets.snowridge.oathBefore === 25 &&
+      checks.progressChecks.systemPresets.snowridge.oathAfter === 55 &&
+      checks.progressChecks.systemPresets.snowridge.sectPressureBefore === 65 &&
+      checks.progressChecks.systemPresets.snowridge.sectPressureAfter === 45 &&
+      checks.progressChecks.systemPresets.snowridge.woundRiskBefore === 60 &&
+      ["pending", "applied"].includes(checks.progressChecks.systemPresets.snowridge.woundStatusEvent) &&
+      checks.progressChecks.systemPresets.snowridge.oathTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.snowridge.outcomeStatus === "pending",
+    "雪岭预设应完整映射武侠小说正文、剑书任务和旧誓进度规则",
+    checks.progressChecks.systemPresets.snowridge,
+  );
+  assert(
+    checks.progressChecks.systemPresets.orbital.room.presentation.profileId === "novel-prose" &&
+      checks.progressChecks.systemPresets.orbital.room.prompt.blocks.some((block) =>
+        block.source?.type === "room_style" && block.source.id === "light-novel"
+      ) &&
+      checks.progressChecks.systemPresets.orbital.room.settings.informationPolicy.mode === "mystery" &&
+      checks.progressChecks.systemPresets.orbital.characterCount === 4 &&
+      checks.progressChecks.systemPresets.orbital.scenesCount === 3 &&
+      checks.progressChecks.systemPresets.orbital.lorebookCount >= 4 &&
+      checks.progressChecks.systemPresets.orbital.storyNodeCount >= 3 &&
+      checks.progressChecks.systemPresets.orbital.storyEdgeCount >= 2 &&
+      checks.progressChecks.systemPresets.orbital.signalBefore === 30 &&
+      checks.progressChecks.systemPresets.orbital.signalAfter === 65 &&
+      checks.progressChecks.systemPresets.orbital.stationDecayBefore === 72 &&
+      checks.progressChecks.systemPresets.orbital.stationDecayAfter === 47 &&
+      checks.progressChecks.systemPresets.orbital.oxygenBefore === 55 &&
+      ["pending", "applied"].includes(checks.progressChecks.systemPresets.orbital.oxygenStatusEvent) &&
+      checks.progressChecks.systemPresets.orbital.signalTaskStatus === "completed" &&
+      checks.progressChecks.systemPresets.orbital.outcomeStatus === "pending" &&
+      checks.progressChecks.systemPresets.orbital.replyOptionTargetIds.length > 0,
+    "环轨预设应完整映射科幻小说正文、信号解码、轨道压力和任务结局",
+    checks.progressChecks.systemPresets.orbital,
   );
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));
 } finally {

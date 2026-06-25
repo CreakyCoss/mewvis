@@ -27,15 +27,15 @@ writeFileSync(entryPath, `
 
   const materialized = createTavernRoomFromSystemPreset(
     "workspace-prompt-layer",
-    "fogbound-archive-inquest",
+    "raincity-silent-manuscript",
     {
       roomId: "room-prompt-layer",
       createdAt: 1_800_000_000_000,
       characterIdByPresetId: new Map([
-        ["fo-mu-qingyan", "char-mu"],
-        ["fo-luo-yunfan", "char-luo"],
-        ["fo-qin-suye", "char-qin"],
-        ["fo-han-ruosheng", "char-han"],
+        ["rc-ji-ling", "char-ji"],
+        ["rc-yuan-ci", "char-yuan"],
+        ["rc-su-yan", "char-su"],
+        ["rc-he-mu", "char-he"],
       ]),
       markAsSystemPreset: false,
     },
