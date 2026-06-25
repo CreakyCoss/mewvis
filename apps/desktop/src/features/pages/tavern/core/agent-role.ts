@@ -32,9 +32,6 @@ const tavernAgentScopeSegment = (
   "instance",
 );
 
-export const tavernLegacyBridgeSessionRootDir = (roomId: string) =>
-  `tavern/${sanitizeAgentRoleSegment(roomId, "room")}/bridge`;
-
 export const tavernBridgeSessionRootDir = (
   roomOrRoomId: TavernBridgeSessionScope | string,
   instanceId?: string | null,
@@ -60,7 +57,6 @@ export const tavernBridgeSessionRootDirsForRoom = (
     }/bridge`
   ) ?? []),
   tavernBridgeSessionRootDir(room),
-  tavernLegacyBridgeSessionRootDir(room.id),
 ]));
 
 export const tavernDirectorAgentRoleId = (

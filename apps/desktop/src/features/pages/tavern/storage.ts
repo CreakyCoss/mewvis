@@ -509,36 +509,12 @@ const tavernSystemPresetById = new Map(
 export const getTavernSystemPreset = (presetId: string | null | undefined) =>
   tavernSystemPresetById.get(presetId ?? "") ?? null;
 
-const LEGACY_TAVERN_SYSTEM_PRESET_TITLES = new Set([
-  "雾港失物馆",
-  "竹雨驿馆",
-  "星坠补给吧",
-  "灰月商队馆",
-  "万象问命馆",
-  "月下圆桌狼人杀",
-  "心动争夺赛：谁先赢得你",
-  "双人攻略：你先打动谁",
-  "刀雨驿站",
-]);
-
 const normalizeSystemPresetId = (presetId: unknown) => {
   if (typeof presetId !== "string") {
     return undefined;
   }
 
   return getTavernSystemPreset(presetId)?.id;
-};
-
-const shouldDiscardLegacyTavernRoom = (room: Partial<TavernRoom>) => {
-  const rawSystemPresetId = typeof room.systemPresetId === "string"
-    ? room.systemPresetId.trim()
-    : "";
-  if (rawSystemPresetId && !getTavernSystemPreset(rawSystemPresetId)) {
-    return true;
-  }
-
-  const title = typeof room.title === "string" ? room.title.trim() : "";
-  return LEGACY_TAVERN_SYSTEM_PRESET_TITLES.has(title);
 };
 
 const normalizeTavernStoryBinding = (
@@ -5547,17 +5523,10 @@ const normalizeTavernState = (
       Array.isArray(room.storyGraph.edges) &&
       Array.isArray(room.scenes) &&
       Array.isArray(room.sceneInstances),
-    ) &&
-    !shouldDiscardLegacyTavernRoom(room)
+    )
   ).map((room) => {
     const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId);
     const systemPreset = getTavernSystemPreset(systemPresetId);
-    const systemPresetCharactersByName = new Map(
-      (systemPreset?.characters ?? []).map((character) => [character.name.trim(), character]),
-    );
-    const systemPresetCharactersById = new Map(
-      (systemPreset?.characters ?? []).map((character) => [character.id, character]),
-    );
     const characterMemories = normalizeStringRecord((room as Partial<TavernRoom>).characterMemories);
     const characterConfigs = normalizeRoomCharacterConfigs(
       (room as Partial<TavernRoom>).characterConfigs,
@@ -5568,25 +5537,7 @@ const normalizeTavernState = (
           .filter((character): character is TavernCharacter =>
             Boolean(character?.id && character.name)
           )
-          .map((character) => {
-            const presetCharacter = systemPreset
-              ? systemPresetCharactersById.get(
-                (character as Partial<TavernCharacter>).systemPresetCharacterId ?? "",
-              ) ?? systemPresetCharactersByName.get(character.name.trim())
-              : undefined;
-            return normalizeTavernCharacter(
-              presetCharacter
-                ? {
-                    ...character,
-                    avatar: presetCharacter.avatar,
-                    systemPresetId: systemPreset?.id,
-                    systemPresetCharacterId: presetCharacter.id,
-                    systemPresetVersion: systemPreset?.version,
-                  }
-                : character,
-              { allowSystemPreset: Boolean(presetCharacter) },
-            );
-          })
+          .map((character) => normalizeTavernCharacter(character))
       : [];
 
     const normalizedRoom: TavernRoom = {

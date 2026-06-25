@@ -66,7 +66,6 @@ writeFileSync(entryPath, `
     tavernArchivistAgentRoleId,
     tavernBridgeSessionRootDir,
     tavernDirectorAgentRoleId,
-    tavernLegacyBridgeSessionRootDir,
     tavernManagedUserAgentRoleId,
     tavernRelationshipKey,
     tavernProgressTrackerAgentRoleId,
@@ -2228,91 +2227,6 @@ writeFileSync(entryPath, `
     turnId: "system-starfall-turn",
     createdAt: now + 78,
   });
-  const avatarMigrationWorkspaceId = "workspace-avatar-migration";
-  const avatarMigrationMaterialized = createTavernRoomFromSystemPreset(
-    avatarMigrationWorkspaceId,
-    "fogbound-archive-inquest",
-    {
-      roomId: "system-avatar-migration-room",
-      createdAt: now + 79,
-    },
-  );
-  const avatarMigrationPreviousWindow = globalThis.window;
-  const avatarMigrationLocalStorageStub = {
-    getItem: () => null,
-    setItem: () => undefined,
-    removeItem: () => undefined,
-  };
-  globalThis.window = avatarMigrationPreviousWindow ?? { localStorage: avatarMigrationLocalStorageStub };
-  const avatarMigrationInstanceId = activeSceneInstanceIdForRoom(avatarMigrationMaterialized.room);
-  const avatarMigrationState = await saveTavernState("", avatarMigrationWorkspaceId, {
-    version: 3,
-    activeRoomId: avatarMigrationMaterialized.room.id,
-    rooms: [{
-      ...avatarMigrationMaterialized.room,
-      systemPresetVersion: 1,
-      localCharacters: avatarMigrationMaterialized.room.localCharacters.map((character, index) => ({
-        ...character,
-        avatar: ["📚", "🧭", "🌫️", "✉️"][index] ?? "📚",
-        systemPresetCharacterId: undefined,
-      })),
-    }],
-    messagesByInstance: {
-      [avatarMigrationInstanceId]: avatarMigrationMaterialized.messages.map((message) => ({
-        ...message,
-        sceneId: message.sceneId ?? avatarMigrationMaterialized.room.activeSceneId,
-        sceneInstanceId: message.sceneInstanceId ?? avatarMigrationInstanceId,
-      })),
-    },
-  });
-  if (avatarMigrationPreviousWindow === undefined) {
-    delete globalThis.window;
-  } else {
-    globalThis.window = avatarMigrationPreviousWindow;
-  }
-  const avatarMigrationRoom = avatarMigrationState.rooms.find((room) =>
-    room.id === avatarMigrationMaterialized.room.id
-  );
-  const legacyCleanupWorkspaceId = "workspace-legacy-cleanup";
-  const legacyManualRoom = {
-    ...createTavernRoom(legacyCleanupWorkspaceId, 1),
-    id: "legacy-cleanup-manual",
-    title: "手动保留房间",
-  };
-  const legacySystemRoom = {
-    ...createTavernRoom(legacyCleanupWorkspaceId, 2),
-    id: "legacy-cleanup-system",
-    title: "雾港失物馆",
-    systemPresetId: "mist-harbor-lost-and-found",
-  };
-  const legacyManualizedRoom = {
-    ...createTavernRoom(legacyCleanupWorkspaceId, 3),
-    id: "legacy-cleanup-manualized",
-    title: "竹雨驿馆",
-    systemPresetId: undefined,
-  };
-  const previousWindow = globalThis.window;
-  const localStorageStub = {
-    getItem: () => null,
-    setItem: () => undefined,
-    removeItem: () => undefined,
-  };
-  globalThis.window = previousWindow ?? { localStorage: localStorageStub };
-  const legacyCleanupState = await saveTavernState("", legacyCleanupWorkspaceId, {
-    version: 3,
-    activeRoomId: legacySystemRoom.id,
-    rooms: [legacySystemRoom, legacyManualizedRoom, legacyManualRoom],
-    messagesByInstance: {
-      [activeSceneInstanceIdForRoom(legacySystemRoom)]: [],
-      [activeSceneInstanceIdForRoom(legacyManualizedRoom)]: [],
-      [activeSceneInstanceIdForRoom(legacyManualRoom)]: [],
-    },
-  });
-  if (previousWindow === undefined) {
-    delete globalThis.window;
-  } else {
-    globalThis.window = previousWindow;
-  }
   const progressChecks = {
     statusEvents,
     nextProgressSnapshot,
@@ -2433,11 +2347,6 @@ writeFileSync(entryPath, `
       ),
       defaultStateRoomTitles: defaultSystemPresetState.rooms.map((item) => item.title),
       defaultStateRoomCount: defaultSystemPresetState.rooms.length,
-      avatarMigration: {
-        avatars: avatarMigrationRoom?.localCharacters.map((character) => character.avatar) ?? [],
-        systemPresetCharacterIds:
-          avatarMigrationRoom?.localCharacters.map((character) => character.systemPresetCharacterId) ?? [],
-      },
       fogbound: {
         room: fogboundRoom,
         avatarIds: fogboundRoom.localCharacters.map((character) => character.avatar),
@@ -2557,11 +2466,6 @@ writeFileSync(entryPath, `
         )?.status,
         replyOptionTargetIds: starfallAdvance.replyOptions.flatMap((option) => option.targetCharacterIds),
       },
-      legacyCleanup: {
-        activeRoomId: legacyCleanupState.activeRoomId,
-        roomTitles: legacyCleanupState.rooms.map((item) => item.title),
-        roomIds: legacyCleanupState.rooms.map((item) => item.id),
-      },
     },
   };
   globalThis.__checks = {
@@ -2658,7 +2562,6 @@ writeFileSync(entryPath, `
         activeSceneId: "scene-beta",
         activeSceneInstanceId: "scene-instance-beta",
       }),
-      legacy: tavernLegacyBridgeSessionRootDir(room.id),
     },
     bSecret,
     bSecondSecret,
@@ -2693,9 +2596,8 @@ try {
 
   assert(
     checks.bridgeSessionRootDirs.active === "tavern/room-alpha/scene-instances/scene-instance-alpha/bridge" &&
-      checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scene-instances/scene-instance-beta/bridge" &&
-      checks.bridgeSessionRootDirs.legacy === "tavern/room-alpha/bridge",
-    "酒馆 bridge session 必须按当前节点场景实例隔离，并保留旧房间级路径仅用于兼容清理",
+      checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scene-instances/scene-instance-beta/bridge",
+    "酒馆 bridge session 必须按当前节点场景实例隔离",
     checks.bridgeSessionRootDirs,
   );
   assert(
@@ -3284,35 +3186,16 @@ try {
       checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("星坠歌剧院彩排") &&
       !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("雾港失物馆") &&
       !checks.progressChecks.systemPresets.defaultStateRoomTitles.includes("月下圆桌狼人杀"),
-    "系统预设应只包含新的三个完整剧本，并移除旧预设房间",
+    "系统预设应只包含当前三个完整剧本",
     checks.progressChecks.systemPresets,
   );
   assert(
     checks.progressChecks.systemPresets.invalidAvatarIds.length === 0 &&
       new Set(checks.progressChecks.systemPresets.fogbound.avatarIds).size === 4 &&
       new Set(checks.progressChecks.systemPresets.ember.avatarIds).size === 4 &&
-      new Set(checks.progressChecks.systemPresets.starfall.avatarIds).size === 4 &&
-      checks.progressChecks.systemPresets.avatarMigration.avatars.join("|") ===
-        "tavern-05|tavern-03|tavern-02|tavern-06" &&
-      checks.progressChecks.systemPresets.avatarMigration.systemPresetCharacterIds.join("|") ===
-        "fo-mu-qingyan|fo-luo-yunfan|fo-qin-suye|fo-han-ruosheng",
-    "系统预设角色头像必须使用已注册头像资源，且已保存的旧预设房间应能按当前预设回填头像",
+      new Set(checks.progressChecks.systemPresets.starfall.avatarIds).size === 4,
+    "系统预设角色头像必须使用已注册头像资源",
     checks.progressChecks.systemPresets,
-  );
-  assert(
-    checks.progressChecks.systemPresets.legacyCleanup.activeRoomId === "legacy-cleanup-manual" &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("手动保留房间") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("雾港失物馆") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("竹雨驿馆") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("月下圆桌狼人杀") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("心动争夺赛：谁先赢得你") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("双人攻略：你先打动谁") &&
-      !checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("刀雨驿站") &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("雾港档案馆问询") &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("余烬集市同盟") &&
-      checks.progressChecks.systemPresets.legacyCleanup.roomTitles.includes("星坠歌剧院彩排"),
-    "加载旧酒馆状态时应清理旧系统预设残留，同时保留手动房间并补齐新预设",
-    checks.progressChecks.systemPresets.legacyCleanup,
   );
   assert(
     checks.progressChecks.systemPresets.fogbound.room.presentation.profileId === "third-person-prose" &&

@@ -13,7 +13,6 @@ import type { LedgerResult } from "@/features/ai/components/conversation-ledger/
 import {
   tavernBridgeSessionRootDir,
   tavernBridgeSessionRootDirsForRoom,
-  tavernLegacyBridgeSessionRootDir,
 } from "../../core";
 import type {
   TavernCharacter,
@@ -81,7 +80,6 @@ export const deleteTavernBridgeSession = async ({
 }) => {
   const sessionRootDirs = Array.from(new Set([
     tavernBridgeSessionRootDir(room),
-    tavernLegacyBridgeSessionRootDir(room.id),
   ]));
   const results = await Promise.allSettled(
     sessionRootDirs.map((sessionRootDir) => deleteLedger({ workspacePath, sessionRootDir })),
