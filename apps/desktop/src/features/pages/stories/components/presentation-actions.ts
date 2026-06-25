@@ -27,6 +27,8 @@ type StoryPresentationActionsInput = {
   persistStoryState: (nextState: StoryState) => Promise<void>;
 };
 
+export type StoryPresentationChannel = "tavern" | "chat";
+
 const resolveStoryNodeId = (
   story: StoryAsset | null,
   nodeId?: string | null,
@@ -45,7 +47,7 @@ export const useStoryPresentationActions = ({
   const navigate = useNavigate();
   const [openingStoryId, setOpeningStoryId] = useState("");
 
-  const openStoryInTavern = async (nodeId?: string | null) => {
+  const openTavernPresentation = async (nodeId?: string | null) => {
     if (!workspace || !activeStory) {
       return;
     }
@@ -132,7 +134,7 @@ export const useStoryPresentationActions = ({
     }
   };
 
-  const openStoryNodeInChat = (nodeId?: string | null) => {
+  const openChatPresentation = (nodeId?: string | null) => {
     if (!workspace || !activeStory) {
       return;
     }
@@ -148,9 +150,19 @@ export const useStoryPresentationActions = ({
     });
   };
 
+  const openStoryPresentation = (
+    channel: StoryPresentationChannel,
+    nodeId?: string | null,
+  ) => {
+    if (channel === "tavern") {
+      return openTavernPresentation(nodeId);
+    }
+
+    return openChatPresentation(nodeId);
+  };
+
   return {
     openingStoryId,
-    openStoryInTavern,
-    openStoryNodeInChat,
+    openStoryPresentation,
   };
 };

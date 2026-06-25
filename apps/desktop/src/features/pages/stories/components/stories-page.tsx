@@ -153,8 +153,7 @@ export const StoriesPage = () => {
   };
   const {
     openingStoryId,
-    openStoryInTavern,
-    openStoryNodeInChat,
+    openStoryPresentation,
   } = useStoryPresentationActions({
     workspace,
     activeStory,
@@ -484,7 +483,7 @@ export const StoriesPage = () => {
               type="button"
               variant="outline"
               className="gap-2"
-              onClick={() => openStoryNodeInChat()}
+              onClick={() => openStoryPresentation("chat")}
               disabled={!activeStory || !workspace}
             >
               <MessageSquareText className="size-4" />
@@ -494,7 +493,7 @@ export const StoriesPage = () => {
               type="button"
               variant="outline"
               className="gap-2"
-              onClick={() => void openStoryInTavern()}
+              onClick={() => void openStoryPresentation("tavern")}
               disabled={!activeStory || openingStoryId === activeStory.id}
             >
               <BookOpen className="size-4" />
@@ -561,8 +560,8 @@ export const StoriesPage = () => {
                 <StoryGraphModule
                   story={activeStory}
                   onSave={persistStory}
-                  onOpenNodeTavern={(nodeId) => void openStoryInTavern(nodeId)}
-                  onOpenNodeChat={openStoryNodeInChat}
+                  onOpenNodeTavern={(nodeId) => void openStoryPresentation("tavern", nodeId)}
+                  onOpenNodeChat={(nodeId) => openStoryPresentation("chat", nodeId)}
                 />
               ) : null}
               {activeTab === "manuscripts" ? (
