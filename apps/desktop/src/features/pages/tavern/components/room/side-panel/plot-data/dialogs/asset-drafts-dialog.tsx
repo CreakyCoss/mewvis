@@ -7,10 +7,10 @@ import {
   revealTavernSecretMemory,
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
-} from "../../../../../active-scene-runtime";
+} from "../../../../../runtime/active-scene-runtime";
 import {
   createTavernLorebookEntry,
-} from "../../../../../asset-factories";
+} from "../../../../../factories/asset-factories";
 import type {
   TavernAssetDraft,
   TavernCharacter,

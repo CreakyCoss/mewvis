@@ -2,7 +2,7 @@ import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
 import type { StoryContextPackage } from "@/features/story";
-import { getTavernPresentationContract } from "../../../presentation-contracts";
+import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,

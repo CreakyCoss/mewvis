@@ -59,11 +59,11 @@ import {
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
   updateTavernActiveScenePromptOverrides,
-} from "../../../../active-scene-runtime";
+} from "../../../../runtime/active-scene-runtime";
 import {
   getTavernSceneDisplayTitle,
   getTavernSceneInstanceDisplayTitle,
-} from "../../../../scene-selectors";
+} from "../../../../runtime/scene-selectors";
 import type {
   TavernCharacterMemoryLayers,
   TavernCondition,

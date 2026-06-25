@@ -20,7 +20,7 @@ import {
 import {
   DEFAULT_TAVERN_PROMPT_STYLE_ID,
   getTavernPromptStylePreset,
-} from "../prompt-styles";
+} from "../presentation/prompt-styles";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,

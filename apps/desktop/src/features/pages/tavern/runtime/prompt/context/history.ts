@@ -6,7 +6,7 @@ import {
 } from "../../../message";
 import {
   getTavernPresentationContractForMessageKind,
-} from "../../../presentation-contracts";
+} from "../../../presentation/presentation-contracts";
 import {
   getTavernProtocolHistoryPrivateThoughtTag,
 } from "../../../message/protocol/schema";

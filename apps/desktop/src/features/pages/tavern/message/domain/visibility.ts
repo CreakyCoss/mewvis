@@ -7,7 +7,7 @@ import {
   getTavernProtocolVisiblePrivateThoughtTag,
   TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
 } from "../protocol/schema";
-import { getTavernPresentationContractForMessageKind } from "../../presentation-contracts";
+import { getTavernPresentationContractForMessageKind } from "../../presentation/presentation-contracts";
 import {
   buildTavernMessageSegments,
   formatTavernMessageSegmentsForPrompt,

@@ -10,13 +10,13 @@ import {
 import {
   loadTavernState,
   saveTavernState,
-} from "../../storage";
+} from "../../state/storage";
 import {
   switchTavernRoomStoryNode,
-} from "../../active-scene-runtime";
+} from "../../runtime/active-scene-runtime";
 import {
   createTavernRoomFromGeneratedPresetJson,
-} from "../../generated-preset-room";
+} from "../../factories/generated-preset-room";
 import {
   createTavernGeneratedPresetFromStoryPresentationSeed,
 } from "./export-to-preset";

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom } from "../../../types";
-import { getTavernSceneInstanceDisplayTitle } from "../../../scene-selectors";
+import { getTavernSceneInstanceDisplayTitle } from "../../../runtime/scene-selectors";
 import {
   getTavernRuntimeStoryProjection,
   submitTavernStoryManuscript,

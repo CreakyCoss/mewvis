@@ -9,7 +9,7 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-preset-20-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/system-preset-room.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {

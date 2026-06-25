@@ -2,7 +2,7 @@ import type {
   TavernCharacter,
   TavernPresentationDialoguePolicy,
 } from "../../../types";
-import type { TavernPresentationRuntimeContract } from "../../../presentation-contracts";
+import type { TavernPresentationRuntimeContract } from "../../../presentation/presentation-contracts";
 import {
   closeTavernProtocolTag,
   formatTavernProtocolTagPair,

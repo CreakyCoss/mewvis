@@ -9,10 +9,10 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../active-scene-runtime";
+} from "../runtime/active-scene-runtime";
 import {
   createDefaultTavernState,
-} from "../state-normalizer";
+} from "../state/state-normalizer";
 import {
   hasTavernPresentationStarted,
   normalizeTavernPresentation,

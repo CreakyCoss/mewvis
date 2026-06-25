@@ -3,7 +3,7 @@ import type { TavernPromptStyleId } from "../../types";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
-} from "../../prompt-styles";
+} from "../../presentation/prompt-styles";
 import { runTavernOneShotAgent } from "../agent";
 
 export type TavernTextFieldAgentMode = "polish" | "inspire";

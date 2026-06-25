@@ -1,7 +1,7 @@
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   normalizeTavernPromptStyleId,
-} from "../../../prompt-styles";
+} from "../../../presentation/prompt-styles";
 import {
   TAVERN_PRESENTATION_PROFILES,
   normalizeTavernPresentationProfileId,

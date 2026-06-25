@@ -20,7 +20,7 @@ import { getTavernPresentationProfile } from "../../../../prompt-registry/presen
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
-} from "../../../../presentation-contracts";
+} from "../../../../presentation/presentation-contracts";
 import { runTavernInnerThought, runTavernReply } from "../../../../runtime/reply";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
 import type {

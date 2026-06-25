@@ -31,7 +31,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getTavernSceneDisplayTitle,
   getTavernSceneInstanceDisplayTitle,
-} from "../../scene-selectors";
+} from "../../runtime/scene-selectors";
 import type { TavernRoom } from "../../types";
 import {
   OrdinaryCreate,

@@ -68,7 +68,7 @@ import {
   TAVERN_PROMPT_STYLE_PRESETS,
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
-} from "../../../../../prompt-styles";
+} from "../../../../../presentation/prompt-styles";
 import type {
   TavernMessage,
   TavernPresentationProfileId,

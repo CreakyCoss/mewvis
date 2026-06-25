@@ -58,19 +58,27 @@ const mapCharacterToDraft = (
 const mapSceneToDraft = (
   scene: TavernGeneratedPresetScene,
   index: number,
-): Partial<StoryImportDraftScene> => ({
-  id: trimText(scene.id) || `scene-${index + 1}`,
-  title: trimText(scene.title) || `场景 ${index + 1}`,
-  scene: trimText(scene.scene),
-  goal: trimText(scene.sceneGoal),
-  plot: trimText(scene.plot),
-  direction: trimText(scene.storyDirection),
-  transition: trimText(scene.transition),
-  memory: trimText(scene.memory),
-  characterIds: Array.isArray(scene.characterIds) ? scene.characterIds : [],
-  activeCharacterId: trimText(scene.activeCharacterId) || undefined,
-  lorebookEntries: (scene.lorebookEntries ?? []).map(mapLorebookEntryToDraft),
-  extra: compactObject({
+): Partial<StoryImportDraftScene> => {
+  const draftIdentity = {
+    id: trimText(scene.id) || `scene-${index + 1}`,
+    title: trimText(scene.title) || `场景 ${index + 1}`,
+  };
+  const draftNarrative = {
+    scene: trimText(scene.scene),
+    goal: trimText(scene.sceneGoal),
+    plot: trimText(scene.plot),
+    direction: trimText(scene.storyDirection),
+    transition: trimText(scene.transition),
+    memory: trimText(scene.memory),
+  };
+  const draftCharacterScope = {
+    characterIds: Array.isArray(scene.characterIds) ? scene.characterIds : [],
+    activeCharacterId: trimText(scene.activeCharacterId) || undefined,
+  };
+  const draftAssets = {
+    lorebookEntries: (scene.lorebookEntries ?? []).map(mapLorebookEntryToDraft),
+  };
+  const draftExtraState = compactObject({
     scenePresetId: scene.scenePresetId,
     relationshipOverrides: scene.relationshipOverrides,
     sceneStatus: scene.sceneStatus,
@@ -81,33 +89,56 @@ const mapSceneToDraft = (
     taskDefinitions: scene.taskDefinitions,
     sceneOutcomes: scene.sceneOutcomes,
     characterMemories: scene.characterMemories,
-  }),
-});
+  });
+
+  return {
+    ...draftIdentity,
+    ...draftNarrative,
+    ...draftCharacterScope,
+    ...draftAssets,
+    extra: draftExtraState,
+  };
+};
 
 const firstSceneFromRoom = (
   room: TavernGeneratedPresetRoom,
-): TavernGeneratedPresetScene => ({
-  title: "默认场景",
-  scenePresetId: room.scenePresetId,
-  scene: room.scene,
-  sceneGoal: room.sceneGoal,
-  plot: room.plot,
-  storyDirection: room.storyDirection,
-  transition: room.transition,
-  memory: room.memory,
-  relationshipOverrides: room.relationshipOverrides,
-  sceneStatus: room.sceneStatus,
-  characterPublicStatuses: room.characterPublicStatuses,
-  characterPrivateStatuses: room.characterPrivateStatuses,
-  statusSnapshot: room.statusSnapshot,
-  factEvents: room.factEvents,
-  taskDefinitions: room.taskDefinitions,
-  sceneOutcomes: room.sceneOutcomes,
-  characterMemories: room.characterMemories,
-  lorebookEntries: room.lorebookEntries,
-  characterIds: room.characterIds,
-  activeCharacterId: room.activeCharacterId,
-});
+): TavernGeneratedPresetScene => {
+  const sceneNarrative = {
+    scenePresetId: room.scenePresetId,
+    scene: room.scene,
+    sceneGoal: room.sceneGoal,
+    plot: room.plot,
+    storyDirection: room.storyDirection,
+    transition: room.transition,
+    memory: room.memory,
+  };
+  const sceneState = {
+    relationshipOverrides: room.relationshipOverrides,
+    sceneStatus: room.sceneStatus,
+    characterPublicStatuses: room.characterPublicStatuses,
+    characterPrivateStatuses: room.characterPrivateStatuses,
+  };
+  const sceneProgress = {
+    statusSnapshot: room.statusSnapshot,
+    factEvents: room.factEvents,
+    taskDefinitions: room.taskDefinitions,
+    sceneOutcomes: room.sceneOutcomes,
+  };
+  const sceneContent = {
+    characterMemories: room.characterMemories,
+    lorebookEntries: room.lorebookEntries,
+    characterIds: room.characterIds,
+    activeCharacterId: room.activeCharacterId,
+  };
+
+  return {
+    title: "默认场景",
+    ...sceneNarrative,
+    ...sceneState,
+    ...sceneProgress,
+    ...sceneContent,
+  };
+};
 
 export const createStoryImportDraftFromTavernGeneratedPreset = (
   preset: TavernGeneratedPresetJson,

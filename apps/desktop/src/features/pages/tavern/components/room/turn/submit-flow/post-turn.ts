@@ -4,10 +4,10 @@ import type { TavernPageContextValue } from "../../../context";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../../../active-scene-runtime";
+} from "../../../../runtime/active-scene-runtime";
 import {
   createTavernAssetDraft,
-} from "../../../../asset-factories";
+} from "../../../../factories/asset-factories";
 import { advanceTavernProgressFromFactEvents } from "../../../../core";
 import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import { runTavernProgressTracking } from "../../../../runtime/assistants";

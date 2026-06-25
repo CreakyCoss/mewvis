@@ -310,7 +310,7 @@ writeFileSync(helperEntryPath, `
     parseTavernDirectorDecision,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/decision.ts"))};
   import { parseTavernReplyText } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts"))};
-  import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-contracts.ts"))};
+  import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation/presentation-contracts.ts"))};
   import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
   import {
     canTavernCharacterUseNonverbalReply,

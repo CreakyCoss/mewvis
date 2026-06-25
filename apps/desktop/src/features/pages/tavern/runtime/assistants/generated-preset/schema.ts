@@ -1,4 +1,4 @@
-import { TAVERN_PROMPT_STYLE_PRESETS } from "../../../prompt-styles";
+import { TAVERN_PROMPT_STYLE_PRESETS } from "../../../presentation/prompt-styles";
 import { TAVERN_PRESENTATION_PROFILE_OPTIONS } from "../../../prompt-registry/presentation-rules";
 
 const promptStyleIdsSchema = TAVERN_PROMPT_STYLE_PRESETS.map((preset) => preset.id).join(" | ");

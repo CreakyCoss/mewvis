@@ -7,7 +7,7 @@ import {
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { normalizeTavernPromptStyleId } from "../../prompt-styles";
+import { normalizeTavernPromptStyleId } from "../../presentation/prompt-styles";
 import {
   normalizeTavernPresentationProfileId,
 } from "../../prompt-registry/presentation-rules";
@@ -21,23 +21,23 @@ import {
 } from "../../prompt-registry/text-blocks";
 import {
   createTavernScene,
-} from "../../scene-builder";
+} from "../../story-model/scene-builder";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../active-scene-runtime";
+} from "../../runtime/active-scene-runtime";
 import {
   createTavernRoomFromGeneratedPresetJson,
-} from "../../generated-preset-room";
+} from "../../factories/generated-preset-room";
 import {
   createTavernRoom,
-} from "../../manual-factories";
+} from "../../factories/manual-factories";
 import {
   getTavernSystemPreset,
 } from "../../system-preset-registry";
 import {
   createTavernRoomFromSystemPreset,
-} from "../../system-preset-room";
+} from "../../factories/system-preset-room";
 import {
   createTavernMessage,
 } from "../../message";

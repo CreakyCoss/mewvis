@@ -33,18 +33,18 @@ import {
   syncTavernRoomActiveScene,
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,
-} from "../active-scene-runtime";
+} from "../runtime/active-scene-runtime";
 import {
   createDefaultTavernState,
-} from "../state-normalizer";
+} from "../state/state-normalizer";
 import {
   loadTavernState,
   saveTavernState,
-} from "../storage";
+} from "../state/storage";
 import {
   createTavernMessage,
 } from "../message";
-import { getTavernSceneInstanceDisplayTitle } from "../scene-selectors";
+import { getTavernSceneInstanceDisplayTitle } from "../runtime/scene-selectors";
 import {
   getTavernPresentationProfile,
   normalizeTavernPresentation,

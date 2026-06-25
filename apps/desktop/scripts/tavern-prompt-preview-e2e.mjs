@@ -8,7 +8,7 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-preview-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/system-preset-room.ts");
 const previewPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/preview.ts");
 const warningNavigationPath = resolve(workspaceRoot, "src/features/pages/tavern/components/manage/room-editor/modules/prompt/warning-navigation.ts");
 

@@ -1,7 +1,7 @@
 import { isTavernFixedOrderPhase } from "../../../core";
 import {
   getTavernPresentationContract,
-} from "../../../presentation-contracts";
+} from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import type {
   TavernCharacter,

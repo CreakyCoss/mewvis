@@ -17,7 +17,7 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
 import {
   projectTavernSceneOntoRoom,
-} from "../../../active-scene-runtime";
+} from "../../../runtime/active-scene-runtime";
 import {
   buildTavernStoryContextPackage,
   getTavernRuntimeStoryProjection,

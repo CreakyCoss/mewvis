@@ -16,16 +16,16 @@ const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/in
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
 const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
-const activeSceneRuntimePath = resolve(workspaceRoot, "src/features/pages/tavern/active-scene-runtime.ts");
-const assetFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/asset-factories.ts");
+const activeSceneRuntimePath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/active-scene-runtime.ts");
+const assetFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/asset-factories.ts");
 const defaultsPath = resolve(workspaceRoot, "src/features/pages/tavern/defaults.ts");
-const generatedPresetParserPath = resolve(workspaceRoot, "src/features/pages/tavern/generated-preset-parser.ts");
-const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/generated-preset-room.ts");
-const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/manual-factories.ts");
-const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/tavern/state-normalizer.ts");
-const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const generatedPresetParserPath = resolve(workspaceRoot, "src/features/pages/tavern/importers/generated-preset-parser.ts");
+const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/generated-preset-room.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
+const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/tavern/state/state-normalizer.ts");
+const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/state/storage.ts");
 const systemPresetRegistryPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-registry.ts");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/system-preset-room.ts");
 const assetExtractorParsingPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/assistants/asset-extractor/parsing.ts");
 
 const assert = (condition, message, details) => {
