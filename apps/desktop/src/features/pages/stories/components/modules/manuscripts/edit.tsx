@@ -1,17 +1,13 @@
 import type { Ref } from "react";
 import { useImperativeHandle, useState } from "react";
-import { Check, FileText, Loader2, Save, Sparkles, X } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   StoryAsset,
   StoryManuscriptDraft,
@@ -19,7 +15,15 @@ import type {
   StoryManuscriptSubmissionInput,
 } from "@/features/story";
 import { manuscriptSourceLabels } from "../../story-form-utils";
-import { EditorField, selectClassName } from "../../story-primitives";
+import { StoryManuscriptEditFooter } from "./edit-footer";
+import { StoryManuscriptEditForm } from "./edit-form";
+import {
+  createManuscriptDraftPatch,
+  createManuscriptEditDraft,
+  createManuscriptSubmission,
+  type ManuscriptEditDraft,
+  type ManuscriptEditMode,
+} from "./edit-types";
 
 export type StoryManuscriptEditHandle = {
   create: () => void;
@@ -40,21 +44,6 @@ type StoryManuscriptEditProps = {
   onSave: (draftId: string, patch: StoryManuscriptDraftUpdateInput) => void;
   onReject: (draftId: string) => void;
 };
-
-type ManuscriptEditMode = "create" | "edit";
-
-type ManuscriptEditDraft = Pick<
-  StoryManuscriptDraft,
-  "title" | "summary" | "content" | "branchId" | "nodeId"
->;
-
-const createEditDraft = (draft: StoryManuscriptDraft): ManuscriptEditDraft => ({
-  title: draft.title,
-  summary: draft.summary,
-  content: draft.content,
-  branchId: draft.branchId,
-  nodeId: draft.nodeId,
-});
 
 export const StoryManuscriptEdit = ({
   bind,
@@ -92,7 +81,7 @@ export const StoryManuscriptEdit = ({
   const edit = (nextDraft: StoryManuscriptDraft) => {
     setMode("edit");
     setDraft(nextDraft);
-    setEditDraft(createEditDraft(nextDraft));
+    setEditDraft(createManuscriptEditDraft(nextDraft));
     setError("");
   };
 
@@ -107,27 +96,6 @@ export const StoryManuscriptEdit = ({
     setIsPolishing(false);
     setError("");
   };
-
-  const createPatch = (): StoryManuscriptDraftUpdateInput | null =>
-    editDraft
-      ? {
-          title: editDraft.title,
-          summary: editDraft.summary,
-          content: editDraft.content,
-          branchId: editDraft.branchId,
-        }
-      : null;
-
-  const createSubmission = (): Omit<StoryManuscriptSubmissionInput, "storyId" | "source"> | null =>
-    editDraft
-      ? {
-          nodeId: editDraft.nodeId,
-          branchId: editDraft.branchId,
-          title: editDraft.title,
-          summary: editDraft.summary,
-          content: editDraft.content,
-        }
-      : null;
 
   const polish = async () => {
     if (!editDraft || !editDraft.nodeId) {
@@ -156,6 +124,44 @@ export const StoryManuscriptEdit = ({
     } finally {
       setIsPolishing(false);
     }
+  };
+
+  const submit = () => {
+    if (mode === "create") {
+      const submission = createManuscriptSubmission(editDraft);
+      if (!submission) {
+        return;
+      }
+      onCreate(submission);
+      close();
+      return;
+    }
+    if (!draft) {
+      return;
+    }
+    const patch = createManuscriptDraftPatch(editDraft);
+    if (!patch) {
+      return;
+    }
+    onSave(draft.id, patch);
+    close();
+  };
+
+  const acceptDraft = () => {
+    const patch = createManuscriptDraftPatch(editDraft);
+    if (!patch || !draft) {
+      return;
+    }
+    onAccept(draft.id, patch);
+    close();
+  };
+
+  const rejectDraft = () => {
+    if (!draft) {
+      return;
+    }
+    onReject(draft.id);
+    close();
   };
 
   return (
@@ -191,159 +197,25 @@ export const StoryManuscriptEdit = ({
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (mode === "create") {
-                const submission = createSubmission();
-                if (!submission) {
-                  return;
-                }
-                onCreate(submission);
-                close();
-                return;
-              }
-              if (!draft) {
-                return;
-              }
-              const patch = createPatch();
-              if (!patch) {
-                return;
-              }
-              onSave(draft.id, patch);
-              close();
+              submit();
             }}
           >
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
-              <div className="space-y-4">
-                <EditorField label="标题">
-                  <Input
-                    value={editDraft.title}
-                    onChange={(event) => setEditDraft({
-                      ...editDraft,
-                      title: event.target.value,
-                    })}
-                  />
-                </EditorField>
-                <EditorField label="摘要">
-                  <Textarea
-                    className="min-h-24 resize-y"
-                    value={editDraft.summary}
-                    onChange={(event) => setEditDraft({
-                      ...editDraft,
-                      summary: event.target.value,
-                    })}
-                  />
-                </EditorField>
-              </div>
-              <div className="space-y-4">
-                {mode === "create" ? (
-                  <EditorField label="节点">
-                    <select
-                      className={selectClassName}
-                      value={editDraft.nodeId}
-                      onChange={(event) => setEditDraft({
-                        ...editDraft,
-                        nodeId: event.target.value,
-                      })}
-                    >
-                      {story.graph.nodes.map((node) => (
-                        <option key={node.id} value={node.id}>
-                          {node.title}
-                        </option>
-                      ))}
-                    </select>
-                  </EditorField>
-                ) : null}
-                <EditorField label="分支 ID">
-                  <Input
-                    value={editDraft.branchId ?? ""}
-                    onChange={(event) => setEditDraft({
-                      ...editDraft,
-                      branchId: event.target.value,
-                    })}
-                    placeholder="可选"
-                  />
-                </EditorField>
-              </div>
-            </div>
-            <EditorField label="正文">
-              <Textarea
-                className="min-h-[18rem] resize-y font-mono text-sm leading-6"
-                value={editDraft.content}
-                onChange={(event) => setEditDraft({
-                  ...editDraft,
-                  content: event.target.value,
-                })}
-              />
-            </EditorField>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={close}>
-                关闭
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                disabled={isPolishing || !editDraft.nodeId}
-                onClick={() => void polish()}
-              >
-                {isPolishing ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-                {isPolishing ? "润色中" : "AI 润色"}
-              </Button>
-              {mode === "create" ? (
-                <Button
-                  type="submit"
-                  className="gap-2"
-                  disabled={isPolishing || !editDraft.nodeId || !editDraft.content.trim()}
-                >
-                  <Save className="size-4" />
-                  加入收稿箱
-                </Button>
-              ) : draft?.status === "pending" ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-2"
-                    disabled={isPolishing}
-                    onClick={() => {
-                      onReject(draft.id);
-                      close();
-                    }}
-                  >
-                    <X className="size-4" />
-                    退回
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="gap-2"
-                    disabled={isPolishing || !editDraft.content.trim()}
-                  >
-                    <Save className="size-4" />
-                    保存
-                  </Button>
-                  <Button
-                    type="button"
-                    className="gap-2"
-                    disabled={isPolishing || !editDraft.content.trim()}
-                    onClick={() => {
-                      const patch = createPatch();
-                      if (!patch || !draft) {
-                        return;
-                      }
-                      onAccept(draft.id, patch);
-                      close();
-                    }}
-                  >
-                    <Check className="size-4" />
-                    保存并收稿
-                  </Button>
-                </>
-              ) : null}
-            </DialogFooter>
+            <StoryManuscriptEditForm
+              draft={editDraft}
+              mode={mode}
+              onChange={setEditDraft}
+              story={story}
+            />
+            <StoryManuscriptEditFooter
+              draft={draft}
+              editDraft={editDraft}
+              isPolishing={isPolishing}
+              mode={mode}
+              onAcceptDraft={acceptDraft}
+              onClose={close}
+              onPolish={() => void polish()}
+              onRejectDraft={rejectDraft}
+            />
           </form>
         </DialogContent>
       ) : null}
