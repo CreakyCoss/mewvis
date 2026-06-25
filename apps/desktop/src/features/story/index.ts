@@ -61,13 +61,15 @@ export {
   createStandaloneStoryAsset,
   createStoryAssetFromContextPackage,
   buildStoryContextPackageFromAsset,
-  normalizeStoryState,
   submitStoryManuscriptToState,
   upsertStoryAsset,
   type StoryAsset,
   type StorySourceRef,
   type StoryState,
 } from "./application/state";
+export {
+  normalizeStoryState,
+} from "./application/state-normalize";
 export {
   createStoryAssetFromImportDraft,
   mergeStoryImportDraftIntoStory,

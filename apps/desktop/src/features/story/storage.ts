@@ -1,10 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   createEmptyStoryState,
-  normalizeStoryState,
   submitStoryManuscriptToState,
   type StoryState,
 } from "./application/state";
+import { normalizeStoryState } from "./application/state-normalize";
 import type { StoryManuscriptSubmissionInput } from "./application/manuscript-inbox";
 
 const STORY_STORAGE_PREFIX = "novel-claw:story";
