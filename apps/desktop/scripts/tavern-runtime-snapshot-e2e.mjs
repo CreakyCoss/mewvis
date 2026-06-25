@@ -1,0 +1,156 @@
+import { build } from "esbuild";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const workspaceRoot = process.cwd();
+const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-runtime-snapshot-"));
+const entryPath = join(tempDir, "runner.ts");
+const bundledPath = join(tempDir, "runner.mjs");
+const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
+
+writeFileSync(entryPath, `
+  import {
+    createTavernRoom,
+  } from ${JSON.stringify(storagePath)};
+  import {
+    createTavernRuntimeRoomSnapshot,
+    materializeTavernRuntimeRoomSnapshot,
+    parseTavernRuntimeRoomSnapshot,
+  } from ${JSON.stringify(snapshotPath)};
+
+  const assert = (condition: unknown, message: string, details?: unknown) => {
+    if (!condition) {
+      const suffix = details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2);
+      throw new Error(message + suffix);
+    }
+  };
+
+  const room = createTavernRoom("workspace-source", 7);
+  const activeInstance = room.sceneInstances[0];
+  assert(activeInstance, "默认酒馆房间应创建运行场景实例。", room);
+
+  const activeMessage = {
+    id: "message-active",
+    roomId: room.id,
+    sceneId: activeInstance.sceneId,
+    sceneInstanceId: activeInstance.id,
+    kind: "user_input" as const,
+    role: "user" as const,
+    content: "检查运行快照。",
+    createdAt: 1_800_000_100_000,
+    status: "done" as const,
+  };
+  const orphanMessage = {
+    id: "message-orphan",
+    roomId: "other-room",
+    sceneInstanceId: "orphan-instance",
+    role: "narrator" as const,
+    content: "不应出现在快照中。",
+    createdAt: 1_800_000_100_001,
+  };
+
+  const snapshot = createTavernRuntimeRoomSnapshot({
+    room: {
+      ...room,
+      locked: true,
+      updatedAt: 1_800_000_100_010,
+    },
+    messagesByInstance: {
+      [activeInstance.id]: [activeMessage],
+      "orphan-instance": [orphanMessage],
+    },
+    exportedAt: "2026-06-25T00:00:00.000Z",
+  });
+  assert(
+    snapshot.schema === "novel-claw.tavern-runtime-room" &&
+      snapshot.version === 1 &&
+      snapshot.exportedAt === "2026-06-25T00:00:00.000Z" &&
+      snapshot.room.id === room.id &&
+      snapshot.room.activeSceneInstanceId === activeInstance.id,
+    "运行快照应使用新 schema 并投影当前运行场景。",
+    snapshot,
+  );
+  assert(
+    Object.keys(snapshot.messagesByInstance).length === room.sceneInstances.length &&
+      snapshot.messagesByInstance[activeInstance.id]?.[0]?.id === activeMessage.id &&
+      !("orphan-instance" in snapshot.messagesByInstance),
+    "运行快照只应导出当前房间场景实例的消息。",
+    snapshot.messagesByInstance,
+  );
+
+  const parsed = parseTavernRuntimeRoomSnapshot(JSON.parse(JSON.stringify(snapshot)));
+  assert(
+    parsed?.schema === snapshot.schema &&
+      parsed.room.id === room.id,
+    "运行快照解析器应接受当前版本快照。",
+    parsed,
+  );
+  assert(
+    parseTavernRuntimeRoomSnapshot({
+      schema: "novel-claw.tavern-room",
+      version: 3,
+      room,
+      messagesByInstance: {},
+    }) === null,
+    "运行快照解析器应拒绝旧 tavern room 导出 schema。",
+  );
+  assert(
+    parseTavernRuntimeRoomSnapshot({
+      schema: "novel-claw.tavern-runtime-room",
+      version: 1,
+      room,
+    }) === null,
+    "运行快照解析器应拒绝缺少消息表的快照。",
+  );
+
+  const materialized = materializeTavernRuntimeRoomSnapshot({
+    snapshot,
+    workspaceId: "workspace-target",
+    timestamp: 1_800_000_200_000,
+  });
+  const materializedMessage = materialized.messagesByInstance[activeInstance.id]?.[0];
+  assert(
+    materialized.room.workspaceId === "workspace-target" &&
+      materialized.room.locked === false &&
+      materialized.room.creationSource === "imported" &&
+      materialized.room.updatedAt === 1_800_000_200_000 &&
+      materialized.room.activeSceneInstanceId === activeInstance.id,
+    "物化运行快照应绑定到目标 workspace 并解锁为导入房间。",
+    materialized.room,
+  );
+  assert(
+    materializedMessage?.roomId === room.id &&
+      materializedMessage.sceneId === activeInstance.sceneId &&
+      materializedMessage.sceneInstanceId === activeInstance.id &&
+      materialized.messagesByInstance["orphan-instance"] === undefined,
+    "物化运行快照应重建场景实例消息归属。",
+    materialized.messagesByInstance,
+  );
+`);
+
+try {
+  await build({
+    entryPoints: [entryPath],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: bundledPath,
+    target: "node22",
+    alias: {
+      "@": resolve(workspaceRoot, "src"),
+    },
+    loader: {
+      ".jpg": "dataurl",
+      ".jpeg": "dataurl",
+      ".png": "dataurl",
+      ".webp": "dataurl",
+    },
+  });
+  await import(pathToFileURL(bundledPath).href);
+  console.log("[tavern-runtime-snapshot] ok");
+} finally {
+  rmSync(tempDir, { recursive: true, force: true });
+}
