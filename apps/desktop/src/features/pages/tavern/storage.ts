@@ -1,5 +1,4 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { normalizeTavernAvatarId } from "@/assets/agent-avatars";
 import {
   DEFAULT_VISUAL_PRESET_ID,
 } from "@/features/pages/tavern/visual-presets";
@@ -96,6 +95,10 @@ import {
   roomCharacterMemoriesFromConfigs,
 } from "./room-character-configs";
 import {
+  createTavernCharacterFromSystemPresetCharacter,
+  normalizeTavernCharacter,
+} from "./character-normalizers";
+import {
   buildTavernScene,
   defaultSceneTitle,
   normalizeRoomScenePresetId,
@@ -158,12 +161,10 @@ import {
 } from "./scene-selectors";
 import {
   getTavernSystemPreset,
-  normalizeSystemPresetCharacterId,
   normalizeSystemPresetId,
   tavernSystemPresets,
 } from "./system-preset-registry";
 import type {
-  TavernSystemPresetCharacter,
   TavernSystemPresetRoom,
   TavernSystemPresetScene,
 } from "./system-preset-registry";
@@ -206,72 +207,8 @@ const STORAGE_PREFIX = "novel-claw:tavern";
 
 const storageKeyForWorkspace = (workspaceId: string) => `${STORAGE_PREFIX}:${workspaceId}`;
 
-const createTavernCharacterFromSystemPresetCharacter = (
-  character: TavernSystemPresetCharacter,
-  options: {
-    id?: string;
-    createdAt?: number;
-  } = {},
-): TavernCharacter => {
-  const createdAt = options.createdAt ?? now();
-  return {
-    id: options.id ?? createId("character"),
-    name: character.name.trim(),
-    avatar: normalizeTavernAvatarId(character.avatar),
-    description: character.description.trim(),
-    speakingStyle: character.speakingStyle.trim(),
-    writingStyle: character.writingStyle?.trim() || undefined,
-    replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
-    goals: character.goals?.trim() || undefined,
-    relationships: normalizeCharacterRelationships(character.relationships, createdAt),
-    createdAt,
-    updatedAt: createdAt,
-  };
-};
-
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
   value === "round" || value === "director" ? value : "active";
-
-const normalizeTavernCharacter = (
-  character: TavernCharacter,
-  {
-    allowSystemPreset = true,
-  }: {
-    allowSystemPreset?: boolean;
-  } = {},
-): TavernCharacter => {
-  const systemPresetId = allowSystemPreset
-    ? normalizeSystemPresetId((character as Partial<TavernCharacter>).systemPresetId)
-    : undefined;
-  const systemPreset = getTavernSystemPreset(systemPresetId);
-  const systemPresetCharacterId = normalizeSystemPresetCharacterId(
-    systemPresetId,
-    (character as Partial<TavernCharacter>).systemPresetCharacterId,
-  );
-  const normalizedSystemPresetId = systemPresetCharacterId ? systemPresetId : undefined;
-
-  return {
-    ...character,
-    avatar: normalizeTavernAvatarId(character.avatar),
-    systemPresetId: normalizedSystemPresetId,
-    systemPresetCharacterId,
-    systemPresetVersion: systemPreset && normalizedSystemPresetId
-      ? typeof (character as Partial<TavernCharacter>).systemPresetVersion === "number"
-        ? (character as Partial<TavernCharacter>).systemPresetVersion
-        : systemPreset.version
-      : undefined,
-    writingStyle: typeof character.writingStyle === "string" && character.writingStyle.trim()
-      ? character.writingStyle.trim()
-      : undefined,
-    replyStylePrompt: typeof character.replyStylePrompt === "string" && character.replyStylePrompt.trim()
-      ? character.replyStylePrompt.trim()
-      : undefined,
-    relationships: normalizeCharacterRelationships(
-      (character as Partial<TavernCharacter>).relationships,
-      typeof character.updatedAt === "number" ? character.updatedAt : now(),
-    ),
-  };
-};
 
 const mergeLorebookEntries = (
   ...groups: TavernLorebookEntry[][]
