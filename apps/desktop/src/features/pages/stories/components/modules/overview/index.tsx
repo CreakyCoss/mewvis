@@ -2,7 +2,8 @@ import { Pencil, ScrollText } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { StoryAsset } from "@/features/story";
-import { StorySection, type StoryDraft } from "../../shared";
+import type { StoryDraft } from "../../story-form-utils";
+import { StorySection } from "../../story-primitives";
 import { StoryOverviewEdit, type StoryOverviewEditHandle } from "./edit";
 
 type StoryOverviewModuleProps = {

@@ -11,10 +11,8 @@ import { StorySidebar } from "./story-sidebar";
 import { useStoryImport } from "./use-story-import";
 import { useStoryManuscripts } from "./use-story-manuscripts";
 import { useStoryState } from "./use-story-state";
-import {
-  type StoryConfigTab,
-  type StoryDraft,
-} from "./shared";
+import type { StoryDraft } from "./story-form-utils";
+import type { StoryConfigTab } from "./story-tabs";
 
 export const StoriesPage = () => {
   const agentClient = useMemo(() => createAgentClient(), []);

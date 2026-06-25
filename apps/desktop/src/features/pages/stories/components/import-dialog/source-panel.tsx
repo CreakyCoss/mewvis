@@ -8,11 +8,8 @@ import {
   type StoryImportDraft,
   type StoryImportSourceKind,
 } from "@/features/story";
-import {
-  EditorField,
-  selectClassName,
-  storyImportSourceLabels,
-} from "../shared";
+import { storyImportSourceLabels } from "../story-form-utils";
+import { EditorField, selectClassName } from "../story-primitives";
 
 type StoryImportSourcePanelProps = {
   importRaw: string;

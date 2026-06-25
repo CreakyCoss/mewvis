@@ -15,10 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import type { StoryAsset, StoryContextScene } from "@/features/story";
 import {
   createStoryScene,
-  EditorField,
-  EmptyBlock,
   moveItem,
-} from "../../shared";
+} from "../../story-form-utils";
+import { EditorField, EmptyBlock } from "../../story-primitives";
 import type { StoryModuleSave } from "../types";
 
 export type StoryScenesEditHandle = (story?: StoryAsset) => void;

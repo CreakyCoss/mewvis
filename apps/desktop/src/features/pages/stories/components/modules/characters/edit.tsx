@@ -15,10 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import type { StoryAsset, StoryContextCharacter } from "@/features/story";
 import {
   createStoryCharacter,
-  EditorField,
   emptyCharacterMemory,
+} from "../../story-form-utils";
+import {
+  EditorField,
   EmptyBlock,
-} from "../../shared";
+} from "../../story-primitives";
 import type { StoryModuleSave } from "../types";
 
 export type StoryCharactersEditHandle = (story?: StoryAsset) => void;

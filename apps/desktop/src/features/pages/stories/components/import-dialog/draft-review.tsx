@@ -6,13 +6,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoryImportDraft } from "@/features/story";
 import {
-  EditorField,
-  EmptyBlock,
   formatCount,
   splitKeywords,
   storyImportSourceLabels,
+} from "../story-form-utils";
+import {
+  EditorField,
+  EmptyBlock,
   StorySection,
-} from "../shared";
+} from "../story-primitives";
 import {
   updateImportCharacter,
   updateImportLore,

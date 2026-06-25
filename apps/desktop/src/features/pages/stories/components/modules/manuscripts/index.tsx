@@ -7,7 +7,8 @@ import type {
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
 } from "@/features/story";
-import { EmptyBlock, manuscriptSourceLabels, StorySection } from "../../shared";
+import { manuscriptSourceLabels } from "../../story-form-utils";
+import { EmptyBlock, StorySection } from "../../story-primitives";
 import { StoryManuscriptEdit, type StoryManuscriptEditHandle } from "./edit";
 
 type StoryManuscriptsModuleProps = {

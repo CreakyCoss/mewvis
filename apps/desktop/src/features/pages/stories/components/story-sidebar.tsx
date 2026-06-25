@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryAsset } from "@/features/story";
 import { cn } from "@/lib/utils";
-import { formatCount, getPendingDraftCount } from "./shared";
+import { formatCount, getPendingDraftCount } from "./story-form-utils";
 
 type StorySidebarProps = {
   activeStoryId?: string | null;

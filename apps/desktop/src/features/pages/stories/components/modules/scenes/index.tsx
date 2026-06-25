@@ -2,7 +2,7 @@ import { BookOpen, Pencil } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { StoryAsset } from "@/features/story";
-import { EmptyBlock, StorySection } from "../../shared";
+import { EmptyBlock, StorySection } from "../../story-primitives";
 import type { StoryModuleSave } from "../types";
 import { StoryScenesEdit, type StoryScenesEditHandle } from "./edit";
 

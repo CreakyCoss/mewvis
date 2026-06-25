@@ -12,7 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoryAsset } from "@/features/story";
-import { EditorField, type StoryDraft } from "../../shared";
+import type { StoryDraft } from "../../story-form-utils";
+import { EditorField } from "../../story-primitives";
 
 export type StoryOverviewEditHandle = (story?: StoryAsset) => void;
 

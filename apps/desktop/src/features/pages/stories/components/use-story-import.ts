@@ -12,7 +12,7 @@ import {
   type StoryImportSourceKind,
   type StoryState,
 } from "@/features/story";
-import type { StoryConfigTab } from "./shared";
+import type { StoryConfigTab } from "./story-tabs";
 
 type UseStoryImportInput = {
   activeStory: StoryAsset | null;

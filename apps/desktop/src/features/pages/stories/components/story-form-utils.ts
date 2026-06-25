@@ -1,14 +1,3 @@
-import {
-  BookOpen,
-  FileText,
-  GitBranch,
-  GitMerge,
-  ScrollText,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import type {
   StoryAsset,
   StoryContextCharacter,
@@ -25,44 +14,6 @@ export type StoryDraft = Pick<
   StoryAsset,
   "title" | "outline" | "goal" | "userPersonaName"
 >;
-
-export type StoryConfigTab =
-  | "overview"
-  | "characters"
-  | "scenes"
-  | "world"
-  | "graph"
-  | "manuscripts";
-
-export const emptyDraft: StoryDraft = {
-  title: "",
-  outline: "",
-  goal: "",
-  userPersonaName: "我",
-};
-
-export const storyConfigTabs: Array<{
-  id: StoryConfigTab;
-  label: string;
-  icon: LucideIcon;
-}> = [
-  { id: "overview", label: "基础", icon: ScrollText },
-  { id: "characters", label: "角色", icon: UsersRound },
-  { id: "scenes", label: "场景", icon: BookOpen },
-  { id: "world", label: "世界书", icon: FileText },
-  { id: "graph", label: "结构", icon: GitBranch },
-  { id: "manuscripts", label: "稿件", icon: GitMerge },
-];
-
-export const createDraftFromStory = (story: StoryAsset | null): StoryDraft =>
-  story
-    ? {
-        title: story.title,
-        outline: story.outline,
-        goal: story.goal,
-        userPersonaName: story.userPersonaName,
-      }
-    : emptyDraft;
 
 export const formatCount = (count: number, label: string) => `${count} ${label}`;
 
@@ -175,9 +126,6 @@ export const moveItem = <T,>(items: T[], index: number, direction: -1 | 1) => {
   return nextItems;
 };
 
-export const selectClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
-
 export const manuscriptSourceLabels: Record<StoryManuscriptDraft["source"], string> = {
   tavern: "酒馆",
   chat: "聊天框",
@@ -194,74 +142,3 @@ export const storyImportSourceLabels: Record<StoryImportSourceKind, string> = {
   worldBook: "世界书",
   unknown: "自动",
 };
-
-export const StoryMetric = ({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) => (
-  <div className="flex min-w-0 items-center gap-3 rounded-md border bg-background px-3 py-2">
-    <Icon className="size-4 shrink-0 text-muted-foreground" />
-    <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="truncate text-sm font-medium">{value}</div>
-    </div>
-  </div>
-);
-
-export const StorySection = ({
-  icon: Icon,
-  title,
-  description,
-  action,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) => (
-  <section className="rounded-lg border bg-background p-4">
-    <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
-      <div className="flex min-w-0 gap-2">
-        <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{title}</h3>
-          {description ? (
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-      </div>
-      {action}
-    </div>
-    {children}
-  </section>
-);
-
-export const EditorField = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) => (
-  <label className="block space-y-2">
-    <span className="text-sm font-medium">{label}</span>
-    {children}
-  </label>
-);
-
-export const EmptyBlock = ({ text }: { text: string }) => (
-  <div className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-    {text}
-  </div>
-);
-
-export const CountBadge = ({ count, label }: { count: number; label: string }) => (
-  <Badge variant="outline">{formatCount(count, label)}</Badge>
-);

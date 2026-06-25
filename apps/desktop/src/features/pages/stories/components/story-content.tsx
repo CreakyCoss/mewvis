@@ -14,12 +14,12 @@ import { StoryOverviewModule } from "./modules/overview";
 import { StoryScenesModule } from "./modules/scenes";
 import { StoryWorldModule } from "./modules/world";
 import type { StoryPresentationChannel } from "./presentations/registry";
+import type { StoryDraft } from "./story-form-utils";
+import { StoryMetric } from "./story-primitives";
 import {
   storyConfigTabs,
-  StoryMetric,
   type StoryConfigTab,
-  type StoryDraft,
-} from "./shared";
+} from "./story-tabs";
 
 type StoryContentProps = {
   activeTab: StoryConfigTab;

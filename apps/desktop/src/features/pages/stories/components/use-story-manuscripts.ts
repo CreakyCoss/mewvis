@@ -14,7 +14,7 @@ import {
   type StoryManuscriptDraftUpdateInput,
   type StoryManuscriptSubmissionInput,
 } from "@/features/story";
-import { getPendingDraftCount } from "./shared";
+import { getPendingDraftCount } from "./story-form-utils";
 
 type UseStoryManuscriptsInput = {
   activeStory: StoryAsset | null;

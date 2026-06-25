@@ -22,11 +22,13 @@ import {
   createStoryEdge,
   createStoryNode,
   createStoryStage,
+} from "../../story-form-utils";
+import {
   EditorField,
   EmptyBlock,
   selectClassName,
   StorySection,
-} from "../../shared";
+} from "../../story-primitives";
 import type { StoryModuleSave } from "../types";
 
 export type StoryGraphEditHandle = (story?: StoryAsset) => void;

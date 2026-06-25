@@ -18,7 +18,8 @@ import type {
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
 } from "@/features/story";
-import { EditorField, manuscriptSourceLabels, selectClassName } from "../../shared";
+import { manuscriptSourceLabels } from "../../story-form-utils";
+import { EditorField, selectClassName } from "../../story-primitives";
 
 export type StoryManuscriptEditHandle = {
   create: () => void;
