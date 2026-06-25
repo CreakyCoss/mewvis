@@ -1,0 +1,25 @@
+import {
+  resolveStoryNodeId,
+  type StoryPresentationAdapter,
+} from "./shared";
+
+export const chatStoryPresentation = {
+  channel: "chat",
+  open: ({
+    workspace,
+    activeStory,
+    navigate,
+    nodeId,
+  }) => {
+    const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
+    const search = [
+      `storyId=${encodeURIComponent(activeStory.id)}`,
+      targetNodeId ? `storyNodeId=${encodeURIComponent(targetNodeId)}` : "",
+    ].filter(Boolean).join("&");
+
+    navigate({
+      pathname: `/chat/${workspace.id}/new`,
+      search: search ? `?${search}` : "",
+    });
+  },
+} satisfies StoryPresentationAdapter<"chat">;
