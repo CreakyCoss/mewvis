@@ -5,8 +5,10 @@ import type {
   TavernProgressTrackerSettings,
   TavernProgressView,
   TavernRoomSettings,
+  TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusRule,
+  TavernTaskDefinition,
 } from "./types";
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
@@ -458,5 +460,147 @@ export const DEFAULT_TAVERN_STATUS_RULES: TavernStatusRule[] = [
       maxDeltaPerTurn: 20,
       requireExplicitEvidence: true,
     },
+  },
+];
+
+export const DEFAULT_TAVERN_TASK_DEFINITIONS: TavernTaskDefinition[] = [
+  {
+    id: "stabilize-scene-threat",
+    title: "稳定当前局势",
+    description: "当场景威胁升高时，需要通过明确行动把局势重新压回可控范围。",
+    scope: "scene",
+    owner: { type: "scene", sceneId: "current" },
+    visibility: "public",
+    required: true,
+    optional: false,
+    repeatable: false,
+    lifecycle: {
+      initialStatus: "inactive",
+      startCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        gte: 40,
+      },
+      completeCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        lte: 20,
+      },
+      failCondition: {
+        status: "threat_level",
+        target: { type: "scene" },
+        gte: 90,
+      },
+    },
+    onComplete: [
+      {
+        type: "messageInline",
+        visibility: "public",
+        text: "局势暂时稳定下来，新的选择窗口打开了。",
+      },
+      {
+        type: "replyOptions",
+        options: [
+          {
+            id: "progress-reply-check-party",
+            text: "确认每个人的状态。",
+            targetCharacterIds: [],
+            intent: "inspect",
+          },
+          {
+            id: "progress-reply-press-on",
+            text: "趁局势稳定继续推进。",
+            targetCharacterIds: [],
+            intent: "act",
+          },
+        ],
+      },
+    ],
+    onFail: [
+      {
+        type: "messageInline",
+        visibility: "public",
+        text: "局势已经失控，所有人都能感到危险正在逼近。",
+      },
+      {
+        type: "directorDirective",
+        instruction: "下一轮聚焦失控后果和角色反应，不要替用户选择撤退或牺牲。",
+      },
+    ],
+  },
+  {
+    id: "earn-trust-through-help",
+    title: "赢得同伴信任",
+    description: "通过两次明确帮助或保护行动，让至少一位同伴建立信任。",
+    scope: "personal",
+    owner: { type: "user", userId: "user" },
+    visibility: "owner",
+    required: false,
+    optional: true,
+    repeatable: false,
+    lifecycle: {
+      initialStatus: "active",
+      completeCondition: {
+        factEvent: "help",
+        actor: { type: "user", userId: "user" },
+        countGte: 2,
+      },
+      failCondition: {
+        factEvent: "betrayal",
+        actor: { type: "user", userId: "user" },
+        countGte: 1,
+      },
+    },
+    onComplete: [
+      {
+        type: "messageInline",
+        visibility: "owner",
+        text: "至少一位同伴开始更愿意相信你的判断。",
+      },
+    ],
+  },
+];
+
+export const DEFAULT_TAVERN_SCENE_OUTCOMES: TavernSceneOutcomeDefinition[] = [
+  {
+    id: "scene-stabilized-success",
+    label: "局势已稳定",
+    winner: [{ type: "user", userId: "user" }],
+    condition: {
+      task: "stabilize-scene-threat",
+      owner: { type: "scene", sceneId: "current" },
+      status: "completed",
+    },
+    priority: 60,
+    exclusive: false,
+    endScene: "suggest",
+    visibility: "public",
+    onAchieved: [
+      {
+        type: "replyOptions",
+        options: [
+          {
+            id: "progress-reply-end-scene",
+            text: "确认这一阶段暂时告一段落。",
+            targetCharacterIds: [],
+            intent: "act",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "scene-overwhelmed-failure",
+    label: "局势失控",
+    loser: [{ type: "user", userId: "user" }],
+    condition: {
+      status: "threat_level",
+      target: { type: "scene" },
+      gte: 90,
+    },
+    priority: 100,
+    exclusive: true,
+    endScene: "suggest",
+    visibility: "public",
   },
 ];
