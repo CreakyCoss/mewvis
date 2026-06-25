@@ -110,6 +110,7 @@ import {
 } from "./scene-prompt-overrides";
 import {
   buildSceneInstancesForRuns,
+  resolveActiveSceneInstance,
 } from "./scene-instances";
 import {
   DEFAULT_TAVERN_PROGRESS_TRACKER,
@@ -2353,29 +2354,6 @@ const createDefaultStoryGraph = (
     nodes: nodes.length > 0 ? nodes : [entryNode],
     edges,
   };
-};
-
-const resolveActiveSceneInstance = (
-  room: Pick<
-    TavernRoom,
-    "id" | "activeRunId" | "activeSceneInstanceId" | "storyRuns" | "storyGraph" | "sceneInstances"
-  >,
-) => {
-  const explicitInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  );
-  if (explicitInstance) {
-    return explicitInstance;
-  }
-
-  const activeRun = resolveActiveRun(room.storyRuns, room.activeRunId);
-  const pathNodeIds = resolveRunNodePrefix(activeRun, room.storyGraph.activeNodeId);
-  const scopedInstanceId = pathNodeIds.length > 0
-    ? createRouteScopedSceneInstanceId(room.id, pathNodeIds)
-    : "";
-  return room.sceneInstances.find((instance) => instance.id === scopedInstanceId) ??
-    room.sceneInstances[0] ??
-    null;
 };
 
 const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
