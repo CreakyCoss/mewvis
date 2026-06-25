@@ -23,6 +23,7 @@ const defaultsPath = resolve(workspaceRoot, "src/features/pages/tavern/defaults.
 const generatedPresetParserPath = resolve(workspaceRoot, "src/features/pages/tavern/importers/generated-preset-parser.ts");
 const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/generated-preset-room.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
+const sceneBuilderPath = resolve(workspaceRoot, "src/features/pages/tavern/story-model/scene-builder.ts");
 const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/tavern/state/state-normalizer.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/state/storage.ts");
 const systemPresetRegistryPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-registry.ts");
@@ -96,6 +97,9 @@ writeFileSync(entryPath, `
   import {
     createTavernRoom,
   } from ${JSON.stringify(manualFactoriesPath)};
+  import {
+    buildTavernScene,
+  } from ${JSON.stringify(sceneBuilderPath)};
   import {
     createTavernRoomFromGeneratedPresetJson,
   } from ${JSON.stringify(generatedPresetRoomPath)};
@@ -249,7 +253,40 @@ writeFileSync(entryPath, `
     (snapshot, patch) => setTavernStatusSnapshotValue(snapshot, patch.target, patch.statusId, patch.value),
     createEmptyTavernStatusSnapshot("turn-0", now),
   );
-  const room = {
+  const alphaScene = buildTavernScene({
+    id: "scene-alpha",
+    title: "测试节点",
+    scenePresetId: "tavern",
+    scene: "一间用于测试的酒馆。",
+    sceneGoal: "",
+    plot: "",
+    storyDirection: "",
+    transition: "",
+    memory: "",
+    sceneStatus: undefined,
+    characterPublicStatuses: {},
+    characterPrivateStatuses: {},
+    pendingInteractions: [],
+    replyOptions: [],
+    factEvents: [],
+    statusEvents: [],
+    statusSnapshot: initialProgressSnapshot,
+    statusCheckpoints: [],
+    taskDefinitions: [],
+    taskEvents: [],
+    taskSnapshot: {},
+    sceneOutcomes: [],
+    outcomeEvents: [],
+    characterConfigs: {},
+    characterMemories: {},
+    illustrationHints: [],
+    assetDrafts: [],
+    characterIds: ["char-a", "char-b"],
+    activeCharacterId: "char-a",
+    createdAt: now,
+    updatedAt: now,
+  });
+  const room = projectTavernSceneOntoRoom({
     id: "room-alpha",
     workspaceId: "workspace",
     locked: false,
@@ -279,7 +316,7 @@ writeFileSync(entryPath, `
     activeSceneInstanceId: "scene-instance-alpha",
     sceneInstances: [{ id: "scene-instance-alpha", sceneId: "scene-alpha" }],
     activeSceneId: "scene-alpha",
-    scenes: [],
+    scenes: [alphaScene],
     scenePresetId: "tavern",
     scene: "一间用于测试的酒馆。",
     sceneGoal: "",
@@ -450,7 +487,7 @@ writeFileSync(entryPath, `
     },
     createdAt: now,
     updatedAt: now,
-  };
+  });
   const characters = [
     {
       id: "char-a",
@@ -2325,8 +2362,8 @@ writeFileSync(entryPath, `
     progressCheckpoint,
     trimCheckpoint,
     syncedTrimSceneCheckpointIds:
-      syncedTrimCheckpointRoom.scenes?.find((scene) =>
-        scene.id === syncedTrimCheckpointRoom.activeSceneId
+      syncedTrimCheckpointRoom.sceneInstances.find((instance) =>
+        instance.id === syncedTrimCheckpointRoom.activeSceneInstanceId
       )?.statusCheckpoints.map((checkpoint) => checkpoint.id) ?? [],
     rebuiltFromTrimBossHealth: getTavernStatusSnapshotValue(
       rebuiltFromTrimCheckpoint.statusSnapshot,
@@ -2614,6 +2651,7 @@ writeFileSync(entryPath, `
       progress: tavernProgressTrackerAgentRoleId(room),
     },
     bridgeSessionRootDirs: {
+      activeSceneInstanceId: room.activeSceneInstanceId,
       active: tavernBridgeSessionRootDir(room),
       otherScene: tavernBridgeSessionRootDir({
         ...room,
@@ -2653,7 +2691,8 @@ try {
   const checks = globalThis.__checks;
 
   assert(
-    checks.bridgeSessionRootDirs.active === "tavern/room-alpha/scene-instances/scene-instance-alpha/bridge" &&
+    checks.bridgeSessionRootDirs.active ===
+        `tavern/room-alpha/scene-instances/${checks.bridgeSessionRootDirs.activeSceneInstanceId}/bridge` &&
       checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scene-instances/scene-instance-beta/bridge",
     "酒馆 bridge session 必须按当前节点场景实例隔离",
     checks.bridgeSessionRootDirs,

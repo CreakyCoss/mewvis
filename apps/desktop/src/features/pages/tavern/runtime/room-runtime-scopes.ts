@@ -24,7 +24,7 @@ import type {
 export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
   const scenes = room.scenes?.length
     ? room.scenes
-    : [buildTavernScene({}, room)];
+    : [buildTavernScene()];
   const graph = room.storyGraph?.nodes?.length
     ? normalizeStoryGraph(room.storyGraph, scenes)
     : createDefaultStoryGraph(scenes);

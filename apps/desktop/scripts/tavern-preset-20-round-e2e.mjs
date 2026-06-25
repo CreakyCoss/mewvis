@@ -21,20 +21,12 @@ const assert = (condition, message, details) => {
 writeFileSync(entryPath, `
   import {
     advanceTavernProgressFromFactEvents,
-    assignTavernRoleFacts,
-    filterTavernFactEventsForAudience,
     getTavernStatusSnapshotValue,
-    isTavernDirectorOnlyTurnAllowed,
-    isTavernFixedOrderPhase,
-    orderTavernRoundParticipants,
     resolveTavernScheduledSpeakers,
-    setTavernStatusSnapshotValue,
-    shouldSuppressTavernAutoContinuation,
   } from ${JSON.stringify(corePath)};
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
 
   const baseNow = 1_800_000_000_000;
-  const userRef = { type: "user", userId: "user" };
 
   const materializePreset = (presetId, characterIds, roomId) =>
     createTavernRoomFromSystemPreset("workspace-e2e", presetId, {
@@ -81,92 +73,106 @@ writeFileSync(entryPath, `
     status: "done",
   });
 
-  const statusOf = (room, characterId, statusId) =>
-    getTavernStatusSnapshotValue(
-      room.statusSnapshot,
-      { type: "character", characterId },
-      statusId,
-    );
-
-  const favorOf = (room, subject, object) =>
-    getTavernStatusSnapshotValue(
-      room.statusSnapshot,
-      { type: "relationship", subject, object },
-      "favorability",
-    );
-
-  const firstPositiveStep = () => {
-    let value = 0.11;
-    return () => {
-      value = (value + 0.37) % 1;
-      return value;
-    };
-  };
-
-  const runWerewolfTwentyRounds = () => {
-    const materialized = materializePreset(
-      "moonlit-werewolf-table",
-      {
-        "qiao-yu": "wolf-qiao",
-        "shen-mo": "wolf-shen",
-        "tan-luo": "wolf-tan",
-        "lin-yao": "wolf-lin",
-        "bai-shan": "wolf-bai",
+  const novelPresetCases = [
+    {
+      key: "raincity",
+      presetId: "raincity-silent-manuscript",
+      roomId: "room-raincity-20",
+      characterIds: {
+        "rc-ji-ling": "rain-ji",
+        "rc-yuan-ci": "rain-yuan",
+        "rc-su-yan": "rain-su",
+        "rc-he-mu": "rain-he",
       },
-      "room-werewolf-20",
+      targetCharacterId: "rain-yuan",
+      eventRounds: [
+        { round: 5, type: "fragment_found", target: { type: "scene" } },
+        { round: 10, type: "author_sheltered", target: { type: "global" } },
+        { round: 15, type: "voice_fragment", target: { type: "character", characterId: "rain-yuan" } },
+      ],
+      statusChecks: [
+        { scope: { type: "scene" }, statusId: "manuscript_integrity", expected: 60 },
+        { scope: { type: "global" }, statusId: "author_safety", expected: 70 },
+        { scope: { type: "character", characterId: "rain-yuan" }, statusId: "voice_recovery", expected: 50 },
+      ],
+      completedTaskId: "rc-recover-first-chapter",
+      outcomeId: "rc-manuscript-remembers",
+    },
+    {
+      key: "snowridge",
+      presetId: "snowridge-sword-oath",
+      roomId: "room-snowridge-20",
+      characterIds: {
+        "sx-lin-zhaoye": "snow-lin",
+        "sx-gu-tingxue": "snow-gu",
+        "sx-qiu-heng": "snow-qiu",
+        "sx-jingchen": "snow-jing",
+      },
+      targetCharacterId: "snow-gu",
+      eventRounds: [
+        { round: 5, type: "oath_verified", target: { type: "scene" } },
+        { round: 10, type: "ambush_deflected", target: { type: "global" } },
+        { round: 15, type: "wound_treated", target: { type: "character", characterId: "snow-lin" } },
+      ],
+      statusChecks: [
+        { scope: { type: "scene" }, statusId: "oath_clarity", expected: 55 },
+        { scope: { type: "global" }, statusId: "sect_pressure", expected: 45 },
+        { scope: { type: "character", characterId: "snow-lin" }, statusId: "wound_risk", expected: 35 },
+      ],
+      completedTaskId: "sx-read-oath-stone",
+      outcomeId: "sx-oath-restored",
+    },
+    {
+      key: "orbital",
+      presetId: "orbital-ashes-letter",
+      roomId: "room-orbital-20",
+      characterIds: {
+        "oa-lan-qiao": "orbit-lan",
+        "oa-mira": "orbit-mira",
+        "oa-ren-ke": "orbit-ren",
+        "oa-yi-sen": "orbit-yi",
+      },
+      targetCharacterId: "orbit-mira",
+      eventRounds: [
+        { round: 5, type: "signal_decoded", target: { type: "scene" } },
+        { round: 10, type: "orbit_stabilized", target: { type: "global" } },
+        { round: 15, type: "oxygen_restored", target: { type: "character", characterId: "orbit-ren" } },
+      ],
+      statusChecks: [
+        { scope: { type: "scene" }, statusId: "signal_integrity", expected: 65 },
+        { scope: { type: "global" }, statusId: "station_decay", expected: 47 },
+        { scope: { type: "character", characterId: "orbit-ren" }, statusId: "oxygen_margin", expected: 80 },
+      ],
+      completedTaskId: "oa-decode-ember-letter",
+      outcomeId: "oa-letter-opened",
+    },
+  ];
+
+  const normalizeEventTarget = (target, room) =>
+    target.type === "scene"
+      ? { type: "scene", sceneId: room.activeSceneId }
+      : target;
+
+  const runNovelPresetTwentyRounds = (presetCase) => {
+    const materialized = materializePreset(
+      presetCase.presetId,
+      presetCase.characterIds,
+      presetCase.roomId,
     );
     let room = materialized.room;
     const characters = materialized.characters;
     const messages = [...materialized.messages];
     const orders = [];
-    const eliminatedCharacterId = "wolf-shen";
-
-    const roleFacts = assignTavernRoleFacts({
-      room,
-      characters,
-      random: firstPositiveStep(),
-      turnId: "werewolf-role-assignment",
-      createdAt: baseNow + 10,
-    });
-    room = { ...room, factEvents: roleFacts };
-    const directorOnlyAtNight = isTavernDirectorOnlyTurnAllowed(room);
-    const nightScheduledSpeakerIds = resolveTavernScheduledSpeakers({
-      room,
-      availableCharacters: characters,
-      activeCharacterId: room.activeCharacterId,
-      directorSpeakerIds: ["wolf-qiao"],
-      selectedTargetCharacterIds: [],
-      fallbackCharacter: characters[0],
-    }).map((speaker) => speaker.id);
-    room = {
-      ...room,
-      statusSnapshot: setTavernStatusSnapshotValue(
-        room.statusSnapshot,
-        { type: "global" },
-        "werewolf_phase",
-        "day_discussion",
-      ),
-    };
-    const fixedOrderDuringDayDiscussion = isTavernFixedOrderPhase(room);
-    const suppressContinuationDuringDayDiscussion = shouldSuppressTavernAutoContinuation(room);
-    const openingConfig = room.settings.informationPolicy.roleAssignment.opening;
-    const participantOrderBeforeElimination = orderTavernRoundParticipants({
-      room,
-      characters,
-      activeCharacterId: room.activeCharacterId,
-      includeUser: room.settings.directorScheduling.fixedOrder.includeUser,
-      userPosition: room.settings.directorScheduling.fixedOrder.userPosition,
-      userPersonaName: room.userPersonaName,
-    }).map((participant) => participant.id);
+    const eventByRound = new Map(presetCase.eventRounds.map((event) => [event.round, event]));
 
     for (let round = 1; round <= 20; round += 1) {
-      const turnId = \`werewolf-turn-\${round}\`;
+      const turnId = \`\${presetCase.key}-turn-\${round}\`;
       const createdAt = baseNow + round * 1_000;
       messages.push(createMessage({
-        id: \`werewolf-user-\${round}\`,
+        id: \`\${presetCase.key}-user-\${round}\`,
         room,
         role: "user",
-        content: \`第 \${round} 轮，我要求所有存活者按顺序说出可公开证词。\`,
+        content: \`第 \${round} 轮，我推进当前小说节点，但不替角色做决定。\`,
         turnId,
         createdAt,
       }));
@@ -175,237 +181,71 @@ writeFileSync(entryPath, `
         room,
         availableCharacters: characters,
         activeCharacterId: room.activeCharacterId,
-        directorSpeakerIds: ["wolf-tan"],
-        selectedTargetCharacterIds: ["wolf-lin"],
+        directorSpeakerIds: [characters[round % characters.length]?.id ?? characters[0].id],
+        selectedTargetCharacterIds: [presetCase.targetCharacterId],
         fallbackCharacter: characters[0],
       });
       orders.push(speakers.map((speaker) => speaker.id));
       for (const [speakerIndex, speaker] of speakers.entries()) {
         messages.push(createMessage({
-          id: \`werewolf-\${round}-speaker-\${speaker.id}\`,
+          id: \`\${presetCase.key}-\${round}-speaker-\${speaker.id}\`,
           room,
           role: "character",
           characterId: speaker.id,
-          content: \`\${speaker.name}第 \${round} 轮只回应公开发言，不替任何人宣布身份。\`,
-          thought: \`\${speaker.name}保留自己的未公开判断。\`,
+          content: \`\${speaker.name}第 \${round} 轮只按当前节点信息回应。\`,
           turnId,
           createdAt: createdAt + speakerIndex + 1,
         }));
       }
 
-      const factEvents = [];
-      if (round === 6) {
-        factEvents.push({
-          id: "werewolf-fact-eliminate-shen",
-          turnId,
-          sourceMessageIds: [\`werewolf-\${round}-speaker-\${eliminatedCharacterId}\`],
-          type: "player_eliminated",
-          target: { type: "character", characterId: eliminatedCharacterId },
-          evidence: "第 6 轮投票公开结算：沈墨出局，之后不能继续白天发言。",
-          confidence: 0.98,
-          visibility: "public",
-          createdAt: createdAt + 200,
-        });
-      }
-      if (round === 20) {
-        factEvents.push({
-          id: "werewolf-fact-expose-wolf",
-          turnId,
-          sourceMessageIds: [\`werewolf-user-\${round}\`],
-          type: "wolf_exposed",
-          target: { type: "character", characterId: "wolf-tan" },
-          evidence: "第 20 轮公开证词完成闭环，狼人身份被确认。",
-          confidence: 0.96,
-          visibility: "public",
-          createdAt: createdAt + 210,
-        });
-      }
-
-      if (factEvents.length > 0) {
+      const event = eventByRound.get(round);
+      if (event) {
         room = applyProgressPatch(
           room,
           advanceTavernProgressFromFactEvents({
             room,
-            factEvents,
+            factEvents: [{
+              id: \`\${presetCase.key}-fact-\${event.type}\`,
+              turnId,
+              sourceMessageIds: [\`\${presetCase.key}-user-\${round}\`],
+              type: event.type,
+              target: normalizeEventTarget(event.target, room),
+              evidence: \`第 \${round} 轮出现了与 \${event.type} 对应的明确证据。\`,
+              confidence: 0.95,
+              visibility: "public",
+              createdAt: createdAt + 200,
+            }],
             turnId,
             createdAt: createdAt + 300,
           }),
         );
-        room = {
-          ...room,
-          statusSnapshot: setTavernStatusSnapshotValue(
-            room.statusSnapshot,
-            { type: "global" },
-            "werewolf_phase",
-            "day_discussion",
-          ),
-        };
       }
     }
 
-    const participantOrderAfterElimination = orderTavernRoundParticipants({
-      room,
-      characters,
-      activeCharacterId: room.activeCharacterId,
-      includeUser: room.settings.directorScheduling.fixedOrder.includeUser,
-      userPosition: room.settings.directorScheduling.fixedOrder.userPosition,
-      userPersonaName: room.userPersonaName,
-    }).map((participant) => participant.id);
-
     return {
+      presetId: presetCase.presetId,
       room,
       characters,
       messages,
-      roleFacts,
-      directorRoleFactsCount: filterTavernFactEventsForAudience({
-        factEvents: roleFacts,
-        room,
-        audience: { type: "director" },
-      }).length,
-      userVisibleRoleFactsCount: filterTavernFactEventsForAudience({
-        factEvents: roleFacts,
-        room,
-        audience: { type: "user" },
-      }).length,
-      publicRoleFactsCount: filterTavernFactEventsForAudience({
-        factEvents: roleFacts,
-        room,
-        audience: { type: "public" },
-      }).length,
       orders,
-      directorOnlyAtNight,
-      nightScheduledSpeakerIds,
-      fixedOrderDuringDayDiscussion,
-      suppressContinuationDuringDayDiscussion,
-      openingConfig,
-      participantOrderBeforeElimination,
-      participantOrderAfterElimination,
-      eliminatedCharacterId,
-      eliminatedPlayerState: statusOf(room, eliminatedCharacterId, "player_state"),
-    };
-  };
-
-  const runWinTheirHeartsTwentyRounds = () => {
-    const materialized = materializePreset(
-      "win-their-hearts-duel",
-      {
-        "ye-xiaoman": "route-ye",
-        "liu-qingshuang": "route-liu",
-      },
-      "room-win-hearts-20",
-    );
-    let room = materialized.room;
-    const characters = materialized.characters;
-    const messages = [...materialized.messages];
-    const yeRef = { type: "character", characterId: "route-ye" };
-    const liuRef = { type: "character", characterId: "route-liu" };
-    const yeFavorByRound = [];
-    const targetCanStaySilentSpeakerIds = resolveTavernScheduledSpeakers({
-      room,
-      availableCharacters: characters,
-      activeCharacterId: room.activeCharacterId,
-      directorSpeakerIds: [],
-      selectedTargetCharacterIds: ["route-ye"],
-      fallbackCharacter: characters[0],
-    }).map((speaker) => speaker.id);
-    const motivatedOtherSpeakerIds = resolveTavernScheduledSpeakers({
-      room,
-      availableCharacters: characters,
-      activeCharacterId: room.activeCharacterId,
-      directorSpeakerIds: ["route-liu"],
-      selectedTargetCharacterIds: ["route-ye"],
-      fallbackCharacter: characters[0],
-    }).map((speaker) => speaker.id);
-    const nonverbalCueSpeakerIds = resolveTavernScheduledSpeakers({
-      room,
-      availableCharacters: characters,
-      activeCharacterId: room.activeCharacterId,
-      directorSpeakerIds: ["route-ye"],
-      selectedTargetCharacterIds: ["route-ye"],
-      currentUserText: "叶小满，你不用回答，只用动作表示是否不快。",
-      fallbackCharacter: characters[0],
-    }).map((speaker) => speaker.id);
-    const directorNonverbalSpeakerIds = resolveTavernScheduledSpeakers({
-      room,
-      availableCharacters: characters,
-      activeCharacterId: room.activeCharacterId,
-      directorSpeakerIds: [],
-      directorNonverbalReplyIds: ["route-ye"],
-      selectedTargetCharacterIds: [],
-      currentUserText: "小满，你不用回答。",
-      fallbackCharacter: characters[0],
-    }).map((speaker) => speaker.id);
-
-    for (let round = 1; round <= 20; round += 1) {
-      const turnId = \`hearts-turn-\${round}\`;
-      const createdAt = baseNow + round * 1_000;
-      messages.push(createMessage({
-        id: \`hearts-user-\${round}\`,
-        room,
-        role: "user",
-        content: \`第 \${round} 轮，我用一个具体行动支持叶小满的店长计划，同时礼貌回应柳青霜。\`,
-        turnId,
-        createdAt,
-      }));
-      const scriptedSpeakers = round % 4 === 0
-        ? characters
-        : characters.filter((character) => character.id === "route-ye");
-      for (const [speakerIndex, speaker] of scriptedSpeakers.entries()) {
-        messages.push(createMessage({
-          id: \`hearts-\${round}-speaker-\${speaker.id}\`,
-          room,
-          role: "character",
-          characterId: speaker.id,
-          content: \`\${speaker.name}第 \${round} 轮按自己的人设回应，不替另一位角色做决定。\`,
-          turnId,
-          createdAt: createdAt + speakerIndex + 1,
-        }));
-      }
-
-      room = applyProgressPatch(
-        room,
-        advanceTavernProgressFromFactEvents({
-          room,
-          factEvents: [{
-            id: \`hearts-fact-help-ye-\${round}\`,
-            turnId,
-            sourceMessageIds: [\`hearts-user-\${round}\`],
-            type: "help",
-            actor: userRef,
-            target: yeRef,
-            value: 4,
-            evidence: \`第 \${round} 轮用户提供了明确、可观察的支持行动。\`,
-            confidence: 0.95,
-            visibility: "public",
-            createdAt: createdAt + 200,
-          }],
-          turnId,
-          createdAt: createdAt + 300,
-        }),
-      );
-      yeFavorByRound.push(favorOf(room, yeRef, userRef));
-    }
-
-    return {
-      room,
-      characters,
-      messages,
-      yeRef,
-      liuRef,
-      yeFavorByRound,
-      targetCanStaySilentSpeakerIds,
-      motivatedOtherSpeakerIds,
-      nonverbalCueSpeakerIds,
-      directorNonverbalSpeakerIds,
-      yeFavorFinal: favorOf(room, yeRef, userRef),
-      liuFavorFinal: favorOf(room, liuRef, userRef),
-      reverseYeFavor: favorOf(room, userRef, yeRef),
+      mappedCharacterIds: characters.map((character) => character.id),
+      statusValues: Object.fromEntries(presetCase.statusChecks.map((check) => [
+        check.statusId,
+        getTavernStatusSnapshotValue(room.statusSnapshot, check.scope, check.statusId),
+      ])),
+      expectedStatusValues: Object.fromEntries(presetCase.statusChecks.map((check) => [
+        check.statusId,
+        check.expected,
+      ])),
+      completedTaskId: presetCase.completedTaskId,
+      completedTaskStatus: room.taskSnapshot[presetCase.completedTaskId]?.status,
+      outcomeId: presetCase.outcomeId,
+      hasOutcome: room.outcomeEvents.some((event) => event.outcomeId === presetCase.outcomeId),
     };
   };
 
   globalThis.__tavernPresetTwentyRoundChecks = {
-    werewolf: runWerewolfTwentyRounds(),
-    winTheirHearts: runWinTheirHeartsTwentyRounds(),
+    presets: novelPresetCases.map(runNovelPresetTwentyRounds),
   };
 `, "utf8");
 
@@ -435,196 +275,73 @@ try {
   const checks = globalThis.__tavernPresetTwentyRoundChecks;
   assert(checks, "20-round preset checks did not run");
 
-  const { werewolf, winTheirHearts } = checks;
-  assert(werewolf.room.replyMode === "director", "Werewolf preset must use director reply mode", {
-    replyMode: werewolf.room.replyMode,
+  const { presets } = checks;
+  assert(Array.isArray(presets) && presets.length === 3, "Novel preset 20-round checks should cover all current presets", {
+    presetCount: presets?.length,
   });
-  assert(werewolf.directorOnlyAtNight, "Werewolf night phase should allow director-only turns");
-  assert(
-    werewolf.nightScheduledSpeakerIds.length === 0,
-    "Werewolf director-only night should force an empty speaker queue",
-    { nightScheduledSpeakerIds: werewolf.nightScheduledSpeakerIds },
-  );
-  assert(werewolf.fixedOrderDuringDayDiscussion, "Werewolf day discussion should be a fixed-order phase");
-  assert(
-    werewolf.suppressContinuationDuringDayDiscussion,
-    "Werewolf day discussion should suppress automatic continuation",
-  );
-  assert(
-    werewolf.openingConfig.autoStart &&
-      werewolf.openingConfig.publicEventType === "phase_started" &&
-      werewolf.openingConfig.publicEventValue === "day_discussion",
-    "Werewolf preset should declare generic director role-assignment opening behavior",
-    { openingConfig: werewolf.openingConfig },
-  );
-  assert(
-    werewolf.participantOrderBeforeElimination.join("|") === "user|wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
-    "Werewolf fixed-order participants should include the user as the first seat before NPC speeches",
-    { participantOrderBeforeElimination: werewolf.participantOrderBeforeElimination },
-  );
-  assert(
-    werewolf.participantOrderAfterElimination.join("|") === "user|wolf-qiao|wolf-tan|wolf-lin|wolf-bai",
-    "Werewolf fixed-order participants should keep the user seat and skip eliminated characters",
-    { participantOrderAfterElimination: werewolf.participantOrderAfterElimination },
-  );
-  assert(werewolf.roleFacts.length === 6, "Werewolf role assignment should cover user plus 5 characters", {
-    roleFactCount: werewolf.roleFacts.length,
-  });
-  assert(
-    werewolf.directorRoleFactsCount === 6,
-    "Director should see all generated werewolf role facts",
-  );
-  assert(
-    werewolf.userVisibleRoleFactsCount >= 1 && werewolf.userVisibleRoleFactsCount < 6,
-    "User should only see their allowed private role facts before reveal",
-    { userVisibleRoleFactCount: werewolf.userVisibleRoleFactsCount },
-  );
-  assert(werewolf.publicRoleFactsCount === 0, "Public view must not see hidden werewolf role facts", {
-    publicRoleFactCount: werewolf.publicRoleFactsCount,
-  });
-  assert(
-    werewolf.orders.slice(0, 6).every((order) =>
-      order.join("|") === "wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai"
-    ),
-    "Werewolf fixed-order day discussion should use seat order before elimination",
-    { orders: werewolf.orders.slice(0, 6) },
-  );
-  assert(
-    werewolf.orders.slice(6).every((order) =>
-      order.join("|") === "wolf-qiao|wolf-tan|wolf-lin|wolf-bai"
-    ),
-    "Eliminated werewolf player should be skipped after the elimination round in fixed order",
-    { ordersAfterElimination: werewolf.orders.slice(6, 10) },
-  );
-  assert(
-    werewolf.eliminatedPlayerState === "eliminated",
-    "Werewolf elimination fact should update player_state",
-    {
-      playerState: werewolf.eliminatedPlayerState,
-    },
-  );
-  assert(
-    werewolf.room.taskSnapshot["identify-wolves"]?.status === "completed",
-    "Werewolf 20th round should complete identify-wolves task",
-    { taskSnapshot: werewolf.room.taskSnapshot },
-  );
-  assert(
-    werewolf.room.outcomeEvents.some((event) => event.outcomeId === "villagers-win"),
-    "Werewolf 20th round should produce villagers-win outcome event",
-    { outcomeEvents: werewolf.room.outcomeEvents },
-  );
 
-  assert(
-    winTheirHearts.room.replyMode === "director",
-    "Win-their-hearts preset should use director reply mode",
-    { replyMode: winTheirHearts.room.replyMode },
-  );
-  assert(
-    winTheirHearts.targetCanStaySilentSpeakerIds.length === 0,
-    "Prefer target policy should allow a directly addressed character to stay silent or react nonverbally",
-    { targetCanStaySilentSpeakerIds: winTheirHearts.targetCanStaySilentSpeakerIds },
-  );
-  assert(
-    winTheirHearts.motivatedOtherSpeakerIds.join("|") === "route-liu",
-    "Prefer target policy should allow a motivated non-target character to speak without forcing the target to speak",
-    { motivatedOtherSpeakerIds: winTheirHearts.motivatedOtherSpeakerIds },
-  );
-  assert(
-    winTheirHearts.nonverbalCueSpeakerIds.join("|") === "route-ye",
-    "Explicit nonverbal target cues should schedule the addressed character for a nonverbal character reply",
-    { nonverbalCueSpeakerIds: winTheirHearts.nonverbalCueSpeakerIds },
-  );
-  assert(
-    winTheirHearts.directorNonverbalSpeakerIds.join("|") === "route-ye",
-    "Director nonverbalReplyIds should schedule the addressed character even without a UI-selected target",
-    { directorNonverbalSpeakerIds: winTheirHearts.directorNonverbalSpeakerIds },
-  );
-  assert(
-    winTheirHearts.yeFavorByRound.length === 20,
-    "Win-their-hearts test should run exactly 20 rounds",
-    { rounds: winTheirHearts.yeFavorByRound.length },
-  );
-  assert(
-    winTheirHearts.yeFavorByRound.every((value, index) => value === 24 + index * 4),
-    "Ye favorability should rise predictably by explicit help events",
-    { yeFavorByRound: winTheirHearts.yeFavorByRound },
-  );
-  assert(
-    winTheirHearts.yeFavorFinal === 100,
-    "Ye -> user favorability should reach 100 after 20 rounds",
-    {
-      value: winTheirHearts.yeFavorFinal,
-    },
-  );
-  assert(
-    winTheirHearts.liuFavorFinal === 20,
-    "Liu -> user favorability should remain at the preset baseline",
-    {
-      value: winTheirHearts.liuFavorFinal,
-    },
-  );
-  assert(
-    winTheirHearts.reverseYeFavor === null,
-    "Relationship update must not be written in the reverse user -> Ye direction",
-    {
-      reverseValue: winTheirHearts.reverseYeFavor,
-    },
-  );
-  assert(
-    winTheirHearts.room.taskSnapshot["win-ye-xiaoman-heart"]?.status === "completed",
-    "Ye route task should complete when Ye -> user favorability reaches 100",
-    { taskSnapshot: winTheirHearts.room.taskSnapshot },
-  );
-  assert(
-    winTheirHearts.room.taskSnapshot["win-liu-qingshuang-heart"]?.status !== "completed",
-    "Liu route task should not complete when only Ye was helped",
-    { taskSnapshot: winTheirHearts.room.taskSnapshot },
-  );
-  assert(
-    winTheirHearts.room.outcomeEvents.some((event) => event.outcomeId === "ye-route-clear"),
-    "Ye route clear outcome should be emitted",
-    { outcomeEvents: winTheirHearts.room.outcomeEvents },
-  );
-  assert(
-    !winTheirHearts.room.outcomeEvents.some((event) => event.outcomeId === "liu-route-clear"),
-    "Liu route outcome should not be emitted",
-    { outcomeEvents: winTheirHearts.room.outcomeEvents },
-  );
+  for (const preset of presets) {
+    assert(preset.room.replyMode === "director", "Novel preset should use director reply mode", {
+      presetId: preset.presetId,
+      replyMode: preset.room.replyMode,
+    });
+    assert(preset.orders.length === 20, "Novel preset should run exactly 20 rounds", {
+      presetId: preset.presetId,
+      rounds: preset.orders.length,
+    });
+    assert(
+      preset.orders.every((order) => order.length > 0),
+      "Novel preset scheduling should keep at least one speaker each round",
+      { presetId: preset.presetId, orders: preset.orders },
+    );
+    assert(
+      preset.mappedCharacterIds.every((characterId) =>
+        preset.orders.some((order) => order.includes(characterId))
+      ),
+      "Novel preset mapped characters should all appear in 20-round scheduling",
+      { presetId: preset.presetId, mappedCharacterIds: preset.mappedCharacterIds, orders: preset.orders },
+    );
+    assert(
+      Object.entries(preset.expectedStatusValues).every(([statusId, expected]) =>
+        preset.statusValues[statusId] === expected
+      ),
+      "Novel preset progress events should update configured statuses",
+      {
+        presetId: preset.presetId,
+        statusValues: preset.statusValues,
+        expectedStatusValues: preset.expectedStatusValues,
+      },
+    );
+    assert(
+      preset.completedTaskStatus === "completed",
+      "Novel preset primary task should complete during 20-round progression",
+      {
+        presetId: preset.presetId,
+        taskId: preset.completedTaskId,
+        taskStatus: preset.completedTaskStatus,
+      },
+    );
+    assert(
+      preset.hasOutcome,
+      "Novel preset primary outcome should be emitted during 20-round progression",
+      {
+        presetId: preset.presetId,
+        outcomeId: preset.outcomeId,
+        outcomeEvents: preset.room.outcomeEvents,
+      },
+    );
+  }
 
   const summary = {
     ok: true,
-    werewolf: {
-      rounds: werewolf.orders.length,
-      roleFacts: werewolf.roleFacts.length,
-      publicRoleFacts: werewolf.publicRoleFactsCount,
-      userVisibleRoleFacts: werewolf.userVisibleRoleFactsCount,
-      directorOnlyAtNight: werewolf.directorOnlyAtNight,
-      nightScheduledSpeakerIds: werewolf.nightScheduledSpeakerIds,
-      fixedOrderDuringDayDiscussion: werewolf.fixedOrderDuringDayDiscussion,
-      suppressContinuationDuringDayDiscussion: werewolf.suppressContinuationDuringDayDiscussion,
-      openingConfig: werewolf.openingConfig,
-      participantOrderBeforeElimination: werewolf.participantOrderBeforeElimination,
-      participantOrderAfterElimination: werewolf.participantOrderAfterElimination,
-      ordersBeforeElimination: werewolf.orders.slice(0, 2),
-      orderAfterElimination: werewolf.orders[6],
-      eliminatedPlayerState: werewolf.eliminatedPlayerState,
-      completedTask: werewolf.room.taskSnapshot["identify-wolves"]?.status,
-      outcomes: werewolf.room.outcomeEvents.map((event) => event.outcomeId),
-    },
-    winTheirHearts: {
-      rounds: winTheirHearts.yeFavorByRound.length,
-      yeFavorFinal: winTheirHearts.yeFavorFinal,
-      liuFavorFinal: winTheirHearts.liuFavorFinal,
-      reverseYeFavor: winTheirHearts.reverseYeFavor,
-      targetCanStaySilentSpeakerIds: winTheirHearts.targetCanStaySilentSpeakerIds,
-      motivatedOtherSpeakerIds: winTheirHearts.motivatedOtherSpeakerIds,
-      nonverbalCueSpeakerIds: winTheirHearts.nonverbalCueSpeakerIds,
-      directorNonverbalSpeakerIds: winTheirHearts.directorNonverbalSpeakerIds,
-      completedTasks: Object.fromEntries(
-        Object.entries(winTheirHearts.room.taskSnapshot).map(([key, value]) => [key, value.status]),
-      ),
-      outcomes: winTheirHearts.room.outcomeEvents.map((event) => event.outcomeId),
-    },
+    presets: presets.map((preset) => ({
+      presetId: preset.presetId,
+      rounds: preset.orders.length,
+      mappedCharacterIds: preset.mappedCharacterIds,
+      statusValues: preset.statusValues,
+      completedTask: preset.completedTaskStatus,
+      outcomes: preset.room.outcomeEvents.map((event) => event.outcomeId),
+    })),
   };
 
   console.log(JSON.stringify(summary, null, 2));

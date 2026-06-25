@@ -2,10 +2,11 @@ import {
   projectTavernSceneOntoRoom,
 } from "../runtime/active-scene-runtime";
 import {
-  normalizeAssetDraft,
-  normalizeIllustrationHints,
   normalizeLorebookEntry,
 } from "../normalizers/asset-normalizers";
+import {
+  projectTavernSceneFieldsOntoRoom,
+} from "../runtime/scene-field-projection";
 import {
   normalizeTavernCharacter,
 } from "../normalizers/character-normalizers";
@@ -15,9 +16,6 @@ import {
 import {
   materializeTavernMessage,
 } from "../message";
-import {
-  normalizeStringRecord,
-} from "../normalizers/normalization";
 import {
   createDefaultPromptForPresentation,
   normalizeRoomPresentation,
@@ -29,29 +27,12 @@ import {
   normalizeReplyMode,
 } from "../normalizers/reply-mode";
 import {
-  normalizeSceneRelationshipOverrides,
-} from "../normalizers/relationships";
-import {
-  normalizeRoomCharacterConfigs,
-  roomCharacterMemoriesFromConfigs,
-} from "../normalizers/room-character-configs";
-import {
   normalizeRoomSettings,
 } from "../normalizers/room-settings";
 import {
   buildTavernScene,
-  defaultSceneTitle,
-  normalizeRoomScenePresetId,
 } from "../story-model/scene-builder";
 import {
-  normalizeCharacterPrivateStatuses,
-  normalizeCharacterPublicStatuses,
-  normalizePendingInteraction,
-  normalizeReplyOption,
-  normalizeSceneStatus,
-} from "../normalizers/scene-state-normalizers";
-import {
-  createDefaultStoryGraph,
   normalizeStoryGraph,
 } from "../story-model/story-graph";
 import {
@@ -66,27 +47,15 @@ import {
   tavernSystemPresets,
 } from "../system-preset-registry";
 import {
-  normalizeFactEvents,
-  normalizeOutcomeEvents,
-  normalizeProgressCheckpoints,
   normalizeProgressTracker,
   normalizeProgressViews,
-  normalizeSceneOutcomes,
   normalizeStatusDefinitions,
-  normalizeStatusEvents,
   normalizeStatusRules,
-  normalizeStatusSnapshot,
-  normalizeTaskDefinitions,
-  normalizeTaskEvents,
-  normalizeTaskSnapshot,
 } from "../normalizers/status-normalizers";
 import type {
-  TavernAssetDraft,
   TavernCharacter,
   TavernLorebookEntry,
   TavernMessage,
-  TavernPendingInteraction,
-  TavernReplyOption,
   TavernRoom,
   TavernState,
 } from "../types";
@@ -179,6 +148,7 @@ export const normalizeTavernState = (
       Array.isArray(room.storyGraph.nodes) &&
       Array.isArray(room.storyGraph.edges) &&
       Array.isArray(room.scenes) &&
+      room.scenes.length > 0 &&
       Array.isArray(room.sceneInstances),
     )
   ).map((room) => {
@@ -186,11 +156,6 @@ export const normalizeTavernState = (
     const normalizedAt = Date.now();
     const systemPresetId = normalizeSystemPresetId(sourceRoom.systemPresetId);
     const systemPreset = getTavernSystemPreset(systemPresetId);
-    const characterMemories = normalizeStringRecord(sourceRoom.characterMemories);
-    const characterConfigs = normalizeRoomCharacterConfigs(
-      sourceRoom.characterConfigs,
-      characterMemories,
-    );
     const localCharacters = Array.isArray(sourceRoom.localCharacters)
       ? (sourceRoom.localCharacters ?? [])
           .filter((character): character is TavernCharacter =>
@@ -201,8 +166,21 @@ export const normalizeTavernState = (
     const presentation = normalizeRoomPresentation({
       presentation: sourceRoom.presentation,
     });
+    const scenes = (sourceRoom.scenes ?? [])
+      .map((scene) => buildTavernScene(scene))
+      .sort((left, right) => left.order - right.order)
+      .map((scene, index) => ({ ...scene, order: index }));
+    const activeSceneId = scenes.some((scene) => scene.id === sourceRoom.activeSceneId)
+      ? sourceRoom.activeSceneId
+      : scenes[0].id;
+    const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? scenes[0];
+    const createdAt = typeof sourceRoom.createdAt === "number"
+      ? sourceRoom.createdAt
+      : normalizedAt;
     const roomIdentity = {
-      ...room,
+      id: room.id,
+      workspaceId: room.workspaceId,
+      title: room.title,
       systemPresetId: systemPreset?.id,
       systemPresetVersion: systemPreset
         ? typeof sourceRoom.systemPresetVersion === "number"
@@ -216,6 +194,10 @@ export const normalizeTavernState = (
         sourceRoom.creationSource === "agent_generated"
           ? sourceRoom.creationSource
           : "manual" as const,
+      createdAt,
+      updatedAt: typeof sourceRoom.updatedAt === "number"
+        ? sourceRoom.updatedAt
+        : normalizedAt,
     };
     const roomPrompt = {
       presentation,
@@ -228,7 +210,7 @@ export const normalizeTavernState = (
       storyBinding: normalizeTavernStoryBinding(
         sourceRoom.storyBinding,
         room.id,
-        typeof sourceRoom.createdAt === "number" ? sourceRoom.createdAt : normalizedAt,
+        createdAt,
       ),
       storyOutline: typeof sourceRoom.storyOutline === "string"
         ? sourceRoom.storyOutline ?? ""
@@ -236,7 +218,7 @@ export const normalizeTavernState = (
       storyGoal: typeof sourceRoom.storyGoal === "string"
         ? sourceRoom.storyGoal ?? ""
         : "",
-      storyGraph: createDefaultStoryGraph([]),
+      storyGraph: normalizeStoryGraph(sourceRoom.storyGraph, scenes),
       storyRuns: Array.isArray(sourceRoom.storyRuns) ? sourceRoom.storyRuns ?? [] : [],
       activeRunId: typeof sourceRoom.activeRunId === "string"
         ? sourceRoom.activeRunId
@@ -247,62 +229,14 @@ export const normalizeTavernState = (
       sceneInstances: Array.isArray(sourceRoom.sceneInstances)
         ? sourceRoom.sceneInstances ?? []
         : [],
-    };
-    const roomSceneDraft = {
-      scenePresetId: normalizeRoomScenePresetId(room),
-      memory: typeof sourceRoom.memory === "string" ? sourceRoom.memory ?? "" : "",
-      sceneGoal: typeof sourceRoom.sceneGoal === "string" ? sourceRoom.sceneGoal ?? "" : "",
-      scenePlot: typeof sourceRoom.scenePlot === "string" ? sourceRoom.scenePlot ?? "" : "",
-      sceneDirection: typeof sourceRoom.sceneDirection === "string" ? sourceRoom.sceneDirection ?? "" : "",
-      sceneTransition: typeof sourceRoom.sceneTransition === "string" ? sourceRoom.sceneTransition ?? "" : "",
-      relationshipOverrides: normalizeSceneRelationshipOverrides(
-        sourceRoom.relationshipOverrides,
-        normalizedAt,
-      ),
-    };
-    const characterIds = Array.isArray(sourceRoom.characterIds) ? sourceRoom.characterIds : [];
-    const roomSceneState = {
-      sceneStatus: normalizeSceneStatus(sourceRoom.sceneStatus, normalizedAt),
-      characterPublicStatuses: normalizeCharacterPublicStatuses(
-        sourceRoom.characterPublicStatuses,
-        characterIds,
-        undefined,
-        normalizedAt,
-      ),
-      characterPrivateStatuses: normalizeCharacterPrivateStatuses(
-        sourceRoom.characterPrivateStatuses,
-        characterIds,
-        undefined,
-        normalizedAt,
-      ),
-      pendingInteractions: Array.isArray(sourceRoom.pendingInteractions)
-        ? (sourceRoom.pendingInteractions ?? [])
-            .map(normalizePendingInteraction)
-            .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
-        : [],
-      replyOptions: Array.isArray(sourceRoom.replyOptions)
-        ? (sourceRoom.replyOptions ?? [])
-            .map(normalizeReplyOption)
-            .filter((option): option is TavernReplyOption => Boolean(option))
-        : [],
+      activeSceneId,
+      scenes,
     };
     const roomProgress = {
       statusDefinitions: normalizeStatusDefinitions(sourceRoom.statusDefinitions),
       statusRules: normalizeStatusRules(sourceRoom.statusRules),
       progressViews: normalizeProgressViews(sourceRoom.progressViews),
       progressTracker: normalizeProgressTracker(sourceRoom.progressTracker),
-      factEvents: normalizeFactEvents(sourceRoom.factEvents),
-      statusEvents: normalizeStatusEvents(sourceRoom.statusEvents),
-      statusSnapshot: normalizeStatusSnapshot(sourceRoom.statusSnapshot, normalizedAt),
-      previousStatusSnapshot: sourceRoom.previousStatusSnapshot
-        ? normalizeStatusSnapshot(sourceRoom.previousStatusSnapshot, normalizedAt)
-        : undefined,
-      statusCheckpoints: normalizeProgressCheckpoints(sourceRoom.statusCheckpoints),
-      taskDefinitions: normalizeTaskDefinitions(sourceRoom.taskDefinitions),
-      taskEvents: normalizeTaskEvents(sourceRoom.taskEvents),
-      taskSnapshot: normalizeTaskSnapshot(sourceRoom.taskSnapshot),
-      sceneOutcomes: normalizeSceneOutcomes(sourceRoom.sceneOutcomes),
-      outcomeEvents: normalizeOutcomeEvents(sourceRoom.outcomeEvents),
     };
     const roomAssets = {
       lorebookEntries: Array.isArray(sourceRoom.lorebookEntries)
@@ -310,19 +244,7 @@ export const normalizeTavernState = (
             .map(normalizeLorebookEntry)
             .filter((entry): entry is TavernLorebookEntry => Boolean(entry))
         : [],
-      assetDrafts: Array.isArray(sourceRoom.assetDrafts)
-        ? (sourceRoom.assetDrafts ?? [])
-            .map(normalizeAssetDraft)
-            .filter((draft): draft is TavernAssetDraft => Boolean(draft))
-        : [],
-      illustrationHints: normalizeIllustrationHints(sourceRoom.illustrationHints),
-    };
-    const roomCharacters = {
-      characterConfigs,
-      characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
       localCharacters,
-      characterIds,
-      activeCharacterId: sourceRoom.activeCharacterId || "",
     };
     const roomRuntimeSettings = {
       replyMode: normalizeReplyMode(sourceRoom.replyMode),
@@ -333,33 +255,13 @@ export const normalizeTavernState = (
       ...roomIdentity,
       ...roomPrompt,
       ...roomStory,
-      ...roomSceneDraft,
-      ...roomSceneState,
+      ...projectTavernSceneFieldsOntoRoom(activeScene),
       ...roomProgress,
       ...roomAssets,
-      ...roomCharacters,
       ...roomRuntimeSettings,
     };
-    const normalizedScenes = Array.isArray(sourceRoom.scenes)
-      ? (sourceRoom.scenes ?? [])
-          .map((scene) => buildTavernScene(scene, normalizedRoom))
-      : [];
-    const fallbackScene = buildTavernScene({
-      title: defaultSceneTitle,
-    }, normalizedRoom);
-    const scenes = (normalizedScenes.length > 0 ? normalizedScenes : [fallbackScene])
-      .sort((left, right) => left.order - right.order)
-      .map((scene, index) => ({ ...scene, order: index }));
-    const activeSceneId = scenes.some((scene) => scene.id === sourceRoom.activeSceneId)
-      ? sourceRoom.activeSceneId
-      : scenes[0]?.id;
 
-    return projectTavernSceneOntoRoom({
-      ...normalizedRoom,
-      storyGraph: normalizeStoryGraph(sourceRoom.storyGraph, scenes),
-      activeSceneId,
-      scenes,
-    });
+    return projectTavernSceneOntoRoom(normalizedRoom);
   });
   if (rooms.length === 0) {
     return null;

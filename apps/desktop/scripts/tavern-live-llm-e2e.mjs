@@ -32,9 +32,7 @@ const PROMPT_VARIANT = process.env.NOVEL_CLAW_TAVERN_PROMPT_VARIANT?.trim() || "
 const PRESENTATION_PROFILE_ID = process.env.NOVEL_CLAW_TAVERN_PRESENTATION_PROFILE?.trim() ||
   "dialogue-chat";
 const THINKING_LEVEL = process.env.NOVEL_CLAW_LIVE_THINKING?.trim() || "off";
-const TARGET_SILENCE_CASE = process.env.NOVEL_CLAW_TAVERN_TARGET_SILENCE_CASE === "1";
 const DIRECT_USER_INPUT = process.env.NOVEL_CLAW_TAVERN_DIRECT_USER_INPUT === "1";
-const ASSERT_GAME_VICTORY = process.env.NOVEL_CLAW_TAVERN_ASSERT_VICTORY === "1";
 const LIVE_PROGRESS_VALUE = Number(process.env.NOVEL_CLAW_TAVERN_PROGRESS_VALUE ?? 4);
 const SUMMARY_ONLY = process.env.NOVEL_CLAW_TAVERN_SUMMARY_ONLY === "1";
 
@@ -229,45 +227,97 @@ writeFileSync(helperEntryPath, `
 
   export const createFixture = () => {
     const fixtureMode = process.env.NOVEL_CLAW_TAVERN_LIVE_FIXTURE?.trim() || "custom";
-    if (fixtureMode === "werewolf") {
-      const materialized = createTavernRoomFromSystemPreset("live-workspace", "moonlit-werewolf-table", {
-        roomId: "live-werewolf-room",
+    const novelFixtures = {
+      raincity: {
+        presetId: "raincity-silent-manuscript",
+        roomId: "live-raincity-room",
+        characterIds: [
+          ["rc-ji-ling", "rain-ji"],
+          ["rc-yuan-ci", "rain-yuan"],
+          ["rc-su-yan", "rain-su"],
+          ["rc-he-mu", "rain-he"],
+        ],
+      },
+      snowridge: {
+        presetId: "snowridge-sword-oath",
+        roomId: "live-snowridge-room",
+        characterIds: [
+          ["sx-lin-zhaoye", "snow-lin"],
+          ["sx-gu-tingxue", "snow-gu"],
+          ["sx-qiu-heng", "snow-qiu"],
+          ["sx-jingchen", "snow-jing"],
+        ],
+      },
+      orbital: {
+        presetId: "orbital-ashes-letter",
+        roomId: "live-orbital-room",
+        characterIds: [
+          ["oa-lan-qiao", "orbit-lan"],
+          ["oa-mira", "orbit-mira"],
+          ["oa-ren-ke", "orbit-ren"],
+          ["oa-yi-sen", "orbit-yi"],
+        ],
+      },
+    };
+    const novelFixture = novelFixtures[fixtureMode];
+    if (novelFixture) {
+      const materialized = createTavernRoomFromSystemPreset("live-workspace", novelFixture.presetId, {
+        roomId: novelFixture.roomId,
         createdAt: now,
-        characterIdByPresetId: new Map([
-          ["qiao-yu", "wolf-qiao"],
-          ["shen-mo", "wolf-shen"],
-          ["tan-luo", "wolf-tan"],
-          ["lin-yao", "wolf-lin"],
-          ["bai-shan", "wolf-bai"],
-        ]),
+        characterIdByPresetId: new Map(novelFixture.characterIds),
         markAsSystemPreset: false,
       });
       return {
-        scenario: "werewolf",
+        scenario: fixtureMode,
         room: applyLivePresentation(materialized.room),
         characters: materialized.characters,
         messages: materialized.messages,
       };
     }
 
-    if (fixtureMode === "win-hearts") {
-      const materialized = createTavernRoomFromSystemPreset("live-workspace", "win-their-hearts-duel", {
-        roomId: "live-win-hearts-room",
-        createdAt: now,
-        characterIdByPresetId: new Map([
-          ["ye-xiaoman", "route-ye"],
-          ["liu-qingshuang", "route-liu"],
-        ]),
-        markAsSystemPreset: false,
-      });
-      return {
-        scenario: "win-hearts",
-        room: applyLivePresentation(materialized.room),
-        characters: materialized.characters,
-        messages: materialized.messages,
-      };
-    }
-
+    const scene = {
+      id: "live-scene-alpha",
+      order: 0,
+      title: "风雨夜分工",
+      scenePresetId: "tavern",
+      scene: "屋内有旧木桌、吧台、炉火和窗边地图，门外有风，屋顶能看见远处灯影。",
+      sceneGoal: "完成守门、屋顶观察、吧台照应、地图记录和炉火维护的分工。",
+      plot: "贝拉负责门口，阿洛负责屋顶，琪拉负责吧台物资，莫尔负责地图和路线，赛恩负责炉火与灯。",
+      storyDirection: "角色只说自己的公开发言，不替别人说话；未发言角色可以被导演安排公开动作描写。",
+      transition: "",
+      memory: "",
+      relationshipOverrides: [],
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      factEvents: [],
+      statusEvents: [],
+      statusSnapshot: {
+        turnId: "initial",
+        global: {},
+        scene: {},
+        parties: {},
+        characters: {},
+        relationships: {},
+        updatedAt: now,
+      },
+      statusCheckpoints: [],
+      taskDefinitions: [],
+      taskEvents: [],
+      taskSnapshot: {},
+      sceneOutcomes: [],
+      outcomeEvents: [],
+      characterConfigs: {},
+      characterMemories: {},
+      illustrationHints: [],
+      assetDrafts: [],
+      characterIds: ["char-a", "char-b", "char-c", "char-d", "char-e"],
+      activeCharacterId: "char-a",
+      createdAt: now,
+      updatedAt: now,
+    };
     const room = {
       id: "live-room-alpha",
       workspaceId: "live-workspace",
@@ -303,7 +353,7 @@ writeFileSync(helperEntryPath, `
         edges: [],
       },
       activeSceneId: "live-scene-alpha",
-      scenes: [],
+      scenes: [scene],
       scenePresetId: "tavern",
       scene: "屋内有旧木桌、吧台、炉火和窗边地图，门外有风，屋顶能看见远处灯影。",
       sceneGoal: "完成守门、屋顶观察、吧台照应、地图记录和炉火维护的分工。",
@@ -1579,62 +1629,6 @@ try {
   const privateSecrets = [];
   const characterNameById = new Map(characters.map((character) => [character.id, character.name]));
 
-  if (
-    scenario === "werewolf" &&
-    room.settings.informationPolicy.roleAssignment.opening.autoStart &&
-    !room.factEvents.some((event) => event.type === "role_assignment")
-  ) {
-    const requestInput = helper.buildRoleAssignmentRequest({ room, characters });
-    const assignmentRun = await runAgent({
-      label: "tavern-role-assignment-opening",
-      sessionRootDir: flowSessionRootDir,
-      agentRoleId: requestInput.agentRoleId,
-      runtimeModel: selectedModel,
-      systemPrompt: requestInput.systemPrompt,
-      userMessage: requestInput.userMessage,
-      requestContext: requestInput.requestContext,
-      runtimeInstruction: requestInput.runtimeInstruction,
-    });
-    const createdAt = Date.now();
-    const assignment = helper.parseRoleAssignment({
-      text: assignmentRun.text,
-      room,
-      characters,
-      turnId: "live-director-role-assignment",
-      createdAt,
-    });
-    room = helper.applyRoleAssignmentOpening({
-      room,
-      assignment,
-      createdAt,
-    });
-    const openingMessages = [
-      assignment.openingNarrator,
-      assignment.dayAnnouncement,
-    ].filter(Boolean).map((content, index) => ({
-      id: "live-opening-narrator-" + (index + 1),
-      roomId: room.id,
-      role: "narrator",
-      presentationProfileId: room.presentation?.profileId,
-      content,
-      createdAt: createdAt + index,
-      status: "done",
-    }));
-    allMessages.push(...openingMessages);
-    flowRuns.push({
-      label: assignmentRun.label,
-      kind: "role_assignment_opening",
-      firstDeltaMs: assignmentRun.firstDeltaMs,
-      firstTextMs: assignmentRun.firstTextMs,
-      doneMs: assignmentRun.doneMs,
-      roleFactCount: assignment.factEvents.length,
-      openingNarrator: assignment.openingNarrator,
-      dayAnnouncement: assignment.dayAnnouncement,
-      publicFact: assignment.publicFact,
-      phase: room.statusSnapshot.global?.werewolf_phase,
-    });
-  }
-
   const characterNamePattern = characters
     .map((character) => character.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
@@ -1650,23 +1644,28 @@ try {
   };
 
   const scriptedDraftForRound = (roundIndex) => {
-    if (scenario === "werewolf") {
+    if (scenario === "raincity") {
       return [
-        "我作为首位座次发言：昨夜我只听见旧钟慢了半拍，暂时不认定任何人身份，请后续玩家按座次给出公开证词。",
-        "现在进入投票阶段。请停止辩论，由导演组织投票和放逐结算，不要再安排角色公开发言。",
-        "继续进入下一夜，只公布公开主持流程，不要泄露隐藏身份。",
-      ][roundIndex] ?? "继续按狼人杀阶段规则推进。";
+        "我请纪聆先核对手稿装订痕，再让袁辞只用纸笔确认危险来源。",
+        "我把第一章残页交给苏砚校对，同时提醒何牧不要急着公开朗读。",
+        "继续沿着玻璃印刷厂线索推进，但保留袁辞是否开口的选择。",
+      ][roundIndex] ?? "继续围绕失语手稿推进当前节点。";
     }
 
-    if (scenario === "win-hearts") {
-      if (TARGET_SILENCE_CASE && roundIndex === 0) {
-        return "我看向叶小满，冒犯地问：你是不是只会靠可爱卖甜点？我知道这很冒犯，你现在不用回答我，只用动作表示你是否不快。";
-      }
+    if (scenario === "snowridge") {
       return [
-        "我先认真回应叶小满，指出甜品里一处具体优点，也给一个尊重她店长判断的小建议。",
-        "我继续把注意力放在叶小满身上，主动帮她整理试营业动线，但也礼貌回应柳青霜。",
-        "我邀请叶小满一起确认下一份新品，同时注意不替她做决定。",
-      ][roundIndex] ?? "继续围绕叶小满的店长计划行动。";
+        "我请林照夜暂不拔剑，先让景澄比对剑书暗纹和旧碑拓片。",
+        "我让顾听雪处理旧伤，同时请裘衡盯住驿站外的雪线。",
+        "继续推进旧誓碑文线索，但不替林照夜决定是否出剑。",
+      ][roundIndex] ?? "继续围绕雪岭剑书推进当前节点。";
+    }
+
+    if (scenario === "orbital") {
+      return [
+        "我请米拉公开第一段余烬信校验结果，同时让蓝桥保留最终公开权限。",
+        "我让伊森先稳住推进环，任珂确认实体信袋和氧气余量。",
+        "继续解码余烬信，但不替蓝桥决定如何记录父亲的最后选择。",
+      ][roundIndex] ?? "继续围绕环轨余烬信推进当前节点。";
     }
 
     return roundIndex === 0
@@ -1675,30 +1674,19 @@ try {
   };
 
   const selectedTargetCharacterIdsForRound = (roundIndex) => {
-    if (scenario === "win-hearts" && roundIndex <= 2) {
-      return ["route-ye"];
+    if (scenario === "raincity" && roundIndex <= 2) {
+      return ["rain-yuan"];
+    }
+    if (scenario === "snowridge" && roundIndex <= 2) {
+      return ["snow-gu"];
+    }
+    if (scenario === "orbital" && roundIndex <= 2) {
+      return ["orbit-mira"];
     }
     return [];
   };
 
-  const prepareScenarioRound = (roundIndex) => {
-    if (scenario !== "werewolf") {
-      return;
-    }
-
-    const nextPhase = room.settings.informationPolicy.roleAssignment.opening.autoStart
-      ? roundIndex === 0
-        ? "day_discussion"
-        : roundIndex === 1
-        ? "vote"
-        : "night"
-      : roundIndex === 0
-      ? "night"
-      : roundIndex === 1
-      ? "day_discussion"
-      : "vote";
-    room = helper.setGlobalStatus(room, "werewolf_phase", nextPhase);
-  };
+  const prepareScenarioRound = () => {};
 
   const runManagedUser = async (roundIndex) => {
     const currentDraft = scriptedDraftForRound(roundIndex);
@@ -2176,18 +2164,34 @@ try {
       });
     }
 
-    if (scenario === "win-hearts" && !TARGET_SILENCE_CASE && LIVE_PROGRESS_VALUE !== 0) {
+    const liveProgressEventByScenario = {
+      raincity: {
+        type: "fragment_found",
+        target: { type: "scene", sceneId: room.activeSceneId },
+        evidence: `真实 LLM 第 ${roundIndex + 1} 轮后，用户找到了第一章残页的明确证据。`,
+      },
+      snowridge: {
+        type: "oath_verified",
+        target: { type: "scene", sceneId: room.activeSceneId },
+        evidence: `真实 LLM 第 ${roundIndex + 1} 轮后，用户完成了剑书暗纹与碑文的互证。`,
+      },
+      orbital: {
+        type: "signal_decoded",
+        target: { type: "scene", sceneId: room.activeSceneId },
+        evidence: `真实 LLM 第 ${roundIndex + 1} 轮后，用户恢复了余烬信的有效证词。`,
+      },
+    };
+    const liveProgressEvent = liveProgressEventByScenario[scenario];
+    if (liveProgressEvent && roundIndex === 0 && LIVE_PROGRESS_VALUE !== 0) {
       const progressPatch = helper.advanceProgressFromFacts({
         room,
         factEvents: [{
-          id: `live-win-hearts-progress-${roundIndex + 1}`,
+          id: `live-${scenario}-progress-${roundIndex + 1}`,
           turnId: userMessage.id,
           sourceMessageIds: turnMessages.map((message) => message.id),
-          type: "help",
-          actor: { type: "user", userId: "user" },
-          target: { type: "character", characterId: "route-ye" },
-          value: LIVE_PROGRESS_VALUE,
-          evidence: `真实 LLM 第 ${roundIndex + 1} 轮后，用户持续以明确行动支持叶小满。`,
+          type: liveProgressEvent.type,
+          target: liveProgressEvent.target,
+          evidence: liveProgressEvent.evidence,
           confidence: 0.96,
           visibility: "public",
           createdAt: Date.now(),
@@ -2203,7 +2207,7 @@ try {
         label: `tavern-progress-${roundIndex + 1}`,
         kind: "progress",
         value: LIVE_PROGRESS_VALUE,
-        yeFavorability: room.statusSnapshot.relationships?.["character:route-ye::user"]?.favorability,
+        scenario,
         completedTasks: Object.fromEntries(
           Object.entries(room.taskSnapshot).map(([key, value]) => [key, value.status]),
         ),
@@ -2212,75 +2216,10 @@ try {
     }
   }
 
-  if (scenario === "werewolf") {
-    const directorRuns = flowRuns.filter((run) => run.kind === "director");
-    const roleAssignmentRuns = flowRuns.filter((run) => run.kind === "role_assignment_opening");
-    assert(
-      roleAssignmentRuns.length === 1 && roleAssignmentRuns[0].roleFactCount === 6,
-      "狼人杀真实流程应先由导演实时分配用户+5名角色身份",
-      roleAssignmentRuns,
-    );
-    if (FLOW_ROUNDS >= 1) {
-      assert(
-        directorRuns[0]?.decision?.speakerIds.join("|") === "wolf-qiao|wolf-shen|wolf-tan|wolf-lin|wolf-bai",
-        "狼人杀开局后第一轮应视为用户首位发言，然后按存活座次调度其他角色",
-        directorRuns[0],
-      );
-    }
-    if (FLOW_ROUNDS >= 2) {
-      assert(directorRuns[1]?.decision?.speakerIds.length === 0, "狼人杀投票阶段不应继续公开辩论发言", directorRuns[1]);
-    }
-    assert(
-      !flowRuns.some((run) => run.kind === "continuation"),
-      "狼人杀固定顺序/投票流程不应触发自动续调度",
-      flowRuns.filter((run) => run.kind === "continuation"),
-    );
-  }
-
-  if (scenario === "win-hearts") {
-    const directorRuns = flowRuns.filter((run) => run.kind === "director");
-    const targetHandled = (run) =>
-      run.decision?.speakerIds.includes("route-ye") ||
-      run.decision?.nonverbalReplyIds?.includes("route-ye") ||
-      run.decision?.ambientActions?.some((action) => action.characterId === "route-ye") ||
-      /叶小满|小满/.test(run.decision?.narrator ?? "");
-    assert(
-      directorRuns.slice(0, Math.min(3, FLOW_ROUNDS)).every(targetHandled),
-      "好感度指定叶小满时，导演必须处理目标，但目标可以发言、动作反应或被旁白处理",
-      directorRuns,
-    );
-    if (TARGET_SILENCE_CASE) {
-      const routeYeRuns = flowRuns.filter((run) =>
-        run.kind === "character" && run.activeName === "叶小满"
-      );
-      assert(
-        routeYeRuns.some((run) =>
-          run.allowNonverbalReply && !helper.hasCharacterDialogueText(run.content ?? "")
-        ),
-        "目标沉默 case 应由叶小满角色 Agent 输出非语言回复，而不是旁白替代或直接对白",
-        routeYeRuns,
-      );
-    }
-    if (ASSERT_GAME_VICTORY) {
-      assert(
-        room.taskSnapshot["win-ye-xiaoman-heart"]?.status === "completed",
-        "好感度真实 LLM 流程应完成叶小满路线任务",
-        { taskSnapshot: room.taskSnapshot, flowRuns: flowRuns.filter((run) => run.kind === "progress") },
-      );
-      assert(
-        room.outcomeEvents.some((event) => event.outcomeId === "ye-route-clear"),
-        "好感度真实 LLM 流程应触发叶小满路线胜利事件",
-        { outcomeEvents: room.outcomeEvents },
-      );
-    }
-  }
-
   console.log(JSON.stringify({
     ok: true,
     scenario,
-    targetSilenceCase: TARGET_SILENCE_CASE,
     directUserInput: DIRECT_USER_INPUT,
-    assertGameVictory: ASSERT_GAME_VICTORY,
     liveProgressValue: LIVE_PROGRESS_VALUE,
     summaryOnly: SUMMARY_ONLY,
     selectedModelId: selectedModel.modelId,
@@ -2306,7 +2245,7 @@ try {
           outcomes: run.outcomes,
         }))
       : flowRuns,
-    finalProgress: scenario === "win-hearts"
+    finalProgress: ["raincity", "snowridge", "orbital"].includes(scenario)
       ? {
           taskSnapshot: room.taskSnapshot,
           outcomeEvents: room.outcomeEvents,

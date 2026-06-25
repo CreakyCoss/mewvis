@@ -20,9 +20,6 @@ import {
   createDefaultTavernPromptSettings,
 } from "../../prompt-registry/text-blocks";
 import {
-  createTavernScene,
-} from "../../story-model/scene-builder";
-import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../runtime/active-scene-runtime";
@@ -240,11 +237,15 @@ export const ManagementProvider = ({
         return current;
       }
 
-      const createdAt = Date.now();
-      const copiedRoomId = createLocalId("room");
       const sourceScenes = sourceRoom.scenes?.length
         ? sourceRoom.scenes
-        : [createTavernScene({}, sourceRoom)];
+        : [];
+      if (sourceScenes.length === 0) {
+        return current;
+      }
+
+      const createdAt = Date.now();
+      const copiedRoomId = createLocalId("room");
       const sourceCharacterById = new Map([
         ...current.rooms.flatMap((room) =>
           (room.localCharacters ?? []).map((character) => [character.id, character] as const)
