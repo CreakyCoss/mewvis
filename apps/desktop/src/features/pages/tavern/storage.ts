@@ -98,6 +98,8 @@ import {
   now,
 } from "./ids";
 import {
+  DEFAULT_TAVERN_PROGRESS_TRACKER,
+  DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_ROOM_SETTINGS,
 } from "./defaults";
 import {
@@ -114,6 +116,8 @@ export {
   createTavernMessage,
 } from "./message";
 export {
+  DEFAULT_TAVERN_PROGRESS_TRACKER,
+  DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_ROOM_SETTINGS,
 } from "./defaults";
 export {
@@ -581,15 +585,6 @@ const createTavernCharacterFromSystemPresetCharacter = (
 
 const defaultSceneTitle = "默认场景";
 
-export const DEFAULT_TAVERN_PROGRESS_TRACKER: TavernProgressTrackerSettings = {
-  enabled: false,
-  mode: "manual",
-  intervalTurns: 1,
-  applyMode: "review",
-  factConfidenceThreshold: 0.75,
-  generateCheckpointBeforeContextTrim: true,
-};
-
 export const DEFAULT_TAVERN_STATUS_DEFINITIONS: TavernStatusDefinition[] = [
   {
     id: "scene_phase",
@@ -855,58 +850,6 @@ export const DEFAULT_TAVERN_STATUS_RULES: TavernStatusRule[] = [
       maxDeltaPerTurn: 20,
       requireExplicitEvidence: true,
     },
-  },
-];
-
-export const DEFAULT_TAVERN_PROGRESS_VIEWS: TavernProgressView[] = [
-  {
-    id: "scene-overview",
-    label: "全局状态",
-    kind: "status",
-    placement: "sidePanel",
-    ownerBinding: "scene",
-    layout: "compact",
-    compareWith: "previousTurn",
-    items: [
-      { type: "status", statusId: "scene_phase", display: "text", hiddenWhenDefault: true },
-      { type: "status", statusId: "threat_level", display: "meter", showDelta: true },
-    ],
-  },
-  {
-    id: "character-vitals",
-    label: "角色状态",
-    kind: "status",
-    placement: "characterCard",
-    ownerBinding: "allCharacters",
-    layout: "bars",
-    compareWith: "previousTurn",
-    items: [
-      { type: "status", statusId: "health", display: "bar", showDelta: true },
-      { type: "status", statusId: "san", display: "bar", showDelta: true },
-    ],
-  },
-  {
-    id: "scene-progress",
-    label: "任务与结局",
-    kind: "mixed",
-    placement: "sidePanel",
-    ownerBinding: "scene",
-    layout: "questLog",
-    compareWith: "previousTurn",
-    items: [],
-  },
-  {
-    id: "relationship-to-user",
-    label: "对你的态度",
-    kind: "status",
-    placement: "composerBelow",
-    ownerBinding: "allCharactersToUser",
-    layout: "compact",
-    compareWith: "previousTurn",
-    items: [
-      { type: "status", statusId: "favorability", display: "meter", showDelta: true },
-      { type: "status", statusId: "hostility", display: "meter", showDelta: true },
-    ],
   },
 ];
 
