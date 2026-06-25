@@ -7,10 +7,12 @@ import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/t
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
 import {
-  createDefaultTavernState,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../storage";
+} from "../active-scene-runtime";
+import {
+  createDefaultTavernState,
+} from "../state-normalizer";
 import {
   hasTavernPresentationStarted,
   normalizeTavernPresentation,

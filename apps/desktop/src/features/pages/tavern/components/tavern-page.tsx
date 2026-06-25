@@ -29,13 +29,17 @@ import {
 } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import {
-  createDefaultTavernState,
   loadTavernBranchUpstreamMemory,
-  loadTavernState,
-  saveTavernState,
   syncTavernRoomActiveScene,
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,
+} from "../active-scene-runtime";
+import {
+  createDefaultTavernState,
+} from "../state-normalizer";
+import {
+  loadTavernState,
+  saveTavernState,
 } from "../storage";
 import {
   createTavernMessage,

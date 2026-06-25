@@ -1,6 +1,6 @@
 import {
   projectTavernSceneOntoRoom,
-} from "../storage";
+} from "../active-scene-runtime";
 import type {
   TavernMessage,
   TavernRoom,

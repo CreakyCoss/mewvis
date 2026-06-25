@@ -20,14 +20,24 @@ import {
   createDefaultTavernPromptSettings,
 } from "../../prompt-registry/text-blocks";
 import {
-  createTavernRoom,
-  createTavernRoomFromGeneratedPresetJson,
-  createTavernRoomFromSystemPreset,
   createTavernScene,
-  getTavernSystemPreset,
+} from "../../scene-builder";
+import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../storage";
+} from "../../active-scene-runtime";
+import {
+  createTavernRoomFromGeneratedPresetJson,
+} from "../../generated-preset-room";
+import {
+  createTavernRoom,
+} from "../../manual-factories";
+import {
+  getTavernSystemPreset,
+} from "../../system-preset-registry";
+import {
+  createTavernRoomFromSystemPreset,
+} from "../../system-preset-room";
 import {
   createTavernMessage,
 } from "../../message";

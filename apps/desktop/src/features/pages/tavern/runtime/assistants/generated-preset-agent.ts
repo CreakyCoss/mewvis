@@ -10,7 +10,7 @@ import type {
   TavernPlatformStyleId,
   TavernQualityRuleId,
 } from "../../prompt-registry/rule-layers/types";
-import { parseTavernGeneratedPresetJsonText } from "../../storage";
+import { parseTavernGeneratedPresetJsonText } from "../../generated-preset-parser";
 import { runTavernOneShotAgent } from "../agent";
 import {
   buildTavernGeneratedPresetAgentSystemPrompt,

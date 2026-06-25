@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../../../../storage";
+} from "../../../../../active-scene-runtime";
 import {
   isTavernProgressVisibilityVisibleToUser,
   resolveTavernPendingOutcomeEvent,

@@ -21,7 +21,7 @@ import {
 } from "../../../../core";
 import {
   updateTavernActiveCharacterMemoryLayers,
-} from "../../../../storage";
+} from "../../../../active-scene-runtime";
 import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import {
   compactTavernAgentKnowledge,

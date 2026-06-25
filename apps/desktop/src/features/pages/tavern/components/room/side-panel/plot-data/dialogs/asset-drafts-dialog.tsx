@@ -7,7 +7,7 @@ import {
   revealTavernSecretMemory,
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
-} from "../../../../../storage";
+} from "../../../../../active-scene-runtime";
 import {
   createTavernLorebookEntry,
 } from "../../../../../asset-factories";

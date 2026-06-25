@@ -1,4 +1,4 @@
-import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../../../storage";
+import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../../../active-scene-runtime";
 import {
   cloneTavernRuntimeStoryProjectionFields,
 } from "../../../adapters/story";

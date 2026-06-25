@@ -4,7 +4,7 @@ import type { TavernPageContextValue } from "../../../context";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
-} from "../../../../storage";
+} from "../../../../active-scene-runtime";
 import {
   createTavernAssetDraft,
 } from "../../../../asset-factories";
