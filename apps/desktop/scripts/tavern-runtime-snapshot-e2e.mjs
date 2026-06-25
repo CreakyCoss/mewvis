@@ -8,15 +8,18 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-runtime-snapshot-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/generated-preset-room.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/manual-factories.ts");
 const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
 const storyAdapterPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/story/index.ts");
 
 writeFileSync(entryPath, `
   import {
     createTavernRoom,
+  } from ${JSON.stringify(manualFactoriesPath)};
+  import {
     createTavernRoomFromGeneratedPresetJson,
-  } from ${JSON.stringify(storagePath)};
+  } from ${JSON.stringify(generatedPresetRoomPath)};
   import {
     createTavernGeneratedPresetFromStoryPresentationSeed,
   } from ${JSON.stringify(storyAdapterPath)};

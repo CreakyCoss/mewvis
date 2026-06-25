@@ -8,12 +8,12 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-preview-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
 const previewPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/preview.ts");
 const warningNavigationPath = resolve(workspaceRoot, "src/features/pages/tavern/components/manage/room-editor/modules/prompt/warning-navigation.ts");
 
 writeFileSync(entryPath, `
-  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(storagePath)};
+  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
   import { buildTavernPromptPreview } from ${JSON.stringify(previewPath)};
   import { resolveTavernPromptWarningNavigation } from ${JSON.stringify(warningNavigationPath)};
 

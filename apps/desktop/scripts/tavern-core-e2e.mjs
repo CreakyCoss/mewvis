@@ -16,7 +16,16 @@ const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/in
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
 const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
+const activeSceneRuntimePath = resolve(workspaceRoot, "src/features/pages/tavern/active-scene-runtime.ts");
+const assetFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/asset-factories.ts");
+const defaultsPath = resolve(workspaceRoot, "src/features/pages/tavern/defaults.ts");
+const generatedPresetParserPath = resolve(workspaceRoot, "src/features/pages/tavern/generated-preset-parser.ts");
+const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/generated-preset-room.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/manual-factories.ts");
+const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/tavern/state-normalizer.ts");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const systemPresetRegistryPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-registry.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
 const assetExtractorParsingPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/assistants/asset-extractor/parsing.ts");
 
 const assert = (condition, message, details) => {
@@ -82,26 +91,44 @@ writeFileSync(entryPath, `
   } from ${JSON.stringify(messagePath)};
   import {
     createDefaultTavernState,
+  } from ${JSON.stringify(stateNormalizerPath)};
+  import {
     createTavernRoom,
+  } from ${JSON.stringify(manualFactoriesPath)};
+  import {
     createTavernRoomFromGeneratedPresetJson,
+  } from ${JSON.stringify(generatedPresetRoomPath)};
+  import {
     createTavernRoomFromSystemPreset,
+  } from ${JSON.stringify(systemPresetRoomPath)};
+  import {
     DEFAULT_TAVERN_PROGRESS_VIEWS,
     DEFAULT_TAVERN_SCENE_OUTCOMES,
     DEFAULT_TAVERN_STATUS_DEFINITIONS,
     DEFAULT_TAVERN_STATUS_RULES,
     DEFAULT_TAVERN_TASK_DEFINITIONS,
+  } from ${JSON.stringify(defaultsPath)};
+  import {
     addTavernSecretMemoryEntry,
-    createTavernAssetDraft,
     listTavernBranchSecretMemoryEntries,
-    parseTavernGeneratedPresetJsonText,
     projectTavernSceneOntoRoom,
     loadTavernBranchUpstreamMemory,
     revealTavernSecretMemory,
-    saveTavernState,
     syncTavernRoomActiveScene,
     switchTavernRoomSceneInstance,
-    tavernSystemPresets,
+  } from ${JSON.stringify(activeSceneRuntimePath)};
+  import {
+    createTavernAssetDraft,
+  } from ${JSON.stringify(assetFactoriesPath)};
+  import {
+    parseTavernGeneratedPresetJsonText,
+  } from ${JSON.stringify(generatedPresetParserPath)};
+  import {
+    saveTavernState,
   } from ${JSON.stringify(storagePath)};
+  import {
+    tavernSystemPresets,
+  } from ${JSON.stringify(systemPresetRegistryPath)};
   import {
     parseTavernDirectorDecision,
     shouldOfferTavernDirectorRandomEvent,

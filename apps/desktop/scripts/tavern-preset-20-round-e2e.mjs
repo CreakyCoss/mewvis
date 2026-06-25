@@ -9,7 +9,7 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-preset-20-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
-const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -31,7 +31,7 @@ writeFileSync(entryPath, `
     setTavernStatusSnapshotValue,
     shouldSuppressTavernAutoContinuation,
   } from ${JSON.stringify(corePath)};
-  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(storagePath)};
+  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
 
   const baseNow = 1_800_000_000_000;
   const userRef = { type: "user", userId: "user" };

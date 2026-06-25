@@ -8,11 +8,11 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-layer-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
+const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts");
 const requestPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply/request.ts");
 
 writeFileSync(entryPath, `
-  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(storagePath)};
+  import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
   import { buildTavernReplyAgentRequest } from ${JSON.stringify(requestPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {

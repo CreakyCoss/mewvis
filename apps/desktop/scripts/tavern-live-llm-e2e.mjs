@@ -191,7 +191,7 @@ writeFileSync(helperEntryPath, `
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts"))};
   import {
     createTavernRoomFromSystemPreset,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/storage.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/system-preset-room.ts"))};
   import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
   import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation-contracts.ts"))};
   import {
