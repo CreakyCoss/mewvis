@@ -10,9 +10,11 @@ export {
 } from "./prompt-sections";
 export {
   createStoryImportDraftFromTavernGeneratedPreset,
-  createTavernGeneratedPresetFromStoryPresentationSeed,
+} from "./import-from-preset";
+export {
   createTavernGeneratedPresetFromStoryImportDraft,
-} from "./import-draft";
+  createTavernGeneratedPresetFromStoryPresentationSeed,
+} from "./export-to-preset";
 export {
   cloneTavernRuntimeStoryProjectionFields,
   getTavernActiveSceneInstance,
