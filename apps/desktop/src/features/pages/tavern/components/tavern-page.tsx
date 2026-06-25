@@ -30,6 +30,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   loadTavernBranchUpstreamMemory,
+} from "../runtime/branch-memory-runtime";
+import {
   syncTavernRoomActiveScene,
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,

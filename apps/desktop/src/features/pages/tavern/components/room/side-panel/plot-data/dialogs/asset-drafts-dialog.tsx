@@ -3,8 +3,10 @@ import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   addTavernSecretMemoryEntry,
-  projectTavernSceneOntoRoom,
   revealTavernSecretMemory,
+} from "../../../../../runtime/branch-memory-runtime";
+import {
+  projectTavernSceneOntoRoom,
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
 } from "../../../../../runtime/active-scene-runtime";

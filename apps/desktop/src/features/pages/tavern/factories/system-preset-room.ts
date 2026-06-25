@@ -1,7 +1,9 @@
 import {
-  projectTavernSceneFieldsOntoRoom,
   projectTavernSceneOntoRoom,
 } from "../runtime/active-scene-runtime";
+import {
+  projectTavernSceneFieldsOntoRoom,
+} from "../runtime/scene-field-projection";
 import {
   mapTavernCharacterRelationships,
   mapTavernSceneOutcomeDefinitions,

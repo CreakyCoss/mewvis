@@ -17,6 +17,7 @@ const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/pro
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
 const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
 const activeSceneRuntimePath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/active-scene-runtime.ts");
+const branchMemoryRuntimePath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/branch-memory-runtime.ts");
 const assetFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/asset-factories.ts");
 const defaultsPath = resolve(workspaceRoot, "src/features/pages/tavern/defaults.ts");
 const generatedPresetParserPath = resolve(workspaceRoot, "src/features/pages/tavern/importers/generated-preset-parser.ts");
@@ -111,9 +112,11 @@ writeFileSync(entryPath, `
   import {
     addTavernSecretMemoryEntry,
     listTavernBranchSecretMemoryEntries,
-    projectTavernSceneOntoRoom,
     loadTavernBranchUpstreamMemory,
     revealTavernSecretMemory,
+  } from ${JSON.stringify(branchMemoryRuntimePath)};
+  import {
+    projectTavernSceneOntoRoom,
     syncTavernRoomActiveScene,
     switchTavernRoomSceneInstance,
   } from ${JSON.stringify(activeSceneRuntimePath)};

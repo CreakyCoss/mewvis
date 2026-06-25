@@ -2,9 +2,11 @@ import {
   DEFAULT_VISUAL_PRESET_ID,
 } from "@/features/pages/tavern/visual-presets";
 import {
-  projectTavernSceneFieldsOntoRoom,
   projectTavernSceneOntoRoom,
 } from "../runtime/active-scene-runtime";
+import {
+  projectTavernSceneFieldsOntoRoom,
+} from "../runtime/scene-field-projection";
 import {
   DEFAULT_TAVERN_PROGRESS_TRACKER,
   DEFAULT_TAVERN_PROGRESS_VIEWS,

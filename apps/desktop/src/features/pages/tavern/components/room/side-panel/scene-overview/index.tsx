@@ -53,8 +53,10 @@ import {
   addTavernSecretMemoryEntry,
   listTavernBranchSecretMemoryEntries,
   loadTavernBranchUpstreamMemory,
-  projectTavernSceneOntoRoom,
   revealTavernSecretMemory,
+} from "../../../../runtime/branch-memory-runtime";
+import {
+  projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
