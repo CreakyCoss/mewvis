@@ -60,9 +60,7 @@ export {
   createEmptyStoryState,
   createStandaloneStoryAsset,
   createStoryAssetFromContextPackage,
-  createStoryAssetFromImportDraft,
   buildStoryContextPackageFromAsset,
-  mergeStoryImportDraftIntoStory,
   normalizeStoryState,
   submitStoryManuscriptToState,
   upsertStoryAsset,
@@ -70,6 +68,10 @@ export {
   type StorySourceRef,
   type StoryState,
 } from "./application/state";
+export {
+  createStoryAssetFromImportDraft,
+  mergeStoryImportDraftIntoStory,
+} from "./application/import-draft-asset";
 export {
   runStoryWriterAgent,
   type StoryWriterAgentInput,
