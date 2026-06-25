@@ -98,6 +98,10 @@ import {
   resolveSceneMemoryEntryText,
 } from "./branch-memory";
 import {
+  clampInteger,
+  normalizeStringArray,
+} from "./normalization";
+import {
   buildStoryRunsFromGraph,
   createRouteScopedSceneInstanceId,
   resolveActiveRun,
@@ -208,15 +212,6 @@ const defaultSceneTitle = "默认场景";
 
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
   value === "round" || value === "director" ? value : "active";
-
-const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
-  const numberValue = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numberValue)) {
-    return fallback;
-  }
-
-  return Math.min(max, Math.max(min, Math.round(numberValue)));
-};
 
 const cloneTavernDirectorProfile = (
   profile: TavernDirectorProfile | undefined,
@@ -802,10 +797,6 @@ const normalizeStatusValue = (value: unknown): string | number | boolean | strin
 
   return normalizeStringArray(value);
 };
-
-const normalizeStringArray = (value: unknown) => Array.isArray(value)
-  ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
-  : [];
 
 const createEmptyStatusSnapshot = (
   turnId = "initial",
