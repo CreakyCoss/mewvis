@@ -73,20 +73,67 @@ const normalizeSceneCharacterIds = (
   return [...new Set(ids)];
 };
 
+const numberOrUndefined = (value: unknown) => (
+  typeof value === "number" ? value : undefined
+);
+
+const pickNumber = (
+  inputValue: unknown,
+  fallbackValue: unknown,
+  defaultValue: number,
+) => numberOrUndefined(inputValue) ?? numberOrUndefined(fallbackValue) ?? defaultValue;
+
+const trimmedText = (value: unknown) => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const text = value.trim();
+  return text.length > 0 ? text : undefined;
+};
+
+const pickText = (
+  inputValue: unknown,
+  fallbackValue: unknown,
+  defaultValue = "",
+) => trimmedText(inputValue) ?? trimmedText(fallbackValue) ?? defaultValue;
+
+const pickArray = (inputValue: unknown, fallbackValue: unknown) => {
+  if (Array.isArray(inputValue)) {
+    return inputValue;
+  }
+
+  return Array.isArray(fallbackValue) ? fallbackValue : [];
+};
+
+const normalizeItems = <T>(
+  items: unknown[],
+  normalize: (item: unknown) => T | null | undefined,
+) => items
+  .map(normalize)
+  .filter((item): item is T => Boolean(item));
+
+const pickActiveCharacterId = (
+  inputCharacterId: unknown,
+  fallbackCharacterId: unknown,
+  characterIds: string[],
+) => {
+  const candidateIds = [inputCharacterId, fallbackCharacterId];
+  const matchedId = candidateIds.find((id): id is string =>
+    typeof id === "string" && characterIds.includes(id)
+  );
+
+  return matchedId ?? characterIds[0] ?? "";
+};
+
 export const buildTavernScene = (
   input: TavernSceneInput,
   fallback: Partial<TavernRoom> = {},
 ): TavernScene => {
-  const updatedAt = typeof input.updatedAt === "number"
-    ? input.updatedAt
-    : typeof fallback.updatedAt === "number"
-    ? fallback.updatedAt
-    : now();
-  const createdAt = typeof input.createdAt === "number"
-    ? input.createdAt
-    : typeof fallback.createdAt === "number"
-    ? fallback.createdAt
-    : updatedAt;
+  const fallbackScene = fallback as Partial<TavernScene>;
+  const timestampNow = now();
+  const updatedAt = pickNumber(input.updatedAt, fallback.updatedAt, timestampNow);
+  const createdAt = pickNumber(input.createdAt, fallback.createdAt, updatedAt);
   const fallbackCharacterMemories = normalizeStringRecord(fallback.characterMemories);
   const inputCharacterMemories = input.characterMemories === undefined
     ? fallbackCharacterMemories
@@ -99,113 +146,90 @@ export const buildTavernScene = (
     input.characterIds,
     Array.isArray(fallback.characterIds) ? fallback.characterIds : [],
   );
-  const activeCharacterId = typeof input.activeCharacterId === "string" &&
-      characterIds.includes(input.activeCharacterId)
-    ? input.activeCharacterId
-    : typeof fallback.activeCharacterId === "string" &&
-        characterIds.includes(fallback.activeCharacterId)
-    ? fallback.activeCharacterId
-    : characterIds[0] ?? "";
+  const activeCharacterId = pickActiveCharacterId(
+    input.activeCharacterId,
+    fallback.activeCharacterId,
+    characterIds,
+  );
+  const previousStatusSnapshotSource = input.previousStatusSnapshot ?? fallbackScene.previousStatusSnapshot;
 
   return {
     id: input.id || createId("scene"),
-    order: typeof input.order === "number"
-      ? input.order
-      : typeof (fallback as Partial<TavernScene>).order === "number"
-      ? (fallback as Partial<TavernScene>).order ?? 0
-      : 0,
-    title: input.title?.trim() || defaultSceneTitle,
+    order: pickNumber(input.order, fallbackScene.order, 0),
+    title: trimmedText(input.title) ?? defaultSceneTitle,
     scenePresetId: normalizeVisualPresetId(input.scenePresetId ?? fallback.scenePresetId),
-    scene: input.scene?.trim() || fallback.scene?.trim() || "一张空桌、一盏低灯，以及等待被写下的第一句对白。",
-    sceneGoal: input.sceneGoal?.trim() || fallback.sceneGoal?.trim() || "",
-    plot: input.plot?.trim() || fallback.scenePlot?.trim() || "",
-    storyDirection: input.storyDirection?.trim() || fallback.sceneDirection?.trim() || "",
-    transition: input.transition?.trim() || fallback.sceneTransition?.trim() || "",
-    memory: input.memory?.trim() || fallback.memory?.trim() || "",
+    scene: pickText(input.scene, fallback.scene, "一张空桌、一盏低灯，以及等待被写下的第一句对白。"),
+    sceneGoal: pickText(input.sceneGoal, fallback.sceneGoal),
+    plot: pickText(input.plot, fallback.scenePlot),
+    storyDirection: pickText(input.storyDirection, fallback.sceneDirection),
+    transition: pickText(input.transition, fallback.sceneTransition),
+    memory: pickText(input.memory, fallback.memory),
     relationshipOverrides: normalizeSceneRelationshipOverrides(
-      input.relationshipOverrides ?? (fallback as Partial<TavernScene>).relationshipOverrides,
+      input.relationshipOverrides ?? fallbackScene.relationshipOverrides,
       updatedAt,
     ),
     sceneStatus: normalizeSceneStatus(input.sceneStatus, updatedAt) ??
-      normalizeSceneStatus((fallback as Partial<TavernScene>).sceneStatus, updatedAt),
+      normalizeSceneStatus(fallbackScene.sceneStatus, updatedAt),
     characterPublicStatuses: normalizeCharacterPublicStatuses(
-      input.characterPublicStatuses ?? (fallback as Partial<TavernScene>).characterPublicStatuses,
+      input.characterPublicStatuses ?? fallbackScene.characterPublicStatuses,
       characterIds,
       undefined,
       updatedAt,
     ),
     characterPrivateStatuses: normalizeCharacterPrivateStatuses(
-      input.characterPrivateStatuses ?? (fallback as Partial<TavernScene>).characterPrivateStatuses,
+      input.characterPrivateStatuses ?? fallbackScene.characterPrivateStatuses,
       characterIds,
       undefined,
       updatedAt,
     ),
-    pendingInteractions: Array.isArray(input.pendingInteractions)
-      ? input.pendingInteractions
-          .map(normalizePendingInteraction)
-          .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
-      : Array.isArray((fallback as Partial<TavernScene>).pendingInteractions)
-      ? ((fallback as Partial<TavernScene>).pendingInteractions ?? [])
-          .map(normalizePendingInteraction)
-          .filter((interaction): interaction is TavernPendingInteraction => Boolean(interaction))
-      : [],
-    replyOptions: Array.isArray(input.replyOptions)
-      ? input.replyOptions
-          .map(normalizeReplyOption)
-          .filter((option): option is TavernReplyOption => Boolean(option))
-      : Array.isArray((fallback as Partial<TavernScene>).replyOptions)
-      ? ((fallback as Partial<TavernScene>).replyOptions ?? [])
-          .map(normalizeReplyOption)
-          .filter((option): option is TavernReplyOption => Boolean(option))
-      : [],
+    pendingInteractions: normalizeItems<TavernPendingInteraction>(
+      pickArray(input.pendingInteractions, fallbackScene.pendingInteractions),
+      normalizePendingInteraction,
+    ),
+    replyOptions: normalizeItems<TavernReplyOption>(
+      pickArray(input.replyOptions, fallbackScene.replyOptions),
+      normalizeReplyOption,
+    ),
     factEvents: normalizeFactEvents(
-      input.factEvents ?? (fallback as Partial<TavernScene>).factEvents,
+      input.factEvents ?? fallbackScene.factEvents,
     ),
     statusEvents: normalizeStatusEvents(
-      input.statusEvents ?? (fallback as Partial<TavernScene>).statusEvents,
+      input.statusEvents ?? fallbackScene.statusEvents,
     ),
     statusSnapshot: normalizeStatusSnapshot(
-      input.statusSnapshot ?? (fallback as Partial<TavernScene>).statusSnapshot,
+      input.statusSnapshot ?? fallbackScene.statusSnapshot,
       updatedAt,
     ),
-    previousStatusSnapshot: (input.previousStatusSnapshot ?? (fallback as Partial<TavernScene>).previousStatusSnapshot)
-      ? normalizeStatusSnapshot(
-          input.previousStatusSnapshot ?? (fallback as Partial<TavernScene>).previousStatusSnapshot,
-          updatedAt,
-        )
+    previousStatusSnapshot: previousStatusSnapshotSource
+      ? normalizeStatusSnapshot(previousStatusSnapshotSource, updatedAt)
       : undefined,
     statusCheckpoints: normalizeProgressCheckpoints(
-      input.statusCheckpoints ?? (fallback as Partial<TavernScene>).statusCheckpoints,
+      input.statusCheckpoints ?? fallbackScene.statusCheckpoints,
     ),
     taskDefinitions: normalizeTaskDefinitions(
-      input.taskDefinitions ?? (fallback as Partial<TavernScene>).taskDefinitions,
+      input.taskDefinitions ?? fallbackScene.taskDefinitions,
     ),
     taskEvents: normalizeTaskEvents(
-      input.taskEvents ?? (fallback as Partial<TavernScene>).taskEvents,
+      input.taskEvents ?? fallbackScene.taskEvents,
     ),
     taskSnapshot: normalizeTaskSnapshot(
-      input.taskSnapshot ?? (fallback as Partial<TavernScene>).taskSnapshot,
+      input.taskSnapshot ?? fallbackScene.taskSnapshot,
     ),
     sceneOutcomes: normalizeSceneOutcomes(
-      input.sceneOutcomes ?? (fallback as Partial<TavernScene>).sceneOutcomes,
+      input.sceneOutcomes ?? fallbackScene.sceneOutcomes,
     ),
     outcomeEvents: normalizeOutcomeEvents(
-      input.outcomeEvents ?? (fallback as Partial<TavernScene>).outcomeEvents,
+      input.outcomeEvents ?? fallbackScene.outcomeEvents,
     ),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     illustrationHints: normalizeIllustrationHints(
-      input.illustrationHints ?? (fallback as Partial<TavernScene>).illustrationHints,
+      input.illustrationHints ?? fallbackScene.illustrationHints,
     ),
-    assetDrafts: Array.isArray(input.assetDrafts)
-      ? input.assetDrafts
-          .map(normalizeAssetDraft)
-          .filter((draft): draft is TavernAssetDraft => Boolean(draft))
-      : Array.isArray(fallback.assetDrafts)
-      ? fallback.assetDrafts
-          .map(normalizeAssetDraft)
-          .filter((draft): draft is TavernAssetDraft => Boolean(draft))
-      : [],
+    assetDrafts: normalizeItems<TavernAssetDraft>(
+      pickArray(input.assetDrafts, fallbackScene.assetDrafts),
+      normalizeAssetDraft,
+    ),
     characterIds,
     activeCharacterId,
     createdAt,
