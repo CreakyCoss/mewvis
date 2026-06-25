@@ -98,6 +98,17 @@ const pickText = (
   defaultValue = "",
 ) => trimmedText(inputValue) ?? trimmedText(fallbackValue) ?? defaultValue;
 
+const pickValue = <T>(
+  inputValue: T | null | undefined,
+  fallbackValue: T | null | undefined,
+) => inputValue ?? fallbackValue;
+
+const pickNormalizedValue = <T>(
+  inputValue: unknown,
+  fallbackValue: unknown,
+  normalize: (value: unknown) => T | undefined,
+) => normalize(inputValue) ?? normalize(fallbackValue);
+
 const pickArray = (inputValue: unknown, fallbackValue: unknown) => {
   if (Array.isArray(inputValue)) {
     return inputValue;
@@ -139,7 +150,7 @@ export const buildTavernScene = (
     ? fallbackCharacterMemories
     : normalizeStringRecord(input.characterMemories);
   const characterConfigs = normalizeRoomCharacterConfigs(
-    input.characterConfigs ?? fallback.characterConfigs,
+    pickValue(input.characterConfigs, fallback.characterConfigs),
     inputCharacterMemories,
   );
   const characterIds = normalizeSceneCharacterIds(
@@ -151,13 +162,16 @@ export const buildTavernScene = (
     fallback.activeCharacterId,
     characterIds,
   );
-  const previousStatusSnapshotSource = input.previousStatusSnapshot ?? fallbackScene.previousStatusSnapshot;
+  const previousStatusSnapshotSource = pickValue(
+    input.previousStatusSnapshot,
+    fallbackScene.previousStatusSnapshot,
+  );
 
   return {
     id: input.id || createId("scene"),
     order: pickNumber(input.order, fallbackScene.order, 0),
     title: trimmedText(input.title) ?? defaultSceneTitle,
-    scenePresetId: normalizeVisualPresetId(input.scenePresetId ?? fallback.scenePresetId),
+    scenePresetId: normalizeVisualPresetId(pickValue(input.scenePresetId, fallback.scenePresetId)),
     scene: pickText(input.scene, fallback.scene, "一张空桌、一盏低灯，以及等待被写下的第一句对白。"),
     sceneGoal: pickText(input.sceneGoal, fallback.sceneGoal),
     plot: pickText(input.plot, fallback.scenePlot),
@@ -165,19 +179,22 @@ export const buildTavernScene = (
     transition: pickText(input.transition, fallback.sceneTransition),
     memory: pickText(input.memory, fallback.memory),
     relationshipOverrides: normalizeSceneRelationshipOverrides(
-      input.relationshipOverrides ?? fallbackScene.relationshipOverrides,
+      pickValue(input.relationshipOverrides, fallbackScene.relationshipOverrides),
       updatedAt,
     ),
-    sceneStatus: normalizeSceneStatus(input.sceneStatus, updatedAt) ??
-      normalizeSceneStatus(fallbackScene.sceneStatus, updatedAt),
+    sceneStatus: pickNormalizedValue(
+      input.sceneStatus,
+      fallbackScene.sceneStatus,
+      (value) => normalizeSceneStatus(value, updatedAt),
+    ),
     characterPublicStatuses: normalizeCharacterPublicStatuses(
-      input.characterPublicStatuses ?? fallbackScene.characterPublicStatuses,
+      pickValue(input.characterPublicStatuses, fallbackScene.characterPublicStatuses),
       characterIds,
       undefined,
       updatedAt,
     ),
     characterPrivateStatuses: normalizeCharacterPrivateStatuses(
-      input.characterPrivateStatuses ?? fallbackScene.characterPrivateStatuses,
+      pickValue(input.characterPrivateStatuses, fallbackScene.characterPrivateStatuses),
       characterIds,
       undefined,
       updatedAt,
@@ -191,40 +208,40 @@ export const buildTavernScene = (
       normalizeReplyOption,
     ),
     factEvents: normalizeFactEvents(
-      input.factEvents ?? fallbackScene.factEvents,
+      pickValue(input.factEvents, fallbackScene.factEvents),
     ),
     statusEvents: normalizeStatusEvents(
-      input.statusEvents ?? fallbackScene.statusEvents,
+      pickValue(input.statusEvents, fallbackScene.statusEvents),
     ),
     statusSnapshot: normalizeStatusSnapshot(
-      input.statusSnapshot ?? fallbackScene.statusSnapshot,
+      pickValue(input.statusSnapshot, fallbackScene.statusSnapshot),
       updatedAt,
     ),
     previousStatusSnapshot: previousStatusSnapshotSource
       ? normalizeStatusSnapshot(previousStatusSnapshotSource, updatedAt)
       : undefined,
     statusCheckpoints: normalizeProgressCheckpoints(
-      input.statusCheckpoints ?? fallbackScene.statusCheckpoints,
+      pickValue(input.statusCheckpoints, fallbackScene.statusCheckpoints),
     ),
     taskDefinitions: normalizeTaskDefinitions(
-      input.taskDefinitions ?? fallbackScene.taskDefinitions,
+      pickValue(input.taskDefinitions, fallbackScene.taskDefinitions),
     ),
     taskEvents: normalizeTaskEvents(
-      input.taskEvents ?? fallbackScene.taskEvents,
+      pickValue(input.taskEvents, fallbackScene.taskEvents),
     ),
     taskSnapshot: normalizeTaskSnapshot(
-      input.taskSnapshot ?? fallbackScene.taskSnapshot,
+      pickValue(input.taskSnapshot, fallbackScene.taskSnapshot),
     ),
     sceneOutcomes: normalizeSceneOutcomes(
-      input.sceneOutcomes ?? fallbackScene.sceneOutcomes,
+      pickValue(input.sceneOutcomes, fallbackScene.sceneOutcomes),
     ),
     outcomeEvents: normalizeOutcomeEvents(
-      input.outcomeEvents ?? fallbackScene.outcomeEvents,
+      pickValue(input.outcomeEvents, fallbackScene.outcomeEvents),
     ),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     illustrationHints: normalizeIllustrationHints(
-      input.illustrationHints ?? fallbackScene.illustrationHints,
+      pickValue(input.illustrationHints, fallbackScene.illustrationHints),
     ),
     assetDrafts: normalizeItems<TavernAssetDraft>(
       pickArray(input.assetDrafts, fallbackScene.assetDrafts),
