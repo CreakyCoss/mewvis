@@ -1,34 +1,18 @@
 import { BookOpen, FileText, FileUp, GitBranch, MessageSquareText, Plus, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { toast } from "sonner";
 import { createAgentClient } from "@/agent-client/runtime";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
-import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import {
-  acceptStoryManuscriptDraft,
-  assertStoryImportDraftReady,
-  createStoryAssetFromImportDraft,
-  createStoryImportDraftFromText,
-  mergeStoryImportDraftIntoStory,
-  rejectStoryManuscriptDraft,
-  runStoryWriterAgent,
-  submitStoryManuscriptDraft,
-  updateStoryManuscriptDraft,
-  upsertStoryAsset,
-  type StoryImportDraft,
-  type StoryImportSourceKind,
-  type StoryManuscriptDraftUpdateInput,
-  type StoryManuscriptSubmissionInput,
-} from "@/features/story";
 import { cn } from "@/lib/utils";
 import { StoryImportDialog } from "./import-dialog";
 import { useStoryPresentationActions } from "./presentation-actions";
+import { useStoryImport } from "./use-story-import";
+import { useStoryManuscripts } from "./use-story-manuscripts";
 import { useStoryState } from "./use-story-state";
 import { StoryCharactersModule } from "./modules/characters";
 import { StoryGraphModule } from "./modules/graph";
@@ -70,10 +54,6 @@ export const StoriesPage = () => {
   const { activeWorkspace, defaultWorkspace, overview } = useWorkspaceOverview();
   const workspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [importSourceKind, setImportSourceKind] = useState<StoryImportSourceKind>("unknown");
-  const [importRaw, setImportRaw] = useState("");
-  const [importDraft, setImportDraft] = useState<StoryImportDraft | null>(null);
   const {
     activeStory,
     createStory,
@@ -96,6 +76,43 @@ export const StoriesPage = () => {
     storyState,
     persistStoryState,
   });
+  const {
+    convertImportDraft,
+    importAsNewStory,
+    importDraft,
+    importRaw,
+    importSourceKind,
+    isImportOpen,
+    mergeImportIntoActiveStory,
+    openImportDialog,
+    setImportDraft,
+    setImportRaw,
+    setImportSourceKind,
+    setIsImportOpen,
+  } = useStoryImport({
+    activeStory,
+    persistStory,
+    persistStoryState,
+    setActiveTab,
+    storyState,
+    workspace,
+  });
+  const {
+    acceptManuscript,
+    createManuscriptDraft,
+    pendingDraftCount,
+    polishManuscriptDraft,
+    rejectManuscript,
+    saveManuscriptDraft,
+  } = useStoryManuscripts({
+    activeStory,
+    persistStory,
+    runtimeAgentId,
+    runtimeAgentRequiresModel,
+    selectedRuntimeModel,
+    settingsError,
+    workspace,
+  });
 
   const saveOverviewDraft = (draft: StoryDraft) => {
     if (!activeStory) {
@@ -110,190 +127,6 @@ export const StoriesPage = () => {
       userPersonaName: draft.userPersonaName.trim() || "我",
     });
   };
-
-  const acceptManuscript = (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => {
-    if (!activeStory) {
-      return;
-    }
-
-    try {
-      const inbox = patch
-        ? updateStoryManuscriptDraft(activeStory.manuscriptInbox, draftId, patch)
-        : activeStory.manuscriptInbox;
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: acceptStoryManuscriptDraft(inbox, draftId).inbox,
-      });
-      toast.success("已收稿。");
-    } catch (error) {
-      console.error("Failed to accept manuscript", error);
-      toast.error("收稿失败。");
-    }
-  };
-
-  const saveManuscriptDraft = (
-    draftId: string,
-    patch: StoryManuscriptDraftUpdateInput,
-  ) => {
-    if (!activeStory) {
-      return;
-    }
-
-    try {
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: updateStoryManuscriptDraft(activeStory.manuscriptInbox, draftId, patch),
-      });
-      toast.success("稿件已保存。");
-    } catch (error) {
-      console.error("Failed to save manuscript draft", error);
-      toast.error(error instanceof Error ? error.message : "保存稿件失败。");
-    }
-  };
-
-  const createManuscriptDraft = (
-    input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">,
-  ) => {
-    if (!activeStory) {
-      return;
-    }
-
-    try {
-      const { inbox } = submitStoryManuscriptDraft(activeStory.manuscriptInbox, {
-        ...input,
-        storyId: activeStory.id,
-        source: "manual",
-      });
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: inbox,
-      });
-      toast.success("稿件已加入收稿箱。");
-    } catch (error) {
-      console.error("Failed to create manuscript draft", error);
-      toast.error(error instanceof Error ? error.message : "创建稿件失败。");
-    }
-  };
-
-  const polishManuscriptDraft = async ({
-    nodeId,
-    title,
-    summary,
-    content,
-  }: {
-    nodeId: string;
-    title: string;
-    summary?: string;
-    content: string;
-  }) => {
-    if (!workspace || !activeStory) {
-      throw new Error("当前没有可用故事。");
-    }
-    if (settingsError) {
-      throw new Error(settingsError);
-    }
-    if (!runtimeAgentId) {
-      throw new Error("请先选择可用的 Agent 运行配置。");
-    }
-    if (runtimeAgentRequiresModel && !selectedRuntimeModel) {
-      throw new Error("请先在设置中选择模型。");
-    }
-
-    return runStoryWriterAgent({
-      workspacePath: workspace.path,
-      agentId: runtimeAgentId,
-      runtimeModel: selectedRuntimeModel ? requireRuntimeModelInput(selectedRuntimeModel) : null,
-      story: activeStory,
-      nodeId,
-      mode: "polish",
-      title,
-      summary,
-      content,
-    });
-  };
-
-  const rejectManuscript = (draftId: string) => {
-    if (!activeStory) {
-      return;
-    }
-
-    try {
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: rejectStoryManuscriptDraft(activeStory.manuscriptInbox, draftId),
-      });
-      toast.success("已退回稿件。");
-    } catch (error) {
-      console.error("Failed to reject manuscript", error);
-      toast.error("退回失败。");
-    }
-  };
-
-  const openImportDialog = () => {
-    setImportRaw("");
-    setImportDraft(null);
-    setImportSourceKind("unknown");
-    setIsImportOpen(true);
-  };
-
-  const convertImportDraft = () => {
-    try {
-      setImportDraft(createStoryImportDraftFromText(importRaw, {
-        sourceKind: importSourceKind,
-      }));
-      toast.success("已转换为标准故事草稿。");
-    } catch (error) {
-      console.error("Failed to convert story import draft", error);
-      toast.error(error instanceof Error ? error.message : "导入转换失败。");
-    }
-  };
-
-  const importAsNewStory = () => {
-    if (!workspace || !importDraft) {
-      return;
-    }
-
-    try {
-      assertStoryImportDraftReady(importDraft);
-      const story = createStoryAssetFromImportDraft({
-        workspaceId: workspace.id,
-        draft: importDraft,
-      });
-      void persistStoryState({
-        ...upsertStoryAsset({
-          ...storyState,
-          activeStoryId: story.id,
-        }, story),
-        activeStoryId: story.id,
-      });
-      setActiveTab("overview");
-      setIsImportOpen(false);
-      toast.success("故事已导入。");
-    } catch (error) {
-      console.error("Failed to import story", error);
-      toast.error(error instanceof Error ? error.message : "故事导入失败。");
-    }
-  };
-
-  const mergeImportIntoActiveStory = () => {
-    if (!activeStory || !importDraft) {
-      return;
-    }
-
-    try {
-      assertStoryImportDraftReady(importDraft);
-      const updatedStory = mergeStoryImportDraftIntoStory(activeStory, importDraft);
-      persistStory(updatedStory);
-      setActiveTab(importDraft.mode === "lorebookPatch" ? "world" : "overview");
-      setIsImportOpen(false);
-      toast.success("导入内容已合并。");
-    } catch (error) {
-      console.error("Failed to merge story import", error);
-      toast.error(error instanceof Error ? error.message : "导入合并失败。");
-    }
-  };
-
-  const pendingDraftCount = activeStory ? getPendingDraftCount(activeStory) : 0;
 
   return (
     <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
