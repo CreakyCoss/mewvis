@@ -20,6 +20,9 @@ export {
   submitTavernStoryManuscript,
 } from "./storage";
 export {
+  openTavernStoryPresentation,
+} from "./presentation";
+export {
   cloneTavernRuntimeStoryProjectionFields,
   getTavernActiveSceneInstance,
   getTavernRuntimeStoryProjection,
