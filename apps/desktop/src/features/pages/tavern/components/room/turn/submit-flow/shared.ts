@@ -2,6 +2,7 @@ import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
 } from "@/features/pages/settings/llm/store";
+import type { StoryContextPackage } from "@/features/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernPageContextValue } from "../../../context";
 import { createTavernMessage } from "../../../../storage";
@@ -334,12 +335,14 @@ export const resolveManagedUserText = async ({
   runtimeModel,
   draftText,
   mode,
+  storyContext,
 }: {
   ctx: TavernPageContextValue;
   room: TavernRoom;
   runtimeModel: RuntimeModelOption;
   draftText: string;
   mode: TurnMode;
+  storyContext?: StoryContextPackage;
 }) => {
   if (!mode.isManagedMode) {
     return draftText;
@@ -354,6 +357,7 @@ export const resolveManagedUserText = async ({
     characters: ctx.roomCharacters,
     messages: ctx.roomMessages,
     currentDraft: draftText,
+    storyContext,
   });
 };
 

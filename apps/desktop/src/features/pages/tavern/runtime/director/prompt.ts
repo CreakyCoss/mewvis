@@ -1,6 +1,7 @@
 import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -8,10 +9,14 @@ import type {
   TavernRoom,
 } from "../../types";
 import {
-  formatTavernLorebookEntries,
-  selectTavernLorebookEntries,
   tavernMessagesToRuntimeMessages,
 } from "../prompt";
+import {
+  buildTavernStoryContextPackage,
+  formatTavernStoryGraphContext,
+  formatTavernStoryLorebookEntries,
+  selectTavernStoryLorebookEntries,
+} from "../../adapters/story";
 import {
   buildTavernSchedulingSignals,
   canTavernSelectedTargetsStaySilent,
@@ -44,6 +49,7 @@ export type BuildTavernDirectorPromptContextInput = {
   selectedTargetCharacterIds: string[];
   maxSpeakers: number;
   randomEventOpportunity?: boolean;
+  storyContext?: StoryContextPackage;
 };
 
 export const buildTavernDirectorPromptContext = ({
@@ -56,6 +62,7 @@ export const buildTavernDirectorPromptContext = ({
   selectedTargetCharacterIds,
   maxSpeakers,
   randomEventOpportunity,
+  storyContext: inputStoryContext,
 }: BuildTavernDirectorPromptContextInput) => {
   const isSceneDriveTurn = turnTrigger.type === "scene_drive";
   const sceneDriveDirective = (
@@ -68,11 +75,12 @@ export const buildTavernDirectorPromptContext = ({
     characters,
     userPersonaName: room.userPersonaName,
   });
-  const lorebookText = formatTavernLorebookEntries(selectTavernLorebookEntries({
-    room,
-    characters,
+  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
+  const lorebookText = formatTavernStoryLorebookEntries(selectTavernStoryLorebookEntries({
+    storyContext,
     currentUserText,
   }));
+  const storyGraphText = formatTavernStoryGraphContext(storyContext);
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
   const activeInstance = room.sceneInstances.find((instance) =>
@@ -129,6 +137,7 @@ export const buildTavernDirectorPromptContext = ({
     "",
     buildTavernDirectorContextSections({
       room,
+      storyContext,
       characters,
       messages,
       currentUserText,
@@ -136,6 +145,7 @@ export const buildTavernDirectorPromptContext = ({
       sceneDriveDirective,
       runtimeMessages,
       lorebookText,
+      storyGraphText,
       selectedTargetCharacterIds,
       directorProfileText,
       schedulingSignalsText,

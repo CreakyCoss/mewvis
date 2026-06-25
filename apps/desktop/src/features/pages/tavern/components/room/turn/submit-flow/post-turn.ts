@@ -1,4 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
   createTavernAssetDraft,
@@ -56,6 +57,7 @@ export const runProgressTrackingStep = async ({
   userMessage,
   runtimeModel,
   shouldShowProgressTrace,
+  storyContext,
 }: {
   ctx: TavernPageContextValue;
   room: TavernRoom;
@@ -67,6 +69,7 @@ export const runProgressTrackingStep = async ({
   userMessage: TavernMessage;
   runtimeModel: RuntimeModelOption;
   shouldShowProgressTrace: boolean;
+  storyContext: StoryContextPackage;
 }) => {
   // 状态追踪失败不阻断本轮回复，只记录错误并保留已经生成的消息。
   ctx.setTurnStatus("正在更新状态面板...");
@@ -92,6 +95,7 @@ export const runProgressTrackingStep = async ({
       references,
       currentUserText: text,
       turnId: progressTurnId,
+      storyContext,
     });
 
     if (progressFactEvents.length > 0) {
@@ -179,6 +183,7 @@ export const runAssetExtractionStep = async ({
   text,
   runtimeModel,
   mode,
+  storyContext,
 }: {
   ctx: TavernPageContextValue;
   room: TavernRoom;
@@ -189,6 +194,7 @@ export const runAssetExtractionStep = async ({
   text: string;
   runtimeModel: RuntimeModelOption;
   mode: TurnMode;
+  storyContext: StoryContextPackage;
 }) => {
   // 剧情资产整理是本轮后的增强流程，失败时只提示，不回滚对话。
   ctx.setTurnStatus("正在整理本轮剧情资产...");
@@ -210,6 +216,7 @@ export const runAssetExtractionStep = async ({
       sourceMessages: turnMessages,
       references,
       currentUserText: text,
+      storyContext,
     });
     const assetDraft = createTavernAssetDraft(extractedDraft);
     if (hasAssetDraftItems(assetDraft)) {

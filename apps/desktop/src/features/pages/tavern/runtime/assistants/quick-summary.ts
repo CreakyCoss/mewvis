@@ -68,8 +68,9 @@ export const runTavernQuickNovel = async ({
   room,
   characters,
   messages,
+  storyContext,
 }: TavernQuickSummaryInput) => {
-  const prompt = buildTavernQuickNovelPrompt({ room, characters, messages });
+  const prompt = buildTavernQuickNovelPrompt({ room, characters, messages, storyContext });
 
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,

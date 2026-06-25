@@ -1,10 +1,10 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import { formatTavernStoryGraphContext } from "../../prompt";
 import {
   buildTavernSceneDriveGuidance,
   filterTavernFactEventsForAudience,
   formatTavernCharacterRelationships,
 } from "../../../core";
+import type { StoryContextPackage } from "@/features/story";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -114,6 +114,7 @@ const buildTavernDirectorCharacterList = (
 
 export const buildTavernDirectorContextSections = ({
   room,
+  storyContext,
   characters,
   messages,
   currentUserText,
@@ -121,6 +122,7 @@ export const buildTavernDirectorContextSections = ({
   sceneDriveDirective,
   runtimeMessages,
   lorebookText,
+  storyGraphText,
   selectedTargetCharacterIds,
   directorProfileText,
   schedulingSignalsText,
@@ -128,6 +130,7 @@ export const buildTavernDirectorContextSections = ({
   promptBlocksText,
 }: {
   room: TavernRoom;
+  storyContext: StoryContextPackage;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;
@@ -135,6 +138,7 @@ export const buildTavernDirectorContextSections = ({
   sceneDriveDirective: string;
   runtimeMessages: TavernRuntimeMessage[];
   lorebookText: string;
+  storyGraphText: string;
   selectedTargetCharacterIds: string[];
   directorProfileText: string;
   schedulingSignalsText: string;
@@ -151,6 +155,7 @@ export const buildTavernDirectorContextSections = ({
     isSceneDriveTurn,
   });
   const directorOperationPolicy = room.settings.directorNarrativeControl;
+  const activeScene = storyContext.graph.activeScene;
 
   return [
     `<presentation_profile id="${escapePromptXmlAttribute(presentationProfile.id)}" label="${escapePromptXmlAttribute(presentationProfile.label)}" render="${escapePromptXmlAttribute(presentationProfile.renderStyle)}" contract="${escapePromptXmlAttribute(presentationProfile.generationContract)}">`,
@@ -160,33 +165,33 @@ export const buildTavernDirectorContextSections = ({
     buildTavernSecretMemoryProtocol("director"),
     "",
     promptBlocksText,
-    room.storyOutline.trim() || room.storyGoal.trim()
+    storyContext.story.outline.trim() || storyContext.story.goal.trim()
       ? `<story_arc>\n${[
-          escapePromptXmlText(room.storyOutline.trim()),
-          room.storyGoal.trim() ? `终局目标：${escapePromptXmlText(room.storyGoal.trim())}` : "",
+          escapePromptXmlText(storyContext.story.outline.trim()),
+          storyContext.story.goal.trim() ? `终局目标：${escapePromptXmlText(storyContext.story.goal.trim())}` : "",
         ].filter(Boolean).join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${escapePromptXmlAttribute(room.title)}">`,
-    escapePromptXmlText(room.scene),
+    `<room title="${escapePromptXmlAttribute(storyContext.story.title)}">`,
+    escapePromptXmlText(activeScene?.scene ?? ""),
     "</room>",
     "",
-    room.scenePlot.trim()
-      ? `<scene_plot>\n${limitEscapedDirectorText(room.scenePlot, 3000)}\n</scene_plot>`
+    activeScene?.plot.trim()
+      ? `<scene_plot>\n${limitEscapedDirectorText(activeScene.plot, 3000)}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
-    room.sceneGoal.trim()
-      ? `<scene_goal>\n${limitEscapedDirectorText(room.sceneGoal, 2000)}\n</scene_goal>`
+    activeScene?.goal.trim()
+      ? `<scene_goal>\n${limitEscapedDirectorText(activeScene.goal, 2000)}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
     "<scene_status instruction=\"public_scene_pressure; use_for_narrator_and_scheduling_without_solving_user_choices\">",
     JSON.stringify({
-      location: room.sceneStatus?.location ?? "",
-      timeLabel: room.sceneStatus?.timeLabel ?? "",
-      weather: room.sceneStatus?.weather ?? "",
-      atmosphere: room.sceneStatus?.atmosphere ?? "",
-      scenePhase: room.sceneStatus?.scenePhase ?? "",
-      immediateThreat: room.sceneStatus?.immediateThreat ?? "",
+      location: activeScene?.status?.location ?? "",
+      timeLabel: activeScene?.status?.timeLabel ?? "",
+      weather: activeScene?.status?.weather ?? "",
+      atmosphere: activeScene?.status?.atmosphere ?? "",
+      scenePhase: activeScene?.status?.scenePhase ?? "",
+      immediateThreat: activeScene?.status?.immediateThreat ?? "",
     }, null, 2),
     "</scene_status>",
     "",
@@ -198,16 +203,16 @@ export const buildTavernDirectorContextSections = ({
     JSON.stringify(sceneDriveGuidance, null, 2),
     "</scene_drive_guidance>",
     "",
-    room.sceneDirection.trim()
-      ? `<scene_direction>\n${limitEscapedDirectorText(room.sceneDirection, 3000)}\n</scene_direction>`
+    activeScene?.direction.trim()
+      ? `<scene_direction>\n${limitEscapedDirectorText(activeScene.direction, 3000)}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
-    room.sceneTransition.trim()
-      ? `<scene_transition>\n${limitEscapedDirectorText(room.sceneTransition, 2000)}\n</scene_transition>`
+    activeScene?.transition.trim()
+      ? `<scene_transition>\n${limitEscapedDirectorText(activeScene.transition, 2000)}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
     "<story_graph>",
-    formatTavernStoryGraphContext(room) || "（无）",
+    storyGraphText || "（无）",
     "</story_graph>",
     "",
     "<lorebook>",

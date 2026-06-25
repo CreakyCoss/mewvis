@@ -192,9 +192,9 @@ export const ManagementPage = ({
 
     try {
       const error = importRoom(await file.text());
-      setRoomOperationStatus(error ?? "房间已导入");
+      setRoomOperationStatus(error ?? "运行快照已导入");
     } catch {
-      setRoomOperationStatus("读取房间文件失败");
+      setRoomOperationStatus("读取运行快照失败");
     }
   };
 
@@ -236,7 +236,7 @@ export const ManagementPage = ({
               <input
                 ref={roomImportInputRef}
                 type="file"
-                accept="application/json,.json"
+                accept="application/json,.json,.tavern-runtime"
                 className="hidden"
                 onChange={handleImportRoomFile}
               />
@@ -283,7 +283,7 @@ export const ManagementPage = ({
                     }}
                   >
                     <FileUp className="size-4" />
-                    导入酒馆
+                    导入运行快照
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -472,7 +472,6 @@ export const ManagementPage = ({
         onPatchRoom={patchRoom}
         onRunTextFieldAgent={runTextFieldAgent}
         onRegenerateDirectorProfile={regenerateDirectorProfile}
-        onRequestDangerAction={requestDangerAction}
         onOpenRoom={openRoomEntrySelector}
       />
     </div>

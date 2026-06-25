@@ -31,6 +31,7 @@ type UseWorkspaceChatSessionsInput = {
     sessionId: string | null;
     isNewSession: boolean;
     onSessionCreated?: (sessionId: string) => void;
+    newSessionSeed?: HydratableChatSession | null;
   };
   navigation: {
     closePanels: () => void;
@@ -72,6 +73,7 @@ export const useWorkspaceChatSessions = ({
     sessionId: routeSessionId,
     isNewSession: isRouteNewSession,
     onSessionCreated,
+    newSessionSeed = null,
   } = route;
   const {
     closePanels,
@@ -188,7 +190,7 @@ export const useWorkspaceChatSessions = ({
         setSessionsError("");
         setComposerResetKey((current) => current + 1);
         clearAgentQuestionDraft();
-        hydrateSession(null);
+        hydrateSession(newSessionSeed);
         return;
       }
 
@@ -215,6 +217,7 @@ export const useWorkspaceChatSessions = ({
     hydrateSession,
     isRouteNewSession,
     markSessionRead,
+    newSessionSeed,
     routeSessionId,
     setComposerResetKey,
     setWorkspaceSessions,
@@ -249,7 +252,10 @@ export const useWorkspaceChatSessions = ({
       return;
     }
 
-    const title = messages.length === 0 ? currentSessionTitle : deriveSessionTitle(messages);
+    const derivedTitle = messages.length === 0 ? currentSessionTitle : deriveSessionTitle(messages);
+    const title = derivedTitle === DEFAULT_SESSION_TITLE && currentSessionTitle !== DEFAULT_SESSION_TITLE
+      ? currentSessionTitle
+      : derivedTitle;
     if (title !== currentSessionTitle) {
       currentSessionTitleRef.current = title;
       setCurrentSessionTitle(title);

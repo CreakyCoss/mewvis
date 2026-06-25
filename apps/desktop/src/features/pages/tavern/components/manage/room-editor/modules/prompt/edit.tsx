@@ -32,6 +32,9 @@ import {
   type TavernPromptPreviewWarningSeverity,
 } from "../../../../../runtime/prompt/preview";
 import {
+  getTavernRuntimeStoryProjection,
+} from "../../../../../adapters/story";
+import {
   getTavernCharacterStylePreset,
 } from "../../../../../prompt-registry/character-style-presets";
 import {
@@ -376,40 +379,45 @@ const buildPromptBlockAgentContext = ({
   room: TavernRoom;
   draft: PromptDraft;
   block: TavernPromptBlock;
-}) => ({
-  promptEditingMode: "saved_prompt_block",
-  constraints: [
-    "只优化当前提示词文本块，不要输出 JSON、标题或解释。",
-    "不要新增、改名或要求 XML 标签；输出协议由 system_contract 和 presentation_profile 控制。",
-    "不要把文本写成系统底层不可改规则；保持为用户可编辑的风格、节奏、偏好或边界说明。",
-    "保留 target 对应职责：bridge 负责整理，director 负责调度，character 负责角色正文表达。",
-  ],
-  presentationProfile: getTavernPresentationProfile(draft.presentationProfileId),
-  promptBlock: {
-    id: block.id,
-    target: block.target,
-    label: block.label,
-    source: block.source,
-    enabled: block.enabled,
-  },
-  relatedPromptBlocks: draft.prompt.blocks
-    .filter((item) => item.id !== block.id && item.enabled && item.text.trim())
-    .slice(0, 8)
-    .map((item) => ({
-      target: item.target,
-      label: item.label,
-      source: item.source,
-      text: item.text.slice(0, 800),
-    })),
-  roomSnapshot: {
-    title: room.title,
-    storyGoal: room.storyGoal,
-    scene: room.scene,
-    sceneGoal: room.sceneGoal,
-    scenePlot: room.scenePlot,
-    sceneDirection: room.sceneDirection,
-  },
-});
+}) => {
+  const storyProjection = getTavernRuntimeStoryProjection(room);
+  const activeNode = storyProjection.graph.nodes.find((node) =>
+    node.id === storyProjection.graph.activeNodeId
+  );
+
+  return {
+    promptEditingMode: "saved_prompt_block",
+    constraints: [
+      "只优化当前提示词文本块，不要输出 JSON、标题或解释。",
+      "不要新增、改名或要求 XML 标签；输出协议由 system_contract 和 presentation_profile 控制。",
+      "不要把文本写成系统底层不可改规则；保持为用户可编辑的风格、节奏、偏好或边界说明。",
+      "保留 target 对应职责：bridge 负责整理，director 负责调度，character 负责角色正文表达。",
+    ],
+    presentationProfile: getTavernPresentationProfile(draft.presentationProfileId),
+    promptBlock: {
+      id: block.id,
+      target: block.target,
+      label: block.label,
+      source: block.source,
+      enabled: block.enabled,
+    },
+    relatedPromptBlocks: draft.prompt.blocks
+      .filter((item) => item.id !== block.id && item.enabled && item.text.trim())
+      .slice(0, 8)
+      .map((item) => ({
+        target: item.target,
+        label: item.label,
+        source: item.source,
+        text: item.text.slice(0, 800),
+      })),
+    runtimeStoryProjection: {
+      story: storyProjection.story,
+      activeNode,
+      activeScene: storyProjection.activeScene,
+      branch: storyProjection.branch,
+    },
+  };
+};
 
 export const PromptEdit = ({
   bind,
@@ -555,7 +563,7 @@ export const PromptEdit = ({
 
     const previewForSave = buildTavernPromptPreview({
       room: buildPromptPreviewRoom(data, draft),
-      characters: data.localCharacters ?? [],
+      characters: getTavernRuntimeStoryProjection(data).characters,
       messages,
     });
     const blockingWarning = previewForSave.warnings.find((warning) =>
@@ -643,7 +651,7 @@ export const PromptEdit = ({
     () => previewRoom
       ? buildTavernPromptPreview({
           room: previewRoom,
-          characters: previewRoom.localCharacters ?? [],
+          characters: getTavernRuntimeStoryProjection(previewRoom).characters,
           messages,
         })
       : null,

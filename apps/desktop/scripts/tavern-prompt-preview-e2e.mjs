@@ -208,28 +208,21 @@ writeFileSync(entryPath, `
   const titleNavigation = titleWarning
     ? resolveTavernPromptWarningNavigation(titleWarning, room)
     : null;
-  assert(titleNavigation?.moduleId === "basic", "房间标题诊断应导航到基础信息模块。", titleNavigation);
-  assert(titleNavigation?.focusElementId === "tavern-basic-title", "房间标题诊断应定位标题输入。", titleNavigation);
+  assert(titleNavigation?.target === "runtimeBasic", "房间标题诊断应导航到运行基础模块。", titleNavigation);
   const sceneNavigation = roomSceneWarning
     ? resolveTavernPromptWarningNavigation(roomSceneWarning, room)
     : null;
-  assert(sceneNavigation?.moduleId === "scenes", "场景文本诊断应导航到场景模块。", sceneNavigation);
-  assert(sceneNavigation?.sceneId === room.activeSceneId, "场景文本诊断应打开当前场景。", sceneNavigation);
-  assert(sceneNavigation?.focusElementId === "tavern-scenes-scene", "场景文本诊断应定位场景描述。", sceneNavigation);
+  assert(sceneNavigation?.target === "storyConfig", "场景文本诊断应导航到故事配置。", sceneNavigation);
   const loreWarning = findWarning(preview, "editable-system-like-tag:lore:lore-injection:content");
   const loreNavigation = loreWarning
     ? resolveTavernPromptWarningNavigation(loreWarning, room)
     : null;
-  assert(loreNavigation?.moduleId === "lore", "世界书诊断应导航到世界书模块。", loreNavigation);
-  assert(loreNavigation?.entryId === "lore-injection", "世界书诊断应打开对应条目。", loreNavigation);
-  assert(loreNavigation?.focusElementId === "tavern-lore-content", "世界书正文诊断应定位正文输入。", loreNavigation);
+  assert(loreNavigation?.target === "storyConfig", "世界书诊断应导航到故事配置。", loreNavigation);
   const characterWarning = findWarning(preview, "editable-system-like-tag:character:char-mu:description");
   const characterNavigation = characterWarning
     ? resolveTavernPromptWarningNavigation(characterWarning, room)
     : null;
-  assert(characterNavigation?.moduleId === "characters", "角色设定诊断应导航到角色模块。", characterNavigation);
-  assert(characterNavigation?.characterId === "char-mu", "角色设定诊断应打开对应角色。", characterNavigation);
-  assert(characterNavigation?.focusElementId === "tavern-character-description", "角色设定诊断应定位设定输入。", characterNavigation);
+  assert(characterNavigation?.target === "storyConfig", "角色设定诊断应导航到故事配置。", characterNavigation);
   assert(preview.summary.dangerCount >= 1, "预览摘要应统计阻断项。", preview.summary);
   assert(preview.summary.blockingWarningCount >= 1, "预览摘要应统计保存阻断项。", preview.summary);
   assert(preview.summary.warningCount >= 2, "预览摘要应统计风险项。", preview.summary);

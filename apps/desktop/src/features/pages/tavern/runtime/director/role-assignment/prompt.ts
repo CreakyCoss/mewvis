@@ -3,6 +3,9 @@ import type {
   TavernRoom,
 } from "../../../types";
 import {
+  buildTavernStoryContextPackage,
+} from "../../../adapters/story";
+import {
   createTavernRoleAssignmentParticipants,
   expandTavernRoleAssignmentPool,
 } from "./participants";
@@ -17,6 +20,8 @@ export const buildTavernDirectorRoleAssignmentPrompt = ({
   const roleAssignment = room.settings.informationPolicy.roleAssignment;
   const participants = createTavernRoleAssignmentParticipants(room, characters);
   const rolePool = expandTavernRoleAssignmentPool(roleAssignment.rolePool);
+  const storyContext = buildTavernStoryContextPackage({ room, characters });
+  const activeScene = storyContext.graph.activeScene;
 
   return [
     "<output_schema>",
@@ -34,10 +39,10 @@ export const buildTavernDirectorRoleAssignmentPrompt = ({
     "只输出严格合法 JSON 对象，不要 Markdown，不要代码块。",
     "</constraints>",
     "",
-    `<room title="${room.title}">`,
-    room.storyOutline.trim(),
-    room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
-    room.scene.trim(),
+    `<room title="${storyContext.story.title}">`,
+    storyContext.story.outline.trim(),
+    storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
+    activeScene?.scene.trim() ?? "",
     "</room>",
     "",
     "<participants>",

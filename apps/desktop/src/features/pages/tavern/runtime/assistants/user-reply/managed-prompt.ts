@@ -1,3 +1,4 @@
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -13,11 +14,13 @@ export const buildTavernManagedUserReplyPrompt = ({
   characters,
   messages,
   currentDraft,
+  storyContext,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
+  storyContext?: StoryContextPackage;
 }) => {
   const characterList = characters.map((character) =>
     `${character.name}: ${character.description}`
@@ -47,7 +50,7 @@ export const buildTavernManagedUserReplyPrompt = ({
     `{"reply":"用户本轮要发送的回复","reason":"可选简短调度原因"}`,
     "</output_schema>",
     "",
-    ...buildTavernUserReplySceneSections(room),
+    ...buildTavernUserReplySceneSections({ room, characters, storyContext }),
     "",
     "<characters>",
     characterList,

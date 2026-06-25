@@ -2,16 +2,18 @@ import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "../../../message";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
   TavernRoom,
 } from "../../../types";
 import {
-  formatTavernLorebookEntries,
+  buildTavernStoryContextPackage,
   formatTavernStoryGraphContext,
-  selectTavernLorebookEntries,
-} from "../../prompt";
+  formatTavernStoryLorebookEntries,
+  selectTavernStoryLorebookEntries,
+} from "../../../adapters/story";
 
 const formatAllowedEvents = (room: TavernRoom) => {
   const lines = room.statusRules.map((rule) => {
@@ -40,16 +42,19 @@ export const buildTavernProgressTrackingPrompt = ({
   messages,
   sourceMessages,
   currentUserText,
+  storyContext: inputStoryContext,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   sourceMessages: TavernMessage[];
   currentUserText: string;
+  storyContext?: StoryContextPackage;
 }) => {
-  const lorebookText = formatTavernLorebookEntries(selectTavernLorebookEntries({
-    room,
-    characters,
+  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
+  const activeScene = storyContext.graph.activeScene;
+  const lorebookText = formatTavernStoryLorebookEntries(selectTavernStoryLorebookEntries({
+    storyContext,
     currentUserText,
   }));
   const visibleSourceMessages = formatTavernVisibleMessagesForRequestContext(
@@ -110,23 +115,23 @@ export const buildTavernProgressTrackingPrompt = ({
     formatAllowedEvents(room),
     "</allowed_event_rules>",
     "",
-    room.storyOutline.trim() || room.storyGoal.trim()
+    storyContext.story.outline.trim() || storyContext.story.goal.trim()
       ? `<story_arc>\n${[
-          room.storyOutline.trim(),
-          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+          storyContext.story.outline.trim(),
+          storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
         ].filter(Boolean).join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${room.title}">`,
-    room.scene,
+    `<room title="${storyContext.story.title}">`,
+    activeScene?.scene ?? "",
     "</room>",
     "",
-    room.sceneGoal.trim()
-      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+    activeScene?.goal.trim()
+      ? `<scene_goal>\n${activeScene.goal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
     "<story_graph>",
-    formatTavernStoryGraphContext(room, { maxEdges: 8, maxSummaryChars: 220 }) || "（无）",
+    formatTavernStoryGraphContext(storyContext, { maxEdges: 8, maxSummaryChars: 220 }) || "（无）",
     "</story_graph>",
     "",
     "<lorebook>",

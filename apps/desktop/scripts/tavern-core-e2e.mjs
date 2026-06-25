@@ -12,7 +12,6 @@ const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/decision.ts");
 const directorPromptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/prompt.ts");
-const importFormatsPath = resolve(workspaceRoot, "src/features/pages/tavern/import-formats.ts");
 const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts");
@@ -111,10 +110,6 @@ writeFileSync(entryPath, `
   import {
     buildTavernDirectorPromptContext,
   } from ${JSON.stringify(directorPromptPath)};
-  import {
-    parseSillyTavernWorldBookJson,
-    parseTavernExternalImportJson,
-  } from ${JSON.stringify(importFormatsPath)};
   import {
     buildTavernBridgeSystemPrompt,
     buildTavernCharacterTurnInstruction,
@@ -232,6 +227,25 @@ writeFileSync(entryPath, `
     title: "测试酒馆",
     storyOutline: "",
     storyGoal: "",
+    storyGraph: {
+      version: 1,
+      entryNodeId: "node-alpha",
+      activeNodeId: "node-alpha",
+      stages: [{ id: "stage-alpha", title: "测试阶段", order: 0 }],
+      nodes: [{
+        id: "node-alpha",
+        stageId: "stage-alpha",
+        sceneId: "scene-alpha",
+        title: "测试节点",
+        type: "normal",
+        pathRole: "main",
+        position: { x: 0, y: 0 },
+        status: "ready",
+        createdAt: now,
+        updatedAt: now,
+      }],
+      edges: [],
+    },
     storyRuns: [],
     activeSceneInstanceId: "scene-instance-alpha",
     sceneInstances: [{ id: "scene-instance-alpha", sceneId: "scene-alpha" }],
@@ -2062,162 +2076,6 @@ writeFileSync(entryPath, `
   );
   const generatedRoom = generatedMaterialized.room;
   const generatedScene = generatedRoom.scenes[0];
-  const sillyWorldBookEntries = parseSillyTavernWorldBookJson({
-    entries: {
-      0: {
-        uid: 0,
-        key: ["铜牌"],
-        keysecondary: ["信使"],
-        comment: "信使铜牌",
-        content: "铜牌用于确认信使身份。",
-        constant: true,
-        disable: false,
-      },
-      1: {
-        uid: 1,
-        key: ["停用"],
-        comment: "停用条目",
-        content: "这条应该以禁用状态导入。",
-        constant: false,
-        disable: true,
-      },
-    },
-  });
-  const sillyWorldBookImport = parseTavernExternalImportJson(JSON.stringify({
-    entries: {
-      0: {
-        uid: 0,
-        key: ["旧灯"],
-        keysecondary: ["雨巷"],
-        comment: "旧灯",
-        content: "雨巷旧灯只会在子夜前后闪烁。",
-        constant: false,
-        disable: false,
-      },
-    },
-  }));
-  const sillyCharacterImport = parseTavernExternalImportJson(JSON.stringify({
-    spec: "chara_card_v2",
-    spec_version: "2.0",
-    data: {
-      name: "铃央",
-      description: "守灯人，记忆力很好。",
-      personality: "冷静，先观察再回答。",
-      scenario: "雨巷旧灯下，信使失踪。",
-      first_mes: "灯刚刚灭过一次。",
-      mes_example: "铃央：我先看灯芯。",
-      system_prompt: "保持守灯人的谨慎，不替用户行动。",
-      post_history_instructions: "只根据可见线索回应。",
-      character_book: {
-        entries: [
-          {
-            key: ["灯芯"],
-            comment: "灯芯",
-            content: "灯芯混入银粉时会发出冷白光。",
-            constant: false,
-            disable: false,
-          },
-        ],
-      },
-    },
-  }));
-  const interactiveScriptImport = parseTavernExternalImportJson(JSON.stringify({
-    type: "novel-claw:tavern-script",
-    title: "月下议会",
-    mode: "social_deduction",
-    premise: "议会中混入了伪装者。",
-    background: "月下议会只在钟声第三次响起前投票。",
-    userPersonaName: "旅人",
-    characters: [
-      {
-        id: "seer",
-        name: "观星者",
-        description: "能辨认一次谎言。",
-        speakingStyle: "克制而含蓄。",
-      },
-      {
-        id: "guard",
-        name: "守卫",
-        description: "负责维持秩序。",
-        speakingStyle: "短句，直接。",
-      },
-    ],
-    rolePool: [
-      { id: "traitor", label: "伪装者", factionId: "traitors", factionLabel: "伪装者", count: 1 },
-      { id: "council", label: "议员", factionId: "council", factionLabel: "议会", count: 2 },
-    ],
-    privateFacts: [
-      {
-        type: "clue",
-        evidence: "你知道钟声第三次响起前必须完成投票。",
-        visibleToUser: true,
-      },
-    ],
-    statusDefinitions: [
-      {
-        id: "suspicion",
-        label: "怀疑",
-        scope: "scene",
-        valueType: "number",
-        defaultValue: 0,
-        visibility: "public",
-        min: 0,
-        max: 100,
-        updatePolicy: {
-          mode: "eventDrivenWithReview",
-          requireFactEvent: true,
-          allowedEventTypes: ["suspicious"],
-        },
-      },
-    ],
-    statusRules: [],
-    progressViews: [],
-    taskDefinitions: [
-      {
-        id: "find-traitor",
-        title: "找出伪装者",
-        scope: "scene",
-        owner: { type: "scene", sceneId: "current" },
-        visibility: "public",
-        required: true,
-        optional: false,
-        repeatable: false,
-        lifecycle: {
-          initialStatus: "active",
-          completeCondition: {
-            factEvent: "traitor_found",
-            countGte: 1,
-          },
-        },
-      },
-    ],
-    outcomes: [
-      {
-        id: "traitor-found",
-        label: "伪装者被找出",
-        winner: [{ type: "user", userId: "user" }],
-        condition: {
-          task: "find-traitor",
-          status: "completed",
-        },
-        priority: 10,
-        exclusive: true,
-        endScene: "suggest",
-        visibility: "public",
-      },
-    ],
-    openingMessage: "第三声钟响前，每个人都必须说出自己的证词。",
-  }));
-  const interactiveScriptMaterialized = interactiveScriptImport.kind === "generatedPreset"
-    ? createTavernRoomFromGeneratedPresetJson(
-        "workspace",
-        interactiveScriptImport.preset,
-        {
-          roomId: "interactive-script-room",
-          createdAt: now + 60,
-        },
-      )
-    : null;
   const defaultSystemPresetState = createDefaultTavernState("workspace-system-defaults");
   const fogboundMaterialized = createTavernRoomFromSystemPreset(
     "workspace-system",
@@ -2454,15 +2312,6 @@ writeFileSync(entryPath, `
     delete globalThis.window;
   } else {
     globalThis.window = previousWindow;
-  }
-  let promptPresetImportError = "";
-  try {
-    parseTavernExternalImportJson(JSON.stringify({
-      chat_completion_source: "openai",
-      prompts: [{ identifier: "main", content: "提示词预设" }],
-    }));
-  } catch (error) {
-    promptPresetImportError = error instanceof Error ? error.message : String(error);
   }
   const progressChecks = {
     statusEvents,
@@ -2713,14 +2562,6 @@ writeFileSync(entryPath, `
         roomTitles: legacyCleanupState.rooms.map((item) => item.title),
         roomIds: legacyCleanupState.rooms.map((item) => item.id),
       },
-    },
-    imports: {
-      sillyWorldBookEntries,
-      sillyWorldBookImport,
-      sillyCharacterImport,
-      interactiveScriptImport,
-      interactiveScriptMaterialized,
-      promptPresetImportError,
     },
   };
   globalThis.__checks = {
@@ -3544,49 +3385,6 @@ try {
     "星坠预设应完整映射小说正文、舞台状态、角色行动选项和第七场任务结局",
     checks.progressChecks.systemPresets.starfall,
   );
-  assert(
-    checks.progressChecks.imports.sillyWorldBookEntries.length === 2 &&
-      checks.progressChecks.imports.sillyWorldBookEntries[0].title === "信使铜牌" &&
-      checks.progressChecks.imports.sillyWorldBookEntries[0].keywords.includes("铜牌") &&
-      checks.progressChecks.imports.sillyWorldBookEntries[0].keywords.includes("信使") &&
-      checks.progressChecks.imports.sillyWorldBookEntries[0].alwaysOn &&
-      checks.progressChecks.imports.sillyWorldBookEntries[1].enabled === false,
-    "SillyTavern 世界书应映射为通用世界书条目，并保留关键词、常驻和禁用状态",
-    checks.progressChecks.imports.sillyWorldBookEntries,
-  );
-  assert(
-    checks.progressChecks.imports.sillyWorldBookImport.kind === "worldBook" &&
-      checks.progressChecks.imports.sillyWorldBookImport.entries[0].title === "旧灯",
-    "外部导入解析器应识别 SillyTavern 世界书",
-    checks.progressChecks.imports.sillyWorldBookImport,
-  );
-  assert(
-    checks.progressChecks.imports.sillyCharacterImport.kind === "characterCard" &&
-      checks.progressChecks.imports.sillyCharacterImport.preset.characters[0].name === "铃央" &&
-      checks.progressChecks.imports.sillyCharacterImport.preset.room.scene.includes("信使失踪") &&
-      checks.progressChecks.imports.sillyCharacterImport.preset.room.lorebookEntries[0].title === "灯芯" &&
-      checks.progressChecks.imports.sillyCharacterImport.preset.messages[0].role === "character",
-    "SillyTavern 角色卡应转换成标准生成预设，包含角色、场景、世界书和开场消息",
-    checks.progressChecks.imports.sillyCharacterImport,
-  );
-  assert(
-    checks.progressChecks.imports.interactiveScriptImport.kind === "generatedPreset" &&
-      checks.progressChecks.imports.interactiveScriptMaterialized.room.settings.informationPolicy.mode === "social_deduction" &&
-      checks.progressChecks.imports.interactiveScriptMaterialized.room.settings.informationPolicy.roleAssignment.rolePool.length === 2 &&
-      checks.progressChecks.imports.interactiveScriptMaterialized.room.factEvents.some((event) =>
-        event.visibleToUser && event.visibility === "private"
-      ) &&
-      checks.progressChecks.imports.interactiveScriptMaterialized.room.taskDefinitions.length === 1 &&
-      checks.progressChecks.imports.interactiveScriptMaterialized.room.sceneOutcomes.length === 1,
-    "互动剧本 JSON 应转换成新酒馆结构，保留身份池、私有事实、状态、任务和结局",
-    checks.progressChecks.imports.interactiveScriptMaterialized,
-  );
-  assert(
-    checks.progressChecks.imports.promptPresetImportError.includes("提示词预设"),
-    "提示词预设应被明确拒绝，避免误导入为酒馆数据",
-    checks.progressChecks.imports.promptPresetImportError,
-  );
-
   console.log(JSON.stringify({ ok: true, checks: checks.roleIds }, null, 2));
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

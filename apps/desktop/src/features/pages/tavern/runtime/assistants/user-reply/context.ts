@@ -1,5 +1,9 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
+import type { StoryContextPackage } from "@/features/story";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
+import {
+  buildTavernStoryContextPackage,
+} from "../../../adapters/story";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -13,34 +17,47 @@ import type {
 export const SUGGESTION_COUNT = 3;
 export const RECENT_MESSAGE_LIMIT = 12;
 
-export const buildTavernUserReplySceneSections = (room: TavernRoom) => [
-  room.storyOutline.trim() || room.storyGoal.trim()
-    ? `<story_arc>\n${[
-        room.storyOutline.trim(),
-        room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
-      ].filter(Boolean).join("\n\n")}\n</story_arc>`
-    : "<story_arc>（无）</story_arc>",
-  "",
-  `<room title="${room.title}">`,
-  room.scene,
-  "</room>",
-  "",
-  room.scenePlot.trim()
-    ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
-    : "<scene_plot>（无）</scene_plot>",
-  "",
-  room.sceneGoal.trim()
-    ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
-    : "<scene_goal>（无）</scene_goal>",
-  "",
-  room.sceneDirection.trim()
-    ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
-    : "<scene_direction>（无）</scene_direction>",
-  "",
-  room.sceneTransition.trim()
-    ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
-    : "<scene_transition>（无）</scene_transition>",
-];
+export const buildTavernUserReplySceneSections = ({
+  room,
+  characters,
+  storyContext: inputStoryContext,
+}: {
+  room: TavernRoom;
+  characters: TavernCharacter[];
+  storyContext?: StoryContextPackage;
+}) => {
+  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
+  const activeScene = storyContext.graph.activeScene;
+
+  return [
+    storyContext.story.outline.trim() || storyContext.story.goal.trim()
+      ? `<story_arc>\n${[
+          storyContext.story.outline.trim(),
+          storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
+        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+      : "<story_arc>（无）</story_arc>",
+    "",
+    `<room title="${storyContext.story.title}">`,
+    activeScene?.scene ?? "",
+    "</room>",
+    "",
+    activeScene?.plot.trim()
+      ? `<scene_plot>\n${activeScene.plot.trim()}\n</scene_plot>`
+      : "<scene_plot>（无）</scene_plot>",
+    "",
+    activeScene?.goal.trim()
+      ? `<scene_goal>\n${activeScene.goal.trim()}\n</scene_goal>`
+      : "<scene_goal>（无）</scene_goal>",
+    "",
+    activeScene?.direction.trim()
+      ? `<scene_direction>\n${activeScene.direction.trim()}\n</scene_direction>`
+      : "<scene_direction>（无）</scene_direction>",
+    "",
+    activeScene?.transition.trim()
+      ? `<scene_transition>\n${activeScene.transition.trim()}\n</scene_transition>`
+      : "<scene_transition>（无）</scene_transition>",
+  ];
+};
 
 export const buildTavernUserReplyConversationSections = ({
   room,

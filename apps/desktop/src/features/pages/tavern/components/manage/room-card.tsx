@@ -145,8 +145,8 @@ export const RoomCard = ({
   const handleExportRoom = () => {
     const exported = exportRoom(room.id);
     const message = exported
-      ? `已导出「${room.title}」`
-      : `导出「${room.title}」失败`;
+      ? `已导出「${room.title}」运行快照`
+      : `导出「${room.title}」运行快照失败`;
 
     setOperationStatus(message);
     if (exported) {
@@ -384,7 +384,7 @@ export const RoomCard = ({
                 onSelect={handleExportRoom}
               >
                 <Download className="size-4" />
-                导出酒馆
+                导出运行快照
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="h-8 gap-2 rounded-md px-2 text-sm"

@@ -1,18 +1,15 @@
 import {
-  formatTavernCharacterRelationships,
-} from "../../../core";
+  buildTavernStoryContextPackage,
+  formatTavernStoryLorebookEntries,
+  selectTavernStoryLorebookEntries,
+} from "../../../adapters/story";
+import type {
+  StoryContextLorebookEntry,
+} from "@/features/story";
 import type {
   TavernCharacter,
-  TavernLorebookEntry,
   TavernRoom,
 } from "../../../types";
-import {
-  escapePromptXmlAttribute,
-  escapePromptXmlText,
-  limitPromptText,
-} from "../shared/text";
-
-const normalizeMatchText = (text: string) => text.toLowerCase();
 
 export const selectTavernLorebookEntries = ({
   room,
@@ -25,35 +22,17 @@ export const selectTavernLorebookEntries = ({
   characters: TavernCharacter[];
   currentUserText: string;
 }) => {
-  const matchText = normalizeMatchText([
-    currentUserText,
-    room.title,
-    room.scene,
-    activeCharacter?.name ?? "",
-    characters.map((character) => [
-      character.name,
-      character.description,
-      character.goals ?? "",
-      formatTavernCharacterRelationships({
-        character,
-        characters,
-        userPersonaName: room.userPersonaName,
-        relationshipOverrides: room.relationshipOverrides,
-        statusSnapshot: room.statusSnapshot,
-        includePrivate: false,
-      }),
-    ].join("\n")).join("\n\n"),
-  ].join("\n\n"));
+  const storyContext = buildTavernStoryContextPackage({ room, characters });
 
-  return room.lorebookEntries
-    .filter((entry) => entry.enabled)
-    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) =>
-      matchText.includes(keyword.toLowerCase())
-    ));
+  return selectTavernStoryLorebookEntries({
+    storyContext,
+    activeCharacterId: activeCharacter?.id,
+    currentUserText,
+  });
 };
 
 export const formatTavernLorebookEntries = (
-  entries: TavernLorebookEntry[],
+  entries: StoryContextLorebookEntry[],
   {
     maxEntries,
     maxContentChars,
@@ -61,10 +40,7 @@ export const formatTavernLorebookEntries = (
     maxEntries?: number;
     maxContentChars?: number;
   } = {},
-) => entries
-  .slice(0, maxEntries ?? entries.length)
-  .map((entry) => [
-    `<lore_entry title="${escapePromptXmlAttribute(entry.title)}" keywords="${escapePromptXmlAttribute(entry.keywords.join(", "))}">`,
-    escapePromptXmlText(maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content),
-    "</lore_entry>",
-  ].join("\n")).join("\n\n");
+) => formatTavernStoryLorebookEntries(entries, {
+  maxEntries,
+  maxContentChars,
+});

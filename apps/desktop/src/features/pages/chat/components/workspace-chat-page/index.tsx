@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Folder, PanelRight } from "lucide-react";
+import { toast } from "sonner";
 import {
   DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedRuntimeAgentTools,
@@ -17,6 +18,7 @@ import {
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
+import { submitStoryManuscript } from "@/features/story/storage";
 import { saveChatSession } from "../../api";
 import type {
   ChatMessage,
@@ -54,6 +56,11 @@ import {
   useRunningAgentTasks,
 } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
+import {
+  loadStoryChatSeed,
+  type StoryChatSeed,
+  type StoryChatSeedRequest,
+} from "./story-seed";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -88,6 +95,7 @@ type WorkspaceChatPageProps = {
   onSessionCreated?: (sessionId: string) => void;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
+  storySeedRequest?: StoryChatSeedRequest | null;
 };
 
 const resolveStringStateAction = (
@@ -136,6 +144,24 @@ const toggleSkillGroupSelection = (
   return normalizeSkillGroupSelection(next);
 };
 
+const getMessageTextForStorySubmission = (message: ChatMessage) => {
+  const blockText = message.agentBlocks
+    ?.flatMap((block) => block.type === "text" ? [block.content] : [])
+    .join("\n\n")
+    .trim();
+
+  return message.text.trim() || blockText || "";
+};
+
+const createStorySubmissionTitle = (
+  message: ChatMessage,
+  fallbackTitle: string,
+) => {
+  const text = getMessageTextForStorySubmission(message).replace(/\s+/g, " ").trim();
+  const prefix = message.role === "user" ? "用户稿件" : "助手稿件";
+  return text ? `${prefix}：${text.slice(0, 28)}` : fallbackTitle;
+};
+
 type CommitChatTurnDraftInput = Pick<
   ChatTurnDraft,
   "userUiMessage"
@@ -152,6 +178,7 @@ export const WorkspaceChatPage = ({
   onSessionCreated,
   onOpenWorkspace,
   onCreateWorkspace,
+  storySeedRequest = null,
 }: WorkspaceChatPageProps) => {
   const agentClient = useMemo(() => createAgentClient(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -201,6 +228,8 @@ export const WorkspaceChatPage = ({
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
+  const [storyChatSeed, setStoryChatSeed] = useState<StoryChatSeed | null>(null);
+  const [storySubmittingMessageIds, setStorySubmittingMessageIds] = useState<string[]>([]);
   const upsertSession = useChatSessionsStore((store) => store.upsertSession);
   const upsertSessionMeta = useChatSessionsStore((store) => store.upsertSessionMeta);
   const setSessionRunning = useChatSessionsStore((store) => store.setSessionRunning);
@@ -270,6 +299,45 @@ export const WorkspaceChatPage = ({
 
     return `${groupNames.slice(0, 2).join("、")} 等 ${groupNames.length} 组`;
   }, [selectedSkillGroupIds, selectedSkillGroups]);
+  useEffect(() => {
+    if (!storySeedRequest?.storyId) {
+      setStoryChatSeed(null);
+      return;
+    }
+
+    let cancelled = false;
+    loadStoryChatSeed(workspace, storySeedRequest)
+      .then((seed) => {
+        if (!cancelled) {
+          setStoryChatSeed(seed);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load story chat seed", error);
+          setStoryChatSeed(null);
+          setChatError("无法加载故事聊天上下文。");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storySeedRequest?.nodeId, storySeedRequest?.storyId, workspace]);
+  const storyRuntimeContextSections = useMemo(
+    () => storyChatSeed ? [storyChatSeed.runtimeInstruction] : [],
+    [storyChatSeed],
+  );
+  const newSessionSeed = useMemo(
+    () => storyChatSeed
+      ? {
+          id: null,
+          title: storyChatSeed.title,
+          messages: storyChatSeed.messages,
+        }
+      : null,
+    [storyChatSeed],
+  );
   const activeSkills = useMemo(() => {
     if (selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)) {
       return [];
@@ -598,6 +666,7 @@ export const WorkspaceChatPage = ({
       sessionId: routeSessionId,
       isNewSession: isRouteNewSession,
       onSessionCreated,
+      newSessionSeed: isRouteNewSession ? newSessionSeed : null,
     },
     navigation: {
       closePanels: closeContextPanels,
@@ -950,6 +1019,7 @@ export const WorkspaceChatPage = ({
         activeSkills,
         selectedAgent,
         agentInstructions: workspaceAgentInteractionInstructions,
+        runtimeContextSections: storyRuntimeContextSections,
         executionMemorySummary: "",
       });
 
@@ -1001,6 +1071,53 @@ export const WorkspaceChatPage = ({
     }
   };
 
+  const submitMessageToStory = useCallback(async (message: ChatMessage) => {
+    if (!storyChatSeed) {
+      return;
+    }
+
+    if (storyChatSeed.messages.some((seedMessage) => seedMessage.id === message.id)) {
+      setChatError("引导消息不需要收稿。");
+      return;
+    }
+
+    const content = getMessageTextForStorySubmission(message);
+    if (!content) {
+      setChatError("没有可收稿的消息内容。");
+      return;
+    }
+
+    setStorySubmittingMessageIds((current) =>
+      current.includes(message.id) ? current : [...current, message.id]
+    );
+    try {
+      await submitStoryManuscript(workspace.path, workspace.id, {
+        storyId: storyChatSeed.storyId,
+        nodeId: storyChatSeed.nodeId,
+        source: "chat",
+        sourceRunId: currentSessionId ?? undefined,
+        sourceMessageIds: [message.id],
+        title: createStorySubmissionTitle(message, storyChatSeed.title),
+        content,
+        summary: content.replace(/\s+/g, " ").trim().slice(0, 160),
+        metadata: {
+          channel: "workspace-chat",
+          role: message.role,
+          sessionId: currentSessionId,
+        },
+      });
+      setChatError("");
+      toast.success("已发送到故事收稿箱。");
+    } catch (error) {
+      console.error("Failed to submit chat message to story", error);
+      const messageText = error instanceof Error ? error.message : "收稿失败。";
+      setChatError(`收稿失败：${messageText}`);
+      toast.error("收稿失败。");
+    } finally {
+      setStorySubmittingMessageIds((current) => current.filter((id) => id !== message.id));
+    }
+  }, [currentSessionId, storyChatSeed, workspace.id, workspace.path]);
+
   useChatPanelStoreBridge({
     chatScrollAreaRef,
     workspace,
@@ -1035,6 +1152,8 @@ export const WorkspaceChatPage = ({
     onEditHistoryMessage: editHistoryMessage,
     onDeleteHistoryMessage: deleteHistoryMessage,
     onMoveHistoryMessage: moveHistoryMessage,
+    onSubmitMessageToStory: storyChatSeed ? submitMessageToStory : null,
+    storySubmittingMessageIds,
     onOpenWorkspace,
     onCreateWorkspace,
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,

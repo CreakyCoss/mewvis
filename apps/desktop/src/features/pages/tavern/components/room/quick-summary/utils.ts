@@ -2,6 +2,9 @@ import type {
   TavernMessage,
   TavernRoom,
 } from "../../../types";
+import {
+  getTavernRuntimeStoryProjection,
+} from "../../../adapters/story";
 import type { QuickNovelExportFormat } from "./types";
 
 export const sanitizeFileName = (value: string) =>
@@ -63,41 +66,38 @@ export const createQuickNovelExportContent = ({
 export const createQuickSummarySignature = (
   room: TavernRoom,
   messages: TavernMessage[],
-) => JSON.stringify({
-  roomId: room.id,
-  activeSceneId: room.activeSceneId ?? "",
-  updatedAt: room.updatedAt,
-  title: room.title,
-  storyOutline: room.storyOutline,
-  storyGoal: room.storyGoal,
-  scene: room.scene,
-  sceneGoal: room.sceneGoal,
-  scenePlot: room.scenePlot,
-  sceneDirection: room.sceneDirection,
-  sceneTransition: room.sceneTransition,
-  storyGraph: room.storyGraph,
-  memory: room.memory,
-  characterIds: room.characterIds,
-  activeCharacterId: room.activeCharacterId,
-  replyMode: room.replyMode,
-  characterMemoryLayers: room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  )?.characterMemoryLayers ?? {},
-  lorebookEntries: room.lorebookEntries.map((entry) => ({
-    id: entry.id,
-    title: entry.title,
-    content: entry.content,
-    keywords: entry.keywords,
-    enabled: entry.enabled,
-    alwaysOn: entry.alwaysOn,
-    updatedAt: entry.updatedAt,
-  })),
-  messages: messages.map((message) => ({
-    id: message.id,
-    role: message.role,
-    characterId: message.characterId ?? "",
-    content: message.content,
-    status: message.status ?? "",
-    referencedFiles: message.referencedFiles ?? [],
-  })),
-});
+) => {
+  const storyProjection = getTavernRuntimeStoryProjection(room);
+
+  return JSON.stringify({
+    roomId: room.id,
+    activeSceneId: room.activeSceneId ?? "",
+    updatedAt: room.updatedAt,
+    title: room.title,
+    story: storyProjection.story,
+    activeScene: storyProjection.activeScene,
+    storyGraph: storyProjection.graph,
+    branch: storyProjection.branch,
+    characterIds: storyProjection.characters.map((character) => character.id),
+    activeCharacterId: storyProjection.activeCharacterId,
+    replyMode: room.replyMode,
+    characterMemoryLayers: storyProjection.activeSceneInstance?.characterMemoryLayers ?? {},
+    lorebookEntries: storyProjection.lorebookEntries.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      keywords: entry.keywords,
+      enabled: entry.enabled,
+      alwaysOn: entry.alwaysOn,
+      updatedAt: entry.updatedAt,
+    })),
+    messages: messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      characterId: message.characterId ?? "",
+      content: message.content,
+      status: message.status ?? "",
+      referencedFiles: message.referencedFiles ?? [],
+    })),
+  });
+};

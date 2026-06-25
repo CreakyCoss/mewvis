@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -32,6 +33,7 @@ export type TavernUserReplySuggestionInput = {
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
+  storyContext?: StoryContextPackage;
 };
 
 export const runTavernUserReplySuggestions = async ({
@@ -42,12 +44,14 @@ export const runTavernUserReplySuggestions = async ({
   characters,
   messages,
   currentDraft,
+  storyContext,
 }: TavernUserReplySuggestionInput) => {
   const { prompt, suggestionCount } = buildTavernUserReplySuggestionPrompt({
     room,
     characters,
     messages,
     currentDraft,
+    storyContext,
   });
 
   const result = await runTavernRuntimeAgent({
@@ -86,12 +90,14 @@ export const runTavernManagedUserReply = async ({
   characters,
   messages,
   currentDraft,
+  storyContext,
 }: TavernUserReplySuggestionInput) => {
   const prompt = buildTavernManagedUserReplyPrompt({
     room,
     characters,
     messages,
     currentDraft,
+    storyContext,
   });
   const systemPrompt = buildTavernManagedUserReplySystemPrompt();
 

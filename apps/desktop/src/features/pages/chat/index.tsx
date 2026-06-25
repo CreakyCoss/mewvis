@@ -46,6 +46,15 @@ export const ChatPage = () => {
   const workspace =
     workspaces.find((item) => item.id === workspaceId) ?? fallbackWorkspace;
   const isRouteNewSession = !sessionId && location.pathname.endsWith("/new");
+  const searchParams = new URLSearchParams(location.search);
+  const storyId = searchParams.get("storyId")?.trim() ?? "";
+  const storyNodeId = searchParams.get("storyNodeId")?.trim() ?? "";
+  const storySeedRequest = storyId
+    ? {
+        storyId,
+        nodeId: storyNodeId || null,
+      }
+    : null;
 
   useEffect(() => {
     if (!workspace) {
@@ -93,6 +102,7 @@ export const ChatPage = () => {
       }}
       onOpenWorkspace={openWorkspace}
       onCreateWorkspace={openCreateWorkspace}
+      storySeedRequest={storySeedRequest}
     />
   );
 };

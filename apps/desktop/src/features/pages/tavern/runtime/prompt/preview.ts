@@ -6,6 +6,7 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../../types";
+import type { StoryContextPackage } from "@/features/story";
 import {
   isTavernFixedOrderPhase,
 } from "../../core";
@@ -15,6 +16,10 @@ import {
 } from "../director/prompt";
 import { buildTavernReplyAgentRequest } from "../reply/request";
 import { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";
+import {
+  buildTavernStoryContextPackage,
+  getTavernRuntimeStoryProjection,
+} from "../../adapters/story";
 
 export type TavernPromptPreviewTarget = TavernPromptBlockTarget;
 
@@ -105,6 +110,7 @@ export type BuildTavernPromptPreviewInput = {
   currentUserText?: string;
   selectedTargetCharacterIds?: string[];
   activeCharacterId?: string;
+  storyContext?: StoryContextPackage;
 };
 
 const previewCurrentUserText = "（预览）请按当前场景继续回应。";
@@ -230,7 +236,7 @@ const createPreviewItem = ({
 const getPreviewCharacters = (
   room: TavernRoom,
   characters?: TavernCharacter[],
-) => characters?.length ? characters : room.localCharacters ?? [];
+) => characters?.length ? characters : getTavernRuntimeStoryProjection(room).characters;
 
 const getPreviewActiveCharacter = ({
   room,
@@ -241,7 +247,7 @@ const getPreviewActiveCharacter = ({
   characters: TavernCharacter[];
   activeCharacterId?: string;
 }) => {
-  const targetId = activeCharacterId ?? room.activeCharacterId;
+  const targetId = activeCharacterId ?? getTavernRuntimeStoryProjection(room).activeCharacterId;
   return characters.find((character) => character.id === targetId) ?? characters[0];
 };
 
@@ -306,13 +312,11 @@ const buildSourceDuplicateWarnings = (room: TavernRoom): TavernPromptPreviewWarn
 
 const buildEditableTagWarnings = (
   room: TavernRoom,
-  characters: TavernCharacter[],
+  storyContext: StoryContextPackage,
 ) => {
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
-  const characterMemoryText = (characterId: string) => {
-    const layers = activeInstance?.characterMemoryLayers?.[characterId];
+  const activeScene = storyContext.graph.activeScene;
+  const characterMemoryText = (character: StoryContextPackage["characters"][number]) => {
+    const layers = character.memory;
     return [
       layers?.required,
       layers?.public,
@@ -337,27 +341,27 @@ const buildEditableTagWarnings = (
         location: createPromptBlockLocation(block),
       })),
     { id: "room:title", label: "房间标题", text: room.title, location: createRoomFieldLocation("title", "房间标题") },
-    { id: "room:storyOutline", label: "故事大纲", text: room.storyOutline, location: createRoomFieldLocation("storyOutline", "故事大纲") },
-    { id: "room:storyGoal", label: "故事目标", text: room.storyGoal, location: createRoomFieldLocation("storyGoal", "故事目标") },
-    { id: "room:scene", label: "当前场景", text: room.scene, location: createRoomFieldLocation("scene", "当前场景") },
-    { id: "room:scenePlot", label: "场景剧情", text: room.scenePlot, location: createRoomFieldLocation("scenePlot", "场景剧情") },
-    { id: "room:sceneGoal", label: "场景目标", text: room.sceneGoal, location: createRoomFieldLocation("sceneGoal", "场景目标") },
-    { id: "room:sceneDirection", label: "场景方向", text: room.sceneDirection, location: createRoomFieldLocation("sceneDirection", "场景方向") },
-    { id: "room:sceneTransition", label: "场景转场", text: room.sceneTransition, location: createRoomFieldLocation("sceneTransition", "场景转场") },
-    { id: "room:memory", label: "长期记忆", text: room.memory, location: createRoomFieldLocation("memory", "长期记忆") },
-    ...room.lorebookEntries.flatMap((entry) => [
+    { id: "room:storyOutline", label: "故事大纲", text: storyContext.story.outline, location: createRoomFieldLocation("storyOutline", "故事大纲") },
+    { id: "room:storyGoal", label: "故事目标", text: storyContext.story.goal, location: createRoomFieldLocation("storyGoal", "故事目标") },
+    { id: "room:scene", label: "当前场景", text: activeScene?.scene ?? "", location: createRoomFieldLocation("scene", "当前场景") },
+    { id: "room:scenePlot", label: "场景剧情", text: activeScene?.plot ?? "", location: createRoomFieldLocation("scenePlot", "场景剧情") },
+    { id: "room:sceneGoal", label: "场景目标", text: activeScene?.goal ?? "", location: createRoomFieldLocation("sceneGoal", "场景目标") },
+    { id: "room:sceneDirection", label: "场景方向", text: activeScene?.direction ?? "", location: createRoomFieldLocation("sceneDirection", "场景方向") },
+    { id: "room:sceneTransition", label: "场景转场", text: activeScene?.transition ?? "", location: createRoomFieldLocation("sceneTransition", "场景转场") },
+    { id: "room:memory", label: "长期记忆", text: storyContext.memory.manual, location: createRoomFieldLocation("memory", "长期记忆") },
+    ...storyContext.world.lorebookEntries.flatMap((entry) => [
       { id: `lore:${entry.id}:title`, label: `世界书“${entry.title}”标题`, text: entry.title, location: createLorebookEntryLocation(entry.id, "title", `世界书“${entry.title}”标题`) },
       { id: `lore:${entry.id}:content`, label: `世界书“${entry.title}”正文`, text: entry.content, location: createLorebookEntryLocation(entry.id, "content", `世界书“${entry.title}”正文`) },
       { id: `lore:${entry.id}:keywords`, label: `世界书“${entry.title}”关键词`, text: entry.keywords.join("\n"), location: createLorebookEntryLocation(entry.id, "keywords", `世界书“${entry.title}”关键词`) },
     ]),
-    ...characters.flatMap((character) => [
+    ...storyContext.characters.flatMap((character) => [
       { id: `character:${character.id}:name`, label: `角色“${character.name}”名称`, text: character.name, target: "character" as const, location: createCharacterFieldLocation(character.id, "name", `角色“${character.name}”名称`) },
       { id: `character:${character.id}:description`, label: `角色“${character.name}”设定`, text: character.description, target: "character" as const, location: createCharacterFieldLocation(character.id, "description", `角色“${character.name}”设定`) },
       { id: `character:${character.id}:speakingStyle`, label: `角色“${character.name}”说话风格`, text: character.speakingStyle, target: "character" as const, location: createCharacterFieldLocation(character.id, "speakingStyle", `角色“${character.name}”说话风格`) },
       { id: `character:${character.id}:writingStyle`, label: `角色“${character.name}”写作风格`, text: character.writingStyle ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "writingStyle", `角色“${character.name}”写作风格`) },
       { id: `character:${character.id}:replyStylePrompt`, label: `角色“${character.name}”回复规则`, text: character.replyStylePrompt ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "replyStylePrompt", `角色“${character.name}”回复规则`) },
       { id: `character:${character.id}:goals`, label: `角色“${character.name}”目标`, text: character.goals ?? "", target: "character" as const, location: createCharacterFieldLocation(character.id, "goals", `角色“${character.name}”目标`) },
-      { id: `character:${character.id}:memory`, label: `角色“${character.name}”记忆`, text: characterMemoryText(character.id), target: "character" as const, location: createCharacterFieldLocation(character.id, "memory", `角色“${character.name}”记忆`) },
+      { id: `character:${character.id}:memory`, label: `角色“${character.name}”记忆`, text: characterMemoryText(character), target: "character" as const, location: createCharacterFieldLocation(character.id, "memory", `角色“${character.name}”记忆`) },
     ]),
   ];
 
@@ -523,8 +527,13 @@ export const buildTavernPromptPreview = ({
   currentUserText = previewCurrentUserText,
   selectedTargetCharacterIds = [],
   activeCharacterId,
+  storyContext,
 }: BuildTavernPromptPreviewInput): TavernPromptPreview => {
   const previewCharacters = getPreviewCharacters(room, characters);
+  const previewStoryContext = storyContext ?? buildTavernStoryContextPackage({
+    room,
+    characters: previewCharacters,
+  });
   const activeCharacter = getPreviewActiveCharacter({
     room,
     characters: previewCharacters,
@@ -546,6 +555,7 @@ export const buildTavernPromptPreview = ({
     selectedTargetCharacterIds,
     maxSpeakers: getPreviewMaxSpeakers(room, previewCharacters),
     randomEventOpportunity: room.settings.randomEvents.enabled,
+    storyContext: previewStoryContext,
   });
   const directorItem = createPreviewItem({
     target: "director",
@@ -565,6 +575,7 @@ export const buildTavernPromptPreview = ({
           references,
           currentUserText,
           turnInstruction: "预览当前角色请求层级；真实运行时会替换为当轮角色任务。",
+          storyContext: previewStoryContext,
         });
 
         return createPreviewItem({
@@ -590,7 +601,7 @@ export const buildTavernPromptPreview = ({
   const warnings = [
     ...buildLengthWarnings(room),
     ...buildSourceDuplicateWarnings(room),
-    ...buildEditableTagWarnings(room, previewCharacters),
+    ...buildEditableTagWarnings(room, previewStoryContext),
     ...buildCoverageWarnings(room),
     ...buildLayerInvariantWarnings(characterItem),
     ...buildPromptBlockCountWarnings(room, initialItems),

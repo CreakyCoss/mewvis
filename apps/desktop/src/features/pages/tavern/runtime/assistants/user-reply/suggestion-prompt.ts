@@ -1,3 +1,4 @@
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -15,11 +16,13 @@ export const buildTavernUserReplySuggestionPrompt = ({
   characters,
   messages,
   currentDraft,
+  storyContext,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
+  storyContext?: StoryContextPackage;
 }) => {
   const characterList = characters.map((character) =>
     `id: ${character.id}\nname: ${character.name}\ndescription: ${character.description}`
@@ -52,7 +55,7 @@ export const buildTavernUserReplySuggestionPrompt = ({
     `{"replies":[{"text":"候选 1","targetCharacterIds":["character-id"],"respondsToInteractionId":"可选 pending id","intent":"ask"}]}`,
     "</output_schema>",
     "",
-    ...buildTavernUserReplySceneSections(room),
+    ...buildTavernUserReplySceneSections({ room, characters, storyContext }),
     "",
     "<characters>",
     characterList,

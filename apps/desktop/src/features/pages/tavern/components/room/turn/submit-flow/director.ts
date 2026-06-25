@@ -1,4 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
   createTavernIllustrationHint,
@@ -67,6 +68,7 @@ export const runDirectorTurn = async ({
   availableRoomCharacters,
   availableActiveCharacter,
   runtimeModel,
+  storyContext,
 }: {
   ctx: TavernPageContextValue;
   room: TavernRoom;
@@ -81,6 +83,7 @@ export const runDirectorTurn = async ({
   availableRoomCharacters: TavernCharacter[];
   availableActiveCharacter: TavernCharacter | null;
   runtimeModel: RuntimeModelOption;
+  storyContext: StoryContextPackage;
 }) => {
   // 导演阶段统一处理：决定发言顺序，并把旁白、随机事件、环境动作和插图提示落地。
   ctx.setTurnStatus("导演正在判断本轮发言顺序...");
@@ -120,6 +123,7 @@ export const runDirectorTurn = async ({
           room.settings.directorMaxSpeakers,
           Math.max(1, ctx.roomCharacters.length),
         ),
+    storyContext,
   });
   const directorNonverbalReplyIds = directorDecision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({

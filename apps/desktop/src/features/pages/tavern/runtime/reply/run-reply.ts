@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -33,6 +34,7 @@ export type RunTavernReplyInput = {
   currentUserText: string;
   turnInstruction?: string;
   allowNonverbalReply?: boolean;
+  storyContext?: StoryContextPackage;
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;
 };
@@ -49,6 +51,7 @@ export const runTavernReply = async ({
   currentUserText,
   turnInstruction,
   allowNonverbalReply,
+  storyContext,
   onTextDelta,
   onThinkingDelta,
 }: RunTavernReplyInput) => {
@@ -61,6 +64,7 @@ export const runTavernReply = async ({
     currentUserText,
     turnInstruction,
     allowNonverbalReply,
+    storyContext,
   });
 
   return runTavernRuntimeAgent({
@@ -88,6 +92,7 @@ export type RunTavernInnerThoughtInput = {
   messages: TavernMessage[];
   currentUserText: string;
   replyContent: string;
+  storyContext?: StoryContextPackage;
 };
 
 export const runTavernInnerThought = async ({
@@ -100,6 +105,7 @@ export const runTavernInnerThought = async ({
   messages,
   currentUserText,
   replyContent,
+  storyContext,
 }: RunTavernInnerThoughtInput) => {
   const visibleMessages = normalizeTavernMessagesForAudience({
     messages,
@@ -143,7 +149,7 @@ export const runTavernInnerThought = async ({
         "</active_character>",
         "",
         `<room title="${room.title}">`,
-        room.scene,
+        storyContext?.graph.activeScene?.scene ?? room.scene,
         "</room>",
         "",
         "<current_user_input>",

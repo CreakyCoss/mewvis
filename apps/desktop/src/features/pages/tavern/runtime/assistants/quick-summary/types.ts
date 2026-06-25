@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -12,4 +13,5 @@ export type TavernQuickSummaryInput = {
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
+  storyContext?: StoryContextPackage;
 };

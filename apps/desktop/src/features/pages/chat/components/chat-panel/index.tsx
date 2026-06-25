@@ -62,6 +62,8 @@ export type ChatPanelViewModel = {
   onEditHistoryMessage: (messageId: string, nextText: string) => void;
   onDeleteHistoryMessage: (messageId: string) => void;
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
+  onSubmitMessageToStory: ((message: ChatMessage) => Promise<void>) | null;
+  storySubmittingMessageIds: string[];
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;

@@ -1,6 +1,10 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { loadStoryState } from "@/features/story/storage";
 import type { TavernPageContextValue } from "../../context";
+import {
+  resolveTavernRuntimeStoryContextPackage,
+} from "../../../adapters/story";
 import type {
   TavernReferencedFile,
   TavernReplyOption,
@@ -165,6 +169,12 @@ export const submitRoomTurn = async ({
   }
 
   let text = draftText;
+  const storyState = await loadStoryState(ctx.workspace.path, ctx.workspace.id).catch(() => null);
+  const preliminaryStoryContext = resolveTavernRuntimeStoryContextPackage({
+    room: activeRoom,
+    characters: roomCharacters,
+    storyState,
+  });
   try {
     text = await resolveManagedUserText({
       ctx,
@@ -172,6 +182,7 @@ export const submitRoomTurn = async ({
       runtimeModel,
       draftText,
       mode,
+      storyContext: preliminaryStoryContext,
     });
   } catch (managedError) {
     setError(`全托管生成回复失败：${getErrorMessage(managedError)}`);
@@ -208,6 +219,11 @@ export const submitRoomTurn = async ({
     message: null,
     text: "",
   };
+  const storyContext = resolveTavernRuntimeStoryContextPackage({
+    room: runtime.runtimeRoom,
+    characters: roomCharacters,
+    storyState,
+  });
 
   try {
     // 3. 本轮正式入队后，后续流程都围绕 runtime 这份运行时快照向前推进。
@@ -241,6 +257,7 @@ export const submitRoomTurn = async ({
         availableRoomCharacters: speakerPlan.availableRoomCharacters,
         availableActiveCharacter: speakerPlan.availableActiveCharacter,
         runtimeModel,
+        storyContext,
       });
 
       speakers = directorTurn.speakers;
@@ -273,6 +290,7 @@ export const submitRoomTurn = async ({
       turnNarratorTexts,
       requireSpeakerRuntimeModel,
       activeReplyRef,
+      storyContext,
     });
     runtime = {
       ...runtime,
@@ -300,6 +318,7 @@ export const submitRoomTurn = async ({
           userMessage: turnAnchorMessage,
           runtimeModel,
           shouldShowProgressTrace: runtime.shouldShowProgressTrace,
+          storyContext,
         }),
       };
     }
@@ -315,6 +334,7 @@ export const submitRoomTurn = async ({
         text,
         runtimeModel,
         mode,
+        storyContext,
       });
     }
   } catch (runError) {

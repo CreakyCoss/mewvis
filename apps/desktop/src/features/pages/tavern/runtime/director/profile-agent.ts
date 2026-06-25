@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernDirectorProfile,
@@ -18,6 +19,7 @@ export type RunTavernDirectorProfileAgentInput = {
   runtimeModel?: RuntimeModelInput | null;
   room: TavernRoom;
   characters: TavernCharacter[];
+  storyContext?: StoryContextPackage;
 };
 
 const DIRECTOR_PROFILE_AGENT_ROLE_ID = "tavern-one-shot-director-profile";
@@ -117,6 +119,7 @@ const buildDirectorProfileSystemPrompt = () => [
 const buildDirectorProfileRequestContext = (
   room: TavernRoom,
   characters: TavernCharacter[],
+  storyContext?: StoryContextPackage,
 ) => {
   const activeInstance = room.sceneInstances.find((instance) =>
     instance.id === room.activeSceneInstanceId
@@ -130,10 +133,11 @@ const buildDirectorProfileRequestContext = (
       layers?.privateSelf,
     ].map((value) => value?.trim()).filter(Boolean).join("\n");
   };
+  const activeScene = storyContext?.graph.activeScene;
 
   return JSON.stringify({
   room: {
-    title: room.title,
+    title: storyContext?.story.title ?? room.title,
     promptBlocks: room.prompt.blocks
       .filter((block) => block.enabled && block.text.trim())
       .map((block) => ({
@@ -142,13 +146,13 @@ const buildDirectorProfileRequestContext = (
         source: block.source,
         text: block.text,
       })),
-    storyOutline: room.storyOutline,
-    storyGoal: room.storyGoal,
-    scene: room.scene,
-    sceneGoal: room.sceneGoal,
-    scenePlot: room.scenePlot,
-    sceneDirection: room.sceneDirection,
-    memory: room.memory,
+    storyOutline: storyContext?.story.outline ?? room.storyOutline,
+    storyGoal: storyContext?.story.goal ?? room.storyGoal,
+    scene: activeScene?.scene ?? room.scene,
+    sceneGoal: activeScene?.goal ?? room.sceneGoal,
+    scenePlot: activeScene?.plot ?? room.scenePlot,
+    sceneDirection: activeScene?.direction ?? room.sceneDirection,
+    memory: storyContext?.memory.manual ?? room.memory,
     directorSchedulingRules: room.settings.directorScheduling.speakerMotivation.rules,
     directorSchedulingInstruction: room.settings.directorScheduling.instruction,
     currentProfile: room.settings.directorScheduling.profile ?? null,
@@ -181,6 +185,7 @@ export const runTavernDirectorProfileAgent = async ({
   runtimeModel,
   room,
   characters,
+  storyContext,
 }: RunTavernDirectorProfileAgentInput): Promise<TavernDirectorProfile> => {
   const result = await runTavernOneShotAgent({
     agentId,
@@ -188,7 +193,7 @@ export const runTavernDirectorProfileAgent = async ({
     agentRoleId: DIRECTOR_PROFILE_AGENT_ROLE_ID,
     runtimeModel,
     systemPrompt: buildDirectorProfileSystemPrompt(),
-    requestContext: buildDirectorProfileRequestContext(room, characters),
+    requestContext: buildDirectorProfileRequestContext(room, characters, storyContext),
     runtimeInstruction: "生成酒馆导演调度稳定画像，只输出 JSON。",
     userMessage: `为酒馆「${room.title}」重新生成导演调度画像。`,
     allowedTools: [],

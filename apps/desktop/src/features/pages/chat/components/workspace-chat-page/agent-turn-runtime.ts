@@ -23,6 +23,7 @@ type AgentTurnRuntimeInput = {
   }>;
   selectedAgent: { id?: string | null; name: string; description?: string | null } | null;
   agentInstructions: string;
+  runtimeContextSections?: string[];
   executionMemorySummary: string;
 };
 
@@ -39,6 +40,7 @@ export const prepareAgentTurnRuntime = async ({
   activeSkills,
   selectedAgent,
   agentInstructions,
+  runtimeContextSections = [],
   executionMemorySummary,
 }: AgentTurnRuntimeInput): Promise<AgentTurnRuntimeResult> => {
   const sessionRootDir = createAgentSessionRootDir(nextSessionId);
@@ -57,6 +59,7 @@ export const prepareAgentTurnRuntime = async ({
     selectedAgent,
     executionMemorySummary,
     trailingSections: [
+      ...runtimeContextSections,
       agentInstructions.trim(),
       "底层运行环境会在 agent 消息中基于 agentRoleId 注入本会话账本历史；这里的 active_file、user_referenced_files 和 active_skills 只作为应用侧资料上下文。",
     ],

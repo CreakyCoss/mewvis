@@ -293,6 +293,13 @@ export type TavernStoryGraph = {
   edges: TavernStoryEdge[];
 };
 
+export type TavernStoryBinding = {
+  version: 1;
+  storyId: string;
+  source: "story";
+  boundAt: number;
+};
+
 export type TavernCharacterMemoryDraft = {
   id: string;
   characterId: string;
@@ -933,6 +940,7 @@ export type TavernRoom = {
   presentation: TavernPresentationSettings;
   prompt: TavernRoomPromptSettings;
   creationSource?: "manual" | "quick" | "imported" | "agent_generated";
+  storyBinding?: TavernStoryBinding;
   storyOutline: string;
   storyGoal: string;
   storyGraph: TavernStoryGraph;
@@ -1021,6 +1029,7 @@ export type TavernGeneratedPresetCharacter = {
 };
 
 export type TavernGeneratedPresetScene = {
+  id?: string;
   title?: string;
   order?: number;
   scenePresetId?: unknown;
@@ -1063,6 +1072,7 @@ export type TavernGeneratedPresetRoom = {
   promptStyleId?: unknown;
   storyOutline?: string;
   storyGoal?: string;
+  storyGraph?: Partial<TavernStoryGraph>;
   scenePresetId?: unknown;
   scene?: string;
   sceneGoal?: string;

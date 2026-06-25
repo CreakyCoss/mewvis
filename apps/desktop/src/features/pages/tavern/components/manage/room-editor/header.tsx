@@ -1,9 +1,10 @@
 import {
   ArrowRight,
+  Activity,
   BookOpen,
-  GitBranch,
   LockKeyhole,
   MessageSquareText,
+  ScrollText,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -28,6 +29,7 @@ type HeaderProps = {
   messagesByRoomId: Record<string, TavernMessage[]>;
   textFieldAgentError: string;
   onEnterRoom: () => void;
+  onOpenStoryConfig: () => void;
 };
 
 export const Header = ({
@@ -36,6 +38,7 @@ export const Header = ({
   messagesByRoomId,
   textFieldAgentError,
   onEnterRoom,
+  onOpenStoryConfig,
 }: HeaderProps) => {
   const roomCharacterById = getRoomCharacterById(data, characterById);
   const roomCharacters = getRoomCharacters(data, roomCharacterById);
@@ -56,14 +59,14 @@ export const Header = ({
       label: "消息对话",
     },
     {
-      icon: GitBranch,
-      value: data.storyGraph.nodes.length,
-      label: "剧情节点",
+      icon: ScrollText,
+      value: data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length,
+      label: "启用提示词",
     },
     {
-      icon: BookOpen,
-      value: data.lorebookEntries.length,
-      label: "条世界书",
+      icon: Activity,
+      value: data.statusDefinitions.length + data.taskDefinitions.length,
+      label: "进度配置",
     },
   ];
 
@@ -92,7 +95,7 @@ export const Header = ({
               )}
             </div>
             <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              编辑酒馆内容、共享剧情资产和可用故事场景。
+              编辑酒馆呈现、提示词、调度和进度系统；故事资产在独立故事页维护。
             </p>
             {textFieldAgentError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
@@ -101,19 +104,34 @@ export const Header = ({
             )}
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className={cn(
-              editorHeaderActionButtonClassName,
-              "h-9 shrink-0 self-start px-3 lg:self-auto",
-            )}
-            onClick={onEnterRoom}
-          >
-            <ArrowRight className="size-3.5" />
-            进入酒馆
-          </Button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className={cn(
+                editorHeaderActionButtonClassName,
+                "h-9 px-3",
+              )}
+              onClick={onOpenStoryConfig}
+            >
+              <BookOpen className="size-3.5" />
+              故事配置
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className={cn(
+                editorHeaderActionButtonClassName,
+                "h-9 px-3",
+              )}
+              onClick={onEnterRoom}
+            >
+              <ArrowRight className="size-3.5" />
+              进入酒馆
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">

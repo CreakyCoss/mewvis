@@ -1,4 +1,7 @@
 import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../../../storage";
+import {
+  cloneTavernRuntimeStoryProjectionFields,
+} from "../../../adapters/story";
 import type {
   TavernCharacter,
   TavernCondition,
@@ -12,7 +15,6 @@ import type {
   TavernStatusDefinition,
   TavernStatusRule,
   TavernTaskDefinition,
-  TavernStoryGraph,
 } from "../../../types";
 
 export const replyModeOptions: Array<{
@@ -96,16 +98,6 @@ export const characterMemoriesFromConfigs = (
     return memory ? [[characterId, memory]] : [];
   }),
 );
-
-const cloneStoryGraph = (storyGraph: TavernStoryGraph): TavernStoryGraph => ({
-  ...storyGraph,
-  stages: storyGraph.stages.map((stage) => ({ ...stage })),
-  nodes: storyGraph.nodes.map((node) => ({
-    ...node,
-    position: { ...node.position },
-  })),
-  edges: storyGraph.edges.map((edge) => ({ ...edge })),
-});
 
 export const editorControlClassName = "w-full bg-background/80 shadow-none";
 export const settingsFlagGridClassName =
@@ -428,7 +420,7 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
 export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   ...room,
   settings: cloneTavernRoomSettings(room.settings),
-  storyGraph: cloneStoryGraph(room.storyGraph),
+  ...cloneTavernRuntimeStoryProjectionFields(room),
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
   scenes: room.scenes?.map((scene) => ({
@@ -450,14 +442,6 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
       sourceMessageIds: [...hint.sourceMessageIds],
     })),
   })) ?? [],
-  localCharacters: room.localCharacters?.map((character) => ({
-    ...character,
-  })) ?? [],
-  characterIds: [...room.characterIds],
-  lorebookEntries: room.lorebookEntries.map((entry) => ({
-    ...entry,
-    keywords: [...entry.keywords],
-  })),
   assetDrafts: room.assetDrafts.map((draft) => ({
     ...draft,
     sourceMessageIds: [...draft.sourceMessageIds],
@@ -476,6 +460,7 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
 export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
   const characterConfigs = cloneRoomCharacterConfigs(room.characterConfigs);
   const characterMemories = characterMemoriesFromConfigs(characterConfigs);
+  const storyProjectionFields = cloneTavernRuntimeStoryProjectionFields(room);
   const scenes = room.scenes?.map((scene) => {
     const sceneCharacterConfigs = cloneRoomCharacterConfigs(scene.characterConfigs);
 
@@ -491,7 +476,7 @@ export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
     scenes,
     characterConfigs,
     characterMemories,
-    localCharacters: room.localCharacters ?? [],
+    localCharacters: storyProjectionFields.localCharacters,
   });
 
   return projectTavernSceneOntoRoom({

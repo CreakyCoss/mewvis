@@ -1,5 +1,6 @@
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -28,6 +29,7 @@ export type RunTavernAssetExtractionInput = {
   sourceMessages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
+  storyContext?: StoryContextPackage;
 };
 
 export const runTavernAssetExtraction = async ({
@@ -40,6 +42,7 @@ export const runTavernAssetExtraction = async ({
   sourceMessages,
   references,
   currentUserText,
+  storyContext,
 }: RunTavernAssetExtractionInput): Promise<TavernExtractedAssetDraft> => {
   const prompt = buildTavernAssetExtractionPrompt({
     room,
@@ -47,6 +50,7 @@ export const runTavernAssetExtraction = async ({
     messages,
     sourceMessages,
     currentUserText,
+    storyContext,
   });
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,

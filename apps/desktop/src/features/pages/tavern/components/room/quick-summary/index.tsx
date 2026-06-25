@@ -2,8 +2,10 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { submitStoryManuscript } from "@/features/story/storage";
 import type { TavernRoom } from "../../../types";
 import { getTavernSceneInstanceDisplayTitle } from "../../../storage";
+import { getTavernRuntimeStoryProjection } from "../../../adapters/story";
 import { useTavernPageContext } from "../../context";
 import {
   generateQuickNovel,
@@ -40,6 +42,15 @@ type QuickSummaryProps = {
 const getRoomActiveSceneId = (room: TavernRoom) =>
   room.activeSceneInstanceId ?? room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
+const getRoomActiveStoryNodeId = (room: TavernRoom) => {
+  const storyProjection = getTavernRuntimeStoryProjection(room);
+  return storyProjection.activeSceneInstance?.nodeId ||
+    storyProjection.graph.activeNodeId ||
+    storyProjection.graph.entryNodeId ||
+    storyProjection.graph.nodes[0]?.id ||
+    "";
+};
+
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     return error.message;
@@ -73,6 +84,7 @@ export const QuickSummary = ({
   const [activeTab, setActiveTab] = useState<QuickSummaryTab>("summary");
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isGeneratingNovel, setIsGeneratingNovel] = useState(false);
+  const [isSubmittingNovelToStory, setIsSubmittingNovelToStory] = useState(false);
   const [exportFormat, setExportFormat] = useState<QuickNovelExportFormat>("md");
   const [error, setError] = useState("");
   const [cacheState, setCacheState] = useState<QuickSummaryCacheState>(
@@ -110,6 +122,7 @@ export const QuickSummary = ({
     setActiveTab("summary");
     setIsGeneratingSummary(false);
     setIsGeneratingNovel(false);
+    setIsSubmittingNovelToStory(false);
     setExportFormat("md");
     setError("");
   }, [setIsQuickSummaryBusy, workspace.id]);
@@ -126,6 +139,7 @@ export const QuickSummary = ({
     setIsOpen(false);
     setIsGeneratingSummary(false);
     setIsGeneratingNovel(false);
+    setIsSubmittingNovelToStory(false);
     setError("");
   }, [activeRoom?.id, activeRoom?.activeSceneId]);
 
@@ -344,6 +358,78 @@ export const QuickSummary = ({
     exportFormat,
   ]);
 
+  const submitNovelToStory = useCallback(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const storyId = activeRoom.storyBinding?.storyId ?? "";
+    if (!storyId) {
+      setError("当前酒馆还没有绑定故事，无法收稿。");
+      return;
+    }
+
+    const nodeId = getRoomActiveStoryNodeId(activeRoom);
+    if (!nodeId) {
+      setError("当前酒馆没有可绑定的故事节点。");
+      return;
+    }
+
+    const novelContent = activeCache?.novelContent?.trim() ?? "";
+    if (!novelContent) {
+      setError("暂无小说正文可收稿。");
+      return;
+    }
+
+    const activeSceneTitle = getTavernSceneInstanceDisplayTitle(
+      activeRoom,
+      activeRoom.activeSceneInstanceId,
+      "当前场景",
+    );
+    const sourceMessages = getQuickSummarySourceMessages(roomMessages);
+    setIsSubmittingNovelToStory(true);
+    void submitStoryManuscript(workspace.path, workspace.id, {
+      storyId,
+      nodeId,
+      source: "tavern",
+      sourceRunId: activeRoom.activeRunId ?? activeRoom.id,
+      sourceMessageIds: sourceMessages.map((message) => message.id),
+      title: `${activeRoom.title} - ${activeSceneTitle} 小说稿`,
+      content: novelContent,
+      summary: (activeCache?.content || novelContent).replace(/\s+/g, " ").trim().slice(0, 160),
+      metadata: {
+        channel: "tavern-quick-novel",
+        roomId: activeRoom.id,
+        sceneInstanceId: activeRoom.activeSceneInstanceId,
+      },
+    })
+      .then(() => {
+        setError("");
+        toast.success("已发送到故事收稿箱。");
+      })
+      .catch((submitError) => {
+        setError(`收稿失败：${getErrorMessage(submitError)}`);
+      })
+      .finally(() => {
+        setIsSubmittingNovelToStory(false);
+      });
+  }, [
+    activeCache?.content,
+    activeCache?.novelContent,
+    activeRoom,
+    roomMessages,
+    workspace.id,
+    workspace.path,
+  ]);
+
+  const canSubmitNovelToStory = Boolean(
+    activeRoom?.storyBinding?.storyId &&
+    activeCache?.novelContent?.trim() &&
+    !isGeneratingSummary &&
+    !isGeneratingNovel &&
+    !isSending,
+  );
+
   return (
     <QuickSummaryDialog
       open={isOpen}
@@ -357,15 +443,18 @@ export const QuickSummary = ({
       isNovelFresh={isNovelFresh}
       isGeneratingSummary={isGeneratingSummary}
       isGeneratingNovel={isGeneratingNovel}
+      isSubmittingNovelToStory={isSubmittingNovelToStory}
       isSending={isSending}
       error={error}
       exportFormat={exportFormat}
+      canSubmitNovelToStory={canSubmitNovelToStory}
       onOpenChange={setIsOpen}
       onTabChange={setActiveTab}
       onExportFormatChange={setExportFormat}
       onRegenerateSummary={() => open({ force: true })}
       onGenerateNovel={generateNovel}
       onExportNovel={exportNovel}
+      onSubmitNovelToStory={submitNovelToStory}
     />
   );
 };

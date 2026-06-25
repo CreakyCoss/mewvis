@@ -36,6 +36,8 @@ export type TavernPageProps = {
   runtimeModel: RuntimeModelOption | null;
   runtimeAgentId: string;
   isHomeFullscreen?: boolean;
+  initialRoomId?: string;
+  initialSceneInstanceId?: string;
   onExitHomeFullscreen?: () => void;
 };
 

@@ -1,4 +1,4 @@
-import { BookOpen, Download, RefreshCcw, Sparkles } from "lucide-react";
+import { BookOpen, Download, FilePlus2, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,15 +30,18 @@ type QuickSummaryDialogProps = {
   isNovelFresh: boolean;
   isGeneratingSummary: boolean;
   isGeneratingNovel: boolean;
+  isSubmittingNovelToStory: boolean;
   isSending: boolean;
   error: string;
   exportFormat: QuickNovelExportFormat;
+  canSubmitNovelToStory: boolean;
   onOpenChange: (open: boolean) => void;
   onTabChange: (tab: QuickSummaryTab) => void;
   onExportFormatChange: (format: QuickNovelExportFormat) => void;
   onRegenerateSummary: () => void;
   onGenerateNovel: () => void;
   onExportNovel: () => void;
+  onSubmitNovelToStory: () => void;
 };
 
 export const QuickSummaryDialog = ({
@@ -53,15 +56,18 @@ export const QuickSummaryDialog = ({
   isNovelFresh,
   isGeneratingSummary,
   isGeneratingNovel,
+  isSubmittingNovelToStory,
   isSending,
   error,
   exportFormat,
+  canSubmitNovelToStory,
   onOpenChange,
   onTabChange,
   onExportFormatChange,
   onRegenerateSummary,
   onGenerateNovel,
   onExportNovel,
+  onSubmitNovelToStory,
 }: QuickSummaryDialogProps) => {
   const summaryDescription = summaryGeneratedAtText
     ? isSummaryFresh
@@ -166,6 +172,21 @@ export const QuickSummaryDialog = ({
                 >
                   <Download className="size-3.5" />
                   导出小说
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 border-current/20 bg-current/5 text-xs text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
+                  disabled={!canSubmitNovelToStory || isSubmittingNovelToStory}
+                  onClick={onSubmitNovelToStory}
+                >
+                  {isSubmittingNovelToStory ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <FilePlus2 className="size-3.5" />
+                  )}
+                  收为稿件
                 </Button>
               </div>
               {novelContent ? (

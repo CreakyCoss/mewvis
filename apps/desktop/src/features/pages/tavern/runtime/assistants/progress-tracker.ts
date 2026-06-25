@@ -2,6 +2,7 @@ import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import {
   tavernBridgeSessionRootDir,
   tavernProgressTrackerAgentRoleId,
@@ -35,6 +36,7 @@ export type RunTavernProgressTrackingInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   turnId: string;
+  storyContext?: StoryContextPackage;
 };
 
 export const runTavernProgressTracking = async ({
@@ -48,6 +50,7 @@ export const runTavernProgressTracking = async ({
   references,
   currentUserText,
   turnId,
+  storyContext,
 }: RunTavernProgressTrackingInput): Promise<TavernFactEvent[]> => {
   const prompt = buildTavernProgressTrackingPrompt({
     room,
@@ -55,6 +58,7 @@ export const runTavernProgressTracking = async ({
     messages,
     sourceMessages,
     currentUserText,
+    storyContext,
   });
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,

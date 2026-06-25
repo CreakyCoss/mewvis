@@ -1,29 +1,27 @@
 import {
   Activity,
-  BookOpen,
-  Clapperboard,
-  GitBranch,
-  House,
   LogOut,
   Pencil,
   ScrollText,
   Settings2,
   Sparkles,
-  UsersRound,
   Wine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MouseEvent, Ref } from "react";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useImperativeHandle, useState } from "react";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
 import {
-  getActiveTavernScene,
-  getTavernSceneDisplayTitle,
   projectTavernSceneOntoRoom,
 } from "../../../storage";
+import {
+  buildTavernStoryContextPackage,
+  getTavernRuntimeStoryProjection,
+} from "../../../adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -33,108 +31,73 @@ import type {
 import type { TavernTextFieldAgentRequest } from "../../../runtime/assistants";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
-import { CharactersSection } from "./modules/characters";
-import { LoreSection } from "./modules/lore";
-import { OverviewSection } from "./modules/overview";
 import { PromptSection } from "./modules/prompt";
 import type { TavernPromptWarningNavigationRequest } from "./modules/prompt/warning-navigation";
 import { ProgressSection } from "./modules/progress";
-import { ScenesSection } from "./modules/scenes";
-import { ScenesEdit, type ScenesEditHandle } from "./modules/scenes/edit";
 import { SettingsSection } from "./modules/settings";
-import { StoryGraphSection } from "./modules/story-graph";
 import type { TextFieldAgentActionRenderer } from "./modules/types";
-import type { PendingDangerAction } from "./types";
 import {
   cloneTavernRoom,
-  focusRoomEditorElementById,
   getErrorMessage,
-  getRoomCharacterById,
   prepareTavernRoomForSave,
 } from "./utils";
 
 export type RoomEditorHandle = (roomId: string) => void;
 
 type EditorModuleId =
-  | "overview"
   | "basic"
   | "prompt"
-  | "characters"
-  | "scenes"
-  | "story-graph"
-  | "lore"
   | "settings"
   | "progress";
 
-type SceneEditRequest = {
-  sceneId: string;
-  focusElementId?: string;
-  requestId: number;
-};
-
-type ModuleOpenRequest = TavernPromptWarningNavigationRequest & {
-  requestId: number;
-};
+type EditorModuleGroupId = "runtime";
 
 const editorModules: Array<{
   id: EditorModuleId;
+  group: EditorModuleGroupId;
   label: string;
   description: string;
   icon: LucideIcon;
 }> = [
   {
-    id: "overview",
-    label: "总览",
-    description: "核心故事资源概览",
-    icon: House,
-  },
-  {
     id: "basic",
-    label: "基础信息",
-    description: "标题、称呼和故事目标",
+    group: "runtime",
+    label: "基础",
+    description: "标题、视觉和发言方式",
     icon: Wine,
   },
   {
     id: "prompt",
+    group: "runtime",
     label: "提示词",
-    description: "层级、呈现结构和写作规则",
+    description: "酒馆呈现结构和写作规则",
     icon: ScrollText,
   },
   {
-    id: "characters",
-    label: "角色",
-    description: "酒馆角色库",
-    icon: UsersRound,
-  },
-  {
-    id: "scenes",
-    label: "场景",
-    description: "场景内容和场景目标",
-    icon: Clapperboard,
-  },
-  {
-    id: "story-graph",
-    label: "剧情结构",
-    description: "节点和分支",
-    icon: GitBranch,
-  },
-  {
-    id: "lore",
-    label: "世界书",
-    description: "共享设定资料",
-    icon: BookOpen,
-  },
-  {
     id: "settings",
+    group: "runtime",
     label: "运行设置",
     description: "模型和执行策略",
     icon: Settings2,
   },
   {
     id: "progress",
+    group: "runtime",
     label: "进度系统",
     description: "状态追踪和进度面板",
     icon: Activity,
+  },
+];
+
+const editorModuleGroups: Array<{
+  id: EditorModuleGroupId;
+  label: string;
+  mobileLabel: string;
+}> = [
+  {
+    id: "runtime",
+    label: "酒馆运行配置",
+    mobileLabel: "运行",
   },
 ];
 
@@ -151,7 +114,6 @@ type RoomEditorProps = {
   onRegenerateDirectorProfile: (
     room: TavernRoom,
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
-  onRequestDangerAction: (action: PendingDangerAction) => void;
   onOpenRoom: (room: TavernRoom) => void;
 };
 
@@ -166,16 +128,13 @@ export const RoomEditor = ({
   onPatchRoom,
   onRunTextFieldAgent,
   onRegenerateDirectorProfile,
-  onRequestDangerAction,
   onOpenRoom,
 }: RoomEditorProps) => {
+  const navigate = useNavigate();
   const [data, setData] = useState<TavernRoom | null>(null);
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
-  const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("overview");
-  const [sceneEditRequest, setSceneEditRequest] = useState<SceneEditRequest | null>(null);
-  const [moduleOpenRequest, setModuleOpenRequest] = useState<ModuleOpenRequest | null>(null);
-  const sceneEditRef = useRef<ScenesEditHandle>(null);
+  const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
 
   const openRoomEditor = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
@@ -185,29 +144,15 @@ export const RoomEditor = ({
 
     onSelectRoom(roomId);
     setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
-    setActiveModuleId("overview");
-    setSceneEditRequest(null);
-    setModuleOpenRequest(null);
+    setActiveModuleId("basic");
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
 
   useImperativeHandle(bind, () => openRoomEditor);
 
-  useEffect(() => {
-    const sceneId = sceneEditRequest?.sceneId;
-    if (!sceneId) {
-      return;
-    }
-
-    sceneEditRef.current?.(sceneId);
-    focusRoomEditorElementById(sceneEditRequest?.focusElementId);
-  }, [sceneEditRequest?.focusElementId, sceneEditRequest?.requestId, sceneEditRequest?.sceneId]);
-
   const closeRoomEditor = () => {
     setData(null);
-    setSceneEditRequest(null);
-    setModuleOpenRequest(null);
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
   };
@@ -237,9 +182,25 @@ export const RoomEditor = ({
     onOpenRoom(nextRoom);
   };
 
+  const openStoryConfig = () => {
+    const storyId = data?.storyBinding?.storyId ?? data?.id;
+    if (!storyId) {
+      return;
+    }
+
+    navigate({
+      pathname: "/stories",
+      search: `?storyId=${encodeURIComponent(storyId)}`,
+    });
+  };
+
   const buildTextFieldAgentContext = () => {
     const room = data ?? activeRoom;
-    const scene = getActiveTavernScene(room);
+    const storyProjection = getTavernRuntimeStoryProjection(room);
+    const storyContext = buildTavernStoryContextPackage({
+      room,
+      characters: storyProjection.characters,
+    });
 
     return {
       room: {
@@ -252,36 +213,24 @@ export const RoomEditor = ({
             source: block.source,
             text: block.text,
           })),
-        storyOutline: room.storyOutline,
-        storyGoal: room.storyGoal,
         userPersonaName: room.userPersonaName,
       },
-      scene: scene
-        ? {
-            title: getTavernSceneDisplayTitle(room, scene.id),
-            scene: scene.scene,
-            sceneGoal: scene.sceneGoal,
-            plot: scene.plot,
-            storyDirection: scene.storyDirection,
-            transition: scene.transition,
-            memory: scene.memory,
-          }
-        : null,
-      characters: (room.localCharacters ?? []).map((character) => ({
-        name: character.name,
-        description: character.description,
-        speakingStyle: character.speakingStyle,
-        writingStyle: character.writingStyle,
-        replyStylePrompt: character.replyStylePrompt,
-        goals: character.goals,
-        relationships: character.relationships,
-      })),
-      lorebookEntries: room.lorebookEntries.map((entry) => ({
-        title: entry.title,
-        content: entry.content,
-        keywords: entry.keywords,
-      })),
-      storyGraph: room.storyGraph,
+      storyContext: {
+        story: storyContext.story,
+        activeNode: storyContext.graph.activeNode,
+        activeStage: storyContext.graph.activeStage,
+        activeScene: storyContext.graph.activeScene,
+        branch: storyContext.branch,
+        characters: storyContext.characters,
+        lorebookEntries: storyContext.world.lorebookEntries,
+        graph: {
+          entryNodeId: storyContext.graph.entryNodeId,
+          activeNodeId: storyContext.graph.activeNodeId,
+          stages: storyContext.graph.stages,
+          nodes: storyContext.graph.nodes,
+          edges: storyContext.graph.edges,
+        },
+      },
     };
   };
 
@@ -375,67 +324,28 @@ export const RoomEditor = ({
     );
   };
 
-  const requestSceneEdit = (sceneId: string, focusElementId?: string) => {
-    setSceneEditRequest({
-      sceneId,
-      focusElementId,
-      requestId: Date.now(),
-    });
-  };
-
   const requestPromptWarningNavigation = (
     request: TavernPromptWarningNavigationRequest,
   ) => {
-    const requestId = Date.now();
-    setActiveModuleId(request.moduleId);
-    setModuleOpenRequest({
-      ...request,
-      requestId,
-    });
-
-    if (request.moduleId === "scenes" && request.sceneId) {
-      setSceneEditRequest({
-        sceneId: request.sceneId,
-        focusElementId: request.focusElementId,
-        requestId,
-      });
+    if (request.target === "runtimeBasic") {
+      setActiveModuleId("basic");
+      return;
     }
-  };
 
-  const runCharacterTextFieldAgent = async (
-    request: TavernTextFieldAgentRequest,
-  ) => {
-    return onRunTextFieldAgent({
-      ...request,
-      context: {
-        ...buildTextFieldAgentContext(),
-        ...(request.context ?? {}),
-      },
-    });
+    openStoryConfig();
   };
 
   if (!data) {
     return null;
   }
 
-  const roomCharacterById = getRoomCharacterById(data, characterById);
-
   const renderActiveModule = () => {
     switch (activeModuleId) {
-      case "overview":
-        return (
-          <OverviewSection
-            data={data}
-            characterById={characterById}
-            onOpenModule={(moduleId) => setActiveModuleId(moduleId)}
-          />
-        );
       case "basic":
         return (
           <BasicSection
             data={data}
             onSave={onModuleSave}
-            openRequest={moduleOpenRequest?.moduleId === "basic" ? moduleOpenRequest : null}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
@@ -446,46 +356,6 @@ export const RoomEditor = ({
             messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
             onOpenWarningNavigation={requestPromptWarningNavigation}
-            renderTextFieldAgentActions={renderTextFieldAgentActions}
-          />
-        );
-      case "characters":
-        return (
-          <CharactersSection
-            data={data}
-            globalRuntimeModel={globalRuntimeModel}
-            onSave={onModuleSave}
-            openRequest={moduleOpenRequest?.moduleId === "characters" ? moduleOpenRequest : null}
-            onRunTextFieldAgent={runCharacterTextFieldAgent}
-          />
-        );
-      case "scenes":
-        return (
-          <ScenesSection
-            data={data}
-            characterById={characterById}
-            onSave={onModuleSave}
-            onEditScene={requestSceneEdit}
-            onRequestDangerAction={onRequestDangerAction}
-          />
-        );
-      case "story-graph":
-        return (
-          <StoryGraphSection
-            data={data}
-            characterById={characterById}
-            onSave={onModuleSave}
-            onRequestDangerAction={onRequestDangerAction}
-            onEditScene={requestSceneEdit}
-          />
-        );
-      case "lore":
-        return (
-          <LoreSection
-            data={data}
-            onSave={onModuleSave}
-            openRequest={moduleOpenRequest?.moduleId === "lore" ? moduleOpenRequest : null}
-            onRequestDangerAction={onRequestDangerAction}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
           />
         );
@@ -517,21 +387,30 @@ export const RoomEditor = ({
           </span>
         </div>
         <nav className="flex min-h-0 flex-1 flex-col gap-1">
-          {editorModules.map(({ id, label, description, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              title={`${label}：${description}`}
-              aria-label={`切换到${label}`}
-              onClick={() => setActiveModuleId(id)}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-                activeModuleId === id && "bg-primary/10 text-primary",
-              )}
-            >
-              <Icon className="size-4" />
-              <span className="max-w-full truncate">{label}</span>
-            </button>
+          {editorModuleGroups.map((group) => (
+            <div key={group.id} className="flex flex-col gap-1">
+              <div className="px-1 pt-2 pb-1 text-center text-[10px] font-medium leading-4 text-muted-foreground/75">
+                {group.label}
+              </div>
+              {editorModules
+                .filter((module) => module.group === group.id)
+                .map(({ id, label, description, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    title={`${group.label} / ${label}：${description}`}
+                    aria-label={`切换到${group.label}的${label}`}
+                    onClick={() => setActiveModuleId(id)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+                      activeModuleId === id && "bg-primary/10 text-primary",
+                    )}
+                  >
+                    <Icon className="size-4" />
+                    <span className="max-w-full truncate">{label}</span>
+                  </button>
+                ))}
+            </div>
           ))}
         </nav>
         <div className="mt-3 border-t pt-3">
@@ -554,6 +433,7 @@ export const RoomEditor = ({
           messagesByRoomId={messagesByRoomId}
           textFieldAgentError={textFieldAgentError}
           onEnterRoom={enterRoom}
+          onOpenStoryConfig={openStoryConfig}
         />
 
         <ScrollArea className="min-h-0 flex-1 bg-muted/10">
@@ -570,20 +450,29 @@ export const RoomEditor = ({
               >
                 <LogOut className="size-3.5 rotate-180" />
               </Button>
-              {editorModules.map(({ id, label, description, icon: Icon }) => (
-                <Button
-                  key={id}
-                  type="button"
-                  title={`${label}：${description}`}
-                  aria-label={`切换到${label}`}
-                  size="sm"
-                  variant={activeModuleId === id ? "default" : "outline"}
-                  className="h-8 shrink-0 gap-1.5 px-3 text-xs"
-                  onClick={() => setActiveModuleId(id)}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </Button>
+              {editorModuleGroups.map((group) => (
+                <div key={group.id} className="flex shrink-0 items-center gap-1">
+                  <span className="rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium leading-5 text-muted-foreground">
+                    {group.mobileLabel}
+                  </span>
+                  {editorModules
+                    .filter((module) => module.group === group.id)
+                    .map(({ id, label, description, icon: Icon }) => (
+                      <Button
+                        key={id}
+                        type="button"
+                        title={`${group.label} / ${label}：${description}`}
+                        aria-label={`切换到${group.label}的${label}`}
+                        size="sm"
+                        variant={activeModuleId === id ? "default" : "outline"}
+                        className="h-8 shrink-0 gap-1.5 px-3 text-xs"
+                        onClick={() => setActiveModuleId(id)}
+                      >
+                        <Icon className="size-3.5" />
+                        {label}
+                      </Button>
+                    ))}
+                </div>
               ))}
             </nav>
 
@@ -593,14 +482,6 @@ export const RoomEditor = ({
           </div>
         </ScrollArea>
       </div>
-
-      <ScenesEdit
-        bind={sceneEditRef}
-        data={data}
-        onSave={onModuleSave}
-        renderTextFieldAgentActions={renderTextFieldAgentActions}
-        roomCharacterById={roomCharacterById}
-      />
     </div>
   );
 };

@@ -5,6 +5,8 @@ import { createAgentClient } from "@/agent-client/runtime";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
 import {
+  TAVERN_ROOM_SEARCH_PARAM,
+  TAVERN_SCENE_INSTANCE_SEARCH_PARAM,
   isTavernFullscreenSearch,
   TAVERN_FULLSCREEN_SEARCH_PARAM,
 } from "@/features/pages/tavern/navigation";
@@ -37,6 +39,9 @@ export const TavernPage = () => {
     workspaces[0] ??
     null;
   const isHomeFullscreen = isTavernFullscreenSearch(location.search);
+  const searchParams = new URLSearchParams(location.search);
+  const initialRoomId = searchParams.get(TAVERN_ROOM_SEARCH_PARAM) ?? "";
+  const initialSceneInstanceId = searchParams.get(TAVERN_SCENE_INSTANCE_SEARCH_PARAM) ?? "";
   const exitHomeFullscreen = useCallback(() => {
     const params = new URLSearchParams(location.search);
     params.delete(TAVERN_FULLSCREEN_SEARCH_PARAM);
@@ -64,6 +69,8 @@ export const TavernPage = () => {
     <TavernContainer
       workspace={workspace}
       isHomeFullscreen={isHomeFullscreen}
+      initialRoomId={initialRoomId}
+      initialSceneInstanceId={initialSceneInstanceId}
       onExitHomeFullscreen={exitHomeFullscreen}
     />
   );
@@ -72,12 +79,16 @@ export const TavernPage = () => {
 type TavernContainerProps = {
   workspace: Workspace;
   isHomeFullscreen: boolean;
+  initialRoomId?: string;
+  initialSceneInstanceId?: string;
   onExitHomeFullscreen: () => void;
 };
 
 const TavernContainer = ({
   workspace,
   isHomeFullscreen,
+  initialRoomId,
+  initialSceneInstanceId,
   onExitHomeFullscreen,
 }: TavernContainerProps) => {
   const agentClient = useMemo(() => createAgentClient(), []);
@@ -137,6 +148,8 @@ const TavernContainer = ({
       runtimeModel={runtimeModels[0] ?? null}
       runtimeAgentId={runtimeAgentId}
       isHomeFullscreen={isHomeFullscreen}
+      initialRoomId={initialRoomId}
+      initialSceneInstanceId={initialSceneInstanceId}
       onExitHomeFullscreen={onExitHomeFullscreen}
     />
   );

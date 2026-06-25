@@ -1,12 +1,11 @@
 import { Pencil, Wine } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { TavernRoom } from "../../../../../types";
 import {
   EditorSection,
   editorHeaderActionButtonClassName,
 } from "../../primitives";
-import { focusRoomEditorElementById } from "../../utils";
 import { BasicEdit, type BasicEditHandle } from "./edit";
 import { BasicSummaryContent } from "./summary";
 import type { ModuleSave, ModuleEditProps } from "../types";
@@ -14,36 +13,22 @@ import type { ModuleSave, ModuleEditProps } from "../types";
 type BasicSectionProps = {
   data: TavernRoom;
   onSave: ModuleSave;
-  openRequest?: {
-    requestId: number;
-    focusElementId?: string;
-  } | null;
   renderTextFieldAgentActions: ModuleEditProps["renderTextFieldAgentActions"];
 };
 
 export const BasicSection = ({
   data,
   onSave,
-  openRequest,
   renderTextFieldAgentActions,
 }: BasicSectionProps) => {
   const editRef = useRef<BasicEditHandle>(null);
-
-  useEffect(() => {
-    if (!openRequest) {
-      return;
-    }
-
-    editRef.current?.(data);
-    focusRoomEditorElementById(openRequest.focusElementId);
-  }, [openRequest?.requestId]);
 
   return (
     <>
       <EditorSection
         icon={Wine}
-        title="基础信息"
-        description="管理房间名称、默认场景、用户称呼和故事目标。"
+        title="运行基础"
+        description="管理酒馆呈现名称、默认视觉场景和角色回复模式。"
         action={(
           <Button
             type="button"

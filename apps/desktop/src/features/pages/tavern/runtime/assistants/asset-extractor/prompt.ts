@@ -1,8 +1,12 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import {
-  formatTavernLorebookEntries,
   tavernMessagesToRuntimeMessages,
 } from "../../prompt";
+import type { StoryContextPackage } from "@/features/story";
+import {
+  buildTavernStoryContextPackage,
+  formatTavernStoryLorebookEntries,
+} from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
 import type {
   TavernCharacter,
@@ -52,12 +56,14 @@ export const buildTavernAssetExtractionPrompt = ({
   messages,
   sourceMessages,
   currentUserText,
+  storyContext: inputStoryContext,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   sourceMessages: TavernMessage[];
   currentUserText: string;
+  storyContext?: StoryContextPackage;
 }) => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
@@ -69,6 +75,8 @@ export const buildTavernAssetExtractionPrompt = ({
     characters,
     userPersonaName: room.userPersonaName,
   });
+  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
+  const activeScene = storyContext.graph.activeScene;
   const pendingDraftsText = room.assetDrafts.map((draft, index) => [
     `# draft ${index + 1}`,
     draft.sceneMemories.map((memory) =>
@@ -109,35 +117,35 @@ export const buildTavernAssetExtractionPrompt = ({
     "只输出严格合法 JSON 对象，不要输出 Markdown、代码块或解释。",
     "</rules>",
     "",
-    room.storyOutline.trim() || room.storyGoal.trim()
+    storyContext.story.outline.trim() || storyContext.story.goal.trim()
       ? `<story_arc>\n${[
-          room.storyOutline.trim(),
-          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+          storyContext.story.outline.trim(),
+          storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
         ].filter(Boolean).join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${room.title}">`,
-    room.scene,
+    `<room title="${storyContext.story.title}">`,
+    activeScene?.scene ?? "",
     "</room>",
     "",
-    room.scenePlot.trim()
-      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+    activeScene?.plot.trim()
+      ? `<scene_plot>\n${activeScene.plot.trim()}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
-    room.sceneGoal.trim()
-      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+    activeScene?.goal.trim()
+      ? `<scene_goal>\n${activeScene.goal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
-    room.sceneDirection.trim()
-      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+    activeScene?.direction.trim()
+      ? `<scene_direction>\n${activeScene.direction.trim()}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
-    room.sceneTransition.trim()
-      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+    activeScene?.transition.trim()
+      ? `<scene_transition>\n${activeScene.transition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
-    room.memory.trim()
-      ? `<manual_room_memory>\n${room.memory.trim()}\n</manual_room_memory>`
+    storyContext.memory.manual.trim()
+      ? `<manual_room_memory>\n${storyContext.memory.manual.trim()}\n</manual_room_memory>`
       : "<manual_room_memory>（无）</manual_room_memory>",
     "",
     "<character_memories>",
@@ -145,7 +153,7 @@ export const buildTavernAssetExtractionPrompt = ({
     "</character_memories>",
     "",
     "<lorebook>",
-    formatTavernLorebookEntries(room.lorebookEntries) || "（无）",
+    formatTavernStoryLorebookEntries(storyContext.world.lorebookEntries) || "（无）",
     "</lorebook>",
     "",
     "<pending_asset_drafts>",

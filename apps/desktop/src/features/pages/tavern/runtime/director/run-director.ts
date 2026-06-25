@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -46,6 +47,7 @@ export type RunTavernDirectorInput = {
   selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
   randomEventOpportunity?: boolean;
+  storyContext?: StoryContextPackage;
 };
 
 export const runTavernDirector = async ({
@@ -61,6 +63,7 @@ export const runTavernDirector = async ({
   selectedTargetCharacterIds = [],
   maxSpeakers = 3,
   randomEventOpportunity,
+  storyContext,
 }: RunTavernDirectorInput): Promise<TavernDirectorDecision> => {
   const directorPromptContext = buildTavernDirectorPromptContext({
     room,
@@ -72,6 +75,7 @@ export const runTavernDirector = async ({
     selectedTargetCharacterIds,
     maxSpeakers,
     randomEventOpportunity,
+    storyContext,
   });
   const result = await runTavernRuntimeAgent({
     agentId: runtimeAgentId,

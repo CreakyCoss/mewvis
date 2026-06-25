@@ -1,9 +1,13 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
+import type { StoryContextPackage } from "@/features/story";
 import {
-  formatTavernLorebookEntries,
-  formatTavernStoryGraphContext,
   tavernMessagesToRuntimeMessages,
 } from "../../prompt";
+import {
+  buildTavernStoryContextPackage,
+  formatTavernStoryGraphContext,
+  formatTavernStoryLorebookEntries,
+} from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
 import type {
   TavernCharacter,
@@ -74,8 +78,10 @@ export const buildTavernQuickContext = ({
   room,
   characters,
   messages,
+  storyContext: inputStoryContext,
   conversationScope = "recent",
 }: Pick<TavernQuickSummaryInput, "room" | "characters" | "messages"> & {
+  storyContext?: StoryContextPackage;
   conversationScope?: "recent" | "full";
 }) => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({
@@ -87,42 +93,44 @@ export const buildTavernQuickContext = ({
     ? runtimeMessages
     : runtimeMessages.slice(-RECENT_MESSAGE_LIMIT);
   const conversationText = formatTavernRuntimeMessagesForSummary(conversationMessages);
-  const lorebookText = formatTavernLorebookEntries(
-    room.lorebookEntries.filter((entry) => entry.enabled),
+  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
+  const activeScene = storyContext.graph.activeScene;
+  const lorebookText = formatTavernStoryLorebookEntries(
+    storyContext.world.lorebookEntries.filter((entry) => entry.enabled),
   );
-  const storyGraphText = formatTavernStoryGraphContext(room);
+  const storyGraphText = formatTavernStoryGraphContext(storyContext);
   const characterMemoryText = characterMemories(room, characters);
 
   return [
-    room.storyOutline.trim() || room.storyGoal.trim()
+    storyContext.story.outline.trim() || storyContext.story.goal.trim()
       ? `<story_arc>\n${[
-          room.storyOutline.trim(),
-          room.storyGoal.trim() ? `终局目标：${room.storyGoal.trim()}` : "",
+          storyContext.story.outline.trim(),
+          storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
         ].filter(Boolean).join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${room.title}">`,
-    room.scene,
+    `<room title="${storyContext.story.title}">`,
+    activeScene?.scene ?? "",
     "</room>",
     "",
-    room.scenePlot.trim()
-      ? `<scene_plot>\n${room.scenePlot.trim()}\n</scene_plot>`
+    activeScene?.plot.trim()
+      ? `<scene_plot>\n${activeScene.plot.trim()}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
-    room.sceneGoal.trim()
-      ? `<scene_goal>\n${room.sceneGoal.trim()}\n</scene_goal>`
+    activeScene?.goal.trim()
+      ? `<scene_goal>\n${activeScene.goal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
-    room.sceneDirection.trim()
-      ? `<scene_direction>\n${room.sceneDirection.trim()}\n</scene_direction>`
+    activeScene?.direction.trim()
+      ? `<scene_direction>\n${activeScene.direction.trim()}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
-    room.sceneTransition.trim()
-      ? `<scene_transition>\n${room.sceneTransition.trim()}\n</scene_transition>`
+    activeScene?.transition.trim()
+      ? `<scene_transition>\n${activeScene.transition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
-    room.memory.trim()
-      ? `<manual_memory>\n${room.memory.trim()}\n</manual_memory>`
+    storyContext.memory.manual.trim()
+      ? `<manual_memory>\n${storyContext.memory.manual.trim()}\n</manual_memory>`
       : "<manual_memory>（无）</manual_memory>",
     "",
     "<character_memories>",
@@ -155,7 +163,8 @@ export const buildTavernQuickNovelPrompt = ({
   room,
   characters,
   messages,
-}: Pick<TavernQuickSummaryInput, "room" | "characters" | "messages">) => {
+  storyContext,
+}: Pick<TavernQuickSummaryInput, "room" | "characters" | "messages" | "storyContext">) => {
   const messageCount = messages.filter((message) => message.content.trim()).length;
 
   return [
@@ -179,6 +188,7 @@ export const buildTavernQuickNovelPrompt = ({
       room,
       characters,
       messages,
+      storyContext,
       conversationScope: "full",
     }),
   ].join("\n");

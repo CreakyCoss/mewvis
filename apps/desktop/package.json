@@ -13,6 +13,7 @@
     "build:agent-bridge:darwin-x64": "pnpm build:agent-bridge && node agent-bridge/scripts/copy-node-runtime.mjs --target darwin-x64",
     "test:agent-bridge:e2e": "node scripts/agent-bridge-e2e.mjs",
     "test:agent-bridge:live": "node scripts/agent-bridge-live-e2e.mjs",
+    "test:story:import-bridge": "node scripts/story-import-bridge-e2e.mjs",
     "test:tavern:core": "node scripts/tavern-core-e2e.mjs",
     "test:tavern:prompt-layer": "node scripts/tavern-prompt-layer-e2e.mjs",
     "test:tavern:prompt-preview": "node scripts/tavern-prompt-preview-e2e.mjs",

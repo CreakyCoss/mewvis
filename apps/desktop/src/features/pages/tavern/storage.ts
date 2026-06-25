@@ -49,6 +49,7 @@ import type {
   TavernSecretReveal,
   TavernStoryEdge,
   TavernStoryGraph,
+  TavernStoryBinding,
   TavernStoryNode,
   TavernStoryRun,
   TavernStoryStage,
@@ -116,6 +117,16 @@ const createId = (prefix: string) => {
   const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
   return `${prefix}-${formatTimestampId(new Date())}-${suffix}`;
 };
+
+const createTavernStoryBinding = (
+  storyId: string,
+  boundAt = now(),
+): TavernStoryBinding => ({
+  version: 1,
+  storyId,
+  source: "story",
+  boundAt,
+});
 
 const stableIdHash = (value: string) => {
   let hash = 5381;
@@ -528,6 +539,24 @@ const shouldDiscardLegacyTavernRoom = (room: Partial<TavernRoom>) => {
 
   const title = typeof room.title === "string" ? room.title.trim() : "";
   return LEGACY_TAVERN_SYSTEM_PRESET_TITLES.has(title);
+};
+
+const normalizeTavernStoryBinding = (
+  value: unknown,
+  fallbackStoryId: string,
+  boundAt = now(),
+): TavernStoryBinding => {
+  const candidate = value && typeof value === "object"
+    ? value as Partial<TavernStoryBinding>
+    : {};
+  const storyId = typeof candidate.storyId === "string" && candidate.storyId.trim()
+    ? candidate.storyId.trim()
+    : fallbackStoryId;
+
+  return createTavernStoryBinding(
+    storyId,
+    typeof candidate.boundAt === "number" ? candidate.boundAt : boundAt,
+  );
 };
 
 const normalizeSystemPresetCharacterId = (
@@ -3736,6 +3765,39 @@ export const getTavernSceneInstanceDisplayTitle = (
   return currentNodeTitle;
 };
 
+export const findTavernSceneInstanceIdForNode = (
+  room: TavernRoom,
+  nodeId: string | undefined | null,
+) => {
+  const targetNodeId = nodeId?.trim();
+  if (!targetNodeId) {
+    return "";
+  }
+
+  const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
+  const activeRun = runtimeRoom.storyRuns.find((run) =>
+    run.id === runtimeRoom.activeRunId && run.pathNodeIds.includes(targetNodeId)
+  ) ?? runtimeRoom.storyRuns.find((run) => run.pathNodeIds.includes(targetNodeId)) ?? null;
+  const scopedInstanceId = activeRun
+    ? createRouteScopedSceneInstanceId(
+        runtimeRoom.id,
+        resolveRunNodePrefix(activeRun, targetNodeId),
+      )
+    : "";
+
+  return runtimeRoom.sceneInstances.find((instance) => instance.id === scopedInstanceId)?.id ??
+    runtimeRoom.sceneInstances.find((instance) => instance.nodeId === targetNodeId)?.id ??
+    "";
+};
+
+export const switchTavernRoomStoryNode = (
+  room: TavernRoom,
+  nodeId: string | undefined | null,
+) => {
+  const sceneInstanceId = findTavernSceneInstanceIdForNode(room, nodeId);
+  return sceneInstanceId ? switchTavernRoomSceneInstance(room, sceneInstanceId) : room;
+};
+
 export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
   const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
   const activeInstance = getActiveTavernSceneInstance(runtimeRoom);
@@ -4387,6 +4449,7 @@ export const createTavernRoomFromSystemPreset = (
   presetId: string,
   options: {
     roomId?: string;
+    storyId?: string;
     roomCreatedAt?: number;
     createdAt?: number;
     characterIdByPresetId?: Map<string, string>;
@@ -4591,6 +4654,7 @@ export const createTavernRoomFromSystemPreset = (
       immersiveDescriptionEnabled: true,
     }),
     creationSource: markAsSystemPreset ? "imported" : "manual",
+    storyBinding: createTavernStoryBinding(options.storyId ?? roomId, createdAt),
     storyOutline: preset.room.storyOutline?.trim() || "",
     storyGoal: preset.room.storyGoal?.trim() || "",
     storyGraph,
@@ -5006,6 +5070,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
   generated: TavernGeneratedPresetJson,
   options: {
     roomId?: string;
+    storyId?: string;
     roomCreatedAt?: number;
     createdAt?: number;
     creationSource?: TavernRoom["creationSource"];
@@ -5162,6 +5227,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
     ).filter((factEvent): factEvent is TavernFactEvent => Boolean(factEvent));
 
     return buildTavernScene({
+      id: trimGeneratedString(sceneInput.id) || undefined,
       title: trimGeneratedString(sceneInput.title) || defaultSceneTitle,
       order: typeof sceneInput.order === "number" ? sceneInput.order : index,
       scenePresetId: sceneInput.scenePresetId ?? roomInput.scenePresetId,
@@ -5239,7 +5305,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
   }).sort((left, right) => left.order - right.order)
     .map((scene, index) => ({ ...scene, order: index }));
   const scene = scenes[0];
-  const storyGraph = createDefaultStoryGraph(scenes);
+  const storyGraph = normalizeStoryGraph(roomInput.storyGraph, scenes);
   const title = trimGeneratedString(roomInput.title) ||
     trimGeneratedString(generated.label) ||
     "智能生成酒馆";
@@ -5272,6 +5338,7 @@ export const createTavernRoomFromGeneratedPresetJson = (
       immersiveDescriptionEnabled: true,
     })),
     creationSource: options.creationSource ?? "agent_generated",
+    storyBinding: createTavernStoryBinding(options.storyId ?? roomId, createdAt),
     storyOutline: trimGeneratedString(roomInput.storyOutline),
     storyGoal: trimGeneratedString(roomInput.storyGoal),
     storyGraph,
@@ -5470,7 +5537,17 @@ const normalizeTavernState = (
 
   const sourceMessagesByInstance = candidate.messagesByInstance as Record<string, unknown>;
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
-    Boolean(room?.id && room.workspaceId === workspaceId && room.title) &&
+    Boolean(
+      room?.id &&
+      room.workspaceId === workspaceId &&
+      room.title &&
+      room.storyGraph &&
+      Array.isArray(room.storyGraph.stages) &&
+      Array.isArray(room.storyGraph.nodes) &&
+      Array.isArray(room.storyGraph.edges) &&
+      Array.isArray(room.scenes) &&
+      Array.isArray(room.sceneInstances),
+    ) &&
     !shouldDiscardLegacyTavernRoom(room)
   ).map((room) => {
     const systemPresetId = normalizeSystemPresetId((room as Partial<TavernRoom>).systemPresetId);
@@ -5536,6 +5613,13 @@ const normalizeTavernState = (
         (room as Partial<TavernRoom>).creationSource === "agent_generated"
           ? (room as Partial<TavernRoom>).creationSource
           : "manual",
+      storyBinding: normalizeTavernStoryBinding(
+        (room as Partial<TavernRoom>).storyBinding,
+        room.id,
+        typeof (room as Partial<TavernRoom>).createdAt === "number"
+          ? (room as Partial<TavernRoom>).createdAt
+          : Date.now(),
+      ),
       storyOutline: typeof (room as Partial<TavernRoom>).storyOutline === "string"
         ? (room as Partial<TavernRoom>).storyOutline ?? ""
         : "",
@@ -5745,6 +5829,7 @@ export const saveTavernState = async (
   state: TavernState,
 ) => {
   const normalizedState = normalizeTavernState(workspaceId, state) ?? state;
+
   if (!isTauri()) {
     saveTavernStateToLocalStorage(workspaceId, normalizedState);
     return normalizedState;
@@ -5759,6 +5844,7 @@ export const saveTavernState = async (
 
 export const createTavernRoom = (workspaceId: string, index: number): TavernRoom => {
   const createdAt = now();
+  const roomId = createId("room");
   const scene = buildTavernScene({
     title: defaultSceneTitle,
     scenePresetId: DEFAULT_VISUAL_PRESET_ID,
@@ -5770,13 +5856,14 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
   const presentation = createDefaultTavernPresentation();
 
   return projectTavernSceneOntoRoom({
-    id: createId("room"),
+    id: roomId,
     workspaceId,
     locked: false,
     title: `新酒馆 ${index}`,
     presentation,
     prompt: createDefaultPromptForPresentation(presentation),
     creationSource: "manual",
+    storyBinding: createTavernStoryBinding(roomId, createdAt),
     storyOutline: "",
     storyGoal: "",
     storyGraph,

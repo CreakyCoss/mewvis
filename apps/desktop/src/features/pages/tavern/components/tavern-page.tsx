@@ -215,6 +215,8 @@ export const TavernPage = ({
   runtimeModel,
   runtimeAgentId,
   isHomeFullscreen = false,
+  initialRoomId,
+  initialSceneInstanceId,
   onExitHomeFullscreen,
 }: TavernPageProps) => (
   <TavernPageProvider
@@ -225,6 +227,8 @@ export const TavernPage = ({
     <TavernPageContent
       files={files}
       isHomeFullscreen={isHomeFullscreen}
+      initialRoomId={initialRoomId}
+      initialSceneInstanceId={initialSceneInstanceId}
       onExitHomeFullscreen={onExitHomeFullscreen}
     />
   </TavernPageProvider>
@@ -232,12 +236,14 @@ export const TavernPage = ({
 
 type TavernPageContentProps = Pick<
   TavernPageProps,
-  "files" | "isHomeFullscreen" | "onExitHomeFullscreen"
+  "files" | "isHomeFullscreen" | "initialRoomId" | "initialSceneInstanceId" | "onExitHomeFullscreen"
 >;
 
 const TavernPageContent = ({
   files,
   isHomeFullscreen = false,
+  initialRoomId,
+  initialSceneInstanceId,
   onExitHomeFullscreen,
 }: TavernPageContentProps) => {
   const ctx = useTavernPageContext();
@@ -295,6 +301,7 @@ const TavernPageContent = ({
   const quickSummaryRef = useRef<QuickSummaryHandle | null>(null);
   const tavernRoomsRef = useRef<TavernRoom[]>(state.rooms);
   const tavernPage = useRef<PageNavigationHandle | null>(null);
+  const initialOpenKeyRef = useRef("");
 
   useEffect(() => {
     tavernRoomsRef.current = state.rooms;
@@ -700,6 +707,31 @@ const TavernPageContent = ({
   }, []);
 
   tavernPage.current = { open: openTavernRoom };
+
+  useEffect(() => {
+    if (!isTavernStateHydrated || !initialRoomId) {
+      return;
+    }
+
+    const key = `${initialRoomId}:${initialSceneInstanceId ?? ""}`;
+    if (initialOpenKeyRef.current === key) {
+      return;
+    }
+
+    const room = state.rooms.find((item) => item.id === initialRoomId);
+    if (!room) {
+      return;
+    }
+
+    initialOpenKeyRef.current = key;
+    openTavernRoom(room, initialSceneInstanceId);
+  }, [
+    initialRoomId,
+    initialSceneInstanceId,
+    isTavernStateHydrated,
+    openTavernRoom,
+    state.rooms,
+  ]);
 
   const selectRoomSceneInstance = useCallback((roomId: string, sceneInstanceId: string) => {
     setState((current) => {

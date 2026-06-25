@@ -1,17 +1,14 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createAgentClient } from "@/agent-client/runtime";
-import { tavernAvatarOptions } from "@/assets/agent-avatars";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { normalizeVisualPresetId } from "@/features/pages/tavern/visual-presets";
 import { normalizeTavernPromptStyleId } from "../../prompt-styles";
 import {
-  normalizeTavernPresentation,
   normalizeTavernPresentationProfileId,
 } from "../../prompt-registry/presentation-rules";
 import { normalizeTavernSystemNarrativePresetId } from "../../prompt-registry/system-narrative-styles";
@@ -21,22 +18,13 @@ import {
 } from "../../prompt-registry/rule-layers/resolver";
 import {
   createDefaultTavernPromptSettings,
-  normalizeTavernPromptSettings,
 } from "../../prompt-registry/text-blocks";
 import {
-  createTavernAssetDraft,
-  createTavernIllustrationHint,
-  createTavernLorebookEntry,
   createTavernMessage,
   createTavernRoom,
   createTavernRoomFromGeneratedPresetJson,
   createTavernRoomFromSystemPreset,
   createTavernScene,
-  DEFAULT_TAVERN_PROGRESS_TRACKER,
-  DEFAULT_TAVERN_PROGRESS_VIEWS,
-  DEFAULT_TAVERN_ROOM_SETTINGS,
-  DEFAULT_TAVERN_STATUS_DEFINITIONS,
-  DEFAULT_TAVERN_STATUS_RULES,
   getTavernSystemPreset,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
@@ -51,28 +39,21 @@ import {
   runTavernGeneratedPresetAgent,
   type TavernGeneratedPresetAgentDraft,
 } from "../../runtime/assistants";
-import { parseTavernExternalImportJson } from "../../import-formats";
+import {
+  createStoryImportDraftFromTavernGeneratedPreset,
+  createTavernGeneratedPresetFromStoryImportDraft,
+} from "../../adapters/story";
+import {
+  createTavernRuntimeRoomSnapshot,
+  materializeTavernRuntimeRoomSnapshot,
+  parseTavernRuntimeRoomSnapshot,
+} from "../../adapters/runtime-room-snapshot";
 import type {
-  TavernAssetDraft,
   TavernCharacter,
-  TavernCharacterRelationship,
-  TavernCondition,
-  TavernEntityRef,
-  TavernFactEvent,
   TavernMessage,
-  TavernOutcomeEvent,
-  TavernRelationshipTarget,
   TavernRoom,
-  TavernRoomSettings,
   TavernScene,
-  TavernSceneRelationshipOverride,
-  TavernSceneOutcomeDefinition,
   TavernState,
-  TavernStatusEvent,
-  TavernStatusTargetRef,
-  TavernTaskDefinition,
-  TavernTaskEvent,
-  TavernTaskState,
 } from "../../types";
 import { sanitizeFileName } from "../room/quick-summary/utils";
 import {
@@ -80,7 +61,6 @@ import {
   type ManagementContextValue,
 } from "./context";
 
-const TAVERN_ROOM_EXPORT_SCHEMA = "novel-claw.tavern-room";
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
@@ -98,437 +78,13 @@ const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
-const cloneTavernDirectorProfile = (
-  profile: TavernRoomSettings["directorScheduling"]["profile"],
-): TavernRoomSettings["directorScheduling"]["profile"] => profile
-  ? {
-      ...profile,
-      globalGoals: [...profile.globalGoals],
-      globalRules: [...profile.globalRules],
-      characterProfiles: Object.fromEntries(
-        Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
-          characterId,
-          {
-            ...characterProfile,
-            interestTags: [...characterProfile.interestTags],
-            goalTags: [...characterProfile.goalTags],
-            knowledgeTags: [...characterProfile.knowledgeTags],
-            speechTriggers: [...characterProfile.speechTriggers],
-            silenceTriggers: [...characterProfile.silenceTriggers],
-          },
-        ]),
-      ),
-    }
-  : undefined;
-
-const hasAssetDraftItems = (draft: TavernAssetDraft) =>
-  draft.sceneMemories.some((memory) => memory.note.trim()) ||
-  draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
-  draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
-
-type TavernRoomExportV3 = {
-  schema: typeof TAVERN_ROOM_EXPORT_SCHEMA;
-  version: 3;
-  exportedAt: string;
-  room: TavernRoom;
-  characters: TavernCharacter[];
-  messages: TavernMessage[];
-  messagesByInstance: Record<string, TavernMessage[]>;
-};
-
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
-
-const remapImportedRelationshipTarget = (
-  value: unknown,
-  characterIdMap: Map<string, string>,
-): TavernRelationshipTarget | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const target = value as Partial<TavernRelationshipTarget>;
-  if (target.type === "user") {
-    return { type: "user" };
-  }
-  if (target.type === "character" && typeof target.characterId === "string") {
-    const characterId = characterIdMap.get(target.characterId);
-    return characterId ? { type: "character", characterId } : null;
-  }
-  return null;
-};
-
-const remapImportedCharacterRelationships = (
-  value: unknown,
-  characterIdMap: Map<string, string>,
-  updatedAt: number,
-): TavernCharacterRelationship[] => Array.isArray(value)
-  ? value.flatMap((item) => {
-      if (!item || typeof item !== "object") {
-        return [];
-      }
-      const relationship = item as Partial<TavernCharacterRelationship>;
-      const target = remapImportedRelationshipTarget(relationship.target, characterIdMap);
-      if (!target) {
-        return [];
-      }
-      return [{
-        id: createLocalId("relationship"),
-        target,
-        label: relationship.label?.trim() || undefined,
-        attitude: relationship.attitude?.trim() || undefined,
-        publicNote: relationship.publicNote?.trim() || undefined,
-        privateNote: relationship.privateNote?.trim() || undefined,
-        tags: Array.isArray(relationship.tags)
-          ? relationship.tags.flatMap((tag) => typeof tag === "string" && tag.trim() ? [tag.trim()] : [])
-          : [],
-        updatedAt: typeof relationship.updatedAt === "number" ? relationship.updatedAt : updatedAt,
-      }];
-    })
-  : [];
-
-const remapImportedSceneRelationshipOverrides = (
-  value: unknown,
-  characterIdMap: Map<string, string>,
-  updatedAt: number,
-): TavernSceneRelationshipOverride[] => Array.isArray(value)
-  ? value.flatMap((item) => {
-      if (!item || typeof item !== "object") {
-        return [];
-      }
-      const override = item as Partial<TavernSceneRelationshipOverride>;
-      const subjectCharacterId = typeof override.subjectCharacterId === "string"
-        ? characterIdMap.get(override.subjectCharacterId)
-        : undefined;
-      const target = remapImportedRelationshipTarget(override.target, characterIdMap);
-      if (!subjectCharacterId || !target) {
-        return [];
-      }
-      return [{
-        id: createLocalId("scene-relationship"),
-        subjectCharacterId,
-        target,
-        label: override.label?.trim() || undefined,
-        publicNote: override.publicNote?.trim() || undefined,
-        privateNote: override.privateNote?.trim() || undefined,
-        tags: Array.isArray(override.tags)
-          ? override.tags.flatMap((tag) => typeof tag === "string" && tag.trim() ? [tag.trim()] : [])
-          : [],
-        updatedAt: typeof override.updatedAt === "number" ? override.updatedAt : updatedAt,
-      }];
-    })
-  : [];
 
 const getRoomActiveSceneId = (room: TavernRoom) =>
   room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
 const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
   room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
-
-const getSceneMessages = (
-  room: TavernRoom,
-  state: Pick<TavernState, "messagesByInstance">,
-) => {
-  const sceneInstanceId = getRoomActiveSceneInstanceId(room);
-  return state.messagesByInstance[sceneInstanceId] ?? [];
-};
-
-const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
-  const numberValue = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numberValue)) {
-    return fallback;
-  }
-
-  return Math.min(max, Math.max(min, Math.round(numberValue)));
-};
-
-const normalizeImportedRoomSettings = (value: unknown): TavernRoomSettings => {
-  if (!value || typeof value !== "object") {
-    return { ...DEFAULT_TAVERN_ROOM_SETTINGS };
-  }
-
-  const candidate = value as Partial<TavernRoomSettings>;
-  return {
-    ...DEFAULT_TAVERN_ROOM_SETTINGS,
-    immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
-    showExecutionTrace: Boolean(candidate.showExecutionTrace),
-    autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
-    assetExtractionIntervalTurns: clampInteger(
-      candidate.assetExtractionIntervalTurns,
-      DEFAULT_TAVERN_ROOM_SETTINGS.assetExtractionIntervalTurns,
-      1,
-      10,
-    ),
-    maxAssetDrafts: clampInteger(
-      candidate.maxAssetDrafts,
-      DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts,
-      1,
-      20,
-    ),
-    directorMaxSpeakers: clampInteger(
-      candidate.directorMaxSpeakers,
-      DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
-      1,
-      6,
-    ),
-    agentKnowledgeCompactIntervalTurns: clampInteger(
-      candidate.agentKnowledgeCompactIntervalTurns,
-      DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,
-      0,
-      50,
-    ),
-    interactionQualityRuleIds: normalizeTavernQualityRuleIds(
-      candidate.interactionQualityRuleIds ?? DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds,
-    ),
-    directorNarrativeControl: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl,
-      ...(candidate.directorNarrativeControl ?? {}),
-    },
-    directorScheduling: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
-      ...(candidate.directorScheduling ?? {}),
-      directorOnlyPhaseValues: Array.isArray(candidate.directorScheduling?.directorOnlyPhaseValues)
-        ? candidate.directorScheduling.directorOnlyPhaseValues
-        : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.directorOnlyPhaseValues,
-      speakerMotivation: {
-        ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
-        ...(candidate.directorScheduling?.speakerMotivation ?? {}),
-        rules: Array.isArray(candidate.directorScheduling?.speakerMotivation?.rules)
-          ? candidate.directorScheduling.speakerMotivation.rules
-          : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules,
-      },
-      profile: cloneTavernDirectorProfile(candidate.directorScheduling?.profile),
-      fixedOrder: {
-        ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
-        ...(candidate.directorScheduling?.fixedOrder ?? {}),
-        phaseValues: Array.isArray(candidate.directorScheduling?.fixedOrder?.phaseValues)
-          ? candidate.directorScheduling.fixedOrder.phaseValues
-          : DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues,
-        includeUser: Boolean(candidate.directorScheduling?.fixedOrder?.includeUser),
-        userPosition: candidate.directorScheduling?.fixedOrder?.userPosition === "last" ? "last" : "first",
-      },
-    },
-    continuation: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation,
-      ...(candidate.continuation ?? {}),
-    },
-    replyOptions: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions,
-      ...(candidate.replyOptions ?? {}),
-    },
-    statusTracking: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking,
-      ...(candidate.statusTracking ?? {}),
-    },
-    randomEvents: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents,
-      ...(candidate.randomEvents ?? {}),
-    },
-    illustrationHints: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints,
-      ...(candidate.illustrationHints ?? {}),
-    },
-    informationPolicy: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
-      ...(candidate.informationPolicy ?? {}),
-      hiddenFacts: {
-        ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts,
-        ...(candidate.informationPolicy?.hiddenFacts ?? {}),
-      },
-      roleAssignment: {
-        ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment,
-        ...(candidate.informationPolicy?.roleAssignment ?? {}),
-        rolePool: Array.isArray(candidate.informationPolicy?.roleAssignment?.rolePool)
-          ? candidate.informationPolicy.roleAssignment.rolePool
-          : DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool,
-        opening: {
-          ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening,
-          ...(candidate.informationPolicy?.roleAssignment?.opening ?? {}),
-          globalStatusPatches: Array.isArray(candidate.informationPolicy?.roleAssignment?.opening?.globalStatusPatches)
-            ? candidate.informationPolicy.roleAssignment.opening.globalStatusPatches
-            : DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening.globalStatusPatches,
-        },
-      },
-    },
-  };
-};
-
-const remapImportedEntityRef = (
-  entity: TavernEntityRef | undefined,
-  characterIdMap: Map<string, string>,
-): TavernEntityRef | undefined => {
-  if (!entity) {
-    return undefined;
-  }
-
-  if (entity.type === "character") {
-    const mappedId = characterIdMap.get(entity.characterId);
-    return mappedId ? { ...entity, characterId: mappedId } : entity;
-  }
-
-  return entity;
-};
-
-const remapImportedStatusTarget = (
-  target: TavernStatusTargetRef,
-  characterIdMap: Map<string, string>,
-): TavernStatusTargetRef => {
-  if (target.type === "character") {
-    const mappedId = characterIdMap.get(target.characterId);
-    return mappedId ? { ...target, characterId: mappedId } : target;
-  }
-  if (target.type === "relationship") {
-    return {
-      ...target,
-      subject: remapImportedEntityRef(target.subject, characterIdMap) ?? target.subject,
-      object: remapImportedEntityRef(target.object, characterIdMap) ?? target.object,
-    };
-  }
-  return target;
-};
-
-const remapImportedCondition = (
-  condition: TavernCondition,
-  characterIdMap: Map<string, string>,
-): TavernCondition => {
-  if ("all" in condition) {
-    return { ...condition, all: condition.all.map((item) => remapImportedCondition(item, characterIdMap)) };
-  }
-  if ("any" in condition) {
-    return { ...condition, any: condition.any.map((item) => remapImportedCondition(item, characterIdMap)) };
-  }
-  if ("not" in condition) {
-    return { ...condition, not: remapImportedCondition(condition.not, characterIdMap) };
-  }
-  if ("status" in condition && "target" in condition) {
-    return {
-      ...condition,
-      target: remapImportedStatusTarget(condition.target, characterIdMap),
-    };
-  }
-  if ("factEvent" in condition) {
-    return {
-      ...condition,
-      ...(condition.actor ? { actor: remapImportedEntityRef(condition.actor, characterIdMap) } : {}),
-      ...(condition.target ? { target: remapImportedEntityRef(condition.target, characterIdMap) } : {}),
-    };
-  }
-  if ("task" in condition) {
-    return {
-      ...condition,
-      ...(condition.owner ? { owner: remapImportedEntityRef(condition.owner, characterIdMap) } : {}),
-    };
-  }
-  return condition;
-};
-
-const remapImportedCharacterIds = (
-  ids: string[] | undefined,
-  characterIdMap: Map<string, string>,
-) => ids?.flatMap((id) => {
-  const mappedId = characterIdMap.get(id);
-  return mappedId ? [mappedId] : [];
-});
-
-const remapImportedFactEvents = (
-  factEvents: TavernFactEvent[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(factEvents)
-  ? factEvents.map((event) => ({
-      ...event,
-      ...(event.actor ? { actor: remapImportedEntityRef(event.actor, characterIdMap) } : {}),
-      ...(event.target ? { target: remapImportedEntityRef(event.target, characterIdMap) } : {}),
-      ...(event.visibleToCharacterIds
-        ? { visibleToCharacterIds: remapImportedCharacterIds(event.visibleToCharacterIds, characterIdMap) }
-        : {}),
-    }))
-  : [];
-
-const remapImportedStatusEvents = (
-  statusEvents: TavernStatusEvent[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(statusEvents)
-  ? statusEvents.map((event) => ({
-      ...event,
-      target: remapImportedStatusTarget(event.target, characterIdMap),
-    }))
-  : [];
-
-const remapImportedTaskDefinitions = (
-  tasks: TavernTaskDefinition[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(tasks)
-  ? tasks.map((task) => ({
-      ...task,
-      owner: remapImportedEntityRef(task.owner, characterIdMap) ?? task.owner,
-      ...(task.participants
-        ? { participants: task.participants.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
-        : {}),
-      lifecycle: {
-        ...task.lifecycle,
-        ...(task.lifecycle.startCondition
-          ? { startCondition: remapImportedCondition(task.lifecycle.startCondition, characterIdMap) }
-          : {}),
-        completeCondition: remapImportedCondition(task.lifecycle.completeCondition, characterIdMap),
-        ...(task.lifecycle.failCondition
-          ? { failCondition: remapImportedCondition(task.lifecycle.failCondition, characterIdMap) }
-          : {}),
-      },
-    }))
-  : [];
-
-const remapImportedSceneOutcomes = (
-  outcomes: TavernSceneOutcomeDefinition[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(outcomes)
-  ? outcomes.map((outcome) => ({
-      ...outcome,
-      ...(outcome.winner
-        ? { winner: outcome.winner.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
-        : {}),
-      ...(outcome.loser
-        ? { loser: outcome.loser.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity) }
-        : {}),
-      condition: remapImportedCondition(outcome.condition, characterIdMap),
-    }))
-  : [];
-
-const remapImportedOutcomeEvents = (
-  events: TavernOutcomeEvent[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(events)
-  ? events.map((event) => ({
-      ...event,
-      winners: event.winners.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity),
-      losers: event.losers.map((entity) => remapImportedEntityRef(entity, characterIdMap) ?? entity),
-    }))
-  : [];
-
-const remapImportedTaskSnapshot = (
-  snapshot: Record<string, TavernTaskState> | undefined,
-  characterIdMap: Map<string, string>,
-) => snapshot
-  ? Object.fromEntries(Object.entries(snapshot).map(([taskId, state]) => [
-      taskId,
-      {
-        ...state,
-        owner: remapImportedEntityRef(state.owner, characterIdMap) ?? state.owner,
-      },
-    ]))
-  : {};
-
-const remapImportedTaskEvents = (
-  events: TavernTaskEvent[] | undefined,
-  characterIdMap: Map<string, string>,
-) => Array.isArray(events)
-  ? events.map((event) => ({
-      ...event,
-      owner: remapImportedEntityRef(event.owner, characterIdMap) ?? event.owner,
-      before: event.before
-        ? { ...event.before, owner: remapImportedEntityRef(event.before.owner, characterIdMap) ?? event.before.owner }
-        : undefined,
-      after: { ...event.after, owner: remapImportedEntityRef(event.after.owner, characterIdMap) ?? event.after.owner },
-    }))
-  : [];
 
 type ManagementProviderProps = {
   workspace: Workspace;
@@ -1003,32 +559,17 @@ export const ManagementProvider = ({
     }
 
     try {
-      const projectedTargetRoom = projectTavernSceneOntoRoom(targetRoom);
-      const targetCharacters = projectedTargetRoom.localCharacters ?? [];
-      const targetMessages = getSceneMessages(projectedTargetRoom, state);
-      const messagesByInstance = Object.fromEntries(
-        projectedTargetRoom.sceneInstances.map((instance) => [
-          instance.id,
-          state.messagesByInstance[instance.id] ??
-            (instance.id === projectedTargetRoom.activeSceneInstanceId ? targetMessages : []),
-        ]),
-      );
-      const payload: TavernRoomExportV3 = {
-        schema: TAVERN_ROOM_EXPORT_SCHEMA,
-        version: 3,
-        exportedAt: new Date().toISOString(),
-        room: projectedTargetRoom,
-        characters: targetCharacters,
-        messages: targetMessages,
-        messagesByInstance,
-      };
+      const payload = createTavernRuntimeRoomSnapshot({
+        room: targetRoom,
+        messagesByInstance: state.messagesByInstance,
+      });
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${sanitizeFileName(targetRoom.title)}.tavern-room.json`;
+      link.download = `${sanitizeFileName(targetRoom.title)}.tavern-runtime.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1044,429 +585,36 @@ export const ManagementProvider = ({
     try {
       parsed = JSON.parse(raw) as unknown;
     } catch {
-      return "房间文件不是有效 JSON。";
+      return "运行快照文件不是有效 JSON。";
     }
 
-    const importExternalPayload = () => {
-      try {
-        return parseTavernExternalImportJson(raw);
-      } catch (error) {
-        return getErrorMessage(error);
-      }
-    };
-    const parsedRoomExport = parsed as Partial<TavernRoomExportV3>;
-    if (
-      parsedRoomExport.schema !== TAVERN_ROOM_EXPORT_SCHEMA ||
-      parsedRoomExport.version !== 3 ||
-      !parsedRoomExport.room ||
-      !Array.isArray(parsedRoomExport.characters)
-    ) {
-      const externalPayload = importExternalPayload();
-      if (typeof externalPayload === "string") {
-        return externalPayload;
-      }
-
-      if (
-        externalPayload.kind === "generatedPreset" ||
-        externalPayload.kind === "characterCard"
-      ) {
-        try {
-          const materialized = createTavernRoomFromGeneratedPresetJson(
-            workspace.id,
-            externalPayload.preset,
-            {
-              creationSource: externalPayload.kind === "characterCard"
-                ? "imported"
-                : "agent_generated",
-            },
-          );
-          setState((current) => ({
-            ...current,
-            activeRoomId: materialized.room.id,
-            rooms: [...current.rooms, materialized.room],
-            messagesByInstance: {
-              ...current.messagesByInstance,
-              [getRoomActiveSceneInstanceId(materialized.room)]: materialized.messages,
-            },
-          }));
-          reportError("");
-          return null;
-        } catch (error) {
-          return getErrorMessage(error);
-        }
-      }
-
-      if (externalPayload.kind === "worldBook") {
-        if (!activeRoom || activeRoom.locked) {
-          return activeRoom?.locked ? "当前房间已锁定，不能导入世界书。" : "没有可导入世界书的当前房间。";
-        }
-
-        const lorebookEntries = externalPayload.entries.map((entry) => ({
-          ...createTavernLorebookEntry({
-            title: entry.title,
-            content: entry.content,
-            keywords: entry.keywords,
-            alwaysOn: entry.alwaysOn,
-          }),
-          enabled: entry.enabled,
-        }));
-        const importMessage = createTavernMessage({
-          roomId: activeRoom.id,
-          role: "narrator",
-          content: `已导入世界书「${externalPayload.label}」，新增 ${lorebookEntries.length} 条设定。`,
-          status: "done",
-        });
-        setState((current) => {
-          const targetRoom = current.rooms.find((room) => room.id === activeRoom.id);
-          if (!targetRoom || targetRoom.locked) {
-            return current;
-          }
-
-          const sceneInstanceId = getRoomActiveSceneInstanceId(targetRoom);
-          const nextRoom = syncTavernRoomActiveScene({
-            ...projectTavernSceneOntoRoom(targetRoom),
-            lorebookEntries: [
-              ...targetRoom.lorebookEntries,
-              ...lorebookEntries,
-            ],
-            updatedAt: Date.now(),
-          });
-          return {
-            ...current,
-            rooms: current.rooms.map((room) =>
-              room.id === targetRoom.id ? nextRoom : room
-            ),
-            messagesByInstance: {
-              ...current.messagesByInstance,
-              [sceneInstanceId]: [
-                ...(current.messagesByInstance[sceneInstanceId] ?? []),
-                {
-                  ...importMessage,
-                  sceneId: importMessage.sceneId ?? targetRoom.activeSceneId,
-                  sceneInstanceId: importMessage.sceneInstanceId ?? sceneInstanceId,
-                },
-              ],
-            },
-          };
-        });
-        reportError("");
-        return null;
-      }
-
-      return "导入文件格式不受支持。";
+    const snapshot = parseTavernRuntimeRoomSnapshot(parsed);
+    if (!snapshot) {
+      return "此入口只支持当前版本的酒馆运行快照；故事、世界书或角色卡请在故事页导入并确认。";
     }
 
-    const parsedExport = parsed as TavernRoomExportV3;
-    const createdAt = Date.now();
-    const roomId = createLocalId("room");
-    const importableCharacters = parsedExport.characters
-      .flatMap((character) => {
-        const name = typeof character.name === "string" ? character.name.trim() : "";
-        const description = typeof character.description === "string" ? character.description.trim() : "";
-        const speakingStyle = typeof character.speakingStyle === "string" ? character.speakingStyle.trim() : "";
-        if (!character.id || !name || !description || !speakingStyle) {
-          return [];
-        }
-
-        return [{ character, name, description, speakingStyle }];
-      });
-    const characterIdMap = new Map(
-      importableCharacters.map(({ character }) => [character.id, createLocalId("character")]),
-    );
-    const importedCharacters = importableCharacters
-      .flatMap(({ character, name, description, speakingStyle }) => {
-        const nextId = characterIdMap.get(character.id);
-        if (!nextId) {
-          return [];
-        }
-
-        return [{
-          id: nextId,
-          name,
-          avatar: character.avatar || tavernAvatarOptions[0]?.id || "",
-          description,
-          speakingStyle,
-          writingStyle: character.writingStyle?.trim() || undefined,
-          replyStylePrompt: character.replyStylePrompt?.trim() || undefined,
-          goals: character.goals?.trim() || undefined,
-          relationships: remapImportedCharacterRelationships(
-            character.relationships,
-            characterIdMap,
-            createdAt,
-          ),
-          createdAt,
-          updatedAt: createdAt,
-        } satisfies TavernCharacter];
-      });
-
-    if (importedCharacters.length === 0) {
-      return "房间文件里没有可导入的角色。";
+    const sourceRoom = snapshot.room;
+    if (state.rooms.some((room) => room.id === sourceRoom.id)) {
+      return "同 ID 的酒馆运行快照已存在，请先删除现有房间后再导入。";
     }
 
-    const importedCharacterIds = parsedExport.room.characterIds
-      .flatMap((characterId) => {
-        const mappedId = characterIdMap.get(characterId);
-        return mappedId ? [mappedId] : [];
-      });
-    const characterIds = importedCharacterIds.length > 0
-      ? importedCharacterIds
-      : importedCharacters.map((character) => character.id);
-    const activeCharacterId = characterIdMap.get(parsedExport.room.activeCharacterId) ?? characterIds[0] ?? "";
-    const characterMemories = Object.fromEntries(
-      Object.entries(parsedExport.room.characterMemories ?? {})
-        .flatMap(([characterId, memory]) => {
-          const mappedId = characterIdMap.get(characterId);
-          return mappedId && typeof memory === "string" && memory.trim()
-            ? [[mappedId, memory.trim()]]
-            : [];
-        }),
-    );
-    const characterConfigs = Object.fromEntries(
-      parsedExport.room.characterIds.flatMap((sourceCharacterId) => {
-        const mappedId = characterIdMap.get(sourceCharacterId);
-        if (!mappedId) {
-          return [];
-        }
-        return [[
-          mappedId,
-          {
-            characterId: mappedId,
-            memory: characterMemories[mappedId],
-          },
-        ]];
-      }),
-    );
-    const importedLorebookEntries = (parsedExport.room.lorebookEntries ?? [])
-      .flatMap((entry) => (
-        entry.title?.trim() && entry.content?.trim()
-          ? [createTavernLorebookEntry({
-              title: entry.title,
-              content: entry.content,
-              keywords: Array.isArray(entry.keywords) ? entry.keywords : [],
-              alwaysOn: Boolean(entry.alwaysOn),
-            })]
-          : []
-      ));
-    const importedAssetDrafts = (parsedExport.room.assetDrafts ?? [])
-      .flatMap((draft) => {
-        const assetDraft = createTavernAssetDraft({
-          sourceMessageIds: [],
-          sceneMemories: draft.sceneMemories,
-          characterMemories: draft.characterMemories.flatMap((memory) => {
-            const mappedId = characterIdMap.get(memory.characterId);
-            return mappedId
-              ? [{
-                  characterId: mappedId,
-                  note: memory.note,
-                  visibility: memory.visibility,
-                  secretId: memory.secretId,
-                  revealToCharacterIds: memory.revealToCharacterIds.flatMap((targetCharacterId) => {
-                    const mappedTargetId = characterIdMap.get(targetCharacterId);
-                    return mappedTargetId ? [mappedTargetId] : [];
-                  }),
-                }]
-              : [];
-          }),
-          lorebookEntries: draft.lorebookEntries,
-        });
-        return hasAssetDraftItems(assetDraft) ? [assetDraft] : [];
-      });
-    const importedIllustrationHints = (parsedExport.room.illustrationHints ?? [])
-      .flatMap((hint) => hint.prompt?.trim()
-        ? [createTavernIllustrationHint({
-            prompt: hint.prompt,
-            turnId: hint.turnId,
-            sourceMessageIds: [],
-          })]
-        : []);
-    const title = parsedExport.room.title?.trim() || "导入酒馆";
-    const relationshipOverrides = remapImportedSceneRelationshipOverrides(
-      parsedExport.room.relationshipOverrides,
-      characterIdMap,
-      createdAt,
-    );
-    const importedScene = createTavernScene({
-      title: parsedExport.room.scenes?.find((scene) => scene.id === parsedExport.room.activeSceneId)?.title ?? "默认场景",
-      order: 0,
-      scenePresetId: normalizeVisualPresetId(parsedExport.room.scenePresetId),
-      scene: parsedExport.room.scene?.trim() || "一间刚被导入的酒馆房间。",
-      sceneGoal: parsedExport.room.sceneGoal?.trim() || "",
-      plot: parsedExport.room.scenePlot?.trim() || "",
-      storyDirection: parsedExport.room.sceneDirection?.trim() || "",
-      transition: parsedExport.room.sceneTransition?.trim() || "",
-      memory: parsedExport.room.memory?.trim() || "",
-      relationshipOverrides,
-      characterConfigs,
-      characterMemories,
-      illustrationHints: importedIllustrationHints,
-      assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
-      characterIds,
-      activeCharacterId,
-      createdAt,
-      updatedAt: createdAt,
-    });
-    const stageId = createLocalId("stage");
-    const nodeId = createLocalId("node");
-    const storyGraph = {
-      version: 1 as const,
-      entryNodeId: nodeId,
-      activeNodeId: nodeId,
-      stages: [{
-        id: stageId,
-        title: "第一阶段",
-        order: 0,
-      }],
-      nodes: [{
-        id: nodeId,
-        stageId,
-        sceneId: importedScene.id,
-        title: importedScene.title,
-        type: "normal" as const,
-        pathRole: "main" as const,
-        position: { x: 120, y: 160 },
-        status: "ready" as const,
-        createdAt,
-        updatedAt: createdAt,
-      }],
-      edges: [],
-    };
-    const importedPresentation = normalizeTavernPresentation(parsedExport.room.presentation);
-    const importedLegacyPromptStyleId =
-      (parsedExport.room as Partial<TavernRoom> & { promptStyleId?: unknown }).promptStyleId;
-    const importedRoom: TavernRoom = projectTavernSceneOntoRoom({
-      id: roomId,
+    const materialized = materializeTavernRuntimeRoomSnapshot({
+      snapshot,
       workspaceId: workspace.id,
-      title: `${title}（导入）`,
-      presentation: importedPresentation,
-      prompt: normalizeTavernPromptSettings(
-        parsedExport.room.prompt,
-        createDefaultTavernPromptSettings({
-          presentationProfileId: importedPresentation.profileId,
-          promptStyleId: normalizeTavernPromptStyleId(importedLegacyPromptStyleId),
-          immersiveDescriptionEnabled:
-            parsedExport.room.settings?.immersiveDescriptionEnabled !== false,
-        }),
-      ),
-      creationSource: "imported",
-      storyOutline: parsedExport.room.storyOutline?.trim() || "",
-      storyGoal: parsedExport.room.storyGoal?.trim() || "",
-      storyGraph,
-      storyRuns: [],
-      activeRunId: undefined,
-      activeSceneInstanceId: undefined,
-      sceneInstances: [],
-      activeSceneId: importedScene.id,
-      scenes: [importedScene],
-      scenePresetId: importedScene.scenePresetId,
-      scene: importedScene.scene,
-      sceneGoal: importedScene.sceneGoal,
-      scenePlot: importedScene.plot,
-      sceneDirection: importedScene.storyDirection,
-      sceneTransition: importedScene.transition,
-      locked: false,
-      memory: importedScene.memory,
-      relationshipOverrides: importedScene.relationshipOverrides,
-      sceneStatus: importedScene.sceneStatus,
-      characterPublicStatuses: importedScene.characterPublicStatuses,
-      characterPrivateStatuses: importedScene.characterPrivateStatuses,
-      pendingInteractions: importedScene.pendingInteractions,
-      replyOptions: importedScene.replyOptions,
-      statusDefinitions: Array.isArray(parsedExport.room.statusDefinitions)
-        ? parsedExport.room.statusDefinitions
-        : [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
-      statusRules: Array.isArray(parsedExport.room.statusRules)
-        ? parsedExport.room.statusRules
-        : [...DEFAULT_TAVERN_STATUS_RULES],
-      progressViews: Array.isArray(parsedExport.room.progressViews)
-        ? parsedExport.room.progressViews
-        : [...DEFAULT_TAVERN_PROGRESS_VIEWS],
-      progressTracker: parsedExport.room.progressTracker ?? { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
-      factEvents: remapImportedFactEvents(parsedExport.room.factEvents, characterIdMap),
-      statusEvents: remapImportedStatusEvents(parsedExport.room.statusEvents, characterIdMap),
-      statusSnapshot: importedScene.statusSnapshot,
-      previousStatusSnapshot: importedScene.previousStatusSnapshot,
-      statusCheckpoints: importedScene.statusCheckpoints,
-      taskDefinitions: remapImportedTaskDefinitions(parsedExport.room.taskDefinitions, characterIdMap),
-      taskEvents: remapImportedTaskEvents(parsedExport.room.taskEvents, characterIdMap),
-      taskSnapshot: remapImportedTaskSnapshot(parsedExport.room.taskSnapshot, characterIdMap),
-      sceneOutcomes: remapImportedSceneOutcomes(parsedExport.room.sceneOutcomes, characterIdMap),
-      outcomeEvents: remapImportedOutcomeEvents(parsedExport.room.outcomeEvents, characterIdMap),
-      characterConfigs,
-      characterMemories,
-      localCharacters: importedCharacters,
-      lorebookEntries: importedLorebookEntries,
-      illustrationHints: importedScene.illustrationHints,
-      assetDrafts: importedAssetDrafts.slice(0, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts),
-      characterIds,
-      activeCharacterId,
-      replyMode: parsedExport.room.replyMode === "round" || parsedExport.room.replyMode === "director"
-        ? parsedExport.room.replyMode
-        : "active",
-      userPersonaName: parsedExport.room.userPersonaName?.trim() || "我",
-      settings: normalizeImportedRoomSettings(parsedExport.room.settings),
-      createdAt,
-      updatedAt: createdAt,
     });
-    const importedMessages = Array.isArray(parsedExport.messages)
-      ? parsedExport.messages.flatMap((message) => {
-          if (!message.content?.trim()) {
-            return [];
-          }
-
-          if (message.role === "character") {
-            const mappedCharacterId = message.characterId
-              ? characterIdMap.get(message.characterId)
-              : undefined;
-            if (!mappedCharacterId) {
-              return [];
-            }
-
-            return [createTavernMessage({
-              roomId,
-              role: "character",
-              characterId: mappedCharacterId,
-              content: message.content,
-              status: "done",
-              referencedFiles: message.referencedFiles,
-            })];
-          }
-
-          return [createTavernMessage({
-            roomId,
-            role: message.role === "user" ? "user" : "narrator",
-            content: message.content,
-            status: "done",
-            referencedFiles: message.referencedFiles,
-          })];
-        })
-      : [];
-    const messages = importedMessages.length > 0
-      ? importedMessages
-      : [
-          createTavernMessage({
-            roomId,
-            role: "narrator",
-            content: "这个房间从外部文件导入，灯光重新亮起。",
-            status: "done",
-          }),
-        ];
 
     setState((current) => ({
       ...current,
-      activeRoomId: roomId,
-      rooms: [...current.rooms, importedRoom],
+      activeRoomId: materialized.room.id,
+      rooms: [...current.rooms, materialized.room],
       messagesByInstance: {
         ...current.messagesByInstance,
-        [getRoomActiveSceneInstanceId(importedRoom)]: messages.map((message) => ({
-          ...message,
-          sceneId: message.sceneId ?? importedRoom.activeSceneId,
-          sceneInstanceId: message.sceneInstanceId ?? getRoomActiveSceneInstanceId(importedRoom),
-        })),
+        ...materialized.messagesByInstance,
       },
     }));
     reportError("");
     return null;
-  }, [activeRoom, reportError, setState, workspace.id]);
+  }, [reportError, setState, state.rooms, workspace.id]);
 
   const createRoom = useCallback(() => {
     const nextRoom = {
@@ -1529,8 +677,7 @@ export const ManagementProvider = ({
         immersiveDescriptionEnabled:
           quickDraft.advanced?.settings?.immersiveDescriptionEnabled !== false,
       });
-      const materialized = createTavernRoomFromGeneratedPresetJson(
-        workspace.id,
+      const storyImportDraft = createStoryImportDraftFromTavernGeneratedPreset(
         {
           ...result.preset,
           room: {
@@ -1543,6 +690,13 @@ export const ManagementProvider = ({
             prompt: quickPrompt,
           },
         },
+        {
+          sourceKind: "aiGenerated",
+        },
+      );
+      const materialized = createTavernRoomFromGeneratedPresetJson(
+        workspace.id,
+        createTavernGeneratedPresetFromStoryImportDraft(storyImportDraft),
         {
           creationSource: "quick",
         },

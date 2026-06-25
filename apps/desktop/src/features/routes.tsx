@@ -4,6 +4,7 @@ import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { ChatPage } from "@/features/pages/chat";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
+import { StoriesPage } from "@/features/pages/stories";
 import {
   AgentPage,
   LlmPage,
@@ -38,6 +39,7 @@ export const AppRoutes = () => (
       <Route path="chat/:workspaceId/session/:sessionId" element={<ChatPage />} />
       <Route path="skills" element={<SkillsPage />} />
       <Route path="knowledge" element={<KnowledgePage />} />
+      <Route path="stories" element={<StoriesPage />} />
       <Route path="tavern" element={<TavernPage />} />
       <Route path="tavern/:workspaceId" element={<TavernPage />} />
       <Route path="hub" element={<HubPage />} />
