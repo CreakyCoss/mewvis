@@ -51,8 +51,6 @@ import {
 import { runTavernProgressTracking } from "../../../../runtime/assistants";
 import {
   addTavernSecretMemoryEntry,
-  getTavernSceneDisplayTitle,
-  getTavernSceneInstanceDisplayTitle,
   listTavernBranchSecretMemoryEntries,
   loadTavernBranchUpstreamMemory,
   projectTavernSceneOntoRoom,
@@ -62,6 +60,10 @@ import {
   updateTavernActiveSceneMemoryLayers,
   updateTavernActiveScenePromptOverrides,
 } from "../../../../storage";
+import {
+  getTavernSceneDisplayTitle,
+  getTavernSceneInstanceDisplayTitle,
+} from "../../../../scene-selectors";
 import type {
   TavernCharacterMemoryLayers,
   TavernCondition,

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "../../utils";
-import { getTavernSceneInstanceDisplayTitle } from "../../storage";
+import { getTavernSceneInstanceDisplayTitle } from "../../scene-selectors";
 import { useTavernPageContext } from "../context";
 import { SceneSelector } from "./scene-selector";
 

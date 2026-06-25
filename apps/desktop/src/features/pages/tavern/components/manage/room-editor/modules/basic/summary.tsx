@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   getActiveTavernScene,
   getTavernSceneDisplayTitle,
-} from "../../../../../storage";
+} from "../../../../../scene-selectors";
 import type { TavernRoom } from "../../../../../types";
 import {
   emptyValueText,
