@@ -45,7 +45,6 @@ import type {
   TavernSceneMemoryLayers,
   TavernScenePromptOverrides,
   TavernSecretReveal,
-  TavernStoryBinding,
   TavernRoomSettings,
   TavernState,
   TavernStatusDefinition,
@@ -100,6 +99,10 @@ import {
   createDefaultStoryGraph,
   normalizeStoryGraph,
 } from "./story-graph";
+import {
+  createTavernStoryBinding,
+  normalizeTavernStoryBinding,
+} from "./story-binding";
 import {
   createEmptyCharacterMemoryLayers,
   createEmptySceneMemoryLayers,
@@ -169,16 +172,6 @@ export type {
 const STORAGE_PREFIX = "novel-claw:tavern";
 
 const storageKeyForWorkspace = (workspaceId: string) => `${STORAGE_PREFIX}:${workspaceId}`;
-
-const createTavernStoryBinding = (
-  storyId: string,
-  boundAt = now(),
-): TavernStoryBinding => ({
-  version: 1,
-  storyId,
-  source: "story",
-  boundAt,
-});
 
 const collectUniqueTrimmedLines = (values: Array<string | undefined>) => {
   const seen = new Set<string>();
@@ -311,24 +304,6 @@ const createDefaultPromptForPresentation = (
   ruleCompositionId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
   immersiveDescriptionEnabled: DEFAULT_TAVERN_ROOM_SETTINGS.immersiveDescriptionEnabled,
 });
-
-const normalizeTavernStoryBinding = (
-  value: unknown,
-  fallbackStoryId: string,
-  boundAt = now(),
-): TavernStoryBinding => {
-  const candidate = value && typeof value === "object"
-    ? value as Partial<TavernStoryBinding>
-    : {};
-  const storyId = typeof candidate.storyId === "string" && candidate.storyId.trim()
-    ? candidate.storyId.trim()
-    : fallbackStoryId;
-
-  return createTavernStoryBinding(
-    storyId,
-    typeof candidate.boundAt === "number" ? candidate.boundAt : boundAt,
-  );
-};
 
 const createTavernCharacterFromSystemPresetCharacter = (
   character: TavernSystemPresetCharacter,
