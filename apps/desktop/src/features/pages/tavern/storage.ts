@@ -26,7 +26,6 @@ import type {
   TavernOutcomeEvent,
   TavernPendingInteraction,
   TavernCharacterMemoryLayers,
-  TavernPresentationSettings,
   TavernProgressCheckpoint,
   TavernProgressTrackerSettings,
   TavernProgressAction,
@@ -64,7 +63,6 @@ import {
   materializeTavernMessage,
 } from "./message";
 import {
-  DEFAULT_TAVERN_PROMPT_STYLE_ID,
   normalizeTavernPromptStyleId,
 } from "./prompt-styles";
 import {
@@ -78,7 +76,6 @@ import {
 } from "./prompt-registry/rule-layers/resolver";
 import {
   createDefaultTavernPresentation,
-  normalizeTavernPresentation,
 } from "./prompt-registry/presentation-rules";
 import {
   createDefaultTavernPromptSettings,
@@ -88,6 +85,10 @@ import {
   createTavernId as createId,
   now,
 } from "./ids";
+import {
+  createDefaultPromptForPresentation,
+  normalizeRoomPresentation,
+} from "./presentation-settings";
 import {
   buildStoryRunsFromGraph,
   createRouteScopedSceneInstanceId,
@@ -294,16 +295,6 @@ const getTavernBranchPathInstances = (
   return { upstreamInstances, pathInstances: [...upstreamInstances, activeInstance] };
 };
 
-const createDefaultPromptForPresentation = (
-  presentation: TavernPresentationSettings,
-) => createDefaultTavernPromptSettings({
-  presentationProfileId: presentation.profileId,
-  promptStyleId: DEFAULT_TAVERN_PROMPT_STYLE_ID,
-  systemNarrativePresetId: DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID,
-  ruleCompositionId: DEFAULT_TAVERN_RULE_COMPOSITION_ID,
-  immersiveDescriptionEnabled: DEFAULT_TAVERN_ROOM_SETTINGS.immersiveDescriptionEnabled,
-});
-
 const createTavernCharacterFromSystemPresetCharacter = (
   character: TavernSystemPresetCharacter,
   options: {
@@ -331,16 +322,6 @@ const defaultSceneTitle = "默认场景";
 
 const normalizeReplyMode = (value: unknown): TavernReplyMode =>
   value === "round" || value === "director" ? value : "active";
-
-const normalizeRoomPresentation = ({
-  presentation,
-  presentationProfileId,
-}: {
-  presentation?: unknown;
-  presentationProfileId?: unknown;
-}) => normalizeTavernPresentation(
-  presentation ?? (presentationProfileId ? { profileId: presentationProfileId } : undefined),
-);
 
 const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
   const numberValue = typeof value === "number" ? value : Number(value);
