@@ -9,6 +9,7 @@ import type {
   StoryImportSourceKind,
   StoryManuscriptDraft,
 } from "@/features/story";
+import { getDefaultStoryCharacterAvatar } from "@/features/story";
 
 export type StoryDraft = Pick<
   StoryAsset,
@@ -39,6 +40,7 @@ export const emptyCharacterMemory = (): NonNullable<StoryContextCharacter["memor
 export const createStoryCharacter = (index: number): StoryContextCharacter => ({
   id: createStoryLocalId("story-character"),
   name: `角色 ${index + 1}`,
+  avatar: getDefaultStoryCharacterAvatar(index),
   description: "",
   speakingStyle: "自然回应，保持人设一致。",
   writingStyle: "",

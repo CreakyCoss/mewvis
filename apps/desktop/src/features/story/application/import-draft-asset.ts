@@ -9,6 +9,7 @@ import type {
   StoryContextScene,
 } from "./context-package";
 import type { StoryAsset } from "./state";
+import { resolveStoryCharacterAvatar } from "./character-avatar";
 
 const createImportedStoryId = () => `story-${crypto.randomUUID()}`;
 
@@ -38,6 +39,11 @@ const createImportedCharacters = (
 ): StoryContextCharacter[] => draft.characters.map((character, index): StoryContextCharacter => ({
   id: character.id || createImportedStoryLocalId(storyId, "character", offset + index),
   name: character.name || `角色 ${offset + index + 1}`,
+  avatar: resolveStoryCharacterAvatar({
+    avatar: character.avatar,
+    characterId: character.id,
+    index: offset + index,
+  }),
   description: character.description,
   speakingStyle: character.speakingStyle,
   writingStyle: character.writingStyle,

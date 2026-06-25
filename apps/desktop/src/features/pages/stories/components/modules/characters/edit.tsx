@@ -3,6 +3,8 @@ import { useImperativeHandle, useState } from "react";
 import {
   BookOpenText,
   Brain,
+  Check,
+  ImagePlus,
   MessageCircle,
   Save,
   ShieldCheck,
@@ -10,11 +12,28 @@ import {
   UserRoundCog,
   UsersRound,
 } from "lucide-react";
+import {
+  resolveAgentAvatar,
+  tavernAvatarGroups,
+} from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryAsset, StoryContextCharacter } from "@/features/story";
+import {
+  normalizeStoryCharacterAvatar,
+  resolveStoryCharacterAvatar,
+  type StoryAsset,
+  type StoryContextCharacter,
+} from "@/features/story";
+import { cn } from "@/lib/utils";
 import {
   createStoryCharacter,
   emptyCharacterMemory,
@@ -47,6 +66,7 @@ type StoryCharactersEditProps = {
 type CharacterDraft = {
   id: string | null;
   name: string;
+  avatar: string;
   description: string;
   speakingStyle: string;
   writingStyle: string;
@@ -66,6 +86,11 @@ const createDraft = (
   return {
     id: character?.id ?? null,
     name: created.name,
+    avatar: resolveStoryCharacterAvatar({
+      avatar: created.avatar,
+      characterId: created.id,
+      index,
+    }),
     description: created.description,
     speakingStyle: created.speakingStyle,
     writingStyle: created.writingStyle ?? "",
@@ -87,10 +112,12 @@ export const StoryCharactersEdit = ({
 }: StoryCharactersEditProps) => {
   const [draft, setDraft] = useState<CharacterDraft | null>(null);
   const [error, setError] = useState("");
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   const open = (character: StoryContextCharacter | null = null) => {
     setDraft(createDraft(character, story.characters.length));
     setError("");
+    setIsAvatarPickerOpen(false);
   };
 
   useImperativeHandle(bind, () => open);
@@ -98,6 +125,7 @@ export const StoryCharactersEdit = ({
   const close = () => {
     setDraft(null);
     setError("");
+    setIsAvatarPickerOpen(false);
   };
 
   const save = () => {
@@ -117,6 +145,7 @@ export const StoryCharactersEdit = ({
     const nextCharacter: StoryContextCharacter = {
       id: draft.id ?? `story-character-${crypto.randomUUID()}`,
       name,
+      avatar: normalizeStoryCharacterAvatar(draft.avatar, story.characters.length),
       description,
       speakingStyle,
       writingStyle: draft.writingStyle.trim() || undefined,
@@ -164,28 +193,29 @@ export const StoryCharactersEdit = ({
   };
 
   return (
-    <Dialog
-      open={Boolean(draft)}
-      onOpenChange={(openState) => {
-        if (!openState) {
-          close();
-        }
-      }}
-    >
-      {draft ? (
-        <StoryFormDialogContent className="sm:max-w-6xl">
-          <StoryFormHeader
-            icon={UserRoundCog}
-            title={draft.id ? "编辑角色" : "新建角色"}
-            description="编辑故事角色的基础定义、表达风格、关系摘要和角色记忆。"
-          />
-          <form
-            className="flex min-h-0 flex-1 flex-col"
-            onSubmit={(event) => {
-              event.preventDefault();
-              save();
-            }}
-          >
+    <>
+      <Dialog
+        open={Boolean(draft)}
+        onOpenChange={(openState) => {
+          if (!openState) {
+            close();
+          }
+        }}
+      >
+        {draft ? (
+          <StoryFormDialogContent className="sm:max-w-6xl">
+            <StoryFormHeader
+              icon={UserRoundCog}
+              title={draft.id ? "编辑角色" : "新建角色"}
+              description="编辑故事角色的基础定义、表达风格、关系摘要和角色记忆。"
+            />
+            <form
+              className="flex min-h-0 flex-1 flex-col"
+              onSubmit={(event) => {
+                event.preventDefault();
+                save();
+              }}
+            >
             <StoryFormLayout
               sidebar={(
                 <>
@@ -201,9 +231,23 @@ export const StoryCharactersEdit = ({
                       </>
                     )}
                     image={(
-                      <span className="flex size-16 shrink-0 items-center justify-center rounded-xl border bg-primary/10 text-2xl font-semibold text-primary shadow-xs">
-                        {(draft.name.trim() || "?").slice(0, 1)}
-                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="group relative size-16 shrink-0 overflow-hidden rounded-xl border bg-background p-0 shadow-xs hover:bg-background"
+                        title="选择头像"
+                        aria-label="选择角色头像"
+                        onClick={() => setIsAvatarPickerOpen(true)}
+                      >
+                        <img
+                          src={resolveAgentAvatar(draft.avatar).src}
+                          alt={draft.name}
+                          className="size-full object-cover"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 flex h-5 items-center justify-center bg-background/85 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                          <ImagePlus className="size-3.5" />
+                        </span>
+                      </Button>
                     )}
                   >
                     <p className="line-clamp-5 text-xs leading-5 text-muted-foreground">
@@ -240,16 +284,35 @@ export const StoryCharactersEdit = ({
                 title="基础信息"
                 description="角色名称用于故事上下文、演绎调度和稿件归因。"
               >
-                <EditorField label="角色名称" htmlFor="story-character-name">
-                  <Input
-                    id="story-character-name"
-                    value={draft.name}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      name: event.target.value,
-                    })}
-                  />
-                </EditorField>
+                <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-end">
+                  <div>
+                    <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+                      角色头像
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="size-24 overflow-hidden rounded-lg p-0"
+                      onClick={() => setIsAvatarPickerOpen(true)}
+                    >
+                      <img
+                        src={resolveAgentAvatar(draft.avatar).src}
+                        alt={draft.name}
+                        className="size-full object-cover"
+                      />
+                    </Button>
+                  </div>
+                  <EditorField label="角色名称" htmlFor="story-character-name">
+                    <Input
+                      id="story-character-name"
+                      value={draft.name}
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        name: event.target.value,
+                      })}
+                    />
+                  </EditorField>
+                </div>
               </StoryFormCard>
 
               <StoryFormCard
@@ -439,9 +502,83 @@ export const StoryCharactersEdit = ({
                 保存角色
               </Button>
             </StoryFormFooter>
-          </form>
-        </StoryFormDialogContent>
-      ) : null}
-    </Dialog>
+            </form>
+          </StoryFormDialogContent>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(draft && isAvatarPickerOpen)}
+        onOpenChange={setIsAvatarPickerOpen}
+      >
+        <DialogContent className="flex max-h-[86vh] max-w-[min(56rem,calc(100%-2rem))] flex-col gap-0 p-0">
+          <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
+            <DialogTitle>选择角色头像</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-5 p-5">
+              {tavernAvatarGroups.map((group) => (
+                <section key={group.id} className="space-y-2.5">
+                  <div>
+                    <h3 className="text-sm font-semibold leading-5">{group.label}</h3>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      {group.description}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+                    {group.options.map((option) => {
+                      const isSelected = option.id === draft?.avatar;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={cn(
+                            "group relative overflow-hidden rounded-lg border bg-background text-left outline-none transition-colors hover:border-primary/45 focus-visible:ring-3 focus-visible:ring-ring/50",
+                            isSelected && "border-primary ring-2 ring-primary/20",
+                          )}
+                          onClick={() => {
+                            setDraft((current) =>
+                              current
+                                ? { ...current, avatar: option.id }
+                                : current
+                            );
+                            setIsAvatarPickerOpen(false);
+                          }}
+                        >
+                          <span className="block aspect-square overflow-hidden bg-muted">
+                            <img
+                              src={option.src}
+                              alt={option.label}
+                              className="size-full object-cover transition-transform group-hover:scale-[1.03]"
+                            />
+                          </span>
+                          <span className="block truncate px-2 py-1.5 text-xs font-medium">
+                            {option.label}
+                          </span>
+                          {isSelected ? (
+                            <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                              <Check className="size-3.5" />
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="shrink-0 border-t bg-muted/10 px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAvatarPickerOpen(false)}
+            >
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

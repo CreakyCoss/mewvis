@@ -1,5 +1,6 @@
 import {
   assertStoryImportDraftReady,
+  resolveStoryCharacterAvatar,
   type StoryImportDraft,
   type StoryImportDraftCharacter,
   type StoryImportDraftLorebookEntry,
@@ -28,7 +29,10 @@ const mapDraftCharacterToTavern = (
 ): TavernGeneratedPresetCharacter => ({
   id: character.id,
   name: character.name,
-  avatar: character.avatar,
+  avatar: resolveStoryCharacterAvatar({
+    avatar: character.avatar,
+    characterId: character.id,
+  }),
   description: character.description,
   speakingStyle: character.speakingStyle,
   writingStyle: character.writingStyle,
@@ -176,6 +180,10 @@ export const createTavernGeneratedPresetFromStoryPresentationSeed = (
   characters: seed.characters.map((character) => ({
     id: character.id,
     name: character.name,
+    avatar: resolveStoryCharacterAvatar({
+      avatar: character.avatar,
+      characterId: character.id,
+    }),
     description: character.description,
     speakingStyle: character.speakingStyle,
     writingStyle: character.writingStyle,

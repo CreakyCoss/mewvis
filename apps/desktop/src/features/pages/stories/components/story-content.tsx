@@ -10,6 +10,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
@@ -352,17 +353,24 @@ const StoryAssetCard = ({
             <div className="flex min-w-0 items-end overflow-hidden pb-px">
               {visibleCharacters.length > 0 ? (
                 <div className="flex min-w-0 items-end">
-                  {visibleCharacters.map((character, index) => (
-                    <span
-                      key={character.id}
-                      className={[
-                        "flex size-12 items-center justify-center rounded-lg border-2 border-background bg-background text-sm font-semibold text-primary shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",
-                        index > 0 ? "-ml-3" : "",
-                      ].join(" ")}
-                    >
-                      {(character.name.trim() || "?").slice(0, 1)}
-                    </span>
-                  ))}
+                  {visibleCharacters.map((character, index) => {
+                    const avatar = resolveAgentAvatar(character.avatar);
+                    return (
+                      <span
+                        key={character.id}
+                        className={[
+                          "flex size-12 items-center justify-center overflow-hidden rounded-lg border-2 border-background bg-background shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",
+                          index > 0 ? "-ml-3" : "",
+                        ].join(" ")}
+                      >
+                        <img
+                          src={avatar.src}
+                          alt={character.name}
+                          className="size-full object-cover"
+                        />
+                      </span>
+                    );
+                  })}
                   {hiddenCharacterCount > 0 ? (
                     <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-lg border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
                       +{hiddenCharacterCount}

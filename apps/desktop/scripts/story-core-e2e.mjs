@@ -46,6 +46,7 @@ writeFileSync(entryPath, `
       defaultStoryState.stories.every((story) =>
         story.scenes.length >= 3 &&
         story.characters.length >= 4 &&
+        story.characters.every((character) => character.avatar) &&
         story.graph.nodes.length >= 3
       ),
     "默认故事应作为故事侧资产提供，而不是默认酒馆房间。",
@@ -106,6 +107,7 @@ writeFileSync(entryPath, `
   assert(
     importedStory.title === "雾港档案" &&
       importedStory.characters[0]?.id === "archivist" &&
+      importedStory.characters[0]?.avatar &&
       importedStory.lorebookEntries[0]?.id === "lore-clock" &&
       importedStory.scenes[0]?.id === "scene-entry" &&
       importedStory.graph.nodes.length === 1,

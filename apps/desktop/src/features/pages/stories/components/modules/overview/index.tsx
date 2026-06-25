@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
+import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { StoryAsset } from "@/features/story";
@@ -247,24 +248,31 @@ export const StoryOverviewModule = ({
           >
             {story.characters.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
-                {story.characters.slice(0, 4).map((character) => (
-                  <div
-                    key={character.id}
-                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-lg border bg-background/70 p-2.5"
-                  >
-                    <span className="flex size-14 items-center justify-center rounded-md border bg-primary/10 text-base font-semibold text-primary">
-                      {(character.name.trim() || "?").slice(0, 1)}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold leading-5">
-                        {character.name || emptyValueText}
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                        {character.speakingStyle || character.description || emptyValueText}
+                {story.characters.slice(0, 4).map((character) => {
+                  const avatar = resolveAgentAvatar(character.avatar);
+                  return (
+                    <div
+                      key={character.id}
+                      className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-lg border bg-background/70 p-2.5"
+                    >
+                      <span className="flex size-14 items-center justify-center overflow-hidden rounded-md border bg-background">
+                        <img
+                          src={avatar.src}
+                          alt={character.name}
+                          className="size-full object-cover"
+                        />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold leading-5">
+                          {character.name || emptyValueText}
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          {character.speakingStyle || character.description || emptyValueText}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {story.characters.length > 4 ? (
                   <div className="flex min-h-20 items-center justify-center rounded-lg border border-dashed bg-muted/10 text-sm text-muted-foreground">
                     还有 {story.characters.length - 4} 个角色

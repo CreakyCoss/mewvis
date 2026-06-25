@@ -32,6 +32,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "rc-ji-ling",
         name: "纪泠",
+        avatar: "modern-02",
         description: "旧杂志社编辑，习惯把情绪压进校样批注。她曾退回袁辞最后一部小说，之后城中开始出现没有署名的章节。",
         speakingStyle: "克制、短促，像在删改一句过长的病句；被逼问时会先引用稿件细节。",
         writingStyle: "用铅笔痕、雨水、页边批注和没说完的句子表现她的负罪感。",
@@ -40,6 +41,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "rc-yuan-ci",
         name: "袁辞",
+        avatar: "modern-01",
         description: "失踪小说家，几乎无法发声，只能通过便签、敲击和被雨声覆盖的录音留下线索。",
         speakingStyle: "极少直接说话；用残句、删改符号和短促敲击表达意思。",
         writingStyle: "他的段落应带有断裂感，像一页被撕去中心的小说。",
@@ -48,6 +50,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "rc-su-yan",
         name: "苏砚",
+        avatar: "tavern-03",
         description: "停刊记者，追踪雨城失声事件多年。她相信失踪手稿背后有人为操纵，而不是单纯怪谈。",
         speakingStyle: "敏锐、带刺，常把问题拆成证据链。",
         writingStyle: "描写她时突出录音笔、旧报剪和突然收紧的目光。",
@@ -56,6 +59,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "rc-he-mu",
         name: "何牧",
+        avatar: "tavern-05",
         description: "装帧师，经营快倒闭的旧书修补铺。她知道哪些书页被替换过，却害怕承认自己参与过装订。",
         speakingStyle: "温和、绕开锋芒，习惯把危险说成工艺问题。",
         writingStyle: "用浆糊、线孔、纸纤维和手指伤口表现她的心虚。",
@@ -136,6 +140,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "sx-lin-zhaoye",
         name: "林照夜",
+        avatar: "wuxia-01",
         description: "被逐出师门的照夜剑传人，右手旧伤未愈，却仍记得剑书最后一式。",
         speakingStyle: "少言，句子像收鞘；不轻易承诺，一旦承诺就不退。",
         writingStyle: "写他的动作要有雪、剑鞘、旧伤和呼吸的节奏。",
@@ -144,6 +149,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "sx-gu-tingxue",
         name: "顾听雪",
+        avatar: "wuxia-04",
         description: "雪岭药庐传人，医术清冷，行事比刀锋更稳。她握着能证明旧案的药方残页。",
         speakingStyle: "平静、精确，常用药理和脉象比喻局势。",
         writingStyle: "以药香、银针、雪光和袖中残页表现她的判断。",
@@ -152,6 +158,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "sx-qiu-heng",
         name: "秋衡",
+        avatar: "wuxia-07",
         description: "照夜门年轻执法，奉命追回剑书。外表锋利，内心开始怀疑师门口供。",
         speakingStyle: "咄咄逼人但守江湖规矩，喜欢把话逼到一个是非句。",
         writingStyle: "写他时突出刀柄、雪靴、门规和目光里的迟疑。",
@@ -160,6 +167,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "sx-jingchen",
         name: "净尘",
+        avatar: "wuxia-08",
         description: "驿站扫雪僧，像旁观者，实则亲历旧案。他知道剑书誓约原本不是杀令。",
         speakingStyle: "温和，常用雪路、茶水和钟声作比。",
         writingStyle: "让他像一盏慢慢亮起的灯，不急于证明自己知道真相。",
@@ -240,6 +248,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "oa-lan-qiao",
         name: "蓝桥",
+        avatar: "scifi-01",
         description: "环轨站临时舰长，习惯把恐惧转成操作口令。她的父亲曾在十二年前的撤离中失踪。",
         speakingStyle: "冷静、指令式，但独处时句尾会露出迟疑。",
         writingStyle: "用仪表读数、舱壁震动和压低的呼吸写她的压力。",
@@ -248,6 +257,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "oa-mira",
         name: "米拉",
+        avatar: "scifi-08",
         description: "档案人格，外形投影像一名旧时代图书管理员。她保存着十二年前被删改的撤离日志。",
         speakingStyle: "礼貌、精确，偶尔像引用图书索引。",
         writingStyle: "让她的投影带有轻微延迟和数据噪声。",
@@ -256,6 +266,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "oa-ren-ke",
         name: "任珂",
+        avatar: "scifi-06",
         description: "穿梭艇信使，带着最后一批实体信件抵达环轨站。他知道外部救援不会准时来。",
         speakingStyle: "轻快、带一点自嘲，用玩笑掩盖坏消息。",
         writingStyle: "通过宇航服划痕、信袋重量和故作轻松的动作写他。",
@@ -264,6 +275,7 @@ const defaultStoryBlueprints: DefaultStoryBlueprint[] = [
       {
         id: "oa-yi-sen",
         name: "伊森",
+        avatar: "scifi-02",
         description: "老工程师，参与过环轨站第一版建造。他能听出舱壁里的裂纹，也记得当年被迫关闭的舱段。",
         speakingStyle: "慢、低、带旧时代工程师的固执。",
         writingStyle: "写他时突出工具声、舱壁回音和对旧系统的熟悉。",

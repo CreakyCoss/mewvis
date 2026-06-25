@@ -59,6 +59,7 @@ export const createDraftFromCharacterCard = (
     characters: [{
       id: "main",
       name,
+      avatar: firstNonEmpty(rawData.avatar, rawData.avatarUrl, rawData.image),
       description,
       speakingStyle: firstNonEmpty(
         rawData.speakingStyle,

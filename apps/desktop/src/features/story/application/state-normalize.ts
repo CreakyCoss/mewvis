@@ -10,6 +10,7 @@ import type {
   StoryContextScene,
   StoryContextStage,
 } from "./context-package";
+import { resolveStoryCharacterAvatar } from "./character-avatar";
 import {
   createEmptyStoryState,
   type StoryAsset,
@@ -20,6 +21,54 @@ const trimText = (value: unknown) => typeof value === "string" ? value.trim() : 
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
+
+const normalizeStoryCharacterMemory = (
+  value: unknown,
+): StoryContextCharacter["memory"] => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    required: trimText(value.required),
+    public: trimText(value.public),
+    known: trimText(value.known),
+    privateSelf: trimText(value.privateSelf),
+    directorSecret: trimText(value.directorSecret),
+  };
+};
+
+const normalizeStoryCharacter = (
+  value: unknown,
+  index: number,
+): StoryContextCharacter | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = trimText(value.id);
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    name: trimText(value.name) || `角色 ${index + 1}`,
+    avatar: resolveStoryCharacterAvatar({
+      avatar: value.avatar,
+      characterId: id,
+      index,
+    }),
+    description: trimText(value.description),
+    speakingStyle: trimText(value.speakingStyle) || "自然回应，保持人设一致。",
+    writingStyle: trimText(value.writingStyle) || undefined,
+    replyStylePrompt: trimText(value.replyStylePrompt) || undefined,
+    goals: trimText(value.goals) || undefined,
+    relationshipSummary: trimText(value.relationshipSummary) || undefined,
+    publicRelationshipSummary: trimText(value.publicRelationshipSummary) || undefined,
+    memory: normalizeStoryCharacterMemory(value.memory),
+  };
+};
 
 const normalizeStoryAsset = (
   value: unknown,
@@ -53,7 +102,10 @@ const normalizeStoryAsset = (
     outline: trimText(value.outline),
     goal: trimText(value.goal),
     userPersonaName: trimText(value.userPersonaName) || "我",
-    characters: value.characters as StoryContextCharacter[],
+    characters: value.characters.flatMap((character, index) => {
+      const normalized = normalizeStoryCharacter(character, index);
+      return normalized ? [normalized] : [];
+    }),
     lorebookEntries: value.lorebookEntries as StoryContextLorebookEntry[],
     scenes: value.scenes as StoryContextScene[],
     graph: {

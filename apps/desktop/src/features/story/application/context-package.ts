@@ -47,6 +47,7 @@ export type StoryContextCharacterMemory = {
 export type StoryContextCharacter = {
   id: string;
   name: string;
+  avatar: string;
   description: string;
   speakingStyle: string;
   writingStyle?: string;

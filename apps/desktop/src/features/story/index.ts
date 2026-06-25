@@ -1,4 +1,9 @@
 export {
+  getDefaultStoryCharacterAvatar,
+  normalizeStoryCharacterAvatar,
+  resolveStoryCharacterAvatar,
+} from "./application/character-avatar";
+export {
   buildStoryContextPackage,
   getStoryGraphContextSlice,
   selectStoryLorebookEntries,

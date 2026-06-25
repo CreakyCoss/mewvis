@@ -95,6 +95,7 @@ const mapTavernCharacter = ({
   return {
     id: character.id,
     name: character.name,
+    avatar: character.avatar,
     description: character.description,
     speakingStyle: character.speakingStyle,
     writingStyle: character.writingStyle,
