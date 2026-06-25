@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import {
-  createTavernGeneratedPresetFromStoryAsset,
+  createTavernGeneratedPresetFromStoryPresentationSeed,
 } from "@/features/pages/tavern/adapters/story";
 import {
   buildTavernOpenSearch,
@@ -21,18 +21,24 @@ import {
 } from "./shared";
 
 export const tavernStoryPresentation = {
-  channel: "tavern",
+  definition: {
+    channel: "tavern",
+    label: "酒馆",
+    loadingLabel: "打开中",
+    icon: "tavern",
+  },
   open: async ({
     workspace,
     activeStory,
+    seed,
     storyState,
     persistStoryState,
     navigate,
     nodeId,
     setOpeningStoryId,
   }) => {
-    const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
-    setOpeningStoryId(activeStory.id);
+    const targetNodeId = resolveStoryNodeId(seed, nodeId);
+    setOpeningStoryId(seed.story.id);
 
     try {
       const tavernState = await loadTavernState(workspace.path, workspace.id);
@@ -40,7 +46,7 @@ export const tavernStoryPresentation = {
         ...activeStory.sourceRefs
           .filter((ref) => ref.channel === "tavern")
           .map((ref) => ref.id),
-        activeStory.id,
+        seed.story.id,
       ];
       const existingRoom = tavernState.rooms.find((room) => preferredRoomIds.includes(room.id));
       const nextTavernState = existingRoom
@@ -57,9 +63,9 @@ export const tavernStoryPresentation = {
         : (() => {
             const materialized = createTavernRoomFromGeneratedPresetJson(
               workspace.id,
-              createTavernGeneratedPresetFromStoryAsset(activeStory),
+              createTavernGeneratedPresetFromStoryPresentationSeed(seed),
               {
-                storyId: activeStory.id,
+                storyId: seed.story.id,
                 creationSource: "manual",
               },
             );

@@ -10,11 +10,16 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const storagePath = resolve(workspaceRoot, "src/features/pages/tavern/storage.ts");
 const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
+const storyAdapterPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/story/index.ts");
 
 writeFileSync(entryPath, `
   import {
     createTavernRoom,
+    createTavernRoomFromGeneratedPresetJson,
   } from ${JSON.stringify(storagePath)};
+  import {
+    createTavernGeneratedPresetFromStoryPresentationSeed,
+  } from ${JSON.stringify(storyAdapterPath)};
   import {
     createTavernRuntimeRoomSnapshot,
     materializeTavernRuntimeRoomSnapshot,
@@ -128,6 +133,125 @@ writeFileSync(entryPath, `
       materialized.messagesByInstance["orphan-instance"] === undefined,
     "物化运行快照应重建场景实例消息归属。",
     materialized.messagesByInstance,
+  );
+
+  const seedPreset = createTavernGeneratedPresetFromStoryPresentationSeed({
+    version: 1,
+    story: {
+      id: "story-seed",
+      title: "种子故事",
+      outline: "故事 seed 负责给呈现层提供标准数据。",
+      goal: "验证 tavern adapter 不依赖完整 StoryAsset。",
+      userPersonaName: "调查人",
+      createdAt: 1_800_000_300_000,
+      updatedAt: 1_800_000_300_100,
+    },
+    graph: {
+      entryNodeId: "node-entry",
+      activeNodeId: "node-target",
+      stages: [
+        { id: "stage-entry", title: "入口", order: 0 },
+      ],
+      nodes: [
+        {
+          id: "node-entry",
+          stageId: "stage-entry",
+          sceneId: "scene-entry",
+          title: "入口节点",
+          type: "normal",
+          pathRole: "main",
+          status: "ready",
+        },
+        {
+          id: "node-target",
+          stageId: "stage-entry",
+          sceneId: "scene-target",
+          title: "目标节点",
+          type: "normal",
+          pathRole: "main",
+          status: "draft",
+        },
+      ],
+      edges: [
+        {
+          id: "edge-entry-target",
+          fromNodeId: "node-entry",
+          toNodeId: "node-target",
+          label: "进入目标",
+          priority: 0,
+        },
+      ],
+    },
+    scenes: [
+      {
+        id: "scene-entry",
+        title: "入口场景",
+        scene: "入口灯光很暗。",
+        goal: "进入房间。",
+        plot: "抵达入口。",
+        direction: "克制叙事。",
+        transition: "进入目标场景。",
+        memory: "入口有潮气。",
+      },
+      {
+        id: "scene-target",
+        title: "目标场景",
+        scene: "目标房间里有一张巡检表。",
+        goal: "检查巡检表。",
+        plot: "发现缺页。",
+        direction: "证据优先。",
+        transition: "",
+        memory: "缺页边缘有盐渍。",
+      },
+    ],
+    characters: [
+      {
+        id: "archivist",
+        name: "穆青檐",
+        description: "档案馆管理员。",
+        speakingStyle: "克制。",
+        memory: {
+          required: "",
+          public: "知道潮汐钟异常。",
+          known: "",
+          privateSelf: "",
+          directorSecret: "",
+        },
+      },
+    ],
+    world: {
+      lorebookEntries: [
+        {
+          id: "lore-clock",
+          title: "潮汐钟",
+          content: "潮汐钟只在潮差异常时停摆。",
+          keywords: ["潮汐钟"],
+          enabled: true,
+          alwaysOn: true,
+        },
+      ],
+    },
+    targetNodeId: "node-target",
+    openingMessage: "从 seed 创建 tavern 呈现。",
+  });
+  const seedMaterialized = createTavernRoomFromGeneratedPresetJson(
+    "workspace-seed",
+    seedPreset,
+    {
+      roomId: "room-from-seed",
+      storyId: "story-seed",
+      createdAt: 1_800_000_300_200,
+    },
+  );
+  assert(
+    seedPreset.room?.storyGraph?.activeNodeId === "node-target" &&
+      seedPreset.room?.scenes?.length === 2 &&
+      seedPreset.characters?.[0]?.memory?.includes("潮汐钟异常") &&
+      seedMaterialized.room.storyBinding?.storyId === "story-seed" &&
+      seedMaterialized.room.storyGraph.activeNodeId === "node-target" &&
+      seedMaterialized.room.sceneInstances.some((instance) => instance.nodeId === "node-target"),
+    "tavern adapter 应能从标准故事 seed 创建运行预设。",
+    seedMaterialized.room,
   );
 `);
 

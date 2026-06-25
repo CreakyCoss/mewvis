@@ -8,7 +8,7 @@ export {
 } from "./context-package";
 export {
   createStoryImportDraftFromTavernGeneratedPreset,
-  createTavernGeneratedPresetFromStoryAsset,
+  createTavernGeneratedPresetFromStoryPresentationSeed,
   createTavernGeneratedPresetFromStoryImportDraft,
 } from "./import-draft";
 export {

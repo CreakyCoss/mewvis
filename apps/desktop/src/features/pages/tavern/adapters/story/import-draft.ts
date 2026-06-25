@@ -1,11 +1,11 @@
 import {
   assertStoryImportDraftReady,
   createStoryImportDraft,
-  type StoryAsset,
   type StoryImportDraft,
   type StoryImportDraftCharacter,
   type StoryImportDraftLorebookEntry,
   type StoryImportDraftScene,
+  type StoryPresentationSeed,
 } from "@/features/story";
 import type {
   TavernGeneratedPresetCharacter,
@@ -258,7 +258,7 @@ export const createTavernGeneratedPresetFromStoryImportDraft = (
 };
 
 const formatStoryCharacterMemory = (
-  character: StoryAsset["characters"][number],
+  character: StoryPresentationSeed["characters"][number],
 ) => [
   character.memory?.required,
   character.memory?.public,
@@ -266,49 +266,49 @@ const formatStoryCharacterMemory = (
   character.memory?.privateSelf,
 ].map((value) => value?.trim()).filter(Boolean).join("\n\n");
 
-export const createTavernGeneratedPresetFromStoryAsset = (
-  story: StoryAsset,
+export const createTavernGeneratedPresetFromStoryPresentationSeed = (
+  seed: StoryPresentationSeed,
 ): TavernGeneratedPresetJson => ({
   version: 1,
-  label: story.title,
-  description: story.outline,
-    room: {
-      title: story.title,
-      storyOutline: story.outline,
-      storyGoal: story.goal,
-      storyGraph: {
-        version: 1,
-        entryNodeId: story.graph.entryNodeId,
-        activeNodeId: story.graph.activeNodeId,
-        stages: story.graph.stages,
-        nodes: story.graph.nodes.map((node, index) => ({
-          ...node,
-          type: node.type === "failure" || node.type === "ending" ? node.type : "normal",
-          pathRole: node.pathRole === "branch" ? "branch" : "main",
-          status: node.status === "ready" || node.status === "played" ? node.status : "draft",
-          position: {
-            x: 120 + index * 240,
-            y: 160,
-          },
-          createdAt: story.createdAt,
-          updatedAt: story.updatedAt,
-        })),
-        edges: story.graph.edges.map((edge, index) => ({
-          ...edge,
-          createdAt: story.createdAt,
-          updatedAt: story.updatedAt,
-          priority: edge.priority ?? index,
-        })),
-      },
-      userPersonaName: story.userPersonaName,
-    scene: story.scenes[0]?.scene,
-    sceneGoal: story.scenes[0]?.goal,
-    plot: story.scenes[0]?.plot,
-    storyDirection: story.scenes[0]?.direction,
-    transition: story.scenes[0]?.transition,
-    memory: story.scenes[0]?.memory,
-    lorebookEntries: story.lorebookEntries.map(mapDraftLorebookEntryToTavern),
-    scenes: story.scenes.map((scene) => ({
+  label: seed.story.title,
+  description: seed.story.outline,
+  room: {
+    title: seed.story.title,
+    storyOutline: seed.story.outline,
+    storyGoal: seed.story.goal,
+    storyGraph: {
+      version: 1,
+      entryNodeId: seed.graph.entryNodeId,
+      activeNodeId: seed.targetNodeId || seed.graph.activeNodeId,
+      stages: seed.graph.stages,
+      nodes: seed.graph.nodes.map((node, index) => ({
+        ...node,
+        type: node.type === "failure" || node.type === "ending" ? node.type : "normal",
+        pathRole: node.pathRole === "branch" ? "branch" : "main",
+        status: node.status === "ready" || node.status === "played" ? node.status : "draft",
+        position: {
+          x: 120 + index * 240,
+          y: 160,
+        },
+        createdAt: seed.story.createdAt,
+        updatedAt: seed.story.updatedAt,
+      })),
+      edges: seed.graph.edges.map((edge, index) => ({
+        ...edge,
+        createdAt: seed.story.createdAt,
+        updatedAt: seed.story.updatedAt,
+        priority: edge.priority ?? index,
+      })),
+    },
+    userPersonaName: seed.story.userPersonaName,
+    scene: seed.scenes[0]?.scene,
+    sceneGoal: seed.scenes[0]?.goal,
+    plot: seed.scenes[0]?.plot,
+    storyDirection: seed.scenes[0]?.direction,
+    transition: seed.scenes[0]?.transition,
+    memory: seed.scenes[0]?.memory,
+    lorebookEntries: seed.world.lorebookEntries.map(mapDraftLorebookEntryToTavern),
+    scenes: seed.scenes.map((scene) => ({
       id: scene.id,
       title: scene.title,
       scene: scene.scene,
@@ -318,13 +318,13 @@ export const createTavernGeneratedPresetFromStoryAsset = (
       transition: scene.transition,
       memory: scene.memory,
       lorebookEntries: [],
-      characterIds: story.characters.map((character) => character.id),
-      activeCharacterId: story.characters[0]?.id,
+      characterIds: seed.characters.map((character) => character.id),
+      activeCharacterId: seed.characters[0]?.id,
     })),
-    characterIds: story.characters.map((character) => character.id),
-    activeCharacterId: story.characters[0]?.id,
+    characterIds: seed.characters.map((character) => character.id),
+    activeCharacterId: seed.characters[0]?.id,
   },
-  characters: story.characters.map((character) => ({
+  characters: seed.characters.map((character) => ({
     id: character.id,
     name: character.name,
     description: character.description,
@@ -336,6 +336,6 @@ export const createTavernGeneratedPresetFromStoryAsset = (
   })),
   messages: [{
     role: "narrator",
-    content: `已从故事「${story.title}」创建酒馆呈现。`,
+    content: seed.openingMessage,
   }],
 });

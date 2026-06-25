@@ -6,6 +6,7 @@ import {
 } from "./presentations/registry";
 import {
   type StoryAsset,
+  getStoryPresentationSeed,
   type StoryState,
 } from "@/features/story";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -37,6 +38,7 @@ export const useStoryPresentationActions = ({
     return openRegisteredStoryPresentation(channel, {
       workspace,
       activeStory,
+      seed: getStoryPresentationSeed(activeStory, { nodeId }),
       storyState,
       persistStoryState,
       navigate,

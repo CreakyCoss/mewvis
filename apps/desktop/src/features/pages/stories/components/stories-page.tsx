@@ -38,6 +38,10 @@ import { StoryCharactersModule } from "./modules/characters";
 import { StoryGraphModule } from "./modules/graph";
 import { StoryManuscriptsModule } from "./modules/manuscripts";
 import { StoryOverviewModule } from "./modules/overview";
+import {
+  storyPresentationDefinitions,
+  type StoryPresentationIcon,
+} from "./presentations/registry";
 import { StoryScenesModule } from "./modules/scenes";
 import { StoryWorldModule } from "./modules/world";
 import {
@@ -48,6 +52,11 @@ import {
   type StoryConfigTab,
   type StoryDraft,
 } from "./shared";
+
+const storyPresentationIconMap = {
+  chat: MessageSquareText,
+  tavern: BookOpen,
+} satisfies Record<StoryPresentationIcon, typeof BookOpen>;
 
 export const StoriesPage = () => {
   const agentClient = useMemo(() => createAgentClient(), []);
@@ -479,26 +488,29 @@ export const StoriesPage = () => {
               <FileUp className="size-4" />
               导入
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => openStoryPresentation("chat")}
-              disabled={!activeStory || !workspace}
-            >
-              <MessageSquareText className="size-4" />
-              聊天
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => void openStoryPresentation("tavern")}
-              disabled={!activeStory || openingStoryId === activeStory.id}
-            >
-              <BookOpen className="size-4" />
-              {openingStoryId === activeStory?.id ? "打开中" : "酒馆"}
-            </Button>
+            {storyPresentationDefinitions.map((definition) => {
+              const Icon = storyPresentationIconMap[definition.icon];
+              const isOpening = Boolean(
+                definition.loadingLabel &&
+                  activeStory &&
+                  openingStoryId === activeStory.id,
+              );
+              return (
+                <Button
+                  key={definition.channel}
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => void openStoryPresentation(
+                    definition.channel,
+                  )}
+                  disabled={!activeStory || !workspace || isOpening}
+                >
+                  <Icon className="size-4" />
+                  {isOpening ? definition.loadingLabel : definition.label}
+                </Button>
+              );
+            })}
           </div>
         </header>
 

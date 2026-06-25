@@ -18,6 +18,7 @@ writeFileSync(entryPath, `
     createStoryAssetFromContextPackage,
     createStoryAssetFromImportDraft,
     createStoryImportDraft,
+    getStoryPresentationSeed,
     getStoryBranchDataPackage,
     getStoryNodeDataPackage,
     listStoryManuscriptDrafts,
@@ -218,6 +219,22 @@ writeFileSync(entryPath, `
       branchPackage.branch.incomingEdges[0]?.id === branchEdge.id,
     "分支数据包应保留路径节点、路径边和当前节点入边。",
     branchPackage,
+  );
+  const presentationSeed = getStoryPresentationSeed(acceptedStory, {
+    nodeId: branchNode.id,
+  });
+  assert(
+    presentationSeed.version === 1 &&
+      presentationSeed.story.id === acceptedStory.id &&
+      presentationSeed.story.createdAt === acceptedStory.createdAt &&
+      presentationSeed.story.updatedAt === acceptedStory.updatedAt &&
+      presentationSeed.targetNodeId === branchNode.id &&
+      presentationSeed.graph.nodes.length === acceptedStory.graph.nodes.length &&
+      presentationSeed.scenes.length === acceptedStory.scenes.length &&
+      presentationSeed.characters[0]?.id === "archivist" &&
+      presentationSeed.world.lorebookEntries[0]?.id === "lore-clock",
+    "故事呈现 seed 应提供呈现层所需的标准故事快照。",
+    presentationSeed,
   );
 
   const context = buildStoryContextPackageFromAsset(acceptedStory, {

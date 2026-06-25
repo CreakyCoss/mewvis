@@ -22,6 +22,10 @@ export {
   type StoryDataPackageScope,
 } from "./application/data-package";
 export {
+  getStoryPresentationSeed,
+  type StoryPresentationSeed,
+} from "./application/presentation-seed";
+export {
   createStoryImportDraftFromJsonValue,
   createStoryImportDraftFromText,
 } from "./application/import-bridge";

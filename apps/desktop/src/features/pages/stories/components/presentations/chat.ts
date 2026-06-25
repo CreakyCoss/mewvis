@@ -4,16 +4,20 @@ import {
 } from "./shared";
 
 export const chatStoryPresentation = {
-  channel: "chat",
+  definition: {
+    channel: "chat",
+    label: "聊天",
+    icon: "chat",
+  },
   open: ({
     workspace,
-    activeStory,
+    seed,
     navigate,
     nodeId,
   }) => {
-    const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
+    const targetNodeId = resolveStoryNodeId(seed, nodeId);
     const search = [
-      `storyId=${encodeURIComponent(activeStory.id)}`,
+      `storyId=${encodeURIComponent(seed.story.id)}`,
       targetNodeId ? `storyNodeId=${encodeURIComponent(targetNodeId)}` : "",
     ].filter(Boolean).join("&");
 
