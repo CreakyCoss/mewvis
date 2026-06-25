@@ -31,7 +31,7 @@ import {
 import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import {
   createTavernAssetDraft,
-} from "../../../../storage";
+} from "../../../../asset-factories";
 import type { TavernAssetDraft } from "../../../../types";
 import { useTavernPageContext } from "../../../context";
 import type { DetailPanelKey } from "../types";

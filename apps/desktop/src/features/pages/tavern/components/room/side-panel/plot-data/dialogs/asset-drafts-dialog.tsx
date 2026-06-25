@@ -3,12 +3,14 @@ import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   addTavernSecretMemoryEntry,
-  createTavernLorebookEntry,
   projectTavernSceneOntoRoom,
   revealTavernSecretMemory,
   updateTavernActiveCharacterMemoryLayers,
   updateTavernActiveSceneMemoryLayers,
 } from "../../../../../storage";
+import {
+  createTavernLorebookEntry,
+} from "../../../../../asset-factories";
 import type {
   TavernAssetDraft,
   TavernCharacter,

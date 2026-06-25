@@ -2,10 +2,12 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
-  createTavernIllustrationHint,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../../../storage";
+import {
+  createTavernIllustrationHint,
+} from "../../../../asset-factories";
 import {
   createTavernMessage,
 } from "../../../../message";

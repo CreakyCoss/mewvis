@@ -2,10 +2,12 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
-  createTavernAssetDraft,
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../../../storage";
+import {
+  createTavernAssetDraft,
+} from "../../../../asset-factories";
 import { advanceTavernProgressFromFactEvents } from "../../../../core";
 import { runTavernAssetExtraction } from "../../../../runtime/assistants";
 import { runTavernProgressTracking } from "../../../../runtime/assistants";
