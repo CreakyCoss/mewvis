@@ -104,6 +104,10 @@ import {
   resolveRunNodePrefix,
 } from "./story-runtime";
 import {
+  createEmptyCharacterMemoryLayers,
+  createEmptySceneMemoryLayers,
+} from "./memory-layers";
+import {
   DEFAULT_TAVERN_PROGRESS_TRACKER,
   DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_ROOM_SETTINGS,
@@ -152,30 +156,6 @@ const createTavernStoryBinding = (
   storyId,
   source: "story",
   boundAt,
-});
-
-const createEmptySceneMemoryLayers = (
-  input: Partial<TavernSceneMemoryLayers> = {},
-): TavernSceneMemoryLayers => ({
-  required: input.required?.trim() ?? "",
-  upstream: input.upstream?.trim() ?? "",
-  private: input.private?.trim() ?? "",
-  public: input.public?.trim() ?? "",
-  directorSecret: input.directorSecret?.trim() ?? "",
-  entries: Array.isArray(input.entries) ? input.entries : [],
-  updatedAt: input.updatedAt,
-});
-
-const createEmptyCharacterMemoryLayers = (
-  input: Partial<TavernCharacterMemoryLayers> = {},
-): TavernCharacterMemoryLayers => ({
-  required: input.required?.trim() ?? "",
-  public: input.public?.trim() ?? "",
-  known: input.known?.trim() ?? "",
-  privateSelf: input.privateSelf?.trim() ?? "",
-  directorSecret: input.directorSecret?.trim() ?? "",
-  entries: Array.isArray(input.entries) ? input.entries : [],
-  updatedAt: input.updatedAt,
 });
 
 const normalizePromptBlockTarget = (value: unknown): TavernPromptBlock["target"] | null => {
