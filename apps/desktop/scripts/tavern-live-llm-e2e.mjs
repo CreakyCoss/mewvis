@@ -190,6 +190,15 @@ writeFileSync(helperEntryPath, `
   import {
     createTavernRoomFromSystemPreset,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/factories/system-preset-room.ts"))};
+  import {
+    projectTavernSceneOntoRoom,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/active-scene-runtime.ts"))};
+  import {
+    normalizeRoomSettings,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/normalizers/room-settings.ts"))};
+  import {
+    createDefaultPromptForPresentation,
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation/presentation-settings.ts"))};
   import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
   import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation/presentation-contracts.ts"))};
   import {
@@ -206,13 +215,21 @@ writeFileSync(helperEntryPath, `
   );
   const livePresentationContract = getTavernPresentationContract(livePresentationProfile);
 
-  const applyLivePresentation = (room) => ({
-    ...room,
-    presentation: {
+  const applyLivePresentation = (room) => {
+    const presentation = {
       profileId: livePresentationProfile.id,
       profileVersion: 1,
-    },
-  });
+    };
+    return {
+      ...room,
+      presentation,
+      prompt: room.prompt ?? createDefaultPromptForPresentation(presentation),
+      settings: normalizeRoomSettings(room.settings, {
+        characterIds: room.characterIds,
+        updatedAt: room.updatedAt,
+      }),
+    };
+  };
 
   export const canSelectedTargetsStaySilent = canTavernSelectedTargetsStaySilent;
   export const canCharacterUseNonverbalReply = canTavernCharacterUseNonverbalReply;
@@ -229,33 +246,27 @@ writeFileSync(helperEntryPath, `
     const fixtureMode = process.env.NOVEL_CLAW_TAVERN_LIVE_FIXTURE?.trim() || "custom";
     const novelFixtures = {
       raincity: {
-        presetId: "raincity-silent-manuscript",
+        presetId: "raincity-mystery-stage",
         roomId: "live-raincity-room",
         characterIds: [
-          ["rc-ji-ling", "rain-ji"],
-          ["rc-yuan-ci", "rain-yuan"],
-          ["rc-su-yan", "rain-su"],
-          ["rc-he-mu", "rain-he"],
+          ["rc-stage-director", "rain-director"],
+          ["rc-stage-narrator", "rain-narrator"],
         ],
       },
       snowridge: {
-        presetId: "snowridge-sword-oath",
+        presetId: "snowridge-wuxia-stage",
         roomId: "live-snowridge-room",
         characterIds: [
-          ["sx-lin-zhaoye", "snow-lin"],
-          ["sx-gu-tingxue", "snow-gu"],
-          ["sx-qiu-heng", "snow-qiu"],
-          ["sx-jingchen", "snow-jing"],
+          ["sx-stage-director", "snow-director"],
+          ["sx-stage-narrator", "snow-narrator"],
         ],
       },
       orbital: {
-        presetId: "orbital-ashes-letter",
+        presetId: "orbital-scifi-stage",
         roomId: "live-orbital-room",
         characterIds: [
-          ["oa-lan-qiao", "orbit-lan"],
-          ["oa-mira", "orbit-mira"],
-          ["oa-ren-ke", "orbit-ren"],
-          ["oa-yi-sen", "orbit-yi"],
+          ["oa-stage-director", "orbit-director"],
+          ["oa-stage-narrator", "orbit-narrator"],
         ],
       },
     };
@@ -528,7 +539,12 @@ writeFileSync(helperEntryPath, `
         updatedAt: now,
       },
     ];
-    return { scenario: "custom", room: applyLivePresentation(room), characters, messages: [] };
+    return {
+      scenario: "custom",
+      room: projectTavernSceneOntoRoom(applyLivePresentation(room)),
+      characters,
+      messages: [],
+    };
   };
 
   const expandRolePool = (rolePool) => rolePool.flatMap((role) =>

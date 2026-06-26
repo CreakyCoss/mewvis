@@ -15,7 +15,7 @@ const META_FILE_NAME: &str = "meta.json";
 const ROOM_FILE_NAME: &str = "room.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
 const CONVERSATION_FILE_NAME: &str = "conversation.json";
-const TAVERN_STATE_VERSION: u8 = 3;
+const TAVERN_STATE_VERSION: u8 = 4;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

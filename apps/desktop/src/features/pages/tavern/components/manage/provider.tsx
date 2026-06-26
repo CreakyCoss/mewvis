@@ -7,25 +7,10 @@ import {
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { normalizeTavernPromptStyleId } from "../../presentation/prompt-styles";
-import {
-  normalizeTavernPresentationProfileId,
-} from "../../prompt-registry/presentation-rules";
-import { normalizeTavernSystemNarrativePresetId } from "../../prompt-registry/system-narrative-styles";
-import {
-  normalizeTavernQualityRuleIds,
-  normalizeTavernRuleCompositionId,
-} from "../../prompt-registry/rule-layers/resolver";
-import {
-  createDefaultTavernPromptSettings,
-} from "../../prompt-registry/text-blocks";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "../../runtime/active-scene-runtime";
-import {
-  createTavernRoomFromGeneratedPresetJson,
-} from "../../factories/generated-preset-room";
 import {
   createTavernRoom,
 } from "../../factories/manual-factories";
@@ -45,17 +30,7 @@ import { runTavernDirectorProfileAgent } from "../../runtime/director";
 import { runTavernTextFieldAgent } from "../../runtime/assistants";
 import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
 import {
-  runTavernGeneratedPresetAgent,
-  type TavernGeneratedPresetAgentDraft,
-} from "../../runtime/assistants";
-import {
-  createStoryImportDraftFromTavernGeneratedPreset,
-  createTavernGeneratedPresetFromStoryImportDraft,
-} from "../../adapters/story";
-import {
   createTavernRuntimeRoomSnapshot,
-  materializeTavernRuntimeRoomSnapshot,
-  parseTavernRuntimeRoomSnapshot,
 } from "../../adapters/runtime-room-snapshot";
 import type {
   TavernCharacter,
@@ -74,18 +49,6 @@ const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请�
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  return "未知错误";
-};
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -593,42 +556,6 @@ export const ManagementProvider = ({
     }
   }, [state]);
 
-  const importRoom = useCallback((raw: string) => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      return "运行快照文件不是有效 JSON。";
-    }
-
-    const snapshot = parseTavernRuntimeRoomSnapshot(parsed);
-    if (!snapshot) {
-      return "此入口只支持当前版本的酒馆运行快照；故事、世界书或角色卡请在故事页导入并确认。";
-    }
-
-    const sourceRoom = snapshot.room;
-    if (state.rooms.some((room) => room.id === sourceRoom.id)) {
-      return "同 ID 的酒馆运行快照已存在，请先删除现有房间后再导入。";
-    }
-
-    const materialized = materializeTavernRuntimeRoomSnapshot({
-      snapshot,
-      workspaceId: workspace.id,
-    });
-
-    setState((current) => ({
-      ...current,
-      activeRoomId: materialized.room.id,
-      rooms: [...current.rooms, materialized.room],
-      messagesByInstance: {
-        ...current.messagesByInstance,
-        ...materialized.messagesByInstance,
-      },
-    }));
-    reportError("");
-    return null;
-  }, [reportError, setState, state.rooms, workspace.id]);
-
   const createRoom = useCallback(() => {
     const nextRoom = {
       ...createTavernRoom(workspace.id, state.rooms.length + 1),
@@ -653,83 +580,6 @@ export const ManagementProvider = ({
     }));
     return nextRoom.id;
   }, [setState, state.rooms.length, workspace.id]);
-
-  const quickCreateRoom = useCallback(async (
-    quickDraft: TavernGeneratedPresetAgentDraft,
-  ) => {
-    if (!runtimeModel) {
-      return TAVERN_RUNTIME_MODEL_UNAVAILABLE;
-    }
-
-    if (!runtimeAgentId) {
-      return "当前 Agent 运行时不可用，请稍后重试。";
-    }
-
-    try {
-      const result = await runTavernGeneratedPresetAgent({
-        workspacePath: workspace.path,
-        agentId: runtimeAgentId,
-        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-        draft: quickDraft,
-      });
-      const quickPresentationProfileId = normalizeTavernPresentationProfileId(
-        quickDraft.presentationProfileId,
-      );
-      const quickPrompt = createDefaultTavernPromptSettings({
-        presentationProfileId: quickPresentationProfileId,
-        promptStyleId: normalizeTavernPromptStyleId(quickDraft.promptStyleId),
-        systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
-          quickDraft.promptSeed?.systemNarrativePresetId,
-        ),
-        ruleCompositionId: normalizeTavernRuleCompositionId(
-          quickDraft.promptSeed?.ruleCompositionId,
-        ),
-        qualityRuleIds: normalizeTavernQualityRuleIds(
-          quickDraft.promptSeed?.qualityRuleIds,
-        ),
-        immersiveDescriptionEnabled:
-          quickDraft.advanced?.settings?.immersiveDescriptionEnabled !== false,
-      });
-      const storyImportDraft = createStoryImportDraftFromTavernGeneratedPreset(
-        {
-          ...result.preset,
-          room: {
-            ...(result.preset.room ?? {}),
-            presentation: {
-              profileId: quickPresentationProfileId,
-              profileVersion: 1,
-            },
-            presentationProfileId: quickPresentationProfileId,
-            prompt: quickPrompt,
-          },
-        },
-        {
-          sourceKind: "aiGenerated",
-        },
-      );
-      const materialized = createTavernRoomFromGeneratedPresetJson(
-        workspace.id,
-        createTavernGeneratedPresetFromStoryImportDraft(storyImportDraft),
-        {
-          creationSource: "quick",
-        },
-      );
-      const room = materialized.room;
-      setState((current) => ({
-        ...current,
-        activeRoomId: room.id,
-        rooms: [...current.rooms, room],
-        messagesByInstance: {
-          ...current.messagesByInstance,
-          [getRoomActiveSceneInstanceId(room)]: materialized.messages,
-        },
-      }));
-      reportError("");
-      return null;
-    } catch (quickCreateError) {
-      return getErrorMessage(quickCreateError);
-    }
-  }, [reportError, runtimeAgentId, runtimeModel, setState, workspace.id, workspace.path]);
 
   const selectRoom = useCallback((roomId: string) => {
     setState((current) => ({
@@ -793,7 +643,6 @@ export const ManagementProvider = ({
         characterById,
         messagesByRoomId,
         createRoom,
-        quickCreateRoom,
         selectRoom,
         patchRoom,
         copyRoom,
@@ -801,7 +650,6 @@ export const ManagementProvider = ({
         setRoomLocked,
         deleteRoom,
         exportRoom,
-        importRoom,
         globalRuntimeModel: runtimeModel,
         runTextFieldAgent,
         regenerateDirectorProfile,
@@ -812,10 +660,8 @@ export const ManagementProvider = ({
     createRoom,
     deleteRoom,
     exportRoom,
-    importRoom,
     messagesByRoomId,
     patchRoom,
-    quickCreateRoom,
     regenerateDirectorProfile,
     restoreSystemPresetRoom,
     runTextFieldAgent,

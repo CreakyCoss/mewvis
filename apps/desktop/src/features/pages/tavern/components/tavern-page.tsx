@@ -431,6 +431,14 @@ const TavernPageContent = ({
     }
   }, [isTavernStateHydrated, state, workspace.id, workspace.path]);
 
+  useEffect(() => {
+    if (!isTavernStateHydrated || state.rooms.length > 0) {
+      return;
+    }
+
+    setState(createDefaultTavernState(workspace.id));
+  }, [isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
+
   const renderableRoomMessages = useMemo(() => (
     activeRoom
       ? createTavernRenderableMessages({

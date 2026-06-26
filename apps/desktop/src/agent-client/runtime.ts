@@ -208,5 +208,8 @@ class WebPreviewAgentClient implements AgentClient {
   }
 }
 
+const canUseTauriAgentClient = () =>
+  typeof window !== "undefined" && isTauri();
+
 export const createAgentClient = (): AgentClient =>
-  isTauri() ? new TauriAgentClient() : new WebPreviewAgentClient();
+  canUseTauriAgentClient() ? new TauriAgentClient() : new WebPreviewAgentClient();

@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   Check,
-  FileUp,
   GitBranch,
   Map,
   MoreHorizontal,
@@ -9,7 +8,7 @@ import {
   TriangleAlertIcon,
   Wine,
 } from "lucide-react";
-import type { FormEvent, RefObject } from "react";
+import type { RefObject } from "react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,10 +36,6 @@ import {
   OrdinaryCreate,
   type OrdinaryCreateHandle,
 } from "./ordinary-create";
-import {
-  QuickCreate,
-  type QuickCreateHandle,
-} from "./quick-create";
 import {
   RoomCard,
   RoomCardRuntimeProvider,
@@ -87,10 +82,8 @@ export const ManagementPage = ({
     characterById,
     messagesByRoomId,
     createRoom,
-    quickCreateRoom,
     patchRoom,
     selectRoom,
-    importRoom,
     globalRuntimeModel,
     runTextFieldAgent,
     regenerateDirectorProfile,
@@ -99,8 +92,6 @@ export const ManagementPage = ({
   const [pendingEntryRoomId, setPendingEntryRoomId] = useState("");
   const [selectedEntrySceneInstanceId, setSelectedEntrySceneInstanceId] = useState("");
   const [roomOperationStatus, setRoomOperationStatus] = useState("");
-  const roomImportInputRef = useRef<HTMLInputElement | null>(null);
-  const quickCreateRef = useRef<QuickCreateHandle>(null);
   const ordinaryCreateRef = useRef<OrdinaryCreateHandle>(null);
   const roomEditorRef = useRef<RoomEditorHandle>(null);
 
@@ -183,21 +174,6 @@ export const ManagementPage = ({
     closeRoomEntrySelector();
   };
 
-  const handleImportRoomFile = async (event: FormEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) {
-      return;
-    }
-
-    try {
-      const error = importRoom(await file.text());
-      setRoomOperationStatus(error ?? "运行快照已导入");
-    } catch {
-      setRoomOperationStatus("读取运行快照失败");
-    }
-  };
-
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-background text-foreground">
       <ScrollArea className="min-h-0 flex-1">
@@ -233,23 +209,6 @@ export const ManagementPage = ({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <input
-                ref={roomImportInputRef}
-                type="file"
-                accept="application/json,.json,.tavern-runtime"
-                className="hidden"
-                onChange={handleImportRoomFile}
-              />
-              {activeRoom && (
-                <QuickCreate
-                  bind={quickCreateRef}
-                  rooms={rooms}
-                  activeRoom={activeRoom}
-                  onQuickCreateRoom={quickCreateRoom}
-                  onRunTextFieldAgent={runTextFieldAgent}
-                  onOperationStatusChange={setRoomOperationStatus}
-                />
-              )}
               <OrdinaryCreate
                 bind={ordinaryCreateRef}
                 onCreateRoom={createRoom}
@@ -277,15 +236,6 @@ export const ManagementPage = ({
                   >
                     <Plus className="size-4" />
                     普通创建
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setRoomOperationStatus("");
-                      roomImportInputRef.current?.click();
-                    }}
-                  >
-                    <FileUp className="size-4" />
-                    导入运行快照
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

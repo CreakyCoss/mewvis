@@ -19,7 +19,6 @@ writeFileSync(entryPath, `
     createStoryAssetFromContextPackage,
     createStoryAssetFromImportDraft,
     createStoryImportDraft,
-    getStoryPresentationSeed,
     getStoryBranchDataPackage,
     getStoryNodeDataPackage,
     listStoryManuscriptDrafts,
@@ -217,9 +216,11 @@ writeFileSync(entryPath, `
       nodePackage.current.scene?.id === branchScene.id &&
       nodePackage.current.progress.includes("发现缺页") &&
       nodePackage.current.progress.includes("确认巡检表缺页") &&
+      nodePackage.graph.activeNodeId === branchNode.id &&
+      nodePackage.scenes.some((scene) => scene.id === branchScene.id) &&
       nodePackage.memory.acceptedManuscripts.length === 1 &&
       nodePackage.memory.characterPublicMemories[0]?.memory.includes("巡检表被改过"),
-    "节点数据包应包含背景、当前节点进展、角色记忆和已收稿件。",
+    "节点数据包应包含背景、结构、场景、当前节点进展、角色记忆和已收稿件。",
     nodePackage,
   );
 
@@ -237,23 +238,6 @@ writeFileSync(entryPath, `
     "分支数据包应保留路径节点、路径边和当前节点入边。",
     branchPackage,
   );
-  const presentationSeed = getStoryPresentationSeed(acceptedStory, {
-    nodeId: branchNode.id,
-  });
-  assert(
-    presentationSeed.version === 1 &&
-      presentationSeed.story.id === acceptedStory.id &&
-      presentationSeed.story.createdAt === acceptedStory.createdAt &&
-      presentationSeed.story.updatedAt === acceptedStory.updatedAt &&
-      presentationSeed.targetNodeId === branchNode.id &&
-      presentationSeed.graph.nodes.length === acceptedStory.graph.nodes.length &&
-      presentationSeed.scenes.length === acceptedStory.scenes.length &&
-      presentationSeed.characters[0]?.id === "archivist" &&
-      presentationSeed.world.lorebookEntries[0]?.id === "lore-clock",
-    "故事呈现 seed 应提供呈现层所需的标准故事快照。",
-    presentationSeed,
-  );
-
   const context = buildStoryContextPackageFromAsset(acceptedStory, {
     activeNodeId: branchNode.id,
     branch: {

@@ -1,7 +1,6 @@
 import type { NavigateFunction } from "react-router";
 import type {
   StoryAsset,
-  StoryPresentationSeed,
   StoryState,
 } from "@/features/story";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -20,7 +19,6 @@ export type StoryPresentationDefinition = {
 export type StoryPresentationOpenInput = {
   workspace: Workspace;
   activeStory: StoryAsset;
-  seed: StoryPresentationSeed;
   storyState: StoryState;
   persistStoryState: (nextState: StoryState) => Promise<void>;
   navigate: NavigateFunction;
@@ -36,11 +34,10 @@ export type StoryPresentationAdapter<Channel extends StoryPresentationChannel> =
 };
 
 export const resolveStoryNodeId = (
-  seed: StoryPresentationSeed,
+  story: StoryAsset,
   nodeId?: string | null,
 ) => nodeId ||
-  seed.targetNodeId ||
-  seed.graph.activeNodeId ||
-  seed.graph.entryNodeId ||
-  seed.graph.nodes[0]?.id ||
+  story.graph.activeNodeId ||
+  story.graph.entryNodeId ||
+  story.graph.nodes[0]?.id ||
   "";

@@ -13,6 +13,10 @@ export type StoryDataPackage = {
   scope: StoryDataPackageScope;
   storyId: string;
   nodeId: string;
+  timestamps: {
+    createdAt: number;
+    updatedAt: number;
+  };
   background: {
     title: string;
     outline: string;
@@ -31,6 +35,14 @@ export type StoryDataPackage = {
     incomingEdges: StoryAsset["graph"]["edges"];
     outgoingEdges: StoryAsset["graph"]["edges"];
   };
+  graph: {
+    entryNodeId: string;
+    activeNodeId: string;
+    stages: StoryAsset["graph"]["stages"];
+    nodes: StoryAsset["graph"]["nodes"];
+    edges: StoryAsset["graph"]["edges"];
+  };
+  scenes: StoryAsset["scenes"];
   world: {
     lorebookEntries: StoryAsset["lorebookEntries"];
   };
@@ -100,6 +112,10 @@ const createDataPackage = ({
     scope,
     storyId: story.id,
     nodeId,
+    timestamps: {
+      createdAt: story.createdAt,
+      updatedAt: story.updatedAt,
+    },
     background: {
       title: story.title,
       outline: story.outline,
@@ -118,6 +134,14 @@ const createDataPackage = ({
       incomingEdges: story.graph.edges.filter((edge) => edge.toNodeId === nodeId),
       outgoingEdges: story.graph.edges.filter((edge) => edge.fromNodeId === nodeId),
     },
+    graph: {
+      entryNodeId: story.graph.entryNodeId,
+      activeNodeId: nodeId || story.graph.activeNodeId,
+      stages: story.graph.stages,
+      nodes: story.graph.nodes,
+      edges: story.graph.edges,
+    },
+    scenes: story.scenes,
     world: {
       lorebookEntries: story.lorebookEntries,
     },

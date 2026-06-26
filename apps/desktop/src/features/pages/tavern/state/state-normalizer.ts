@@ -38,7 +38,11 @@ import {
 import {
   getTavernSystemPreset,
   normalizeSystemPresetId,
+  tavernSystemPresets,
 } from "../system-preset-registry";
+import {
+  createTavernRoomFromSystemPreset,
+} from "../factories/system-preset-room";
 import {
   normalizeProgressTracker,
   normalizeProgressViews,
@@ -53,12 +57,91 @@ import type {
   TavernState,
 } from "../types";
 
-export const createDefaultTavernState = (_workspaceId: string): TavernState => {
+type MaterializedDefaultTavernRoom = ReturnType<typeof createTavernRoomFromSystemPreset> & {
+  sceneInstanceId: string;
+};
+
+const defaultRoomIdForSystemPreset = (presetId: string) => `default-room-${presetId}`;
+
+const materializeDefaultTavernSystemPresetRooms = ({
+  workspaceId,
+  existingRoomIds = new Set<string>(),
+  existingSystemPresetIds = new Set<string>(),
+}: {
+  workspaceId: string;
+  existingRoomIds?: Set<string>;
+  existingSystemPresetIds?: Set<string>;
+}): MaterializedDefaultTavernRoom[] => tavernSystemPresets.flatMap((preset, index) => {
+  if (existingSystemPresetIds.has(preset.id)) {
+    return [];
+  }
+
+  const defaultRoomId = defaultRoomIdForSystemPreset(preset.id);
+  const materialized = createTavernRoomFromSystemPreset(workspaceId, preset.id, {
+    roomId: existingRoomIds.has(defaultRoomId) ? undefined : defaultRoomId,
+    createdAt: Date.now() + index,
+  });
+  const sceneInstanceId = materialized.room.activeSceneInstanceId ??
+    materialized.room.sceneInstances[0]?.id ??
+    materialized.room.activeSceneId;
+
+  return [{
+    ...materialized,
+    sceneInstanceId,
+    messages: materialized.messages.map((message) => ({
+      ...message,
+      roomId: materialized.room.id,
+      sceneId: message.sceneId ?? materialized.room.activeSceneId,
+      sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
+    })),
+  }];
+});
+
+const messagesByInstanceFromMaterializedDefaults = (
+  rooms: MaterializedDefaultTavernRoom[],
+) => Object.fromEntries(
+  rooms.map((item) => [item.sceneInstanceId, item.messages]),
+);
+
+const ensureDefaultTavernSystemPresetRooms = (
+  workspaceId: string,
+  state: TavernState,
+): TavernState => {
+  const materializedDefaults = materializeDefaultTavernSystemPresetRooms({
+    workspaceId,
+    existingRoomIds: new Set(state.rooms.map((room) => room.id)),
+    existingSystemPresetIds: new Set(state.rooms.flatMap((room) =>
+      room.systemPresetId ? [room.systemPresetId] : []
+    )),
+  });
+  if (materializedDefaults.length === 0) {
+    return state;
+  }
+
+  const rooms = [...state.rooms, ...materializedDefaults.map((item) => item.room)];
+  return {
+    ...state,
+    activeRoomId: rooms.some((room) => room.id === state.activeRoomId)
+      ? state.activeRoomId
+      : rooms[0]?.id ?? "",
+    rooms,
+    messagesByInstance: {
+      ...state.messagesByInstance,
+      ...messagesByInstanceFromMaterializedDefaults(materializedDefaults),
+    },
+  };
+};
+
+export const createDefaultTavernState = (workspaceId: string): TavernState => {
+  const materializedRooms = materializeDefaultTavernSystemPresetRooms({
+    workspaceId,
+  });
+
   return {
     version: 4,
-    activeRoomId: "",
-    rooms: [],
-    messagesByInstance: {},
+    activeRoomId: materializedRooms[0]?.room.id ?? "",
+    rooms: materializedRooms.map((item) => item.room),
+    messagesByInstance: messagesByInstanceFromMaterializedDefaults(materializedRooms),
   };
 };
 
@@ -235,10 +318,10 @@ export const normalizeTavernState = (
     ? candidate.activeRoomId ?? rooms[0].id
     : normalizedRooms[0].id;
 
-  return {
+  return ensureDefaultTavernSystemPresetRooms(workspaceId, {
     version: 4,
     activeRoomId,
     rooms: normalizedRooms,
     messagesByInstance,
-  };
+  });
 };

@@ -2,7 +2,6 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
-import type { TavernGeneratedPresetAgentDraft } from "../../runtime/assistants";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -20,7 +19,6 @@ export type ManagementContextValue = {
   characterById: Map<string, TavernCharacter>;
   messagesByRoomId: Record<string, TavernMessage[]>;
   createRoom: () => string | void;
-  quickCreateRoom: (draft: TavernGeneratedPresetAgentDraft) => Promise<string | null>;
   selectRoom: (roomId: string) => void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   copyRoom: (roomId: string) => boolean;
@@ -28,7 +26,6 @@ export type ManagementContextValue = {
   setRoomLocked: (roomId: string, locked: boolean) => boolean;
   deleteRoom: (roomId: string) => boolean;
   exportRoom: (roomId: string) => boolean;
-  importRoom: (raw: string) => string | null;
   globalRuntimeModel: RuntimeModelOption | null;
   runTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
   regenerateDirectorProfile: (

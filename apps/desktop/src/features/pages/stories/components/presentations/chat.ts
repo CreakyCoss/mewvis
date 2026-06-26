@@ -11,13 +11,13 @@ export const chatStoryPresentation = {
   },
   open: ({
     workspace,
-    seed,
+    activeStory,
     navigate,
     nodeId,
   }) => {
-    const targetNodeId = resolveStoryNodeId(seed, nodeId);
+    const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
     const search = [
-      `storyId=${encodeURIComponent(seed.story.id)}`,
+      `storyId=${encodeURIComponent(activeStory.id)}`,
       targetNodeId ? `storyNodeId=${encodeURIComponent(targetNodeId)}` : "",
     ].filter(Boolean).join("&");
 

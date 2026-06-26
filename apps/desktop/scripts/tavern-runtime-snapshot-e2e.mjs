@@ -8,21 +8,25 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-runtime-snapshot-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const generatedPresetRoomPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/generated-preset-room.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
+const presentationInputPath = resolve(workspaceRoot, "src/features/pages/tavern/presentation/input/index.ts");
 const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
-const storyAdapterPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/story/index.ts");
+const storyTavernInputPath = resolve(workspaceRoot, "src/features/pages/stories/components/presentations/tavern-input.ts");
+const storyPath = resolve(workspaceRoot, "src/features/story/index.ts");
 
 writeFileSync(entryPath, `
   import {
     createTavernRoom,
   } from ${JSON.stringify(manualFactoriesPath)};
   import {
-    createTavernRoomFromGeneratedPresetJson,
-  } from ${JSON.stringify(generatedPresetRoomPath)};
+    materializeTavernPresentationInput,
+  } from ${JSON.stringify(presentationInputPath)};
   import {
-    createTavernGeneratedPresetFromStoryPresentationSeed,
-  } from ${JSON.stringify(storyAdapterPath)};
+    createTavernPresentationInputFromStoryDataPackage,
+  } from ${JSON.stringify(storyTavernInputPath)};
+  import {
+    getStoryNodeDataPackage,
+  } from ${JSON.stringify(storyPath)};
   import {
     createTavernRuntimeRoomSnapshot,
     materializeTavernRuntimeRoomSnapshot,
@@ -138,17 +142,13 @@ writeFileSync(entryPath, `
     materialized.messagesByInstance,
   );
 
-  const seedPreset = createTavernGeneratedPresetFromStoryPresentationSeed({
-    version: 1,
-    story: {
-      id: "story-seed",
-      title: "种子故事",
-      outline: "故事 seed 负责给呈现层提供标准数据。",
-      goal: "验证 tavern adapter 不依赖完整 StoryAsset。",
-      userPersonaName: "调查人",
-      createdAt: 1_800_000_300_000,
-      updatedAt: 1_800_000_300_100,
-    },
+  const storyAsset = {
+    id: "story-seed",
+    workspaceId: "workspace-source",
+    title: "种子故事",
+    outline: "故事资产负责维护内容，酒馆桥接负责转成酒馆输入。",
+    goal: "验证 tavern adapter 使用酒馆私有输入格式。",
+    userPersonaName: "调查人",
     graph: {
       entryNodeId: "node-entry",
       activeNodeId: "node-target",
@@ -213,6 +213,8 @@ writeFileSync(entryPath, `
         name: "穆青檐",
         description: "档案馆管理员。",
         speakingStyle: "克制。",
+        relationshipSummary: "",
+        publicRelationshipSummary: "",
         memory: {
           required: "",
           public: "知道潮汐钟异常。",
@@ -222,38 +224,44 @@ writeFileSync(entryPath, `
         },
       },
     ],
-    world: {
-      lorebookEntries: [
-        {
-          id: "lore-clock",
-          title: "潮汐钟",
-          content: "潮汐钟只在潮差异常时停摆。",
-          keywords: ["潮汐钟"],
-          enabled: true,
-          alwaysOn: true,
-        },
-      ],
+    lorebookEntries: [
+      {
+        id: "lore-clock",
+        title: "潮汐钟",
+        content: "潮汐钟只在潮差异常时停摆。",
+        keywords: ["潮汐钟"],
+        enabled: true,
+        alwaysOn: true,
+      },
+    ],
+    manuscriptInbox: {
+      version: 1,
+      drafts: [],
+      accepted: [],
     },
-    targetNodeId: "node-target",
-    openingMessage: "从 seed 创建 tavern 呈现。",
-  });
-  const seedMaterialized = createTavernRoomFromGeneratedPresetJson(
+    sourceRefs: [],
+    createdAt: 1_800_000_300_000,
+    updatedAt: 1_800_000_300_100,
+  };
+  const tavernInput = createTavernPresentationInputFromStoryDataPackage(
+    getStoryNodeDataPackage(storyAsset, { nodeId: "node-target" }),
+  );
+  const seedMaterialized = materializeTavernPresentationInput(
     "workspace-seed",
-    seedPreset,
+    tavernInput,
     {
       roomId: "room-from-seed",
-      storyId: "story-seed",
       createdAt: 1_800_000_300_200,
     },
   );
   assert(
-    seedPreset.room?.storyGraph?.activeNodeId === "node-target" &&
-      seedPreset.room?.scenes?.length === 2 &&
-      seedPreset.characters?.[0]?.memory?.includes("潮汐钟异常") &&
+    tavernInput.route.activeNodeId === "node-target" &&
+      tavernInput.scenes.items.length === 2 &&
+      tavernInput.cast.characters[0]?.memory?.includes("潮汐钟异常") &&
       seedMaterialized.room.storyBinding?.storyId === "story-seed" &&
       seedMaterialized.room.storyGraph.activeNodeId === "node-target" &&
       seedMaterialized.room.sceneInstances.some((instance) => instance.nodeId === "node-target"),
-    "tavern adapter 应能从标准故事 seed 创建运行预设。",
+    "story tavern bridge 应能从故事标准数据包创建酒馆私有输入并物化运行房间。",
     seedMaterialized.room,
   );
 `);

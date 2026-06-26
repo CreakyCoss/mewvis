@@ -5,10 +5,6 @@ import {
   looksLikeCharacterCard,
 } from "./import-json-character-card";
 import {
-  createDraftFromGeneratedPreset,
-  looksLikeGeneratedPreset,
-} from "./import-json-generated-preset";
-import {
   createDraftFromScript,
   looksLikeScript,
 } from "./import-json-script";
@@ -23,10 +19,6 @@ export const createStoryImportDraftInputFromJsonValue = (
 ): StoryImportDraftInput => {
   if (!isRecord(value)) {
     throw new Error("导入内容必须是 JSON 对象。");
-  }
-
-  if (looksLikeGeneratedPreset(value)) {
-    return createDraftFromGeneratedPreset(value);
   }
 
   if (looksLikeCharacterCard(value)) {

@@ -41,15 +41,13 @@ writeFileSync(entryPath, `
 
   const materialized = createTavernRoomFromSystemPreset(
     "workspace-prompt-preview",
-    "raincity-silent-manuscript",
+    "raincity-mystery-stage",
     {
       roomId: "room-prompt-preview",
       createdAt: 1_800_000_000_000,
       characterIdByPresetId: new Map([
-        ["rc-ji-ling", "char-ji"],
-        ["rc-yuan-ci", "char-yuan"],
-        ["rc-su-yan", "char-su"],
-        ["rc-he-mu", "char-he"],
+        ["rc-stage-director", "char-director"],
+        ["rc-stage-narrator", "char-narrator"],
       ]),
       markAsSystemPreset: false,
     },
@@ -218,7 +216,7 @@ writeFileSync(entryPath, `
     ? resolveTavernPromptWarningNavigation(loreWarning, room)
     : null;
   assert(loreNavigation?.target === "storyConfig", "世界书诊断应导航到故事配置。", loreNavigation);
-  const characterWarning = findWarning(preview, "editable-system-like-tag:character:char-ji:description");
+  const characterWarning = findWarning(preview, "editable-system-like-tag:character:char-director:description");
   const characterNavigation = characterWarning
     ? resolveTavernPromptWarningNavigation(characterWarning, room)
     : null;

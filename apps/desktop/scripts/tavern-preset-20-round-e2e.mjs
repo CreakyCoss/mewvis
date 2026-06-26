@@ -73,78 +73,66 @@ writeFileSync(entryPath, `
     status: "done",
   });
 
-  const novelPresetCases = [
+  const shellPresetCases = [
     {
       key: "raincity",
-      presetId: "raincity-silent-manuscript",
+      presetId: "raincity-mystery-stage",
       roomId: "room-raincity-20",
       characterIds: {
-        "rc-ji-ling": "rain-ji",
-        "rc-yuan-ci": "rain-yuan",
-        "rc-su-yan": "rain-su",
-        "rc-he-mu": "rain-he",
+        "rc-stage-director": "rain-director",
+        "rc-stage-narrator": "rain-narrator",
       },
-      targetCharacterId: "rain-yuan",
+      targetCharacterId: "rain-narrator",
       eventRounds: [
-        { round: 5, type: "fragment_found", target: { type: "scene" } },
-        { round: 10, type: "author_sheltered", target: { type: "global" } },
-        { round: 15, type: "voice_fragment", target: { type: "character", characterId: "rain-yuan" } },
+        { round: 1, type: "story_input_received", target: { type: "scene" } },
+        { round: 5, type: "evidence_confirmed", target: { type: "scene" } },
+        { round: 10, type: "premature_reveal", target: { type: "scene" } },
       ],
       statusChecks: [
-        { scope: { type: "scene" }, statusId: "manuscript_integrity", expected: 60 },
-        { scope: { type: "global" }, statusId: "author_safety", expected: 70 },
-        { scope: { type: "character", characterId: "rain-yuan" }, statusId: "voice_recovery", expected: 50 },
+        { scope: { type: "scene" }, statusId: "evidence_focus", expected: 65 },
+        { scope: { type: "scene" }, statusId: "reveal_pressure", expected: 40 },
       ],
-      completedTaskId: "rc-recover-first-chapter",
-      outcomeId: "rc-manuscript-remembers",
+      completedTaskId: "mystery-shell-receive-story",
     },
     {
       key: "snowridge",
-      presetId: "snowridge-sword-oath",
+      presetId: "snowridge-wuxia-stage",
       roomId: "room-snowridge-20",
       characterIds: {
-        "sx-lin-zhaoye": "snow-lin",
-        "sx-gu-tingxue": "snow-gu",
-        "sx-qiu-heng": "snow-qiu",
-        "sx-jingchen": "snow-jing",
+        "sx-stage-director": "snow-director",
+        "sx-stage-narrator": "snow-narrator",
       },
-      targetCharacterId: "snow-gu",
+      targetCharacterId: "snow-narrator",
       eventRounds: [
-        { round: 5, type: "oath_verified", target: { type: "scene" } },
-        { round: 10, type: "ambush_deflected", target: { type: "global" } },
-        { round: 15, type: "wound_treated", target: { type: "character", characterId: "snow-lin" } },
+        { round: 1, type: "story_input_received", target: { type: "scene" } },
+        { round: 5, type: "pressure_rises", target: { type: "scene" } },
+        { round: 10, type: "action_clarified", target: { type: "scene" } },
       ],
       statusChecks: [
-        { scope: { type: "scene" }, statusId: "oath_clarity", expected: 55 },
-        { scope: { type: "global" }, statusId: "sect_pressure", expected: 45 },
-        { scope: { type: "character", characterId: "snow-lin" }, statusId: "wound_risk", expected: 35 },
+        { scope: { type: "scene" }, statusId: "jianghu_pressure", expected: 50 },
+        { scope: { type: "scene" }, statusId: "action_clarity", expected: 70 },
       ],
-      completedTaskId: "sx-read-oath-stone",
-      outcomeId: "sx-oath-restored",
+      completedTaskId: "wuxia-shell-receive-story",
     },
     {
       key: "orbital",
-      presetId: "orbital-ashes-letter",
+      presetId: "orbital-scifi-stage",
       roomId: "room-orbital-20",
       characterIds: {
-        "oa-lan-qiao": "orbit-lan",
-        "oa-mira": "orbit-mira",
-        "oa-ren-ke": "orbit-ren",
-        "oa-yi-sen": "orbit-yi",
+        "oa-stage-director": "orbit-director",
+        "oa-stage-narrator": "orbit-narrator",
       },
-      targetCharacterId: "orbit-mira",
+      targetCharacterId: "orbit-narrator",
       eventRounds: [
-        { round: 5, type: "signal_decoded", target: { type: "scene" } },
-        { round: 10, type: "orbit_stabilized", target: { type: "global" } },
-        { round: 15, type: "oxygen_restored", target: { type: "character", characterId: "orbit-ren" } },
+        { round: 1, type: "story_input_received", target: { type: "scene" } },
+        { round: 5, type: "system_warning", target: { type: "scene" } },
+        { round: 10, type: "signal_clarified", target: { type: "scene" } },
       ],
       statusChecks: [
-        { scope: { type: "scene" }, statusId: "signal_integrity", expected: 65 },
-        { scope: { type: "global" }, statusId: "station_decay", expected: 47 },
-        { scope: { type: "character", characterId: "orbit-ren" }, statusId: "oxygen_margin", expected: 80 },
+        { scope: { type: "scene" }, statusId: "system_pressure", expected: 55 },
+        { scope: { type: "scene" }, statusId: "signal_clarity", expected: 60 },
       ],
-      completedTaskId: "oa-decode-ember-letter",
-      outcomeId: "oa-letter-opened",
+      completedTaskId: "scifi-shell-receive-story",
     },
   ];
 
@@ -239,13 +227,11 @@ writeFileSync(entryPath, `
       ])),
       completedTaskId: presetCase.completedTaskId,
       completedTaskStatus: room.taskSnapshot[presetCase.completedTaskId]?.status,
-      outcomeId: presetCase.outcomeId,
-      hasOutcome: room.outcomeEvents.some((event) => event.outcomeId === presetCase.outcomeId),
     };
   };
 
   globalThis.__tavernPresetTwentyRoundChecks = {
-    presets: novelPresetCases.map(runNovelPresetTwentyRounds),
+    presets: shellPresetCases.map(runNovelPresetTwentyRounds),
   };
 `, "utf8");
 
@@ -276,36 +262,36 @@ try {
   assert(checks, "20-round preset checks did not run");
 
   const { presets } = checks;
-  assert(Array.isArray(presets) && presets.length === 3, "Novel preset 20-round checks should cover all current presets", {
+  assert(Array.isArray(presets) && presets.length === 3, "Shell preset 20-round checks should cover all current default taverns", {
     presetCount: presets?.length,
   });
 
   for (const preset of presets) {
-    assert(preset.room.replyMode === "director", "Novel preset should use director reply mode", {
+    assert(preset.room.replyMode === "director", "Shell preset should use director reply mode", {
       presetId: preset.presetId,
       replyMode: preset.room.replyMode,
     });
-    assert(preset.orders.length === 20, "Novel preset should run exactly 20 rounds", {
+    assert(preset.orders.length === 20, "Shell preset should run exactly 20 rounds", {
       presetId: preset.presetId,
       rounds: preset.orders.length,
     });
     assert(
       preset.orders.every((order) => order.length > 0),
-      "Novel preset scheduling should keep at least one speaker each round",
+      "Shell preset scheduling should keep at least one speaker each round",
       { presetId: preset.presetId, orders: preset.orders },
     );
     assert(
       preset.mappedCharacterIds.every((characterId) =>
         preset.orders.some((order) => order.includes(characterId))
       ),
-      "Novel preset mapped characters should all appear in 20-round scheduling",
+      "Shell preset mapped characters should all appear in 20-round scheduling",
       { presetId: preset.presetId, mappedCharacterIds: preset.mappedCharacterIds, orders: preset.orders },
     );
     assert(
       Object.entries(preset.expectedStatusValues).every(([statusId, expected]) =>
         preset.statusValues[statusId] === expected
       ),
-      "Novel preset progress events should update configured statuses",
+      "Shell preset progress events should update configured statuses",
       {
         presetId: preset.presetId,
         statusValues: preset.statusValues,
@@ -314,20 +300,11 @@ try {
     );
     assert(
       preset.completedTaskStatus === "completed",
-      "Novel preset primary task should complete during 20-round progression",
+      "Shell preset receive-story task should complete during 20-round progression",
       {
         presetId: preset.presetId,
         taskId: preset.completedTaskId,
         taskStatus: preset.completedTaskStatus,
-      },
-    );
-    assert(
-      preset.hasOutcome,
-      "Novel preset primary outcome should be emitted during 20-round progression",
-      {
-        presetId: preset.presetId,
-        outcomeId: preset.outcomeId,
-        outcomeEvents: preset.room.outcomeEvents,
       },
     );
   }
@@ -340,7 +317,6 @@ try {
       mappedCharacterIds: preset.mappedCharacterIds,
       statusValues: preset.statusValues,
       completedTask: preset.completedTaskStatus,
-      outcomes: preset.room.outcomeEvents.map((event) => event.outcomeId),
     })),
   };
 

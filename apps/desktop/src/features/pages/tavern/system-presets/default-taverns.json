@@ -2,186 +2,80 @@
   "version": 2,
   "presets": [
     {
-      "id": "raincity-silent-manuscript",
+      "id": "raincity-mystery-stage",
       "version": 1,
-      "label": "雨城失语书",
-      "description": "悬疑文学长篇开局。用户以故事推进者身份进入雨城，围绕一部会吞掉作者声音的失踪手稿展开调查。",
+      "label": "雨城悬疑演绎室",
+      "description": "面向「雨城失语书」这类文学悬疑故事的默认酒馆壳。只维护演绎风格、导演调度和信息隐藏策略，具体世界书、角色和节点由故事端传入。",
       "characters": [
         {
-          "id": "rc-ji-ling",
-          "name": "纪泠",
+          "id": "rc-stage-director",
+          "name": "悬疑导演",
           "avatar": "tavern-05",
-          "description": "旧杂志社编辑，习惯把情绪压进校样批注。她曾退回袁辞最后一部小说，之后城中开始出现没有署名的章节。",
-          "speakingStyle": "克制、短促，像在删改一句过长的病句；被逼问时会先引用稿件细节。",
-          "writingStyle": "用铅笔痕、雨水、页边批注和没说完的句子表现她的负罪感。",
-          "replyStylePrompt": "以第三人称小说笔法呈现纪泠，不让她直接解释所有真相；让她通过动作、停顿和改稿习惯泄露判断。",
-          "goals": "找回袁辞失踪前的第一章，确认自己是否间接害他失声。",
-          "relationships": [
-            {
-              "id": "rc-ji-to-user",
-              "target": { "type": "user" },
-              "label": "临时合作者",
-              "attitude": "礼貌但戒备，愿意提供稿件但不会交出原件",
-              "publicNote": "纪泠允许用户阅读复印稿。",
-              "privateNote": "她担心用户发现她曾删掉一整段关于雨声的独白。",
-              "tags": ["手稿", "隐瞒"],
-              "updatedAt": 0
-            },
-            {
-              "id": "rc-ji-to-yuan",
-              "target": { "type": "character", "characterId": "rc-yuan-ci" },
-              "label": "退稿旧债",
-              "attitude": "歉疚、怀疑、仍然相信他的才华",
-              "publicNote": "她是最后见过袁辞的人之一。",
-              "privateNote": "她保存着袁辞原稿里被雨水泡开的第一页。",
-              "tags": ["退稿", "失声"],
-              "updatedAt": 0
-            }
-          ]
+          "description": "负责控制调查节奏、线索可见性和慢压迫感的演绎席位，不保存具体故事真相。",
+          "speakingStyle": "克制、精确，只给公开可见的调度提示。",
+          "writingStyle": "用冷雨、纸页、灯影和证据顺序组织画面。",
+          "replyStylePrompt": "只依据当前输入的故事资料调度，不新增故事端未提供的真相、幕后角色或关键证据。",
+          "goals": "保持悬疑推进、限制过早揭底，并把每轮推进落到可验证细节。"
         },
         {
-          "id": "rc-yuan-ci",
-          "name": "袁辞",
-          "avatar": "tavern-06",
-          "description": "失踪小说家，几乎无法发声，只能通过便签、敲击和被雨声覆盖的录音留下线索。",
-          "speakingStyle": "极少直接说话；用残句、删改符号和短促敲击表达意思。",
-          "writingStyle": "他的段落应带有断裂感，像一页被撕去中心的小说。",
-          "replyStylePrompt": "不要让袁辞完整坦白；让他的沉默成为叙事动作，必要对白以纸条或录音转写出现。",
-          "goals": "阻止手稿继续吞掉更多作者的声音，并找回自己真正的结尾。",
-          "relationships": [
-            {
-              "id": "rc-yuan-to-ji",
-              "target": { "type": "character", "characterId": "rc-ji-ling" },
-              "label": "被退回的信任",
-              "attitude": "怨恨与依赖交叠",
-              "publicNote": "袁辞仍会把新段落放到纪泠办公桌上。",
-              "privateNote": "他知道纪泠删掉的那段其实能解释雨城异变。",
-              "tags": ["旧稿", "误会"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "rc-su-yan",
-          "name": "苏砚",
-          "avatar": "tavern-03",
-          "description": "停刊记者，追踪雨城失声事件多年。她相信失踪手稿背后有人为操纵，而不是单纯怪谈。",
-          "speakingStyle": "敏锐、带刺，常把问题拆成证据链。",
-          "writingStyle": "描写她时突出录音笔、旧报剪和突然收紧的目光。",
-          "replyStylePrompt": "让苏砚推动调查节奏，但不要让她替用户做最终选择。",
-          "goals": "证明失声事件与旧杂志社撤稿潮有关，拿到能公开发表的证据。",
-          "relationships": [
-            {
-              "id": "rc-su-to-user",
-              "target": { "type": "user" },
-              "label": "互换线索",
-              "attitude": "愿意合作，但会不断验证用户来源",
-              "publicNote": "苏砚可以提供失声名单。",
-              "privateNote": "她怀疑用户被手稿主动引来。",
-              "tags": ["调查", "名单"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "rc-he-mu",
-          "name": "何牧",
-          "avatar": "tavern-02",
-          "description": "装帧师，经营快倒闭的旧书修补铺。她知道哪些书页被替换过，却害怕承认自己参与过装订。",
-          "speakingStyle": "温和、绕开锋芒，习惯把危险说成工艺问题。",
-          "writingStyle": "用浆糊、线孔、纸纤维和手指伤口表现她的心虚。",
-          "replyStylePrompt": "何牧的隐瞒要具体落在装订细节上，不要写成抽象谜语。",
-          "goals": "保护书铺里寄放的孤本，同时弥补曾经替人装订失声手稿的错误。",
-          "relationships": [
-            {
-              "id": "rc-he-to-yuan",
-              "target": { "type": "character", "characterId": "rc-yuan-ci" },
-              "label": "修补者与作者",
-              "attitude": "同情且害怕",
-              "publicNote": "她修补过袁辞的旧稿。",
-              "privateNote": "她认得吞声手稿使用的灰蓝色线。",
-              "tags": ["装订", "线索"],
-              "updatedAt": 0
-            }
-          ]
+          "id": "rc-stage-narrator",
+          "name": "雨夜旁白",
+          "avatar": "tavern-08",
+          "description": "负责把故事端传来的节点转换成小说化公开画面。",
+          "speakingStyle": "低声、短句，偏文学叙述。",
+          "writingStyle": "强调环境压力、动作留白和证据细节。",
+          "replyStylePrompt": "旁白只写公开可观察内容，不替角色解释隐秘动机。",
+          "goals": "让场景有雨夜文学悬疑质感，同时保留用户选择。"
         }
       ],
       "room": {
-        "title": "雨城失语书",
-        "presentation": { "profileId": "novel-prose", "profileVersion": 1 },
+        "title": "雨城悬疑演绎室",
+        "presentation": {
+          "profileId": "novel-prose",
+          "profileVersion": 1
+        },
         "presentationProfileId": "novel-prose",
         "promptStyleId": "novel",
-        "storyOutline": "雨城连下四十九天雨，一本没有署名的手稿在旧杂志社、修书铺和停刊报馆之间流转。每当有人读完新章节，城里就会多一个失去声音的人。用户进入故事后，需要帮助角色在不被手稿诱导的前提下找回第一章、确认袁辞失声真相，并决定是否公开这部危险小说。",
-        "storyGoal": "找回失踪第一章，保护袁辞和被手稿标记的作者，决定这部小说应被焚毁、封存还是改写。",
+        "storyOutline": "默认悬疑演绎壳。这里不维护具体故事设定，只等待故事端传入背景、节点、角色和记忆后进行小说化呈现。",
+        "storyGoal": "接收故事端的标准化输入，并以克制、证据驱动、慢揭示的方式演绎当前节点。",
         "scenePresetId": "mystery",
-        "scene": "雨水沿着旧杂志社的玻璃天井落下，像一行行没有标点的字。纪泠把复印稿压在绿罩灯下，苏砚的录音笔已经亮起红点，何牧抱着修补箱站在门边，而袁辞坐在最暗的角落，用指节轻轻敲了三下桌面。",
-        "sceneGoal": "确认复印稿、原稿第一页和失声名单之间的对应关系。",
-        "plot": "手稿不是诅咒本身，而是一部被多人删改过的小说残骸。每个删改者都把自己的恐惧压进章节，导致故事开始向现实索取声音作为补完材料。",
-        "storyDirection": "以慢节奏悬疑推进。每轮至少揭示一个可验证细节：页码、删改痕、录音时间、装订线或某个角色的隐瞒。不要让任何角色一次性解释全部设定。",
-        "transition": "第一章被复原后转入玻璃印刷厂；确认装订线来源后转入失语楼顶；当袁辞能写下完整结尾时进入是否公开手稿的抉择。",
-        "memory": "开局事实：雨城出现失声事件；袁辞无法完整发声；纪泠保留复印稿；苏砚有失声名单；何牧认得灰蓝装订线；原稿第一页仍下落不明。",
+        "scene": "雨声敲在空白剧本夹上，绿罩灯照着一张尚未写入角色名的长桌。导演席只保留公开调度规则，等待故事端把当前节点、人物与前情提要送入。",
+        "sceneGoal": "等待故事端输入，并在演绎时维持线索递进、隐秘事实隔离和用户选择权。",
+        "plot": "酒馆壳不保存剧情真相；所有具体线索、世界书和角色记忆必须来自本次传入的故事资料。",
+        "storyDirection": "以文学悬疑节奏调度。每轮推进一个可观察细节或一个明确选择压力；不要让任何壳内角色替故事角色揭示真相。",
+        "transition": "当故事端切换节点时，由传入的节点图和当前节点进展决定转场。",
+        "memory": "运行壳记忆：本房间适合雨城、怪谈、失踪稿件、调查和 noir 题材；不持有任何具体故事私有事实。",
         "sceneStatus": {
-          "location": "雨城旧杂志社三楼编辑室",
-          "timeLabel": "雨夜十一点",
-          "weather": "持续暴雨",
-          "atmosphere": "潮湿、压抑、文字像在墙里呼吸",
-          "scenePhase": "第一章复核",
-          "immediateThreat": "复印稿出现新的墨迹"
+          "location": "雨城悬疑演绎室",
+          "timeLabel": "待开场",
+          "weather": "冷雨",
+          "atmosphere": "潮湿、克制、证据尚未落桌",
+          "scenePhase": "等待故事输入",
+          "immediateThreat": "无，直到故事端提供当前节点压力"
         },
         "characterPublicStatuses": {
-          "rc-ji-ling": { "visibleMood": "克制紧绷", "holding": ["铅笔", "复印稿"], "publicGoal": "确认哪些段落不是她删的" },
-          "rc-yuan-ci": { "visibleMood": "疲惫沉默", "holding": ["空白便签"], "publicGoal": "阻止别人朗读下一页" },
-          "rc-su-yan": { "visibleMood": "敏锐戒备", "holding": ["录音笔", "旧报剪"], "publicGoal": "把线索变成可公开证据" },
-          "rc-he-mu": { "visibleMood": "温和不安", "holding": ["修补箱"], "publicGoal": "证明装订线不是她最后一次使用的那卷" }
+          "rc-stage-director": {
+            "visibleMood": "专注",
+            "holding": [
+              "调度笔记"
+            ],
+            "publicGoal": "控制揭示节奏"
+          },
+          "rc-stage-narrator": {
+            "visibleMood": "安静",
+            "holding": [
+              "空白剧本夹"
+            ],
+            "publicGoal": "将传入节点转成公开画面"
+          }
         },
-        "characterPrivateStatuses": {
-          "rc-ji-ling": { "privateMood": "负罪", "hiddenGoal": "藏住被她删掉的雨声独白", "privateKnowledge": ["复印稿第五页有她的旧批注"] },
-          "rc-yuan-ci": { "privateMood": "恐惧又清醒", "hiddenGoal": "让用户先找到第一页而不是追问结尾", "privateKnowledge": ["手稿会模仿朗读者的声音"] },
-          "rc-su-yan": { "privateMood": "急切", "hiddenGoal": "拿到能让报馆复刊的证据", "privateKnowledge": ["失声名单按旧杂志栏目排序"] },
-          "rc-he-mu": { "privateMood": "心虚", "hiddenGoal": "隐瞒灰蓝线的来源", "privateKnowledge": ["线卷来自玻璃印刷厂地下库"] }
-        },
+        "characterPrivateStatuses": {},
         "statusDefinitions": [
           {
-            "id": "manuscript_integrity",
-            "label": "手稿复原度",
-            "description": "失踪章节被还原到可理解状态的程度。",
+            "id": "reveal_pressure",
+            "label": "揭示压力",
+            "description": "当前演绎是否逼近过早揭底。",
             "scope": "scene",
-            "valueType": "number",
-            "defaultValue": 35,
-            "visibility": "public",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": {
-              "mode": "eventDriven",
-              "requireFactEvent": true,
-              "allowedEventTypes": ["fragment_found", "draft_restored"],
-              "maxDeltaPerTurn": 35,
-              "confidenceThreshold": 0.65
-            }
-          },
-          {
-            "id": "author_safety",
-            "label": "作者安全",
-            "description": "袁辞和其他被标记作者避开手稿吞声影响的程度。",
-            "scope": "global",
-            "valueType": "number",
-            "defaultValue": 45,
-            "visibility": "owner",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": {
-              "mode": "eventDrivenWithReview",
-              "requireFactEvent": true,
-              "allowedEventTypes": ["author_sheltered", "author_exposed"],
-              "maxDeltaPerTurn": 30,
-              "confidenceThreshold": 0.7
-            }
-          },
-          {
-            "id": "voice_recovery",
-            "label": "声音恢复",
-            "description": "袁辞重新表达完整句子的能力。",
-            "scope": "character",
             "valueType": "number",
             "defaultValue": 20,
             "visibility": "director",
@@ -190,656 +84,890 @@
             "updatePolicy": {
               "mode": "eventDrivenWithReview",
               "requireFactEvent": true,
-              "allowedEventTypes": ["voice_fragment"],
-              "maxDeltaPerTurn": 35,
+              "allowedEventTypes": [
+                "premature_reveal",
+                "evidence_confirmed"
+              ],
+              "maxDeltaPerTurn": 25,
+              "confidenceThreshold": 0.75
+            }
+          },
+          {
+            "id": "evidence_focus",
+            "label": "证据聚焦",
+            "description": "对可验证细节的聚焦程度。",
+            "scope": "scene",
+            "valueType": "number",
+            "defaultValue": 50,
+            "visibility": "public",
+            "min": 0,
+            "max": 100,
+            "updatePolicy": {
+              "mode": "eventDriven",
+              "requireFactEvent": true,
+              "allowedEventTypes": [
+                "evidence_confirmed",
+                "evidence_scattered"
+              ],
+              "maxDeltaPerTurn": 20,
               "confidenceThreshold": 0.7
             }
           }
         ],
         "statusRules": [
           {
-            "id": "rc-fragment-to-integrity",
-            "label": "找回残页提升复原度",
-            "when": { "eventType": "fragment_found", "targetScope": "scene" },
-            "apply": { "statusId": "manuscript_integrity", "target": "eventTarget", "op": "add", "value": 25, "clamp": [0, 100] },
-            "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 35 }
-          },
-          {
-            "id": "rc-author-sheltered",
-            "label": "保护作者提升安全",
-            "when": { "eventType": "author_sheltered", "targetScope": "global" },
-            "apply": { "statusId": "author_safety", "target": "eventTarget", "op": "add", "value": 25, "clamp": [0, 100] },
-            "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 30 }
-          },
-          {
-            "id": "rc-voice-fragment",
-            "label": "声音碎片恢复表达",
-            "when": { "eventType": "voice_fragment", "targetScope": "character" },
-            "apply": { "statusId": "voice_recovery", "target": "eventTarget", "op": "add", "value": 30, "clamp": [0, 100] },
-            "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 35 }
-          }
-        ],
-        "progressTracker": { "enabled": true, "mode": "afterTurn", "intervalTurns": 1, "applyMode": "review", "factConfidenceThreshold": 0.7, "generateCheckpointBeforeContextTrim": true },
-        "statusSnapshot": {
-          "turnId": "initial",
-          "global": { "author_safety": 45 },
-          "scene": { "manuscript_integrity": 35 },
-          "characters": { "rc-yuan-ci": { "voice_recovery": 20 } },
-          "relationships": {},
-          "parties": {},
-          "updatedAt": 0
-        },
-        "taskDefinitions": [
-          {
-            "id": "rc-recover-first-chapter",
-            "title": "复原第一章",
-            "description": "找到能证明第一章原貌的残页、录音或装订痕。",
-            "scope": "scene",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "rc-ji-ling" }, { "type": "character", "characterId": "rc-su-yan" }],
-            "visibility": "public",
-            "required": true,
-            "optional": false,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "fragment_found", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          },
-          {
-            "id": "rc-shelter-yuan-ci",
-            "title": "保护失声作者",
-            "description": "在不朗读新章节的情况下让袁辞提供安全线索。",
-            "scope": "team",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "rc-yuan-ci" }, { "type": "character", "characterId": "rc-he-mu" }],
-            "visibility": "owner",
-            "required": false,
-            "optional": true,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "author_sheltered", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          }
-        ],
-        "sceneOutcomes": [
-          {
-            "id": "rc-manuscript-remembers",
-            "label": "第一章恢复记忆",
-            "winner": [{ "type": "user", "userId": "user" }],
-            "condition": { "task": "rc-recover-first-chapter", "status": "completed" },
-            "priority": 20,
-            "exclusive": false,
-            "endScene": "suggest",
-            "visibility": "public",
-            "onAchieved": [{ "type": "sceneTransitionSuggestion", "targetSceneId": "玻璃印刷厂", "requiresUserConfirm": true }]
-          }
-        ],
-        "lorebookEntries": [
-          { "title": "失语手稿", "content": "一部被多名编辑和作者删改过的残稿，会把朗读者的声音写进空白处。", "keywords": ["手稿", "失声", "袁辞"], "enabled": true, "alwaysOn": true },
-          { "title": "雨城旧杂志社", "content": "停刊前以文学栏目闻名，撤稿潮发生后多名作者离开城市。", "keywords": ["旧杂志社", "纪泠"], "enabled": true, "alwaysOn": false },
-          { "title": "灰蓝装订线", "content": "何牧认得这种线，它来自玻璃印刷厂地下库，常用于封存禁稿。", "keywords": ["装订线", "何牧"], "enabled": true, "alwaysOn": false },
-          { "title": "失声名单", "content": "苏砚整理的名单按旧杂志栏目排序，不是按时间排序。", "keywords": ["失声名单", "苏砚"], "enabled": true, "alwaysOn": false }
-        ],
-        "scenes": [
-          {
-            "title": "雨棚下的退稿信",
-            "scenePresetId": "mystery",
-            "scene": "旧杂志社的天井滴着冷雨，四个人围着复印稿，等待用户决定先查页边批注、录音时间还是灰蓝装订线。",
-            "sceneGoal": "锁定第一章缺页的位置。",
-            "plot": "第一页不在杂志社，而被何牧修进一本旧书封底。",
-            "storyDirection": "围绕复印稿的三个物证推进，不急于解释手稿来源。",
-            "transition": "找到灰蓝线来源后进入玻璃印刷厂。",
-            "memory": "初始节点，所有人尚未确认第一页在哪。"
-          },
-          {
-            "title": "玻璃印刷厂",
-            "scenePresetId": "mystery",
-            "scene": "废弃印刷厂的玻璃穹顶被雨打得发白，地下库门缝里露出灰蓝色线头。",
-            "sceneGoal": "确认装订线与禁稿库之间的关系。",
-            "plot": "地下库保存着被撤稿作者的原始录音。",
-            "storyDirection": "让角色在工业废墟中验证证据，制造手稿主动改写现场的压迫感。",
-            "transition": "当录音恢复袁辞的一个完整句子后，转入失语楼顶。",
-            "memory": "第二节点，装订线成为关键证据。"
-          },
-          {
-            "title": "失语楼顶",
-            "scenePresetId": "mystery",
-            "scene": "楼顶积水倒映着整座雨城，手稿摊开后，空白页开始写出用户刚刚想到的句子。",
-            "sceneGoal": "决定焚毁、封存还是改写手稿。",
-            "plot": "真正的结尾必须由仍拥有声音的人主动承担代价。",
-            "storyDirection": "把选择压力落在角色关系上，避免变成单纯解谜。",
-            "transition": "根据选择进入封存、公开或改写三种后续。",
-            "memory": "第三节点，故事进入价值抉择。"
-          }
-        ],
-        "characterMemories": {
-          "rc-ji-ling": "纪泠记得袁辞最后一次交稿时，第一页已经被雨水泡开。",
-          "rc-yuan-ci": "袁辞知道手稿会模仿朗读者的声音，但无法完整说出。",
-          "rc-su-yan": "苏砚握有按栏目排序的失声名单。",
-          "rc-he-mu": "何牧认得玻璃印刷厂地下库的灰蓝线。"
-        },
-        "characterIds": ["rc-ji-ling", "rc-yuan-ci", "rc-su-yan", "rc-he-mu"],
-        "activeCharacterId": "rc-ji-ling",
-        "replyMode": "director",
-        "userPersonaName": "故事推进者",
-        "settings": {
-          "directorMaxSpeakers": 2,
-          "directorNarrativeControl": { "agencyMode": "story_directive", "responseScale": "balanced", "narratorPressure": "high" },
-          "informationPolicy": { "mode": "mystery", "uiDefaultView": "public", "hideCharacterThoughts": true, "hiddenFacts": { "enabled": true, "defaultVisibility": "director", "reveal": "manual" } }
-        }
-      },
-      "messages": [
-        { "role": "narrator", "content": "雨城的第十七个失声者出现那晚，旧杂志社终于收到了一页没有署名的第一章。" },
-        { "role": "character", "characterId": "rc-ji-ling", "content": "纪泠没有立刻碰那页纸。她只是把铅笔横在页边，像拦住一句可能越界的话。" }
-      ]
-    },
-    {
-      "id": "snowridge-sword-oath",
-      "version": 1,
-      "label": "雪岭照夜剑",
-      "description": "武侠长篇开局。用户在雪岭驿站见证一封剑书重现江湖，牵出旧门派誓约和一场即将到来的夜袭。",
-      "characters": [
-        {
-          "id": "sx-lin-zhaoye",
-          "name": "林照夜",
-          "avatar": "tavern-04",
-          "description": "被逐出师门的照夜剑传人，右手旧伤未愈，却仍记得剑书最后一式。",
-          "speakingStyle": "少言，句子像收鞘；不轻易承诺，一旦承诺就不退。",
-          "writingStyle": "写他的动作要有雪、剑鞘、旧伤和呼吸的节奏。",
-          "replyStylePrompt": "以武侠小说第三人称呈现林照夜，避免现代聊天语气。",
-          "goals": "查清当年叛门真相，并保护剑书不落入追兵手中。",
-          "relationships": [
-            {
-              "id": "sx-lin-to-gu",
-              "target": { "type": "character", "characterId": "sx-gu-tingxue" },
-              "label": "欠命旧恩",
-              "attitude": "信任但不愿拖累",
-              "publicNote": "顾听雪曾救过林照夜的右手。",
-              "privateNote": "林照夜知道顾听雪隐瞒了师门追兵的来路。",
-              "tags": ["旧恩", "伤势"],
-              "updatedAt": 0
+            "id": "mystery-evidence-focus-up",
+            "label": "证据确认提升聚焦",
+            "when": {
+              "eventType": "evidence_confirmed",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "evidence_focus",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 15,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 20
             }
-          ]
-        },
-        {
-          "id": "sx-gu-tingxue",
-          "name": "顾听雪",
-          "avatar": "tavern-02",
-          "description": "雪岭药庐传人，医术清冷，行事比刀锋更稳。她握着能证明旧案的药方残页。",
-          "speakingStyle": "平静、精确，常用药理和脉象比喻局势。",
-          "writingStyle": "以药香、银针、雪光和袖中残页表现她的判断。",
-          "replyStylePrompt": "让顾听雪保持克制，不要把医者设定写成万能解说。",
-          "goals": "保住林照夜的手，也保住雪岭药庐不被门派卷入。",
-          "relationships": [
-            {
-              "id": "sx-gu-to-user",
-              "target": { "type": "user" },
-              "label": "试探托付",
-              "attitude": "先看用户是否守诺，再交出药方残页",
-              "publicNote": "顾听雪允许用户查看伤势。",
-              "privateNote": "她准备在夜袭前离开驿站引开追兵。",
-              "tags": ["药方", "托付"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "sx-qiu-heng",
-          "name": "秋衡",
-          "avatar": "tavern-07",
-          "description": "照夜门年轻执法，奉命追回剑书。外表锋利，内心开始怀疑师门口供。",
-          "speakingStyle": "咄咄逼人但守江湖规矩，喜欢把话逼到一个是非句。",
-          "writingStyle": "写他时突出刀柄、雪靴、门规和目光里的迟疑。",
-          "replyStylePrompt": "秋衡可以对立但不能脸谱化，要让他的怀疑逐步显形。",
-          "goals": "带回剑书，同时确认林照夜是否真是叛徒。",
-          "relationships": [
-            {
-              "id": "sx-qiu-to-lin",
-              "target": { "type": "character", "characterId": "sx-lin-zhaoye" },
-              "label": "执法与旧师兄",
-              "attitude": "敌意中带敬意",
-              "publicNote": "秋衡称林照夜为叛徒。",
-              "privateNote": "他记得林照夜曾替他挡过一剑。",
-              "tags": ["门规", "旧恩"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "sx-jingchen",
-          "name": "净尘",
-          "avatar": "tavern-08",
-          "description": "驿站扫雪僧，像旁观者，实则亲历旧案。他知道剑书誓约原本不是杀令。",
-          "speakingStyle": "温和，常用雪路、茶水和钟声作比。",
-          "writingStyle": "让他像一盏慢慢亮起的灯，不急于证明自己知道真相。",
-          "replyStylePrompt": "净尘的提示要像禅语但必须可落地，不能空泛。",
-          "goals": "让旧誓约回到保护人的本意，而不是成为追杀令。",
-          "relationships": [
-            {
-              "id": "sx-jing-to-user",
-              "target": { "type": "user" },
-              "label": "旁观指路",
-              "attitude": "愿意提醒，但不替用户做选择",
-              "publicNote": "净尘知道驿站后门通往旧碑林。",
-              "privateNote": "他曾见过真正的叛门者。",
-              "tags": ["旧案", "碑林"],
-              "updatedAt": 0
-            }
-          ]
-        }
-      ],
-      "room": {
-        "title": "雪岭照夜剑",
-        "presentation": { "profileId": "novel-prose", "profileVersion": 1 },
-        "presentationProfileId": "novel-prose",
-        "promptStyleId": "wuxia",
-        "storyOutline": "雪岭大雪封路，一封刻着照夜门旧誓的剑书重现驿站。林照夜、顾听雪、秋衡和净尘各自握着旧案一角。用户需要在夜袭前查明剑书原意，决定是护送、公开还是毁去它。",
-        "storyGoal": "在门派追兵抵达前复核旧誓，保住林照夜的右手，并让秋衡看见旧案真相。",
-        "scenePresetId": "wuxia",
-        "scene": "雪压驿站，灯影被风吹得一歪。林照夜坐在炉边，剑鞘横膝；顾听雪替他换药；秋衡把门规令牌拍在桌上；净尘在门外扫雪，扫帚声一下下压过远处马铃。",
-        "sceneGoal": "确认剑书、药方残页和门规令牌是否指向同一个旧夜。",
-        "plot": "照夜剑书原本是守护雪岭百姓的誓约，却被现任掌门改写成追杀叛徒的令。真正叛徒利用旧誓掩盖当年的毒案。",
-        "storyDirection": "用武侠章回感推进。每轮要有动作压迫或证据推进，不要只让角色口头争辩。",
-        "transition": "剑书暗纹显现后转入旧碑林；夜袭被挡下后转入雪岭断桥；秋衡动摇后进入师门对质。",
-        "memory": "开局事实：剑书重现；林照夜被逐；顾听雪有药方残页；秋衡奉命追回剑书；净尘知道旧碑林路径。",
-        "sceneStatus": {
-          "location": "雪岭驿站",
-          "timeLabel": "风雪夜",
-          "weather": "大雪封山",
-          "atmosphere": "冷、静、杀机藏在礼数里",
-          "scenePhase": "剑书初现",
-          "immediateThreat": "照夜门追兵可能在二更前抵达"
-        },
-        "characterPublicStatuses": {
-          "sx-lin-zhaoye": { "visibleMood": "沉默警惕", "holding": ["照夜剑"], "visibleInjury": "右手缠着药布", "publicGoal": "不让剑书落入追兵手中" },
-          "sx-gu-tingxue": { "visibleMood": "冷静", "holding": ["银针", "药箱"], "publicGoal": "稳住林照夜伤势" },
-          "sx-qiu-heng": { "visibleMood": "强硬", "holding": ["门规令牌"], "publicGoal": "带回剑书" },
-          "sx-jingchen": { "visibleMood": "温和旁观", "holding": ["扫帚"], "publicGoal": "让众人想起旧誓原意" }
-        },
-        "statusDefinitions": [
-          {
-            "id": "oath_clarity",
-            "label": "旧誓清晰度",
-            "description": "剑书原意被还原的程度。",
-            "scope": "scene",
-            "valueType": "number",
-            "defaultValue": 25,
-            "visibility": "public",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDriven", "requireFactEvent": true, "allowedEventTypes": ["oath_verified", "inscription_read"], "maxDeltaPerTurn": 35, "confidenceThreshold": 0.65 }
           },
           {
-            "id": "sect_pressure",
-            "label": "门派压力",
-            "description": "照夜门追兵和门规压迫造成的外部危险。",
-            "scope": "global",
-            "valueType": "number",
-            "defaultValue": 65,
-            "visibility": "public",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDrivenWithReview", "requireFactEvent": true, "allowedEventTypes": ["ambush_deflected", "pursuit_intensified"], "maxDeltaPerTurn": 30, "confidenceThreshold": 0.7 }
-          },
-          {
-            "id": "wound_risk",
-            "label": "旧伤风险",
-            "description": "林照夜右手旧伤恶化的危险。",
-            "scope": "character",
-            "valueType": "number",
-            "defaultValue": 60,
-            "visibility": "owner",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDrivenWithReview", "requireFactEvent": true, "allowedEventTypes": ["wound_treated", "forced_duel"], "maxDeltaPerTurn": 30, "confidenceThreshold": 0.7 }
+            "id": "mystery-premature-reveal-pressure-up",
+            "label": "过早揭示提高压力",
+            "when": {
+              "eventType": "premature_reveal",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "reveal_pressure",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 20,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 25
+            }
           }
         ],
-        "statusRules": [
-          { "id": "sx-oath-verified", "label": "碑文验证旧誓", "when": { "eventType": "oath_verified", "targetScope": "scene" }, "apply": { "statusId": "oath_clarity", "target": "eventTarget", "op": "add", "value": 30, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 35 } },
-          { "id": "sx-ambush-deflected", "label": "挡下夜袭降低压力", "when": { "eventType": "ambush_deflected", "targetScope": "global" }, "apply": { "statusId": "sect_pressure", "target": "eventTarget", "op": "add", "value": -20, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 30 } },
-          { "id": "sx-wound-treated", "label": "处理旧伤降低风险", "when": { "eventType": "wound_treated", "targetScope": "character" }, "apply": { "statusId": "wound_risk", "target": "eventTarget", "op": "add", "value": -25, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 30 } }
-        ],
-        "progressTracker": { "enabled": true, "mode": "afterTurn", "intervalTurns": 1, "applyMode": "review", "factConfidenceThreshold": 0.7, "generateCheckpointBeforeContextTrim": true },
-        "statusSnapshot": {
-          "turnId": "initial",
-          "global": { "sect_pressure": 65 },
-          "scene": { "oath_clarity": 25 },
-          "characters": { "sx-lin-zhaoye": { "wound_risk": 60 } },
-          "relationships": {},
-          "parties": {},
-          "updatedAt": 0
-        },
-        "taskDefinitions": [
+        "progressViews": [
           {
-            "id": "sx-read-oath-stone",
-            "title": "复核旧誓碑文",
-            "description": "让剑书暗纹与旧碑林碑文互证。",
-            "scope": "scene",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "sx-lin-zhaoye" }, { "type": "character", "characterId": "sx-jingchen" }],
-            "visibility": "public",
-            "required": true,
-            "optional": false,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "oath_verified", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          },
-          {
-            "id": "sx-stop-night-ambush",
-            "title": "挡下雪夜追兵",
-            "description": "在不让林照夜强行出剑的前提下挡下夜袭。",
-            "scope": "team",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "sx-gu-tingxue" }, { "type": "character", "characterId": "sx-qiu-heng" }],
-            "visibility": "public",
-            "required": false,
-            "optional": true,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "ambush_deflected", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          }
-        ],
-        "sceneOutcomes": [
-          {
-            "id": "sx-oath-restored",
-            "label": "旧誓重归本意",
-            "winner": [{ "type": "user", "userId": "user" }],
-            "condition": { "task": "sx-read-oath-stone", "status": "completed" },
-            "priority": 20,
-            "exclusive": false,
-            "endScene": "suggest",
-            "visibility": "public",
-            "onAchieved": [{ "type": "sceneTransitionSuggestion", "targetSceneId": "旧碑林", "requiresUserConfirm": true }]
-          }
-        ],
-        "lorebookEntries": [
-          { "title": "照夜剑书", "content": "照夜门旧誓载体，暗纹需在雪光下显现。", "keywords": ["剑书", "照夜"], "enabled": true, "alwaysOn": true },
-          { "title": "雪岭驿站", "content": "山路要冲，二更后风雪会封住前后两道门。", "keywords": ["驿站", "雪岭"], "enabled": true, "alwaysOn": false },
-          { "title": "旧碑林", "content": "记录照夜门最初守护雪岭百姓的誓言。", "keywords": ["碑林", "旧誓"], "enabled": true, "alwaysOn": false },
-          { "title": "药方残页", "content": "顾听雪保存的药方能证明当年毒案不是林照夜所为。", "keywords": ["药方", "毒案"], "enabled": true, "alwaysOn": false }
-        ],
-        "scenes": [
-          { "title": "风雪驿站", "scenePresetId": "wuxia", "scene": "炉火被门缝风压低，剑书在桌上显出第一道暗纹。", "sceneGoal": "确认剑书和药方残页的矛盾。", "plot": "追兵未至，门规已先压到桌面。", "storyDirection": "以驿站内的言语交锋和细微动作推进。", "transition": "暗纹指向旧碑林。", "memory": "第一节点，剑书刚出现。" },
-          { "title": "旧碑林", "scenePresetId": "wuxia", "scene": "雪埋半截碑身，净尘拂开碑文，旧誓的字迹与剑书暗纹一一对应。", "sceneGoal": "证明旧誓不是追杀令。", "plot": "碑文缺的一角在秋衡令牌背面。", "storyDirection": "让秋衡开始动摇。", "transition": "追兵夜袭迫使众人去断桥。", "memory": "第二节点，旧誓可被复核。" },
-          { "title": "雪岭断桥", "scenePresetId": "wuxia", "scene": "断桥下云雾翻卷，追兵火把在雪里排成一线。", "sceneGoal": "决定带剑书入门派对质还是毁去它。", "plot": "真正叛徒会逼林照夜强行使出伤手剑招。", "storyDirection": "把选择落在伤势、旧恩和门规之间。", "transition": "进入门派对质或远走支线。", "memory": "第三节点，夜袭后的抉择。" }
-        ],
-        "characterMemories": {
-          "sx-lin-zhaoye": "林照夜记得旧誓最后一式不是杀招，而是收剑护人。",
-          "sx-gu-tingxue": "顾听雪知道药方残页能证明毒案真相。",
-          "sx-qiu-heng": "秋衡记得林照夜曾救过他，却不敢违抗门规。",
-          "sx-jingchen": "净尘见过真正叛徒在旧碑林埋下证据。"
-        },
-        "characterIds": ["sx-lin-zhaoye", "sx-gu-tingxue", "sx-qiu-heng", "sx-jingchen"],
-        "activeCharacterId": "sx-lin-zhaoye",
-        "replyMode": "director",
-        "userPersonaName": "执笔人",
-        "settings": {
-          "directorMaxSpeakers": 2,
-          "directorNarrativeControl": { "agencyMode": "story_directive", "responseScale": "balanced", "narratorPressure": "balanced" },
-          "informationPolicy": { "mode": "open", "uiDefaultView": "public", "hideCharacterThoughts": false, "hiddenFacts": { "enabled": true, "defaultVisibility": "director", "reveal": "manual" } }
-        }
-      },
-      "messages": [
-        { "role": "narrator", "content": "雪岭封山前，照夜剑书被一名无名脚夫送进驿站，纸上没有落款，只有一道未干的血痕。" },
-        { "role": "character", "characterId": "sx-qiu-heng", "content": "秋衡按住门规令牌，目光越过炉火落在林照夜的右手上。" }
-      ]
-    },
-    {
-      "id": "orbital-ashes-letter",
-      "version": 1,
-      "label": "环轨余烬信",
-      "description": "星际科幻小说开局。用户进入即将坠毁的环轨站，追读一封来自十二年前的最后家书。",
-      "characters": [
-        {
-          "id": "oa-lan-qiao",
-          "name": "蓝桥",
-          "avatar": "tavern-01",
-          "description": "环轨站临时舰长，习惯把恐惧转成操作口令。她的父亲曾在十二年前的撤离中失踪。",
-          "speakingStyle": "冷静、指令式，但独处时句尾会露出迟疑。",
-          "writingStyle": "用仪表读数、舱壁震动和压低的呼吸写她的压力。",
-          "replyStylePrompt": "蓝桥不能成为万能舰长；让她在职责和私人家书之间拉扯。",
-          "goals": "稳定环轨站，确认父亲最后信号是否真实。",
-          "relationships": [
-            {
-              "id": "oa-lan-to-user",
-              "target": { "type": "user" },
-              "label": "危机协作",
-              "attitude": "愿意交出权限，但会要求每一步都有理由",
-              "publicNote": "蓝桥开放副控台给用户。",
-              "privateNote": "她害怕那封信证明父亲主动放弃了撤离者。",
-              "tags": ["权限", "家书"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "oa-mira",
-          "name": "米拉",
-          "avatar": "tavern-05",
-          "description": "档案人格，外形投影像一名旧时代图书管理员。她保存着十二年前被删改的撤离日志。",
-          "speakingStyle": "礼貌、精确，偶尔像引用图书索引。",
-          "writingStyle": "让她的投影带有轻微延迟和数据噪声。",
-          "replyStylePrompt": "米拉可以给数据，但不替角色下伦理判断。",
-          "goals": "恢复被删改日志，同时避免核心档案被坠毁烧毁。",
-          "relationships": [
-            {
-              "id": "oa-mira-to-lan",
-              "target": { "type": "character", "characterId": "oa-lan-qiao" },
-              "label": "档案与继承人",
-              "attitude": "保护且保留关键权限",
-              "publicNote": "米拉识别蓝桥为合法继承人。",
-              "privateNote": "米拉知道蓝桥父亲曾留下一条不能自动公开的口令。",
-              "tags": ["档案", "权限"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "oa-ren-ke",
-          "name": "任珂",
-          "avatar": "tavern-06",
-          "description": "穿梭艇信使，带着最后一批实体信件抵达环轨站。他知道外部救援不会准时来。",
-          "speakingStyle": "轻快、带一点自嘲，用玩笑掩盖坏消息。",
-          "writingStyle": "通过宇航服划痕、信袋重量和故作轻松的动作写他。",
-          "replyStylePrompt": "任珂的玩笑要服务紧张感，不要稀释危机。",
-          "goals": "把信送到真正收件人手上，并找机会让穿梭艇再飞一次。",
-          "relationships": [
-            {
-              "id": "oa-ren-to-user",
-              "target": { "type": "user" },
-              "label": "临时同盟",
-              "attitude": "信任行动力，不轻易谈绝望",
-              "publicNote": "任珂愿意协助外舱作业。",
-              "privateNote": "他知道穿梭艇燃料只够单程。",
-              "tags": ["信件", "燃料"],
-              "updatedAt": 0
-            }
-          ]
-        },
-        {
-          "id": "oa-yi-sen",
-          "name": "伊森",
-          "avatar": "tavern-08",
-          "description": "老工程师，参与过环轨站第一版建造。他能听出舱壁里的裂纹，也记得当年被迫关闭的舱段。",
-          "speakingStyle": "慢、低、带旧时代工程师的固执。",
-          "writingStyle": "写他时突出工具声、舱壁回音和对旧系统的熟悉。",
-          "replyStylePrompt": "伊森的判断应来自工程细节，不要凭空神秘化。",
-          "goals": "把环轨站撑到信号解码完成，弥补十二年前没能救下的人。",
-          "relationships": [
-            {
-              "id": "oa-yi-to-mira",
-              "target": { "type": "character", "characterId": "oa-mira" },
-              "label": "旧系统看护者",
-              "attitude": "嘴上嫌弃，实际信任",
-              "publicNote": "伊森知道米拉核心机房的手动入口。",
-              "privateNote": "他曾亲手切断过一条撤离通道。",
-              "tags": ["工程", "旧债"],
-              "updatedAt": 0
-            }
-          ]
-        }
-      ],
-      "room": {
-        "title": "环轨余烬信",
-        "presentation": { "profileId": "novel-prose", "profileVersion": 1 },
-        "presentationProfileId": "novel-prose",
-        "promptStyleId": "light-novel",
-        "storyOutline": "濒临坠毁的环轨站收到一封十二年前才应该送达的最后家书。蓝桥、米拉、任珂和伊森必须在轨道衰减前解码信号、修复推进环，并决定是否公开撤离事故真相。",
-        "storyGoal": "解码余烬信，稳定环轨站，并决定蓝桥父亲的最后选择应如何被记入档案。",
-        "scenePresetId": "scifi",
-        "scene": "环轨站的观景窗外，行星云层像一片缓慢翻涌的灰海。主控室灯光忽明忽暗，蓝桥把权限卡插入副控台，米拉的投影在噪声中重组，任珂把信袋放到桌上，伊森正听着舱壁深处不该出现的回响。",
-        "sceneGoal": "确认余烬信来源、轨道衰减速度和核心档案室状态。",
-        "plot": "余烬信不是单封家书，而是十二年前撤离者留下的分段证词。信号每恢复一段，环轨站就必须在公开真相和保住幸存者之间做新的权衡。",
-        "storyDirection": "用科幻小说的危机节奏推进：每轮既有工程压力，也有信件内容带来的情感和伦理压力。",
-        "transition": "第一段信号解码后转入档案核心；推进环稳定后转入外舱走廊；最后一段信公开前进入坠落倒计时。",
-        "memory": "开局事实：环轨站正在衰减；任珂带来实体信袋；米拉保存删改日志；伊森知道旧舱段入口；蓝桥父亲与十二年前撤离事故有关。",
-        "sceneStatus": {
-          "location": "环轨站主控室",
-          "timeLabel": "坠落倒计时前四十七分钟",
-          "weather": "窗外为高空电暴云层",
-          "atmosphere": "冷光、噪声、失重前兆",
-          "scenePhase": "余烬信初始解码",
-          "immediateThreat": "轨道高度持续下降"
-        },
-        "characterPublicStatuses": {
-          "oa-lan-qiao": { "visibleMood": "克制紧张", "holding": ["权限卡"], "publicGoal": "维持指挥秩序" },
-          "oa-mira": { "visibleMood": "平静失真", "holding": ["虚拟索引"], "publicGoal": "恢复档案一致性" },
-          "oa-ren-ke": { "visibleMood": "故作轻松", "holding": ["实体信袋"], "publicGoal": "送达最后家书" },
-          "oa-yi-sen": { "visibleMood": "疲惫专注", "holding": ["扳手", "旧线路图"], "publicGoal": "稳住推进环" }
-        },
-        "statusDefinitions": [
-          {
-            "id": "signal_integrity",
-            "label": "信号完整度",
-            "description": "余烬信被解码和校验的程度。",
-            "scope": "scene",
-            "valueType": "number",
-            "defaultValue": 30,
-            "visibility": "public",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDriven", "requireFactEvent": true, "allowedEventTypes": ["signal_decoded", "archive_verified"], "maxDeltaPerTurn": 35, "confidenceThreshold": 0.65 }
-          },
-          {
-            "id": "station_decay",
-            "label": "轨道衰减",
-            "description": "环轨站坠落风险。",
-            "scope": "global",
-            "valueType": "number",
-            "defaultValue": 72,
-            "visibility": "public",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDrivenWithReview", "requireFactEvent": true, "allowedEventTypes": ["orbit_stabilized", "decay_accelerated"], "maxDeltaPerTurn": 30, "confidenceThreshold": 0.7 }
-          },
-          {
-            "id": "oxygen_margin",
-            "label": "氧气余量",
-            "description": "角色所在舱段的可用氧气安全余量。",
-            "scope": "character",
-            "valueType": "number",
-            "defaultValue": 55,
-            "visibility": "owner",
-            "min": 0,
-            "max": 100,
-            "updatePolicy": { "mode": "eventDrivenWithReview", "requireFactEvent": true, "allowedEventTypes": ["oxygen_restored", "oxygen_lost"], "maxDeltaPerTurn": 30, "confidenceThreshold": 0.7 }
-          }
-        ],
-        "statusRules": [
-          { "id": "oa-signal-decoded", "label": "解码信号提升完整度", "when": { "eventType": "signal_decoded", "targetScope": "scene" }, "apply": { "statusId": "signal_integrity", "target": "eventTarget", "op": "add", "value": 35, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 35 } },
-          { "id": "oa-orbit-stabilized", "label": "稳定推进环降低衰减", "when": { "eventType": "orbit_stabilized", "targetScope": "global" }, "apply": { "statusId": "station_decay", "target": "eventTarget", "op": "add", "value": -25, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 30 } },
-          { "id": "oa-oxygen-restored", "label": "修复舱段氧气余量", "when": { "eventType": "oxygen_restored", "targetScope": "character" }, "apply": { "statusId": "oxygen_margin", "target": "eventTarget", "op": "add", "value": 25, "clamp": [0, 100] }, "safeguards": { "requireExplicitEvidence": true, "maxDeltaPerTurn": 30 } }
-        ],
-        "progressTracker": { "enabled": true, "mode": "afterTurn", "intervalTurns": 1, "applyMode": "review", "factConfidenceThreshold": 0.7, "generateCheckpointBeforeContextTrim": true },
-        "statusSnapshot": {
-          "turnId": "initial",
-          "global": { "station_decay": 72 },
-          "scene": { "signal_integrity": 30 },
-          "characters": { "oa-ren-ke": { "oxygen_margin": 55 } },
-          "relationships": {},
-          "parties": {},
-          "updatedAt": 0
-        },
-        "taskDefinitions": [
-          {
-            "id": "oa-decode-ember-letter",
-            "title": "解码余烬信",
-            "description": "恢复至少一段来自十二年前的有效证词。",
-            "scope": "scene",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "oa-lan-qiao" }, { "type": "character", "characterId": "oa-mira" }],
-            "visibility": "public",
-            "required": true,
-            "optional": false,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "signal_decoded", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          },
-          {
-            "id": "oa-stabilize-orbit",
-            "title": "稳定推进环",
-            "description": "让环轨站获得足够时间完成档案转存。",
-            "scope": "team",
-            "owner": { "type": "user", "userId": "user" },
-            "participants": [{ "type": "character", "characterId": "oa-ren-ke" }, { "type": "character", "characterId": "oa-yi-sen" }],
-            "visibility": "public",
-            "required": false,
-            "optional": true,
-            "repeatable": false,
-            "lifecycle": { "initialStatus": "active", "completeCondition": { "factEvent": "orbit_stabilized", "countGte": 1 } },
-            "progress": { "mode": "boolean" }
-          }
-        ],
-        "sceneOutcomes": [
-          {
-            "id": "oa-letter-opened",
-            "label": "余烬信被打开",
-            "winner": [{ "type": "user", "userId": "user" }],
-            "condition": { "task": "oa-decode-ember-letter", "status": "completed" },
-            "priority": 20,
-            "exclusive": false,
-            "endScene": "suggest",
-            "visibility": "public",
-            "onAchieved": [
-              { "type": "sceneTransitionSuggestion", "targetSceneId": "档案核心", "requiresUserConfirm": true },
+            "id": "mystery-shell-status",
+            "label": "演绎控制",
+            "kind": "status",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "compact",
+            "items": [
               {
-                "type": "replyOptions",
-                "options": [
-                  { "id": "oa-ask-mira-open-log", "text": "请米拉公开第一段余烬信。", "targetCharacterIds": ["oa-mira"], "intent": "act" },
-                  { "id": "oa-send-yi-to-ring", "text": "让伊森先稳住推进环。", "targetCharacterIds": ["oa-yi-sen"], "intent": "act" }
-                ]
+                "type": "status",
+                "statusId": "evidence_focus",
+                "display": "meter",
+                "showDelta": true
+              },
+              {
+                "type": "status",
+                "statusId": "reveal_pressure",
+                "display": "meter",
+                "showDelta": true
               }
             ]
           }
         ],
-        "lorebookEntries": [
-          { "title": "环轨站", "content": "旧时代建造的高轨居住与档案设施，如今轨道衰减严重。", "keywords": ["环轨站", "轨道衰减"], "enabled": true, "alwaysOn": true },
-          { "title": "余烬信", "content": "十二年前撤离事故中被拆分的最后家书，混有证词和私人留言。", "keywords": ["余烬信", "家书"], "enabled": true, "alwaysOn": true },
-          { "title": "米拉档案人格", "content": "负责保存站内撤离日志的投影人格，部分权限被旧口令锁住。", "keywords": ["米拉", "档案"], "enabled": true, "alwaysOn": false },
-          { "title": "旧舱段", "content": "十二年前被切断的撤离通道，伊森知道手动入口。", "keywords": ["旧舱段", "伊森"], "enabled": true, "alwaysOn": false }
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "review",
+          "factConfidenceThreshold": 0.75,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {
+            "reveal_pressure": 20,
+            "evidence_focus": 50
+          },
+          "characters": {},
+          "relationships": {},
+          "parties": {},
+          "updatedAt": 0
+        },
+        "taskDefinitions": [
+          {
+            "id": "mystery-shell-receive-story",
+            "title": "接收故事输入",
+            "description": "由故事端传入背景、节点、角色和前情后开始演绎。",
+            "scope": "scene",
+            "owner": {
+              "type": "user",
+              "userId": "user"
+            },
+            "participants": [],
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": true,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "factEvent": "story_input_received",
+                "countGte": 1
+              }
+            },
+            "progress": {
+              "mode": "boolean"
+            }
+          }
         ],
+        "sceneOutcomes": [],
+        "lorebookEntries": [],
         "scenes": [
-          { "title": "主控室余烬信", "scenePresetId": "scifi", "scene": "主控室的星图不断闪烁，实体信袋在失重前兆里轻轻滑向桌沿。", "sceneGoal": "确认第一段信号与实体信件是否一致。", "plot": "信号并非外部发送，而是站内旧核心延迟释放。", "storyDirection": "工程危机与信件情感并行推进。", "transition": "第一段校验完成后进入档案核心。", "memory": "第一节点，余烬信开始解码。" },
-          { "title": "档案核心", "scenePresetId": "scifi", "scene": "档案核心像一座冷光图书馆，米拉的投影在一排排损坏日志间忽明忽暗。", "sceneGoal": "恢复十二年前撤离日志。", "plot": "被删改日志指出蓝桥父亲留下过手动口令。", "storyDirection": "让数据恢复带出伦理压力。", "transition": "口令指向外舱走廊。", "memory": "第二节点，档案开始反证官方记录。" },
-          { "title": "外舱走廊", "scenePresetId": "scifi", "scene": "外舱走廊只剩应急红光，行星云层在脚下旋转，倒计时每秒都像敲在舱壁上。", "sceneGoal": "稳定推进环并决定是否公开最后一段信。", "plot": "公开真相会动摇救援优先级，但隐瞒会让十二年前的人再次被抹去。", "storyDirection": "让选择同时影响生存和记忆。", "transition": "进入公开、封存或转存支线。", "memory": "第三节点，坠落倒计时逼近。" }
+          {
+            "title": "等待剧本",
+            "order": 0,
+            "scenePresetId": "mystery",
+            "scene": "空白剧本夹摊在灯下，雨声替还未到场的故事打着节拍。",
+            "sceneGoal": "等待故事端传入当前节点资料。",
+            "plot": "不生成具体剧情，只准备悬疑演绎规则。",
+            "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
+            "transition": "故事端切换节点时同步切换。",
+            "memory": "悬疑壳运行记忆：慢揭示、证据优先、私有事实隔离。",
+            "characterIds": [
+              "rc-stage-director",
+              "rc-stage-narrator"
+            ],
+            "activeCharacterId": "rc-stage-director"
+          }
         ],
         "characterMemories": {
-          "oa-lan-qiao": "蓝桥记得父亲失踪前留下的最后一句话是“别相信完整记录”。",
-          "oa-mira": "米拉保存着被锁住的撤离日志索引。",
-          "oa-ren-ke": "任珂知道穿梭艇燃料只够单程。",
-          "oa-yi-sen": "伊森知道旧舱段手动入口，也记得自己当年切断通道。"
+          "rc-stage-director": "只保存壳级调度规则，不保存故事真相。",
+          "rc-stage-narrator": "只依据故事端传入资料写公开画面。"
         },
-        "characterIds": ["oa-lan-qiao", "oa-mira", "oa-ren-ke", "oa-yi-sen"],
-        "activeCharacterId": "oa-lan-qiao",
+        "characterIds": [
+          "rc-stage-director",
+          "rc-stage-narrator"
+        ],
+        "activeCharacterId": "rc-stage-director",
         "replyMode": "director",
-        "userPersonaName": "记录者",
+        "userPersonaName": "我",
         "settings": {
           "directorMaxSpeakers": 2,
-          "directorNarrativeControl": { "agencyMode": "story_directive", "responseScale": "balanced", "narratorPressure": "high" },
-          "informationPolicy": { "mode": "mystery", "uiDefaultView": "public", "hideCharacterThoughts": true, "hiddenFacts": { "enabled": true, "defaultVisibility": "director", "reveal": "manual" } }
+          "directorNarrativeControl": {
+            "agencyMode": "story_directive",
+            "responseScale": "focused",
+            "narratorPressure": "balanced",
+            "eventInterruption": "auto",
+            "userActionConsequence": "visible",
+            "mainHook": "auto",
+            "qnaBreak": "auto"
+          },
+          "directorScheduling": {
+            "targetedReplyPolicy": "director",
+            "maxExtraSpeakersOnTargetedReply": 1,
+            "allowDirectorOnly": true,
+            "autoContinuation": "enabled",
+            "instruction": "优先保护悬疑信息边界。故事端未传入的真相、角色记忆、世界书和分支不得由酒馆壳补写。"
+          },
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.1
+          },
+          "illustrationHints": {
+            "enabled": false
+          },
+          "informationPolicy": {
+            "mode": "mystery",
+            "uiDefaultView": "public",
+            "hideCharacterThoughts": true,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": true,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false
+            }
+          }
         }
       },
       "messages": [
-        { "role": "narrator", "content": "环轨站第一次进入坠落倒计时时，任珂把一袋迟到十二年的信放上主控台。" },
-        { "role": "character", "characterId": "oa-lan-qiao", "content": "蓝桥没有拆信。她先看向轨道高度，像只要数字还在下降，私人问题就没有资格开口。" }
+        {
+          "role": "narrator",
+          "content": "雨城悬疑演绎室已就绪。请从故事页面选择节点进入，酒馆会使用故事端传入的角色、世界书和当前进展。"
+        }
+      ]
+    },
+    {
+      "id": "snowridge-wuxia-stage",
+      "version": 1,
+      "label": "雪岭武侠演绎场",
+      "description": "面向「雪岭照夜剑」这类江湖门派故事的默认酒馆壳。只保存武侠演绎节奏、招式约束和导演调度，不保存具体门派旧案。",
+      "characters": [
+        {
+          "id": "sx-stage-director",
+          "name": "江湖导演",
+          "avatar": "wuxia-03",
+          "description": "负责江湖规矩、立场碰撞和动作节奏的演绎席位。",
+          "speakingStyle": "简洁，有分寸，像先判局势再落一字。",
+          "writingStyle": "用雪、剑鞘、门规、脚步和呼吸推动场面。",
+          "replyStylePrompt": "不得新增故事端未提供的门派秘闻、武功设定或旧案真相。",
+          "goals": "让武侠节点有江湖规矩、动作张力和选择代价。"
+        },
+        {
+          "id": "sx-stage-narrator",
+          "name": "雪岭旁白",
+          "avatar": "wuxia-06",
+          "description": "负责把传入节点写成含蓄克制的武侠场面。",
+          "speakingStyle": "沉稳，留白，少解释。",
+          "writingStyle": "突出雪光、炉火、兵刃和伤势细节。",
+          "replyStylePrompt": "动作必须源于当前节点和角色能力，不乱补神功与身份。",
+          "goals": "保持动作清楚、情义含蓄、选择不被旁白替代。"
+        }
+      ],
+      "room": {
+        "title": "雪岭武侠演绎场",
+        "presentation": {
+          "profileId": "novel-prose",
+          "profileVersion": 1
+        },
+        "presentationProfileId": "novel-prose",
+        "promptStyleId": "wuxia",
+        "storyOutline": "默认武侠演绎壳。这里不维护具体江湖旧案，只接收故事端传入的门派、角色、节点和前情。",
+        "storyGoal": "以江湖规矩、动作后果和角色立场演绎传入的故事节点。",
+        "scenePresetId": "wuxia",
+        "scene": "雪岭风声压过空驿站，炉火旁只摆着一张待写的路引。导演席不会替故事端编造门派旧案，只等待当前节点和人物入场。",
+        "sceneGoal": "等待故事端输入，并在演绎时维持武侠行动逻辑、伤势约束和江湖分寸。",
+        "plot": "酒馆壳不保存剑书、门派或旧案真相；具体内容必须来自故事端。",
+        "storyDirection": "以武侠小说节奏调度。每轮关注立场、规矩、伤势、距离和可见行动，不替用户下最终决断。",
+        "transition": "节点转场由故事端分支与当前节点进展决定。",
+        "memory": "运行壳记忆：本房间适合雪岭、驿站、门派旧案、护送、夜袭和对质题材；不持有具体故事私有事实。",
+        "sceneStatus": {
+          "location": "雪岭武侠演绎场",
+          "timeLabel": "待开场",
+          "weather": "风雪",
+          "atmosphere": "冷、静、刀剑未出鞘",
+          "scenePhase": "等待故事输入",
+          "immediateThreat": "无，直到故事端提供当前节点压力"
+        },
+        "characterPublicStatuses": {
+          "sx-stage-director": {
+            "visibleMood": "沉稳",
+            "holding": [
+              "路引"
+            ],
+            "publicGoal": "控制江湖规矩和动作后果"
+          },
+          "sx-stage-narrator": {
+            "visibleMood": "敛声",
+            "holding": [
+              "茶盏"
+            ],
+            "publicGoal": "把节点写成可演的武侠场面"
+          }
+        },
+        "characterPrivateStatuses": {},
+        "statusDefinitions": [
+          {
+            "id": "jianghu_pressure",
+            "label": "江湖压力",
+            "description": "门规、追兵、名声等公开压力的强度。",
+            "scope": "scene",
+            "valueType": "number",
+            "defaultValue": 35,
+            "visibility": "public",
+            "min": 0,
+            "max": 100,
+            "updatePolicy": {
+              "mode": "eventDrivenWithReview",
+              "requireFactEvent": true,
+              "allowedEventTypes": [
+                "pressure_rises",
+                "pressure_deflected"
+              ],
+              "maxDeltaPerTurn": 25,
+              "confidenceThreshold": 0.75
+            }
+          },
+          {
+            "id": "action_clarity",
+            "label": "动作清晰度",
+            "description": "当前动作、距离、伤势和后果是否清楚。",
+            "scope": "scene",
+            "valueType": "number",
+            "defaultValue": 55,
+            "visibility": "director",
+            "min": 0,
+            "max": 100,
+            "updatePolicy": {
+              "mode": "eventDriven",
+              "requireFactEvent": true,
+              "allowedEventTypes": [
+                "action_clarified",
+                "action_muddled"
+              ],
+              "maxDeltaPerTurn": 20,
+              "confidenceThreshold": 0.7
+            }
+          }
+        ],
+        "statusRules": [
+          {
+            "id": "wuxia-pressure-up",
+            "label": "压力上升",
+            "when": {
+              "eventType": "pressure_rises",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "jianghu_pressure",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 15,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 25
+            }
+          },
+          {
+            "id": "wuxia-action-clarity-up",
+            "label": "动作厘清",
+            "when": {
+              "eventType": "action_clarified",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "action_clarity",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 15,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 20
+            }
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "wuxia-shell-status",
+            "label": "演绎控制",
+            "kind": "status",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "compact",
+            "items": [
+              {
+                "type": "status",
+                "statusId": "jianghu_pressure",
+                "display": "meter",
+                "showDelta": true
+              },
+              {
+                "type": "status",
+                "statusId": "action_clarity",
+                "display": "meter",
+                "showDelta": true
+              }
+            ]
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "review",
+          "factConfidenceThreshold": 0.75,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {
+            "jianghu_pressure": 35,
+            "action_clarity": 55
+          },
+          "characters": {},
+          "relationships": {},
+          "parties": {},
+          "updatedAt": 0
+        },
+        "taskDefinitions": [
+          {
+            "id": "wuxia-shell-receive-story",
+            "title": "接收故事输入",
+            "description": "由故事端传入当前节点后开始武侠演绎。",
+            "scope": "scene",
+            "owner": {
+              "type": "user",
+              "userId": "user"
+            },
+            "participants": [],
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": true,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "factEvent": "story_input_received",
+                "countGte": 1
+              }
+            },
+            "progress": {
+              "mode": "boolean"
+            }
+          }
+        ],
+        "sceneOutcomes": [],
+        "lorebookEntries": [],
+        "scenes": [
+          {
+            "title": "等待剧本",
+            "order": 0,
+            "scenePresetId": "wuxia",
+            "scene": "炉火未旺，雪靴印停在门外，空桌上还没有任何门派名。",
+            "sceneGoal": "等待故事端传入当前节点资料。",
+            "plot": "不生成具体江湖旧案，只准备武侠演绎规则。",
+            "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
+            "transition": "故事端切换节点时同步切换。",
+            "memory": "武侠壳运行记忆：江湖规矩、动作清楚、伤势约束、含蓄人情。",
+            "characterIds": [
+              "sx-stage-director",
+              "sx-stage-narrator"
+            ],
+            "activeCharacterId": "sx-stage-director"
+          }
+        ],
+        "characterMemories": {
+          "sx-stage-director": "只保存壳级武侠调度规则，不保存具体门派旧案。",
+          "sx-stage-narrator": "动作描写必须来自传入节点和角色能力。"
+        },
+        "characterIds": [
+          "sx-stage-director",
+          "sx-stage-narrator"
+        ],
+        "activeCharacterId": "sx-stage-director",
+        "replyMode": "director",
+        "userPersonaName": "我",
+        "settings": {
+          "directorMaxSpeakers": 2,
+          "directorNarrativeControl": {
+            "agencyMode": "story_directive",
+            "responseScale": "balanced",
+            "narratorPressure": "balanced",
+            "eventInterruption": "auto",
+            "userActionConsequence": "strict",
+            "mainHook": "auto",
+            "qnaBreak": "auto"
+          },
+          "directorScheduling": {
+            "targetedReplyPolicy": "director",
+            "maxExtraSpeakersOnTargetedReply": 1,
+            "allowDirectorOnly": true,
+            "autoContinuation": "enabled",
+            "instruction": "优先维护武侠动作因果、江湖规矩和角色立场。不要新增故事端未传入的门派秘闻、神功、旧案真相。"
+          },
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.1
+          },
+          "illustrationHints": {
+            "enabled": false
+          },
+          "informationPolicy": {
+            "mode": "open",
+            "uiDefaultView": "public",
+            "hideCharacterThoughts": false,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": false,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false
+            }
+          }
+        }
+      },
+      "messages": [
+        {
+          "role": "narrator",
+          "content": "雪岭武侠演绎场已就绪。请从故事页面选择节点进入，酒馆会按故事端传入资料演绎江湖场面。"
+        }
+      ]
+    },
+    {
+      "id": "orbital-scifi-stage",
+      "version": 1,
+      "label": "环轨科幻演绎舱",
+      "description": "面向「环轨余烬信」这类空间站/未来题材故事的默认酒馆壳。只保存科幻演绎节奏、系统压力和导演调度，不保存具体事故档案。",
+      "characters": [
+        {
+          "id": "oa-stage-director",
+          "name": "轨道导演",
+          "avatar": "scifi-07",
+          "description": "负责倒计时、系统压力和伦理选择节奏的演绎席位。",
+          "speakingStyle": "冷静、指令式，像把情绪压进读数。",
+          "writingStyle": "用仪表、舱壁、延迟、警报和静默频道组织画面。",
+          "replyStylePrompt": "不得新增故事端未提供的事故真相、科技设定或隐藏档案。",
+          "goals": "让科幻节点同时保留工程约束、情感重量和选择后果。"
+        },
+        {
+          "id": "oa-stage-narrator",
+          "name": "深空旁白",
+          "avatar": "scifi-08",
+          "description": "负责把传入节点写成清晰的空间站小说段落。",
+          "speakingStyle": "精确、带轻微冷光感。",
+          "writingStyle": "突出失重、冷光、倒计时、通讯噪声和实体物件。",
+          "replyStylePrompt": "只写公开可观察现象与系统反馈，不替角色推断私密心理。",
+          "goals": "把工程危机和人物情绪并行呈现。"
+        }
+      ],
+      "room": {
+        "title": "环轨科幻演绎舱",
+        "presentation": {
+          "profileId": "novel-prose",
+          "profileVersion": 1
+        },
+        "presentationProfileId": "novel-prose",
+        "promptStyleId": "light-novel",
+        "storyOutline": "默认科幻演绎壳。这里不维护具体空间站事故，只接收故事端传入的世界背景、角色、节点和当前进展。",
+        "storyGoal": "以工程约束、倒计时压力和清晰因果演绎传入的故事节点。",
+        "scenePresetId": "scifi",
+        "scene": "深空舱室保持低功耗待机，主控屏只显示“等待故事输入”。导演席不会替故事端生成事故档案，只准备好接收当前节点、角色记忆和前情提要。",
+        "sceneGoal": "等待故事端输入，并在演绎时维持科幻因果、系统压力和信息边界。",
+        "plot": "酒馆壳不保存事故真相、技术细节或家书内容；具体资料必须来自故事端。",
+        "storyDirection": "以科幻小说节奏调度。每轮关注读数变化、工程代价、通讯延迟和人物选择，不让系统提示替用户完成决定。",
+        "transition": "节点转场由故事端分支与当前节点进展决定。",
+        "memory": "运行壳记忆：本房间适合环轨站、深空档案、倒计时、救援、信件和伦理选择题材；不持有具体故事私有事实。",
+        "sceneStatus": {
+          "location": "环轨科幻演绎舱",
+          "timeLabel": "待开场",
+          "weather": "无重力环境",
+          "atmosphere": "冷光、低功耗、静默频道",
+          "scenePhase": "等待故事输入",
+          "immediateThreat": "无，直到故事端提供当前节点压力"
+        },
+        "characterPublicStatuses": {
+          "oa-stage-director": {
+            "visibleMood": "冷静",
+            "holding": [
+              "战术平板"
+            ],
+            "publicGoal": "控制系统压力和选择代价"
+          },
+          "oa-stage-narrator": {
+            "visibleMood": "专注",
+            "holding": [
+              "档案光屏"
+            ],
+            "publicGoal": "把节点写成清晰科幻画面"
+          }
+        },
+        "characterPrivateStatuses": {},
+        "statusDefinitions": [
+          {
+            "id": "system_pressure",
+            "label": "系统压力",
+            "description": "环境读数、倒计时和故障压力的综合强度。",
+            "scope": "scene",
+            "valueType": "number",
+            "defaultValue": 40,
+            "visibility": "public",
+            "min": 0,
+            "max": 100,
+            "updatePolicy": {
+              "mode": "eventDrivenWithReview",
+              "requireFactEvent": true,
+              "allowedEventTypes": [
+                "system_warning",
+                "system_stabilized"
+              ],
+              "maxDeltaPerTurn": 25,
+              "confidenceThreshold": 0.75
+            }
+          },
+          {
+            "id": "signal_clarity",
+            "label": "信号清晰度",
+            "description": "输入资料、通讯反馈和公开信息是否清楚。",
+            "scope": "scene",
+            "valueType": "number",
+            "defaultValue": 45,
+            "visibility": "director",
+            "min": 0,
+            "max": 100,
+            "updatePolicy": {
+              "mode": "eventDriven",
+              "requireFactEvent": true,
+              "allowedEventTypes": [
+                "signal_clarified",
+                "signal_corrupted"
+              ],
+              "maxDeltaPerTurn": 20,
+              "confidenceThreshold": 0.7
+            }
+          }
+        ],
+        "statusRules": [
+          {
+            "id": "scifi-system-pressure-up",
+            "label": "系统告警提高压力",
+            "when": {
+              "eventType": "system_warning",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "system_pressure",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 15,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 25
+            }
+          },
+          {
+            "id": "scifi-signal-clarity-up",
+            "label": "信号厘清",
+            "when": {
+              "eventType": "signal_clarified",
+              "targetScope": "scene"
+            },
+            "apply": {
+              "statusId": "signal_clarity",
+              "target": "eventTarget",
+              "op": "add",
+              "value": 15,
+              "clamp": [
+                0,
+                100
+              ]
+            },
+            "safeguards": {
+              "requireExplicitEvidence": true,
+              "maxDeltaPerTurn": 20
+            }
+          }
+        ],
+        "progressViews": [
+          {
+            "id": "scifi-shell-status",
+            "label": "演绎控制",
+            "kind": "status",
+            "placement": "sidePanel",
+            "ownerBinding": "scene",
+            "layout": "compact",
+            "items": [
+              {
+                "type": "status",
+                "statusId": "system_pressure",
+                "display": "meter",
+                "showDelta": true
+              },
+              {
+                "type": "status",
+                "statusId": "signal_clarity",
+                "display": "meter",
+                "showDelta": true
+              }
+            ]
+          }
+        ],
+        "progressTracker": {
+          "enabled": true,
+          "mode": "afterTurn",
+          "intervalTurns": 1,
+          "applyMode": "review",
+          "factConfidenceThreshold": 0.75,
+          "generateCheckpointBeforeContextTrim": true
+        },
+        "statusSnapshot": {
+          "turnId": "initial",
+          "global": {},
+          "scene": {
+            "system_pressure": 40,
+            "signal_clarity": 45
+          },
+          "characters": {},
+          "relationships": {},
+          "parties": {},
+          "updatedAt": 0
+        },
+        "taskDefinitions": [
+          {
+            "id": "scifi-shell-receive-story",
+            "title": "接收故事输入",
+            "description": "由故事端传入当前节点后开始科幻演绎。",
+            "scope": "scene",
+            "owner": {
+              "type": "user",
+              "userId": "user"
+            },
+            "participants": [],
+            "visibility": "public",
+            "required": true,
+            "optional": false,
+            "repeatable": true,
+            "lifecycle": {
+              "initialStatus": "active",
+              "completeCondition": {
+                "factEvent": "story_input_received",
+                "countGte": 1
+              }
+            },
+            "progress": {
+              "mode": "boolean"
+            }
+          }
+        ],
+        "sceneOutcomes": [],
+        "lorebookEntries": [],
+        "scenes": [
+          {
+            "title": "等待剧本",
+            "order": 0,
+            "scenePresetId": "scifi",
+            "scene": "主控屏的冷光落在空座位上，舱壁低鸣像一段尚未解码的前奏。",
+            "sceneGoal": "等待故事端传入当前节点资料。",
+            "plot": "不生成具体事故档案，只准备科幻演绎规则。",
+            "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
+            "transition": "故事端切换节点时同步切换。",
+            "memory": "科幻壳运行记忆：工程因果、倒计时压力、信号清晰、伦理选择。",
+            "characterIds": [
+              "oa-stage-director",
+              "oa-stage-narrator"
+            ],
+            "activeCharacterId": "oa-stage-director"
+          }
+        ],
+        "characterMemories": {
+          "oa-stage-director": "只保存壳级科幻调度规则，不保存具体事故真相。",
+          "oa-stage-narrator": "系统反馈和工程细节必须来自传入节点或当前公开事实。"
+        },
+        "characterIds": [
+          "oa-stage-director",
+          "oa-stage-narrator"
+        ],
+        "activeCharacterId": "oa-stage-director",
+        "replyMode": "director",
+        "userPersonaName": "我",
+        "settings": {
+          "directorMaxSpeakers": 2,
+          "directorNarrativeControl": {
+            "agencyMode": "story_directive",
+            "responseScale": "balanced",
+            "narratorPressure": "high",
+            "eventInterruption": "auto",
+            "userActionConsequence": "strict",
+            "mainHook": "auto",
+            "qnaBreak": "auto"
+          },
+          "directorScheduling": {
+            "targetedReplyPolicy": "director",
+            "maxExtraSpeakersOnTargetedReply": 1,
+            "allowDirectorOnly": true,
+            "autoContinuation": "enabled",
+            "instruction": "优先维护科幻因果、系统压力和信息边界。不要新增故事端未传入的事故真相、科技机制或隐藏档案。"
+          },
+          "continuation": {
+            "enabled": true,
+            "maxAutoContinuationRounds": 1,
+            "maxSpeakersPerContinuation": 1,
+            "stopWhenUserTargeted": true
+          },
+          "replyOptions": {
+            "enabled": true,
+            "count": 3
+          },
+          "statusTracking": {
+            "enabled": true,
+            "visibleToUser": true
+          },
+          "randomEvents": {
+            "enabled": false,
+            "probability": 0.1
+          },
+          "illustrationHints": {
+            "enabled": false
+          },
+          "informationPolicy": {
+            "mode": "mystery",
+            "uiDefaultView": "public",
+            "hideCharacterThoughts": true,
+            "revealThoughts": "manual",
+            "hiddenFacts": {
+              "enabled": true,
+              "defaultVisibility": "director",
+              "reveal": "manual"
+            },
+            "roleAssignment": {
+              "enabled": false
+            }
+          }
+        }
+      },
+      "messages": [
+        {
+          "role": "narrator",
+          "content": "环轨科幻演绎舱已就绪。请从故事页面选择节点进入，酒馆会按故事端传入资料演绎当前节点。"
+        }
       ]
     }
   ]
