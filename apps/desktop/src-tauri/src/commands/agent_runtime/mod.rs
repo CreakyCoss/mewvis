@@ -1,10 +1,11 @@
 mod agent;
 mod agents;
-mod bridge;
 mod chat;
+mod collaboration;
 mod events;
 mod process;
 mod rpc;
+mod runtime_files;
 mod session;
 mod session_paths;
 mod skills;
@@ -16,6 +17,7 @@ pub use agent::{
 };
 pub use agents::list_agent_runtime_agents;
 pub use chat::run_agent_runtime_chat;
+pub use collaboration::run_agent_runtime_collaboration;
 pub use session::{
     append_agent_runtime_session_messages, compact_agent_runtime_session,
     create_agent_runtime_session, delete_agent_runtime_session,

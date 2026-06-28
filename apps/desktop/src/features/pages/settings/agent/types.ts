@@ -29,9 +29,16 @@ export type CollaborationWorkflow = {
   updatedAt: number;
 };
 
+export type AgentRuntimeDefaultCollaborationExecutorId = "native" | "langgraph";
+
+export type AgentRuntimeSettings = {
+  defaultCollaborationExecutorId: AgentRuntimeDefaultCollaborationExecutorId | null;
+};
+
 export type AiAgentSettings = {
   agents: AiAgent[];
   collaborationWorkflows: CollaborationWorkflow[];
+  runtime: AgentRuntimeSettings;
 };
 
 export type SaveAiAgentInput = {
@@ -57,6 +64,10 @@ export type SaveCollaborationWorkflowInput = {
     instruction?: string | null;
     phase?: string | null;
   }>;
+};
+
+export type SaveAgentRuntimeSettingsInput = {
+  defaultCollaborationExecutorId?: AgentRuntimeDefaultCollaborationExecutorId | null;
 };
 
 export type AgentProfile = {

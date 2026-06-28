@@ -1013,11 +1013,75 @@ export type TavernMessage = {
   referencedFiles?: Array<{ path: string }>;
 };
 
+export type TavernWorkflowTraceStepStatus =
+  | "pending"
+  | "running"
+  | "done"
+  | "skipped"
+  | "error";
+
+export type TavernWorkflowTraceStep = {
+  id: string;
+  label: string;
+  status: TavernWorkflowTraceStepStatus;
+  detail?: string;
+  agentRoleId?: string;
+  agentTaskId?: string;
+  outputKey?: string;
+};
+
+export type TavernWorkflowTraceEvent = {
+  id: string;
+  at: number;
+  type: string;
+  workflowRunId: string;
+  workflowId?: string;
+  executorId?: string;
+  stepId?: string;
+  agentRoleId?: string;
+  agentTaskId?: string;
+  detail?: string;
+  payload?: unknown;
+};
+
+export type TavernWorkflowTraceResult = {
+  executorId?: string;
+  steps: Array<{
+    stepId: string;
+    agentRoleId: string;
+    agentTaskId: string;
+    outputKey: string;
+    textPreview: string;
+  }>;
+  skippedSteps?: Array<{
+    stepId: string;
+    reason: string;
+  }>;
+  output?: unknown;
+};
+
+export type TavernWorkflowTraceRun = {
+  id: string;
+  workflowRunId: string;
+  workflowId: string;
+  executorId?: string;
+  taskId?: string;
+  anchorMessageId?: string;
+  scopeLabel?: string;
+  status: "running" | "done" | "error";
+  startedAt: number;
+  updatedAt: number;
+  steps: TavernWorkflowTraceStep[];
+  events: TavernWorkflowTraceEvent[];
+  result?: TavernWorkflowTraceResult;
+};
+
 export type TavernState = {
   version: 4;
   activeRoomId: string;
   rooms: TavernRoom[];
   messagesByInstance: Record<string, TavernMessage[]>;
+  workflowTracesByInstance: Record<string, TavernWorkflowTraceRun[]>;
 };
 
 export type TavernReferencedFile = {

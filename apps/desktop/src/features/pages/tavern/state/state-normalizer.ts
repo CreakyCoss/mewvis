@@ -55,11 +55,17 @@ import type {
   TavernMessage,
   TavernRoom,
   TavernState,
+  TavernWorkflowTraceEvent,
+  TavernWorkflowTraceRun,
+  TavernWorkflowTraceStep,
 } from "../types";
 
 type MaterializedDefaultTavernRoom = ReturnType<typeof createTavernRoomFromSystemPreset> & {
   sceneInstanceId: string;
 };
+
+const TAVERN_WORKFLOW_TRACE_RUN_LIMIT = 20;
+const TAVERN_WORKFLOW_TRACE_EVENT_LIMIT = 200;
 
 const defaultRoomIdForSystemPreset = (presetId: string) => `default-room-${presetId}`;
 
@@ -129,6 +135,10 @@ const ensureDefaultTavernSystemPresetRooms = (
       ...state.messagesByInstance,
       ...messagesByInstanceFromMaterializedDefaults(materializedDefaults),
     },
+    workflowTracesByInstance: {
+      ...state.workflowTracesByInstance,
+      ...Object.fromEntries(materializedDefaults.map((item) => [item.sceneInstanceId, []])),
+    },
   };
 };
 
@@ -142,6 +152,119 @@ export const createDefaultTavernState = (workspaceId: string): TavernState => {
     activeRoomId: materializedRooms[0]?.room.id ?? "",
     rooms: materializedRooms.map((item) => item.room),
     messagesByInstance: messagesByInstanceFromMaterializedDefaults(materializedRooms),
+    workflowTracesByInstance: Object.fromEntries(
+      materializedRooms.map((item) => [item.sceneInstanceId, []]),
+    ),
+  };
+};
+
+const normalizeWorkflowTraceStepStatus = (
+  value: unknown,
+): TavernWorkflowTraceStep["status"] =>
+  value === "pending" ||
+  value === "running" ||
+  value === "done" ||
+  value === "skipped" ||
+  value === "error"
+    ? value
+    : "pending";
+
+const normalizeWorkflowTraceStep = (
+  value: unknown,
+): TavernWorkflowTraceStep | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernWorkflowTraceStep>;
+  if (!candidate.id || !candidate.label) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    label: candidate.label,
+    status: normalizeWorkflowTraceStepStatus(candidate.status),
+    detail: typeof candidate.detail === "string" ? candidate.detail : undefined,
+    agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
+    agentTaskId: typeof candidate.agentTaskId === "string" ? candidate.agentTaskId : undefined,
+    outputKey: typeof candidate.outputKey === "string" ? candidate.outputKey : undefined,
+  };
+};
+
+const normalizeWorkflowTraceEvent = (
+  value: unknown,
+): TavernWorkflowTraceEvent | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernWorkflowTraceEvent>;
+  if (!candidate.id || !candidate.type || !candidate.workflowRunId) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    at: typeof candidate.at === "number" ? candidate.at : Date.now(),
+    type: candidate.type,
+    workflowRunId: candidate.workflowRunId,
+    workflowId: typeof candidate.workflowId === "string" ? candidate.workflowId : undefined,
+    executorId: typeof candidate.executorId === "string" ? candidate.executorId : undefined,
+    stepId: typeof candidate.stepId === "string" ? candidate.stepId : undefined,
+    agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
+    agentTaskId: typeof candidate.agentTaskId === "string" ? candidate.agentTaskId : undefined,
+    detail: typeof candidate.detail === "string" ? candidate.detail : undefined,
+    payload: candidate.payload,
+  };
+};
+
+const normalizeWorkflowTraceRunStatus = (
+  value: unknown,
+): TavernWorkflowTraceRun["status"] =>
+  value === "running" || value === "done" || value === "error"
+    ? value
+    : "running";
+
+const normalizeWorkflowTraceRun = (
+  value: unknown,
+): TavernWorkflowTraceRun | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernWorkflowTraceRun>;
+  if (!candidate.id || !candidate.workflowRunId || !candidate.workflowId) {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    workflowRunId: candidate.workflowRunId,
+    workflowId: candidate.workflowId,
+    executorId: typeof candidate.executorId === "string" ? candidate.executorId : undefined,
+    taskId: typeof candidate.taskId === "string" ? candidate.taskId : undefined,
+    anchorMessageId: typeof candidate.anchorMessageId === "string"
+      ? candidate.anchorMessageId
+      : undefined,
+    scopeLabel: typeof candidate.scopeLabel === "string" ? candidate.scopeLabel : undefined,
+    status: normalizeWorkflowTraceRunStatus(candidate.status),
+    startedAt: typeof candidate.startedAt === "number" ? candidate.startedAt : Date.now(),
+    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
+    steps: Array.isArray(candidate.steps)
+      ? candidate.steps
+          .map(normalizeWorkflowTraceStep)
+          .filter((step): step is TavernWorkflowTraceStep => Boolean(step))
+      : [],
+    events: Array.isArray(candidate.events)
+      ? candidate.events
+          .map(normalizeWorkflowTraceEvent)
+          .filter((event): event is TavernWorkflowTraceEvent => Boolean(event))
+          .slice(-TAVERN_WORKFLOW_TRACE_EVENT_LIMIT)
+      : [],
+    result: candidate.result && typeof candidate.result === "object"
+      ? candidate.result
+      : undefined,
   };
 };
 
@@ -164,6 +287,10 @@ export const normalizeTavernState = (
   }
 
   const sourceMessagesByInstance = candidate.messagesByInstance as Record<string, unknown>;
+  const sourceWorkflowTracesByInstance =
+    candidate.workflowTracesByInstance && typeof candidate.workflowTracesByInstance === "object"
+      ? candidate.workflowTracesByInstance as Record<string, unknown>
+      : {};
   const rooms = candidate.rooms.filter((room): room is TavernRoom =>
     Boolean(
       room?.id &&
@@ -313,6 +440,22 @@ export const normalizeTavernState = (
       ] as const;
     })),
   );
+  const workflowTracesByInstance = Object.fromEntries(
+    normalizedRooms.flatMap((room) => room.sceneInstances.map((instance) => {
+      const traces = Array.isArray(sourceWorkflowTracesByInstance[instance.id])
+        ? sourceWorkflowTracesByInstance[instance.id] as unknown[]
+        : [];
+
+      return [
+        instance.id,
+        traces
+          .map(normalizeWorkflowTraceRun)
+          .filter((trace): trace is TavernWorkflowTraceRun => Boolean(trace))
+          .sort((left, right) => left.startedAt - right.startedAt)
+          .slice(-TAVERN_WORKFLOW_TRACE_RUN_LIMIT),
+      ] as const;
+    })),
+  );
 
   const activeRoomId = normalizedRooms.some((room) => room.id === candidate.activeRoomId)
     ? candidate.activeRoomId ?? rooms[0].id
@@ -323,5 +466,6 @@ export const normalizeTavernState = (
     activeRoomId,
     rooms: normalizedRooms,
     messagesByInstance,
+    workflowTracesByInstance,
   });
 };

@@ -14,7 +14,7 @@ export type ExecutionStep = {
   id: string;
   label: string;
   detail?: string;
-  status: "pending" | "running" | "done" | "error";
+  status: "pending" | "running" | "done" | "skipped" | "error";
 };
 
 type ExecutionTraceProps = {
@@ -38,6 +38,11 @@ const statusMeta = {
     label: "完成",
     icon: CheckCircle2,
     className: "text-emerald-600 dark:text-emerald-400",
+  },
+  skipped: {
+    label: "跳过",
+    icon: Circle,
+    className: "text-muted-foreground dark:text-zinc-300",
   },
   error: {
     label: "失败",

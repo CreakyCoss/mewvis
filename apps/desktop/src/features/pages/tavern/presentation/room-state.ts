@@ -75,6 +75,10 @@ export const materializeTavernPresentationRoomState = ({
         ...tavernState.messagesByInstance,
         [sceneInstanceId]: messages,
       },
+      workflowTracesByInstance: {
+        ...tavernState.workflowTracesByInstance,
+        [sceneInstanceId]: [],
+      },
     },
     room: switchedRoom,
     sceneInstanceId,

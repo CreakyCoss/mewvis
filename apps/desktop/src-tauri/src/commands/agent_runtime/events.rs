@@ -3,7 +3,7 @@ use tauri::{AppHandle, Emitter};
 
 const AGENT_RUNTIME_AGENT_EVENT: &str = "agent_runtime_agent_event";
 
-pub(super) fn emit_bridge_line(app: &AppHandle, task_id: &str, line: &str) {
+pub(super) fn emit_runtime_line(app: &AppHandle, task_id: &str, line: &str) {
     match serde_json::from_str::<Value>(line) {
         Ok(mut value) => {
             if value.get("taskId").is_none() {

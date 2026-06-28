@@ -1,4 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { AgentClientCollaborationEvent } from "@/agent-client/contracts";
 import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
@@ -6,9 +7,6 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../../types";
-import {
-  buildTavernBridgeSystemPrompt,
-} from "../conversation";
 import type {
   TavernDirectorDecision,
 } from "./decision";
@@ -16,14 +14,9 @@ import {
   parseTavernDirectorDecision,
 } from "./decision";
 import {
-  tavernBridgeSessionRootDir,
-  tavernDirectorAgentRoleId,
-} from "../../core";
-import { runTavernRuntimeAgent } from "../agent";
-import {
-  buildTavernDirectorRuntimeInstruction,
-  buildTavernDirectorPromptContext,
-} from "./prompt";
+  buildTavernDirectorCollaborationPlan,
+  runTavernCollaboration,
+} from "../collaboration";
 
 export {
   parseTavernDirectorDecision,
@@ -48,6 +41,7 @@ export type RunTavernDirectorInput = {
   maxSpeakers?: number;
   randomEventOpportunity?: boolean;
   storyContext?: StoryContextPackage;
+  onCollaborationEvent?: (event: AgentClientCollaborationEvent) => void;
 };
 
 export const runTavernDirector = async ({
@@ -64,8 +58,12 @@ export const runTavernDirector = async ({
   maxSpeakers = 3,
   randomEventOpportunity,
   storyContext,
+  onCollaborationEvent,
 }: RunTavernDirectorInput): Promise<TavernDirectorDecision> => {
-  const directorPromptContext = buildTavernDirectorPromptContext({
+  const { input, promptContext } = buildTavernDirectorCollaborationPlan({
+    workspacePath,
+    runtimeAgentId,
+    runtimeModel,
     room,
     characters,
     messages,
@@ -77,27 +75,21 @@ export const runTavernDirector = async ({
     randomEventOpportunity,
     storyContext,
   });
-  const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
-    workspacePath,
-    sessionRootDir: tavernBridgeSessionRootDir(room),
-    agentRoleId: tavernDirectorAgentRoleId(room),
-    runtimeModel,
-    systemPrompt: buildTavernBridgeSystemPrompt(room),
-    userMessage: directorPromptContext.isSceneDriveTurn
-      ? "请在没有用户角色发言的前提下，自推动本轮酒馆场景，并只输出严格合法 JSON。"
-      : "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
-    requestContext: directorPromptContext.requestContext,
-    runtimeInstruction: buildTavernDirectorRuntimeInstruction(directorPromptContext),
+  const result = await runTavernCollaboration({
+    ...input,
+    onEvent: onCollaborationEvent,
   });
+  const decisionText = result.steps.find((step) =>
+    step.outputKey === "directorDecision"
+  )?.text ?? "";
 
   try {
     return parseTavernDirectorDecision(
-      result.text,
+      decisionText,
       characters,
       maxSpeakers,
-      directorPromptContext.canConsiderRandomEvent,
-      directorPromptContext.canRequestIllustrationHints,
+      promptContext.canConsiderRandomEvent,
+      promptContext.canRequestIllustrationHints,
     );
   } catch {
     return {

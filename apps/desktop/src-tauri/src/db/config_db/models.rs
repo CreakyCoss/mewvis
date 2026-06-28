@@ -115,11 +115,18 @@ pub(super) struct CollaborationWorkflowStepRecord {
     pub phase: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentRuntimeSettings {
+    pub default_collaboration_executor_id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiAgentSettings {
     pub agents: Vec<AiAgent>,
     pub collaboration_workflows: Vec<CollaborationWorkflow>,
+    pub runtime: AgentRuntimeSettings,
 }
 
 #[derive(Debug, Serialize)]

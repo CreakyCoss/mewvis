@@ -5,11 +5,14 @@ import {
   deleteCollaborationWorkflow,
   getAiAgentSettings,
   saveAiAgent,
+  saveAgentRuntimeSettings,
   saveCollaborationWorkflow,
 } from "../api";
 import type {
+  AgentRuntimeSettings,
   AiAgent,
   CollaborationWorkflow,
+  SaveAgentRuntimeSettingsInput,
   SaveAiAgentInput,
   SaveCollaborationWorkflowInput,
 } from "../types";
@@ -43,6 +46,9 @@ const workflowToDraft = (workflow: CollaborationWorkflow): SaveCollaborationWork
 export const useAgentSettings = (open: boolean) => {
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [workflows, setWorkflows] = useState<CollaborationWorkflow[]>([]);
+  const [runtimeSettings, setRuntimeSettings] = useState<AgentRuntimeSettings>({
+    defaultCollaborationExecutorId: null,
+  });
   const [draft, setDraft] = useState<SaveAiAgentInput>(() => createAgentDraft());
   const [workflowDraft, setWorkflowDraft] = useState<SaveCollaborationWorkflowInput>(() =>
     createCollaborationWorkflowDraft([]),
@@ -79,6 +85,7 @@ export const useAgentSettings = (open: boolean) => {
 
       setAgents(agentSettings.agents);
       setWorkflows(agentSettings.collaborationWorkflows);
+      setRuntimeSettings(agentSettings.runtime);
       setSelectionKind(nextAgent ? "agent" : nextWorkflow ? "workflow" : "agent");
       setSelectedAgentId(nextAgent?.id ?? "");
       setSelectedWorkflowId(nextWorkflow?.id ?? "");
@@ -169,6 +176,7 @@ export const useAgentSettings = (open: boolean) => {
       });
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
+      setRuntimeSettings(settings.runtime);
       const saved = settings.agents.find((agent) => agent.id === draft.id)
         ?? settings.agents.find((agent) => agent.name === draft.name.trim())
         ?? settings.agents[settings.agents.length - 1];
@@ -229,6 +237,7 @@ export const useAgentSettings = (open: boolean) => {
       });
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
+      setRuntimeSettings(settings.runtime);
       const saved = settings.collaborationWorkflows.find((workflow) => workflow.id === workflowDraft.id)
         ?? settings.collaborationWorkflows.find((workflow) => workflow.name === workflowDraft.name.trim())
         ?? settings.collaborationWorkflows[settings.collaborationWorkflows.length - 1];
@@ -254,6 +263,7 @@ export const useAgentSettings = (open: boolean) => {
       const settings = await deleteAiAgent(agentId);
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
+      setRuntimeSettings(settings.runtime);
       const nextAgent = settings.agents[0];
       setSelectedAgentId(nextAgent?.id ?? "");
       setDraft(
@@ -282,6 +292,7 @@ export const useAgentSettings = (open: boolean) => {
 
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
+      setRuntimeSettings(settings.runtime);
       setSelectedWorkflowId(nextWorkflow?.id ?? "");
       setWorkflowDraft(
         nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
@@ -293,9 +304,28 @@ export const useAgentSettings = (open: boolean) => {
     }
   }, []);
 
+  const saveRuntimeSettings = useCallback(async (input: SaveAgentRuntimeSettingsInput) => {
+    setIsSaving(true);
+    setError("");
+
+    try {
+      const settings = await saveAgentRuntimeSettings(input);
+      setAgents(settings.agents);
+      setWorkflows(settings.collaborationWorkflows);
+      setRuntimeSettings(settings.runtime);
+      return true;
+    } catch (caught) {
+      setError(String(caught));
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
   return {
     agents,
     workflows,
+    runtimeSettings,
     draft,
     workflowDraft,
     selectionKind,
@@ -315,6 +345,7 @@ export const useAgentSettings = (open: boolean) => {
     updateWorkflowDraft,
     save,
     saveWorkflow,
+    saveRuntimeSettings,
     remove,
     removeWorkflow,
   };

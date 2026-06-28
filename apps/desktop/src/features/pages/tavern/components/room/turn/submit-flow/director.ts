@@ -30,6 +30,9 @@ import {
   requireTavernRuntimeModelInput,
   type TurnMode,
 } from "./shared";
+import {
+  applyTavernCollaborationTraceEvent,
+} from "./collaboration-trace";
 
 const TAVERN_ILLUSTRATION_HINT_LIMIT = 24;
 
@@ -128,6 +131,11 @@ export const runDirectorTurn = async ({
           Math.max(1, ctx.roomCharacters.length),
         ),
     storyContext,
+    onCollaborationEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, {
+        scopeLabel: "导演",
+      });
+    },
   });
   const directorNonverbalReplyIds = directorDecision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({

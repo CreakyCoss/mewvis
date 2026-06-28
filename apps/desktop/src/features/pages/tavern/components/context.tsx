@@ -84,6 +84,7 @@ export type TavernPageContextValue = TavernPageProviderProps & {
   resetExecutionTrace: (steps: ExecutionStep[]) => void;
   patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
   appendExecutionStep: (step: ExecutionStep) => void;
+  upsertExecutionStep: (step: ExecutionStep) => void;
   appendProgressCheckpointToRoom: (
     room: TavernRoom,
     reason: TavernProgressCheckpoint["reason"],
@@ -181,6 +182,14 @@ export const TavernPageProvider = ({
   }, []);
   const appendExecutionStep = useCallback((step: ExecutionStep) => {
     setExecutionSteps((current) => [...current, step]);
+  }, []);
+  const upsertExecutionStep = useCallback((step: ExecutionStep) => {
+    setExecutionSteps((current) => {
+      if (!current.some((item) => item.id === step.id)) {
+        return [...current, step];
+      }
+      return current.map((item) => item.id === step.id ? { ...item, ...step } : item);
+    });
   }, []);
   const appendProgressCheckpointToRoom = useCallback((
     room: TavernRoom,
@@ -394,6 +403,7 @@ export const TavernPageProvider = ({
     resetExecutionTrace,
     patchExecutionStep,
     appendExecutionStep,
+    upsertExecutionStep,
     appendProgressCheckpointToRoom,
     patchRoom,
     appendMessagesToRoom,
@@ -432,6 +442,7 @@ export const TavernPageProvider = ({
     turnStatus,
     visualPreset,
     workspace,
+    upsertExecutionStep,
   ]);
 
   return (

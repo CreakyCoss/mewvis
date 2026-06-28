@@ -23,6 +23,72 @@ export type AgentClientAgentTask = {
   taskId: string;
 };
 
+export type AgentClientCollaborationAgentRole = {
+  id: string;
+  label: string;
+  agentId?: string | null;
+  systemPrompt?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+};
+
+export type AgentClientCollaborationWorkflowExecutionMode = "serial" | "parallel";
+
+export type AgentClientCollaborationExecutorId =
+  | "native"
+  | "langgraph"
+  | (string & {});
+
+export type AgentClientCollaborationStepCondition = {
+  ref: string;
+  equals?: unknown;
+  notEquals?: unknown;
+  exists?: boolean;
+  truthy?: boolean;
+  includes?: unknown;
+};
+
+export type AgentClientCollaborationWorkflowStep = {
+  id: string;
+  type: "agent";
+  agentRoleId: string;
+  userMessage: string;
+  dependsOn?: string[];
+  when?: AgentClientCollaborationStepCondition | null;
+  label?: string | null;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+  maxRetries?: number | null;
+  outputKey?: string | null;
+};
+
+export type AgentClientCollaborationWorkflowDefinition = {
+  id: string;
+  label?: string | null;
+  version?: string | null;
+  executor?: AgentClientCollaborationExecutorId | null;
+  executionMode?: AgentClientCollaborationWorkflowExecutionMode | null;
+  steps: AgentClientCollaborationWorkflowStep[];
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentClientCollaborationInput = {
+  type: "collaboration";
+  workspacePath: string;
+  sessionRootDir?: string | null;
+  workflow: AgentClientCollaborationWorkflowDefinition;
+  agents: AgentClientCollaborationAgentRole[];
+  input?: unknown;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+};
+
 export type AgentClientChatMessage = {
   role: string;
   content: string;
@@ -47,6 +113,11 @@ export type AgentClientChatInput = {
 export type AgentClientAgentInput = AgentClientAgentTaskInput & {
   type: "agent";
 };
+
+export type AgentClientRuntimeInput =
+  | AgentClientAgentInput
+  | AgentClientChatInput
+  | AgentClientCollaborationInput;
 
 export type AgentClientChatResult = {
   text: string;

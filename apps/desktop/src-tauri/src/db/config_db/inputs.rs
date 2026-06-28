@@ -116,6 +116,12 @@ pub struct SaveCollaborationWorkflowInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SaveAgentRuntimeSettingsInput {
+    pub default_collaboration_executor_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveKnowledgeCollectionInput {
     pub id: Option<String>,
     pub name: String,

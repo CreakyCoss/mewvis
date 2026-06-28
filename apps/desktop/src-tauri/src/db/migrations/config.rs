@@ -89,6 +89,11 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "normalize_skill_group_member_disabled_flag",
         run: normalize_skill_group_member_disabled_flag,
     },
+    ConfigMigrationStep {
+        target_version: 19,
+        name: "add_agent_runtime_settings",
+        run: add_agent_runtime_settings,
+    },
 ];
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -487,6 +492,19 @@ fn drop_ai_agent_model_binding(conn: &Connection) -> Result<(), String> {
     .map_err(|error| format!("无法移除角色模型绑定字段：{error}"))
 }
 
+fn add_agent_runtime_settings(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS agent_runtime_settings (
+            key TEXT PRIMARY KEY,
+            value_json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        "#,
+    )
+    .map_err(|error| format!("无法创建 Agent Runtime 设置表：{error}"))
+}
+
 pub(crate) fn run_config_migrations(
     conn: &Connection,
     is_new_database: bool,
@@ -878,5 +896,15 @@ mod tests {
             .expect("read member disabled flag");
 
         assert_eq!(disabled, 0);
+    }
+
+    #[test]
+    fn add_agent_runtime_settings_creates_settings_table() {
+        let conn = Connection::open_in_memory().expect("open database");
+
+        add_agent_runtime_settings(&conn).expect("create agent runtime settings");
+
+        let columns = table_columns(&conn, "agent_runtime_settings").expect("read columns");
+        assert_eq!(columns, vec!["key", "value_json", "updated_at"]);
     }
 }

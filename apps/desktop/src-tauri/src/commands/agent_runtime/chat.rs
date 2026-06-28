@@ -1,5 +1,5 @@
 use super::{
-    rpc::call_agent_bridge_rpc,
+    rpc::call_agent_runtime_rpc,
     session_paths::resolve_optional_session_root_dir,
     types::{AgentRuntimeChatMessageInput, AgentRuntimeModelInput},
 };
@@ -39,19 +39,19 @@ pub async fn run_agent_runtime_chat(
     input: RunAgentRuntimeChatInput,
 ) -> Result<RunAgentRuntimeChatOutput, String> {
     validate_chat_input(&input)?;
-    chat_with_agent_bridge(app, input).await
+    chat_with_agent_runtime(app, input).await
 }
 
-async fn chat_with_agent_bridge(
+async fn chat_with_agent_runtime(
     app: AppHandle,
     input: RunAgentRuntimeChatInput,
 ) -> Result<RunAgentRuntimeChatOutput, String> {
-    tauri::async_runtime::spawn_blocking(move || chat_with_agent_bridge_blocking(app, input))
+    tauri::async_runtime::spawn_blocking(move || chat_with_agent_runtime_blocking(app, input))
         .await
-        .map_err(|error| format!("Agent runtime chat bridge 任务失败：{error}"))?
+        .map_err(|error| format!("Agent runtime chat 任务失败：{error}"))?
 }
 
-fn chat_with_agent_bridge_blocking(
+fn chat_with_agent_runtime_blocking(
     app: AppHandle,
     input: RunAgentRuntimeChatInput,
 ) -> Result<RunAgentRuntimeChatOutput, String> {
@@ -86,15 +86,15 @@ fn chat_with_agent_bridge_blocking(
         },
     });
 
-    let value = call_agent_bridge_rpc(
+    let value = call_agent_runtime_rpc(
         &app,
-        "Agent runtime chat bridge",
+        "Agent runtime chat",
         command,
         &["chat_result"],
         |value| emit_agent_runtime_chat_event(&app, stream_id.as_deref(), value),
     )?;
     serde_json::from_value(value)
-        .map_err(|error| format!("解析 Agent runtime chat bridge 结果失败：{error}"))
+        .map_err(|error| format!("解析 Agent runtime chat 结果失败：{error}"))
 }
 
 fn emit_agent_runtime_chat_event(app: &AppHandle, stream_id: Option<&str>, value: &Value) {

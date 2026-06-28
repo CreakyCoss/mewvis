@@ -1,9 +1,10 @@
 use super::{
-    bridge::{append_agent_diagnostic, path_for_node},
-    events::{emit_agent_event, emit_bridge_line},
+    events::{emit_agent_event, emit_runtime_line},
     process::{
-        build_agent_bridge_command, resolve_agent_bridge_process_config, spawn_agent_bridge_command,
+        agent_runtime_settings_env, build_agent_runtime_command,
+        resolve_agent_runtime_process_config, spawn_agent_runtime_command,
     },
+    runtime_files::{append_agent_diagnostic, path_for_node},
 };
 use serde_json::{json, Value};
 #[cfg(unix)]
@@ -272,7 +273,7 @@ impl AgentRuntimeWorker {
         supervisor: Weak<Mutex<SupervisorInner>>,
     ) -> Result<Arc<Self>, String> {
         let worker_id = Uuid::now_v7().to_string();
-        let bridge_process = resolve_agent_bridge_process_config(&app)?;
+        let runtime_process = resolve_agent_runtime_process_config(&app)?;
         let agent_dir = app
             .path()
             .app_data_dir()
@@ -285,12 +286,12 @@ impl AgentRuntimeWorker {
         append_agent_diagnostic(
             &app,
             format!(
-                "worker start worker={worker_id} session_key={} node={} node_exists={} bridge={} bridge_exists={} agent_dir={}",
+                "worker start worker={worker_id} session_key={} node={} node_exists={} runtime_cli={} runtime_cli_exists={} agent_dir={}",
                 session_key,
-                bridge_process.node_binary.display(),
-                bridge_process.node_binary.exists(),
-                bridge_process.bridge_path.display(),
-                bridge_process.bridge_path.exists(),
+                runtime_process.node_binary.display(),
+                runtime_process.node_binary.exists(),
+                runtime_process.runtime_cli_path.display(),
+                runtime_process.runtime_cli_path.exists(),
                 agent_dir
                     .as_ref()
                     .map(|path| path.to_string_lossy().to_string())
@@ -298,23 +299,23 @@ impl AgentRuntimeWorker {
             ),
         );
 
-        let extra_env = agent_dir
-            .as_ref()
-            .map(|path| vec![("PI_CODING_AGENT_DIR".to_string(), path_for_node(path))])
-            .unwrap_or_default();
-        let command = build_agent_bridge_command(&bridge_process, extra_env);
-        let mut child = spawn_agent_bridge_command(
+        let mut extra_env = agent_runtime_settings_env(&app);
+        if let Some(agent_dir) = &agent_dir {
+            extra_env.push(("PI_CODING_AGENT_DIR".to_string(), path_for_node(agent_dir)));
+        }
+        let command = build_agent_runtime_command(&runtime_process, extra_env);
+        let mut child = spawn_agent_runtime_command(
             &app,
             command,
-            "Agent runtime bridge worker",
-            &bridge_process.node_binary,
+            "Agent runtime worker",
+            &runtime_process.node_binary,
             format!("worker={worker_id}"),
         )?;
 
         let stdin = child
             .stdin
             .take()
-            .ok_or_else(|| "Agent runtime bridge worker stdin 不可用".to_string())?;
+            .ok_or_else(|| "Agent runtime worker stdin 不可用".to_string())?;
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
@@ -562,7 +563,7 @@ impl AgentRuntimeWorker {
                 Err(_) => {
                     self.touch();
                     if let Some(task_id) = self.current_task_id() {
-                        emit_bridge_line(&self.app, &task_id, &line);
+                        emit_runtime_line(&self.app, &task_id, &line);
                     } else {
                         append_agent_diagnostic(
                             &self.app,
@@ -607,7 +608,7 @@ impl AgentRuntimeWorker {
                 .map(str::to_string)
                 .or_else(|| self.current_task_id());
             if let Some(task_id) = task_id {
-                emit_bridge_line(&self.app, &task_id, &line);
+                emit_runtime_line(&self.app, &task_id, &line);
             }
         }
     }

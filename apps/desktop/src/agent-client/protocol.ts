@@ -2,11 +2,11 @@ export {
   AGENT_TOOL_DEFINITIONS as RUNTIME_AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS as DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
   normalizeAllowedAgentTools as normalizeAllowedRuntimeAgentTools,
-} from "@agent-bridge/contracts";
+} from "@agent-engine/contracts";
 
 export {
   MODEL_CATALOG,
-} from "@agent-bridge/models";
+} from "@agent-engine/models";
 
 export type {
   AgentToolName as RuntimeAgentToolName,
@@ -15,8 +15,8 @@ export type {
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,
-} from "@agent-bridge/contracts";
+} from "@agent-engine/contracts";
 
 export type {
   CatalogModel,
-} from "@agent-bridge/models";
+} from "@agent-engine/models";

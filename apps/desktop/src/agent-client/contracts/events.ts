@@ -47,6 +47,82 @@ export type AgentClientOutputEvent =
   | AgentClientThinkingEndEvent
   | AgentClientDoneEvent;
 
+export type AgentClientCollaborationStepResult = {
+  stepId: string;
+  agentRoleId: string;
+  agentTaskId: string;
+  outputKey: string;
+  text: string;
+};
+
+export type AgentClientCollaborationSkippedStepResult = {
+  stepId: string;
+  reason: string;
+  condition?: unknown;
+};
+
+export type AgentClientCollaborationResult = {
+  workflowRunId: string;
+  executorId?: string;
+  steps: AgentClientCollaborationStepResult[];
+  skippedSteps?: AgentClientCollaborationSkippedStepResult[];
+  output?: unknown;
+};
+
+export type AgentClientCollaborationEvent =
+  | {
+    type: "workflow_started";
+    taskId: string;
+    workflowRunId: string;
+    workflowId: string;
+    executorId: string;
+  }
+  | {
+    type: "step_started";
+    taskId: string;
+    workflowRunId: string;
+    stepId: string;
+    agentRoleId: string;
+    agentTaskId: string;
+  }
+  | {
+    type: "agent_event";
+    taskId: string;
+    workflowRunId: string;
+    stepId: string;
+    agentRoleId: string;
+    agentTaskId: string;
+    event: { type: string; [key: string]: unknown };
+  }
+  | {
+    type: "step_done";
+    taskId: string;
+    workflowRunId: string;
+    step: AgentClientCollaborationStepResult;
+  }
+  | {
+    type: "step_skipped";
+    taskId: string;
+    workflowRunId: string;
+    step: AgentClientCollaborationSkippedStepResult;
+  }
+  | {
+    type: "workflow_done";
+    taskId: string;
+    workflowRunId: string;
+    result: AgentClientCollaborationResult;
+  }
+  | {
+    type: "collaboration_result";
+    taskId: string;
+    requestId?: string | null;
+    workflowRunId: string;
+    executorId?: string;
+    steps: AgentClientCollaborationStepResult[];
+    skippedSteps?: AgentClientCollaborationSkippedStepResult[];
+    output?: unknown;
+  };
+
 export type AgentClientAgentEvent =
   | {
     type: "state";
@@ -71,6 +147,7 @@ export type AgentClientAgentEvent =
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | AgentClientCollaborationEvent
   | { type: "stderr"; taskId: string; message: string }
   | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };

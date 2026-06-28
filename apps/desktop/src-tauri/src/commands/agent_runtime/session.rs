@@ -1,5 +1,5 @@
 use super::{
-    rpc::call_agent_bridge_rpc, session_paths::resolve_session_root_dir,
+    rpc::call_agent_runtime_rpc, session_paths::resolve_session_root_dir,
     supervisor::AgentRuntimeSupervisor, types::AgentRuntimeModelInput,
 };
 use serde::Deserialize;
@@ -99,7 +99,7 @@ pub async fn create_agent_runtime_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "create_session",
@@ -120,7 +120,7 @@ pub async fn read_agent_runtime_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "read_session",
@@ -171,7 +171,7 @@ pub async fn compact_agent_runtime_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "compact",
@@ -201,7 +201,7 @@ pub async fn rebuild_agent_runtime_agent_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "rebuild_agent_session",
@@ -232,7 +232,7 @@ pub async fn summarize_agent_runtime_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "summarize_session",
@@ -261,7 +261,7 @@ pub async fn edit_agent_runtime_session_message(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "message_edit",
@@ -282,7 +282,7 @@ pub async fn delete_agent_runtime_session_message(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "message_delete",
@@ -302,7 +302,7 @@ pub async fn append_agent_runtime_session_messages(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "message_append",
@@ -322,7 +322,7 @@ pub async fn rebuild_agent_runtime_session(
 ) -> Result<Value, String> {
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_bridge(
+    call_session_runtime(
         app,
         json!({
             "type": "rebuild",
@@ -335,20 +335,20 @@ pub async fn rebuild_agent_runtime_session(
     .await
 }
 
-async fn call_session_bridge(
+async fn call_session_runtime(
     app: AppHandle,
     command: Value,
     result_types: &'static [&'static str],
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        call_agent_bridge_rpc(
+        call_agent_runtime_rpc(
             &app,
-            "Agent runtime session bridge",
+            "Agent runtime session",
             command,
             result_types,
             |_value| {},
         )
     })
     .await
-    .map_err(|error| format!("Agent runtime session bridge 任务失败：{error}"))?
+    .map_err(|error| format!("Agent runtime session 任务失败：{error}"))?
 }

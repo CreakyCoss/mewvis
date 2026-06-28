@@ -8,6 +8,7 @@ import type {
   AgentClientAgentTask,
   AgentClientChatInput,
   AgentClientChatResult,
+  AgentClientCollaborationInput,
   AgentClientSession,
 } from "./contracts";
 import { dispatchAgentClientOutputEvent } from "./output";
@@ -21,6 +22,7 @@ export interface AgentClient {
   listAgents(): Promise<AgentClientAgentDefinitionsResult>;
   run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
   run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
+  run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
   answerQuestion(taskId: string, questionId: string, answer: string): Promise<void>;
   abortTask(taskId: string): Promise<void>;
   subscribe(listener: (event: AgentClientAgentEvent) => void): Promise<() => void>;
@@ -31,6 +33,7 @@ const TAURI_AGENT_CLIENT_COMMANDS = {
   listAgents: "list_agent_runtime_agents",
   runAgent: "run_agent_runtime_agent",
   runChat: "run_agent_runtime_chat",
+  runCollaboration: "run_agent_runtime_collaboration",
   answerQuestion: "answer_agent_runtime_question",
   abortTask: "abort_agent_runtime_agent",
 } as const;
@@ -86,11 +89,16 @@ class TauriAgentClient implements AgentClient {
 
   async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
   async run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
+  async run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
   async run(
-    input: AgentClientAgentInput | AgentClientChatInput,
+    input: AgentClientAgentInput | AgentClientChatInput | AgentClientCollaborationInput,
   ): Promise<AgentClientAgentTask | AgentClientChatResult> {
     if (input.type === "chat") {
       return this.runChat(input);
+    }
+
+    if (input.type === "collaboration") {
+      return this.runCollaboration(input);
     }
 
     return this.runAgent(input);
@@ -100,6 +108,20 @@ class TauriAgentClient implements AgentClient {
     const { type: _type, ...taskInput } = input;
     const result = await invoke<RunAgentOutput>(
       TAURI_AGENT_CLIENT_COMMANDS.runAgent,
+      { input: taskInput },
+    );
+
+    return {
+      taskId: result.taskId,
+    };
+  }
+
+  private async runCollaboration(
+    input: AgentClientCollaborationInput,
+  ): Promise<AgentClientAgentTask> {
+    const { type: _type, ...taskInput } = input;
+    const result = await invoke<RunAgentOutput>(
+      TAURI_AGENT_CLIENT_COMMANDS.runCollaboration,
       { input: taskInput },
     );
 
@@ -176,7 +198,8 @@ class WebPreviewAgentClient implements AgentClient {
 
   async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
   async run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
-  async run(input: AgentClientAgentInput | AgentClientChatInput) {
+  async run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
+  async run(input: AgentClientAgentInput | AgentClientChatInput | AgentClientCollaborationInput) {
     if (input.type === "chat") {
       return this.runChat();
     }

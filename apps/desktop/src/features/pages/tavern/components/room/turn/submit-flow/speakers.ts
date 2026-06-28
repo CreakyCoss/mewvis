@@ -21,8 +21,12 @@ import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
 } from "../../../../presentation/presentation-contracts";
-import { runTavernInnerThought, runTavernReply } from "../../../../runtime/reply";
+import { runTavernInnerThought } from "../../../../runtime/reply";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
+import {
+  buildTavernSpeakerCollaborationInput,
+  runTavernCollaboration,
+} from "../../../../runtime/collaboration";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -39,8 +43,13 @@ import {
   type TavernPendingInteractions,
   type TurnMode,
 } from "./shared";
+import {
+  applyTavernCollaborationTraceEvent,
+} from "./collaboration-trace";
 
 type ParsedTavernReply = ReturnType<typeof parseTavernReplyText>;
+
+const tavernSpeakerReplyOutputKey = (speaker: TavernCharacter) => `reply:${speaker.id}`;
 
 const normalizeNarratorEchoText = (text: string) =>
   text
@@ -193,6 +202,80 @@ const compactSpeakerKnowledgeIfNeeded = async ({
   }
 };
 
+const runSpeakerReplyThroughCollaboration = async ({
+  ctx,
+  runtimeRoom,
+  speaker,
+  speakerRuntimeModel,
+  characters,
+  turnMessages,
+  references,
+  currentUserText,
+  turnInstruction,
+  allowNonverbalReply,
+  storyContext,
+  onTextDelta,
+}: {
+  ctx: TavernPageContextValue;
+  runtimeRoom: TavernRoom;
+  speaker: TavernCharacter;
+  speakerRuntimeModel: RuntimeModelOption;
+  characters: TavernCharacter[];
+  turnMessages: TavernMessage[];
+  references: TavernReferencedFile[];
+  currentUserText: string;
+  turnInstruction: string;
+  allowNonverbalReply: boolean;
+  storyContext: StoryContextPackage;
+  onTextDelta: (delta: string) => void;
+}) => {
+  const collaborationInput = buildTavernSpeakerCollaborationInput({
+    workspacePath: ctx.workspace.path,
+    runtimeAgentId: ctx.runtimeAgentId,
+    runtimeModel: requireTavernRuntimeModelInput(speakerRuntimeModel),
+    room: runtimeRoom,
+    speakers: [speaker],
+    characters,
+    messages: turnMessages,
+    references,
+    currentUserText,
+    storyContext,
+    turnInstructionByCharacterId: {
+      [speaker.id]: turnInstruction,
+    },
+    allowNonverbalReplyCharacterIds: allowNonverbalReply ? [speaker.id] : [],
+  });
+  const output = await runTavernCollaboration({
+    ...collaborationInput,
+    onEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, {
+        scopeLabel: `${speaker.name} 回复`,
+        agentRoleLabelById: {
+          [tavernCharacterAgentRoleId(runtimeRoom, speaker)]: speaker.name,
+        },
+      });
+    },
+    onAgentEvent: (event) => {
+      if (
+        event.agentRoleId !== tavernCharacterAgentRoleId(runtimeRoom, speaker) ||
+        event.event.type !== "text_delta" ||
+        typeof event.event.delta !== "string"
+      ) {
+        return;
+      }
+
+      onTextDelta(event.event.delta);
+    },
+  });
+  const outputKey = tavernSpeakerReplyOutputKey(speaker);
+  const outputText = output.steps.find((step) => step.outputKey === outputKey)?.text;
+
+  return {
+    text: outputText ?? "",
+    taskId: output.taskId,
+  };
+};
+
 const runSingleSpeakerReply = async ({
   ctx,
   room,
@@ -326,14 +409,13 @@ const runSingleSpeakerReply = async ({
     });
   };
 
-  let result = await runTavernReply({
-    workspacePath: ctx.workspace.path,
-    runtimeAgentId: ctx.runtimeAgentId,
-    runtimeModel: requireTavernRuntimeModelInput(speakerRuntimeModel),
-    room: runtimeRoom,
-    activeCharacter: speaker,
+  let result = await runSpeakerReplyThroughCollaboration({
+    ctx,
+    runtimeRoom,
+    speaker,
+    speakerRuntimeModel,
     characters: ctx.roomCharacters,
-    messages: turnMessages,
+    turnMessages,
     references,
     currentUserText: text,
     turnInstruction: effectiveTurnInstruction,
@@ -360,14 +442,13 @@ const runSingleSpeakerReply = async ({
       thought: undefined,
       status: "streaming",
     });
-    result = await runTavernReply({
-      workspacePath: ctx.workspace.path,
-      runtimeAgentId: ctx.runtimeAgentId,
-      runtimeModel: requireTavernRuntimeModelInput(speakerRuntimeModel),
-      room: runtimeRoom,
-      activeCharacter: speaker,
+    result = await runSpeakerReplyThroughCollaboration({
+      ctx,
+      runtimeRoom,
+      speaker,
+      speakerRuntimeModel,
       characters: ctx.roomCharacters,
-      messages: turnMessages,
+      turnMessages,
       references,
       currentUserText: text,
       turnInstruction: buildRetryTurnInstruction({

@@ -10,7 +10,7 @@
     "authorName": "Novel Claw",
     "authorEmail": "novel-claw@local"
   },
-  "agentBridgePackageName": "novel-claw-agent-bridge",
+  "agentRuntimePackageName": "novel-claw-agent-runtime",
   "bundleIdentifier": "com.novel-claw.desktop",
   "description": "Novel-Claw Desktop Client"
 }

@@ -1,4 +1,4 @@
-use super::{bridge::append_agent_diagnostic, process::spawn_agent_bridge};
+use super::{process::spawn_agent_runtime, runtime_files::append_agent_diagnostic};
 use serde_json::Value;
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -6,14 +6,14 @@ use std::{
 };
 use tauri::AppHandle;
 
-pub(super) fn call_agent_bridge_rpc(
+pub(super) fn call_agent_runtime_rpc(
     app: &AppHandle,
     label: &str,
     command: Value,
     result_types: &[&str],
     mut on_event: impl FnMut(&Value),
 ) -> Result<Value, String> {
-    let (mut child, _config) = spawn_agent_bridge(app, label, Vec::<(String, String)>::new())?;
+    let (mut child, _config) = spawn_agent_runtime(app, label, Vec::<(String, String)>::new())?;
 
     let mut stdin = child
         .stdin
@@ -46,7 +46,7 @@ pub(super) fn call_agent_bridge_rpc(
         }
         output_lines.push(line.clone());
 
-        let value = parse_bridge_line(label, &line)?;
+        let value = parse_runtime_line(label, &line)?;
         let event_type = value.get("type").and_then(Value::as_str);
         if event_type == Some("error")
             || event_type.is_some_and(|kind| result_types.contains(&kind))
@@ -84,13 +84,13 @@ pub(super) fn call_agent_bridge_rpc(
             }
         )
     })?;
-    let value = parse_bridge_line(label, &line)?;
+    let value = parse_runtime_line(label, &line)?;
 
     if value.get("type").and_then(Value::as_str) == Some("error") {
         return Err(value
             .get("message")
             .and_then(Value::as_str)
-            .unwrap_or("Agent bridge 返回错误")
+            .unwrap_or("Agent runtime 返回错误")
             .to_string());
     }
 
@@ -113,7 +113,7 @@ pub(super) fn call_agent_bridge_rpc(
     Ok(value)
 }
 
-fn parse_bridge_line(label: &str, line: &str) -> Result<Value, String> {
+fn parse_runtime_line(label: &str, line: &str) -> Result<Value, String> {
     serde_json::from_str(line)
         .map_err(|error| format!("解析 {label} 输出失败：{error}，raw={line}"))
 }

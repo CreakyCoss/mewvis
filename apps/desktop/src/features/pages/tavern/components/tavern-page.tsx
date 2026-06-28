@@ -81,7 +81,10 @@ import {
 } from "./manage/context";
 import { ManagementProvider } from "./manage/provider";
 import { Composer } from "./room/composer";
-import { ExecutionTrace } from "./room/execution-trace";
+import {
+  ExecutionTrace,
+  type ExecutionStep,
+} from "./room/execution-trace";
 import { Header } from "./room/header";
 import { ManagementPage } from "./manage";
 import { ProgressPanel } from "./room/progress-panel";
@@ -1010,6 +1013,10 @@ const TavernPageContent = ({
             sceneInstanceId: resetMessage.sceneInstanceId ?? currentSceneInstanceId,
           }],
         },
+        workflowTracesByInstance: {
+          ...current.workflowTracesByInstance,
+          [currentSceneInstanceId]: [],
+        },
       };
     });
     setReplySuggestions([]);
@@ -1293,12 +1300,44 @@ const TavernPageContent = ({
     );
   }
 
+  const activeSceneInstanceId = activeRoom.activeSceneInstanceId ??
+    activeRoom.activeSceneId ??
+    activeRoom.sceneInstances[0]?.id ??
+    activeRoom.id;
+  const latestPersistedWorkflowTrace = (
+    state.workflowTracesByInstance[activeSceneInstanceId] ?? []
+  ).at(-1) ?? null;
+  const persistedExecutionSteps: ExecutionStep[] = latestPersistedWorkflowTrace
+    ? latestPersistedWorkflowTrace.steps.map((step) => ({
+        id: `persisted:${latestPersistedWorkflowTrace.workflowRunId}:${step.id}`,
+        label: step.label,
+        detail: step.detail,
+        status: step.status,
+      }))
+    : [];
+  const renderedExecutionSteps = executionSteps.length > 0
+    ? executionSteps
+    : persistedExecutionSteps;
+  const renderedExecutionTraceAnchorMessageId = executionSteps.length > 0
+    ? executionTraceAnchorMessageId
+    : latestPersistedWorkflowTrace?.anchorMessageId ?? executionTraceAnchorMessageId;
+  const renderedExecutionTraceStatusText = executionSteps.length > 0
+    ? turnStatus
+    : latestPersistedWorkflowTrace
+    ? `${latestPersistedWorkflowTrace.scopeLabel ?? latestPersistedWorkflowTrace.workflowId} · ${
+        latestPersistedWorkflowTrace.status === "done"
+          ? "已保存"
+          : latestPersistedWorkflowTrace.status === "error"
+          ? "失败"
+          : "运行中"
+      }`
+    : turnStatus;
   const shouldShowExecutionTrace = (
     activeRoom.settings.showExecutionTrace ||
     ((activeRoom.replyMode === "director" || isManagedModeEnabled) && isSending)
-  ) && executionSteps.length > 0;
+  ) && renderedExecutionSteps.length > 0;
   const hasExecutionTraceAnchor = shouldShowExecutionTrace && renderableRoomMessages.some((message) =>
-    message.id === executionTraceAnchorMessageId
+    message.id === renderedExecutionTraceAnchorMessageId
   );
   const backgroundStyle = {
     backgroundImage: `${visualPreset.tavern.backgroundOverlay}, url(${visualPreset.tavern.backgroundImage})`,
@@ -1453,14 +1492,14 @@ const TavernPageContent = ({
               <Conversation
                 messages={renderableRoomMessages}
                 shouldShowExecutionTrace={shouldShowExecutionTrace}
-                executionTraceAnchorMessageId={executionTraceAnchorMessageId}
+                executionTraceAnchorMessageId={renderedExecutionTraceAnchorMessageId}
                 hasExecutionTraceAnchor={hasExecutionTraceAnchor}
                 isSidePanelOpen={isSidePanelOpen}
                 renderExecutionTrace={() => (
                   <ExecutionTrace
-                    steps={executionSteps}
+                    steps={renderedExecutionSteps}
                     visualPreset={visualPreset}
-                    statusText={turnStatus}
+                    statusText={renderedExecutionTraceStatusText}
                   />
                 )}
                 messageEndRef={messageEndRef}

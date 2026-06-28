@@ -1,9 +1,9 @@
 use super::{
-    bridge::append_agent_diagnostic,
+    runtime_files::append_agent_diagnostic,
     session_paths::resolve_optional_session_root_dir,
     skills::{
-        app_skill_paths_for_bridge, bundled_skills_path_for_bridge,
-        workspace_skill_paths_for_bridge,
+        app_skill_paths_for_runtime, bundled_skills_path_for_runtime,
+        workspace_skill_paths_for_runtime,
     },
     supervisor::{AgentRuntimeSupervisor, AgentTaskSubmission},
     types::AgentRuntimeModelInput,
@@ -54,9 +54,9 @@ pub fn run_agent_runtime_agent(
     validate_agent_input(&input)?;
 
     let task_id = Uuid::now_v7().to_string();
-    let bundled_skills_path = bundled_skills_path_for_bridge(&app)?;
-    let mut skill_paths = app_skill_paths_for_bridge(&app)?;
-    skill_paths.extend(workspace_skill_paths_for_bridge(&input.workspace_path));
+    let bundled_skills_path = bundled_skills_path_for_runtime(&app)?;
+    let mut skill_paths = app_skill_paths_for_runtime(&app)?;
+    skill_paths.extend(workspace_skill_paths_for_runtime(&input.workspace_path));
     let session_root_dir = resolve_optional_session_root_dir(
         Some(&input.workspace_path),
         input.session_root_dir.as_deref(),

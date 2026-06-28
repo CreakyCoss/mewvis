@@ -457,6 +457,10 @@ export const ManagementProvider = ({
           ...current.messagesByInstance,
           [copiedActiveSceneInstanceId]: copiedActiveMessages,
         },
+        workflowTracesByInstance: {
+          ...current.workflowTracesByInstance,
+          [copiedActiveSceneInstanceId]: [],
+        },
       };
     });
     reportError("");
@@ -499,6 +503,10 @@ export const ManagementProvider = ({
         messagesByInstance: {
           ...current.messagesByInstance,
           [getRoomActiveSceneInstanceId(restored.room)]: restored.messages,
+        },
+        workflowTracesByInstance: {
+          ...current.workflowTracesByInstance,
+          [getRoomActiveSceneInstanceId(restored.room)]: [],
         },
       };
     });
@@ -576,6 +584,10 @@ export const ManagementProvider = ({
       messagesByInstance: {
         ...current.messagesByInstance,
         [getRoomActiveSceneInstanceId(nextRoom)]: [openingMessage],
+      },
+      workflowTracesByInstance: {
+        ...current.workflowTracesByInstance,
+        [getRoomActiveSceneInstanceId(nextRoom)]: [],
       },
     }));
     return nextRoom.id;

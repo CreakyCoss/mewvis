@@ -212,6 +212,17 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
         "#,
     },
     DatabaseTableSchema {
+        name: "agent_runtime_settings",
+        columns: &["key", "value_json", "updated_at"],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS agent_runtime_settings (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
+    DatabaseTableSchema {
         name: "knowledge_collections",
         columns: &[
             "id",
