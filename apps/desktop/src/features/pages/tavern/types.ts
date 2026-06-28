@@ -1025,9 +1025,11 @@ export type TavernWorkflowTraceStep = {
   label: string;
   status: TavernWorkflowTraceStepStatus;
   detail?: string;
+  stepType?: "agent" | "transform" | "condition" | "router";
   agentRoleId?: string;
   agentTaskId?: string;
   outputKey?: string;
+  route?: string | null;
 };
 
 export type TavernWorkflowTraceEvent = {
@@ -1038,6 +1040,7 @@ export type TavernWorkflowTraceEvent = {
   workflowId?: string;
   executorId?: string;
   stepId?: string;
+  stepType?: "agent" | "transform" | "condition" | "router";
   agentRoleId?: string;
   agentTaskId?: string;
   detail?: string;
@@ -1048,10 +1051,12 @@ export type TavernWorkflowTraceResult = {
   executorId?: string;
   steps: Array<{
     stepId: string;
-    agentRoleId: string;
-    agentTaskId: string;
+    stepType?: "agent" | "transform" | "condition" | "router";
+    agentRoleId?: string;
+    agentTaskId?: string;
     outputKey: string;
     textPreview: string;
+    route?: string | null;
   }>;
   skippedSteps?: Array<{
     stepId: string;

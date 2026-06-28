@@ -46,4 +46,13 @@ export type TavernSpeakerCollaborationInput = {
   storyContext?: StoryContextPackage;
   turnInstructionByCharacterId?: Record<string, string | undefined>;
   allowNonverbalReplyCharacterIds?: string[];
+  directorDecision?: unknown;
+  directorDecisionRef?: string;
+};
+
+export type TavernDirectorLoopCollaborationInput = TavernDirectorCollaborationInput & {
+  speakers: TavernCharacter[];
+  maxRounds?: number;
+  turnInstructionByCharacterId?: Record<string, string | undefined>;
+  allowNonverbalReplyCharacterIds?: string[];
 };

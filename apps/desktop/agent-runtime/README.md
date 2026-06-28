@@ -16,6 +16,8 @@ agent-runtime/
     transport/                Transport adapters such as stdio.
     agent-engine/             Single-agent runtime implementation.
     collaboration-engine/     Multi-agent workflow orchestration.
+      contracts/              Workflow, step, event, state, and extension types.
+      registry/               Extension handler registry.
       executors/              Pluggable workflow executors.
 ```
 
@@ -31,6 +33,11 @@ transport -> host -> protocol
 Application code should normally call `createAgentClient()` from the desktop
 frontend. Hosts such as Tauri should call the CLI over stdio. Tests and embedded
 Node integrations can call the SDK directly.
+
+Application-specific business logic should not be imported from `agent-runtime`.
+The desktop app composes it through `agent-runtime-host/`, which bundles the
+generic runtime with app extensions such as Tavern transforms, conditions, and
+routers. Other apps can copy `agent-runtime/` and provide their own host.
 
 ## Public Modes
 
@@ -109,13 +116,44 @@ The new collaboration command is:
 }
 ```
 
-`workflow.steps` supports `agent` steps. Each step references an agent role by
-`agentRoleId`.
+`workflow.steps` supports these generic step types:
+
+- `agent`: call an agent role through `agent-engine`
+- `transform`: run a registered data transformer
+- `condition`: run a registered boolean condition and store the result
+- `router`: run a registered router and store the selected route
+
+Only `agent` steps reference an agent role by `agentRoleId`. Business-specific
+handlers are registered by host code through collaboration extensions; workflow
+JSON only refers to handler ids such as `tavern.normalizeDirectorDecision`.
 
 `workflow.executionMode` controls scheduling:
 
 - omitted or `"serial"`: run steps in array order
 - `"parallel"`: run all dependency-ready steps concurrently
+
+Serial workflows can use `router.routes` to jump to another step id or to
+`"__end__"`. This supports bounded loops such as
+`director -> speaker -> director -> "__end__"`. Dynamic router jumps are not
+available in parallel mode because parallel scheduling is dependency-based.
+
+Set `workflow.maxSteps` to bound serial router loops. When omitted, the runtime
+uses a conservative default based on the number of steps. Both the LangGraph and
+native executors enforce this limit.
+
+```json
+{
+  "id": "decide-next",
+  "type": "router",
+  "router": "app.nextRoute",
+  "input": { "$ref": "outputs.directorDecision" },
+  "routes": {
+    "continue": "speaker",
+    "end": "__end__"
+  },
+  "outputKey": "nextRoute"
+}
+```
 
 In parallel mode, a step can declare dependencies:
 
@@ -173,6 +211,10 @@ String fields on a step support small template references:
 
 Templates are resolved when the step starts. When a step needs another step's
 output in parallel mode, declare that dependency through `dependsOn`.
+
+Structured step inputs can use `{ "$ref": "outputs.plan" }` to pass the
+referenced value without stringifying it. Both `output.foo` and `outputs.foo`
+are accepted.
 
 Tool and skill resources are merged in this order:
 

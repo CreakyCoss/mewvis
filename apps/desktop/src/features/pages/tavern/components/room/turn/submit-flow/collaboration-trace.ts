@@ -24,7 +24,7 @@ const workflowTraceStepId = (workflowRunId: string) =>
 const agentTraceStepId = (workflowRunId: string, stepId: string) =>
   `workflow:${workflowRunId}:step:${stepId}`;
 
-const shortId = (value: string) => value.slice(0, 8);
+const shortId = (value: string | null | undefined) => value?.slice(0, 8) ?? "runtime";
 
 const activeTraceSceneInstanceId = (ctx: TavernPageContextValue) =>
   ctx.activeRoom?.activeSceneInstanceId ??
@@ -48,9 +48,17 @@ const toDetailText = (value: unknown, fallback = "") => {
 };
 
 const getRoleLabel = (
-  agentRoleId: string,
+  agentRoleId: string | null | undefined,
   options: CollaborationTraceOptions,
-) => options.agentRoleLabelById?.[agentRoleId] ?? agentRoleId;
+  fallback = "协作步骤",
+) => agentRoleId ? options.agentRoleLabelById?.[agentRoleId] ?? agentRoleId : fallback;
+
+const getStepLabel = (
+  stepId: string,
+  stepType: string | undefined,
+  agentRoleId: string | null | undefined,
+  options: CollaborationTraceOptions,
+) => getRoleLabel(agentRoleId, options, stepType ? `${stepType} · ${stepId}` : stepId);
 
 const getWorkflowLabel = (
   workflowId: string,
@@ -102,7 +110,7 @@ const collaborationEventDetail = (event: AgentClientCollaborationEvent) => {
     return `${event.workflowId} · ${event.executorId}`;
   }
   if (event.type === "step_started") {
-    return `${event.stepId} · ${event.agentRoleId}`;
+    return `${event.stepId} · ${event.agentRoleId ?? event.stepType}`;
   }
   if (event.type === "agent_event") {
     return event.event.type;
@@ -154,6 +162,7 @@ const traceEventFromCollaborationEvent = (
     return {
       ...base,
       stepId: event.stepId,
+      stepType: event.type === "step_started" ? event.stepType : "agent",
       agentRoleId: event.agentRoleId,
       agentTaskId: event.agentTaskId,
       payload: event.type === "agent_event"
@@ -169,10 +178,13 @@ const traceEventFromCollaborationEvent = (
     return {
       ...base,
       stepId: event.step.stepId,
+      stepType: event.step.stepType,
       agentRoleId: event.step.agentRoleId,
       agentTaskId: event.step.agentTaskId,
       payload: {
         outputKey: event.step.outputKey,
+        output: previewValue(event.step.output),
+        route: event.step.route,
         textPreview: event.step.text.slice(0, 500),
       },
     };
@@ -221,10 +233,12 @@ const traceResultFromCollaborationResult = (
   executorId,
   steps: steps.map((step) => ({
     stepId: step.stepId,
+    stepType: step.stepType,
     agentRoleId: step.agentRoleId,
     agentTaskId: step.agentTaskId,
     outputKey: step.outputKey,
     textPreview: step.text.slice(0, 500),
+    route: step.route,
   })),
   skippedSteps: skippedSteps?.map((step) => ({
     stepId: step.stepId,
@@ -253,9 +267,10 @@ const applyEventToTraceRun = (
       ...run,
       steps: upsertTraceRunStep(run.steps, {
         id: event.stepId,
-        label: getRoleLabel(event.agentRoleId, options),
+        label: getStepLabel(event.stepId, event.stepType, event.agentRoleId, options),
         status: "running",
         detail: `${event.stepId} · task ${shortId(event.agentTaskId)}`,
+        stepType: event.stepType,
         agentRoleId: event.agentRoleId,
         agentTaskId: event.agentTaskId,
       }),
@@ -291,12 +306,14 @@ const applyEventToTraceRun = (
       steps: upsertTraceRunStep(run.steps, {
         id: event.step.stepId,
         label: run.steps.find((step) => step.id === event.step.stepId)?.label ??
-          getRoleLabel(event.step.agentRoleId, options),
+          getStepLabel(event.step.stepId, event.step.stepType, event.step.agentRoleId, options),
         status: "done",
         detail: `${event.step.outputKey} · ${event.step.text.slice(0, 120)}`,
+        stepType: event.step.stepType,
         agentRoleId: event.step.agentRoleId,
         agentTaskId: event.step.agentTaskId,
         outputKey: event.step.outputKey,
+        route: event.step.route,
       }),
     };
   }
@@ -476,7 +493,7 @@ export const applyTavernCollaborationTraceEvent = (
   if (event.type === "step_started") {
     upsertTraceStep(ctx, {
       id: agentTraceStepId(event.workflowRunId, event.stepId),
-      label: getRoleLabel(event.agentRoleId, options),
+      label: getStepLabel(event.stepId, event.stepType, event.agentRoleId, options),
       detail: `${event.stepId} · task ${shortId(event.agentTaskId)}`,
       status: "running",
     });

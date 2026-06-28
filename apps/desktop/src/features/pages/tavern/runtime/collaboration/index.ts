@@ -1,6 +1,7 @@
 export {
   buildTavernDirectorCollaborationPlan,
   buildTavernDirectorCollaborationInput,
+  buildTavernDirectorLoopCollaborationInput,
   buildTavernSpeakerCollaborationInput,
 } from "./adapter";
 export type {
@@ -15,5 +16,6 @@ export {
 export type {
   TavernCollaborationInput,
   TavernDirectorCollaborationInput,
+  TavernDirectorLoopCollaborationInput,
   TavernSpeakerCollaborationInput,
 } from "./types";

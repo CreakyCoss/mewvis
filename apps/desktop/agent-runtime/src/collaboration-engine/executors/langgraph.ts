@@ -8,6 +8,7 @@ import type {
   CollaborationExecutor,
   CollaborationExecutorRunInput,
   CollaborationRunInput,
+  CollaborationRouterWorkflowStep,
   CollaborationSkippedStepResult,
   CollaborationStepResult,
   CollaborationWorkflowStep,
@@ -15,6 +16,7 @@ import type {
 import {
   collectCollaborationRunResult,
   createCollaborationExecutionState,
+  normalizeWorkflowMaxSteps,
   runStepWithRetry,
 } from "./native.js";
 
@@ -75,6 +77,7 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
     context,
     emit,
     executorId,
+    extensionRegistry,
     input,
     runAgent,
     workflowRunId,
@@ -93,6 +96,7 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
         const outcome = await runStepWithRetry({
           context,
           emit,
+          extensionRegistry,
           input,
           roleById,
           runAgent,
@@ -101,10 +105,10 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
           workflowRunId,
         });
 
-        if ("text" in outcome) {
+        if ("outputKey" in outcome) {
           return {
             output: {
-              [outcome.outputKey]: outcome.text,
+              [outcome.outputKey]: outcome.output,
             },
             stepResults: [outcome],
           };
@@ -126,6 +130,8 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
       output: {},
       stepResults: [],
       skippedSteps: [],
+    }, {
+      recursionLimit: normalizeWorkflowMaxSteps(input.workflow.maxSteps, steps.length),
     });
     const executionState = createCollaborationExecutionState(finalState.input, {
       output: finalState.output,
@@ -160,15 +166,39 @@ const addSerialEdges = (
 ) => {
   let nextGraph = graph.addEdge(START, steps[0].id);
   for (let index = 0; index < steps.length - 1; index += 1) {
-    nextGraph = nextGraph.addEdge(steps[index].id, steps[index + 1].id);
+    const step = steps[index];
+    if (step.type === "router" && step.routes && Object.keys(step.routes).length > 0) {
+      nextGraph = nextGraph.addConditionalEdges(
+        step.id,
+        (state: LangGraphWorkflowState) => resolveRouterRoute(state, step),
+        createRouterPathMap(step, steps[index + 1]?.id ?? null, steps),
+      );
+      continue;
+    }
+    nextGraph = nextGraph.addEdge(step.id, steps[index + 1].id);
   }
-  return nextGraph.addEdge(steps[steps.length - 1].id, END);
+  const lastStep = steps[steps.length - 1];
+  if (lastStep.type === "router" && lastStep.routes && Object.keys(lastStep.routes).length > 0) {
+    return nextGraph.addConditionalEdges(
+      lastStep.id,
+      (state: LangGraphWorkflowState) => resolveRouterRoute(state, lastStep),
+      createRouterPathMap(lastStep, null, steps),
+    );
+  }
+  return nextGraph.addEdge(lastStep.id, END);
 };
 
 const addParallelEdges = (
   graph: LangGraphWorkflowBuilder,
   steps: readonly CollaborationWorkflowStep[],
 ) => {
+  const dynamicRouter = steps.find((step) =>
+    step.type === "router" && step.routes && Object.keys(step.routes).length > 0
+  );
+  if (dynamicRouter) {
+    throw new Error(`parallel workflow 暂不支持 router.routes：${dynamicRouter.id}`);
+  }
+
   const outgoingStepIds = new Set<string>();
   let nextGraph = graph;
 
@@ -198,6 +228,62 @@ const addParallelEdges = (
   }
 
   return nextGraph;
+};
+
+const resolveRouterRoute = (
+  state: LangGraphWorkflowState,
+  step: CollaborationRouterWorkflowStep,
+) => {
+  const route = state.stepResults.find((result) => result.stepId === step.id)?.route ?? null;
+  if (route && step.routes?.[route]) {
+    return route;
+  }
+  if (route === "end" || route === "__end__") {
+    return "__end__";
+  }
+  if (step.fallbackRoute && step.routes?.[step.fallbackRoute]) {
+    return step.fallbackRoute;
+  }
+  if (step.fallbackRoute === "end" || step.fallbackRoute === "__end__") {
+    return "__end__";
+  }
+  if (!route) {
+    return "__next__";
+  }
+
+  throw new Error(`协作 router 返回了未注册 route：${step.id}/${route}`);
+};
+
+const createRouterPathMap = (
+  step: CollaborationRouterWorkflowStep,
+  nextStepId: string | null,
+  steps: readonly CollaborationWorkflowStep[],
+) => {
+  const stepIds = new Set(steps.map((item) => item.id));
+  const pathMap: Record<string, string> = {
+    __end__: END,
+    end: END,
+    __next__: nextStepId ?? END,
+  };
+
+  for (const [route, destination] of Object.entries(step.routes ?? {})) {
+    const normalizedDestination = normalizeRouterDestination(destination);
+    if (normalizedDestination === END) {
+      pathMap[route] = END;
+      continue;
+    }
+    if (!stepIds.has(normalizedDestination)) {
+      throw new Error(`协作 router 指向不存在的 step：${step.id}/${route} -> ${destination}`);
+    }
+    pathMap[route] = normalizedDestination;
+  }
+
+  return pathMap;
+};
+
+const normalizeRouterDestination = (value: string) => {
+  const destination = value.trim();
+  return destination === "end" || destination === "__end__" ? END : destination;
 };
 
 const mergeByStepId = <

@@ -5,13 +5,20 @@ import { messageFromError } from "../../agent-engine/utils/error.js";
 import type {
   CollaborationAgentRole,
   CollaborationEvent,
+  CollaborationExecutionState,
   CollaborationExecutor,
   CollaborationExecutorRunInput,
+  CollaborationExtensionHandlerContext,
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationSkippedStepResult,
-  CollaborationStepCondition,
   CollaborationStepResult,
+  CollaborationTransformWorkflowStep,
+  CollaborationConditionWorkflowStep,
+  CollaborationRouterWorkflowStep,
+  CollaborationRouterResult,
+  CollaborationStepCondition,
+  CollaborationAgentWorkflowStep,
   CollaborationWorkflowStep,
   RunAgentForCollaboration,
 } from "../contracts.js";
@@ -26,6 +33,7 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
     emit,
     executorId,
     input,
+    extensionRegistry,
     runAgent,
     workflowRunId,
   }: CollaborationExecutorRunInput) {
@@ -38,6 +46,7 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
         context,
         emit,
         input,
+        extensionRegistry,
         roleById,
         runAgent,
         state,
@@ -46,11 +55,10 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
       });
 
     if (input.workflow.executionMode === "parallel") {
+      assertNoDynamicRouterSteps(steps);
       await runParallelSteps(steps, executeStep);
     } else {
-      for (const step of steps) {
-        await executeStep(step);
-      }
+      await runSerialSteps(steps, executeStep, input.workflow.maxSteps);
     }
 
     return collectCollaborationRunResult({
@@ -62,13 +70,6 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
   },
 });
 
-export type CollaborationExecutionState = {
-  input: unknown;
-  output: Record<string, unknown>;
-  stepResultById: Map<string, CollaborationStepResult>;
-  skippedStepById: Map<string, CollaborationSkippedStepResult>;
-};
-
 type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStepResult;
 
 type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOutcome>;
@@ -76,6 +77,7 @@ type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOut
 export type RunStepInput = {
   context: CollaborationRunContext;
   emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
   input: CollaborationRunInput;
   roleById: Map<string, CollaborationAgentRole>;
   runAgent: RunAgentForCollaboration;
@@ -159,6 +161,7 @@ export class CollaborationStepRunError extends Error {
 export const runStepWithRetry = async ({
   context,
   emit,
+  extensionRegistry,
   input,
   roleById,
   runAgent,
@@ -166,7 +169,14 @@ export const runStepWithRetry = async ({
   step,
   workflowRunId,
 }: RunStepInput): Promise<StepExecutionOutcome> => {
-  if (!shouldRunStep(step, state)) {
+  if (!await shouldRunStep({
+    emit,
+    extensionRegistry,
+    input,
+    state,
+    step,
+    workflowRunId,
+  })) {
     const skippedStep = {
       stepId: step.id,
       reason: "condition_false",
@@ -179,6 +189,39 @@ export const runStepWithRetry = async ({
       step: skippedStep,
     });
     return skippedStep;
+  }
+
+  if (step.type === "transform") {
+    return runTransformStep({
+      emit,
+      extensionRegistry,
+      input,
+      state,
+      step,
+      workflowRunId,
+    });
+  }
+
+  if (step.type === "condition") {
+    return runConditionStep({
+      emit,
+      extensionRegistry,
+      input,
+      state,
+      step,
+      workflowRunId,
+    });
+  }
+
+  if (step.type === "router") {
+    return runRouterStep({
+      emit,
+      extensionRegistry,
+      input,
+      state,
+      step,
+      workflowRunId,
+    });
   }
 
   const role = roleById.get(step.agentRoleId);
@@ -203,6 +246,7 @@ export const runStepWithRetry = async ({
       type: CollaborationEventType.StepStarted,
       workflowRunId,
       stepId: step.id,
+      stepType: step.type,
       agentRoleId: role.id,
       agentTaskId,
     });
@@ -224,9 +268,11 @@ export const runStepWithRetry = async ({
       );
       const stepResult = {
         stepId: step.id,
+        stepType: step.type,
         agentRoleId: role.id,
         agentTaskId,
         outputKey: step.outputKey?.trim() || step.id,
+        output: result.text,
         text: result.text,
       };
       state.stepResultById.set(step.id, stepResult);
@@ -248,6 +294,141 @@ export const runStepWithRetry = async ({
     cause: lastError,
     stepId: step.id,
   });
+};
+
+const runTransformStep = async ({
+  emit,
+  extensionRegistry,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: CollaborationTransformWorkflowStep;
+  workflowRunId: string;
+}) => {
+  emit({
+    type: CollaborationEventType.StepStarted,
+    workflowRunId,
+    stepId: step.id,
+    stepType: step.type,
+  });
+
+  const transform = extensionRegistry.requireTransform(step.transform);
+  const output = await transform(
+    resolveStepInput(step.input, state),
+    createExtensionContext({
+      emit,
+      input,
+      state,
+      step,
+      workflowRunId,
+    }),
+  );
+  const stepResult = createStepResult(step, output);
+  state.stepResultById.set(step.id, stepResult);
+  state.output[stepResult.outputKey] = output;
+  emit({
+    type: CollaborationEventType.StepDone,
+    workflowRunId,
+    step: stepResult,
+  });
+  return stepResult;
+};
+
+const runConditionStep = async ({
+  emit,
+  extensionRegistry,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: CollaborationConditionWorkflowStep;
+  workflowRunId: string;
+}) => {
+  emit({
+    type: CollaborationEventType.StepStarted,
+    workflowRunId,
+    stepId: step.id,
+    stepType: step.type,
+  });
+
+  const condition = extensionRegistry.requireCondition(step.condition);
+  const output = await condition(
+    resolveStepInput(step.input, state),
+    createExtensionContext({
+      emit,
+      input,
+      state,
+      step,
+      workflowRunId,
+    }),
+  );
+  const stepResult = createStepResult(step, output);
+  state.stepResultById.set(step.id, stepResult);
+  state.output[stepResult.outputKey] = output;
+  emit({
+    type: CollaborationEventType.StepDone,
+    workflowRunId,
+    step: stepResult,
+  });
+  return stepResult;
+};
+
+const runRouterStep = async ({
+  emit,
+  extensionRegistry,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: CollaborationRouterWorkflowStep;
+  workflowRunId: string;
+}) => {
+  emit({
+    type: CollaborationEventType.StepStarted,
+    workflowRunId,
+    stepId: step.id,
+    stepType: step.type,
+  });
+
+  const router = extensionRegistry.requireRouter(step.router);
+  const routeResult = await router(
+    resolveStepInput(step.input, state),
+    createExtensionContext({
+      emit,
+      input,
+      state,
+      step,
+      workflowRunId,
+    }),
+  );
+  const normalizedRoute = normalizeRouterResult(routeResult, step.fallbackRoute);
+  const stepResult = createStepResult(step, normalizedRoute.output, {
+    route: normalizedRoute.route,
+  });
+  state.stepResultById.set(step.id, stepResult);
+  state.output[stepResult.outputKey] = stepResult.output;
+  emit({
+    type: CollaborationEventType.StepDone,
+    workflowRunId,
+    step: stepResult,
+  });
+  return stepResult;
 };
 
 const runParallelSteps = async (
@@ -282,6 +463,88 @@ const runParallelSteps = async (
   }
 };
 
+const runSerialSteps = async (
+  steps: readonly CollaborationWorkflowStep[],
+  executeStep: ExecuteStep,
+  maxSteps: number | null | undefined,
+) => {
+  const stepIndexById = new Map(steps.map((step, index) => [step.id, index]));
+  let index = 0;
+  let executedCount = 0;
+  const maxExecutedSteps = normalizeWorkflowMaxSteps(maxSteps, steps.length);
+
+  while (index < steps.length) {
+    if (executedCount >= maxExecutedSteps) {
+      throw new Error(`协作 workflow 超过最大串行路由步数：${maxExecutedSteps}`);
+    }
+    executedCount += 1;
+
+    const step = steps[index];
+    const outcome = await executeStep(step);
+    const nextStepId = resolveRouterNextStepId(step, outcome);
+    if (!nextStepId) {
+      index += 1;
+      continue;
+    }
+    if (nextStepId === "__end__") {
+      break;
+    }
+
+    const nextIndex = stepIndexById.get(nextStepId);
+    if (nextIndex === undefined) {
+      throw new Error(`协作 router 指向不存在的 step：${step.id} -> ${nextStepId}`);
+    }
+    index = nextIndex;
+  }
+};
+
+export const normalizeWorkflowMaxSteps = (
+  value: number | null | undefined,
+  stepCount: number,
+) => {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return Math.max(32, stepCount * 4);
+  }
+  return Math.max(1, Math.floor(value));
+};
+
+const resolveRouterNextStepId = (
+  step: CollaborationWorkflowStep,
+  outcome: StepExecutionOutcome,
+) => {
+  if (step.type !== "router" || !step.routes || !("outputKey" in outcome)) {
+    return null;
+  }
+
+  const route = outcome.route ?? null;
+  const destination = route ? step.routes[route] : undefined;
+  const fallbackDestination = step.fallbackRoute
+    ? step.routes[step.fallbackRoute] ?? step.fallbackRoute
+    : null;
+  if (!route && !fallbackDestination) {
+    return null;
+  }
+
+  return normalizeRouterDestination(destination ?? fallbackDestination);
+};
+
+const normalizeRouterDestination = (value: string | null | undefined) => {
+  const destination = value?.trim();
+  if (!destination) {
+    return null;
+  }
+  return destination === "end" || destination === "__end__" ? "__end__" : destination;
+};
+
+const assertNoDynamicRouterSteps = (steps: readonly CollaborationWorkflowStep[]) => {
+  const dynamicRouter = steps.find((step) =>
+    step.type === "router" && step.routes && Object.keys(step.routes).length > 0
+  );
+  if (dynamicRouter) {
+    throw new Error(`parallel workflow 暂不支持 router.routes：${dynamicRouter.id}`);
+  }
+};
+
 const createAgentTaskId = (workflowRunId: string, stepId: string, attempt = 1) =>
   attempt === 1
     ? `${workflowRunId}:${stepId}`
@@ -294,20 +557,67 @@ const normalizeMaxRetries = (value: number | null | undefined) => {
   return Math.max(0, Math.floor(value));
 };
 
-const shouldRunStep = (
-  step: CollaborationWorkflowStep,
-  state: CollaborationExecutionState,
-) => {
+const shouldRunStep = async ({
+  emit,
+  extensionRegistry,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: CollaborationWorkflowStep;
+  workflowRunId: string;
+}) => {
   if (!step.when) {
     return true;
   }
-  return evaluateCondition(step.when, state);
+  return evaluateCondition({
+    condition: step.when,
+    emit,
+    extensionRegistry,
+    input,
+    state,
+    step,
+    workflowRunId,
+  });
 };
 
-const evaluateCondition = (
-  condition: CollaborationStepCondition,
-  state: CollaborationExecutionState,
-) => {
+const evaluateCondition = async ({
+  condition,
+  emit,
+  extensionRegistry,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  condition: CollaborationStepCondition;
+  emit: (event: CollaborationEvent) => void;
+  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: CollaborationWorkflowStep;
+  workflowRunId: string;
+}) => {
+  if ("condition" in condition) {
+    const handler = extensionRegistry.requireCondition(condition.condition);
+    const matched = await handler(
+      resolveStepInput(condition.input, state),
+      createExtensionContext({
+        emit,
+        input,
+        state,
+        step,
+        workflowRunId,
+      }),
+    );
+    return condition.invert ? !matched : matched;
+  }
+
   const value = resolveTemplateValue(condition.ref, state);
   let matched = true;
   let usedOperator = false;
@@ -336,13 +646,69 @@ const evaluateCondition = (
   return usedOperator ? matched : Boolean(value);
 };
 
+const createStepResult = (
+  step: CollaborationWorkflowStep,
+  output: unknown,
+  extra: Pick<CollaborationStepResult, "route"> = {},
+): CollaborationStepResult => ({
+  stepId: step.id,
+  stepType: step.type,
+  outputKey: step.outputKey?.trim() || step.id,
+  output,
+  text: stringifyTemplateValue(output),
+  ...extra,
+});
+
+const createExtensionContext = <TStep extends CollaborationWorkflowStep>({
+  emit,
+  input,
+  state,
+  step,
+  workflowRunId,
+}: {
+  emit: (event: CollaborationEvent) => void;
+  input: CollaborationRunInput;
+  state: CollaborationExecutionState;
+  step: TStep;
+  workflowRunId: string;
+}): CollaborationExtensionHandlerContext<TStep> => ({
+  emit,
+  input,
+  state,
+  step,
+  workflowRunId,
+});
+
+const normalizeRouterResult = (
+  result: CollaborationRouterResult,
+  fallbackRoute: string | null | undefined,
+) => {
+  if (typeof result === "string" || result === null) {
+    const route = result ?? fallbackRoute ?? null;
+    return {
+      route,
+      output: {
+        route,
+      },
+    };
+  }
+
+  const route = result.route ?? fallbackRoute ?? null;
+  return {
+    route,
+    output: result.output ?? {
+      route,
+    },
+  };
+};
+
 const rejectAskUser = async () => {
   throw new Error("collaboration-engine 当前运行上下文未提供 askUser 处理器");
 };
 
 const buildAgentCommand = (
   input: CollaborationRunInput,
-  step: CollaborationWorkflowStep,
+  step: CollaborationAgentWorkflowStep,
   role: CollaborationAgentRole,
   taskId: string,
   state: CollaborationExecutionState,
@@ -399,6 +765,39 @@ const renderTemplate = (
   stringifyTemplateValue(resolveTemplateValue(path, state))
 );
 
+const resolveStepInput = (
+  value: unknown,
+  state: CollaborationExecutionState,
+): unknown => {
+  if (typeof value === "string") {
+    return renderTemplate(value, state);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveStepInput(item, state));
+  }
+  if (isTemplateRef(value)) {
+    return resolveTemplateValue(value.$ref, state);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        resolveStepInput(item, state),
+      ]),
+    );
+  }
+  return value;
+};
+
+const isTemplateRef = (value: unknown): value is { $ref: string } => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
+  return entries.length === 1 && entries[0]?.[0] === "$ref" &&
+    typeof entries[0]?.[1] === "string";
+};
+
 const resolveTemplateValue = (
   path: string,
   state: CollaborationExecutionState,
@@ -408,6 +807,9 @@ const resolveTemplateValue = (
     return getPathValue(state.input, parts);
   }
   if (root === "output") {
+    return getPathValue(state.output, parts);
+  }
+  if (root === "outputs") {
     return getPathValue(state.output, parts);
   }
   if (root === "steps") {
@@ -480,7 +882,7 @@ const valueIncludes = (value: unknown, expected: unknown) => {
 const mergeRuntimeResources = (
   globalResources: BridgeRuntimeResources | null,
   role: CollaborationAgentRole,
-  step: CollaborationWorkflowStep,
+  step: CollaborationAgentWorkflowStep,
 ): BridgeRuntimeResources | null => {
   const base = {
     ...(globalResources ?? {}),

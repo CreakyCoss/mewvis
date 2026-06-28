@@ -47,16 +47,33 @@ export type AgentClientCollaborationStepCondition = {
   exists?: boolean;
   truthy?: boolean;
   includes?: unknown;
+} | {
+  condition: string;
+  input?: unknown;
+  invert?: boolean;
 };
 
-export type AgentClientCollaborationWorkflowStep = {
+export type AgentClientCollaborationStepType =
+  | "agent"
+  | "transform"
+  | "condition"
+  | "router";
+
+export type AgentClientCollaborationBaseWorkflowStep = {
   id: string;
-  type: "agent";
-  agentRoleId: string;
-  userMessage: string;
+  type: AgentClientCollaborationStepType;
   dependsOn?: string[];
   when?: AgentClientCollaborationStepCondition | null;
   label?: string | null;
+  outputKey?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentClientCollaborationAgentWorkflowStep =
+  AgentClientCollaborationBaseWorkflowStep & {
+  type: "agent";
+  agentRoleId: string;
+  userMessage: string;
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
@@ -65,8 +82,36 @@ export type AgentClientCollaborationWorkflowStep = {
   allowedTools?: RuntimeAgentToolName[];
   enabledSkills?: string[];
   maxRetries?: number | null;
-  outputKey?: string | null;
 };
+
+export type AgentClientCollaborationTransformWorkflowStep =
+  AgentClientCollaborationBaseWorkflowStep & {
+  type: "transform";
+  transform: string;
+  input?: unknown;
+};
+
+export type AgentClientCollaborationConditionWorkflowStep =
+  AgentClientCollaborationBaseWorkflowStep & {
+  type: "condition";
+  condition: string;
+  input?: unknown;
+};
+
+export type AgentClientCollaborationRouterWorkflowStep =
+  AgentClientCollaborationBaseWorkflowStep & {
+  type: "router";
+  router: string;
+  input?: unknown;
+  routes?: Record<string, string>;
+  fallbackRoute?: string | null;
+};
+
+export type AgentClientCollaborationWorkflowStep =
+  | AgentClientCollaborationAgentWorkflowStep
+  | AgentClientCollaborationTransformWorkflowStep
+  | AgentClientCollaborationConditionWorkflowStep
+  | AgentClientCollaborationRouterWorkflowStep;
 
 export type AgentClientCollaborationWorkflowDefinition = {
   id: string;
@@ -74,6 +119,7 @@ export type AgentClientCollaborationWorkflowDefinition = {
   version?: string | null;
   executor?: AgentClientCollaborationExecutorId | null;
   executionMode?: AgentClientCollaborationWorkflowExecutionMode | null;
+  maxSteps?: number | null;
   steps: AgentClientCollaborationWorkflowStep[];
   metadata?: Record<string, unknown> | null;
 };

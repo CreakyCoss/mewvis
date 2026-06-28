@@ -169,6 +169,16 @@ const normalizeWorkflowTraceStepStatus = (
     ? value
     : "pending";
 
+const normalizeWorkflowTraceStepType = (
+  value: unknown,
+): TavernWorkflowTraceStep["stepType"] =>
+  value === "agent" ||
+  value === "transform" ||
+  value === "condition" ||
+  value === "router"
+    ? value
+    : undefined;
+
 const normalizeWorkflowTraceStep = (
   value: unknown,
 ): TavernWorkflowTraceStep | null => {
@@ -186,9 +196,13 @@ const normalizeWorkflowTraceStep = (
     label: candidate.label,
     status: normalizeWorkflowTraceStepStatus(candidate.status),
     detail: typeof candidate.detail === "string" ? candidate.detail : undefined,
+    stepType: normalizeWorkflowTraceStepType(candidate.stepType),
     agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
     agentTaskId: typeof candidate.agentTaskId === "string" ? candidate.agentTaskId : undefined,
     outputKey: typeof candidate.outputKey === "string" ? candidate.outputKey : undefined,
+    route: typeof candidate.route === "string" || candidate.route === null
+      ? candidate.route
+      : undefined,
   };
 };
 
@@ -212,6 +226,7 @@ const normalizeWorkflowTraceEvent = (
     workflowId: typeof candidate.workflowId === "string" ? candidate.workflowId : undefined,
     executorId: typeof candidate.executorId === "string" ? candidate.executorId : undefined,
     stepId: typeof candidate.stepId === "string" ? candidate.stepId : undefined,
+    stepType: normalizeWorkflowTraceStepType(candidate.stepType),
     agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
     agentTaskId: typeof candidate.agentTaskId === "string" ? candidate.agentTaskId : undefined,
     detail: typeof candidate.detail === "string" ? candidate.detail : undefined,

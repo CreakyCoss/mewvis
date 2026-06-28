@@ -49,10 +49,13 @@ export type AgentClientOutputEvent =
 
 export type AgentClientCollaborationStepResult = {
   stepId: string;
-  agentRoleId: string;
-  agentTaskId: string;
+  stepType: "agent" | "transform" | "condition" | "router";
   outputKey: string;
+  output: unknown;
   text: string;
+  agentRoleId?: string;
+  agentTaskId?: string;
+  route?: string | null;
 };
 
 export type AgentClientCollaborationSkippedStepResult = {
@@ -82,8 +85,9 @@ export type AgentClientCollaborationEvent =
     taskId: string;
     workflowRunId: string;
     stepId: string;
-    agentRoleId: string;
-    agentTaskId: string;
+    stepType: "agent" | "transform" | "condition" | "router";
+    agentRoleId?: string;
+    agentTaskId?: string;
   }
   | {
     type: "agent_event";

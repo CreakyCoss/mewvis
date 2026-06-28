@@ -16,7 +16,10 @@ import {
   isTavernFixedOrderPhase,
   resolveTavernScheduledSpeakers,
 } from "../../../../core";
-import { runTavernDirector } from "../../../../runtime/director";
+import {
+  runTavernDirector,
+  type TavernDirectorDecision,
+} from "../../../../runtime/director";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -91,7 +94,7 @@ export const runDirectorTurn = async ({
   availableActiveCharacter: TavernCharacter | null;
   runtimeModel: RuntimeModelOption;
   storyContext: StoryContextPackage;
-}) => {
+}): Promise<TavernDirectorTurnResult> => {
   // 导演阶段统一处理：决定发言顺序，并把旁白、随机事件、环境动作和插图提示落地。
   ctx.setTurnStatus("导演正在判断本轮发言顺序...");
   const schedulingSignals = buildTavernSchedulingSignals({
@@ -255,6 +258,7 @@ export const runDirectorTurn = async ({
 
   return {
     speakers,
+    directorDecision,
     runtimeRoom,
     runtimeMessages,
     turnMessages,
@@ -262,4 +266,15 @@ export const runDirectorTurn = async ({
     directorReason,
     directorNonverbalReplyIds,
   };
+};
+
+export type TavernDirectorTurnResult = {
+  speakers: TavernCharacter[];
+  directorDecision: TavernDirectorDecision;
+  runtimeRoom: TavernRoom;
+  runtimeMessages: TavernMessage[];
+  turnMessages: TavernMessage[];
+  turnNarratorTexts: string[];
+  directorReason: string;
+  directorNonverbalReplyIds: string[];
 };

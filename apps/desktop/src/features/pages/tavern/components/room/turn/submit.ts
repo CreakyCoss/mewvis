@@ -6,6 +6,9 @@ import {
   resolveTavernRuntimeStoryContextPackage,
 } from "../../../adapters/story";
 import type {
+  TavernDirectorDecision,
+} from "../../../runtime/director";
+import type {
   TavernReferencedFile,
   TavernReplyOption,
 } from "../../../types";
@@ -26,9 +29,11 @@ import {
   resolveSubmitSpeakerPlan,
   resolveTurnMode,
   runAssetExtractionStep,
+  runDirectorLoopTurn,
   runDirectorTurn,
   runProgressTrackingStep,
   runSpeakerReplyFlow,
+  shouldRunTavernDirectorLoopWorkflow,
   syncOpenPendingInteractions,
   validateSubmitReferences,
   type ActiveReplyRef,
@@ -241,11 +246,50 @@ export const submitRoomTurn = async ({
     });
 
     let speakers = speakerPlan.candidateSpeakers;
+    let directorDecision: TavernDirectorDecision | undefined;
     let directorReason = "";
     let directorNonverbalReplyIds: string[] = [];
     let turnNarratorTexts: string[] = [];
+    const shouldUseDirectorLoopWorkflow = shouldRunTavernDirectorLoopWorkflow({
+      availableRoomCharacters: speakerPlan.availableRoomCharacters,
+      mode,
+      room: runtime.runtimeRoom,
+    });
 
-    if (mode.isDirectorLikeMode) {
+    if (shouldUseDirectorLoopWorkflow) {
+      const directorLoopTurn = await runDirectorLoopTurn({
+        activeReplyRef,
+        availableActiveCharacter: speakerPlan.availableActiveCharacter,
+        availableRoomCharacters: speakerPlan.availableRoomCharacters,
+        ctx,
+        mode,
+        references,
+        room: activeRoom,
+        runtimeMessages: runtime.runtimeMessages,
+        runtimeModel,
+        runtimeRoom: runtime.runtimeRoom,
+        selectedReplyOption,
+        storyContext,
+        text,
+        turnMessages: runtime.turnMessages,
+        userMessage: turnAnchorMessage,
+      });
+      directorDecision = directorLoopTurn.directorDecision;
+      directorReason = directorLoopTurn.directorReason;
+      directorNonverbalReplyIds = directorLoopTurn.directorNonverbalReplyIds;
+      turnNarratorTexts = directorLoopTurn.turnNarratorTexts;
+      runtime = {
+        ...runtime,
+        runtimeRoom: directorLoopTurn.runtimeRoom,
+        runtimeMessages: directorLoopTurn.runtimeMessages,
+        turnMessages: directorLoopTurn.turnMessages,
+      };
+      syncOpenPendingInteractions({
+        ctx,
+        room: activeRoom,
+        openPendingInteractions: directorLoopTurn.openPendingInteractions,
+      });
+    } else if (mode.isDirectorLikeMode) {
       const directorTurn = await runDirectorTurn({
         ctx,
         room: activeRoom,
@@ -264,6 +308,7 @@ export const submitRoomTurn = async ({
       });
 
       speakers = directorTurn.speakers;
+      directorDecision = directorTurn.directorDecision;
       directorReason = directorTurn.directorReason;
       directorNonverbalReplyIds = directorTurn.directorNonverbalReplyIds;
       turnNarratorTexts = directorTurn.turnNarratorTexts;
@@ -275,36 +320,39 @@ export const submitRoomTurn = async ({
       };
     }
 
-    const speakerTurn = await runSpeakerReplyFlow({
-      ctx,
-      room: activeRoom,
-      runtimeRoom: runtime.runtimeRoom,
-      runtimeMessages: runtime.runtimeMessages,
-      turnMessages: runtime.turnMessages,
-      userMessage: turnAnchorMessage,
-      text,
-      references,
-      selectedReplyOption,
-      speakers,
-      availableRoomCharacters: speakerPlan.availableRoomCharacters,
-      mode,
-      directorReason,
-      directorNonverbalReplyIds,
-      turnNarratorTexts,
-      requireSpeakerRuntimeModel,
-      activeReplyRef,
-      storyContext,
-    });
-    runtime = {
-      ...runtime,
-      runtimeMessages: speakerTurn.runtimeMessages,
-      turnMessages: speakerTurn.turnMessages,
-    };
-    syncOpenPendingInteractions({
-      ctx,
-      room: activeRoom,
-      openPendingInteractions: speakerTurn.openPendingInteractions,
-    });
+    if (!shouldUseDirectorLoopWorkflow) {
+      const speakerTurn = await runSpeakerReplyFlow({
+        ctx,
+        room: activeRoom,
+        runtimeRoom: runtime.runtimeRoom,
+        runtimeMessages: runtime.runtimeMessages,
+        turnMessages: runtime.turnMessages,
+        userMessage: turnAnchorMessage,
+        text,
+        references,
+        selectedReplyOption,
+        speakers,
+        directorDecision,
+        availableRoomCharacters: speakerPlan.availableRoomCharacters,
+        mode,
+        directorReason,
+        directorNonverbalReplyIds,
+        turnNarratorTexts,
+        requireSpeakerRuntimeModel,
+        activeReplyRef,
+        storyContext,
+      });
+      runtime = {
+        ...runtime,
+        runtimeMessages: speakerTurn.runtimeMessages,
+        turnMessages: speakerTurn.turnMessages,
+      };
+      syncOpenPendingInteractions({
+        ctx,
+        room: activeRoom,
+        openPendingInteractions: speakerTurn.openPendingInteractions,
+      });
+    }
 
     // 4. 本轮回复完成后的增强流程互相独立，单个失败不会回滚已经发送的消息。
     if (runtime.shouldRunProgressTracking) {

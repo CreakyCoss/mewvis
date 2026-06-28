@@ -4,6 +4,12 @@ export {
   type AgentRuntime,
 } from "./host/runtime.js";
 
+export {
+  runAgentRuntimeStdio,
+  runAgentRuntimeStdioCli,
+  type AgentRuntimeStdioOptions,
+} from "./host/stdio-runtime.js";
+
 export type {
   BridgeCommand,
   BridgeEvent,
@@ -32,28 +38,47 @@ export {
 
 export {
   createCollaborationEngine,
+  createCollaborationExtensionRegistry,
   createCollaborationRunId,
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,
   CollaborationEventType,
   langGraphCollaborationExecutorId,
   nativeCollaborationExecutorId,
+  normalizeHandlerId,
 } from "./collaboration-engine/index.js";
 
 export type {
   CollaborationAgentRole,
+  CollaborationAgentWorkflowStep,
+  CollaborationBaseWorkflowStep,
+  CollaborationBuiltinStepCondition,
+  CollaborationConditionHandler,
+  CollaborationConditionWorkflowStep,
   CollaborationEngine,
   CollaborationEngineOptions,
+  CollaborationExecutionState,
   CollaborationExecutor,
   CollaborationExecutorId,
   CollaborationExecutorRunInput,
   CollaborationEvent,
+  CollaborationExtension,
+  CollaborationExtensionHandlerContext,
+  CollaborationExtensionRegistry,
+  CollaborationNamedStepCondition,
+  CollaborationRouterHandler,
+  CollaborationRouterResult,
+  CollaborationRouterWorkflowStep,
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationRunResult,
   CollaborationSkippedStepResult,
   CollaborationStepCondition,
   CollaborationStepResult,
+  CollaborationStepType,
+  CollaborationTemplateRef,
+  CollaborationTransformHandler,
+  CollaborationTransformWorkflowStep,
   CollaborationWorkflowExecutionMode,
   CollaborationWorkflowStep,
   CollaborationWorkflowDefinition,

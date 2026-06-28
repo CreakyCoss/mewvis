@@ -4,11 +4,13 @@ import { createAgentEngine } from "../agent-engine/index.js";
 import {
   createCollaborationEngine,
   type CollaborationExecutorId,
+  type CollaborationExtension,
 } from "../collaboration-engine/index.js";
 import { createAgentRuntimeRouter } from "./router.js";
 
 export type AgentRuntimeHostOptions = {
   close?: () => void;
+  collaborationExtensions?: readonly CollaborationExtension[];
   defaultCollaborationExecutorId?: CollaborationExecutorId | null;
   emit?: (event: BridgeEvent) => void;
   writeJsonLine?: WriteBridgeJsonLine;
@@ -16,6 +18,7 @@ export type AgentRuntimeHostOptions = {
 
 export const createAgentRuntime = ({
   close = () => undefined,
+  collaborationExtensions = [],
   defaultCollaborationExecutorId,
   emit = () => undefined,
   writeJsonLine = () => undefined,
@@ -23,6 +26,7 @@ export const createAgentRuntime = ({
   const agentEngine = createAgentEngine();
   const collaborationEngine = createCollaborationEngine({
     defaultExecutorId: resolveDefaultCollaborationExecutorId(defaultCollaborationExecutorId),
+    extensions: collaborationExtensions,
     runAgent: agentEngine.runAgent,
   });
   const router = createAgentRuntimeRouter({

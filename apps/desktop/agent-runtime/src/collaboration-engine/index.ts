@@ -5,6 +5,11 @@ export {
 } from "./engine.js";
 
 export {
+  createCollaborationExtensionRegistry,
+  normalizeHandlerId,
+} from "./registry/index.js";
+
+export {
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,
   langGraphCollaborationExecutorId,
@@ -13,17 +18,34 @@ export {
 
 export type {
   CollaborationAgentRole,
+  CollaborationAgentWorkflowStep,
+  CollaborationBaseWorkflowStep,
+  CollaborationBuiltinStepCondition,
+  CollaborationConditionHandler,
+  CollaborationConditionWorkflowStep,
   CollaborationEngine,
+  CollaborationExecutionState,
   CollaborationExecutor,
   CollaborationExecutorId,
   CollaborationExecutorRunInput,
   CollaborationEvent,
+  CollaborationExtension,
+  CollaborationExtensionHandlerContext,
+  CollaborationExtensionRegistry,
+  CollaborationNamedStepCondition,
+  CollaborationRouterHandler,
+  CollaborationRouterResult,
+  CollaborationRouterWorkflowStep,
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationRunResult,
   CollaborationSkippedStepResult,
   CollaborationStepCondition,
   CollaborationStepResult,
+  CollaborationStepType,
+  CollaborationTemplateRef,
+  CollaborationTransformHandler,
+  CollaborationTransformWorkflowStep,
   CollaborationWorkflowExecutionMode,
   CollaborationWorkflowStep,
   CollaborationWorkflowDefinition,

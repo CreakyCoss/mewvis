@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm sync-product-config && pnpm build:agent-runtime && vite",
     "build": "pnpm sync-product-config && pnpm build:agent-runtime && tsc && vite build",
-    "build:agent-runtime": "tsc -p agent-runtime/tsconfig.json --noEmit && esbuild agent-runtime/src/cli.ts --bundle --platform=node --format=esm --target=node22 --banner:js=\"import { createRequire as __bridgeCreateRequire } from 'node:module'; const require = __bridgeCreateRequire(import.meta.url);\" --outfile=agent-runtime/dist/cli.js && node scripts/packaging/write-agent-runtime-package.mjs && node agent-runtime/scripts/copy-node-runtime.mjs",
+    "build:agent-runtime": "tsc -p agent-runtime/tsconfig.json --noEmit && tsc -p agent-runtime-host/tsconfig.json --noEmit && esbuild agent-runtime-host/src/cli.ts --bundle --platform=node --format=esm --target=node22 --banner:js=\"import { createRequire as __bridgeCreateRequire } from 'node:module'; const require = __bridgeCreateRequire(import.meta.url);\" --outfile=agent-runtime/dist/cli.js && node scripts/packaging/write-agent-runtime-package.mjs && node agent-runtime/scripts/copy-node-runtime.mjs",
     "build:agent-runtime:win-x64": "pnpm build:agent-runtime && node agent-runtime/scripts/copy-node-runtime.mjs --target win-x64",
     "build:agent-runtime:win-arm64": "pnpm build:agent-runtime && node agent-runtime/scripts/copy-node-runtime.mjs --target win-arm64",
     "build:agent-runtime:darwin-arm64": "pnpm build:agent-runtime && node agent-runtime/scripts/copy-node-runtime.mjs --target darwin-arm64",
@@ -19,6 +19,8 @@
     "test:story:import-bridge": "node scripts/business/story/import-bridge-e2e.mjs",
     "test:tavern:core": "node scripts/business/tavern/core-e2e.mjs",
     "test:tavern:collaboration-adapter": "node scripts/business/tavern/collaboration-adapter-e2e.mjs",
+    "test:tavern:speaker-flow": "node scripts/business/tavern/speaker-flow-e2e.mjs",
+    "test:tavern:director-loop-flow": "node scripts/business/tavern/director-loop-flow-e2e.mjs",
     "test:tavern:prompt-layer": "node scripts/business/tavern/prompt-layer-e2e.mjs",
     "test:tavern:prompt-preview": "node scripts/business/tavern/prompt-preview-e2e.mjs",
     "test:tavern:runtime-snapshot": "node scripts/business/tavern/runtime-snapshot-e2e.mjs",

@@ -17,6 +17,7 @@ const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts
 writeFileSync(entryPath, `
   import {
     buildTavernDirectorCollaborationInput,
+    buildTavernDirectorLoopCollaborationInput,
     buildTavernSpeakerCollaborationInput,
   } from ${JSON.stringify(adapterPath)};
   import {
@@ -100,8 +101,30 @@ writeFileSync(entryPath, `
   assert(directorInput.type === "collaboration", "导演 adapter 应输出 collaboration input", directorInput);
   assert(directorInput.sessionRootDir === tavernBridgeSessionRootDir(room), "导演 workflow 应复用酒馆 bridge session", directorInput);
   assert(directorInput.agents[0]?.id === tavernDirectorAgentRoleId(room), "导演 role id 应复用现有规则", directorInput.agents);
-  assert(directorInput.workflow.steps.length === 1 && directorInput.workflow.steps[0]?.outputKey === "directorDecision", "导演 workflow 应只有一个 director step", directorInput.workflow);
+  assert(
+    directorInput.workflow.steps.map((step) => step.id).join("|") ===
+      "director|normalizeDirectorDecision|routeDirectorDecision",
+    "导演 workflow 应串起 agent/transform/router 三段",
+    directorInput.workflow,
+  );
+  assert(directorInput.workflow.steps[0]?.outputKey === "directorRaw", "导演 agent step 应输出原始 JSON 文本", directorInput.workflow.steps[0]);
+  assert(
+    directorInput.workflow.steps[1]?.type === "transform" &&
+      directorInput.workflow.steps[1]?.transform === "tavern.normalizeDirectorDecision" &&
+      directorInput.workflow.steps[1]?.outputKey === "directorDecision",
+    "导演 workflow 应在 runtime 内清洗导演输出",
+    directorInput.workflow.steps[1],
+  );
+  assert(
+    directorInput.workflow.steps[2]?.type === "router" &&
+      directorInput.workflow.steps[2]?.router === "tavern.directorNextRoute" &&
+      directorInput.workflow.steps[2]?.routes?.speakers === "__end__" &&
+      directorInput.workflow.steps[2]?.outputKey === "directorRoute",
+    "导演 workflow 应在 runtime 内产出后续路由",
+    directorInput.workflow.steps[2],
+  );
   assert(directorInput.workflow.steps[0]?.requestContext?.includes("speakerIds"), "导演 requestContext 应包含现有 JSON contract", directorInput.workflow.steps[0]?.requestContext);
+  assert(directorInput.workflow.maxSteps === 8, "导演 workflow 应声明保守 maxSteps", directorInput.workflow);
 
   const speakerInput = buildTavernSpeakerCollaborationInput({
     workspacePath: "/tmp/novel-claw-collab",
@@ -121,6 +144,7 @@ writeFileSync(entryPath, `
   assert(speakerInput.type === "collaboration", "角色 adapter 应输出 collaboration input", speakerInput);
   assert(speakerInput.sessionRootDir === tavernBridgeSessionRootDir(room), "角色 workflow 应复用同一 bridge session", speakerInput);
   assert(speakerInput.agents.length === 2 && speakerInput.workflow.steps.length === 2, "角色 workflow 应按 speakers 生成 steps", speakerInput);
+  assert(speakerInput.workflow.maxSteps === 8, "角色 workflow 应声明 maxSteps，为后续回环编排预留保险丝", speakerInput.workflow);
   assert(
     speakerInput.agents.map((agent) => agent.id).join(",") ===
       [tavernCharacterAgentRoleId(room, characterA), tavernCharacterAgentRoleId(room, characterB)].join(","),
@@ -138,6 +162,113 @@ writeFileSync(entryPath, `
       speakerInput.workflow.steps[0]?.runtimeInstruction?.includes("先检查柜台下方"),
     "角色 step 应复用现有回复 request 构造",
     speakerInput.workflow.steps[0],
+  );
+  assert(
+    speakerInput.workflow.steps[1]?.runtimeInstruction?.includes("{{ outputs.reply:char-a }}"),
+    "串行角色 workflow 的后续 step 应能引用前序角色输出",
+    speakerInput.workflow.steps[1],
+  );
+
+  const directedSpeakerInput = buildTavernSpeakerCollaborationInput({
+    workspacePath: "/tmp/novel-claw-collab",
+    runtimeAgentId: "mock",
+    runtimeModel,
+    room,
+    speakers: [characterA, characterB],
+    characters: [characterA, characterB],
+    messages,
+    references: [],
+    currentUserText: "柜台下传来一声轻响。",
+    directorDecision: {
+      speakerIds: [characterB.id],
+      nonverbalReplyIds: [],
+      reason: "谢无声更适合检查声源。",
+    },
+  });
+  assert(
+    directedSpeakerInput.input && (directedSpeakerInput.input as any).directorDecision?.speakerIds?.[0] === characterB.id,
+    "带 directorDecision 的 speaker workflow 应把决策放入 workflow input",
+    directedSpeakerInput.input,
+  );
+  assert(
+    directedSpeakerInput.workflow.steps.every((step) =>
+      step.type === "agent" &&
+      step.when &&
+      "condition" in step.when &&
+      step.when.condition === "tavern.shouldRunSpeaker"
+    ),
+    "带 directorDecision 的 speaker workflow 应给每个角色 step 注入 shouldRunSpeaker 条件",
+    directedSpeakerInput.workflow.steps,
+  );
+  assert(
+    directedSpeakerInput.workflow.metadata?.speakerDecisionRef === "input.directorDecision",
+    "speaker workflow metadata 应记录决策引用",
+    directedSpeakerInput.workflow.metadata,
+  );
+
+  const directorLoopInput = buildTavernDirectorLoopCollaborationInput({
+    workspacePath: "/tmp/novel-claw-collab",
+    runtimeAgentId: "mock",
+    runtimeModel,
+    room,
+    characters: [characterA, characterB],
+    speakers: [characterA, characterB],
+    messages,
+    references: [],
+    currentUserText: "柜台下传来一声轻响。",
+    maxSpeakers: 2,
+    maxRounds: 2,
+    turnInstructionByCharacterId: {
+      [characterA.id]: "先确认柜台下方。",
+      [characterB.id]: "承接林晏的发现。",
+    },
+  });
+  assert(directorLoopInput.workflow.id === "tavern.director-loop", "导演回环 adapter 应输出独立 workflow", directorLoopInput.workflow);
+  assert(directorLoopInput.workflow.maxSteps === 14, "导演回环 workflow 应根据轮次和角色数声明 maxSteps", directorLoopInput.workflow);
+  assert(
+    directorLoopInput.agents.map((agent) => agent.id).join("|") ===
+      [
+        tavernDirectorAgentRoleId(room),
+        tavernCharacterAgentRoleId(room, characterA),
+        tavernCharacterAgentRoleId(room, characterB),
+      ].join("|"),
+    "导演回环 workflow 应包含导演和候选角色 agents",
+    directorLoopInput.agents,
+  );
+  assert(
+    directorLoopInput.workflow.steps.map((step) => step.id).join("|") ===
+      "director|normalizeDirectorDecision|routeDirectorDecision|speaker-char-a-1|speaker-char-b-2|incrementDirectorLoopRound|routeDirectorLoop",
+    "导演回环 workflow 应串起导演、角色和回环路由",
+    directorLoopInput.workflow.steps,
+  );
+  assert(
+    directorLoopInput.workflow.steps[2]?.type === "router" &&
+      directorLoopInput.workflow.steps[2]?.routes?.speakers === "speaker-char-a-1",
+    "导演决策 route=speakers 应进入首个角色 step",
+    directorLoopInput.workflow.steps[2],
+  );
+  assert(
+    directorLoopInput.workflow.steps[3]?.type === "agent" &&
+      directorLoopInput.workflow.steps[3]?.when &&
+      "condition" in directorLoopInput.workflow.steps[3].when &&
+      directorLoopInput.workflow.steps[3].when.condition === "tavern.shouldRunSpeaker",
+    "导演回环角色 step 应由 directorDecision 条件控制",
+    directorLoopInput.workflow.steps[3],
+  );
+  assert(
+    directorLoopInput.workflow.steps[5]?.type === "transform" &&
+      directorLoopInput.workflow.steps[5]?.transform === "tavern.incrementDirectorLoopRound" &&
+      directorLoopInput.workflow.steps[6]?.type === "router" &&
+      directorLoopInput.workflow.steps[6]?.router === "tavern.directorLoopRoute" &&
+      directorLoopInput.workflow.steps[6]?.routes?.director === "director",
+    "导演回环 workflow 应在角色轮后计数并路由回导演",
+    directorLoopInput.workflow.steps.slice(5),
+  );
+  assert(
+    directorLoopInput.workflow.steps[0]?.runtimeInstruction?.includes("{{ outputs.reply:char-a }}") &&
+      directorLoopInput.workflow.steps[4]?.runtimeInstruction?.includes("{{ outputs.reply:char-a }}"),
+    "导演回环 workflow 应用模板把上一轮角色输出提供给导演和后续角色",
+    directorLoopInput.workflow.steps,
   );
 
   let executionSteps: Array<{ id: string; label: string; status: string; detail?: string }> = [];
@@ -180,6 +311,7 @@ writeFileSync(entryPath, `
     taskId: "trace-task",
     workflowRunId: traceWorkflowRunId,
     stepId: "planner",
+    stepType: "agent",
     agentRoleId: "planner",
     agentTaskId: "trace-task:planner",
   }, { scopeLabel: "Trace" });
@@ -207,9 +339,11 @@ writeFileSync(entryPath, `
     workflowRunId: traceWorkflowRunId,
     step: {
       stepId: "planner",
+      stepType: "agent",
       agentRoleId: "planner",
       agentTaskId: "trace-task:planner",
       outputKey: "plan",
+      output: "trace result",
       text: "trace result",
     },
   }, { scopeLabel: "Trace" });
@@ -222,9 +356,11 @@ writeFileSync(entryPath, `
       executorId: "langgraph",
       steps: [{
         stepId: "planner",
+        stepType: "agent",
         agentRoleId: "planner",
         agentTaskId: "trace-task:planner",
         outputKey: "plan",
+        output: "trace result",
         text: "trace result",
       }],
       skippedSteps: [],
@@ -246,12 +382,22 @@ writeFileSync(entryPath, `
     director: {
       workflowId: directorInput.workflow.id,
       roleId: directorInput.agents[0]?.id,
+      stepIds: directorInput.workflow.steps.map((step) => step.id),
     },
     speakers: speakerInput.workflow.steps.map((step) => ({
       id: step.id,
       agentRoleId: step.agentRoleId,
       outputKey: step.outputKey,
     })),
+    directedSpeakers: directedSpeakerInput.workflow.steps.map((step) => ({
+      id: step.id,
+      when: step.when,
+    })),
+    directorLoop: {
+      workflowId: directorLoopInput.workflow.id,
+      maxSteps: directorLoopInput.workflow.maxSteps,
+      stepIds: directorLoopInput.workflow.steps.map((step) => step.id),
+    },
     trace: {
       status: persistedTrace?.status,
       eventCount: persistedTrace?.events.length,

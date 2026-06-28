@@ -1,7 +1,16 @@
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../types";
+type TavernDirectorDecisionCharacter = {
+  id: string;
+  name: string;
+};
+
+type TavernDirectorDecisionRoom = {
+  settings: {
+    randomEvents: {
+      enabled: boolean;
+      probability: number;
+    };
+  };
+};
 
 export type TavernDirectorDecision = {
   speakerIds: string[];
@@ -135,7 +144,7 @@ const normalizeDirectorIllustrationHint = (value: string) => {
 
 export const parseTavernDirectorDecision = (
   text: string,
-  characters: TavernCharacter[],
+  characters: TavernDirectorDecisionCharacter[],
   maxSpeakers: number,
   allowRandomEvent = true,
   allowIllustrationHints = true,
@@ -236,7 +245,7 @@ export const parseTavernDirectorDecision = (
 };
 
 export const shouldOfferTavernDirectorRandomEvent = (
-  room: Pick<TavernRoom, "settings">,
+  room: TavernDirectorDecisionRoom,
   random = Math.random,
 ) => {
   if (!room.settings.randomEvents.enabled) {

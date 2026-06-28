@@ -23,6 +23,9 @@ import {
 } from "../../../../presentation/presentation-contracts";
 import { runTavernInnerThought } from "../../../../runtime/reply";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
+import type {
+  TavernDirectorDecision,
+} from "../../../../runtime/director";
 import {
   buildTavernSpeakerCollaborationInput,
   runTavernCollaboration,
@@ -214,6 +217,7 @@ const runSpeakerReplyThroughCollaboration = async ({
   turnInstruction,
   allowNonverbalReply,
   storyContext,
+  directorDecision,
   onTextDelta,
 }: {
   ctx: TavernPageContextValue;
@@ -227,6 +231,7 @@ const runSpeakerReplyThroughCollaboration = async ({
   turnInstruction: string;
   allowNonverbalReply: boolean;
   storyContext: StoryContextPackage;
+  directorDecision?: TavernDirectorDecision;
   onTextDelta: (delta: string) => void;
 }) => {
   const collaborationInput = buildTavernSpeakerCollaborationInput({
@@ -244,6 +249,7 @@ const runSpeakerReplyThroughCollaboration = async ({
       [speaker.id]: turnInstruction,
     },
     allowNonverbalReplyCharacterIds: allowNonverbalReply ? [speaker.id] : [],
+    directorDecision,
   });
   const output = await runTavernCollaboration({
     ...collaborationInput,
@@ -276,6 +282,587 @@ const runSpeakerReplyThroughCollaboration = async ({
   };
 };
 
+type SpeakerReplyPlan = {
+  speaker: TavernCharacter;
+  speakerRuntimeModel: RuntimeModelOption;
+  speakerStepId: string;
+  currentSpeakerRunIndex: number;
+  speakerIndex: number;
+  speakerCount: number;
+  nonverbalReplyAllowed: boolean;
+  presentationContract: TavernPresentationRuntimeContract;
+  contentOnlyReplyAllowed: boolean;
+  effectiveTurnInstruction: string;
+};
+
+type SpeakerReplyRuntime = SpeakerReplyPlan & {
+  replyMessage: TavernMessage | null;
+  streamedText: string;
+};
+
+const buildSpeakerReplyPlan = ({
+  room,
+  runtimeRoom,
+  speaker,
+  speakerIndex,
+  speakerCount,
+  currentSpeakerRunIndex,
+  continuationInstruction,
+  directorReason,
+  directorNonverbalReplyIds,
+  selectedReplyOption,
+  text,
+  mode,
+  requireSpeakerRuntimeModel,
+}: {
+  room: TavernRoom;
+  runtimeRoom: TavernRoom;
+  speaker: TavernCharacter;
+  speakerIndex: number;
+  speakerCount: number;
+  currentSpeakerRunIndex: number;
+  continuationInstruction?: string;
+  directorReason: string;
+  directorNonverbalReplyIds: string[];
+  selectedReplyOption?: TavernReplyOption;
+  text: string;
+  mode: TurnMode;
+  requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
+}): SpeakerReplyPlan => {
+  const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
+  const directorReasonForCharacter = runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
+      runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
+      runtimeRoom.settings.informationPolicy.mode === "mystery"
+    ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
+    : directorReason;
+  const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
+    room: runtimeRoom,
+    characterId: speaker.id,
+    selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
+    directorNonverbalReplyIds,
+    currentUserText: text,
+    directorReason: [
+      directorReasonForCharacter,
+      continuationInstruction,
+    ].filter(Boolean).join("\n"),
+  });
+  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
+  const presentationContract = getTavernPresentationContract(presentationProfile);
+  const contentOnlyReplyAllowed =
+    nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
+  const turnInstruction = buildTavernCharacterTurnInstruction({
+    room,
+    speaker,
+    speakerIndex,
+    speakerCount,
+    replyMode: mode.replyMode,
+    isDirectorLikeMode: mode.isDirectorLikeMode,
+    isManagedMode: mode.isManagedMode,
+    isSceneDriveMode: mode.isSceneDriveMode,
+    directorReason: directorReasonForCharacter,
+    allowNonverbalReply: nonverbalReplyAllowed,
+  });
+  const effectiveTurnInstruction = continuationInstruction
+    ? [
+        turnInstruction ?? "",
+        "",
+        "<continuation_instruction>",
+        continuationInstruction,
+        "这是一次自动续调度，只回应对应待回应事项；不要替其他角色或用户发言，回答后把控制权留给现场。",
+        "</continuation_instruction>",
+      ].join("\n")
+    : turnInstruction ?? "";
+
+  return {
+    speaker,
+    speakerRuntimeModel,
+    speakerStepId: `speaker-${speaker.id}-${currentSpeakerRunIndex}`,
+    currentSpeakerRunIndex,
+    speakerIndex,
+    speakerCount,
+    nonverbalReplyAllowed,
+    presentationContract,
+    contentOnlyReplyAllowed,
+    effectiveTurnInstruction,
+  };
+};
+
+const ensureSpeakerReplyRuntimeStarted = ({
+  activeContinuationInteractionIds,
+  activeReplyRef,
+  ctx,
+  mode,
+  room,
+  runtime,
+  runtimeRoom,
+}: {
+  activeContinuationInteractionIds: string[];
+  activeReplyRef: ActiveReplyRef;
+  ctx: TavernPageContextValue;
+  mode: TurnMode;
+  room: TavernRoom;
+  runtime: SpeakerReplyRuntime;
+  runtimeRoom: TavernRoom;
+}) => {
+  if (runtime.replyMessage) {
+    activeReplyRef.message = runtime.replyMessage;
+    return runtime.replyMessage;
+  }
+
+  const { speaker } = runtime;
+  ctx.setTurnStatus(mode.isDirectorLikeMode
+    ? `${speaker.name} 正在按导演调度回应...`
+    : `${speaker.name} 正在回应...`);
+  ctx.appendExecutionStep({
+    id: runtime.speakerStepId,
+    label: `${speaker.name} 回复`,
+    detail: `${runtime.speakerIndex + 1}/${runtime.speakerCount}`,
+    status: "running",
+  });
+
+  const replyMessage = createTavernMessage({
+    roomId: room.id,
+    role: "character",
+    characterId: speaker.id,
+    presentationProfileId: runtimeRoom.presentation?.profileId,
+    content: "",
+    status: "streaming",
+    respondsToInteractionIds: activeContinuationInteractionIds.length > 0
+      ? activeContinuationInteractionIds
+      : undefined,
+  });
+  runtime.replyMessage = replyMessage;
+  runtime.streamedText = "";
+  activeReplyRef.message = replyMessage;
+  activeReplyRef.text = "";
+  ctx.appendMessagesToRoom(room.id, [replyMessage]);
+
+  return replyMessage;
+};
+
+const appendSpeakerReplyDelta = ({
+  activeReplyRef,
+  ctx,
+  delta,
+  runtime,
+  runtimeRoom,
+}: {
+  activeReplyRef: ActiveReplyRef;
+  ctx: TavernPageContextValue;
+  delta: string;
+  runtime: SpeakerReplyRuntime;
+  runtimeRoom: TavernRoom;
+}) => {
+  if (!runtime.replyMessage) {
+    return;
+  }
+
+  runtime.streamedText += delta;
+  const streamedReply = parseTavernReplyText({
+    text: runtime.streamedText,
+    activeCharacter: runtime.speaker,
+    characters: ctx.roomCharacters,
+    userPersonaName: runtimeRoom.userPersonaName,
+  });
+  activeReplyRef.message = runtime.replyMessage;
+  activeReplyRef.text = streamedReply.content;
+  ctx.patchMessage(runtime.replyMessage.id, {
+    content: streamedReply.content,
+    thought: streamedReply.thought,
+    status: "streaming",
+  });
+};
+
+const resetSpeakerReplyRuntimeForRetry = ({
+  activeReplyRef,
+  ctx,
+  runtime,
+}: {
+  activeReplyRef: ActiveReplyRef;
+  ctx: TavernPageContextValue;
+  runtime: SpeakerReplyRuntime;
+}) => {
+  runtime.streamedText = "";
+  activeReplyRef.text = "";
+  activeReplyRef.message = runtime.replyMessage;
+  if (!runtime.replyMessage) {
+    return;
+  }
+  ctx.patchMessage(runtime.replyMessage.id, {
+    content: "",
+    thought: undefined,
+    status: "streaming",
+  });
+};
+
+const finalizeSpeakerReplyRuntime = async ({
+  activeReplyRef,
+  ctx,
+  currentUserText,
+  directorDecision,
+  references,
+  room,
+  runtime,
+  runtimeMessages,
+  runtimeRoom,
+  storyContext,
+  text,
+  turnMessages,
+  turnNarratorTexts,
+}: {
+  activeReplyRef: ActiveReplyRef;
+  ctx: TavernPageContextValue;
+  currentUserText: string;
+  directorDecision?: TavernDirectorDecision;
+  references: TavernReferencedFile[];
+  room: TavernRoom;
+  runtime: SpeakerReplyRuntime;
+  runtimeMessages: TavernMessage[];
+  runtimeRoom: TavernRoom;
+  storyContext: StoryContextPackage;
+  text: string;
+  turnMessages: TavernMessage[];
+  turnNarratorTexts: string[];
+}) => {
+  const replyMessage = runtime.replyMessage;
+  if (!replyMessage) {
+    return null;
+  }
+
+  let finalReply = parseTavernReplyText({
+    text: text || runtime.streamedText,
+    activeCharacter: runtime.speaker,
+    characters: ctx.roomCharacters,
+    userPersonaName: runtimeRoom.userPersonaName,
+  });
+
+  if (!isFinalReplyUsable(finalReply, runtime.contentOnlyReplyAllowed)) {
+    ctx.patchExecutionStep(runtime.speakerStepId, {
+      status: "running",
+      detail: "公开回复不完整，正在重试...",
+    });
+    resetSpeakerReplyRuntimeForRetry({
+      activeReplyRef,
+      ctx,
+      runtime,
+    });
+    const retryResult = await runSpeakerReplyThroughCollaboration({
+      ctx,
+      runtimeRoom,
+      speaker: runtime.speaker,
+      speakerRuntimeModel: runtime.speakerRuntimeModel,
+      characters: ctx.roomCharacters,
+      turnMessages,
+      references,
+      currentUserText,
+      turnInstruction: buildRetryTurnInstruction({
+        effectiveTurnInstruction: runtime.effectiveTurnInstruction,
+        nonverbalReplyAllowed: runtime.nonverbalReplyAllowed,
+        presentationContract: runtime.presentationContract,
+        speaker: runtime.speaker,
+      }),
+      allowNonverbalReply: runtime.nonverbalReplyAllowed,
+      storyContext,
+      directorDecision,
+      onTextDelta: (delta) => appendSpeakerReplyDelta({
+        activeReplyRef,
+        ctx,
+        delta,
+        runtime,
+        runtimeRoom,
+      }),
+    });
+    finalReply = parseTavernReplyText({
+      text: retryResult.text || runtime.streamedText,
+      activeCharacter: runtime.speaker,
+      characters: ctx.roomCharacters,
+      userPersonaName: runtimeRoom.userPersonaName,
+    });
+  }
+
+  const finalText = resolveFinalReplyText({
+    finalReply,
+    contentOnlyReplyAllowed: runtime.contentOnlyReplyAllowed,
+    presentationContract: runtime.presentationContract,
+    speaker: runtime.speaker,
+  });
+  if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
+    ctx.removeMessage(replyMessage.id);
+    ctx.patchExecutionStep(runtime.speakerStepId, {
+      status: "done",
+      detail: "已跳过重复旁白。",
+    });
+    activeReplyRef.message = null;
+    activeReplyRef.text = "";
+    return null;
+  }
+
+  const finalThought = finalReply.thought || await generateMissingInnerThought({
+    ctx,
+    runtimeRoom,
+    speaker: runtime.speaker,
+    runtimeModel: runtime.speakerRuntimeModel,
+    turnMessages,
+    text: currentUserText,
+    finalText,
+    storyContext,
+  });
+  const finalizedMessage: TavernMessage = {
+    ...replyMessage,
+    content: finalText,
+    thought: finalThought,
+    kind: inferTavernMessageKind({
+      role: replyMessage.role,
+      presentationProfileId: replyMessage.presentationProfileId,
+    }),
+    segments: buildTavernMessageSegments({
+      ...replyMessage,
+      content: finalText,
+      thought: finalThought,
+    }),
+    status: "done",
+  };
+  ctx.patchMessage(replyMessage.id, {
+    content: finalText,
+    thought: finalThought,
+    segments: finalizedMessage.segments,
+    status: "done",
+  });
+  ctx.patchExecutionStep(runtime.speakerStepId, {
+    status: "done",
+    detail: finalText.slice(0, 120),
+  });
+
+  await compactSpeakerKnowledgeIfNeeded({
+    ctx,
+    room,
+    speaker: runtime.speaker,
+    runtimeModel: runtime.speakerRuntimeModel,
+    runtimeMessages: [...runtimeMessages, finalizedMessage],
+    currentSpeakerRunIndex: runtime.currentSpeakerRunIndex,
+  });
+  activeReplyRef.message = null;
+  activeReplyRef.text = "";
+
+  return finalizedMessage;
+};
+
+const runSpeakerReplyRoundThroughCollaboration = async ({
+  activeContinuationInteractionIds,
+  activeReplyRef,
+  ctx,
+  currentSpeakerRunIndexStart,
+  currentUserText,
+  directorDecision,
+  directorNonverbalReplyIds,
+  directorReason,
+  mode,
+  references,
+  requireSpeakerRuntimeModel,
+  room,
+  runtimeMessages,
+  runtimeRoom,
+  selectedReplyOption,
+  speakers,
+  storyContext,
+  turnMessages,
+  turnNarratorTexts,
+}: {
+  activeContinuationInteractionIds: string[];
+  activeReplyRef: ActiveReplyRef;
+  ctx: TavernPageContextValue;
+  currentSpeakerRunIndexStart: number;
+  currentUserText: string;
+  directorDecision?: TavernDirectorDecision;
+  directorNonverbalReplyIds: string[];
+  directorReason: string;
+  mode: TurnMode;
+  references: TavernReferencedFile[];
+  requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
+  room: TavernRoom;
+  runtimeMessages: TavernMessage[];
+  runtimeRoom: TavernRoom;
+  selectedReplyOption?: TavernReplyOption;
+  speakers: TavernCharacter[];
+  storyContext: StoryContextPackage;
+  turnMessages: TavernMessage[];
+  turnNarratorTexts: string[];
+}) => {
+  const runtimes = speakers.map((speaker, index): SpeakerReplyRuntime => ({
+    ...buildSpeakerReplyPlan({
+      room,
+      runtimeRoom,
+      speaker,
+      speakerIndex: index,
+      speakerCount: speakers.length,
+      currentSpeakerRunIndex: currentSpeakerRunIndexStart + index,
+      directorReason,
+      directorNonverbalReplyIds,
+      selectedReplyOption,
+      text: currentUserText,
+      mode,
+      requireSpeakerRuntimeModel,
+    }),
+    replyMessage: null,
+    streamedText: "",
+  }));
+  const runtimeByAgentRoleId = new Map(runtimes.map((runtime) => [
+    tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker),
+    runtime,
+  ]));
+  const agentRoleLabelById = Object.fromEntries(
+    runtimes.map((runtime) => [
+      tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker),
+      runtime.speaker.name,
+    ]),
+  );
+  const runtimeByOutputKey = new Map(runtimes.map((runtime) => [
+    tavernSpeakerReplyOutputKey(runtime.speaker),
+    runtime,
+  ]));
+  const firstRuntime = runtimes[0];
+  if (!firstRuntime) {
+    return {
+      runtimeMessages,
+      turnMessages,
+    };
+  }
+
+  const collaborationInput = buildTavernSpeakerCollaborationInput({
+    workspacePath: ctx.workspace.path,
+    runtimeAgentId: ctx.runtimeAgentId,
+    runtimeModel: requireTavernRuntimeModelInput(firstRuntime.speakerRuntimeModel),
+    room: runtimeRoom,
+    speakers,
+    characters: ctx.roomCharacters,
+    messages: turnMessages,
+    references,
+    currentUserText,
+    storyContext,
+    turnInstructionByCharacterId: Object.fromEntries(
+      runtimes.map((runtime) => [
+        runtime.speaker.id,
+        runtime.effectiveTurnInstruction,
+      ]),
+    ),
+    allowNonverbalReplyCharacterIds: runtimes
+      .filter((runtime) => runtime.nonverbalReplyAllowed)
+      .map((runtime) => runtime.speaker.id),
+    directorDecision,
+  });
+  const output = await runTavernCollaboration({
+    ...collaborationInput,
+    onEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, {
+        scopeLabel: "角色协作",
+        agentRoleLabelById,
+      });
+      if (event.type !== "step_started" || !event.agentRoleId) {
+        return;
+      }
+
+      const runtime = runtimeByAgentRoleId.get(event.agentRoleId);
+      if (!runtime) {
+        return;
+      }
+      ensureSpeakerReplyRuntimeStarted({
+        activeContinuationInteractionIds,
+        activeReplyRef,
+        ctx,
+        mode,
+        room,
+        runtime,
+        runtimeRoom,
+      });
+    },
+    onAgentEvent: (event) => {
+      if (
+        event.event.type !== "text_delta" ||
+        typeof event.event.delta !== "string"
+      ) {
+        return;
+      }
+
+      const runtime = runtimeByAgentRoleId.get(event.agentRoleId);
+      if (!runtime) {
+        return;
+      }
+      ensureSpeakerReplyRuntimeStarted({
+        activeContinuationInteractionIds,
+        activeReplyRef,
+        ctx,
+        mode,
+        room,
+        runtime,
+        runtimeRoom,
+      });
+      appendSpeakerReplyDelta({
+        activeReplyRef,
+        ctx,
+        delta: event.event.delta,
+        runtime,
+        runtimeRoom,
+      });
+    },
+  }).catch((error: unknown) => {
+    const message = getErrorMessage(error);
+    for (const runtime of runtimes) {
+      if (!runtime.replyMessage || activeReplyRef.message?.id === runtime.replyMessage.id) {
+        continue;
+      }
+      ctx.patchMessage(runtime.replyMessage.id, {
+        status: "error",
+      });
+      ctx.patchExecutionStep(runtime.speakerStepId, {
+        status: "error",
+        detail: message,
+      });
+    }
+    throw error;
+  });
+  const outputTextByKey = new Map(output.steps.map((step) => [step.outputKey, step.text]));
+
+  for (const [outputKey, runtime] of runtimeByOutputKey) {
+    const outputText = outputTextByKey.get(outputKey);
+    if (outputText === undefined && !runtime.replyMessage) {
+      continue;
+    }
+    ensureSpeakerReplyRuntimeStarted({
+      activeContinuationInteractionIds,
+      activeReplyRef,
+      ctx,
+      mode,
+      room,
+      runtime,
+      runtimeRoom,
+    });
+    const finalizedMessage = await finalizeSpeakerReplyRuntime({
+      activeReplyRef,
+      ctx,
+      currentUserText,
+      directorDecision,
+      references,
+      room,
+      runtime,
+      runtimeMessages,
+      runtimeRoom,
+      storyContext,
+      text: outputText ?? runtime.streamedText,
+      turnMessages,
+      turnNarratorTexts,
+    });
+    if (finalizedMessage) {
+      runtimeMessages = [...runtimeMessages, finalizedMessage];
+      turnMessages.push(finalizedMessage);
+    }
+  }
+
+  return {
+    runtimeMessages,
+    turnMessages,
+  };
+};
+
 const runSingleSpeakerReply = async ({
   ctx,
   room,
@@ -288,6 +875,7 @@ const runSingleSpeakerReply = async ({
   continuationInstruction,
   directorReason,
   directorNonverbalReplyIds,
+  directorDecision,
   selectedReplyOption,
   text,
   references,
@@ -310,6 +898,7 @@ const runSingleSpeakerReply = async ({
   continuationInstruction?: string;
   directorReason: string;
   directorNonverbalReplyIds: string[];
+  directorDecision?: TavernDirectorDecision;
   selectedReplyOption?: TavernReplyOption;
   text: string;
   references: TavernReferencedFile[];
@@ -421,6 +1010,7 @@ const runSingleSpeakerReply = async ({
     turnInstruction: effectiveTurnInstruction,
     allowNonverbalReply: nonverbalReplyAllowed,
     storyContext,
+    directorDecision,
     onTextDelta: handleReplyTextDelta,
   });
   let finalReply = parseTavernReplyText({
@@ -459,6 +1049,7 @@ const runSingleSpeakerReply = async ({
       }),
       allowNonverbalReply: nonverbalReplyAllowed,
       storyContext,
+      directorDecision,
       onTextDelta: handleReplyTextDelta,
     });
     finalReply = parseTavernReplyText({
@@ -536,6 +1127,29 @@ const runSingleSpeakerReply = async ({
   return finalizedMessage;
 };
 
+const isDirectorDecisionCompatibleWithSpeakers = (
+  directorDecision: TavernDirectorDecision | undefined,
+  speakers: TavernCharacter[],
+) => {
+  if (!directorDecision || speakers.length === 0) {
+    return false;
+  }
+
+  const directedSpeakerIds = new Set([
+    ...directorDecision.speakerIds,
+    ...(directorDecision.nonverbalReplyIds ?? []),
+  ]);
+  return speakers.every((speaker) => directedSpeakerIds.has(speaker.id));
+};
+
+const shouldRunSpeakerRoundThroughCollaboration = ({
+  continuationRound,
+  speakers,
+}: {
+  continuationRound: number;
+  speakers: TavernCharacter[];
+}) => continuationRound === 0 && speakers.length > 1;
+
 export const runSpeakerReplyFlow = async ({
   ctx,
   room,
@@ -547,6 +1161,7 @@ export const runSpeakerReplyFlow = async ({
   references,
   selectedReplyOption,
   speakers,
+  directorDecision,
   availableRoomCharacters,
   mode,
   directorReason,
@@ -566,6 +1181,7 @@ export const runSpeakerReplyFlow = async ({
   references: TavernReferencedFile[];
   selectedReplyOption?: TavernReplyOption;
   speakers: TavernCharacter[];
+  directorDecision?: TavernDirectorDecision;
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   directorReason: string;
@@ -588,36 +1204,71 @@ export const runSpeakerReplyFlow = async ({
     const currentSpeakers = speakerQueue;
     speakerQueue = [];
     const activeContinuationInteractionIds = currentContinuationInteractionIds;
+    const currentDirectorDecision = continuationRound === 0 &&
+        isDirectorDecisionCompatibleWithSpeakers(directorDecision, currentSpeakers)
+      ? directorDecision
+      : undefined;
     currentContinuationInteractionIds = [];
 
-    for (const [speakerIndex, speaker] of currentSpeakers.entries()) {
-      const finalizedMessage = await runSingleSpeakerReply({
+    if (shouldRunSpeakerRoundThroughCollaboration({
+      continuationRound,
+      speakers: currentSpeakers,
+    })) {
+      const speakerRound = await runSpeakerReplyRoundThroughCollaboration({
         ctx,
         room,
         runtimeRoom,
-        speaker,
-        speakerIndex,
-        speakerCount: currentSpeakers.length,
-        currentSpeakerRunIndex: speakerRunIndex++,
         activeContinuationInteractionIds,
-        continuationInstruction: continuationInstructionBySpeakerId.get(speaker.id),
+        currentSpeakerRunIndexStart: speakerRunIndex,
+        currentUserText: text,
         directorReason,
         directorNonverbalReplyIds,
+        directorDecision: currentDirectorDecision,
         selectedReplyOption,
-        text,
         references,
-        turnMessages,
         runtimeMessages,
+        turnMessages,
         turnNarratorTexts,
         mode,
         requireSpeakerRuntimeModel,
         activeReplyRef,
+        speakers: currentSpeakers,
         storyContext,
       });
+      speakerRunIndex += currentSpeakers.length;
+      runtimeMessages = speakerRound.runtimeMessages;
+      turnMessages = speakerRound.turnMessages;
+    } else {
+      for (const [speakerIndex, speaker] of currentSpeakers.entries()) {
+        const finalizedMessage = await runSingleSpeakerReply({
+          ctx,
+          room,
+          runtimeRoom,
+          speaker,
+          speakerIndex,
+          speakerCount: currentSpeakers.length,
+          currentSpeakerRunIndex: speakerRunIndex++,
+          activeContinuationInteractionIds,
+          continuationInstruction: continuationInstructionBySpeakerId.get(speaker.id),
+          directorReason,
+          directorNonverbalReplyIds,
+          directorDecision: currentDirectorDecision,
+          selectedReplyOption,
+          text,
+          references,
+          turnMessages,
+          runtimeMessages,
+          turnNarratorTexts,
+          mode,
+          requireSpeakerRuntimeModel,
+          activeReplyRef,
+          storyContext,
+        });
 
-      if (finalizedMessage) {
-        runtimeMessages = [...runtimeMessages, finalizedMessage];
-        turnMessages.push(finalizedMessage);
+        if (finalizedMessage) {
+          runtimeMessages = [...runtimeMessages, finalizedMessage];
+          turnMessages.push(finalizedMessage);
+        }
       }
     }
 
