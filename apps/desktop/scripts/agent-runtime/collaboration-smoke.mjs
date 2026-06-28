@@ -655,6 +655,97 @@ writeFileSync(entryPath, `
     }
     assert(maxStepsError instanceof Error, "router 回环超过 maxSteps 时应失败", maxStepsError);
 
+    const dispatchCommands: Array<{ roleId: string; userMessage: string }> = [];
+    const dispatchEngine = createCollaborationEngine({
+      runAgent: async (command, { emit }) => {
+        const roleId = command.agentRoleId ?? "unknown";
+        dispatchCommands.push({
+          roleId,
+          userMessage: command.userMessage,
+        });
+        emit({ type: "text_delta", delta: command.userMessage });
+        return {
+          text: roleId + ":" + command.userMessage,
+        };
+      },
+    });
+    const dispatchWorkflow = {
+      id: "dispatch-smoke",
+      steps: [
+        {
+          id: "dispatch",
+          type: "dispatch" as const,
+          input: {
+            invocations: [
+              {
+                id: "writer",
+                agentRoleId: "writer",
+                outputKey: "writerOut",
+                userMessage: "Write {{ input.topic }}",
+              },
+              {
+                id: "reviewer",
+                agentRoleId: "reviewer",
+                outputKey: "reviewerOut",
+                userMessage: "Review {{ input.topic }}",
+              },
+            ],
+          },
+          outputKey: "dispatchOut",
+        },
+      ],
+    };
+    const dispatchResult = await dispatchEngine.run({
+      workspacePath,
+      input: {
+        topic: "dynamic dispatch",
+      },
+      workflow: dispatchWorkflow,
+      agents: [
+        { id: "writer", label: "Writer" },
+        { id: "reviewer", label: "Reviewer" },
+      ],
+    }, {
+      askUser: async () => "",
+    });
+    assert(dispatchResult.executorId === "langgraph", "dispatch 默认应走 LangGraph", dispatchResult);
+    assert(
+      dispatchCommands.map((command) => command.roleId + ":" + command.userMessage).join("|") ===
+        "writer:Write dynamic dispatch|reviewer:Review dynamic dispatch",
+      "dispatch 应按标准 invocation 动态执行多个 agent",
+      dispatchCommands,
+    );
+    assert((dispatchResult.output as { writerOut?: string }).writerOut === "writer:Write dynamic dispatch", "dispatch 应写回动态 agent outputKey", dispatchResult.output);
+    assert(dispatchResult.steps.some((step) => step.stepId === "dispatch:writer"), "dispatch 结果应包含动态 writer step", dispatchResult.steps);
+    assert(dispatchResult.steps.some((step) => step.stepId === "dispatch:reviewer"), "dispatch 结果应包含动态 reviewer step", dispatchResult.steps);
+
+    dispatchCommands.length = 0;
+    const nativeDispatchResult = await dispatchEngine.run({
+      workspacePath,
+      input: {
+        topic: "native dispatch",
+      },
+      workflow: {
+        ...dispatchWorkflow,
+        id: "native-dispatch-smoke",
+        executor: "native" as const,
+      },
+      agents: [
+        { id: "writer", label: "Writer" },
+        { id: "reviewer", label: "Reviewer" },
+      ],
+    }, {
+      askUser: async () => "",
+    });
+    assert(nativeDispatchResult.executorId === "native", "显式 native dispatch 应走 native executor", nativeDispatchResult);
+    assert(
+      dispatchCommands.map((command) => command.roleId + ":" + command.userMessage).join("|") ===
+        "writer:Write native dispatch|reviewer:Review native dispatch",
+      "native dispatch 应按标准 invocation 动态执行多个 agent",
+      dispatchCommands,
+    );
+    assert((nativeDispatchResult.output as { reviewerOut?: string }).reviewerOut === "reviewer:Review native dispatch", "native dispatch 应写回动态 agent outputKey", nativeDispatchResult.output);
+
     const langGraphStartedRoleIds: string[] = [];
     const langGraphReviewerMessages: string[] = [];
     const langGraphAttempts = new Map<string, number>();
@@ -867,6 +958,12 @@ writeFileSync(entryPath, `
         nativeWorkflowRunId: nativeLoopResult.workflowRunId,
         nativeMaxStepsError: nativeMaxStepsError instanceof Error ? nativeMaxStepsError.name : String(nativeMaxStepsError),
         maxStepsError: maxStepsError instanceof Error ? maxStepsError.name : String(maxStepsError),
+      },
+      dispatch: {
+        workflowRunId: dispatchResult.workflowRunId,
+        stepIds: dispatchResult.steps.map((step) => step.stepId),
+        nativeWorkflowRunId: nativeDispatchResult.workflowRunId,
+        nativeStepIds: nativeDispatchResult.steps.map((step) => step.stepId),
       },
       langGraph: {
         workflowRunId: langGraphResult.workflowRunId,

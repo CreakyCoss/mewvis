@@ -35,9 +35,12 @@ export type {
 
 export type {
   CollaborationAgentWorkflowStep,
+  CollaborationAgentInvocation,
   CollaborationBaseWorkflowStep,
   CollaborationBuiltinStepCondition,
   CollaborationConditionWorkflowStep,
+  CollaborationDispatchMode,
+  CollaborationDispatchWorkflowStep,
   CollaborationNamedStepCondition,
   CollaborationRouterWorkflowStep,
   CollaborationStepCondition,

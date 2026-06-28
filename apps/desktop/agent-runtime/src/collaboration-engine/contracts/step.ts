@@ -10,6 +10,7 @@ import type {
 
 export type CollaborationStepType =
   | "agent"
+  | "dispatch"
   | "transform"
   | "condition"
   | "router";
@@ -62,6 +63,32 @@ export type CollaborationAgentWorkflowStep = CollaborationBaseWorkflowStep & {
   maxRetries?: number | null;
 };
 
+export type CollaborationDispatchMode = "serial" | "parallel";
+
+export type CollaborationAgentInvocation = {
+  id?: string | null;
+  label?: string | null;
+  agentRoleId: string;
+  outputKey?: string | null;
+  userMessage: string;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: AgentToolName[];
+  enabledSkills?: string[];
+  resources?: BridgeRuntimeResources | null;
+  maxRetries?: number | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type CollaborationDispatchWorkflowStep = CollaborationBaseWorkflowStep & {
+  type: "dispatch";
+  input?: unknown;
+  mode?: CollaborationDispatchMode | null;
+};
+
 export type CollaborationTransformWorkflowStep = CollaborationBaseWorkflowStep & {
   type: "transform";
   transform: string;
@@ -84,6 +111,7 @@ export type CollaborationRouterWorkflowStep = CollaborationBaseWorkflowStep & {
 
 export type CollaborationWorkflowStep =
   | CollaborationAgentWorkflowStep
+  | CollaborationDispatchWorkflowStep
   | CollaborationTransformWorkflowStep
   | CollaborationConditionWorkflowStep
   | CollaborationRouterWorkflowStep;

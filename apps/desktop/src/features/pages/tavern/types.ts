@@ -341,6 +341,10 @@ export type TavernRoomSettings = {
   assetExtractionIntervalTurns: number;
   maxAssetDrafts: number;
   directorMaxSpeakers: number;
+  directorLoop: {
+    enabled: boolean;
+    maxRounds: number;
+  };
   agentKnowledgeCompactIntervalTurns: number;
   interactionQualityRuleIds: TavernQualityRuleId[];
   directorNarrativeControl: {
@@ -1025,7 +1029,7 @@ export type TavernWorkflowTraceStep = {
   label: string;
   status: TavernWorkflowTraceStepStatus;
   detail?: string;
-  stepType?: "agent" | "transform" | "condition" | "router";
+  stepType?: "agent" | "dispatch" | "transform" | "condition" | "router";
   agentRoleId?: string;
   agentTaskId?: string;
   outputKey?: string;
@@ -1040,7 +1044,7 @@ export type TavernWorkflowTraceEvent = {
   workflowId?: string;
   executorId?: string;
   stepId?: string;
-  stepType?: "agent" | "transform" | "condition" | "router";
+  stepType?: "agent" | "dispatch" | "transform" | "condition" | "router";
   agentRoleId?: string;
   agentTaskId?: string;
   detail?: string;
@@ -1051,7 +1055,7 @@ export type TavernWorkflowTraceResult = {
   executorId?: string;
   steps: Array<{
     stepId: string;
-    stepType?: "agent" | "transform" | "condition" | "router";
+    stepType?: "agent" | "dispatch" | "transform" | "condition" | "router";
     agentRoleId?: string;
     agentTaskId?: string;
     outputKey: string;

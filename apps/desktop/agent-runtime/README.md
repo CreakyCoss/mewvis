@@ -119,13 +119,44 @@ The new collaboration command is:
 `workflow.steps` supports these generic step types:
 
 - `agent`: call an agent role through `agent-engine`
+- `dispatch`: dynamically call one or more agent invocations from structured input
 - `transform`: run a registered data transformer
 - `condition`: run a registered boolean condition and store the result
 - `router`: run a registered router and store the selected route
 
-Only `agent` steps reference an agent role by `agentRoleId`. Business-specific
-handlers are registered by host code through collaboration extensions; workflow
-JSON only refers to handler ids such as `tavern.normalizeDirectorDecision`.
+Only `agent` steps and `dispatch` invocations reference an agent role by
+`agentRoleId`. Business-specific handlers are registered by host code through
+collaboration extensions; workflow JSON only refers to handler ids such as
+`tavern.normalizeDirectorDecision`.
+
+Use `dispatch` when an earlier step decides which agents should run. Its input
+can be an array of invocations or an object with an `invocations` array:
+
+```json
+{
+  "id": "dispatch-speakers",
+  "type": "dispatch",
+  "input": {
+    "invocations": [
+      {
+        "id": "speaker-a",
+        "agentRoleId": "character-a",
+        "outputKey": "reply:character-a",
+        "userMessage": "Reply to {{ input.topic }}."
+      }
+    ]
+  },
+  "outputKey": "speakerDispatch"
+}
+```
+
+Each invocation accepts the same agent-facing fields as an `agent` step:
+`userMessage`, `systemPrompt`, `requestContext`, `runtimeInstruction`,
+`runtimeModel`, `allowedTools`, `enabledSkills`, `resources`, and `maxRetries`.
+The dispatch step itself stores a summary at its own `outputKey`; each dynamic
+agent also writes its own `outputKey` into `outputs`. Invocation strings are
+rendered when that dynamic agent starts, so serial invocations can reference
+outputs produced by earlier invocations in the same dispatch.
 
 `workflow.executionMode` controls scheduling:
 

@@ -1,4 +1,5 @@
 import type {
+  CollaborationAgentInvocation,
   CollaborationExtension,
 } from "../../../../agent-runtime/src/index.js";
 import {
@@ -29,6 +30,16 @@ type ShouldRunSpeakerInput = {
   characterId?: unknown;
 };
 
+type SpeakerDispatchCandidate = {
+  characterId?: unknown;
+  invocation?: unknown;
+};
+
+type CreateSpeakerDispatchesInput = {
+  decision?: unknown;
+  candidates?: unknown;
+};
+
 type DirectorLoopRouteInput = {
   round?: unknown;
   current?: unknown;
@@ -51,6 +62,7 @@ export const createTavernCollaborationExtension = (): CollaborationExtension => 
       );
     },
     incrementDirectorLoopRound: (input) => incrementLoopRound(input),
+    createSpeakerDispatches: (input) => createSpeakerDispatches(input),
   },
   conditions: {
     hasScheduledSpeakers: (input) => hasScheduledSpeakers(input),
@@ -192,10 +204,89 @@ const shouldRunSpeaker = (input: unknown) => {
     stringArrayIncludes(decision.nonverbalReplyIds, characterId);
 };
 
+const createSpeakerDispatches = (input: unknown) => {
+  const request = isRecord(input) ? input as CreateSpeakerDispatchesInput : {};
+  const decision = isRecord(request.decision)
+    ? request.decision as TavernRouteDecision
+    : isRecord(input)
+    ? input as TavernRouteDecision
+    : {};
+  const candidateByCharacterId = new Map(
+    normalizeSpeakerDispatchCandidates(request.candidates).map((candidate) => [
+      candidate.characterId,
+      candidate.invocation,
+    ]),
+  );
+  const characterIds = orderedUniqueStrings([
+    ...readStringArray(decision.speakerIds),
+    ...readStringArray(decision.nonverbalReplyIds),
+  ]);
+  const invocations = characterIds.flatMap((characterId) => {
+    const invocation = candidateByCharacterId.get(characterId);
+    return invocation ? [invocation] : [];
+  });
+
+  return {
+    characterIds: invocations.map((invocation) => stringValue(invocation.metadata?.characterId) || invocation.agentRoleId),
+    count: invocations.length,
+    invocations,
+  };
+};
+
+const normalizeSpeakerDispatchCandidates = (
+  value: unknown,
+): Array<{
+  characterId: string;
+  invocation: CollaborationAgentInvocation;
+}> => Array.isArray(value)
+  ? value.flatMap((item): Array<{
+      characterId: string;
+      invocation: CollaborationAgentInvocation;
+    }> => {
+      if (!isRecord(item)) {
+        return [];
+      }
+      const candidate = item as SpeakerDispatchCandidate;
+      const characterId = stringValue(candidate.characterId);
+      if (!characterId || !isRecord(candidate.invocation)) {
+        return [];
+      }
+      const invocation = candidate.invocation as Partial<CollaborationAgentInvocation>;
+      if (
+        typeof invocation.agentRoleId !== "string" ||
+        typeof invocation.userMessage !== "string"
+      ) {
+        return [];
+      }
+      return [{
+        characterId,
+        invocation: {
+          ...invocation,
+          agentRoleId: invocation.agentRoleId,
+          userMessage: invocation.userMessage,
+          metadata: {
+            ...(invocation.metadata ?? {}),
+            characterId,
+          },
+        },
+      }];
+    })
+  : [];
+
 const hasNarrator = (input: unknown) => {
   const decision = isRecord(input) ? input as TavernRouteDecision : {};
   return typeof decision.narrator === "string" && decision.narrator.trim().length > 0;
 };
+
+const readStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.flatMap((item) => {
+        const text = stringValue(item);
+        return text ? [text] : [];
+      })
+    : [];
+
+const orderedUniqueStrings = (values: string[]) => Array.from(new Set(values));
 
 const hasStringItems = (value: unknown) =>
   Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim().length > 0);

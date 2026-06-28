@@ -185,6 +185,10 @@ const validateWorkflowStepShape = (
     return;
   }
 
+  if (step.type === "dispatch") {
+    return;
+  }
+
   if (step.type === "condition") {
     if (!step.condition?.trim()) {
       throw new Error(`协作 condition step 缺少 condition：${workflowId}/${step.id}`);

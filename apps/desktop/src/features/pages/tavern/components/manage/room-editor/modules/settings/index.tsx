@@ -241,6 +241,13 @@ export const SettingsSection = ({
                     {agencyModeLabel[data.settings.directorNarrativeControl.agencyMode]} / {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
                   </EditorStatusPill>
                 </EditorSettingRow>
+                <EditorSettingRow icon={UsersRound} label="导演回环">
+                  <EditorStatusPill tone={data.settings.directorLoop.enabled ? "active" : "muted"}>
+                    {data.settings.directorLoop.enabled
+                      ? `${data.settings.directorLoop.maxRounds} 轮`
+                      : "关闭"}
+                  </EditorStatusPill>
+                </EditorSettingRow>
                 <EditorSettingRow icon={ShieldCheck} label="质量护栏">
                   <EditorStatusPill tone={data.settings.interactionQualityRuleIds.length > 0 ? "active" : "muted"}>
                     {data.settings.interactionQualityRuleIds.length > 0

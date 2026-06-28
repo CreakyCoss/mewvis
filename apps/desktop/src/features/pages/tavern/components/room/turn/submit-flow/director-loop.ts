@@ -24,6 +24,9 @@ import {
   buildTavernDirectorLoopCollaborationInput,
   runTavernCollaboration,
 } from "../../../../runtime/collaboration";
+import {
+  resolveTavernCharacterModel,
+} from "../../../../runtime/agent";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -45,7 +48,6 @@ import {
 } from "./collaboration-trace";
 
 const TAVERN_LOOP_ILLUSTRATION_HINT_LIMIT = 24;
-const TAVERN_DIRECTOR_LOOP_MAX_ROUNDS = 2;
 
 type LoopSpeakerRuntime = {
   executionStepId: string;
@@ -54,27 +56,16 @@ type LoopSpeakerRuntime = {
   text: string;
 };
 
-export const isTavernDirectorLoopWorkflowEnabled = () => {
-  const env = (import.meta as ImportMeta & {
-    env?: Record<string, string | boolean | undefined>;
-  }).env;
-  return env?.VITE_TAVERN_DIRECTOR_LOOP_WORKFLOW === "1" ||
-    env?.VITE_TAVERN_DIRECTOR_LOOP_WORKFLOW === true;
-};
-
 export const shouldRunTavernDirectorLoopWorkflow = ({
   availableRoomCharacters,
   mode,
-  room,
 }: {
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   room: TavernRoom;
 }) =>
-  isTavernDirectorLoopWorkflowEnabled() &&
   mode.isDirectorLikeMode &&
-  availableRoomCharacters.length > 0 &&
-  !room.settings.continuation.enabled;
+  availableRoomCharacters.length > 0;
 
 export const runDirectorLoopTurn = async ({
   activeReplyRef,
@@ -109,11 +100,12 @@ export const runDirectorLoopTurn = async ({
   turnMessages: TavernMessage[];
   userMessage: TavernMessage;
 }) => {
+  const maxRounds = resolveDirectorLoopMaxRounds(runtimeRoom);
   ctx.setTurnStatus("导演正在进行回环调度...");
   ctx.appendExecutionStep({
     id: "director-loop",
     label: "导演回环",
-    detail: `最多 ${TAVERN_DIRECTOR_LOOP_MAX_ROUNDS} 轮`,
+    detail: maxRounds > 1 ? `最多 ${maxRounds} 轮` : "单轮动态调度",
     status: "running",
   });
 
@@ -235,7 +227,18 @@ export const runDirectorLoopTurn = async ({
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: runtimeRoom,
       characters: availableRoomCharacters,
-      speakers: availableRoomCharacters,
+      speakerInputs: availableRoomCharacters.map((speaker, index) => ({
+        character: speaker,
+        runtimeModel: resolveRequiredSpeakerRuntimeModel({
+          runtimeModel,
+          speaker,
+        }),
+        turnInstruction: [
+          `这是导演动态协作中的第 ${index + 1} 个候选角色。`,
+          "只有被导演本轮调度时才回应；承接同一 workflow 已公开发生的角色输出。",
+        ].join("\n"),
+        allowNonverbalReply: true,
+      })),
       messages: runtimeMessages,
       references,
       currentUserText: text,
@@ -247,18 +250,8 @@ export const runDirectorLoopTurn = async ({
         room.settings.directorMaxSpeakers,
         Math.max(1, ctx.roomCharacters.length),
       ),
-      maxRounds: TAVERN_DIRECTOR_LOOP_MAX_ROUNDS,
+      maxRounds,
       storyContext,
-      allowNonverbalReplyCharacterIds: latestDirectorDecision?.nonverbalReplyIds ?? [],
-      turnInstructionByCharacterId: Object.fromEntries(
-        availableRoomCharacters.map((speaker, index) => [
-          speaker.id,
-          [
-            `这是导演回环协作中的第 ${index + 1} 个候选角色。`,
-            "如果本轮没有被导演调度，此 step 会被条件跳过；如果被调度，只回应自己可见信息。",
-          ].join("\n"),
-        ]),
-      ),
     }),
     onEvent: handleEvent,
   });
@@ -285,6 +278,27 @@ export const runDirectorLoopTurn = async ({
       turnId: userMessage.turnId ?? userMessage.id,
     }),
   };
+};
+
+const resolveDirectorLoopMaxRounds = (room: TavernRoom) =>
+  room.settings.directorLoop.enabled
+    ? Math.max(1, Math.floor(room.settings.directorLoop.maxRounds))
+    : 1;
+
+const resolveRequiredSpeakerRuntimeModel = ({
+  runtimeModel,
+  speaker,
+}: {
+  runtimeModel: RuntimeModelOption;
+  speaker: TavernCharacter;
+}) => {
+  const resolvedModel = resolveTavernCharacterModel({
+    fallbackRuntimeModel: runtimeModel,
+  });
+  if (!resolvedModel) {
+    throw new Error(`角色 ${speaker.name} 还没有可用模型。`);
+  }
+  return requireTavernRuntimeModelInput(resolvedModel.runtimeModel);
 };
 
 const startLoopSpeakerRuntime = ({

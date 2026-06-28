@@ -55,6 +55,7 @@ export type AgentClientCollaborationStepCondition = {
 
 export type AgentClientCollaborationStepType =
   | "agent"
+  | "dispatch"
   | "transform"
   | "condition"
   | "router";
@@ -84,6 +85,32 @@ export type AgentClientCollaborationAgentWorkflowStep =
   maxRetries?: number | null;
 };
 
+export type AgentClientCollaborationDispatchMode = "serial" | "parallel";
+
+export type AgentClientCollaborationAgentInvocation = {
+  id?: string | null;
+  label?: string | null;
+  agentRoleId: string;
+  outputKey?: string | null;
+  userMessage: string;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+  metadata?: Record<string, unknown> | null;
+  maxRetries?: number | null;
+};
+
+export type AgentClientCollaborationDispatchWorkflowStep =
+  AgentClientCollaborationBaseWorkflowStep & {
+  type: "dispatch";
+  input?: unknown;
+  mode?: AgentClientCollaborationDispatchMode | null;
+};
+
 export type AgentClientCollaborationTransformWorkflowStep =
   AgentClientCollaborationBaseWorkflowStep & {
   type: "transform";
@@ -109,6 +136,7 @@ export type AgentClientCollaborationRouterWorkflowStep =
 
 export type AgentClientCollaborationWorkflowStep =
   | AgentClientCollaborationAgentWorkflowStep
+  | AgentClientCollaborationDispatchWorkflowStep
   | AgentClientCollaborationTransformWorkflowStep
   | AgentClientCollaborationConditionWorkflowStep
   | AgentClientCollaborationRouterWorkflowStep;

@@ -18,6 +18,10 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   assetExtractionIntervalTurns: 3,
   maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
+  directorLoop: {
+    enabled: true,
+    maxRounds: 2,
+  },
   agentKnowledgeCompactIntervalTurns: 0,
   interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
   directorNarrativeControl: {

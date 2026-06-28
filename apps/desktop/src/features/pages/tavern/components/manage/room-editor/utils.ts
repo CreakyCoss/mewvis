@@ -383,6 +383,7 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
   ...settings,
   interactionQualityRuleIds: [...settings.interactionQualityRuleIds],
   directorNarrativeControl: { ...settings.directorNarrativeControl },
+  directorLoop: { ...settings.directorLoop },
   continuation: { ...settings.continuation },
   replyOptions: { ...settings.replyOptions },
   statusTracking: { ...settings.statusTracking },

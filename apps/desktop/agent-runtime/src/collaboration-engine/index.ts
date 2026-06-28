@@ -18,11 +18,14 @@ export {
 
 export type {
   CollaborationAgentRole,
+  CollaborationAgentInvocation,
   CollaborationAgentWorkflowStep,
   CollaborationBaseWorkflowStep,
   CollaborationBuiltinStepCondition,
   CollaborationConditionHandler,
   CollaborationConditionWorkflowStep,
+  CollaborationDispatchMode,
+  CollaborationDispatchWorkflowStep,
   CollaborationEngine,
   CollaborationExecutionState,
   CollaborationExecutor,

@@ -91,6 +91,10 @@ const settingsPresets: SettingsPresetDefinition[] = [
         ...draft.randomEvents,
         enabled: false,
       },
+      directorLoop: {
+        ...draft.directorLoop,
+        enabled: true,
+      },
       interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         agencyMode: "player_protagonist",
@@ -121,6 +125,10 @@ const settingsPresets: SettingsPresetDefinition[] = [
       },
       illustrationHints: {
         ...draft.illustrationHints,
+        enabled: true,
+      },
+      directorLoop: {
+        ...draft.directorLoop,
         enabled: true,
       },
       interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
@@ -154,6 +162,10 @@ const settingsPresets: SettingsPresetDefinition[] = [
         enabled: true,
         applyMode: "review",
       },
+      directorLoop: {
+        ...draft.directorLoop,
+        enabled: true,
+      },
       interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
       directorNarrativeControl: {
         agencyMode: "story_directive",
@@ -183,6 +195,10 @@ const settingsPresets: SettingsPresetDefinition[] = [
       autoAssetExtractionEnabled: false,
       randomEvents: {
         ...draft.randomEvents,
+        enabled: true,
+      },
+      directorLoop: {
+        ...draft.directorLoop,
         enabled: true,
       },
       interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
@@ -335,6 +351,13 @@ export const SettingsEdit = ({
           6,
           Math.max(1, Number(draft.directorMaxSpeakers) || 1),
         ),
+        directorLoop: {
+          enabled: draft.directorLoop.enabled,
+          maxRounds: Math.min(
+            5,
+            Math.max(1, Number(draft.directorLoop.maxRounds) || 1),
+          ),
+        },
         agentKnowledgeCompactIntervalTurns: Math.min(
           50,
           Math.max(0, Number(draft.agentKnowledgeCompactIntervalTurns) || 0),
@@ -866,6 +889,48 @@ export const SettingsEdit = ({
                               6,
                               Math.max(1, Number(event.target.value) || 1),
                             ),
+                          });
+                          setSelectedPresetId("default");
+                        }}
+                      />
+                    )}
+                  />
+                  <SettingsSwitch
+                    label="导演回环"
+                    description="允许导演根据角色回复继续追加后续调度。"
+                    checked={draft.directorLoop.enabled}
+                    onCheckedChange={(checked) => {
+                      setDraft({
+                        ...draft,
+                        directorLoop: {
+                          ...draft.directorLoop,
+                          enabled: checked,
+                        },
+                      });
+                      setSelectedPresetId("default");
+                    }}
+                  />
+                  <SettingsRow
+                    label="回环轮数"
+                    description="导演回环开启时最多追加多少轮调度。"
+                    control={(
+                      <Input
+                        id="tavern-settings-layout-director-loop-rounds"
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={draft.directorLoop.maxRounds}
+                        className={inputClassName}
+                        onChange={(event) => {
+                          setDraft({
+                            ...draft,
+                            directorLoop: {
+                              ...draft.directorLoop,
+                              maxRounds: Math.min(
+                                5,
+                                Math.max(1, Number(event.target.value) || 1),
+                              ),
+                            },
                           });
                           setSelectedPresetId("default");
                         }}

@@ -17,6 +17,9 @@ import {
   tavernDirectorAgentRoleId,
 } from "../../core";
 import type {
+  TavernCharacter,
+} from "../../types";
+import type {
   TavernDirectorCollaborationInput,
   TavernDirectorLoopCollaborationInput,
   TavernSpeakerCollaborationInput,
@@ -152,7 +155,7 @@ export const buildTavernDirectorLoopCollaborationInput = ({
   runtimeModel,
   room,
   characters,
-  speakers,
+  speakerInputs,
   messages,
   references,
   currentUserText,
@@ -162,9 +165,8 @@ export const buildTavernDirectorLoopCollaborationInput = ({
   maxRounds = TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS,
   randomEventOpportunity,
   storyContext,
-  turnInstructionByCharacterId = {},
-  allowNonverbalReplyCharacterIds = [],
 }: TavernDirectorLoopCollaborationInput): TavernCollaborationInput => {
+  const speakers = speakerInputs.map((speakerInput) => speakerInput.character);
   const directorPromptContext = buildTavernDirectorPromptContext({
     room,
     characters,
@@ -178,24 +180,21 @@ export const buildTavernDirectorLoopCollaborationInput = ({
     storyContext,
   });
   const directorRoleId = tavernDirectorAgentRoleId(room);
-  const allowNonverbalReplyIds = new Set(allowNonverbalReplyCharacterIds);
-  const speakerRequests = speakers.map((speaker) => ({
-    speaker,
+  const speakerRequests = speakerInputs.map((speakerInput) => ({
+    speakerInput,
+    speaker: speakerInput.character,
     request: buildTavernReplyAgentRequest({
       room,
-      activeCharacter: speaker,
+      activeCharacter: speakerInput.character,
       characters,
       messages,
       references,
       currentUserText,
-      turnInstruction: turnInstructionByCharacterId[speaker.id],
-      allowNonverbalReply: allowNonverbalReplyIds.has(speaker.id),
+      turnInstruction: speakerInput.turnInstruction,
+      allowNonverbalReply: speakerInput.allowNonverbalReply === true,
       storyContext,
     }),
   }));
-  const firstSpeakerStepId = speakerRequests[0]
-    ? tavernSpeakerWorkflowStepId(speakerRequests[0].speaker, 0)
-    : "__end__";
   const normalizedMaxRounds = normalizePositiveInteger(maxRounds, TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS);
 
   return {
@@ -210,11 +209,11 @@ export const buildTavernDirectorLoopCollaborationInput = ({
         runtimeModel,
         systemPrompt: buildTavernBridgeSystemPrompt(room),
       },
-      ...speakerRequests.map(({ speaker, request }) => ({
+      ...speakerRequests.map(({ speaker, speakerInput, request }) => ({
         id: tavernCharacterAgentRoleId(room, speaker),
         label: speaker.name,
         agentId: runtimeAgentId,
-        runtimeModel,
+        runtimeModel: speakerInput.runtimeModel,
         systemPrompt: request.systemPrompt,
       })),
     ],
@@ -263,41 +262,55 @@ export const buildTavernDirectorLoopCollaborationInput = ({
           router: "tavern.directorNextRoute",
           input: { $ref: "outputs.directorDecision" },
           routes: {
-            speakers: firstSpeakerStepId,
+            speakers: "prepareSpeakerDispatches",
             narrator: "__end__",
             end: "__end__",
           },
           outputKey: "directorRoute",
         },
-        ...speakerRequests.map(({ speaker, request }, index) => ({
-          id: tavernSpeakerWorkflowStepId(speaker, index),
-          type: "agent" as const,
-          agentRoleId: request.agentRoleId,
-          runtimeModel,
-          userMessage: request.userMessage,
-          requestContext: request.requestContext,
-          runtimeInstruction: buildSpeakerWorkflowRuntimeInstruction({
-            runtimeInstruction: buildLoopSpeakerRuntimeInstruction({
-              runtimeInstruction: request.runtimeInstruction,
-              speakers,
-            }),
-            priorSpeakers: speakerRequests.slice(0, index).map((item) => item.speaker),
-          }),
-          when: {
-            condition: "tavern.shouldRunSpeaker",
-            input: {
-              decision: { $ref: "outputs.directorDecision" },
+        {
+          id: "prepareSpeakerDispatches",
+          type: "transform" as const,
+          dependsOn: ["routeDirectorDecision"],
+          transform: "tavern.createSpeakerDispatches",
+          input: {
+            decision: { $ref: "outputs.directorDecision" },
+            candidates: speakerRequests.map(({ speaker, speakerInput, request }, index) => ({
               characterId: speaker.id,
-            },
+              invocation: {
+                id: tavernSpeakerDispatchInvocationId(speaker, index),
+                label: speaker.name,
+                agentRoleId: request.agentRoleId,
+                outputKey: tavernSpeakerReplyOutputKey(speaker),
+                runtimeModel: speakerInput.runtimeModel,
+                userMessage: request.userMessage,
+                systemPrompt: request.systemPrompt,
+                requestContext: request.requestContext,
+                runtimeInstruction: buildLoopSpeakerRuntimeInstruction({
+                  runtimeInstruction: request.runtimeInstruction,
+                  speakers,
+                }),
+                metadata: {
+                  characterId: speaker.id,
+                  characterName: speaker.name,
+                },
+              },
+            })),
           },
-          outputKey: tavernSpeakerReplyOutputKey(speaker),
-        })),
+          outputKey: "speakerDispatches",
+        },
+        {
+          id: "dispatchSpeakers",
+          type: "dispatch" as const,
+          dependsOn: ["prepareSpeakerDispatches"],
+          input: { $ref: "outputs.speakerDispatches" },
+          mode: "serial" as const,
+          outputKey: "speakerDispatch",
+        },
         {
           id: "incrementDirectorLoopRound",
           type: "transform" as const,
-          dependsOn: speakerRequests.length > 0
-            ? [tavernSpeakerWorkflowStepId(speakerRequests[speakerRequests.length - 1].speaker, speakerRequests.length - 1)]
-            : ["routeDirectorDecision"],
+          dependsOn: ["dispatchSpeakers"],
           transform: "tavern.incrementDirectorLoopRound",
           input: {
             current: { $ref: "outputs.directorLoopRound" },
@@ -429,6 +442,11 @@ const tavernSpeakerWorkflowStepId = (
   index: number,
 ) => `speaker-${speaker.id}-${index + 1}`;
 
+const tavernSpeakerDispatchInvocationId = (
+  speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">,
+  index: number,
+) => `speaker-${speaker.id}-${index + 1}`;
+
 const normalizePositiveInteger = (
   value: number | null | undefined,
   fallback: number,
@@ -444,7 +462,7 @@ const buildDirectorLoopRuntimeInstruction = ({
   speakers,
 }: {
   runtimeInstruction?: string | null;
-  speakers: TavernDirectorLoopCollaborationInput["speakers"];
+  speakers: TavernCharacter[];
 }) => {
   if (speakers.length === 0) {
     return runtimeInstruction;
@@ -465,7 +483,7 @@ const buildLoopSpeakerRuntimeInstruction = ({
   speakers,
 }: {
   runtimeInstruction?: string | null;
-  speakers: TavernDirectorLoopCollaborationInput["speakers"];
+  speakers: TavernCharacter[];
 }) => {
   if (speakers.length === 0) {
     return runtimeInstruction;
@@ -482,7 +500,7 @@ const buildLoopSpeakerRuntimeInstruction = ({
 };
 
 const buildSpeakerOutputsTemplate = (
-  speakers: TavernDirectorLoopCollaborationInput["speakers"],
+  speakers: TavernCharacter[],
 ) => speakers.map((speaker) => [
   `【${speaker.name} / ${speaker.id}】`,
   `{{ outputs.${tavernSpeakerReplyOutputKey(speaker)} }}`,

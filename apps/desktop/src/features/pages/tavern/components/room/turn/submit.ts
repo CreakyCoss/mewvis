@@ -6,9 +6,6 @@ import {
   resolveTavernRuntimeStoryContextPackage,
 } from "../../../adapters/story";
 import type {
-  TavernDirectorDecision,
-} from "../../../runtime/director";
-import type {
   TavernReferencedFile,
   TavernReplyOption,
 } from "../../../types";
@@ -30,7 +27,6 @@ import {
   resolveTurnMode,
   runAssetExtractionStep,
   runDirectorLoopTurn,
-  runDirectorTurn,
   runProgressTrackingStep,
   runSpeakerReplyFlow,
   shouldRunTavernDirectorLoopWorkflow,
@@ -246,17 +242,16 @@ export const submitRoomTurn = async ({
     });
 
     let speakers = speakerPlan.candidateSpeakers;
-    let directorDecision: TavernDirectorDecision | undefined;
     let directorReason = "";
     let directorNonverbalReplyIds: string[] = [];
     let turnNarratorTexts: string[] = [];
-    const shouldUseDirectorLoopWorkflow = shouldRunTavernDirectorLoopWorkflow({
+    const shouldUseDirectorWorkflow = shouldRunTavernDirectorLoopWorkflow({
       availableRoomCharacters: speakerPlan.availableRoomCharacters,
       mode,
       room: runtime.runtimeRoom,
     });
 
-    if (shouldUseDirectorLoopWorkflow) {
+    if (shouldUseDirectorWorkflow) {
       const directorLoopTurn = await runDirectorLoopTurn({
         activeReplyRef,
         availableActiveCharacter: speakerPlan.availableActiveCharacter,
@@ -274,7 +269,6 @@ export const submitRoomTurn = async ({
         turnMessages: runtime.turnMessages,
         userMessage: turnAnchorMessage,
       });
-      directorDecision = directorLoopTurn.directorDecision;
       directorReason = directorLoopTurn.directorReason;
       directorNonverbalReplyIds = directorLoopTurn.directorNonverbalReplyIds;
       turnNarratorTexts = directorLoopTurn.turnNarratorTexts;
@@ -289,38 +283,9 @@ export const submitRoomTurn = async ({
         room: activeRoom,
         openPendingInteractions: directorLoopTurn.openPendingInteractions,
       });
-    } else if (mode.isDirectorLikeMode) {
-      const directorTurn = await runDirectorTurn({
-        ctx,
-        room: activeRoom,
-        runtimeRoom: runtime.runtimeRoom,
-        runtimeMessages: runtime.runtimeMessages,
-        turnMessages: runtime.turnMessages,
-        references,
-        text,
-        userMessage: turnAnchorMessage,
-        mode,
-        selectedReplyOption,
-        availableRoomCharacters: speakerPlan.availableRoomCharacters,
-        availableActiveCharacter: speakerPlan.availableActiveCharacter,
-        runtimeModel,
-        storyContext,
-      });
-
-      speakers = directorTurn.speakers;
-      directorDecision = directorTurn.directorDecision;
-      directorReason = directorTurn.directorReason;
-      directorNonverbalReplyIds = directorTurn.directorNonverbalReplyIds;
-      turnNarratorTexts = directorTurn.turnNarratorTexts;
-      runtime = {
-        ...runtime,
-        runtimeRoom: directorTurn.runtimeRoom,
-        runtimeMessages: directorTurn.runtimeMessages,
-        turnMessages: directorTurn.turnMessages,
-      };
     }
 
-    if (!shouldUseDirectorLoopWorkflow) {
+    if (!shouldUseDirectorWorkflow) {
       const speakerTurn = await runSpeakerReplyFlow({
         ctx,
         room: activeRoom,
@@ -332,7 +297,6 @@ export const submitRoomTurn = async ({
         references,
         selectedReplyOption,
         speakers,
-        directorDecision,
         availableRoomCharacters: speakerPlan.availableRoomCharacters,
         mode,
         directorReason,

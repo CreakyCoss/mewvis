@@ -107,15 +107,16 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
 
         if ("outputKey" in outcome) {
           return {
-            output: {
-              [outcome.outputKey]: outcome.output,
-            },
-            stepResults: [outcome],
+            output: executionState.output,
+            stepResults: Array.from(executionState.stepResultById.values()),
+            skippedSteps: Array.from(executionState.skippedStepById.values()),
           };
         }
 
         return {
-          skippedSteps: [outcome],
+          output: executionState.output,
+          stepResults: Array.from(executionState.stepResultById.values()),
+          skippedSteps: Array.from(executionState.skippedStepById.values()),
         };
       });
     }

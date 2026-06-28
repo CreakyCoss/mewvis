@@ -12,9 +12,11 @@ import type {
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationSkippedStepResult,
+  CollaborationAgentInvocation,
   CollaborationStepResult,
   CollaborationTransformWorkflowStep,
   CollaborationConditionWorkflowStep,
+  CollaborationDispatchWorkflowStep,
   CollaborationRouterWorkflowStep,
   CollaborationRouterResult,
   CollaborationStepCondition,
@@ -117,13 +119,16 @@ export const collectCollaborationRunResult = ({
 }) => {
   const stepResults = steps.map((step) => state.stepResultById.get(step.id))
     .filter((step): step is CollaborationStepResult => Boolean(step));
+  const declaredStepIds = new Set(steps.map((step) => step.id));
+  const dynamicStepResults = Array.from(state.stepResultById.values())
+    .filter((step) => !declaredStepIds.has(step.stepId));
   const skippedSteps = steps.map((step) => state.skippedStepById.get(step.id))
     .filter((step): step is CollaborationSkippedStepResult => Boolean(step));
 
   return {
     workflowRunId,
     executorId,
-    steps: stepResults,
+    steps: [...stepResults, ...dynamicStepResults],
     skippedSteps,
     output: state.output,
   };
@@ -224,6 +229,43 @@ export const runStepWithRetry = async ({
     });
   }
 
+  if (step.type === "dispatch") {
+    return runDispatchStep({
+      context,
+      emit,
+      input,
+      roleById,
+      runAgent,
+      state,
+      step,
+      workflowRunId,
+    });
+  }
+
+  return runAgentStepWithRetry({
+    context,
+    emit,
+    input,
+    roleById,
+    runAgent,
+    state,
+    step,
+    workflowRunId,
+  });
+};
+
+const runAgentStepWithRetry = async ({
+  context,
+  emit,
+  input,
+  roleById,
+  runAgent,
+  state,
+  step,
+  workflowRunId,
+}: Omit<RunStepInput, "extensionRegistry" | "step"> & {
+  step: CollaborationAgentWorkflowStep;
+}): Promise<CollaborationStepResult> => {
   const role = roleById.get(step.agentRoleId);
   if (!role) {
     throw new CollaborationStepRunError(
@@ -294,6 +336,68 @@ export const runStepWithRetry = async ({
     cause: lastError,
     stepId: step.id,
   });
+};
+
+const runDispatchStep = async ({
+  context,
+  emit,
+  input,
+  roleById,
+  runAgent,
+  state,
+  step,
+  workflowRunId,
+}: Omit<RunStepInput, "extensionRegistry" | "step"> & {
+  step: CollaborationDispatchWorkflowStep;
+}) => {
+  emit({
+    type: CollaborationEventType.StepStarted,
+    workflowRunId,
+    stepId: step.id,
+    stepType: step.type,
+  });
+
+  const invocations = normalizeDispatchInvocations(resolveDispatchInput(step.input, state));
+  const runInvocation = (invocation: CollaborationAgentInvocation, index: number) =>
+    runAgentStepWithRetry({
+      context,
+      emit,
+      input,
+      roleById,
+      runAgent,
+      state,
+      step: createDispatchAgentStep(step, invocation, index),
+      workflowRunId,
+    });
+
+  const invocationResults = step.mode === "parallel"
+    ? await Promise.all(invocations.map((invocation, index) => runInvocation(invocation, index)))
+    : [];
+
+  if (step.mode !== "parallel") {
+    for (const [index, invocation] of invocations.entries()) {
+      invocationResults.push(await runInvocation(invocation, index));
+    }
+  }
+
+  const output = {
+    count: invocationResults.length,
+    invocations: invocationResults.map((result) => ({
+      stepId: result.stepId,
+      agentRoleId: result.agentRoleId,
+      outputKey: result.outputKey,
+      text: result.text,
+    })),
+  };
+  const stepResult = createStepResult(step, output);
+  state.stepResultById.set(step.id, stepResult);
+  state.output[stepResult.outputKey] = output;
+  emit({
+    type: CollaborationEventType.StepDone,
+    workflowRunId,
+    step: stepResult,
+  });
+  return stepResult;
 };
 
 const runTransformStep = async ({
@@ -550,6 +654,82 @@ const createAgentTaskId = (workflowRunId: string, stepId: string, attempt = 1) =
     ? `${workflowRunId}:${stepId}`
     : `${workflowRunId}:${stepId}:attempt-${attempt}`;
 
+const normalizeDispatchInvocations = (
+  input: unknown,
+): CollaborationAgentInvocation[] => {
+  const rawInvocations = Array.isArray(input)
+    ? input
+    : input && typeof input === "object" && Array.isArray((input as { invocations?: unknown }).invocations)
+    ? (input as { invocations: unknown[] }).invocations
+    : [];
+
+  return rawInvocations.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`dispatch invocation #${index + 1} 必须是对象`);
+    }
+    const invocation = item as Partial<CollaborationAgentInvocation>;
+    if (typeof invocation.agentRoleId !== "string" || !invocation.agentRoleId.trim()) {
+      throw new Error(`dispatch invocation #${index + 1} 缺少 agentRoleId`);
+    }
+    if (typeof invocation.userMessage !== "string") {
+      throw new Error(`dispatch invocation #${index + 1} 缺少 userMessage`);
+    }
+    return {
+      ...invocation,
+      agentRoleId: invocation.agentRoleId.trim(),
+      id: typeof invocation.id === "string" ? invocation.id.trim() : invocation.id ?? null,
+      label: typeof invocation.label === "string" ? invocation.label.trim() : invocation.label ?? null,
+      outputKey: typeof invocation.outputKey === "string"
+        ? invocation.outputKey.trim()
+        : invocation.outputKey ?? null,
+      userMessage: invocation.userMessage,
+    };
+  });
+};
+
+const createDispatchAgentStep = (
+  dispatchStep: CollaborationDispatchWorkflowStep,
+  invocation: CollaborationAgentInvocation,
+  index: number,
+): CollaborationAgentWorkflowStep => {
+  const invocationId = normalizeDispatchInvocationId(invocation, index);
+  return {
+    id: `${dispatchStep.id}:${invocationId}`,
+    type: "agent",
+    agentRoleId: invocation.agentRoleId,
+    label: invocation.label,
+    outputKey: invocation.outputKey?.trim() || `${dispatchStep.outputKey?.trim() || dispatchStep.id}:${invocationId}`,
+    userMessage: invocation.userMessage,
+    systemPrompt: invocation.systemPrompt,
+    requestContext: invocation.requestContext,
+    runtimeInstruction: invocation.runtimeInstruction,
+    bootstrapInstruction: invocation.bootstrapInstruction,
+    runtimeModel: invocation.runtimeModel,
+    allowedTools: invocation.allowedTools,
+    enabledSkills: invocation.enabledSkills,
+    resources: invocation.resources,
+    maxRetries: invocation.maxRetries,
+    metadata: {
+      ...(dispatchStep.metadata ?? {}),
+      ...(invocation.metadata ?? {}),
+      dispatchStepId: dispatchStep.id,
+      invocationId,
+    },
+  };
+};
+
+const normalizeDispatchInvocationId = (
+  invocation: CollaborationAgentInvocation,
+  index: number,
+) => {
+  const rawId = invocation.id?.trim() ||
+    invocation.outputKey?.trim() ||
+    invocation.agentRoleId.trim() ||
+    `item-${index + 1}`;
+  return rawId.replace(/[^A-Za-z0-9_.:-]+/g, "-").replace(/^-+|-+$/g, "") ||
+    `item-${index + 1}`;
+};
+
 const normalizeMaxRetries = (value: number | null | undefined) => {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return 0;
@@ -785,6 +965,28 @@ const resolveStepInput = (
         resolveStepInput(item, state),
       ]),
     );
+  }
+  return value;
+};
+
+const resolveDispatchInput = (
+  value: unknown,
+  state: CollaborationExecutionState,
+): unknown => {
+  if (isTemplateRef(value)) {
+    return resolveTemplateValue(value.$ref, state);
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (isTemplateRef(record.invocations)) {
+      return {
+        ...record,
+        invocations: resolveTemplateValue(record.invocations.$ref, state),
+      };
+    }
   }
   return value;
 };

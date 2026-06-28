@@ -49,7 +49,7 @@ export type AgentClientOutputEvent =
 
 export type AgentClientCollaborationStepResult = {
   stepId: string;
-  stepType: "agent" | "transform" | "condition" | "router";
+  stepType: "agent" | "dispatch" | "transform" | "condition" | "router";
   outputKey: string;
   output: unknown;
   text: string;
@@ -85,7 +85,7 @@ export type AgentClientCollaborationEvent =
     taskId: string;
     workflowRunId: string;
     stepId: string;
-    stepType: "agent" | "transform" | "condition" | "router";
+    stepType: "agent" | "dispatch" | "transform" | "condition" | "router";
     agentRoleId?: string;
     agentTaskId?: string;
   }

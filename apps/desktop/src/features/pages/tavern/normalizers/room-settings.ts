@@ -48,6 +48,7 @@ export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   ...DEFAULT_TAVERN_ROOM_SETTINGS,
   interactionQualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds],
   directorNarrativeControl: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl },
+  directorLoop: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop },
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
   statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
@@ -387,6 +388,9 @@ export const normalizeRoomSettings = (
   const continuation = candidate.continuation && typeof candidate.continuation === "object"
     ? candidate.continuation as Partial<TavernRoomSettings["continuation"]>
     : {};
+  const directorLoop = candidate.directorLoop && typeof candidate.directorLoop === "object"
+    ? candidate.directorLoop as Partial<TavernRoomSettings["directorLoop"]>
+    : {};
   const replyOptions = candidate.replyOptions && typeof candidate.replyOptions === "object"
     ? candidate.replyOptions as Partial<TavernRoomSettings["replyOptions"]>
     : {};
@@ -424,6 +428,15 @@ export const normalizeRoomSettings = (
       1,
       6,
     ),
+    directorLoop: {
+      enabled: directorLoop.enabled !== false,
+      maxRounds: clampInteger(
+        directorLoop.maxRounds,
+        DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop.maxRounds,
+        1,
+        5,
+      ),
+    },
     agentKnowledgeCompactIntervalTurns: clampInteger(
       candidate.agentKnowledgeCompactIntervalTurns,
       DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,

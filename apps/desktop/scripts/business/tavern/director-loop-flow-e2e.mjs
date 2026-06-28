@@ -179,9 +179,15 @@ writeFileSync(mockCollaborationPath, `
     const directorStep = stepById.get("director");
     const normalizeStep = stepById.get("normalizeDirectorDecision");
     const directorRouteStep = stepById.get("routeDirectorDecision");
+    const prepareDispatchStep = stepById.get("prepareSpeakerDispatches");
+    const dispatchStep = stepById.get("dispatchSpeakers");
     const incrementStep = stepById.get("incrementDirectorLoopRound");
     const loopRouteStep = stepById.get("routeDirectorLoop");
-    const speakerSteps = (input.workflow.steps ?? []).filter((step: any) => step.type === "agent" && step.id !== "director");
+    const dispatchCandidates = prepareDispatchStep.input.candidates ?? [];
+    const invocationByCharacterId = new Map(dispatchCandidates.map((candidate: any) => [
+      candidate.characterId,
+      candidate.invocation,
+    ]));
 
     for (const round of [1, 2]) {
       const decision = decisionForRound(round);
@@ -217,7 +223,7 @@ writeFileSync(mockCollaborationPath, `
         workflowRunId,
       });
 
-      output[directorRouteStep.outputKey] = { route: "speakers", targetStepId: speakerSteps[0]?.id };
+      output[directorRouteStep.outputKey] = { route: "speakers", targetStepId: prepareDispatchStep.id };
       emitStepDone({
         onEvent,
         output: output[directorRouteStep.outputKey],
@@ -227,11 +233,31 @@ writeFileSync(mockCollaborationPath, `
         workflowRunId,
       });
 
-      for (const speakerStep of speakerSteps) {
-        const characterId = String(speakerStep.outputKey ?? "").replace("reply:", "");
-        if (!decision.speakerIds.includes(characterId)) {
-          continue;
-        }
+      const scheduledInvocations = decision.speakerIds
+        .map((characterId: string) => invocationByCharacterId.get(characterId))
+        .filter(Boolean);
+      output[prepareDispatchStep.outputKey] = {
+        count: scheduledInvocations.length,
+        invocations: scheduledInvocations,
+      };
+      emitStepDone({
+        onEvent,
+        output: output[prepareDispatchStep.outputKey],
+        step: prepareDispatchStep,
+        steps,
+        taskId,
+        workflowRunId,
+      });
+
+      emitStepStarted({ onEvent, step: dispatchStep, taskId, workflowRunId });
+      const dispatchResults = [];
+      for (const invocation of scheduledInvocations) {
+        const speakerStep = {
+          id: dispatchStep.id + ":" + invocation.id,
+          type: "agent",
+          agentRoleId: invocation.agentRoleId,
+          outputKey: invocation.outputKey,
+        };
         const text = outputTextForStep(speakerStep, round);
         emitStepStarted({ onEvent, step: speakerStep, taskId, workflowRunId });
         emitAgentText({
@@ -244,6 +270,12 @@ writeFileSync(mockCollaborationPath, `
           workflowRunId,
         });
         output[speakerStep.outputKey] = text;
+        dispatchResults.push({
+          stepId: speakerStep.id,
+          agentRoleId: speakerStep.agentRoleId,
+          outputKey: speakerStep.outputKey,
+          text,
+        });
         emitStepDone({
           onEvent,
           output: text,
@@ -254,6 +286,18 @@ writeFileSync(mockCollaborationPath, `
           workflowRunId,
         });
       }
+      output[dispatchStep.outputKey] = {
+        count: dispatchResults.length,
+        invocations: dispatchResults,
+      };
+      emitStepDone({
+        onEvent,
+        output: output[dispatchStep.outputKey],
+        step: dispatchStep,
+        steps,
+        taskId,
+        workflowRunId,
+      });
 
       output[incrementStep.outputKey] = round;
       emitStepDone({
@@ -543,8 +587,8 @@ writeFileSync(entryPath, `
   );
   assert(
     firstRun.workflow.steps.map((step: any) => step.id).join("|") ===
-      "director|normalizeDirectorDecision|routeDirectorDecision|speaker-char-a-1|speaker-char-b-2|incrementDirectorLoopRound|routeDirectorLoop",
-    "director-loop workflow 应包含导演、角色、计数、路由步骤",
+      "director|normalizeDirectorDecision|routeDirectorDecision|prepareSpeakerDispatches|dispatchSpeakers|incrementDirectorLoopRound|routeDirectorLoop",
+    "director-loop workflow 应包含导演、动态分发、计数、路由步骤",
     firstRun.workflow.steps,
   );
   assert(characterMessages.length === 3, "两轮回环应落地三条角色消息且不能重复 append", characterMessages);

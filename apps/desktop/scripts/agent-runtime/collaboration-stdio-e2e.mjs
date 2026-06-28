@@ -327,6 +327,77 @@ try {
 
   send({
     type: "run_collaboration",
+    requestId: "stdio-dispatch-collaboration-smoke",
+    input: {
+      workspacePath,
+      sessionRootDir: join(workspacePath, "session-store", "stdio-dispatch-collaboration"),
+      input: {
+        topic: "stdio dispatch",
+      },
+      workflow: {
+        id: "stdio-dispatch-collaboration-smoke",
+        steps: [
+          {
+            id: "dispatch",
+            type: "dispatch",
+            input: {
+              invocations: [
+                {
+                  id: "writer",
+                  agentRoleId: "writer",
+                  outputKey: "writerOut",
+                  userMessage: "Write {{ input.topic }}",
+                },
+                {
+                  id: "reviewer",
+                  agentRoleId: "reviewer",
+                  outputKey: "reviewerOut",
+                  userMessage: "Review {{ outputs.writerOut }}",
+                },
+              ],
+            },
+            outputKey: "dispatchOut",
+          },
+        ],
+      },
+      agents: [
+        {
+          id: "writer",
+          label: "Writer",
+          agentId: "mock",
+          systemPrompt: "你是 stdio dispatch smoke test 的写作者。",
+        },
+        {
+          id: "reviewer",
+          label: "Reviewer",
+          agentId: "mock",
+          systemPrompt: "你是 stdio dispatch smoke test 的审阅者。",
+        },
+      ],
+    },
+  });
+
+  const dispatchResult = await waitFor((item) =>
+    item.type === "collaboration_result" &&
+    item.requestId === "stdio-dispatch-collaboration-smoke"
+  );
+  assert(dispatchResult.executorId === "langgraph", "stdio dispatch 默认应走 LangGraph executor", dispatchResult);
+  assert(dispatchResult.output?.writerOut?.includes("Write stdio dispatch"), "stdio dispatch 应写回动态 writer output", dispatchResult);
+  assert(dispatchResult.output?.reviewerOut?.includes("Review Mock agent 已完成模拟任务"), "stdio dispatch 后续 invocation 应能引用前序 output", dispatchResult);
+  assert(
+    dispatchResult.steps?.some((step) => step.stepId === "dispatch:writer") &&
+      dispatchResult.steps?.some((step) => step.stepId === "dispatch:reviewer"),
+    "stdio dispatch result 应包含动态 agent step",
+    dispatchResult,
+  );
+  assert(
+    seen.some((item) => item.type === "step_started" && item.stepType === "dispatch"),
+    "stdio 应输出 dispatch step_started 事件",
+    seen,
+  );
+
+  send({
+    type: "run_collaboration",
     requestId: "stdio-langgraph-collaboration-smoke",
     input: {
       workspacePath,
@@ -583,6 +654,7 @@ try {
     ok: true,
     workflowRunId: result.workflowRunId,
     nativeWorkflowRunId: nativeResult.workflowRunId,
+    dispatchWorkflowRunId: dispatchResult.workflowRunId,
     langGraphWorkflowRunId: langGraphResult.workflowRunId,
     tavernExtensionWorkflowRunId: tavernExtensionResult.workflowRunId,
     tavernLoopExtensionWorkflowRunId: tavernLoopExtensionResult.workflowRunId,

@@ -50,9 +50,14 @@ export type TavernSpeakerCollaborationInput = {
   directorDecisionRef?: string;
 };
 
+export type TavernCollaborationSpeakerInput = {
+  character: TavernCharacter;
+  runtimeModel: RuntimeModelInput;
+  turnInstruction?: string;
+  allowNonverbalReply?: boolean;
+};
+
 export type TavernDirectorLoopCollaborationInput = TavernDirectorCollaborationInput & {
-  speakers: TavernCharacter[];
+  speakerInputs: TavernCollaborationSpeakerInput[];
   maxRounds?: number;
-  turnInstructionByCharacterId?: Record<string, string | undefined>;
-  allowNonverbalReplyCharacterIds?: string[];
 };
