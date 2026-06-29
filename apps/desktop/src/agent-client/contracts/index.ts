@@ -41,5 +41,13 @@ export type {
   AgentClientRuntimeInput,
 } from "./inputs";
 export type {
+  AgentClientCollaborationTimelineResult,
+  AgentClientGetCollaborationTimelineInput,
+  AgentClientGetRuntimeSessionInput,
+  AgentClientListRuntimeSessionsInput,
+  AgentClientRuntimeSessionSnapshot,
+  AgentClientRuntimeSessionSummary,
+  AgentClientRuntimeSessionTimelineItem,
+  AgentClientRuntimeSessionsResult,
   AgentClientSession,
 } from "./session";

@@ -8,8 +8,14 @@ import type {
   AgentClientAgentTask,
   AgentClientChatInput,
   AgentClientChatResult,
+  AgentClientCollaborationTimelineResult,
   AgentClientCollaborationInput,
   AgentClientCollaborationModeInput,
+  AgentClientGetCollaborationTimelineInput,
+  AgentClientGetRuntimeSessionInput,
+  AgentClientListRuntimeSessionsInput,
+  AgentClientRuntimeSessionSnapshot,
+  AgentClientRuntimeSessionsResult,
   AgentClientSession,
 } from "./contracts";
 import { dispatchAgentClientOutputEvent } from "./output";
@@ -25,6 +31,15 @@ export interface AgentClient {
   run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
   run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
   run(input: AgentClientCollaborationModeInput): Promise<AgentClientAgentTask>;
+  listRuntimeSessions(
+    input: AgentClientListRuntimeSessionsInput,
+  ): Promise<AgentClientRuntimeSessionsResult>;
+  getRuntimeSession(
+    input: AgentClientGetRuntimeSessionInput,
+  ): Promise<AgentClientRuntimeSessionSnapshot>;
+  getCollaborationTimeline(
+    input: AgentClientGetCollaborationTimelineInput,
+  ): Promise<AgentClientCollaborationTimelineResult>;
   answerQuestion(taskId: string, questionId: string, answer: string): Promise<void>;
   abortTask(taskId: string): Promise<void>;
   subscribe(listener: (event: AgentClientAgentEvent) => void): Promise<() => void>;
@@ -37,6 +52,9 @@ const TAURI_AGENT_CLIENT_COMMANDS = {
   runChat: "run_agent_runtime_chat",
   runCollaboration: "run_agent_runtime_collaboration",
   runCollaborationMode: "run_agent_runtime_collaboration_mode",
+  listRuntimeSessions: "list_agent_runtime_sessions",
+  getRuntimeSession: "get_agent_runtime_session",
+  getCollaborationTimeline: "get_agent_runtime_collaboration_timeline",
   answerQuestion: "answer_agent_runtime_question",
   abortTask: "abort_agent_runtime_agent",
 } as const;
@@ -189,6 +207,33 @@ class TauriAgentClient implements AgentClient {
     });
   }
 
+  async listRuntimeSessions(
+    input: AgentClientListRuntimeSessionsInput,
+  ): Promise<AgentClientRuntimeSessionsResult> {
+    return invoke<AgentClientRuntimeSessionsResult>(
+      TAURI_AGENT_CLIENT_COMMANDS.listRuntimeSessions,
+      { input },
+    );
+  }
+
+  async getRuntimeSession(
+    input: AgentClientGetRuntimeSessionInput,
+  ): Promise<AgentClientRuntimeSessionSnapshot> {
+    return invoke<AgentClientRuntimeSessionSnapshot>(
+      TAURI_AGENT_CLIENT_COMMANDS.getRuntimeSession,
+      { input },
+    );
+  }
+
+  async getCollaborationTimeline(
+    input: AgentClientGetCollaborationTimelineInput,
+  ): Promise<AgentClientCollaborationTimelineResult> {
+    return invoke<AgentClientCollaborationTimelineResult>(
+      TAURI_AGENT_CLIENT_COMMANDS.getCollaborationTimeline,
+      { input },
+    );
+  }
+
   async abortTask(taskId: string): Promise<void> {
     await invoke(TAURI_AGENT_CLIENT_COMMANDS.abortTask, { taskId });
   }
@@ -253,6 +298,50 @@ class WebPreviewAgentClient implements AgentClient {
 
   async answerQuestion(): Promise<void> {
     return undefined;
+  }
+
+  async listRuntimeSessions(): Promise<AgentClientRuntimeSessionsResult> {
+    return {
+      sessions: [],
+    };
+  }
+
+  async getRuntimeSession(
+    input: AgentClientGetRuntimeSessionInput,
+  ): Promise<AgentClientRuntimeSessionSnapshot> {
+    return {
+      session: {
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
+        ledgerPath: "",
+        tracePath: "",
+        entryCount: 0,
+        traceCount: 0,
+        workflowRunIds: [],
+        workflowIds: [],
+        modeIds: [],
+      },
+    };
+  }
+
+  async getCollaborationTimeline(
+    input: AgentClientGetCollaborationTimelineInput,
+  ): Promise<AgentClientCollaborationTimelineResult> {
+    return {
+      session: {
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
+        ledgerPath: "",
+        tracePath: "",
+        entryCount: 0,
+        traceCount: 0,
+        workflowRunIds: [],
+        workflowIds: [],
+        modeIds: [],
+      },
+      workflowRunId: input.workflowRunId ?? null,
+      events: [],
+    };
   }
 
   async abortTask(): Promise<void> {

@@ -325,12 +325,13 @@ try {
     seen,
   );
 
+  const dispatchSessionRootDir = join(workspacePath, "session-store", "stdio-dispatch-collaboration");
   send({
     type: "run_collaboration",
     requestId: "stdio-dispatch-collaboration-smoke",
     input: {
       workspacePath,
-      sessionRootDir: join(workspacePath, "session-store", "stdio-dispatch-collaboration"),
+      sessionRootDir: dispatchSessionRootDir,
       input: {
         topic: "stdio dispatch",
       },
@@ -394,6 +395,58 @@ try {
     seen.some((item) => item.type === "step_started" && item.stepType === "dispatch"),
     "stdio 应输出 dispatch step_started 事件",
     seen,
+  );
+
+  send({
+    type: "get_runtime_session",
+    requestId: "stdio-runtime-session-query",
+    workspacePath,
+    sessionRootDir: dispatchSessionRootDir,
+    includeTimeline: true,
+    timelineLimit: 20,
+  });
+  const runtimeSessionResult = await waitFor((item) =>
+    item.type === "runtime_session_result" &&
+    item.requestId === "stdio-runtime-session-query"
+  );
+  assert(runtimeSessionResult.session?.traceCount > 0, "stdio runtime session query 应返回 trace 摘要", runtimeSessionResult);
+  assert(
+    runtimeSessionResult.timeline?.some((item) => item.workflowRunId === dispatchResult.workflowRunId),
+    "stdio runtime session query 应返回 workflow timeline",
+    runtimeSessionResult,
+  );
+
+  send({
+    type: "get_collaboration_timeline",
+    requestId: "stdio-collaboration-timeline-query",
+    workspacePath,
+    sessionRootDir: dispatchSessionRootDir,
+    workflowRunId: dispatchResult.workflowRunId,
+  });
+  const collaborationTimelineResult = await waitFor((item) =>
+    item.type === "collaboration_timeline_result" &&
+    item.requestId === "stdio-collaboration-timeline-query"
+  );
+  assert(
+    collaborationTimelineResult.events?.some((item) => item.type === "workflow_started"),
+    "stdio collaboration timeline query 应返回协作事件",
+    collaborationTimelineResult,
+  );
+
+  send({
+    type: "list_runtime_sessions",
+    requestId: "stdio-runtime-sessions-query",
+    workspacePath,
+    rootDir: join(workspacePath, "session-store"),
+  });
+  const runtimeSessionsResult = await waitFor((item) =>
+    item.type === "runtime_sessions_result" &&
+    item.requestId === "stdio-runtime-sessions-query"
+  );
+  assert(
+    runtimeSessionsResult.sessions?.some((session) => session.sessionRootDir === dispatchSessionRootDir),
+    "stdio list_runtime_sessions 应枚举协作 session",
+    runtimeSessionsResult,
   );
 
   send({

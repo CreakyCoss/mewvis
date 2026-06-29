@@ -1,5 +1,6 @@
 use super::{
-    rpc::call_agent_runtime_rpc, session_paths::resolve_session_root_dir,
+    rpc::call_agent_runtime_rpc,
+    session_paths::{resolve_optional_session_root_dir, resolve_session_root_dir},
     supervisor::AgentRuntimeSupervisor, types::AgentRuntimeModelInput,
 };
 use serde::Deserialize;
@@ -14,6 +15,35 @@ use crate::services::workspace_paths::{ensure_under_root, workspace_app_data_dir
 pub struct AgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAgentRuntimeSessionsInput {
+    workspace_path: String,
+    root_dir: Option<String>,
+    limit: Option<u64>,
+    max_depth: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAgentRuntimeSessionInput {
+    workspace_path: String,
+    session_root_dir: String,
+    include_ledger: Option<bool>,
+    include_trace: Option<bool>,
+    include_timeline: Option<bool>,
+    timeline_limit: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAgentRuntimeCollaborationTimelineInput {
+    workspace_path: String,
+    session_root_dir: String,
+    workflow_run_id: Option<String>,
+    limit: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,6 +163,73 @@ pub async fn read_agent_runtime_session(
 }
 
 #[tauri::command]
+pub async fn list_agent_runtime_sessions(
+    app: AppHandle,
+    input: ListAgentRuntimeSessionsInput,
+) -> Result<Value, String> {
+    let root_dir = resolve_runtime_session_query_root_dir(
+        &input.workspace_path,
+        input.root_dir.as_deref(),
+    )?;
+    call_session_runtime(
+        app,
+        json!({
+            "type": "list_runtime_sessions",
+            "workspacePath": input.workspace_path,
+            "rootDir": root_dir,
+            "limit": input.limit,
+            "maxDepth": input.max_depth,
+        }),
+        &["runtime_sessions_result"],
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn get_agent_runtime_session(
+    app: AppHandle,
+    input: GetAgentRuntimeSessionInput,
+) -> Result<Value, String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    call_session_runtime(
+        app,
+        json!({
+            "type": "get_runtime_session",
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "includeLedger": input.include_ledger,
+            "includeTrace": input.include_trace,
+            "includeTimeline": input.include_timeline,
+            "timelineLimit": input.timeline_limit,
+        }),
+        &["runtime_session_result"],
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn get_agent_runtime_collaboration_timeline(
+    app: AppHandle,
+    input: GetAgentRuntimeCollaborationTimelineInput,
+) -> Result<Value, String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    call_session_runtime(
+        app,
+        json!({
+            "type": "get_collaboration_timeline",
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "workflowRunId": input.workflow_run_id,
+            "limit": input.limit,
+        }),
+        &["collaboration_timeline_result"],
+    )
+    .await
+}
+
+#[tauri::command]
 pub fn dispose_agent_runtime_session_workers(
     state: State<AgentRuntimeSupervisor>,
     input: AgentRuntimeSessionInput,
@@ -140,6 +237,21 @@ pub fn dispose_agent_runtime_session_workers(
     let session_root_dir =
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
     state.dispose_session(&input.workspace_path, &session_root_dir)
+}
+
+fn resolve_runtime_session_query_root_dir(
+    workspace_path: &str,
+    root_dir: Option<&str>,
+) -> Result<String, String> {
+    let workspace = workspace_root(workspace_path)?;
+    let app_data_dir = workspace_app_data_dir(&workspace);
+    let root_dir = match root_dir.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(root_dir) => resolve_optional_session_root_dir(Some(workspace_path), Some(root_dir))?
+            .ok_or_else(|| "runtime session rootDir 不能为空".to_string())?,
+        None => app_data_dir.to_string_lossy().to_string(),
+    };
+    ensure_under_root(&app_data_dir, &PathBuf::from(&root_dir))?;
+    Ok(root_dir)
 }
 
 #[tauri::command]

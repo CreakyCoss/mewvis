@@ -21,7 +21,11 @@ export {
 
 export {
   BridgeLedgerStorage,
+  buildRuntimeSessionTimeline,
   buildBridgeSessionContext,
+  getCollaborationTimeline,
+  getRuntimeSessionSnapshot,
+  listRuntimeSessions,
   resolveBridgeSessionPaths,
   standardizeBridgeMessageMetadata,
 } from "./runtime-session/index.js";
@@ -48,6 +52,11 @@ export type {
   BridgeSessionRecordRef,
   BridgeSessionResultAuxiliaryEntry,
   BridgeSessionResultMessage,
+  RuntimeSessionListOptions,
+  RuntimeSessionQueryTarget,
+  RuntimeSessionSnapshot,
+  RuntimeSessionSummary,
+  RuntimeSessionTimelineItem,
   SessionMutationResult,
   SessionResult,
 } from "./runtime-session/index.js";
@@ -60,9 +69,15 @@ export type {
   AgentRuntimeCommand,
   AgentRuntimeEvent,
   AgentRuntimeResult,
+  CollaborationTimelineResult,
   CollaborationModesRuntimeResult,
   CollaborationRuntimeResult,
+  GetCollaborationTimelineCommand,
+  GetRuntimeSessionCommand,
   ListCollaborationModesCommand,
+  ListRuntimeSessionsCommand,
+  RuntimeSessionResult,
+  RuntimeSessionsResult,
   RunCollaborationCommand,
   RunCollaborationModeCommand,
 } from "./protocol/index.js";

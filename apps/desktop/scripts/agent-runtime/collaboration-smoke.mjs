@@ -19,6 +19,9 @@ writeFileSync(entryPath, `
     CollaborationEventType,
     createCollaborationEngine,
     createAgentRuntime,
+    getCollaborationTimeline,
+    getRuntimeSessionSnapshot,
+    listRuntimeSessions,
   } from ${JSON.stringify(runtimeEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -176,6 +179,37 @@ writeFileSync(entryPath, `
       readFileSync(supervisorTracePath, "utf8").includes("collaboration_event"),
       "runtime trace 应包含 collaboration timeline",
       readFileSync(supervisorTracePath, "utf8"),
+    );
+    const supervisorSessionSnapshot = await getRuntimeSessionSnapshot({
+      workspacePath,
+      sessionRootDir: supervisorModeSessionRoot,
+    }, {
+      includeTimeline: true,
+      timelineLimit: 20,
+    });
+    assert(
+      supervisorSessionSnapshot.session.traceCount > 0 &&
+        supervisorSessionSnapshot.timeline?.some((item) => item.type === "workflow_started"),
+      "runtime session query 应返回 timeline",
+      supervisorSessionSnapshot,
+    );
+    const supervisorTimeline = await getCollaborationTimeline({
+      workspacePath,
+      sessionRootDir: supervisorModeSessionRoot,
+    });
+    assert(
+      supervisorTimeline.events.some((item) => item.workflowRunId === supervisorModeResult.workflowRunId),
+      "collaboration timeline query 应按 session 返回协作事件",
+      supervisorTimeline,
+    );
+    const sessionSummaries = await listRuntimeSessions({
+      workspacePath,
+      rootDir: join(workspacePath, "session-store"),
+    });
+    assert(
+      sessionSummaries.some((session) => session.sessionRootDir === supervisorModeSessionRoot),
+      "listRuntimeSessions 应枚举已写入的 runtime session",
+      sessionSummaries,
     );
 
     let reviewCount = 0;
