@@ -10,6 +10,9 @@ import { resolveBridgeSessionPaths } from "../../runtime-session/storage/paths.j
 import {
   appendRuntimeSessionTraceRecord,
 } from "../../runtime-session/trace/jsonl-trace.js";
+import {
+  refreshRuntimeSessionManifest,
+} from "../../runtime-session/manifest/session-manifest.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;
@@ -102,6 +105,7 @@ export class CollaborationSessionRecorder {
 
   async flush() {
     await this.pendingWrite;
+    await this.refreshManifest();
   }
 
   private async captureEvent(event: CollaborationEvent) {
@@ -116,6 +120,20 @@ export class CollaborationSessionRecorder {
       },
     );
     await this.appendLedgerEvent(event);
+  }
+
+  private async refreshManifest() {
+    try {
+      await refreshRuntimeSessionManifest({
+        workspacePath: this.input.collaboration.workspacePath,
+        sessionRootDir: this.input.collaboration.sessionRootDir,
+        ledgerPath: this.input.storage.filePath,
+        tracePath: this.input.tracePath,
+        ledger: this.input.storage,
+      });
+    } catch (error: unknown) {
+      console.warn(`collaboration session manifest 刷新失败：${String(error)}`);
+    }
   }
 
   private async appendLedgerEvent(event: CollaborationEvent) {

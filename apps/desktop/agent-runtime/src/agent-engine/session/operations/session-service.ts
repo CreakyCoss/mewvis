@@ -25,6 +25,9 @@ import {
 import { prepareBridgeRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
 import { BridgeLedgerStorage } from "../../../runtime-session/storage/jsonl-store.js";
 import { resolveBridgeSessionPaths } from "../../../runtime-session/storage/paths.js";
+import {
+  refreshRuntimeSessionManifest,
+} from "../../../runtime-session/manifest/session-manifest.js";
 import { buildBridgeSessionContext } from "../../../runtime-session/core/projection.js";
 import type { BridgeMessageRole } from "../../../runtime-session/core/types.js";
 import {
@@ -48,6 +51,24 @@ const openSessionStorage = async (
   });
 
   return { paths, storage };
+};
+
+const refreshSessionManifest = async (
+  command: { workspacePath: string; sessionRootDir: string },
+  paths: { ledgerPath: string; tracePath: string },
+  storage: BridgeLedgerStorage,
+) => {
+  try {
+    await refreshRuntimeSessionManifest({
+      workspacePath: command.workspacePath,
+      sessionRootDir: command.sessionRootDir,
+      ledgerPath: paths.ledgerPath,
+      tracePath: paths.tracePath,
+      ledger: storage,
+    });
+  } catch (error: unknown) {
+    console.warn(`runtime session manifest 刷新失败：${String(error)}`);
+  }
 };
 
 const invalidateBridgeAgentSessionCache = async (
@@ -99,7 +120,8 @@ const mutationResultFrom = (
 export const readBridgeSession = async (
   command: ReadSessionCommand,
 ): Promise<SessionResult> => {
-  const { storage } = await openSessionStorage(command);
+  const { paths, storage } = await openSessionStorage(command);
+  await refreshSessionManifest(command, paths, storage);
   const context = buildBridgeSessionContext(storage, storage.getLeafId());
   return sessionResultFrom(command, context);
 };
@@ -107,7 +129,7 @@ export const readBridgeSession = async (
 export const createBridgeSession = async (
   command: CreateSessionCommand,
 ): Promise<SessionMutationResult> => {
-  const { storage } = await openSessionStorage(command);
+  const { paths, storage } = await openSessionStorage(command);
   const baseLeafId = storage.getLeafId();
   let entryId: string | null = null;
   const systemPrompt = command.systemPrompt?.trim();
@@ -137,6 +159,7 @@ export const createBridgeSession = async (
   }
 
   const context = buildBridgeSessionContext(storage);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryId,
     messageRecordIds: entryId ? [entryId] : [],
@@ -203,6 +226,7 @@ export const compactBridgeSession = async (
     details: compactResult.details ?? null,
   });
   const context = buildBridgeSessionContext(storage);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     compacted: compactResult.compacted,
   });
@@ -212,7 +236,7 @@ export const rebuildBridgeAgentSession = async (
   command: RebuildAgentSessionCommand,
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const { storage } = await openSessionStorage(command);
+  const { paths, storage } = await openSessionStorage(command);
   const baseLeafId = storage.getLeafId();
   const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
   const sessionPlan = await createAgentSessionPlan({
@@ -271,6 +295,7 @@ export const rebuildBridgeAgentSession = async (
     },
   });
   const context = buildBridgeSessionContext(storage);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     rebuilt: true,
   });
@@ -279,7 +304,7 @@ export const rebuildBridgeAgentSession = async (
 export const summarizeBridgeSession = async (
   command: SummarizeSessionCommand,
 ): Promise<SessionMutationResult> => {
-  const { storage } = await openSessionStorage(command);
+  const { paths, storage } = await openSessionStorage(command);
   const targetLeafId = storage.getLeafId();
   if (!targetLeafId) {
     throw new Error("无法摘要空 runtime session：当前 session 没有可用 leaf");
@@ -315,6 +340,7 @@ export const summarizeBridgeSession = async (
   await storage.setLeafId(targetLeafId);
 
   const nextContext = buildBridgeSessionContext(storage, targetLeafId);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, nextContext, {
     displaySummary: nextContext.displaySummary,
   });
@@ -330,7 +356,7 @@ const normalizeMessageRole = (role: string): BridgeMessageRole => {
 export const appendBridgeSessionMessages = async (
   command: MessageAppendCommand,
 ): Promise<SessionMutationResult> => {
-  const { storage } = await openSessionStorage(command);
+  const { paths, storage } = await openSessionStorage(command);
   const entryIds: string[] = [];
   const baseLeafId = storage.getLeafId();
 
@@ -367,6 +393,7 @@ export const appendBridgeSessionMessages = async (
   }
 
   const context = buildBridgeSessionContext(storage);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryIds.at(-1) ?? null,
     messageRecordIds: entryIds,
@@ -411,6 +438,7 @@ export const rebuildBridgeSession = async (
 
   const context = buildBridgeSessionContext(storage);
   await invalidateBridgeAgentSessionCache(paths);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryIds.at(-1) ?? null,
     messageRecordIds: entryIds,
@@ -444,6 +472,7 @@ export const editBridgeSessionMessage = async (
   });
   const context = buildBridgeSessionContext(storage);
   await invalidateBridgeAgentSessionCache(paths);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: replacement.id,
   });
@@ -470,6 +499,7 @@ export const deleteBridgeSessionMessage = async (
   });
   const context = buildBridgeSessionContext(storage);
   await invalidateBridgeAgentSessionCache(paths);
+  await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: target.id,
   });

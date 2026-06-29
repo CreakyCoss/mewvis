@@ -9,6 +9,12 @@ import {
   readRuntimeSessionTraceRecords,
   type RuntimeSessionTraceRecord,
 } from "../trace/jsonl-trace.js";
+import {
+  buildRuntimeSessionManifest,
+  readFreshRuntimeSessionManifest,
+  refreshRuntimeSessionManifest,
+  type RuntimeSessionSummaryLike,
+} from "../manifest/session-manifest.js";
 
 export type RuntimeSessionQueryTarget = {
   workspacePath: string;
@@ -108,18 +114,6 @@ const openLedgerOrNull = async (ledgerPath: string) => {
   }
 };
 
-const timestampOfEntry = (entry: BridgeLedgerEntry) =>
-  typeof entry.timestamp === "string" ? entry.timestamp : null;
-
-const latestTimestamp = (timestamps: Array<string | null | undefined>) =>
-  timestamps
-    .filter((timestamp): timestamp is string => Boolean(timestamp))
-    .sort()
-    .at(-1) ?? null;
-
-const orderedUnique = (values: Array<string | null | undefined>) =>
-  [...new Set(values.filter((value): value is string => Boolean(value)))];
-
 const collaborationRecordParts = (record: RuntimeSessionTraceRecord) => {
   if (record.type !== "collaboration_event" || !isRecord(record.event)) {
     return null;
@@ -132,50 +126,70 @@ const collaborationRecordParts = (record: RuntimeSessionTraceRecord) => {
   };
 };
 
-const summarizeTrace = (trace: RuntimeSessionTraceRecord[]) => {
-  const parts = trace.flatMap((record) => {
-    const part = collaborationRecordParts(record);
-    return part ? [part] : [];
-  });
-  return {
-    workflowRunIds: orderedUnique(parts.map((part) => part.workflowRunId)),
-    workflowIds: orderedUnique(parts.map((part) => part.workflowId)),
-    modeIds: orderedUnique(parts.map((part) => part.modeId)),
-    latestWorkflowRunId: parts.at(-1)?.workflowRunId ?? null,
-  };
-};
+const summaryFromManifest = (
+  manifest: RuntimeSessionSummaryLike,
+): RuntimeSessionSummary => ({
+  workspacePath: manifest.workspacePath,
+  sessionRootDir: manifest.sessionRootDir,
+  ledgerPath: manifest.ledgerPath,
+  tracePath: manifest.tracePath,
+  sessionId: manifest.sessionId ?? null,
+  createdAt: manifest.createdAt ?? null,
+  updatedAt: manifest.updatedAt ?? null,
+  leafId: manifest.leafId ?? null,
+  entryCount: manifest.entryCount,
+  traceCount: manifest.traceCount,
+  workflowRunIds: manifest.workflowRunIds,
+  workflowIds: manifest.workflowIds,
+  modeIds: manifest.modeIds,
+  latestWorkflowRunId: manifest.latestWorkflowRunId ?? null,
+});
 
 const summarizeSession = async (
   target: RuntimeSessionQueryTarget,
+  options: {
+    preferFreshManifest?: boolean;
+  } = {},
 ): Promise<{
   summary: RuntimeSessionSummary;
   ledger: BridgeLedgerStorage | null;
   trace: RuntimeSessionTraceRecord[];
 }> => {
   const paths = runtimeSessionPaths(target);
+  if (options.preferFreshManifest) {
+    const manifest = await readFreshRuntimeSessionManifest(paths);
+    if (manifest) {
+      return {
+        summary: summaryFromManifest(manifest),
+        ledger: null,
+        trace: [],
+      };
+    }
+  }
+
   const ledger = await openLedgerOrNull(paths.ledgerPath);
   const trace = await readRuntimeSessionTraceRecords(paths.tracePath);
-  const entries = ledger?.getEntries() ?? [];
-  const traceSummary = summarizeTrace(trace);
-
-  return {
-    summary: {
+  const manifest = buildRuntimeSessionManifest({
+    workspacePath: target.workspacePath,
+    sessionRootDir: paths.sessionRootDir,
+    ledgerPath: paths.ledgerPath,
+    tracePath: paths.tracePath,
+    ledger,
+    trace,
+  });
+  if (ledger || trace.length > 0) {
+    await refreshRuntimeSessionManifest({
       workspacePath: target.workspacePath,
       sessionRootDir: paths.sessionRootDir,
       ledgerPath: paths.ledgerPath,
       tracePath: paths.tracePath,
-      sessionId: ledger?.header.id ?? null,
-      createdAt: ledger?.header.timestamp ?? null,
-      updatedAt: latestTimestamp([
-        ledger?.header.timestamp,
-        ...entries.map(timestampOfEntry),
-        ...trace.map((record) => record.timestamp),
-      ]),
-      leafId: ledger?.getLeafId() ?? null,
-      entryCount: entries.length,
-      traceCount: trace.length,
-      ...traceSummary,
-    },
+      ledger,
+      trace,
+    });
+  }
+
+  return {
+    summary: summaryFromManifest(manifest),
     ledger,
     trace,
   };
@@ -317,7 +331,13 @@ export const getCollaborationTimeline = async (
 };
 
 const hasRuntimeSessionFiles = async (dir: string) => {
-  const [ledger, trace] = await Promise.all([
+  const [manifest, ledger, trace] = await Promise.all([
+    stat(resolve(dir, "session.json")).then(() => true).catch((error: unknown) => {
+      if (isNotFoundError(error)) {
+        return false;
+      }
+      throw error;
+    }),
     stat(resolve(dir, "ledger.jsonl")).then(() => true).catch((error: unknown) => {
       if (isNotFoundError(error)) {
         return false;
@@ -331,7 +351,7 @@ const hasRuntimeSessionFiles = async (dir: string) => {
       throw error;
     }),
   ]);
-  return ledger || trace;
+  return manifest || ledger || trace;
 };
 
 const findRuntimeSessionDirs = async (
@@ -375,6 +395,8 @@ export const listRuntimeSessions = async (
       summarizeSession({
         workspacePath: options.workspacePath,
         sessionRootDir,
+      }, {
+        preferFreshManifest: true,
       }).then((result) => result.summary)
     ),
   );

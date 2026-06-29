@@ -174,11 +174,22 @@ writeFileSync(entryPath, `
       supervisorModeResult.steps,
     );
     const supervisorTracePath = join(supervisorModeSessionRoot, "trace.jsonl");
+    const supervisorManifestPath = join(supervisorModeSessionRoot, "session.json");
     assert(existsSync(supervisorTracePath), "runMode 应写入 runtime trace", supervisorTracePath);
     assert(
       readFileSync(supervisorTracePath, "utf8").includes("collaboration_event"),
       "runtime trace 应包含 collaboration timeline",
       readFileSync(supervisorTracePath, "utf8"),
+    );
+    assert(existsSync(supervisorManifestPath), "runMode 应写入 runtime session manifest", supervisorManifestPath);
+    const supervisorManifest = JSON.parse(readFileSync(supervisorManifestPath, "utf8"));
+    assert(
+      supervisorManifest.type === "runtime_session_manifest" &&
+        supervisorManifest.workflowRunIds.includes(supervisorModeResult.workflowRunId) &&
+        supervisorManifest.modeIds.includes("supervisor.dispatch-loop") &&
+        supervisorManifest.traceCount > 0,
+      "runtime session manifest 应记录协作 workflow 摘要",
+      supervisorManifest,
     );
     const supervisorSessionSnapshot = await getRuntimeSessionSnapshot({
       workspacePath,

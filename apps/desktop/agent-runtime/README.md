@@ -14,6 +14,7 @@ agent-runtime/
     host/                     Runtime composition and command routing.
     protocol/                 Stable command, event, and result contracts.
     transport/                Transport adapters such as stdio.
+    runtime-session/          Shared ledger, trace, manifest, and projection.
     agent-engine/             Single-agent runtime implementation.
     collaboration-engine/     Multi-agent workflow orchestration.
       contracts/              Workflow, step, event, state, and extension types.

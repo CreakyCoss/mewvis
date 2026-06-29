@@ -18,6 +18,9 @@ import {
   appendRuntimeSessionTraceRecord,
 } from "../../../runtime-session/trace/jsonl-trace.js";
 import {
+  refreshRuntimeSessionManifest,
+} from "../../../runtime-session/manifest/session-manifest.js";
+import {
   runtimeBridgeEntryMetadata,
   runtimeBridgeMessageMetadata,
 } from "../metadata/runtime.js";
@@ -220,6 +223,7 @@ export class BridgeSessionRecorder {
 
   async flush() {
     await this.pendingWrite;
+    await this.refreshManifest();
   }
 
   async finalizeAssistantMessage(input: {
@@ -310,6 +314,20 @@ export class BridgeSessionRecorder {
 
   private async appendTrace(record: TraceRecord) {
     await appendRuntimeSessionTraceRecord(this.input.tracePath, record);
+  }
+
+  private async refreshManifest() {
+    try {
+      await refreshRuntimeSessionManifest({
+        workspacePath: this.input.command.workspacePath,
+        sessionRootDir: this.input.command.sessionRootDir,
+        ledgerPath: this.input.storage.filePath,
+        tracePath: this.input.tracePath,
+        ledger: this.input.storage,
+      });
+    } catch (error: unknown) {
+      console.warn(`runtime session manifest 刷新失败：${String(error)}`);
+    }
   }
 
   private async recordIntentEntries(parentEntryId: string | null) {

@@ -14,6 +14,7 @@ const ledgerPath = join(sessionDirPath, "ledger.jsonl");
 const aliasLedgerPath = join(aliasSessionRootDir, "ledger.jsonl");
 const oversizedSummaryLedgerPath = join(oversizedSummarySessionRootDir, "ledger.jsonl");
 const tracePath = join(sessionDirPath, "trace.jsonl");
+const manifestPath = join(sessionDirPath, "session.json");
 
 if (!existsSync(runtimePath)) {
   throw new Error("agent-runtime/dist/cli.js 不存在，请先运行 pnpm build:agent-runtime");
@@ -1372,8 +1373,22 @@ try {
 
   assert(existsSync(ledgerPath), "ledger.jsonl 应存在", ledgerPath);
   assert(existsSync(tracePath), "trace.jsonl 应存在", tracePath);
+  assert(existsSync(manifestPath), "session.json manifest 应存在", manifestPath);
+  const finalManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
   const finalLedger = readLedger();
+  const finalLedgerEntry = finalLedger.entries.at(-1);
+  const finalLedgerLeafId = finalLedgerEntry?.type === "leaf"
+    ? finalLedgerEntry.targetId
+    : finalLedgerEntry?.id ?? null;
+  assert(
+    finalManifest.type === "runtime_session_manifest" &&
+      finalManifest.entryCount === finalLedger.entries.length &&
+      finalManifest.traceCount === readFileSync(tracePath, "utf8").trim().split("\n").length &&
+      finalManifest.leafId === finalLedgerLeafId,
+    "session.json manifest 应记录单 agent session 的 ledger/trace 摘要",
+    finalManifest,
+  );
 
   const checks = {
     agents: list.agents.map((agent) => agent.id),
@@ -1422,6 +1437,7 @@ try {
     serialRuntimeInstructionRecordId: serialDone.bridgeSession?.runtimeInstructionRecordId,
     ledgerLines: finalLedger.entries.length + 1,
     traceLines: readFileSync(tracePath, "utf8").trim().split("\n").length,
+    manifestEntryCount: finalManifest.entryCount,
   };
 
   await request({ type: "shutdown", requestId: "shutdown" }, "shutdown_ack");

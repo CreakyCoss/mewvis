@@ -44,6 +44,20 @@ export {
 } from "./storage/paths.js";
 
 export type {
+  RuntimeSessionManifest,
+  RuntimeSessionSummaryLike,
+} from "./manifest/session-manifest.js";
+
+export {
+  buildRuntimeSessionManifest,
+  isRuntimeSessionManifestFresh,
+  readFreshRuntimeSessionManifest,
+  readRuntimeSessionManifest,
+  refreshRuntimeSessionManifest,
+  runtimeSessionManifestPath,
+} from "./manifest/session-manifest.js";
+
+export type {
   RuntimeSessionTraceRecord,
 } from "./trace/jsonl-trace.js";
 
