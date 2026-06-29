@@ -6,6 +6,7 @@ import { useTavernPageContext } from "../../context";
 import { CharacterStatusSection } from "./characters/section";
 import { IllustrationHintsPreviewSection } from "./illustration-hints-preview";
 import { PlotDataSection, type PlotDataSectionHandle } from "./plot-data";
+import { RuntimeTimelineSection } from "./runtime-timeline";
 import { SceneOverviewSection } from "./scene-overview";
 import type {
   SidePanelProps,
@@ -78,6 +79,8 @@ export const SidePanel = ({
             disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsNovelizerOperationBusy}
           />
+
+          <RuntimeTimelineSection />
 
           <CharacterStatusSection
             externalBusy={isBusy}
