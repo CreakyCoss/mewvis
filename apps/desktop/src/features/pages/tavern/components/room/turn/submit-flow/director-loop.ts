@@ -59,12 +59,14 @@ type LoopSpeakerRuntime = {
 export const shouldRunTavernDirectorLoopWorkflow = ({
   availableRoomCharacters,
   mode,
+  room,
 }: {
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   room: TavernRoom;
 }) =>
   mode.isDirectorLikeMode &&
+  room.settings.directorLoop.enabled &&
   availableRoomCharacters.length > 0;
 
 export const runDirectorLoopTurn = async ({

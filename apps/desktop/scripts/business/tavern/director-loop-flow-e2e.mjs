@@ -404,6 +404,7 @@ writeFileSync(mockCollaborationPath, `
 writeFileSync(entryPath, `
   import {
     runDirectorLoopTurn,
+    shouldRunTavernDirectorLoopWorkflow,
   } from ${JSON.stringify(directorLoopPath)};
   import {
     createTavernCharacter,
@@ -474,6 +475,38 @@ writeFileSync(entryPath, `
       },
     },
   };
+  const directorMode = {
+    replyMode: "director",
+    isManagedMode: false,
+    isSceneDriveMode: false,
+    isDirectorLikeMode: true,
+  } as const;
+  const roomWithDirectorLoopDisabled = {
+    ...room,
+    settings: {
+      ...room.settings,
+      directorLoop: {
+        ...room.settings.directorLoop,
+        enabled: false,
+      },
+    },
+  };
+  assert(
+    shouldRunTavernDirectorLoopWorkflow({
+      availableRoomCharacters: [characterA, characterB],
+      mode: directorMode,
+      room,
+    }),
+    "导演回环默认开启时应进入 supervisor.dispatch-loop workflow",
+  );
+  assert(
+    !shouldRunTavernDirectorLoopWorkflow({
+      availableRoomCharacters: [characterA, characterB],
+      mode: directorMode,
+      room: roomWithDirectorLoopDisabled,
+    }),
+    "房间关闭导演回环时不应进入 supervisor.dispatch-loop workflow",
+  );
   const userMessage = createTavernMessage({
     roomId: room.id,
     sceneId: room.activeSceneId,
@@ -607,12 +640,7 @@ writeFileSync(entryPath, `
     availableActiveCharacter: characterA,
     availableRoomCharacters: [characterA, characterB],
     ctx,
-    mode: {
-      replyMode: "director",
-      isManagedMode: false,
-      isSceneDriveMode: false,
-      isDirectorLikeMode: true,
-    },
+    mode: directorMode,
     references: [],
     room,
     runtimeMessages: [userMessage],
