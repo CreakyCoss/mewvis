@@ -5,7 +5,7 @@ import {
   type Skill,
 } from "@earendil-works/pi-coding-agent";
 import type {
-  AskUser,
+  AgentRuntimeCallbacks,
   RuntimeAgentCommand,
 } from "../../types.js";
 import {
@@ -16,7 +16,7 @@ import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
 
 export const createPiResourceLoader = async (
   command: RuntimeAgentCommand,
-  askUser: AskUser,
+  callbacks: AgentRuntimeCallbacks,
 ) => {
   const enabledSkills = loadEnabledPiSkills(command);
   const loader = new DefaultResourceLoader({
@@ -26,7 +26,7 @@ export const createPiResourceLoader = async (
     noSkills: true,
     extensionFactories: [
       (pi) => {
-        registerPiAskUserTool(pi, command.taskId, askUser);
+        registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
       },
     ],
     skillsOverride: () => ({

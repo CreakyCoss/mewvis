@@ -3,7 +3,7 @@ import {
 } from "../../../contracts/protocol.js";
 import type {
   AgentRunResult,
-  AskUser,
+  AgentRuntimeCallbacks,
   EmitBridgeEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
@@ -23,7 +23,7 @@ const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
 type DrivePiAgentSessionInput = {
   command: RuntimeAgentCommand;
   session: PiAgentSession;
-  askUser: AskUser;
+  callbacks: AgentRuntimeCallbacks;
   emit: EmitBridgeEvent;
   state: PiAgentRunState;
   shouldBootstrap: boolean;
@@ -32,7 +32,7 @@ type DrivePiAgentSessionInput = {
 export const drivePiAgentSession = async ({
   command,
   session,
-  askUser,
+  callbacks,
   emit,
   state,
   shouldBootstrap,
@@ -45,7 +45,7 @@ export const drivePiAgentSession = async ({
     await runPromptWithTimeout(session, nextPrompt);
     throwPiSessionError(state);
 
-    nextPrompt = await nextPromptFromAskUser(command, askUser, emit, state);
+    nextPrompt = await nextPromptFromAskUserToolCall(command, callbacks, emit, state);
   }
 
   return {
@@ -53,14 +53,14 @@ export const drivePiAgentSession = async ({
   };
 };
 
-const nextPromptFromAskUser = async (
+const nextPromptFromAskUserToolCall = async (
   command: RuntimeAgentCommand,
-  askUser: AskUser,
+  callbacks: AgentRuntimeCallbacks,
   emit: EmitBridgeEvent,
   state: PiAgentRunState,
 ) => {
-  const askUserCall = parsePiAskUserFunctionCall(state.assistantText || state.streamedText);
-  if (!askUserCall) {
+  const toolCall = parsePiAskUserFunctionCall(state.assistantText || state.streamedText);
+  if (!toolCall) {
     return null;
   }
 
@@ -69,12 +69,12 @@ const nextPromptFromAskUser = async (
     taskId: command.taskId,
     text: "",
   });
-  const answer = await askUser(
-    command.taskId,
-    askUserCall.question,
-    askUserCall.context,
-    askUserCall.input,
-  );
+  const answer = await callbacks.requestUserInput({
+    taskId: command.taskId,
+    question: toolCall.question,
+    context: toolCall.context,
+    input: toolCall.input,
+  });
   return createPiAskUserContinuationPrompt(answer);
 };
 

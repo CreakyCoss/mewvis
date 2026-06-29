@@ -202,7 +202,9 @@ export const compactBridgeSession = async (
   };
   const compactResult = implementation.compact
     ? await implementation.compact(compactCommand, runtimeContext ?? {
-      askUser: async () => "",
+      callbacks: {
+        requestUserInput: async () => "",
+      },
       emit: () => {},
     })
     : {
@@ -272,7 +274,9 @@ export const rebuildBridgeAgentSession = async (
     ? { ...runtimeCommandWithPrompt, agentSessionDir }
     : runtimeCommandWithPrompt;
   const result = await implementation.run(runtimeCommand, runtimeContext ?? {
-    askUser: async () => "",
+    callbacks: {
+      requestUserInput: async () => "",
+    },
     emit: () => {},
   });
 

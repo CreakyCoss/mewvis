@@ -13,6 +13,7 @@ export type {
   CollaborationExecutorRunInput,
   CollaborationRunContext,
   RunAgentForCollaboration,
+  RunAgentForCollaborationContext,
 } from "./executor.js";
 
 export type {

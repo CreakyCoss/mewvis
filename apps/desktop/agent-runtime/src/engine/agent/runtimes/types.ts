@@ -73,24 +73,30 @@ export type AgentRunResult = {
   text: string;
 };
 
-export type AskUser = (
-  taskId: string,
-  question: string,
-  context?: string | null,
-  input?: AskUserInput,
-) => Promise<string>;
+export type UserInputRequest = {
+  taskId: string;
+  question: string;
+  context?: string | null;
+  input?: AskUserInput;
+};
+
+export type UserInputHandler = (request: UserInputRequest) => Promise<string>;
 
 export type EmitBridgeEvent = (event: BridgeEvent) => void;
 
-export type BridgeEmitContext = {
+export type RuntimeEmitContext = {
   emit: EmitBridgeEvent;
 };
 
-export type AgentRuntimeContext = BridgeEmitContext & {
-  askUser: AskUser;
+export type AgentRuntimeCallbacks = {
+  requestUserInput: UserInputHandler;
 };
 
-export type ChatRuntimeContext = BridgeEmitContext & {
+export type AgentRuntimeContext = RuntimeEmitContext & {
+  callbacks: AgentRuntimeCallbacks;
+};
+
+export type ChatRuntimeContext = RuntimeEmitContext & {
   signal?: AbortSignal;
   maxRetries?: number;
 };

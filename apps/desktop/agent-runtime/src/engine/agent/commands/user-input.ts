@@ -3,8 +3,11 @@ import {
   BridgeEventType,
   type AnswerQuestionCommand,
 } from "../contracts/protocol.js";
-import type { AskUser, EmitBridgeEvent } from "../runtimes/types.js";
-import type { AskUserInput } from "../tools/types.js";
+import type {
+  AgentRuntimeCallbacks,
+  EmitBridgeEvent,
+  UserInputHandler,
+} from "../runtimes/types.js";
 
 const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -13,22 +16,22 @@ type PendingQuestion = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
-export type BridgeQuestionManager = {
-  askUser: AskUser;
+export type UserInputManager = {
+  callbacks: AgentRuntimeCallbacks;
   handleAnswer(command: AnswerQuestionCommand): void;
 };
 
-export const createBridgeQuestionManager = (
+export const createUserInputManager = (
   emit: EmitBridgeEvent,
-): BridgeQuestionManager => {
+): UserInputManager => {
   const pendingQuestions = new Map<string, PendingQuestion>();
 
-  const askUser: AskUser = (
-    taskId: string,
-    question: string,
-    context?: string | null,
-    input?: AskUserInput,
-  ) => {
+  const requestUserInput: UserInputHandler = ({
+    taskId,
+    question,
+    context,
+    input,
+  }) => {
     const questionId = randomUUID();
 
     emit({
@@ -71,7 +74,9 @@ export const createBridgeQuestionManager = (
   };
 
   return {
-    askUser,
+    callbacks: {
+      requestUserInput,
+    },
     handleAnswer,
   };
 };

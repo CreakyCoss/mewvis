@@ -42,7 +42,7 @@ writeFileSync(entryPath, `
 
   try {
     const runtime = createAgentRuntime();
-    const result = await runtime.runCollaboration({
+    const result = await runtime.collaboration.run({
       workspacePath,
       sessionRootDir: join(workspacePath, "session-store", "collaboration-smoke"),
       workflow: {
@@ -79,7 +79,6 @@ writeFileSync(entryPath, `
         },
       ],
     }, {
-      askUser: async () => "",
       emit: (event) => {
         events.push(event);
       },
@@ -357,7 +356,7 @@ writeFileSync(entryPath, `
     });
 
     const explicitNativeEvents: unknown[] = [];
-    const explicitNativeResult = await runtime.runCollaboration({
+    const explicitNativeResult = await runtime.collaboration.run({
       workspacePath,
       sessionRootDir: join(workspacePath, "session-store", "collaboration-explicit-native"),
       workflow: {
@@ -382,7 +381,6 @@ writeFileSync(entryPath, `
         },
       ],
     }, {
-      askUser: async () => "",
       emit: (event) => {
         explicitNativeEvents.push(event);
       },
@@ -403,7 +401,7 @@ writeFileSync(entryPath, `
       defaultCollaborationExecutorId: "native",
     });
     const nativeDefaultEvents: unknown[] = [];
-    const nativeDefaultResult = await nativeDefaultRuntime.runCollaboration({
+    const nativeDefaultResult = await nativeDefaultRuntime.collaboration.run({
       workspacePath,
       sessionRootDir: join(workspacePath, "session-store", "collaboration-default-native"),
       workflow: {
@@ -427,7 +425,6 @@ writeFileSync(entryPath, `
         },
       ],
     }, {
-      askUser: async () => "",
       emit: (event) => {
         nativeDefaultEvents.push(event);
       },
@@ -531,7 +528,6 @@ writeFileSync(entryPath, `
         { id: "afterOptional", label: "After Optional" },
       ],
     }, {
-      askUser: async () => "",
       emit: (event) => {
         advancedEvents.push(event);
       },
@@ -598,8 +594,6 @@ writeFileSync(entryPath, `
       agents: [
         { id: "speaker", label: "Loop Speaker" },
       ],
-    }, {
-      askUser: async () => "",
     });
     assert(loopResult.executorId === "langgraph", "router 回环默认应走 LangGraph", loopResult);
     assert(loopAgentMessages.join("|") === "Round 1|Round 2|Round 3", "router 回环应按路由重复执行 step 直到 end", loopAgentMessages);
@@ -617,8 +611,6 @@ writeFileSync(entryPath, `
       agents: [
         { id: "speaker", label: "Loop Speaker" },
       ],
-    }, {
-      askUser: async () => "",
     });
     assert(nativeLoopResult.executorId === "native", "显式 native router 回环应走 native executor", nativeLoopResult);
     assert(loopAgentMessages.join("|") === "Round 1|Round 2|Round 3", "native router 回环应按路由重复执行 step 直到 end", loopAgentMessages);
@@ -637,8 +629,6 @@ writeFileSync(entryPath, `
         agents: [
           { id: "speaker", label: "Loop Speaker" },
         ],
-      }, {
-        askUser: async () => "",
       });
     } catch (error) {
       nativeMaxStepsError = error;
@@ -657,8 +647,6 @@ writeFileSync(entryPath, `
         agents: [
           { id: "speaker", label: "Loop Speaker" },
         ],
-      }, {
-        askUser: async () => "",
       });
     } catch (error) {
       maxStepsError = error;
@@ -715,8 +703,6 @@ writeFileSync(entryPath, `
         { id: "writer", label: "Writer" },
         { id: "reviewer", label: "Reviewer" },
       ],
-    }, {
-      askUser: async () => "",
     });
     assert(dispatchResult.executorId === "langgraph", "dispatch 默认应走 LangGraph", dispatchResult);
     assert(
@@ -744,8 +730,6 @@ writeFileSync(entryPath, `
         { id: "writer", label: "Writer" },
         { id: "reviewer", label: "Reviewer" },
       ],
-    }, {
-      askUser: async () => "",
     });
     assert(nativeDispatchResult.executorId === "native", "显式 native dispatch 应走 native executor", nativeDispatchResult);
     assert(
@@ -844,7 +828,6 @@ writeFileSync(entryPath, `
         { id: "afterOptional", label: "After Optional" },
       ],
     }, {
-      askUser: async () => "",
       emit: (event) => {
         langGraphEvents.push(event);
       },

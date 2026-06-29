@@ -299,7 +299,6 @@ const runAgentStepWithRetry = async ({
       const result = await runAgent(
         buildAgentCommand(input, step, role, agentTaskId, state),
         {
-          askUser: context.askUser ?? rejectAskUser,
           emit: (event) => emit({
             type: CollaborationEventType.AgentEvent,
             workflowRunId,
@@ -882,10 +881,6 @@ const normalizeRouterResult = (
       route,
     },
   };
-};
-
-const rejectAskUser = async () => {
-  throw new Error("engine/collaboration 当前运行上下文未提供 askUser 处理器");
 };
 
 const buildAgentCommand = (

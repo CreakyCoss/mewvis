@@ -21,13 +21,13 @@ import {
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
-  async run(command: RuntimeAgentCommand, { askUser, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(command: RuntimeAgentCommand, { callbacks, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
     let unsubscribe: (() => void) | null = null;
 
     try {
-      const createdSession = await createPiAgentSession(command, askUser);
+      const createdSession = await createPiAgentSession(command, callbacks);
       session = createdSession.session;
       unsubscribe = subscribeToPiAgentSession(command, session, emit, state);
       emit({ type: BridgeEventType.Started, taskId: command.taskId });
@@ -35,7 +35,7 @@ export class PiAgent implements AgentRuntime {
       const result = await drivePiAgentSession({
         command,
         session,
-        askUser,
+        callbacks,
         emit,
         state,
         shouldBootstrap: createdSession.shouldBootstrap,
@@ -58,9 +58,9 @@ export class PiAgent implements AgentRuntime {
 
   async compact(
     command: RuntimeAgentCompactCommand,
-    { askUser }: AgentRuntimeContext,
+    { callbacks }: AgentRuntimeContext,
   ): Promise<AgentCompactResult> {
-    const { session } = await createPiAgentSession(command, askUser);
+    const { session } = await createPiAgentSession(command, callbacks);
     try {
       const result = await session.compact(command.compactInstructions?.trim() || undefined);
       return {

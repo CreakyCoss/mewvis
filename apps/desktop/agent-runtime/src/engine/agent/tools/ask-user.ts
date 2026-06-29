@@ -71,7 +71,7 @@ export const ASK_USER_TOOL_DEFINITION = {
   parameters: ASK_USER_TOOL_PARAMETERS,
 } as const;
 
-export type AskUserCall = {
+export type AskUserToolCall = {
   question: string;
   context?: string | null;
   input?: AskUserInput;

@@ -22,8 +22,13 @@ import {
   rebuildBridgeSession,
   summarizeBridgeSession,
 } from "../session/index.js";
-import type { AgentRunCommand, AskUser, EmitBridgeEvent, RuntimeChatCommand } from "../runtimes/types.js";
-import { createBridgeQuestionManager } from "./questions.js";
+import type {
+  AgentRunCommand,
+  AgentRuntimeCallbacks,
+  EmitBridgeEvent,
+  RuntimeChatCommand,
+} from "../runtimes/types.js";
+import { createUserInputManager } from "./user-input.js";
 import { messageFromError } from "../utils/error.js";
 import {
   createAgentDefinitionsResult,
@@ -34,7 +39,8 @@ import {
   type WriteBridgeJsonLine,
 } from "./responses.js";
 
-type BridgeCommandHandlerDeps = {
+type AgentCommandRouterDeps = {
+  callbacks?: Partial<AgentRuntimeCallbacks>;
   close: () => void;
   emit: EmitBridgeEvent;
   writeJsonLine: WriteBridgeJsonLine;
@@ -105,10 +111,10 @@ const handleChatCommand = async (
 const handleAgentRunCommand = async (
   command: AgentRunCommand,
   emit: EmitBridgeEvent,
-  askUser: AskUser,
+  callbacks: AgentRuntimeCallbacks,
 ) => {
   await executeAgentRunCommand(command, {
-    askUser,
+    callbacks,
     emit,
   });
 };
@@ -116,7 +122,7 @@ const handleAgentRunCommand = async (
 const runChat = async (
   command: RuntimeChatCommand,
   errorCommand: BridgeCommand,
-  deps: Pick<BridgeCommandHandlerDeps, "emit" | "writeJsonLine">,
+  deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine">,
 ) => {
   try {
     deps.writeJsonLine(await handleChatCommand(command, deps.emit));
@@ -128,12 +134,12 @@ const runChat = async (
 const runAgentRun = async (
   command: AgentRunCommand,
   errorCommand: BridgeCommand,
-  deps: Pick<BridgeCommandHandlerDeps, "emit" | "writeJsonLine"> & {
-    askUser: AskUser;
+  deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine"> & {
+    callbacks: AgentRuntimeCallbacks;
   },
 ) => {
   try {
-    await handleAgentRunCommand(command, deps.emit, deps.askUser);
+    await handleAgentRunCommand(command, deps.emit, deps.callbacks);
     writeTaskResult(command, deps.writeJsonLine, { success: true });
   } catch (error: unknown) {
     const message = messageFromError(error);
@@ -142,9 +148,13 @@ const runAgentRun = async (
   }
 };
 
-export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
+export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   let runningTask: Promise<void> | null = null;
-  const questions = createBridgeQuestionManager(deps.emit);
+  const userInput = createUserInputManager(deps.emit);
+  const callbacks: AgentRuntimeCallbacks = {
+    requestUserInput: deps.callbacks?.requestUserInput ??
+      userInput.callbacks.requestUserInput,
+  };
 
   const runAgentWhenIdle = (
     command: AgentRunCommand,
@@ -161,7 +171,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
 
     runningTask = runAgentRun(command, errorCommand, {
       ...deps,
-      askUser: questions.askUser,
+      callbacks,
     }).finally(() => {
       runningTask = null;
     });
@@ -199,7 +209,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
   const handle = async (command: BridgeCommand): Promise<boolean> => {
     switch (command.type) {
       case BridgeTaskCommandType.AnswerQuestion:
-        questions.handleAnswer(command);
+        userInput.handleAnswer(command);
         return true;
 
       case BridgeTaskCommandType.Ping:
@@ -249,7 +259,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
       case BridgeContextCommandType.Compact:
         try {
           deps.writeJsonLine(await compactBridgeSession(command, {
-            askUser: questions.askUser,
+            callbacks,
             emit: deps.emit,
           }));
         } catch (error: unknown) {
@@ -264,7 +274,7 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
         }
         try {
           deps.writeJsonLine(await rebuildBridgeAgentSession(command, {
-            askUser: questions.askUser,
+            callbacks,
             emit: () => {},
           }));
         } catch (error: unknown) {
@@ -324,7 +334,10 @@ export const createBridgeCommandRouter = (deps: BridgeCommandHandlerDeps) => {
   };
 
   return {
+    callbacks,
     handle,
     waitForRunningTask,
   };
 };
+
+export type AgentCommandRouter = ReturnType<typeof createAgentCommandRouter>;

@@ -1,8 +1,7 @@
 import type {
   AgentRunCommand,
   AgentRunResult,
-  AgentRuntimeContext,
-  AskUser,
+  EmitBridgeEvent,
 } from "../../agent/runtimes/types.js";
 import type {
   CollaborationHandlerRegistry,
@@ -24,13 +23,16 @@ import type {
 } from "../modes/contracts.js";
 
 export type CollaborationRunContext = {
-  askUser?: AskUser;
   emit?: EmitCollaborationEvent;
+};
+
+export type RunAgentForCollaborationContext = {
+  emit: EmitBridgeEvent;
 };
 
 export type RunAgentForCollaboration = (
   command: AgentRunCommand,
-  context: AgentRuntimeContext,
+  context: RunAgentForCollaborationContext,
 ) => Promise<AgentRunResult>;
 
 export type CollaborationExecutorRunInput = {

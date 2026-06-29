@@ -1,12 +1,12 @@
 import {
   ASK_USER_TOOL_DEFINITION,
-  type AskUserCall,
+  type AskUserToolCall,
   normalizeAskUserInput,
 } from "../../../tools/ask-user.js";
 import type { AskUserInput } from "../../../tools/types.js";
 import { findXmlElement, parseXmlFragment } from "../../../utils/xml.js";
 
-export const parsePiAskUserFunctionCall = (text: string): AskUserCall | null => {
+export const parsePiAskUserFunctionCall = (text: string): AskUserToolCall | null => {
   if (!text.includes("<invoke") || !text.includes(ASK_USER_TOOL_DEFINITION.name)) {
     return null;
   }

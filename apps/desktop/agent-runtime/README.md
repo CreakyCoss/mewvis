@@ -53,6 +53,9 @@ access.
 import { createAgentRuntime } from "./src/index.js";
 
 const runtime = createAgentRuntime({
+  callbacks: {
+    requestUserInput,
+  },
   writeJsonLine: (value) => {
     process.stdout.write(`${JSON.stringify(value)}\n`);
   },
@@ -88,6 +91,20 @@ await runtime.handle({
   },
 });
 ```
+
+Direct SDK helpers are grouped by runtime domain:
+
+```ts
+await runtime.agent.run(command, { callbacks: { requestUserInput }, emit });
+await runtime.agent.chat(command, { emit });
+await runtime.collaboration.run(input, { emit });
+await runtime.collaboration.runMode(input, { emit });
+runtime.collaboration.listModes();
+```
+
+Collaboration handlers do not own a question protocol. Agent steps run through the
+host-provided agent runner. SDK hosts can pass `callbacks.requestUserInput` to
+`createAgentRuntime`; stdio hosts use the bridge question protocol internally.
 
 ### stdio
 

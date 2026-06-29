@@ -8,7 +8,7 @@ import { mkdirSync } from "node:fs";
 import { normalizeAllowedAgentTools } from "../../../tools/definitions.js";
 import { allowedRuntimeTools } from "../../resources.js";
 import type {
-  AskUser,
+  AgentRuntimeCallbacks,
   RuntimeAgentCommand,
 } from "../../types.js";
 import {
@@ -28,7 +28,7 @@ export type PiAgentSessionCreateResult = {
 
 export const createPiAgentSession = async (
   command: RuntimeAgentCommand,
-  askUser: AskUser,
+  callbacks: AgentRuntimeCallbacks,
 ): Promise<PiAgentSessionCreateResult> => {
   const runtimeModel = requirePiRuntimeConfig(command);
   const apiKey = requirePiApiKey(runtimeModel);
@@ -36,7 +36,7 @@ export const createPiAgentSession = async (
   const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
   const authStorage = AuthStorage.inMemory();
   authStorage.setRuntimeApiKey(model.provider, apiKey);
-  const resourceLoader = await createPiResourceLoader(command, askUser);
+  const resourceLoader = await createPiResourceLoader(command, callbacks);
   const sessionManager = createPiSessionManager(command);
 
   const { session } = await createAgentSession({
