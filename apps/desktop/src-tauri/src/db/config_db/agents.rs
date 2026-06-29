@@ -1,22 +1,17 @@
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use tauri::AppHandle;
 
 use super::{
     common::{normalize_optional_text, normalize_record_id, now_millis},
     connection::open_config_connection,
     inputs::{
-        SaveAgentRuntimeSettingsInput, SaveAiAgentInput, SaveCollaborationWorkflowInput,
-        SaveCollaborationWorkflowStepInput,
+        SaveAiAgentInput, SaveCollaborationWorkflowInput, SaveCollaborationWorkflowStepInput,
     },
     models::{
-        AgentRuntimeSettings, AiAgent, AiAgentSettings, CollaborationWorkflow,
-        CollaborationWorkflowStep, CollaborationWorkflowStepRecord,
+        AiAgent, AiAgentSettings, CollaborationWorkflow, CollaborationWorkflowStep,
+        CollaborationWorkflowStepRecord,
     },
 };
-
-const AGENT_RUNTIME_SETTINGS_KEY: &str = "default";
-const COLLABORATION_EXECUTOR_NATIVE: &str = "native";
-const COLLABORATION_EXECUTOR_LANGGRAPH: &str = "langgraph";
 
 pub fn ai_agent_settings(app: &AppHandle) -> Result<AiAgentSettings, String> {
     let conn = open_config_connection(app)?;
@@ -24,13 +19,7 @@ pub fn ai_agent_settings(app: &AppHandle) -> Result<AiAgentSettings, String> {
     Ok(AiAgentSettings {
         agents: load_ai_agents(&conn)?,
         collaboration_workflows: load_collaboration_workflows(&conn)?,
-        runtime: load_agent_runtime_settings(&conn)?,
     })
-}
-
-pub fn agent_runtime_settings(app: &AppHandle) -> Result<AgentRuntimeSettings, String> {
-    let conn = open_config_connection(app)?;
-    load_agent_runtime_settings(&conn)
 }
 
 pub fn save_ai_agent(app: &AppHandle, input: SaveAiAgentInput) -> Result<AiAgentSettings, String> {
@@ -204,35 +193,6 @@ pub fn delete_collaboration_workflow(app: &AppHandle, id: &str) -> Result<AiAgen
     ai_agent_settings(app)
 }
 
-pub fn save_agent_runtime_settings(
-    app: &AppHandle,
-    input: SaveAgentRuntimeSettingsInput,
-) -> Result<AiAgentSettings, String> {
-    let conn = open_config_connection(app)?;
-    let settings = AgentRuntimeSettings {
-        default_collaboration_executor_id: normalize_default_collaboration_executor_id(
-            input.default_collaboration_executor_id.as_deref(),
-        )?,
-    };
-    let value_json = serde_json::to_string(&settings)
-        .map_err(|error| format!("无法保存 Agent Runtime 设置：{error}"))?;
-    let now = now_millis()?;
-
-    conn.execute(
-        r#"
-        INSERT INTO agent_runtime_settings (key, value_json, updated_at)
-        VALUES (?1, ?2, ?3)
-        ON CONFLICT(key) DO UPDATE SET
-            value_json = excluded.value_json,
-            updated_at = excluded.updated_at
-        "#,
-        params![AGENT_RUNTIME_SETTINGS_KEY, value_json, now],
-    )
-    .map_err(|error| format!("无法保存 Agent Runtime 设置：{error}"))?;
-
-    ai_agent_settings(app)
-}
-
 fn load_ai_agents(conn: &Connection) -> Result<Vec<AiAgent>, String> {
     let mut statement = conn
         .prepare(
@@ -312,25 +272,6 @@ fn load_collaboration_workflows(conn: &Connection) -> Result<Vec<CollaborationWo
         .map_err(|error| format!("无法解析协作流程：{error}"))
 }
 
-fn load_agent_runtime_settings(conn: &Connection) -> Result<AgentRuntimeSettings, String> {
-    let value_json = conn
-        .query_row(
-            "SELECT value_json FROM agent_runtime_settings WHERE key = ?1",
-            params![AGENT_RUNTIME_SETTINGS_KEY],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|error| format!("无法读取 Agent Runtime 设置：{error}"))?;
-
-    match value_json {
-        Some(value_json) => serde_json::from_str::<AgentRuntimeSettings>(&value_json)
-            .map_err(|error| format!("无法解析 Agent Runtime 设置：{error}")),
-        None => Ok(AgentRuntimeSettings {
-            default_collaboration_executor_id: None,
-        }),
-    }
-}
-
 fn normalize_workflow_steps(
     steps: Option<Vec<SaveCollaborationWorkflowStepInput>>,
 ) -> Result<Vec<CollaborationWorkflowStepRecord>, String> {
@@ -391,21 +332,6 @@ fn collaboration_workflow_steps_from_row(
     Ok(Vec::new())
 }
 
-fn normalize_default_collaboration_executor_id(
-    value: Option<&str>,
-) -> Result<Option<String>, String> {
-    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok(None);
-    };
-
-    match value {
-        COLLABORATION_EXECUTOR_NATIVE | COLLABORATION_EXECUTOR_LANGGRAPH => {
-            Ok(Some(value.to_string()))
-        }
-        _ => Err("默认协作执行器只支持 native 或 langgraph".to_string()),
-    }
-}
-
 fn agent_exists(conn: &Connection, id: &str) -> Result<bool, String> {
     conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM ai_agents WHERE id = ?1)",
@@ -424,63 +350,4 @@ fn collaboration_workflow_exists(conn: &Connection, id: &str) -> Result<bool, St
     )
     .map(|value| value == 1)
     .map_err(|error| format!("无法读取协作流程：{error}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_agent_runtime_settings_table(conn: &Connection) {
-        conn.execute_batch(
-            r#"
-            CREATE TABLE agent_runtime_settings (
-                key TEXT PRIMARY KEY,
-                value_json TEXT NOT NULL,
-                updated_at INTEGER NOT NULL
-            );
-            "#,
-        )
-        .expect("create agent runtime settings table");
-    }
-
-    #[test]
-    fn load_agent_runtime_settings_defaults_to_no_executor() {
-        let conn = Connection::open_in_memory().expect("open database");
-        create_agent_runtime_settings_table(&conn);
-
-        let settings = load_agent_runtime_settings(&conn).expect("load settings");
-
-        assert_eq!(settings.default_collaboration_executor_id, None);
-    }
-
-    #[test]
-    fn load_agent_runtime_settings_reads_saved_executor() {
-        let conn = Connection::open_in_memory().expect("open database");
-        create_agent_runtime_settings_table(&conn);
-        conn.execute(
-            r#"
-            INSERT INTO agent_runtime_settings (key, value_json, updated_at)
-            VALUES (?1, ?2, 1)
-            "#,
-            params![
-                AGENT_RUNTIME_SETTINGS_KEY,
-                r#"{"defaultCollaborationExecutorId":"langgraph"}"#
-            ],
-        )
-        .expect("insert settings");
-
-        let settings = load_agent_runtime_settings(&conn).expect("load settings");
-
-        assert_eq!(
-            settings.default_collaboration_executor_id.as_deref(),
-            Some(COLLABORATION_EXECUTOR_LANGGRAPH)
-        );
-    }
-
-    #[test]
-    fn normalize_default_collaboration_executor_id_rejects_unknown_values() {
-        let result = normalize_default_collaboration_executor_id(Some("unknown"));
-
-        assert!(result.is_err());
-    }
 }

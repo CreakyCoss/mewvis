@@ -31,13 +31,11 @@ import { CollaborationSessionRecorder } from "./session/recorder.js";
 export type CollaborationEngineOptions = {
   runAgent: RunAgentForCollaboration;
   executors?: readonly CollaborationExecutor[];
-  defaultExecutorId?: CollaborationExecutorId;
   modes?: readonly CollaborationModeDefinition[];
   modeRegistry?: CollaborationModeRegistry;
 };
 
 export const createCollaborationEngine = ({
-  defaultExecutorId = langGraphCollaborationExecutorId,
   executors = [],
   modes,
   modeRegistry,
@@ -65,7 +63,7 @@ export const createCollaborationEngine = ({
 
       validateWorkflowSteps(input.workflow.id, steps);
 
-      const executorId = resolveExecutorId(input.workflow.executor, defaultExecutorId);
+      const executorId = resolveExecutorId(input.workflow.executor);
       const executor = executorById.get(executorId);
       if (!executor) {
         throw new Error(`协作 workflow 指定了未注册的 executor：${executorId}`);
@@ -148,10 +146,9 @@ const createExecutorRegistry = (
 
 const resolveExecutorId = (
   executorId: CollaborationExecutorId | null | undefined,
-  defaultExecutorId: CollaborationExecutorId,
 ) => {
   const normalized = typeof executorId === "string" ? executorId.trim() : "";
-  return normalized || defaultExecutorId;
+  return normalized || langGraphCollaborationExecutorId;
 };
 
 const normalizeExecutorResult = (

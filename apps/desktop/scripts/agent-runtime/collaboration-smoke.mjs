@@ -397,21 +397,18 @@ writeFileSync(entryPath, `
       explicitNativeEvents,
     );
 
-    const nativeDefaultRuntime = createAgentRuntime({
-      defaultCollaborationExecutorId: "native",
-    });
-    const nativeDefaultEvents: unknown[] = [];
-    const nativeDefaultResult = await nativeDefaultRuntime.collaboration.run({
+    const implicitDefaultEvents: unknown[] = [];
+    const implicitDefaultResult = await runtime.collaboration.run({
       workspacePath,
-      sessionRootDir: join(workspacePath, "session-store", "collaboration-default-native"),
+      sessionRootDir: join(workspacePath, "session-store", "collaboration-default-langgraph"),
       workflow: {
-        id: "collaboration-default-native-smoke",
+        id: "collaboration-default-langgraph-smoke",
         steps: [
           {
             id: "planner",
             type: "agent",
             agentRoleId: "planner",
-            userMessage: "请生成显式 native executor 的计划。",
+            userMessage: "请生成默认 executor 的计划。",
             outputKey: "plan",
           },
         ],
@@ -421,24 +418,24 @@ writeFileSync(entryPath, `
           id: "planner",
           label: "Planner",
           agentId: "mock",
-          systemPrompt: "你是显式 native executor smoke test 的角色。",
+          systemPrompt: "你是默认 executor smoke test 的角色。",
         },
       ],
     }, {
       emit: (event) => {
-        nativeDefaultEvents.push(event);
+        implicitDefaultEvents.push(event);
       },
     });
-    assert(nativeDefaultResult.executorId === "native", "SDK option 应能显式设置 native collaboration executor", nativeDefaultResult);
+    assert(implicitDefaultResult.executorId === "langgraph", "未配置 workflow.executor 时应使用默认 LangGraph executor", implicitDefaultResult);
     assert(
-      nativeDefaultEvents.some((event) =>
+      implicitDefaultEvents.some((event) =>
         event && typeof event === "object" &&
         "type" in event &&
         event.type === CollaborationEventType.WorkflowStarted &&
-        (event as { executorId?: string }).executorId === "native"
+        (event as { executorId?: string }).executorId === "langgraph"
       ),
-      "显式 native executor 应体现在 workflow_started 事件",
-      nativeDefaultEvents,
+      "默认 executor 应体现在 workflow_started 事件",
+      implicitDefaultEvents,
     );
 
     const startedRoleIds: string[] = [];
@@ -925,10 +922,10 @@ writeFileSync(entryPath, `
         executorId: explicitNativeResult.executorId,
         eventCount: explicitNativeEvents.length,
       },
-      nativeDefault: {
-        workflowRunId: nativeDefaultResult.workflowRunId,
-        executorId: nativeDefaultResult.executorId,
-        eventCount: nativeDefaultEvents.length,
+      implicitDefault: {
+        workflowRunId: implicitDefaultResult.workflowRunId,
+        executorId: implicitDefaultResult.executorId,
+        eventCount: implicitDefaultEvents.length,
       },
       advanced: {
         workflowRunId: advancedResult.workflowRunId,

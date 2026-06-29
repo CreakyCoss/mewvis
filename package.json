@@ -2,6 +2,7 @@
   "name": "novel-claw",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@8.15.9",
   "scripts": {
     "build:ai": "cd ai/pi && npm install && npm run build",
     "dev:desktop": "cd apps/desktop && pnpm tauri dev",
@@ -13,6 +14,8 @@
     "build:desktop:win:x64": "cd apps/desktop && pnpm build:win",
     "build:desktop:win:arm64": "cd apps/desktop && pnpm build:win:arm64",
     "sync-models": "pnpm --filter desktop sync-models",
+    "format:desktop": "pnpm --filter desktop format",
+    "format:desktop:check": "pnpm --filter desktop format:check",
     "init:config-db": "pnpm --filter desktop init:config-db",
     "rebuild:config-db": "pnpm --filter desktop rebuild:config-db",
     "init:config-db:rebuild-on-error": "pnpm --filter desktop init:config-db:rebuild-on-error"

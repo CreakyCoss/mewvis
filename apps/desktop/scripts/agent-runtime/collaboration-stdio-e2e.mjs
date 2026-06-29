@@ -78,132 +78,6 @@ const send = (command) => {
   child.stdin.write(`${JSON.stringify(command)}\n`);
 };
 
-const runDefaultExecutorEnvCheck = async () => {
-  const envWorkspacePath = mkdtempSync(join(tmpdir(), "novel-claw-agent-runtime-default-executor-"));
-  const envChild = spawn(process.execPath, [runtimePath], {
-    cwd: workspaceRoot,
-    env: {
-      ...process.env,
-      AGENT_RUNTIME_DEFAULT_COLLABORATION_EXECUTOR: "native",
-    },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  const envSeen = [];
-  const envWaiters = [];
-  let envStdoutBuffer = "";
-  let envStderrBuffer = "";
-
-  const handleEnvLine = (line) => {
-    if (!line.trim()) {
-      return;
-    }
-    const parsed = JSON.parse(line);
-    envSeen.push(parsed);
-    for (const waiter of [...envWaiters]) {
-      if (waiter.predicate(parsed)) {
-        clearTimeout(waiter.timer);
-        envWaiters.splice(envWaiters.indexOf(waiter), 1);
-        waiter.resolve(parsed);
-      }
-    }
-  };
-
-  envChild.stdout.on("data", (chunk) => {
-    envStdoutBuffer += chunk.toString("utf8");
-    let newlineIndex;
-    while ((newlineIndex = envStdoutBuffer.indexOf("\n")) >= 0) {
-      handleEnvLine(envStdoutBuffer.slice(0, newlineIndex));
-      envStdoutBuffer = envStdoutBuffer.slice(newlineIndex + 1);
-    }
-  });
-
-  envChild.stderr.on("data", (chunk) => {
-    envStderrBuffer += chunk.toString("utf8");
-  });
-
-  const waitForEnv = (predicate, timeoutMs = 15_000) =>
-    new Promise((resolve, reject) => {
-      const existing = envSeen.find(predicate);
-      if (existing) {
-        resolve(existing);
-        return;
-      }
-      const waiter = {
-        predicate,
-        resolve,
-        timer: setTimeout(() => {
-          envWaiters.splice(envWaiters.indexOf(waiter), 1);
-          reject(new Error(`等待默认 executor runtime 输出超时。\nstderr:\n${envStderrBuffer}\nseen:\n${JSON.stringify(envSeen, null, 2)}`));
-        }, timeoutMs),
-      };
-      envWaiters.push(waiter);
-    });
-
-  const sendEnv = (command) => {
-    envChild.stdin.write(`${JSON.stringify(command)}\n`);
-  };
-
-  try {
-    sendEnv({
-      type: "run_collaboration",
-      requestId: "stdio-default-native-collaboration-smoke",
-      input: {
-        workspacePath: envWorkspacePath,
-        sessionRootDir: join(envWorkspacePath, "session-store", "stdio-default-native-collaboration"),
-        workflow: {
-          id: "stdio-default-native-collaboration-smoke",
-          steps: [
-            {
-              id: "planner",
-              type: "agent",
-              agentRoleId: "planner",
-              userMessage: "请验证显式默认 native executor。",
-              outputKey: "plan",
-            },
-          ],
-        },
-        agents: [
-          {
-            id: "planner",
-            label: "Planner",
-            agentId: "mock",
-            systemPrompt: "你是显式默认 native executor stdio smoke test 的角色。",
-          },
-        ],
-      },
-    });
-
-    const result = await waitForEnv((item) =>
-      item.type === "collaboration_result" &&
-      item.requestId === "stdio-default-native-collaboration-smoke"
-    );
-    assert(result.executorId === "native", "环境变量应能显式设置 stdio 默认 collaboration executor", result);
-    assert(
-      envSeen.some((item) =>
-        item.type === "workflow_started" &&
-        item.workflowId === "stdio-default-native-collaboration-smoke" &&
-        item.executorId === "native"
-      ),
-      "显式默认 executor 环境变量应体现在 workflow_started 事件",
-      envSeen,
-    );
-
-    sendEnv({
-      type: "shutdown",
-      requestId: "stdio-default-native-collaboration-shutdown",
-    });
-    await waitForEnv((item) => item.type === "shutdown_ack");
-
-    return {
-      eventCount: envSeen.length,
-      workflowRunId: result.workflowRunId,
-    };
-  } finally {
-    envChild.kill();
-    rmSync(envWorkspacePath, { recursive: true, force: true });
-  }
-};
-
 try {
   send({
     type: "run_collaboration",
@@ -531,7 +405,6 @@ try {
     requestId: "stdio-collaboration-shutdown",
   });
   await waitFor((item) => item.type === "shutdown_ack");
-  const defaultExecutor = await runDefaultExecutorEnvCheck();
 
   console.log(JSON.stringify({
     ok: true,
@@ -539,8 +412,6 @@ try {
     nativeWorkflowRunId: nativeResult.workflowRunId,
     dispatchWorkflowRunId: dispatchResult.workflowRunId,
     langGraphWorkflowRunId: langGraphResult.workflowRunId,
-    defaultExecutorWorkflowRunId: defaultExecutor.workflowRunId,
-    defaultExecutorEventCount: defaultExecutor.eventCount,
     eventCount: seen.length,
   }, null, 2));
 } finally {

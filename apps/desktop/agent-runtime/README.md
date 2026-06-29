@@ -315,15 +315,8 @@ emits `workflow_started`, `workflow_done`, and `error`, and the executor emits
 step and nested agent events. `workflow_started` and `collaboration_result`
 include `executorId` so debug surfaces can show which backend handled a run.
 
-The default executor can also be selected without changing workflow payloads:
-
-- SDK: pass `createAgentRuntime({ defaultCollaborationExecutorId: "native" })`
-- stdio/CLI: set `AGENT_RUNTIME_DEFAULT_COLLABORATION_EXECUTOR=native`
-- Novel Claw desktop host: set
-  `NOVEL_CLAW_AGENT_RUNTIME_DEFAULT_COLLABORATION_EXECUTOR=native`
-
-`workflow.executor` always wins over the configured default for that specific
-run.
+There is no separate host or CLI default executor setting; set
+`workflow.executor` on the workflow when a run needs a non-default executor.
 
 ## Event Stream
 

@@ -11,11 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type {
-  AgentRuntimeDefaultCollaborationExecutorId,
-  SaveCollaborationWorkflowInput,
-} from "../../agent/types";
+import type { SaveCollaborationWorkflowInput } from "../../agent/types";
 import { useAgentSettings } from "../../agent/hooks/use-agent";
 
 type WorkflowStepDraft = NonNullable<SaveCollaborationWorkflowInput["steps"]>[number];
@@ -39,7 +35,6 @@ export const CollaborationWorkflowSettingsDialog = ({
 }: CollaborationWorkflowSettingsDialogProps) => {
   const {
     workflows,
-    runtimeSettings,
     workflowDraft,
     selectedWorkflowId,
     agentProfiles,
@@ -49,13 +44,11 @@ export const CollaborationWorkflowSettingsDialog = ({
     createNewWorkflow,
     selectWorkflow,
     updateWorkflowDraft,
-    saveRuntimeSettings,
     saveWorkflow,
     removeWorkflow,
   } = useAgentSettings(open);
 
   const workflowSteps = workflowDraft.steps ?? [];
-  const defaultExecutorId = runtimeSettings.defaultCollaborationExecutorId ?? "langgraph";
 
   const handleSave = async () => {
     const didSave = await saveWorkflow();
@@ -187,41 +180,6 @@ export const CollaborationWorkflowSettingsDialog = ({
               </div>
             ) : (
               <div className="space-y-5">
-                <div className="rounded-md border bg-card px-3 py-3 shadow-xs">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0 space-y-1">
-                      <Label>默认执行器</Label>
-                      <div className="text-xs leading-5 text-muted-foreground">
-                        新建协作任务默认使用的编排引擎。
-                      </div>
-                    </div>
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      size="sm"
-                      spacing={0}
-                      value={defaultExecutorId}
-                      disabled={isSaving}
-                      onValueChange={(value) => {
-                        if (!value) {
-                          return;
-                        }
-                        void saveRuntimeSettings({
-                          defaultCollaborationExecutorId:
-                            value as AgentRuntimeDefaultCollaborationExecutorId,
-                        });
-                      }}
-                    >
-                      <ToggleGroupItem value="native" className="min-w-20">
-                        Native
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="langgraph" className="min-w-24">
-                        LangGraph
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-                </div>
-
                 <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
                   <div className="space-y-2">
                     <Label htmlFor="workflow-name">流程名称</Label>

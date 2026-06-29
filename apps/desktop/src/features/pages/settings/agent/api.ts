@@ -1,7 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
   AiAgentSettings,
-  SaveAgentRuntimeSettingsInput,
   SaveAiAgentInput,
   SaveCollaborationWorkflowInput,
 } from "./types";
@@ -9,9 +8,6 @@ import type {
 const emptySettings = {
   agents: [],
   collaborationWorkflows: [],
-  runtime: {
-    defaultCollaborationExecutorId: null,
-  },
 } satisfies AiAgentSettings;
 
 export async function getAiAgentSettings() {
@@ -52,12 +48,4 @@ export async function deleteCollaborationWorkflow(id: string) {
   }
 
   return invoke<AiAgentSettings>("delete_collaboration_workflow", { id });
-}
-
-export async function saveAgentRuntimeSettings(input: SaveAgentRuntimeSettingsInput) {
-  if (!isTauri()) {
-    return emptySettings;
-  }
-
-  return invoke<AiAgentSettings>("save_agent_runtime_settings", { input });
 }

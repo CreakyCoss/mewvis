@@ -1,8 +1,8 @@
 use super::{
     events::{emit_agent_event, emit_runtime_line},
     process::{
-        agent_runtime_settings_env, build_agent_runtime_command,
-        resolve_agent_runtime_process_config, spawn_agent_runtime_command,
+        build_agent_runtime_command, resolve_agent_runtime_process_config,
+        spawn_agent_runtime_command,
     },
     runtime_files::{append_agent_diagnostic, path_for_node},
 };
@@ -299,7 +299,7 @@ impl AgentRuntimeWorker {
             ),
         );
 
-        let mut extra_env = agent_runtime_settings_env(&app);
+        let mut extra_env = Vec::new();
         if let Some(agent_dir) = &agent_dir {
             extra_env.push(("PI_CODING_AGENT_DIR".to_string(), path_for_node(agent_dir)));
         }

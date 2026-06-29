@@ -326,6 +326,9 @@ importers:
       postcss:
         specifier: ^8.5.15
         version: 8.5.15
+      prettier:
+        specifier: ^3.9.3
+        version: 3.9.3
       tailwindcss:
         specifier: ^4.3.0
         version: 4.3.0
@@ -7523,6 +7526,12 @@ packages:
       simple-get: 4.0.1
       tar-fs: 2.1.4
       tunnel-agent: 0.6.0
+    dev: true
+
+  /prettier@3.9.3:
+    resolution: {integrity: sha512-HWmu+K+zvHNpaMfSnYeqdqrDbR16cuIXaPx8WoHaviQkDJh1/0BNtOZmHVQI5jc3wXv0H1yXc9wjvFdXh+n3hQ==}
+    engines: {node: '>=14'}
+    hasBin: true
     dev: true
 
   /pretty-ms@9.3.0:

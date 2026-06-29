@@ -1,8 +1,7 @@
 use tauri::AppHandle;
 
 use crate::db::config_db::{
-    self, AiAgentSettings, SaveAgentRuntimeSettingsInput, SaveAiAgentInput,
-    SaveCollaborationWorkflowInput,
+    self, AiAgentSettings, SaveAiAgentInput, SaveCollaborationWorkflowInput,
 };
 
 #[tauri::command]
@@ -34,12 +33,4 @@ pub fn delete_collaboration_workflow(
     id: String,
 ) -> Result<AiAgentSettings, String> {
     config_db::delete_collaboration_workflow(&app, &id)
-}
-
-#[tauri::command]
-pub fn save_agent_runtime_settings(
-    app: AppHandle,
-    input: SaveAgentRuntimeSettingsInput,
-) -> Result<AiAgentSettings, String> {
-    config_db::save_agent_runtime_settings(&app, input)
 }

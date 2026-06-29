@@ -1,0 +1,7 @@
+node_modules
+dist
+agent-runtime/dist
+src-tauri/target
+src-tauri/gen
+coverage
+*.log
