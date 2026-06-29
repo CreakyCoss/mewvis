@@ -6,18 +6,17 @@ export {
 
 export {
   runAgentRuntimeStdio,
-  runAgentRuntimeStdioCli,
   type AgentRuntimeStdioOptions,
-} from "./host/stdio-runtime.js";
+} from "./host/stdio-host.js";
 
 export type {
   BridgeCommand,
   BridgeEvent,
-} from "./agent-engine/contracts/protocol.js";
+} from "./engine/agent/contracts/protocol.js";
 
 export {
   createAgentEngine,
-} from "./agent-engine/index.js";
+} from "./engine/agent/index.js";
 
 export {
   BridgeLedgerStorage,
@@ -28,7 +27,7 @@ export {
   listRuntimeSessions,
   resolveBridgeSessionPaths,
   standardizeBridgeMessageMetadata,
-} from "./runtime-session/index.js";
+} from "./session/index.js";
 
 export type {
   BridgeBranchSummaryEntry,
@@ -59,11 +58,11 @@ export type {
   RuntimeSessionTimelineItem,
   SessionMutationResult,
   SessionResult,
-} from "./runtime-session/index.js";
+} from "./session/index.js";
 
 export type {
   AgentEngine,
-} from "./agent-engine/index.js";
+} from "./engine/agent/index.js";
 
 export type {
   AgentRuntimeCommand,
@@ -99,7 +98,7 @@ export {
   nativeCollaborationExecutorId,
   producerReviewRewriteLoopMode,
   supervisorDispatchLoopMode,
-} from "./collaboration-engine/index.js";
+} from "./engine/collaboration/index.js";
 
 export type {
   CollaborationAgentRole,
@@ -141,4 +140,4 @@ export type {
   CollaborationWorkflowDefinition,
   EmitCollaborationEvent,
   RunAgentForCollaboration,
-} from "./collaboration-engine/index.js";
+} from "./engine/collaboration/index.js";

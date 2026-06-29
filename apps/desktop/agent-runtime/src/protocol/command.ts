@@ -1,8 +1,8 @@
-import type { BridgeCommand } from "../agent-engine/contracts/protocol.js";
+import type { BridgeCommand } from "../engine/agent/contracts/protocol.js";
 import type {
   CollaborationModeRunInput,
   CollaborationRunInput,
-} from "../collaboration-engine/index.js";
+} from "../engine/collaboration/index.js";
 
 export enum AgentRuntimeCommandType {
   GetCollaborationTimeline = "get_collaboration_timeline",

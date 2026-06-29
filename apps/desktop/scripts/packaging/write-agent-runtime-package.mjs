@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url";
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const productConfigPath = join(desktopRoot, "product.config.json");
 const desktopPackagePath = join(desktopRoot, "package.json");
-const runtimesRoot = join(desktopRoot, "agent-runtime", "src", "agent-engine", "runtimes");
+const runtimesRoot = join(
+  desktopRoot,
+  "agent-runtime",
+  "src",
+  "engine",
+  "agent",
+  "runtimes",
+);
 const outputDir = join(desktopRoot, "agent-runtime", "dist");
 const outputPath = join(outputDir, "package.json");
 

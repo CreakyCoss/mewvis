@@ -24,7 +24,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@agent-engine/*": ["./agent-runtime/src/agent-engine/*"]
+      "@engine/*": ["./agent-runtime/src/engine/*"]
     }
   },
   "include": ["src"],

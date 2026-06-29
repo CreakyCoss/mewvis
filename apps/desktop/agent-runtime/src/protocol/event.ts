@@ -1,4 +1,4 @@
-import type { BridgeEvent } from "../agent-engine/contracts/protocol.js";
-import type { CollaborationEvent } from "../collaboration-engine/index.js";
+import type { BridgeEvent } from "../engine/agent/contracts/protocol.js";
+import type { CollaborationEvent } from "../engine/collaboration/index.js";
 
 export type AgentRuntimeEvent = BridgeEvent | CollaborationEvent;

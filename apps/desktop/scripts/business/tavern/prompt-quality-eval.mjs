@@ -1170,7 +1170,7 @@ await build({
   external: ["react", "react-dom"],
   alias: {
     "@": resolve(workspaceRoot, "src"),
-    "@agent-engine": resolve(workspaceRoot, "agent-runtime/src/agent-engine"),
+    "@engine/agent": resolve(workspaceRoot, "agent-runtime/src/engine/agent"),
   },
   loader: {
     ".css": "empty",

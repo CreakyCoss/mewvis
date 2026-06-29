@@ -399,7 +399,7 @@ try {
 
   send({
     type: "get_runtime_session",
-    requestId: "stdio-runtime-session-query",
+    requestId: "stdio-session-query",
     workspacePath,
     sessionRootDir: dispatchSessionRootDir,
     includeTimeline: true,
@@ -407,7 +407,7 @@ try {
   });
   const runtimeSessionResult = await waitFor((item) =>
     item.type === "runtime_session_result" &&
-    item.requestId === "stdio-runtime-session-query"
+    item.requestId === "stdio-session-query"
   );
   assert(runtimeSessionResult.session?.traceCount > 0, "stdio runtime session query 应返回 trace 摘要", runtimeSessionResult);
   assert(
@@ -435,13 +435,13 @@ try {
 
   send({
     type: "list_runtime_sessions",
-    requestId: "stdio-runtime-sessions-query",
+    requestId: "stdio-sessions-query",
     workspacePath,
     rootDir: join(workspacePath, "session-store"),
   });
   const runtimeSessionsResult = await waitFor((item) =>
     item.type === "runtime_sessions_result" &&
-    item.requestId === "stdio-runtime-sessions-query"
+    item.requestId === "stdio-sessions-query"
   );
   assert(
     runtimeSessionsResult.sessions?.some((session) => session.sessionRootDir === dispatchSessionRootDir),

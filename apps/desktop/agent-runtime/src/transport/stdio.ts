@@ -4,7 +4,7 @@ import {
   BridgeCommandType,
   type BridgeCommand,
   type BridgeEvent,
-} from "../agent-engine/contracts/protocol.js";
+} from "../engine/agent/contracts/protocol.js";
 import {
   AgentRuntimeCommandType,
   type AgentRuntimeCommand,

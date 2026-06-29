@@ -4,20 +4,20 @@ import type {
   PongResult,
   ShutdownAckResult,
   TaskResult,
-} from "../agent-engine/contracts/protocol.js";
+} from "../engine/agent/contracts/protocol.js";
 import type {
   SessionMutationResult,
   SessionResult,
-} from "../runtime-session/contracts/results.js";
+} from "../session/contracts/results.js";
 import type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
-} from "../runtime-session/index.js";
+} from "../session/index.js";
 import type {
   CollaborationModeSummary,
   CollaborationRunResult,
-} from "../collaboration-engine/index.js";
+} from "../engine/collaboration/index.js";
 
 export enum AgentRuntimeResultType {
   CollaborationTimelineResult = "collaboration_timeline_result",

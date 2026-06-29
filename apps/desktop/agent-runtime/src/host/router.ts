@@ -2,18 +2,18 @@ import {
   BridgeEventType,
   BridgeTaskCommandType,
   type BridgeCommand,
-} from "../agent-engine/contracts/protocol.js";
-import type { WriteBridgeJsonLine } from "../agent-engine/commands/responses.js";
-import { createBridgeCommandRouter } from "../agent-engine/commands/router.js";
-import { createBridgeQuestionManager } from "../agent-engine/commands/questions.js";
-import type { EmitBridgeEvent } from "../agent-engine/runtimes/types.js";
-import { messageFromError } from "../agent-engine/utils/error.js";
-import type { CollaborationEngine } from "../collaboration-engine/index.js";
+} from "../engine/agent/contracts/protocol.js";
+import type { WriteBridgeJsonLine } from "../engine/agent/commands/responses.js";
+import { createBridgeCommandRouter } from "../engine/agent/commands/router.js";
+import { createBridgeQuestionManager } from "../engine/agent/commands/questions.js";
+import type { EmitBridgeEvent } from "../engine/agent/runtimes/types.js";
+import { messageFromError } from "../engine/agent/utils/error.js";
+import type { CollaborationEngine } from "../engine/collaboration/index.js";
 import {
   getCollaborationTimeline,
   getRuntimeSessionSnapshot,
   listRuntimeSessions,
-} from "../runtime-session/index.js";
+} from "../session/index.js";
 import {
   AgentRuntimeCommandType,
   AgentRuntimeResultType,

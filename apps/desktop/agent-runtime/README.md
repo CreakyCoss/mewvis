@@ -14,21 +14,22 @@ agent-runtime/
     host/                     Runtime composition and command routing.
     protocol/                 Stable command, event, and result contracts.
     transport/                Transport adapters such as stdio.
-    runtime-session/          Shared ledger, trace, manifest, and projection.
-    agent-engine/             Single-agent runtime implementation.
-    collaboration-engine/     Multi-agent workflow orchestration.
-      contracts/              Workflow, step, event, state, and extension types.
-      registry/               Extension handler registry.
-      executors/              Pluggable workflow executors.
+    session/                  Shared ledger, trace, manifest, and projection.
+    engine/
+      agent/                  Single-agent runtime implementation.
+      collaboration/          Multi-agent workflow orchestration.
+        contracts/            Workflow, step, event, state, and extension types.
+        registry/             Extension handler registry.
+        executors/            Pluggable workflow executors.
 ```
 
 The intended dependency direction is:
 
 ```text
 transport -> host -> protocol
-                  -> agent-engine
-                  -> collaboration-engine -> agent-engine
-                                         -> executors/native
+                  -> engine/agent
+                  -> engine/collaboration -> engine/agent
+                                          -> executors/native
 ```
 
 Application code should normally call `createAgentClient()` from the desktop
@@ -39,7 +40,7 @@ Application-specific business logic should not be imported from `agent-runtime`.
 The bundled desktop runtime uses `agent-runtime/src/cli.ts` directly. If a
 product needs custom transforms, conditions, or routers, that product should
 create its own small host entrypoint and pass extension handlers into
-`runAgentRuntimeStdioCli()`.
+`runAgentRuntimeStdio()`.
 
 ## Public Modes
 
@@ -120,7 +121,7 @@ The new collaboration command is:
 
 `workflow.steps` supports these generic step types:
 
-- `agent`: call an agent role through `agent-engine`
+- `agent`: call an agent role through `engine/agent`
 - `dispatch`: dynamically call one or more agent invocations from structured input
 - `transform`: run a registered data transformer
 - `condition`: run a registered boolean condition and store the result
@@ -264,7 +265,7 @@ different prompts can safely share the same workflow session.
 
 ## Collaboration Executors
 
-`collaboration-engine` has a thin engine facade and pluggable executors. The
+`engine/collaboration` has a thin engine facade and pluggable executors. The
 default executor is `"langgraph"`, which uses `@langchain/langgraph` to run the
 shared workflow contract as a StateGraph. `"native"` is also registered as a
 built-in TypeScript implementation for serial and dependency-aware parallel
@@ -309,7 +310,7 @@ run.
 
 ## Event Stream
 
-Single-agent events are forwarded unchanged from `agent-engine`.
+Single-agent events are forwarded unchanged from `engine/agent`.
 
 Collaboration emits these events:
 
@@ -374,6 +375,7 @@ client that does not start Node.
 Use these names consistently:
 
 - `agent-runtime` for the whole reusable runtime package.
-- `agent-engine` for single-agent execution.
-- `collaboration-engine` for multi-agent orchestration.
+- `engine/agent` for single-agent execution.
+- `engine/collaboration` for multi-agent orchestration.
+- `session` for shared runtime session storage, traces, manifests, and projections.
 - `createAgentClient()` for the frontend-facing client facade.
