@@ -46,15 +46,21 @@ const normalizeSupervisorCandidate = (value: unknown): SupervisorCandidate | nul
   if (!isRecord(value)) {
     return null;
   }
-  const targetId = stringValue(value.targetId);
+  const targetId = stringValue(value.targetId) ??
+    stringValue(value.id) ??
+    stringValue(value.participantId) ??
+    stringValue(value.agentRoleId);
   if (!targetId) {
     return null;
   }
   return {
     targetId,
-    score: Math.max(0, Math.min(100, numberValue(value.score, 0))),
+    score: Math.max(0, Math.min(100, numberValue(
+      value.score ?? value.priority ?? value.confidence,
+      0,
+    ))),
     reason: stringValue(value.reason),
-    instruction: stringValue(value.instruction),
+    instruction: stringValue(value.instruction) ?? stringValue(value.task),
   };
 };
 
@@ -119,7 +125,15 @@ const normalizeSupervisorDecision = (input: unknown): SupervisorDecision => {
     ? input
     : "";
   const parsed = raw.trim() ? parseJsonObjectFromText(raw) : record;
-  const status = stringValue(parsed.status);
+  const rawStatus = stringValue(parsed.status);
+  const status = rawStatus === "complete" ||
+      rawStatus === "done" ||
+      rawStatus === "end" ||
+      parsed.shouldContinue === false
+    ? "complete"
+    : rawStatus === "blocked" || rawStatus === "error"
+    ? "blocked"
+    : "continue";
   const normalizedCandidates = Array.isArray(parsed.candidates)
     ? parsed.candidates.flatMap((candidate) => {
         const normalized = normalizeSupervisorCandidate(candidate);
@@ -129,15 +143,20 @@ const normalizeSupervisorDecision = (input: unknown): SupervisorDecision => {
   const candidates = normalizedCandidates.length > 0
     ? normalizedCandidates
     : legacyCandidatesFrom(parsed);
+  const selectedTargetId = stringValue(parsed.selectedTargetId) ??
+    stringValue(parsed.targetId) ??
+    stringValue(parsed.nextTargetId);
   const artifacts = Array.isArray(parsed.artifacts)
     ? parsed.artifacts
     : legacyArtifactsFrom(parsed);
 
   return {
-    status: status === "complete" || status === "blocked" ? status : "continue",
+    status,
     candidates,
-    selectedTargetId: stringValue(parsed.selectedTargetId),
-    selectedInstruction: stringValue(parsed.selectedInstruction),
+    selectedTargetId,
+    selectedInstruction: stringValue(parsed.selectedInstruction) ??
+      stringValue(parsed.instruction) ??
+      stringValue(parsed.task),
     reason: stringValue(parsed.reason),
     artifacts,
   };
@@ -197,10 +216,27 @@ const selectSupervisorDispatch = (input: unknown) => {
   const dispatchCandidates = normalizeDispatchCandidates(record.dispatchCandidates);
   const minScore = Math.max(0, Math.min(100, numberValue(record.minScore, 1)));
   const round = normalizeRound(record.round);
+  const allowNoDispatch = record.allowNoDispatch !== false;
+  const explicitDispatchCandidate = decision.selectedTargetId
+    ? findDispatchCandidate(dispatchCandidates, decision.selectedTargetId)
+    : null;
   const selectedFromDecision = decision.selectedTargetId
-    ? decision.candidates.find((candidate) => candidate.targetId === decision.selectedTargetId)
+    ? decision.candidates.find((candidate) => candidate.targetId === decision.selectedTargetId) ??
+      decision.candidates.find((candidate) =>
+        explicitDispatchCandidate &&
+        findDispatchCandidate(dispatchCandidates, candidate.targetId)?.targetId === explicitDispatchCandidate.targetId
+      )
+    : null;
+  const selectedFromExplicitTarget = explicitDispatchCandidate && !selectedFromDecision
+    ? {
+        targetId: explicitDispatchCandidate.targetId,
+        score: 100,
+        reason: decision.reason,
+        instruction: decision.selectedInstruction,
+      }
     : null;
   const selected = selectedFromDecision ??
+    selectedFromExplicitTarget ??
     decision.candidates
       .filter((candidate) => findDispatchCandidate(dispatchCandidates, candidate.targetId))
       .sort((left, right) => right.score - left.score)[0] ??
@@ -212,6 +248,13 @@ const selectSupervisorDispatch = (input: unknown) => {
       decision,
       selected: null,
       invocations: [],
+      reason: !selected && !allowNoDispatch
+        ? "dispatch target required but missing"
+        : decision.status !== "continue"
+        ? `supervisor status is ${decision.status}`
+        : selected && selected.score < minScore
+        ? `selected score ${selected.score} is below minScore ${minScore}`
+        : "no dispatch target selected",
     };
   }
 

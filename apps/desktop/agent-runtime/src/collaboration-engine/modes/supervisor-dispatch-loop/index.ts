@@ -30,6 +30,15 @@ const numberOption = (
   return Number.isFinite(number) ? number : fallback;
 };
 
+const booleanOption = (
+  options: Record<string, unknown> | null | undefined,
+  key: string,
+  fallback: boolean,
+) => {
+  const value = options?.[key];
+  return typeof value === "boolean" ? value : fallback;
+};
+
 const joinSections = (sections: Array<string | null | undefined>) =>
   sections.map((section) => section?.trim() ?? "").filter(Boolean).join("\n\n");
 
@@ -42,10 +51,16 @@ const participantSummary = (participant: CollaborationModeParticipant) => ({
 
 const buildSupervisorInstruction = ({
   contextBlock,
+  maxRounds,
+  minScore,
+  allowNoDispatch,
   supervisor,
   workers,
 }: {
   contextBlock: string;
+  maxRounds: number;
+  minScore: number;
+  allowNoDispatch: boolean;
   supervisor: CollaborationModeParticipant;
   workers: CollaborationModeParticipant[];
 }) => joinSections([
@@ -71,6 +86,15 @@ const buildSupervisorInstruction = ({
     "<previous_dispatch_output>",
     "{{ outputs.workerDispatch }}",
     "</previous_dispatch_output>",
+  ].join("\n"),
+  [
+    "<dispatch_policy>",
+    `maxRounds=${maxRounds}`,
+    `minScore=${minScore}`,
+    `allowNoDispatch=${allowNoDispatch}`,
+    "如果 status 是 complete 或 blocked，本轮不会继续分发 worker。",
+    "如果没有需要执行的 worker，可以 status=complete 并通过 artifacts 返回说明。",
+    "</dispatch_policy>",
   ].join("\n"),
   [
     "输出 JSON 格式：",
@@ -158,6 +182,7 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
 
     const maxRounds = positiveIntegerOption(input.options, "maxRounds", 2);
     const minScore = Math.max(0, Math.min(100, numberOption(input.options, "minScore", 1)));
+    const allowNoDispatch = booleanOption(input.options, "allowNoDispatch", true);
     const contextBlock = renderContextBlock(input.context);
     const dispatchCandidates = workers.map((worker) =>
       buildDispatchCandidate(worker, contextBlock)
@@ -187,6 +212,9 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
             requestContext: supervisor.requestContext ?? null,
             runtimeInstruction: buildSupervisorInstruction({
               contextBlock,
+              maxRounds,
+              minScore,
+              allowNoDispatch,
               supervisor,
               workers,
             }),
@@ -211,6 +239,7 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
               decision: { $ref: "outputs.supervisorDecision" },
               dispatchCandidates,
               minScore,
+              allowNoDispatch,
               round: { $ref: "outputs.supervisorRound" },
             },
             outputKey: "supervisorSelection",
@@ -262,6 +291,7 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
         metadata: modeMetadata(input, {
           maxRounds,
           minScore,
+          allowNoDispatch,
           participantIds: [supervisor, ...workers].map((participant) => participant.id),
         }),
       },

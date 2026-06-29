@@ -212,6 +212,76 @@ writeFileSync(entryPath, `
       sessionSummaries,
     );
 
+    const selectedOnlyEngine = createCollaborationEngine({
+      runAgent: async (command) => {
+        if (command.agentRoleId === "supervisor") {
+          return {
+            text: JSON.stringify({
+              status: "continue",
+              selectedTargetId: "worker-b",
+              selectedInstruction: "只调度 worker-b。",
+              reason: "显式选择 worker-b。",
+            }),
+          };
+        }
+        return {
+          text: "selected-only-output:" + command.agentRoleId,
+        };
+      },
+    });
+    const selectedOnlyResult = await selectedOnlyEngine.runMode({
+      mode: "supervisor.dispatch-loop",
+      requestId: "supervisor-selected-only-smoke",
+      workspacePath,
+      participants: [
+        { id: "supervisor", kind: "supervisor", label: "Supervisor", agentId: "mock" },
+        { id: "worker-a", kind: "worker", label: "Worker A", agentId: "mock" },
+        { id: "worker-b", kind: "worker", label: "Worker B", agentId: "mock" },
+      ],
+      options: {
+        maxRounds: 1,
+      },
+    });
+    assert(
+      selectedOnlyResult.steps.some((step) => step.stepId === "dispatchWorker:worker-b-round-1") &&
+        !selectedOnlyResult.steps.some((step) => step.stepId === "dispatchWorker:worker-a-round-1"),
+      "supervisor.dispatch-loop 应支持无 candidates 时按 selectedTargetId 分发",
+      selectedOnlyResult.steps,
+    );
+
+    const completeArtifactsEngine = createCollaborationEngine({
+      runAgent: async (command) => {
+        if (command.agentRoleId !== "supervisor") {
+          throw new Error("complete supervisor decision should not dispatch workers");
+        }
+        return {
+          text: JSON.stringify({
+            status: "complete",
+            reason: "只需要产出 artifacts。",
+            artifacts: [{ type: "note", content: "无需 worker 继续。" }],
+          }),
+        };
+      },
+    });
+    const completeArtifactsResult = await completeArtifactsEngine.runMode({
+      mode: "supervisor.dispatch-loop",
+      requestId: "supervisor-complete-artifacts-smoke",
+      workspacePath,
+      participants: [
+        { id: "supervisor", kind: "supervisor", label: "Supervisor", agentId: "mock" },
+        { id: "worker-a", kind: "worker", label: "Worker A", agentId: "mock" },
+      ],
+      options: {
+        maxRounds: 2,
+      },
+    });
+    assert(
+      !completeArtifactsResult.steps.some((step) => step.stepId.startsWith("dispatchWorker:")) &&
+        completeArtifactsResult.output?.supervisorSelection?.decision?.artifacts?.[0]?.content === "无需 worker 继续。",
+      "supervisor.dispatch-loop 应支持 complete/artifacts 且不分发 worker",
+      completeArtifactsResult,
+    );
+
     let reviewCount = 0;
     const reviewModeEngine = createCollaborationEngine({
       runAgent: async (command) => {
