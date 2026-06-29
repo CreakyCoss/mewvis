@@ -21,8 +21,6 @@ export const replyModeOptions: Array<{
   value: TavernReplyMode;
   label: string;
 }> = [
-  { value: "active", label: "当前角色" },
-  { value: "round", label: "全员轮流" },
   { value: "director", label: "导演调度" },
 ];
 
@@ -127,7 +125,7 @@ export const focusRoomEditorElementById = (
 };
 
 export const getReplyModeLabel = (replyMode: TavernReplyMode) =>
-  replyModeOptions.find((option) => option.value === replyMode)?.label ?? "当前角色";
+  replyModeOptions.find((option) => option.value === replyMode)?.label ?? "导演调度";
 
 type ProgressJsonParseResult<T> =
   | { ok: true; value: T[] }

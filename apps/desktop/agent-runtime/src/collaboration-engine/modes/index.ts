@@ -9,10 +9,6 @@ export type {
 } from "./contracts.js";
 
 export {
-  createBuiltinCollaborationModeExtension,
-} from "./extensions.js";
-
-export {
   builtinCollaborationModes,
   createCollaborationModeRegistry,
   type CollaborationModeRegistry,

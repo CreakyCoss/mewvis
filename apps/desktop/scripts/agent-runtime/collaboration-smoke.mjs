@@ -540,245 +540,6 @@ writeFileSync(entryPath, `
     assert(reviewerMessages.at(-1)?.includes("right:Right parallel workflow"), "reviewer 应能引用 steps.right.text", reviewerMessages);
     assert(reviewerMessages.at(-1)?.includes("parallel workflow"), "reviewer 应能引用 input.topic", reviewerMessages);
 
-    const extensionEvents: unknown[] = [];
-    const extensionEngine = createCollaborationEngine({
-      runAgent: async (command, { emit }) => {
-        emit({ type: "text_delta", delta: command.userMessage });
-        return {
-          text: "agent:" + command.userMessage,
-        };
-      },
-      extensions: [{
-        namespace: "demo",
-        transforms: {
-          normalizePlan: (value) => {
-            const inputValue = value as { topic?: unknown; speaker?: unknown };
-            return {
-              topic: String(inputValue.topic ?? "").trim().toUpperCase(),
-              speaker: String(inputValue.speaker ?? "").trim(),
-            };
-          },
-          incrementCounter: (value) => {
-            const inputValue = value as { current?: unknown };
-            const current = typeof inputValue.current === "number"
-              ? inputValue.current
-              : Number(inputValue.current ?? 0);
-            return Number.isFinite(current) ? current + 1 : 1;
-          },
-        },
-        conditions: {
-          hasTopic: (value) => {
-            const inputValue = value as { topic?: unknown };
-            return typeof inputValue.topic === "string" && inputValue.topic.length > 0;
-          },
-          isTruthy: (value) => Boolean(value),
-        },
-        routers: {
-          chooseNext: (value) => {
-            const inputValue = value as { speaker?: unknown };
-            return {
-              route: String(inputValue.speaker || "speaker"),
-              output: {
-                route: String(inputValue.speaker || "speaker"),
-                reason: "extension smoke",
-              },
-            };
-          },
-          loopUntilThree: (value) => {
-            const current = typeof value === "number" ? value : Number(value ?? 0);
-            return {
-              route: current < 3 ? "again" : "end",
-              output: {
-                route: current < 3 ? "again" : "end",
-                current,
-              },
-            };
-          },
-        },
-      }],
-    });
-    const extensionResult = await extensionEngine.run({
-      workspacePath,
-      input: {
-        topic: " extension workflow ",
-        speaker: "speaker-a",
-      },
-      workflow: {
-        id: "extension-collaboration-smoke",
-        steps: [
-          {
-            id: "normalize",
-            type: "transform",
-            transform: "demo.normalizePlan",
-            input: {
-              topic: { $ref: "input.topic" },
-              speaker: "{{ input.speaker }}",
-            },
-            outputKey: "normalized",
-          },
-          {
-            id: "hasTopic",
-            type: "condition",
-            condition: "demo.hasTopic",
-            dependsOn: ["normalize"],
-            input: { $ref: "outputs.normalized" },
-            outputKey: "shouldSpeak",
-          },
-          {
-            id: "next",
-            type: "router",
-            router: "demo.chooseNext",
-            dependsOn: ["hasTopic"],
-            input: { $ref: "outputs.normalized" },
-            routes: {
-              "speaker-a": "speaker",
-              end: "__end__",
-            },
-            outputKey: "nextRoute",
-          },
-          {
-            id: "speaker",
-            type: "agent",
-            agentRoleId: "speaker",
-            dependsOn: ["next"],
-            when: {
-              condition: "demo.isTruthy",
-              input: { $ref: "outputs.shouldSpeak" },
-            },
-            userMessage: "Speak {{ outputs.normalized.topic }} via {{ outputs.nextRoute.route }}",
-            outputKey: "speakerReply",
-          },
-        ],
-      },
-      agents: [
-        { id: "speaker", label: "Speaker" },
-      ],
-    }, {
-      askUser: async () => "",
-      emit: (event) => {
-        extensionEvents.push(event);
-      },
-    });
-
-    assert(extensionResult.executorId === "langgraph", "extension smoke 默认应走 LangGraph executor", extensionResult);
-    assert(extensionResult.steps.map((step) => step.stepId).join("|") === "normalize|hasTopic|next|speaker", "extension steps 应稳定执行", extensionResult.steps);
-    assert((extensionResult.output as { normalized?: { topic?: string } }).normalized?.topic === "EXTENSION WORKFLOW", "transform step 应写入结构化 output", extensionResult.output);
-    assert((extensionResult.output as { shouldSpeak?: boolean }).shouldSpeak === true, "condition step 应写入布尔 output", extensionResult.output);
-    assert((extensionResult.output as { nextRoute?: { route?: string } }).nextRoute?.route === "speaker-a", "router step 应写入 route output", extensionResult.output);
-    assert(extensionResult.steps.find((step) => step.stepId === "next")?.route === "speaker-a", "router result 应保留 route 字段", extensionResult.steps);
-    assert(extensionResult.steps.find((step) => step.stepId === "speaker")?.text.includes("EXTENSION WORKFLOW via speaker-a"), "agent step 应能读取 transform/router output", extensionResult.steps);
-    assert(
-      extensionEvents.some((event) =>
-        event && typeof event === "object" &&
-        "type" in event &&
-        event.type === CollaborationEventType.StepStarted &&
-        (event as { stepType?: string }).stepType === "transform"
-      ),
-      "extension workflow 应发出 transform step_started",
-      extensionEvents,
-    );
-
-    const extensionRouteEndResult = await extensionEngine.run({
-      workspacePath,
-      input: {
-        topic: "route end workflow",
-        speaker: "end",
-      },
-      workflow: {
-        id: "extension-route-end-smoke",
-        steps: [
-          {
-            id: "normalize",
-            type: "transform",
-            transform: "demo.normalizePlan",
-            input: {
-              topic: { $ref: "input.topic" },
-              speaker: "{{ input.speaker }}",
-            },
-            outputKey: "normalized",
-          },
-          {
-            id: "next",
-            type: "router",
-            router: "demo.chooseNext",
-            dependsOn: ["normalize"],
-            input: { $ref: "outputs.normalized" },
-            routes: {
-              "speaker-a": "speaker",
-              end: "__end__",
-            },
-            outputKey: "nextRoute",
-          },
-          {
-            id: "speaker",
-            type: "agent",
-            agentRoleId: "speaker",
-            dependsOn: ["next"],
-            userMessage: "This step should not run",
-            outputKey: "speakerReply",
-          },
-        ],
-      },
-      agents: [
-        { id: "speaker", label: "Speaker" },
-      ],
-    }, {
-      askUser: async () => "",
-    });
-    assert(extensionRouteEndResult.steps.map((step) => step.stepId).join("|") === "normalize|next", "router route=end 应结束 workflow 并跳过后续 step", extensionRouteEndResult.steps);
-    assert(extensionRouteEndResult.steps.find((step) => step.stepId === "next")?.route === "end", "route=end 应保留 router route", extensionRouteEndResult.steps);
-
-    const nativeExtensionRouteEndResult = await extensionEngine.run({
-      workspacePath,
-      input: {
-        topic: "native route end workflow",
-        speaker: "end",
-      },
-      workflow: {
-        id: "native-extension-route-end-smoke",
-        executor: "native",
-        steps: [
-          {
-            id: "normalize",
-            type: "transform",
-            transform: "demo.normalizePlan",
-            input: {
-              topic: { $ref: "input.topic" },
-              speaker: "{{ input.speaker }}",
-            },
-            outputKey: "normalized",
-          },
-          {
-            id: "next",
-            type: "router",
-            router: "demo.chooseNext",
-            dependsOn: ["normalize"],
-            input: { $ref: "outputs.normalized" },
-            routes: {
-              "speaker-a": "speaker",
-              end: "__end__",
-            },
-            outputKey: "nextRoute",
-          },
-          {
-            id: "speaker",
-            type: "agent",
-            agentRoleId: "speaker",
-            dependsOn: ["next"],
-            userMessage: "This native step should not run",
-            outputKey: "speakerReply",
-          },
-        ],
-      },
-      agents: [
-        { id: "speaker", label: "Speaker" },
-      ],
-    }, {
-      askUser: async () => "",
-    });
-    assert(nativeExtensionRouteEndResult.executorId === "native", "native router smoke 应走 native executor", nativeExtensionRouteEndResult);
-    assert(nativeExtensionRouteEndResult.steps.map((step) => step.stepId).join("|") === "normalize|next", "native router route=end 应结束 workflow 并跳过后续 step", nativeExtensionRouteEndResult.steps);
-
     const loopAgentMessages: string[] = [];
     const loopEngine = createCollaborationEngine({
       runAgent: async (command, { emit }) => {
@@ -788,30 +549,6 @@ writeFileSync(entryPath, `
           text: "loop:" + command.userMessage,
         };
       },
-      extensions: [{
-        namespace: "loop",
-        transforms: {
-          increment: (value) => {
-            const inputValue = value as { current?: unknown };
-            const current = typeof inputValue.current === "number"
-              ? inputValue.current
-              : Number(inputValue.current ?? 0);
-            return Number.isFinite(current) ? current + 1 : 1;
-          },
-        },
-        routers: {
-          next: (value) => {
-            const current = typeof value === "number" ? value : Number(value ?? 0);
-            return {
-              route: current < 3 ? "again" : "end",
-              output: {
-                route: current < 3 ? "again" : "end",
-                current,
-              },
-            };
-          },
-        },
-      }],
     });
     const loopWorkflow = {
       id: "router-loop-smoke",
@@ -820,7 +557,7 @@ writeFileSync(entryPath, `
         {
           id: "increment",
           type: "transform" as const,
-          transform: "loop.increment",
+          transform: "mode.incrementRound",
           input: {
             current: { $ref: "outputs.count" },
           },
@@ -836,10 +573,13 @@ writeFileSync(entryPath, `
         {
           id: "next",
           type: "router" as const,
-          router: "loop.next",
-          input: { $ref: "outputs.count" },
+          router: "supervisor.dispatch-loop.routeLoop",
+          input: {
+            round: { $ref: "outputs.count" },
+            maxRounds: 3,
+          },
           routes: {
-            again: "increment",
+            supervisor: "increment",
             end: "__end__",
           },
           outputKey: "nextRoute",
@@ -1207,13 +947,6 @@ writeFileSync(entryPath, `
         eventCount: advancedEvents.length,
         reviewerAttempts: attempts.get("reviewer"),
         skippedStepIds: advancedResult.skippedSteps?.map((step) => step.stepId) ?? [],
-      },
-      extension: {
-        workflowRunId: extensionResult.workflowRunId,
-        stepIds: extensionResult.steps.map((step) => step.stepId),
-        routeEndStepIds: extensionRouteEndResult.steps.map((step) => step.stepId),
-        nativeRouteEndStepIds: nativeExtensionRouteEndResult.steps.map((step) => step.stepId),
-        eventCount: extensionEvents.length,
       },
       loop: {
         workflowRunId: loopResult.workflowRunId,

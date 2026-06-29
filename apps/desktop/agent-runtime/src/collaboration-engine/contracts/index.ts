@@ -8,17 +8,6 @@ export {
 } from "./event.js";
 
 export type {
-  CollaborationConditionHandler,
-  CollaborationExtension,
-  CollaborationExtensionHandlerContext,
-  CollaborationExtensionRegistry,
-  CollaborationRouterHandler,
-  CollaborationRouterResult,
-  CollaborationTransformHandler,
-  EmitExtensionEvent,
-} from "./extension.js";
-
-export type {
   CollaborationEngine,
   CollaborationExecutor,
   CollaborationExecutorRunInput,

@@ -100,7 +100,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     ...projectTavernSceneFieldsOntoRoom(scene),
     ...roomProgressDefaults,
     ...emptyRoomContent,
-    replyMode: "active",
+    replyMode: "director",
     userPersonaName: "我",
     settings: cloneDefaultRoomSettings(),
     createdAt,

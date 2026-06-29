@@ -306,9 +306,6 @@ writeFileSync(helperEntryPath, `
   import {
     buildTavernDirectorPromptContext,
   } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/prompt.ts"))};
-  import {
-    parseTavernDirectorDecision,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/decision.ts"))};
   import { parseTavernReplyText } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts"))};
   import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation/presentation-contracts.ts"))};
   import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
@@ -688,7 +685,6 @@ writeFileSync(helperEntryPath, `
       speaker: activeCharacter,
       speakerIndex: 0,
       speakerCount: 1,
-      replyMode: "director",
       isDirectorLikeMode: true,
       isManagedMode: false,
       directorReason: "用户点名阿洛查看窗边脚印；承接铜牌失踪和门闩划痕，给出下一步可行动信息，但不要直接破案。",
@@ -942,23 +938,31 @@ writeFileSync(helperEntryPath, `
       maxSpeakers,
       randomEventOpportunity: false,
     });
+    const workerTargets = characters.map((character) => ({
+      id: character.id,
+      label: character.name,
+      targetAliases: [character.id, character.name],
+    }));
 
     return {
       systemPrompt: buildTavernBridgeSystemPrompt(room),
-      userMessage: "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
+      userMessage: "请为本轮酒馆对话给所有候选角色打分，选择一个角色继续，或用 artifacts 结束本轮，并只输出严格合法 JSON。",
       requestContext: directorPromptContext.requestContext,
       runtimeInstruction: [
         "你是酒馆模式的导演 Agent。",
-        "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定下一轮谁应该发言。",
+        "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定本轮是否调度一个 worker。",
+        "候选 worker 如下；targetId 必须使用 id，不要使用角色名：",
+        JSON.stringify(workerTargets, null, 2),
         "当前呈现规则：" + directorPromptContext.presentationProfile.label + "。" + directorPromptContext.presentationProfile.directorAddendum,
         "当前系统叙事、酒馆风格和写作规则来自 requestContext 中 target=\\"director\\" 的 prompt_block；这些是用户保存后的文本，必须按文本执行。",
-        "可以插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
-        "本轮不要触发随机事件，randomEvent 必须为空字符串。",
-        "本轮不要生成插图提示，illustrationHints 必须为空数组。",
-        "ambientActions 只用于未发言角色的公开可观察动作，不是角色对白，也不要写心理。",
+        "必须输出 supervisor.dispatch-loop JSON：status、candidates、selectedTargetId、selectedInstruction、reason、artifacts。",
+        "每轮最多选择一个 selectedTargetId；如果不需要角色发言，status=complete，selectedTargetId 为空，并用 artifacts 输出 narrator 或 ambientAction。",
+        "本轮不要触发随机事件，不要输出 randomEvent artifact。",
+        "本轮不要生成插图提示，不要输出 illustrationHint artifact。",
+        "ambientAction artifact 只用于未被 selectedTargetId 选中的角色公开可观察动作，不是角色对白，也不要写心理。",
         directorPromptContext.selectedTargetsCanStaySilent
-          ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应安排该目标 nonverbalReplyIds，由角色 Agent 输出动作和心理。"
-          : "只要有可用角色，就必须在 speakerIds 或 nonverbalReplyIds 中返回至少一个角色 id；不要用空数组表达沉默。",
+          ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应选择该 worker，并在 selectedInstruction 中说明只输出心理和可观察动作。"
+          : "只要有可用 worker，就必须选择一个 selectedTargetId；不要用 complete 表达沉默。",
         directorPromptContext.schedulingInstruction,
         "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
         "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",
@@ -967,8 +971,62 @@ writeFileSync(helperEntryPath, `
     };
   };
 
-  export const parseDirectorEvalDecision = ({ text, characters, maxSpeakers }) =>
-    parseTavernDirectorDecision(text, characters, maxSpeakers, false, false);
+  const extractJsonObject = (text) => {
+    const trimmed = String(text ?? "").trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      return trimmed;
+    }
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    return start >= 0 && end > start ? trimmed.slice(start, end + 1) : "{}";
+  };
+
+  const readString = (value) => typeof value === "string" && value.trim() ? value.trim() : "";
+
+  export const parseDirectorEvalDecision = ({ text, characters }) => {
+    let parsed = {};
+    try {
+      parsed = JSON.parse(extractJsonObject(text));
+    } catch {
+      parsed = {};
+    }
+    const characterIds = new Set(characters.map((character) => character.id));
+    const selectedTargetId = readString(parsed.selectedTargetId);
+    const speakerIds = characterIds.has(selectedTargetId) ? [selectedTargetId] : [];
+    const result = {
+      speakerIds,
+      nonverbalReplyIds: [],
+      narrator: "",
+      randomEvent: "",
+      illustrationHints: [],
+      ambientActions: [],
+      reason: readString(parsed.reason),
+    };
+    if (!Array.isArray(parsed.artifacts)) {
+      return result;
+    }
+    const narratorTexts = [];
+    for (const artifact of parsed.artifacts) {
+      if (!artifact || typeof artifact !== "object") {
+        continue;
+      }
+      const type = readString(artifact.type);
+      const content = readString(artifact.content);
+      if (!type || !content) {
+        continue;
+      }
+      if (type === "narrator") {
+        narratorTexts.push(content);
+      } else if (type === "ambientAction") {
+        const characterId = readString(artifact.targetId);
+        if (characterIds.has(characterId) && !speakerIds.includes(characterId)) {
+          result.ambientActions.push({ characterId, action: content });
+        }
+      }
+    }
+    result.narrator = narratorTexts.join("\\n").trim();
+    return result;
+  };
 
   export const resolveSceneSpeakers = ({
     room,
@@ -1018,7 +1076,6 @@ writeFileSync(helperEntryPath, `
       speaker,
       speakerIndex,
       speakerCount,
-      replyMode: "director",
       isDirectorLikeMode: true,
       isManagedMode: false,
       isSceneDriveMode: false,

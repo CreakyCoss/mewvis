@@ -1,10 +1,10 @@
 import type {
   CollaborationConditionHandler,
-  CollaborationExtension,
-  CollaborationExtensionRegistry,
+  CollaborationHandlerBundle,
+  CollaborationHandlerRegistry,
   CollaborationRouterHandler,
   CollaborationTransformHandler,
-} from "../contracts.js";
+} from "../contracts/handler.js";
 
 type HandlerKind = "transform" | "condition" | "router";
 
@@ -14,33 +14,33 @@ type HandlerMaps = {
   routers: Map<string, CollaborationRouterHandler>;
 };
 
-export const createCollaborationExtensionRegistry = (
-  extensions: readonly CollaborationExtension[] = [],
-): CollaborationExtensionRegistry => {
+export const createCollaborationHandlerRegistry = (
+  bundles: readonly CollaborationHandlerBundle[] = [],
+): CollaborationHandlerRegistry => {
   const handlers: HandlerMaps = {
     transforms: new Map(),
     conditions: new Map(),
     routers: new Map(),
   };
 
-  for (const extension of extensions) {
+  for (const bundle of bundles) {
     registerHandlers(
       handlers.transforms,
       "transform",
-      extension.namespace,
-      extension.transforms,
+      bundle.namespace,
+      bundle.transforms,
     );
     registerHandlers(
       handlers.conditions,
       "condition",
-      extension.namespace,
-      extension.conditions,
+      bundle.namespace,
+      bundle.conditions,
     );
     registerHandlers(
       handlers.routers,
       "router",
-      extension.namespace,
-      extension.routers,
+      bundle.namespace,
+      bundle.routers,
     );
   }
 
@@ -86,7 +86,7 @@ const resolveRegistrationIds = (
 ) => {
   const id = normalizeHandlerId(rawId);
   if (!id) {
-    throw new Error("协作 extension handler id 不能为空");
+    throw new Error("协作 handler id 不能为空");
   }
 
   const normalizedNamespace = namespace?.trim();

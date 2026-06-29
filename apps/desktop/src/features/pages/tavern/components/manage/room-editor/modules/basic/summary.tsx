@@ -74,7 +74,7 @@ export const BasicSummaryContent = ({
       <MetricCard
         icon={MessageSquareText}
         label="回复模式"
-        value={getReplyModeLabel(data.replyMode ?? "active")}
+        value={getReplyModeLabel(data.replyMode ?? "director")}
       />
       <MetricCard
         icon={ScrollText}

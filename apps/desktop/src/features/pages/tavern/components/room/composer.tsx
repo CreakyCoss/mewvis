@@ -34,7 +34,6 @@ export const Composer = ({
   onKeyDown,
 }: ComposerProps) => {
   const {
-    activeCharacter,
     activeRoom,
     draft,
     error,
@@ -43,13 +42,10 @@ export const Composer = ({
     isManagedModeEnabled,
     isSending,
     replySuggestions,
-    roomCharacters,
     setDraft,
     setDraftCursor,
     visualPreset,
   } = useTavernPageContext();
-  const replyMode = activeRoom?.replyMode ?? "active";
-  const speakerCount = roomCharacters.length;
   const isManagedAutoRunning = isManagedModeEnabled && isManagedAutoRunStarted;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
   const placeholder = isManagedAutoRunning
@@ -58,11 +54,7 @@ export const Composer = ({
     ? "全托管：首次留空发送启动，后续自动运行；自推按钮会把这里当导演方向..."
     : presentationProfile.userInputMode !== "speech"
     ? presentationProfile.composerPlaceholder
-    : replyMode === "director"
-    ? "写给导演的方向，或留空点自推..."
-    : replyMode === "round" && speakerCount > 1
-      ? `让 ${speakerCount} 位角色依次回应...`
-      : activeCharacter ? `对 ${activeCharacter.name} 说点什么...` : "写下一句对白...";
+    : "写给导演的方向，或留空点自推...";
   const canSubmit = (isManagedModeEnabled && !isManagedAutoRunning) || Boolean(draft.trim());
 
   return (

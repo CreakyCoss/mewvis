@@ -34,9 +34,6 @@ import type {
   TavernReplyOption,
   TavernRoom,
 } from "../../../../types";
-import type {
-  TavernDirectorDecision,
-} from "../../../../runtime/director";
 import {
   findMissingSpeakerModel,
   requireTavernRuntimeModelInput,
@@ -54,6 +51,19 @@ type LoopSpeakerRuntime = {
   message: TavernMessage;
   speaker: TavernCharacter;
   text: string;
+};
+
+type TavernLoopSupervisorDecision = {
+  speakerIds: string[];
+  nonverbalReplyIds?: string[];
+  narrator?: string;
+  randomEvent?: string;
+  illustrationHints?: string[];
+  ambientActions?: Array<{
+    characterId: string;
+    action: string;
+  }>;
+  reason?: string;
 };
 
 export const shouldRunTavernDirectorLoopWorkflow = ({
@@ -130,7 +140,7 @@ export const runDirectorLoopTurn = async ({
       speaker.name,
     ]),
   );
-  let latestDirectorDecision: TavernDirectorDecision | undefined;
+  let latestSupervisorDecision: TavernLoopSupervisorDecision | undefined;
   let directorReason = "";
   let directorNonverbalReplyIds: string[] = [];
   let turnNarratorTexts: string[] = [];
@@ -180,18 +190,13 @@ export const runDirectorLoopTurn = async ({
       return;
     }
 
-    if (
-      event.step.outputKey === "directorDecision" ||
-      event.step.outputKey === "supervisorDecision"
-    ) {
-      const decision = event.step.outputKey === "supervisorDecision"
-        ? normalizeLoopSupervisorDecision(event.step.output, characterIdByRoleId)
-        : normalizeLoopDirectorDecision(event.step.output);
+    if (event.step.outputKey === "supervisorDecision") {
+      const decision = normalizeLoopSupervisorDecision(event.step.output, characterIdByRoleId);
       if (!decision) {
         return;
       }
-      latestDirectorDecision = decision;
-      const directorEffects = applyLoopDirectorDecision({
+      latestSupervisorDecision = decision;
+      const directorEffects = applyLoopSupervisorDecision({
         availableActiveCharacter,
         availableRoomCharacters,
         ctx,
@@ -271,13 +276,13 @@ export const runDirectorLoopTurn = async ({
 
   ctx.patchExecutionStep("director-loop", {
     status: "done",
-    detail: latestDirectorDecision?.reason ?? "回环调度完成",
+    detail: latestSupervisorDecision?.reason ?? "回环调度完成",
   });
   activeReplyRef.message = null;
   activeReplyRef.text = "";
 
   return {
-    directorDecision: latestDirectorDecision,
+    supervisorDecision: latestSupervisorDecision,
     directorNonverbalReplyIds,
     directorReason,
     runtimeMessages,
@@ -435,7 +440,7 @@ const finalizeLoopSpeakerRuntime = ({
   return finalizedMessage;
 };
 
-const applyLoopDirectorDecision = ({
+const applyLoopSupervisorDecision = ({
   availableActiveCharacter,
   availableRoomCharacters,
   ctx,
@@ -452,7 +457,7 @@ const applyLoopDirectorDecision = ({
   availableActiveCharacter: TavernCharacter | null;
   availableRoomCharacters: TavernCharacter[];
   ctx: TavernPageContextValue;
-  decision: TavernDirectorDecision;
+  decision: TavernLoopSupervisorDecision;
   room: TavernRoom;
   runtimeMessages: TavernMessage[];
   runtimeModel: RuntimeModelOption;
@@ -573,41 +578,10 @@ const applyLoopDirectorDecision = ({
   };
 };
 
-const normalizeLoopDirectorDecision = (
-  value: unknown,
-): TavernDirectorDecision | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  return {
-    speakerIds: readStringArray(record.speakerIds),
-    nonverbalReplyIds: readStringArray(record.nonverbalReplyIds),
-    narrator: readOptionalString(record.narrator),
-    randomEvent: readOptionalString(record.randomEvent),
-    illustrationHints: readStringArray(record.illustrationHints),
-    ambientActions: Array.isArray(record.ambientActions)
-      ? record.ambientActions.flatMap((item) => {
-          if (!item || typeof item !== "object") {
-            return [];
-          }
-          const action = item as Record<string, unknown>;
-          const characterId = readOptionalString(action.characterId);
-          const actionText = readOptionalString(action.action);
-          return characterId && actionText
-            ? [{ characterId, action: actionText }]
-            : [];
-        })
-      : [],
-    reason: readOptionalString(record.reason),
-  };
-};
-
 const normalizeLoopSupervisorDecision = (
   value: unknown,
   characterIdByRoleId: Map<string, string>,
-): TavernDirectorDecision | null => {
+): TavernLoopSupervisorDecision | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -617,13 +591,7 @@ const normalizeLoopSupervisorDecision = (
   const selectedCharacterId = selectedTargetId
     ? resolveSupervisorTargetCharacterId(selectedTargetId, characterIdByRoleId)
     : null;
-  const candidateCharacterIds = normalizeSupervisorCandidateCharacterIds(
-    record.candidates,
-    characterIdByRoleId,
-  );
-  const speakerIds = selectedCharacterId
-    ? [selectedCharacterId]
-    : candidateCharacterIds.slice(0, 1);
+  const speakerIds = selectedCharacterId ? [selectedCharacterId] : [];
   const artifacts = normalizeSupervisorArtifacts(record.artifacts, characterIdByRoleId);
 
   return {
@@ -637,31 +605,12 @@ const normalizeLoopSupervisorDecision = (
   };
 };
 
-const normalizeSupervisorCandidateCharacterIds = (
-  value: unknown,
-  characterIdByRoleId: Map<string, string>,
-) => Array.isArray(value)
-  ? value
-      .flatMap((candidate) => {
-        if (!candidate || typeof candidate !== "object") {
-          return [];
-        }
-        const targetId = readOptionalString((candidate as Record<string, unknown>).targetId);
-        const characterId = targetId
-          ? resolveSupervisorTargetCharacterId(targetId, characterIdByRoleId)
-          : null;
-        return characterId ? [{ characterId, score: readNumber((candidate as Record<string, unknown>).score) }] : [];
-      })
-      .sort((left, right) => right.score - left.score)
-      .map((candidate) => candidate.characterId)
-  : [];
-
 const normalizeSupervisorArtifacts = (
   value: unknown,
   characterIdByRoleId: Map<string, string>,
 ) => {
   const result: Pick<
-    TavernDirectorDecision,
+    TavernLoopSupervisorDecision,
     "ambientActions" | "illustrationHints" | "narrator" | "randomEvent"
   > = {
     ambientActions: [],
@@ -721,15 +670,5 @@ const resolveSupervisorTargetCharacterId = (
   Array.from(characterIdByRoleId.values()).includes(targetId) ? targetId : null
 );
 
-const readStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
-    : [];
-
 const readOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
-
-const readNumber = (value: unknown) => {
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) ? number : 0;
-};

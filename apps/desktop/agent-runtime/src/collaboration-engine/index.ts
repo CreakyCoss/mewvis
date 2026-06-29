@@ -5,11 +5,6 @@ export {
 } from "./engine.js";
 
 export {
-  createCollaborationExtensionRegistry,
-  normalizeHandlerId,
-} from "./registry/index.js";
-
-export {
   CollaborationSessionRecorder,
 } from "./session/recorder.js";
 
@@ -22,7 +17,6 @@ export {
 
 export {
   builtinCollaborationModes,
-  createBuiltinCollaborationModeExtension,
   createCollaborationModeRegistry,
   producerReviewRewriteLoopMode,
   supervisorDispatchLoopMode,
@@ -35,7 +29,6 @@ export type {
   CollaborationAgentWorkflowStep,
   CollaborationBaseWorkflowStep,
   CollaborationBuiltinStepCondition,
-  CollaborationConditionHandler,
   CollaborationConditionWorkflowStep,
   CollaborationDispatchMode,
   CollaborationDispatchWorkflowStep,
@@ -45,12 +38,7 @@ export type {
   CollaborationExecutorId,
   CollaborationExecutorRunInput,
   CollaborationEvent,
-  CollaborationExtension,
-  CollaborationExtensionHandlerContext,
-  CollaborationExtensionRegistry,
   CollaborationNamedStepCondition,
-  CollaborationRouterHandler,
-  CollaborationRouterResult,
   CollaborationRouterWorkflowStep,
   CollaborationRunContext,
   CollaborationRunInput,
@@ -60,7 +48,6 @@ export type {
   CollaborationStepResult,
   CollaborationStepType,
   CollaborationTemplateRef,
-  CollaborationTransformHandler,
   CollaborationTransformWorkflowStep,
   CollaborationWorkflowExecutionMode,
   CollaborationWorkflowStep,

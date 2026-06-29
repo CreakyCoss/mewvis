@@ -508,11 +508,11 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push([
       "当前处于固定顺序发言阶段。",
       fixedOrderPhaseValue ? `当前阶段值：${fixedOrderPhaseValue}。` : "",
-      "导演可以给出公开旁白和未发言角色动作，但角色 speakerIds 会由应用侧按存活座次固定生成。",
+      "导演可以给出公开旁白和未发言角色动作；角色 worker 仍按应用侧固定座次逐个进入回环调度。",
       scheduling.fixedOrder.includeUser
         ? `本阶段固定顺序包含用户座位，用户位置：${scheduling.fixedOrder.userPosition === "last" ? "末位" : "首位"}；当前用户消息视为用户自己的座次发言。`
         : "",
-      "如果需要先公布夜晚结果或阶段信息，把内容写进 narrator；不要因此返回空 speakerIds 或把本阶段误判为导演-only。",
+      "如果需要先公布夜晚结果或阶段信息，把内容写进 narrator artifact；不要因此把本阶段误判为导演-only。",
       "若发言中点名其他角色，只记录为发言内容；不要把被点名者追加为本轮自动回应者。",
       scheduling.fixedOrder.stopAfterRound
         ? "固定顺序一轮结束后应停在下一阶段入口，例如投票、结算或等待用户操作。"
@@ -524,17 +524,17 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push([
       "当前阶段允许导演只推进公开流程，不调用角色公开发言。",
       directorOnlyPhaseValue ? `当前阶段值：${directorOnlyPhaseValue}。` : "",
-      "如果此时是夜晚、结算或投票公布阶段，可以返回空 speakerIds，并只输出 narrator/randomEvent/illustrationHints。",
+      "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator/randomEvent/illustrationHint artifacts。",
     ].filter(Boolean).join(""));
   }
 
   if (scheduling.targetedReplyPolicy === "exclusive") {
-    lines.push("当用户选择或指定回复对象时，只让被指定角色发言。");
+    lines.push("当用户选择或指定回复对象时，本轮优先把被指定角色设为 selectedTargetId；如果有多个目标，每次只选一个最需要回应的 worker，其余交给后续回环判断。");
   } else if (scheduling.targetedReplyPolicy === "include") {
-    lines.push(`当用户选择或指定回复对象时，必须包含被指定角色；其他角色最多追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。`);
+    lines.push(`当用户选择或指定回复对象时，必须优先评估被指定角色；其他角色最多在后续回环中追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。每一轮 supervisor JSON 仍只能选择一个 selectedTargetId。`);
   } else if (scheduling.targetedReplyPolicy === "prefer") {
-    lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其说出口对白；关系差、问题冒犯、沉默人设或策略性回避时，可让该角色进入 nonverbalReplyIds。");
-    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应把该目标放入 nonverbalReplyIds，让角色 Agent 自己输出心理和动作；不要改用旁白替角色完成这类近景反应。");
+    lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其说出口对白；关系差、问题冒犯、沉默人设或策略性回避时，仍可选择该 worker，并在 selectedInstruction 中要求只输出心理和可观察动作。");
+    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应选择该目标 worker 并写清非语言任务；不要改用旁白替角色完成这类近景反应。");
   }
 
   lines.push([
@@ -556,8 +556,8 @@ export const formatTavernDirectorSchedulingInstruction = (
       .join("\n");
     lines.push([
       `自由调度时先评估角色发言动机；除被点名/候选回复目标外，最多额外加入 ${scheduling.speakerMotivation.maxMotivatedSpeakers} 个强动机角色。`,
-      "发言动机不是随机概率，而是上下文倾向：角色目标、胜利条件、好感/敌对/任务状态、是否知道相关事实、是否想误导或保护秘密、以及人设是否寡言都会影响是否加入 speakerIds。",
-      "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientActions 保持在场。被明确要求动作回应的目标角色不属于弱动机旁观者，应作为非语言角色回复处理。",
+      "发言动机不是随机概率，而是上下文倾向：角色目标、胜利条件、好感/敌对/任务状态、是否知道相关事实、是否想误导或保护秘密、以及人设是否寡言都会影响 candidates 评分与 selectedTargetId。",
+      "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientAction artifact 保持在场。被明确要求动作回应的目标角色不属于弱动机旁观者，应选择该 worker 并写清非语言任务。",
       rulesText,
     ].filter(Boolean).join("\n"));
   }

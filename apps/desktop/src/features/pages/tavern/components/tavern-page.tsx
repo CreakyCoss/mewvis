@@ -1334,7 +1334,7 @@ const TavernPageContent = ({
     : turnStatus;
   const shouldShowExecutionTrace = (
     activeRoom.settings.showExecutionTrace ||
-    ((activeRoom.replyMode === "director" || isManagedModeEnabled) && isSending)
+    (isSending || isManagedModeEnabled)
   ) && renderedExecutionSteps.length > 0;
   const hasExecutionTraceAnchor = shouldShowExecutionTrace && renderableRoomMessages.some((message) =>
     message.id === renderedExecutionTraceAnchorMessageId

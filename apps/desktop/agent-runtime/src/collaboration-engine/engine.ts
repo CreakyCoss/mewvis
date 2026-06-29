@@ -5,8 +5,6 @@ import type {
   CollaborationEngine,
   CollaborationExecutor,
   CollaborationExecutorId,
-  CollaborationExtension,
-  CollaborationExtensionRegistry,
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationRunResult,
@@ -20,30 +18,26 @@ import {
   langGraphCollaborationExecutorId,
 } from "./executors/index.js";
 import {
-  createBuiltinCollaborationModeExtension,
   createCollaborationModeRegistry,
   type CollaborationModeDefinition,
   type CollaborationModeRegistry,
   type CollaborationModeRunInput,
   type CollaborationModeRunResult,
 } from "./modes/index.js";
-import { createCollaborationExtensionRegistry } from "./registry/index.js";
+import { createBuiltinCollaborationModeHandlers } from "./modes/handlers.js";
+import { createCollaborationHandlerRegistry } from "./registry/handler-registry.js";
 import { CollaborationSessionRecorder } from "./session/recorder.js";
 
 export type CollaborationEngineOptions = {
   runAgent: RunAgentForCollaboration;
   executors?: readonly CollaborationExecutor[];
   defaultExecutorId?: CollaborationExecutorId;
-  extensions?: readonly CollaborationExtension[];
-  extensionRegistry?: CollaborationExtensionRegistry;
   modes?: readonly CollaborationModeDefinition[];
   modeRegistry?: CollaborationModeRegistry;
 };
 
 export const createCollaborationEngine = ({
   defaultExecutorId = langGraphCollaborationExecutorId,
-  extensions = [],
-  extensionRegistry,
   executors = [],
   modes,
   modeRegistry,
@@ -54,11 +48,9 @@ export const createCollaborationEngine = ({
     createLangGraphCollaborationExecutor(),
     ...executors,
   ]);
-  const resolvedExtensionRegistry = extensionRegistry ??
-    createCollaborationExtensionRegistry([
-      createBuiltinCollaborationModeExtension(),
-      ...extensions,
-    ]);
+  const resolvedHandlerRegistry = createCollaborationHandlerRegistry([
+    createBuiltinCollaborationModeHandlers(),
+  ]);
   const resolvedModeRegistry = modeRegistry ?? createCollaborationModeRegistry(modes);
 
   const run = async (
@@ -98,7 +90,7 @@ export const createCollaborationEngine = ({
           executorId,
           emit,
           runAgent,
-          extensionRegistry: resolvedExtensionRegistry,
+          handlerRegistry: resolvedHandlerRegistry,
         });
         const normalizedResult = normalizeExecutorResult(result, workflowRunId, executorId);
         emit({

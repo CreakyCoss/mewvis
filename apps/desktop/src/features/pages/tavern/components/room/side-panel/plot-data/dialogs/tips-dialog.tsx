@@ -16,7 +16,7 @@ export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
   const { activeRoom, isSending, patchRoom, roomCharacters } = useTavernPageContext();
   const userPersonaName = activeRoom?.userPersonaName.trim() ?? "";
   const sceneStatusItems = activeRoom ? [
-    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
+    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "director"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
     `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,

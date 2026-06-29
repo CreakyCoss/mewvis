@@ -130,7 +130,6 @@ writeFileSync(entryPath, `
     tavernSystemPresets,
   } from ${JSON.stringify(systemPresetRegistryPath)};
   import {
-    parseTavernDirectorDecision,
     shouldOfferTavernDirectorRandomEvent,
   } from ${JSON.stringify(directorDecisionPath)};
   import {
@@ -745,43 +744,6 @@ writeFileSync(entryPath, `
       reveal.secretId === "secret-helper-added"
     ).length ?? 0,
   };
-  const parsedDirectorRandomEvent = parseTavernDirectorDecision(JSON.stringify({
-    speakerIds: ["char-a", "missing-character"],
-    ambientActions: [{ characterId: "char-b", action: "擦亮杯沿，望向门口。" }],
-    narrator: "灯影往门边偏了一寸。",
-    randomEvent: "门外传来两下克制的敲门声。",
-    illustrationHints: [
-      "昏黄灯光下，阿洛站在门边，贝拉在吧台后方擦亮杯沿，构图偏向门口。",
-      "阿洛内心怀疑门外的人在撒谎。",
-    ],
-    reason: "门口变化需要阿洛回应。",
-  }), characters, 2, true);
-  const parsedDirectorRandomEventDisabled = parseTavernDirectorDecision(JSON.stringify({
-    speakerIds: ["char-a"],
-    randomEvent: "门外传来两下克制的敲门声。",
-  }), characters, 2, false);
-  const parsedDirectorIllustrationHintsDisabled = parseTavernDirectorDecision(JSON.stringify({
-    speakerIds: ["char-a"],
-    illustrationHints: ["昏黄灯光下，阿洛站在门边。"],
-  }), characters, 2, true, false);
-  const parsedDirectorIllustrationHintsLoose = parseTavernDirectorDecision(
-    '{"speakerIds":["char-a"],"illustrationHints":["吧台上的铜杯映出门口灯影，阿洛的披风停在画面左侧。"],"reason":"镜头明确"}',
-    characters,
-    2,
-    true,
-    true,
-  );
-  const parsedDirectorNonverbalReply = parseTavernDirectorDecision(JSON.stringify({
-    speakerIds: [],
-    nonverbalReplyIds: ["char-b", "missing-character"],
-    ambientActions: [{ characterId: "char-b", action: "擦亮杯沿。" }],
-    reason: "贝拉只用动作回应。",
-  }), characters, 2, true, true);
-  const parsedDirectorNonverbalCap = parseTavernDirectorDecision(JSON.stringify({
-    speakerIds: ["char-a"],
-    nonverbalReplyIds: ["char-b"],
-    reason: "贝拉被要求只用动作回应，阿洛也想插话。",
-  }), characters, 1, true, true);
   const randomEventOpportunityChecks = {
     enabledHit: shouldOfferTavernDirectorRandomEvent({
       settings: {
@@ -1267,7 +1229,6 @@ writeFileSync(entryPath, `
     speaker: styledCharacter,
     speakerIndex: 0,
     speakerCount: 1,
-    replyMode: "director",
     isDirectorLikeMode: true,
     isManagedMode: false,
     directorReason: "测试武侠风格。",
@@ -1292,7 +1253,6 @@ writeFileSync(entryPath, `
     speaker: styledCharacter,
     speakerIndex: 0,
     speakerCount: 1,
-    replyMode: "director",
     isDirectorLikeMode: true,
     isManagedMode: false,
     directorReason: "测试第三人称叙事。",
@@ -2446,12 +2406,6 @@ writeFileSync(entryPath, `
     continuationForUser,
     interactionsForAnsweredA,
     interactionsForAnsweredGroup,
-    parsedDirectorRandomEvent,
-    parsedDirectorRandomEventDisabled,
-    parsedDirectorIllustrationHintsDisabled,
-    parsedDirectorIllustrationHintsLoose,
-    parsedDirectorNonverbalReply,
-    parsedDirectorNonverbalCap,
     normalizedMappedProfile,
     directTargetSignals,
     quietSignals,
@@ -2906,44 +2860,6 @@ try {
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,
     "导演、角色、快捷回复、托管用户、小说写作、资产整理都应有独立 agentRoleId",
     checks.roleIds,
-  );
-  assert(
-    checks.parsedDirectorRandomEvent.speakerIds.length === 1 &&
-      checks.parsedDirectorRandomEvent.speakerIds[0] === "char-a" &&
-      checks.parsedDirectorRandomEvent.ambientActions[0]?.characterId === "char-b" &&
-      checks.parsedDirectorRandomEvent.randomEvent === "门外传来两下克制的敲门声。" &&
-      checks.parsedDirectorRandomEvent.illustrationHints.length === 1 &&
-      !checks.parsedDirectorRandomEventDisabled.randomEvent,
-    "导演随机事件应只在机会开启时被解析，并保留公开可观察事件",
-    {
-      parsed: checks.parsedDirectorRandomEvent,
-      disabled: checks.parsedDirectorRandomEventDisabled,
-    },
-  );
-  assert(
-    checks.parsedDirectorRandomEvent.illustrationHints[0] ===
-      "昏黄灯光下，阿洛站在门边，贝拉在吧台后方擦亮杯沿，构图偏向门口。" &&
-      checks.parsedDirectorIllustrationHintsDisabled.illustrationHints.length === 0 &&
-      checks.parsedDirectorIllustrationHintsLoose.illustrationHints[0] ===
-        "吧台上的铜杯映出门口灯影，阿洛的披风停在画面左侧。",
-    "导演插图提示应只在开关开启时保留公开可见画面，并过滤心理与秘密信息",
-    {
-      parsed: checks.parsedDirectorRandomEvent,
-      disabled: checks.parsedDirectorIllustrationHintsDisabled,
-      loose: checks.parsedDirectorIllustrationHintsLoose,
-    },
-  );
-  assert(
-    checks.parsedDirectorNonverbalReply.nonverbalReplyIds.join("|") === "char-b" &&
-      checks.parsedDirectorNonverbalReply.ambientActions.length === 0,
-    "导演 nonverbalReplyIds 应被解析为角色调用计划，并避免同角色重复进入 ambientActions",
-    checks.parsedDirectorNonverbalReply,
-  );
-  assert(
-    checks.parsedDirectorNonverbalCap.speakerIds.length === 0 &&
-      checks.parsedDirectorNonverbalCap.nonverbalReplyIds.join("|") === "char-b",
-    "导演同时返回 speakerIds/nonverbalReplyIds 时，应按合并角色数限制本轮调度并优先保留非语言角色回复",
-    checks.parsedDirectorNonverbalCap,
   );
   assert(
     checks.normalizedMappedProfile?.characterProfiles["char-b"]?.speechBias === "very_high" &&

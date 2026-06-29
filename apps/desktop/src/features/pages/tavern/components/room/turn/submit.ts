@@ -105,7 +105,7 @@ export const submitRoomTurn = async ({
     return;
   }
 
-  const mode = resolveTurnMode(activeRoom, isManagedModeEnabled, triggerType);
+  const mode = resolveTurnMode(isManagedModeEnabled, triggerType);
   if (!draftText && !mode.isManagedMode && !mode.isSceneDriveMode) {
     return;
   }
@@ -114,7 +114,6 @@ export const submitRoomTurn = async ({
     room: activeRoom,
     characters: roomCharacters,
     activeCharacter,
-    mode,
   });
   if (
     speakerPlan.candidateSpeakers.length === 0 &&

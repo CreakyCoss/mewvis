@@ -87,24 +87,6 @@ const buildOwnReplyInstruction = ({
   ]);
 };
 
-const buildRoundTurnIntro = ({
-  speakerIndex,
-  speakerCount,
-}: {
-  speakerIndex: number;
-  speakerCount: number;
-}) => {
-  let handoffInstruction = "前面角色已经回应，请承接他们的信息，不要重复复述。";
-  if (speakerIndex === 0) {
-    handoffInstruction = "你先回应用户，给后续角色留下可承接的信息。";
-  }
-
-  return [
-    `这是全员轮流回应的第 ${speakerIndex + 1}/${speakerCount} 位。`,
-    handoffInstruction,
-  ];
-};
-
 const getDirectorModeLabel = ({
   isSceneDriveMode,
   isManagedMode,
@@ -146,7 +128,6 @@ export const buildTavernCharacterTurnInstruction = ({
   speaker,
   speakerIndex,
   speakerCount,
-  replyMode,
   isDirectorLikeMode,
   isManagedMode,
   isSceneDriveMode = false,
@@ -158,7 +139,6 @@ export const buildTavernCharacterTurnInstruction = ({
   speaker: TavernCharacter;
   speakerIndex: number;
   speakerCount: number;
-  replyMode: TavernRoom["replyMode"];
   isDirectorLikeMode: boolean;
   isManagedMode: boolean;
   isSceneDriveMode?: boolean;
@@ -195,14 +175,6 @@ export const buildTavernCharacterTurnInstruction = ({
     schedulingInstruction: buildSchedulingInstruction(room),
     allowNonverbalReply,
   });
-
-  if (replyMode === "round") {
-    return joinPromptLines([
-      ...buildRoundTurnIntro({ speakerIndex, speakerCount }),
-      ownReplyInstruction,
-      "不要输出任何角色名加冒号的发言人标签。",
-    ]);
-  }
 
   if (!isDirectorLikeMode) {
     return undefined;

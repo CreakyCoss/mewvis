@@ -1,7 +1,9 @@
 import type {
   CollaborationAgentInvocation,
-  CollaborationExtension,
 } from "../contracts.js";
+import type {
+  CollaborationHandlerBundle,
+} from "../contracts/handler.js";
 import {
   isRecord,
   numberValue,
@@ -64,57 +66,6 @@ const normalizeSupervisorCandidate = (value: unknown): SupervisorCandidate | nul
   };
 };
 
-const readStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
-    : typeof value === "string" && value.trim()
-    ? [value.trim()]
-    : [];
-
-const legacyCandidatesFrom = (parsed: Record<string, unknown>) => {
-  const speakerIds = readStringArray(parsed.speakerIds);
-  const nonverbalReplyIds = readStringArray(parsed.nonverbalReplyIds);
-  const targetIds = [...new Set([...speakerIds, ...nonverbalReplyIds])];
-  return targetIds.map((targetId, index) => ({
-    targetId,
-    score: Math.max(1, 100 - index),
-    reason: stringValue(parsed.reason),
-    instruction: undefined,
-  }));
-};
-
-const legacyArtifactsFrom = (parsed: Record<string, unknown>) => {
-  const artifacts: unknown[] = [];
-  const narrator = stringValue(parsed.narrator);
-  if (narrator) {
-    artifacts.push({ type: "narrator", content: narrator });
-  }
-  const randomEvent = stringValue(parsed.randomEvent);
-  if (randomEvent) {
-    artifacts.push({ type: "randomEvent", content: randomEvent });
-  }
-  for (const hint of readStringArray(parsed.illustrationHints)) {
-    artifacts.push({ type: "illustrationHint", content: hint });
-  }
-  if (Array.isArray(parsed.ambientActions)) {
-    for (const action of parsed.ambientActions) {
-      if (!isRecord(action)) {
-        continue;
-      }
-      const content = stringValue(action.action);
-      if (!content) {
-        continue;
-      }
-      artifacts.push({
-        type: "ambientAction",
-        content,
-        targetId: stringValue(action.characterId),
-      });
-    }
-  }
-  return artifacts;
-};
-
 const normalizeSupervisorDecision = (input: unknown): SupervisorDecision => {
   const record = isRecord(input) ? input : {};
   const raw = typeof record.raw === "string"
@@ -126,12 +77,9 @@ const normalizeSupervisorDecision = (input: unknown): SupervisorDecision => {
     : "";
   const parsed = raw.trim() ? parseJsonObjectFromText(raw) : record;
   const rawStatus = stringValue(parsed.status);
-  const status = rawStatus === "complete" ||
-      rawStatus === "done" ||
-      rawStatus === "end" ||
-      parsed.shouldContinue === false
+  const status = rawStatus === "complete"
     ? "complete"
-    : rawStatus === "blocked" || rawStatus === "error"
+    : rawStatus === "blocked"
     ? "blocked"
     : "continue";
   const normalizedCandidates = Array.isArray(parsed.candidates)
@@ -140,19 +88,12 @@ const normalizeSupervisorDecision = (input: unknown): SupervisorDecision => {
         return normalized ? [normalized] : [];
       })
     : [];
-  const candidates = normalizedCandidates.length > 0
-    ? normalizedCandidates
-    : legacyCandidatesFrom(parsed);
-  const selectedTargetId = stringValue(parsed.selectedTargetId) ??
-    stringValue(parsed.targetId) ??
-    stringValue(parsed.nextTargetId);
-  const artifacts = Array.isArray(parsed.artifacts)
-    ? parsed.artifacts
-    : legacyArtifactsFrom(parsed);
+  const selectedTargetId = stringValue(parsed.selectedTargetId);
+  const artifacts = Array.isArray(parsed.artifacts) ? parsed.artifacts : [];
 
   return {
     status,
-    candidates,
+    candidates: normalizedCandidates,
     selectedTargetId,
     selectedInstruction: stringValue(parsed.selectedInstruction) ??
       stringValue(parsed.instruction) ??
@@ -376,7 +317,7 @@ const routeReviewLoop = (input: unknown) => {
   };
 };
 
-export const createBuiltinCollaborationModeExtension = (): CollaborationExtension => ({
+export const createBuiltinCollaborationModeHandlers = (): CollaborationHandlerBundle => ({
   namespace: "builtin-mode",
   transforms: {
     "mode.incrementRound": (input) => normalizeRound(input) + 1,

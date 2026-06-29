@@ -1,6 +1,6 @@
 import type { VisualPresetId } from "@/features/pages/tavern/visual-presets";
 import type { TavernQualityRuleId } from "./prompt-registry/rule-layers/types";
-export type TavernReplyMode = "active" | "round" | "director";
+export type TavernReplyMode = "director";
 
 export type TavernPresentationProfileId =
   | "dialogue-chat"

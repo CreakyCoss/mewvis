@@ -2,5 +2,4 @@ import type {
   TavernReplyMode,
 } from "../types";
 
-export const normalizeReplyMode = (value: unknown): TavernReplyMode =>
-  value === "round" || value === "director" ? value : "active";
+export const normalizeReplyMode = (_value: unknown): TavernReplyMode => "director";

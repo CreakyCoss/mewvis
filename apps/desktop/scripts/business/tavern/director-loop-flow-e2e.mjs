@@ -692,7 +692,7 @@ writeFileSync(entryPath, `
   assert(persistedTrace?.status === "done", "导演回环 workflow trace 应完成", persistedTrace);
   assert(result.turnMessages.filter((message: any) => message.role === "character").length === 2, "返回值应包含两条角色 turnMessages", result.turnMessages);
   assert(result.turnNarratorTexts.length === 2, "返回值应包含两条导演旁白文本", result.turnNarratorTexts);
-  assert(result.directorDecision?.speakerIds?.[0] === characterB.id, "返回值应保留最后一轮导演决策", result.directorDecision);
+  assert(result.supervisorDecision?.speakerIds?.[0] === characterB.id, "返回值应保留最后一轮 supervisor 决策", result.supervisorDecision);
   assert(result.directorReason.includes("谢无声"), "返回值应保留最后一轮导演理由", result.directorReason);
   assert(activeReplyRef.message === null && activeReplyRef.text === "", "流程结束后 activeReplyRef 应清空", activeReplyRef);
   assert(errors.length === 0, "测试流程不应产生错误", errors);

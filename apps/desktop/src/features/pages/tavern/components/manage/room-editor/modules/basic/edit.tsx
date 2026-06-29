@@ -57,7 +57,7 @@ export const BasicEdit = ({
     setDraft({
       title: nextData.title,
       scenePresetId: nextData.scenePresetId,
-      replyMode: nextData.replyMode ?? "active",
+      replyMode: nextData.replyMode ?? "director",
     });
   };
 

@@ -5,8 +5,8 @@ import type {
   AskUser,
 } from "../../agent-engine/runtimes/types.js";
 import type {
-  CollaborationExtensionRegistry,
-} from "./extension.js";
+  CollaborationHandlerRegistry,
+} from "./handler.js";
 import type {
   EmitCollaborationEvent,
 } from "./event.js";
@@ -40,7 +40,7 @@ export type CollaborationExecutorRunInput = {
   executorId: string;
   emit: EmitCollaborationEvent;
   runAgent: RunAgentForCollaboration;
-  extensionRegistry: CollaborationExtensionRegistry;
+  handlerRegistry: CollaborationHandlerRegistry;
 };
 
 export type CollaborationExecutor = {

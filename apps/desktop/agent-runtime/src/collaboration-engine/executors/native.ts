@@ -8,7 +8,6 @@ import type {
   CollaborationExecutionState,
   CollaborationExecutor,
   CollaborationExecutorRunInput,
-  CollaborationExtensionHandlerContext,
   CollaborationRunContext,
   CollaborationRunInput,
   CollaborationSkippedStepResult,
@@ -18,12 +17,15 @@ import type {
   CollaborationConditionWorkflowStep,
   CollaborationDispatchWorkflowStep,
   CollaborationRouterWorkflowStep,
-  CollaborationRouterResult,
   CollaborationStepCondition,
   CollaborationAgentWorkflowStep,
   CollaborationWorkflowStep,
   RunAgentForCollaboration,
 } from "../contracts.js";
+import type {
+  CollaborationHandlerContext,
+  CollaborationRouterResult,
+} from "../contracts/handler.js";
 import { CollaborationEventType } from "../contracts.js";
 
 export const nativeCollaborationExecutorId = "native" as const;
@@ -35,7 +37,7 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
     emit,
     executorId,
     input,
-    extensionRegistry,
+    handlerRegistry,
     runAgent,
     workflowRunId,
   }: CollaborationExecutorRunInput) {
@@ -48,7 +50,7 @@ export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
         context,
         emit,
         input,
-        extensionRegistry,
+        handlerRegistry,
         roleById,
         runAgent,
         state,
@@ -79,7 +81,7 @@ type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOut
 export type RunStepInput = {
   context: CollaborationRunContext;
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   roleById: Map<string, CollaborationAgentRole>;
   runAgent: RunAgentForCollaboration;
@@ -166,7 +168,7 @@ export class CollaborationStepRunError extends Error {
 export const runStepWithRetry = async ({
   context,
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   roleById,
   runAgent,
@@ -176,7 +178,7 @@ export const runStepWithRetry = async ({
 }: RunStepInput): Promise<StepExecutionOutcome> => {
   if (!await shouldRunStep({
     emit,
-    extensionRegistry,
+    handlerRegistry,
     input,
     state,
     step,
@@ -199,7 +201,7 @@ export const runStepWithRetry = async ({
   if (step.type === "transform") {
     return runTransformStep({
       emit,
-      extensionRegistry,
+      handlerRegistry,
       input,
       state,
       step,
@@ -210,7 +212,7 @@ export const runStepWithRetry = async ({
   if (step.type === "condition") {
     return runConditionStep({
       emit,
-      extensionRegistry,
+      handlerRegistry,
       input,
       state,
       step,
@@ -221,7 +223,7 @@ export const runStepWithRetry = async ({
   if (step.type === "router") {
     return runRouterStep({
       emit,
-      extensionRegistry,
+      handlerRegistry,
       input,
       state,
       step,
@@ -263,7 +265,7 @@ const runAgentStepWithRetry = async ({
   state,
   step,
   workflowRunId,
-}: Omit<RunStepInput, "extensionRegistry" | "step"> & {
+}: Omit<RunStepInput, "handlerRegistry" | "step"> & {
   step: CollaborationAgentWorkflowStep;
 }): Promise<CollaborationStepResult> => {
   const role = roleById.get(step.agentRoleId);
@@ -347,7 +349,7 @@ const runDispatchStep = async ({
   state,
   step,
   workflowRunId,
-}: Omit<RunStepInput, "extensionRegistry" | "step"> & {
+}: Omit<RunStepInput, "handlerRegistry" | "step"> & {
   step: CollaborationDispatchWorkflowStep;
 }) => {
   emit({
@@ -402,14 +404,14 @@ const runDispatchStep = async ({
 
 const runTransformStep = async ({
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   state,
   step,
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationTransformWorkflowStep;
@@ -422,10 +424,10 @@ const runTransformStep = async ({
     stepType: step.type,
   });
 
-  const transform = extensionRegistry.requireTransform(step.transform);
+  const transform = handlerRegistry.requireTransform(step.transform);
   const output = await transform(
     resolveStepInput(step.input, state),
-    createExtensionContext({
+    createHandlerContext({
       emit,
       input,
       state,
@@ -446,14 +448,14 @@ const runTransformStep = async ({
 
 const runConditionStep = async ({
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   state,
   step,
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationConditionWorkflowStep;
@@ -466,10 +468,10 @@ const runConditionStep = async ({
     stepType: step.type,
   });
 
-  const condition = extensionRegistry.requireCondition(step.condition);
+  const condition = handlerRegistry.requireCondition(step.condition);
   const output = await condition(
     resolveStepInput(step.input, state),
-    createExtensionContext({
+    createHandlerContext({
       emit,
       input,
       state,
@@ -490,14 +492,14 @@ const runConditionStep = async ({
 
 const runRouterStep = async ({
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   state,
   step,
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationRouterWorkflowStep;
@@ -510,10 +512,10 @@ const runRouterStep = async ({
     stepType: step.type,
   });
 
-  const router = extensionRegistry.requireRouter(step.router);
+  const router = handlerRegistry.requireRouter(step.router);
   const routeResult = await router(
     resolveStepInput(step.input, state),
-    createExtensionContext({
+    createHandlerContext({
       emit,
       input,
       state,
@@ -739,14 +741,14 @@ const normalizeMaxRetries = (value: number | null | undefined) => {
 
 const shouldRunStep = async ({
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   state,
   step,
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationWorkflowStep;
@@ -758,7 +760,7 @@ const shouldRunStep = async ({
   return evaluateCondition({
     condition: step.when,
     emit,
-    extensionRegistry,
+    handlerRegistry,
     input,
     state,
     step,
@@ -769,7 +771,7 @@ const shouldRunStep = async ({
 const evaluateCondition = async ({
   condition,
   emit,
-  extensionRegistry,
+  handlerRegistry,
   input,
   state,
   step,
@@ -777,17 +779,17 @@ const evaluateCondition = async ({
 }: {
   condition: CollaborationStepCondition;
   emit: (event: CollaborationEvent) => void;
-  extensionRegistry: CollaborationExecutorRunInput["extensionRegistry"];
+  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationWorkflowStep;
   workflowRunId: string;
 }) => {
   if ("condition" in condition) {
-    const handler = extensionRegistry.requireCondition(condition.condition);
+    const handler = handlerRegistry.requireCondition(condition.condition);
     const matched = await handler(
       resolveStepInput(condition.input, state),
-      createExtensionContext({
+      createHandlerContext({
         emit,
         input,
         state,
@@ -839,7 +841,7 @@ const createStepResult = (
   ...extra,
 });
 
-const createExtensionContext = <TStep extends CollaborationWorkflowStep>({
+const createHandlerContext = <TStep extends CollaborationWorkflowStep>({
   emit,
   input,
   state,
@@ -851,7 +853,7 @@ const createExtensionContext = <TStep extends CollaborationWorkflowStep>({
   state: CollaborationExecutionState;
   step: TStep;
   workflowRunId: string;
-}): CollaborationExtensionHandlerContext<TStep> => ({
+}): CollaborationHandlerContext<TStep> => ({
   emit,
   input,
   state,

@@ -129,8 +129,6 @@ const getErrorMessage = (error: unknown) => {
 };
 
 const replyModeDescriptions: Record<TavernReplyMode, string> = {
-  active: "仅当前选中的角色发言",
-  round: "所有入席角色依次发言",
   director: "由导演选择合适角色发言",
 };
 
@@ -1277,7 +1275,7 @@ export const SceneOverviewSection = ({
     activeRoom.sceneStatus?.timeLabel?.trim() ||
     "进行中";
   const sceneStatusItems = [
-    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "active"]}`,
+    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "director"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
     `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
     `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,

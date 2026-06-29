@@ -111,9 +111,9 @@ Exit behavior:
 - `blocked` ends the loop.
 - `revise` routes back to the producer until `maxRounds` is reached.
 
-## Extension Policy
+## Handler Policy
 
 Add a new mode when the orchestration pattern is reusable across products.
-Prefer mode-specific transforms/routers in `modes/extensions.ts` when they are
+Prefer mode-specific transforms/routers in `modes/handlers.ts` when they are
 generic. Product-specific parsing or UI projection should live outside
 `agent-runtime` and consume the generic mode output.

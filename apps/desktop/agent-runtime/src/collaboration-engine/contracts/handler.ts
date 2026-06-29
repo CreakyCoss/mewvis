@@ -15,7 +15,7 @@ import type {
   CollaborationRunInput,
 } from "./workflow.js";
 
-export type CollaborationExtensionHandlerContext<
+export type CollaborationHandlerContext<
   TStep extends CollaborationWorkflowStep = CollaborationWorkflowStep,
 > = {
   input: CollaborationRunInput;
@@ -27,12 +27,12 @@ export type CollaborationExtensionHandlerContext<
 
 export type CollaborationTransformHandler = (
   input: unknown,
-  context: CollaborationExtensionHandlerContext<CollaborationTransformWorkflowStep>,
+  context: CollaborationHandlerContext<CollaborationTransformWorkflowStep>,
 ) => unknown | Promise<unknown>;
 
 export type CollaborationConditionHandler = (
   input: unknown,
-  context: CollaborationExtensionHandlerContext<
+  context: CollaborationHandlerContext<
     CollaborationConditionWorkflowStep | CollaborationWorkflowStep
   >,
 ) => boolean | Promise<boolean>;
@@ -47,10 +47,10 @@ export type CollaborationRouterResult =
 
 export type CollaborationRouterHandler = (
   input: unknown,
-  context: CollaborationExtensionHandlerContext<CollaborationRouterWorkflowStep>,
+  context: CollaborationHandlerContext<CollaborationRouterWorkflowStep>,
 ) => CollaborationRouterResult | Promise<CollaborationRouterResult>;
 
-export type CollaborationExtension = {
+export type CollaborationHandlerBundle = {
   id?: string;
   namespace?: string;
   transforms?: Record<string, CollaborationTransformHandler>;
@@ -58,7 +58,7 @@ export type CollaborationExtension = {
   routers?: Record<string, CollaborationRouterHandler>;
 };
 
-export type CollaborationExtensionRegistry = {
+export type CollaborationHandlerRegistry = {
   getTransform(id: string): CollaborationTransformHandler | undefined;
   requireTransform(id: string): CollaborationTransformHandler;
   getCondition(id: string): CollaborationConditionHandler | undefined;
@@ -72,4 +72,4 @@ export type CollaborationExtensionRegistry = {
   };
 };
 
-export type EmitExtensionEvent = (event: CollaborationEvent) => void;
+export type EmitHandlerEvent = (event: CollaborationEvent) => void;

@@ -77,7 +77,7 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
     context,
     emit,
     executorId,
-    extensionRegistry,
+    handlerRegistry,
     input,
     runAgent,
     workflowRunId,
@@ -96,7 +96,7 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
         const outcome = await runStepWithRetry({
           context,
           emit,
-          extensionRegistry,
+          handlerRegistry,
           input,
           roleById,
           runAgent,

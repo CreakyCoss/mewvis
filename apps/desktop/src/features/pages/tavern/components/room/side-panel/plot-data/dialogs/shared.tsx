@@ -37,8 +37,6 @@ export type ConfirmAction = {
 export const emptyValueText = "未设置";
 
 export const replyModeDescriptions = {
-  active: "仅当前选中的角色发言",
-  round: "所有入席角色依次发言",
   director: "由导演选择合适角色发言",
 } as const;
 

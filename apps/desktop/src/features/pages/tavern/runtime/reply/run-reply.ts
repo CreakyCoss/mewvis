@@ -3,7 +3,6 @@ import type { StoryContextPackage } from "@/features/story";
 import type {
   TavernCharacter,
   TavernMessage,
-  TavernReferencedFile,
   TavernRoom,
 } from "../../types";
 import {
@@ -23,68 +22,6 @@ import { runTavernRuntimeAgent } from "../agent";
 import {
   getActiveTavernScene,
 } from "../scene-selectors";
-import { buildTavernReplyAgentRequest } from "./request";
-
-export type RunTavernReplyInput = {
-  workspacePath: string;
-  runtimeAgentId: string;
-  runtimeModel: RuntimeModelInput;
-  room: TavernRoom;
-  activeCharacter: TavernCharacter;
-  characters: TavernCharacter[];
-  messages: TavernMessage[];
-  references: TavernReferencedFile[];
-  currentUserText: string;
-  turnInstruction?: string;
-  allowNonverbalReply?: boolean;
-  storyContext?: StoryContextPackage;
-  onTextDelta?: (delta: string) => void;
-  onThinkingDelta?: (delta: string) => void;
-};
-
-export const runTavernReply = async ({
-  workspacePath,
-  runtimeAgentId,
-  runtimeModel,
-  room,
-  activeCharacter,
-  characters,
-  messages,
-  references,
-  currentUserText,
-  turnInstruction,
-  allowNonverbalReply,
-  storyContext,
-  onTextDelta,
-  onThinkingDelta,
-}: RunTavernReplyInput) => {
-  const request = buildTavernReplyAgentRequest({
-    room,
-    activeCharacter,
-    characters,
-    messages,
-    references,
-    currentUserText,
-    turnInstruction,
-    allowNonverbalReply,
-    storyContext,
-  });
-
-  return runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
-    workspacePath,
-    sessionRootDir: request.sessionRootDir,
-    agentRoleId: request.agentRoleId,
-    runtimeModel,
-    systemPrompt: request.systemPrompt,
-    userMessage: request.userMessage,
-    requestContext: request.requestContext,
-    runtimeInstruction: request.runtimeInstruction,
-    onTextDelta,
-    onThinkingDelta,
-  });
-};
-
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;
   runtimeAgentId: string;

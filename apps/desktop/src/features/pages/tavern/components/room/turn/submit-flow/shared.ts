@@ -110,13 +110,11 @@ export const shouldCompactCharacterKnowledgeAfterTurn = (
   return completedTurns > 0 && completedTurns % interval === 0;
 };
 
-export type TavernReplyMode = NonNullable<TavernRoom["replyMode"]>;
 export type TavernPendingInteractions = NonNullable<TavernRoom["pendingInteractions"]>;
 export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeModelOption;
 export type TurnTriggerType = "user" | "scene_drive";
 
 export type TurnMode = {
-  replyMode: TavernReplyMode;
   isManagedMode: boolean;
   isSceneDriveMode: boolean;
   isDirectorLikeMode: boolean;
@@ -146,19 +144,16 @@ export type ActiveReplyRef = {
 };
 
 export const resolveTurnMode = (
-  room: TavernRoom,
   isManagedModeEnabled: boolean,
   triggerType: TurnTriggerType = "user",
 ): TurnMode => {
-  const replyMode = room.replyMode ?? "active";
   const isSceneDriveMode = triggerType === "scene_drive";
   const isManagedMode = isManagedModeEnabled && !isSceneDriveMode;
 
   return {
-    replyMode,
     isManagedMode,
     isSceneDriveMode,
-    isDirectorLikeMode: replyMode === "director" || isManagedMode || isSceneDriveMode,
+    isDirectorLikeMode: true,
   };
 };
 
@@ -166,12 +161,10 @@ export const resolveSubmitSpeakerPlan = ({
   room,
   characters,
   activeCharacter,
-  mode,
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
   activeCharacter: TavernCharacter | null;
-  mode: TurnMode;
 }): SubmitSpeakerPlan => {
   const fixedOrderSettings = room.settings.directorScheduling.fixedOrder;
   const fixedOrderParticipants = isTavernFixedOrderPhase(room) && fixedOrderSettings.includeUser
@@ -201,9 +194,7 @@ export const resolveSubmitSpeakerPlan = ({
       isTavernCharacterAvailableForSpeech(room, activeCharacter)
     ? activeCharacter
     : availableRoomCharacters[0] ?? null;
-  const candidateSpeakers = mode.replyMode === "round" || mode.isDirectorLikeMode
-    ? availableRoomCharacters
-    : availableActiveCharacter ? [availableActiveCharacter] : [];
+  const candidateSpeakers = availableRoomCharacters;
 
   return {
     availableRoomCharacters,

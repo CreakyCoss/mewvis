@@ -1,7 +1,5 @@
 export {
-  parseTavernDirectorDecision,
   shouldOfferTavernDirectorRandomEvent,
-  type TavernDirectorDecision,
 } from "./decision";
 export {
   parseTavernDirectorRoleAssignmentText,
