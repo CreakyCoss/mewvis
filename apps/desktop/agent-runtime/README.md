@@ -35,9 +35,9 @@ frontend. Hosts such as Tauri should call the CLI over stdio. Tests and embedded
 Node integrations can call the SDK directly.
 
 Application-specific business logic should not be imported from `agent-runtime`.
-The desktop app composes it through `agent-runtime-host/`, which bundles the
-generic runtime with app extensions such as Tavern transforms, conditions, and
-routers. Other apps can copy `agent-runtime/` and provide their own host.
+The desktop app composes it through `agent-runtime-host/`, which can inject host
+extensions when a product needs custom transforms, conditions, or routers. Other
+apps can copy `agent-runtime/` and provide their own host.
 
 ## Public Modes
 
@@ -125,9 +125,9 @@ The new collaboration command is:
 - `router`: run a registered router and store the selected route
 
 Only `agent` steps and `dispatch` invocations reference an agent role by
-`agentRoleId`. Business-specific handlers are registered by host code through
+`agentRoleId`. Business-specific handlers can be registered by host code through
 collaboration extensions; workflow JSON only refers to handler ids such as
-`tavern.normalizeDirectorDecision`.
+`product.normalizeDecision`.
 
 Use `dispatch` when an earlier step decides which agents should run. Its input
 can be an array of invocations or an object with an `invocations` array:
@@ -177,7 +177,7 @@ native executors enforce this limit.
   "id": "decide-next",
   "type": "router",
   "router": "app.nextRoute",
-  "input": { "$ref": "outputs.directorDecision" },
+  "input": { "$ref": "outputs.routeDecision" },
   "routes": {
     "continue": "speaker",
     "end": "__end__"

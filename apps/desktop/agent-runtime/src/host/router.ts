@@ -13,7 +13,9 @@ import {
   AgentRuntimeCommandType,
   AgentRuntimeResultType,
   type AgentRuntimeCommand,
+  type ListCollaborationModesCommand,
   type RunCollaborationCommand,
+  type RunCollaborationModeCommand,
 } from "../protocol/index.js";
 
 type AgentRuntimeRouterDeps = {
@@ -25,7 +27,9 @@ type AgentRuntimeRouterDeps = {
 
 const runningCollaborationMessage = "当前 Agent runtime 已有运行中的协作任务，无法启动新协作";
 
-const collaborationTaskId = (command: RunCollaborationCommand) =>
+type CollaborationTaskCommand = RunCollaborationCommand | RunCollaborationModeCommand;
+
+const collaborationTaskId = (command: CollaborationTaskCommand) =>
   command.requestId?.trim() || command.input.requestId?.trim() || "";
 
 const isRunCollaborationCommand = (
@@ -33,15 +37,38 @@ const isRunCollaborationCommand = (
 ): command is RunCollaborationCommand =>
   command.type === AgentRuntimeCommandType.RunCollaboration;
 
+const isRunCollaborationModeCommand = (
+  command: AgentRuntimeCommand,
+): command is RunCollaborationModeCommand =>
+  command.type === AgentRuntimeCommandType.RunCollaborationMode;
+
+const isListCollaborationModesCommand = (
+  command: AgentRuntimeCommand,
+): command is ListCollaborationModesCommand =>
+  command.type === AgentRuntimeCommandType.ListCollaborationModes;
+
+const isCollaborationTaskCommand = (
+  command: AgentRuntimeCommand,
+): command is CollaborationTaskCommand =>
+  isRunCollaborationCommand(command) || isRunCollaborationModeCommand(command);
+
 const isBridgeCommand = (command: AgentRuntimeCommand): command is BridgeCommand =>
-  !isRunCollaborationCommand(command);
+  !isCollaborationTaskCommand(command) && !isListCollaborationModesCommand(command);
 
 export const createAgentRuntimeRouter = (deps: AgentRuntimeRouterDeps) => {
   let runningCollaboration: Promise<void> | null = null;
   const bridgeRouter = createBridgeCommandRouter(deps);
   const collaborationQuestions = createBridgeQuestionManager(deps.emit);
 
-  const runCollaboration = (command: RunCollaborationCommand) => {
+  const listCollaborationModes = (command: ListCollaborationModesCommand) => {
+    deps.writeJsonLine({
+      type: AgentRuntimeResultType.CollaborationModesResult,
+      requestId: command.requestId ?? null,
+      modes: deps.collaborationEngine.listModes(),
+    });
+  };
+
+  const runCollaboration = (command: CollaborationTaskCommand) => {
     if (runningCollaboration) {
       deps.emit({
         type: BridgeEventType.Error,
@@ -65,16 +92,29 @@ export const createAgentRuntimeRouter = (deps: AgentRuntimeRouterDeps) => {
       return;
     }
 
-    runningCollaboration = deps.collaborationEngine.run(
-      {
-        ...command.input,
-        requestId: command.input.requestId ?? command.requestId ?? null,
-      },
-      {
-        askUser: collaborationQuestions.askUser,
-        emit: deps.writeJsonLine,
-      },
-    ).then((result) => {
+    const run = isRunCollaborationModeCommand(command)
+      ? deps.collaborationEngine.runMode(
+          {
+            ...command.input,
+            requestId: command.input.requestId ?? command.requestId ?? null,
+          },
+          {
+            askUser: collaborationQuestions.askUser,
+            emit: deps.writeJsonLine,
+          },
+        )
+      : deps.collaborationEngine.run(
+          {
+            ...command.input,
+            requestId: command.input.requestId ?? command.requestId ?? null,
+          },
+          {
+            askUser: collaborationQuestions.askUser,
+            emit: deps.writeJsonLine,
+          },
+        );
+
+    runningCollaboration = run.then((result) => {
       deps.writeJsonLine({
         type: AgentRuntimeResultType.CollaborationResult,
         requestId: command.requestId ?? null,
@@ -106,7 +146,12 @@ export const createAgentRuntimeRouter = (deps: AgentRuntimeRouterDeps) => {
   };
 
   const handle = async (command: AgentRuntimeCommand): Promise<boolean> => {
-    if (isRunCollaborationCommand(command)) {
+    if (isListCollaborationModesCommand(command)) {
+      listCollaborationModes(command);
+      return true;
+    }
+
+    if (isCollaborationTaskCommand(command)) {
       runCollaboration(command);
       return true;
     }

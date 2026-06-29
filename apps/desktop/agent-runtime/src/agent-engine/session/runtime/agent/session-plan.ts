@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentRunCommand } from "../../../runtimes/types.js";
-import { resolveBridgeSessionPaths } from "../../storage/paths.js";
+import { resolveBridgeSessionPaths } from "../../../../runtime-session/storage/paths.js";
 
 const sanitizeSegment = (value: string, fallback: string) => {
   const segment = value

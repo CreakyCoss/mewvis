@@ -116,6 +116,12 @@ export const runDirectorLoopTurn = async ({
       speaker,
     ]),
   );
+  const characterIdByRoleId = new Map(
+    availableRoomCharacters.map((speaker) => [
+      tavernCharacterAgentRoleId(runtimeRoom, speaker),
+      speaker.id,
+    ]),
+  );
   const agentRoleLabelById = Object.fromEntries(
     availableRoomCharacters.map((speaker) => [
       tavernCharacterAgentRoleId(runtimeRoom, speaker),
@@ -172,8 +178,13 @@ export const runDirectorLoopTurn = async ({
       return;
     }
 
-    if (event.step.outputKey === "directorDecision") {
-      const decision = normalizeLoopDirectorDecision(event.step.output);
+    if (
+      event.step.outputKey === "directorDecision" ||
+      event.step.outputKey === "supervisorDecision"
+    ) {
+      const decision = event.step.outputKey === "supervisorDecision"
+        ? normalizeLoopSupervisorDecision(event.step.output, characterIdByRoleId)
+        : normalizeLoopDirectorDecision(event.step.output);
       if (!decision) {
         return;
       }
@@ -591,6 +602,123 @@ const normalizeLoopDirectorDecision = (
   };
 };
 
+const normalizeLoopSupervisorDecision = (
+  value: unknown,
+  characterIdByRoleId: Map<string, string>,
+): TavernDirectorDecision | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const selectedTargetId = readOptionalString(record.selectedTargetId);
+  const selectedCharacterId = selectedTargetId
+    ? resolveSupervisorTargetCharacterId(selectedTargetId, characterIdByRoleId)
+    : null;
+  const candidateCharacterIds = normalizeSupervisorCandidateCharacterIds(
+    record.candidates,
+    characterIdByRoleId,
+  );
+  const speakerIds = selectedCharacterId
+    ? [selectedCharacterId]
+    : candidateCharacterIds.slice(0, 1);
+  const artifacts = normalizeSupervisorArtifacts(record.artifacts, characterIdByRoleId);
+
+  return {
+    speakerIds,
+    nonverbalReplyIds: [],
+    narrator: artifacts.narrator,
+    randomEvent: artifacts.randomEvent,
+    illustrationHints: artifacts.illustrationHints,
+    ambientActions: artifacts.ambientActions,
+    reason: readOptionalString(record.reason),
+  };
+};
+
+const normalizeSupervisorCandidateCharacterIds = (
+  value: unknown,
+  characterIdByRoleId: Map<string, string>,
+) => Array.isArray(value)
+  ? value
+      .flatMap((candidate) => {
+        if (!candidate || typeof candidate !== "object") {
+          return [];
+        }
+        const targetId = readOptionalString((candidate as Record<string, unknown>).targetId);
+        const characterId = targetId
+          ? resolveSupervisorTargetCharacterId(targetId, characterIdByRoleId)
+          : null;
+        return characterId ? [{ characterId, score: readNumber((candidate as Record<string, unknown>).score) }] : [];
+      })
+      .sort((left, right) => right.score - left.score)
+      .map((candidate) => candidate.characterId)
+  : [];
+
+const normalizeSupervisorArtifacts = (
+  value: unknown,
+  characterIdByRoleId: Map<string, string>,
+) => {
+  const result: Pick<
+    TavernDirectorDecision,
+    "ambientActions" | "illustrationHints" | "narrator" | "randomEvent"
+  > = {
+    ambientActions: [],
+    illustrationHints: [],
+    narrator: undefined,
+    randomEvent: undefined,
+  };
+  if (!Array.isArray(value)) {
+    return result;
+  }
+
+  const narratorTexts: string[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const artifact = item as Record<string, unknown>;
+    const type = readOptionalString(artifact.type);
+    const content = readOptionalString(artifact.content);
+    if (!type || !content) {
+      continue;
+    }
+    if (type === "narrator") {
+      narratorTexts.push(content);
+      continue;
+    }
+    if (type === "randomEvent") {
+      result.randomEvent ??= content;
+      continue;
+    }
+    if (type === "illustrationHint") {
+      result.illustrationHints?.push(content);
+      continue;
+    }
+    if (type === "ambientAction") {
+      const targetId = readOptionalString(artifact.targetId);
+      const characterId = targetId
+        ? resolveSupervisorTargetCharacterId(targetId, characterIdByRoleId)
+        : null;
+      if (characterId) {
+        result.ambientActions?.push({
+          characterId,
+          action: content,
+        });
+      }
+    }
+  }
+
+  result.narrator = narratorTexts.join("\n").trim() || undefined;
+  return result;
+};
+
+const resolveSupervisorTargetCharacterId = (
+  targetId: string,
+  characterIdByRoleId: Map<string, string>,
+) => characterIdByRoleId.get(targetId) ?? (
+  Array.from(characterIdByRoleId.values()).includes(targetId) ? targetId : null
+);
+
 const readStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim()] : [])
@@ -598,3 +726,8 @@ const readStringArray = (value: unknown): string[] =>
 
 const readOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+const readNumber = (value: unknown) => {
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : 0;
+};

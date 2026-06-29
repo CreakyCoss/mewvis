@@ -1,4 +1,4 @@
-import type { BridgeMessage } from "./types.js";
+import type { BridgeMessage } from "../../../runtime-session/core/types.js";
 
 export type PromptModelContext = {
   contextWindow?: number | null;

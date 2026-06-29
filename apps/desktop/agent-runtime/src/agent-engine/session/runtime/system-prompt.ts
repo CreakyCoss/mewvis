@@ -1,6 +1,6 @@
 import type { AgentRunCommand, RuntimeChatCommand } from "../../runtimes/types.js";
-import type { BridgeMessage, BridgeSessionContext } from "../core/types.js";
-import type { BridgeLedgerStorage } from "../storage/jsonl-store.js";
+import type { BridgeMessage, BridgeSessionContext } from "../../../runtime-session/core/types.js";
+import type { BridgeLedgerStorage } from "../../../runtime-session/storage/jsonl-store.js";
 import { runtimeBridgeMessageMetadata } from "../metadata/runtime.js";
 import { takeContextText } from "../core/prompt-budget.js";
 

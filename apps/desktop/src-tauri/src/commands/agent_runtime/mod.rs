@@ -17,7 +17,9 @@ pub use agent::{
 };
 pub use agents::list_agent_runtime_agents;
 pub use chat::run_agent_runtime_chat;
-pub use collaboration::run_agent_runtime_collaboration;
+pub use collaboration::{
+    run_agent_runtime_collaboration, run_agent_runtime_collaboration_mode,
+};
 pub use session::{
     append_agent_runtime_session_messages, compact_agent_runtime_session,
     create_agent_runtime_session, delete_agent_runtime_session,

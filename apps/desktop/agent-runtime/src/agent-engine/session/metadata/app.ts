@@ -3,8 +3,8 @@ import type {
   BridgeMessageRole,
   BridgeMessageScope,
   BridgeMessageSource,
-} from "../core/types.js";
-import { standardizeBridgeMessageMetadata } from "./standard.js";
+} from "../../../runtime-session/core/types.js";
+import { standardizeBridgeMessageMetadata } from "../../../runtime-session/metadata/standard.js";
 
 export const commandBridgeMessageMetadata = (input: {
   role: BridgeMessageRole;

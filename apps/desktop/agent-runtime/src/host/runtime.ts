@@ -39,7 +39,9 @@ export const createAgentRuntime = ({
   return {
     chat: agentEngine.chat,
     handle: router.handle,
+    listCollaborationModes: collaborationEngine.listModes,
     runCollaboration: collaborationEngine.run,
+    runCollaborationMode: collaborationEngine.runMode,
     runAgent: agentEngine.runAgent,
     waitForRunningTask: router.waitForRunningTask,
   };

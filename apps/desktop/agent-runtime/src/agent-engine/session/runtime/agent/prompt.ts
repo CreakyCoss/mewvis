@@ -2,18 +2,18 @@ import type {
   AgentRunCommand,
   RuntimeAgentCommand,
 } from "../../../runtimes/types.js";
-import type { BridgeLedgerEntry, BridgeMessage, BridgeMessageMetadata } from "../../core/types.js";
-import { BridgeLedgerStorage } from "../../storage/jsonl-store.js";
+import type { BridgeLedgerEntry, BridgeMessage, BridgeMessageMetadata } from "../../../../runtime-session/core/types.js";
+import { BridgeLedgerStorage } from "../../../../runtime-session/storage/jsonl-store.js";
 import {
   createAgentSessionPlan,
 } from "./session-plan.js";
-import { resolveBridgeSessionPaths } from "../../storage/paths.js";
+import { resolveBridgeSessionPaths } from "../../../../runtime-session/storage/paths.js";
 import {
   createPromptLimits,
   takeContextText,
   type PromptLimits,
 } from "../../core/prompt-budget.js";
-import { buildBridgeSessionContext } from "../../core/projection.js";
+import { buildBridgeSessionContext } from "../../../../runtime-session/core/projection.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,

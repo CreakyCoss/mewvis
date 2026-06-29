@@ -416,11 +416,6 @@ writeFileSync(entryPath, `
     references: [],
     selectedReplyOption: undefined,
     speakers: [characterA, characterB],
-    directorDecision: {
-      speakerIds: [characterA.id, characterB.id],
-      nonverbalReplyIds: [],
-      reason: "两人依次处理柜台声响。",
-    },
     availableRoomCharacters: [characterA, characterB],
     mode: {
       replyMode: "director",

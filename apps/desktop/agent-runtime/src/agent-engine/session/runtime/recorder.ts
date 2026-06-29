@@ -1,4 +1,3 @@
-import { appendFile } from "node:fs/promises";
 import type {
   BridgeEvent,
   ChatMessageInput,
@@ -12,9 +11,12 @@ import type {
 import type {
   BridgeMessage,
   BridgeSessionRecordRef,
-} from "../core/types.js";
-import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../storage/paths.js";
+} from "../../../runtime-session/core/types.js";
+import { BridgeLedgerStorage } from "../../../runtime-session/storage/jsonl-store.js";
+import { resolveBridgeSessionPaths } from "../../../runtime-session/storage/paths.js";
+import {
+  appendRuntimeSessionTraceRecord,
+} from "../../../runtime-session/trace/jsonl-trace.js";
 import {
   runtimeBridgeEntryMetadata,
   runtimeBridgeMessageMetadata,
@@ -307,7 +309,7 @@ export class BridgeSessionRecorder {
   }
 
   private async appendTrace(record: TraceRecord) {
-    await appendFile(this.input.tracePath, `${JSON.stringify(record)}\n`, "utf8");
+    await appendRuntimeSessionTraceRecord(this.input.tracePath, record);
   }
 
   private async recordIntentEntries(parentEntryId: string | null) {

@@ -10,11 +10,24 @@ export {
 } from "./registry/index.js";
 
 export {
+  CollaborationSessionRecorder,
+} from "./session/recorder.js";
+
+export {
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,
   langGraphCollaborationExecutorId,
   nativeCollaborationExecutorId,
 } from "./executors/index.js";
+
+export {
+  builtinCollaborationModes,
+  createBuiltinCollaborationModeExtension,
+  createCollaborationModeRegistry,
+  producerReviewRewriteLoopMode,
+  supervisorDispatchLoopMode,
+  type CollaborationModeRegistry,
+} from "./modes/index.js";
 
 export type {
   CollaborationAgentRole,
@@ -55,6 +68,16 @@ export type {
   EmitCollaborationEvent,
   RunAgentForCollaboration,
 } from "./contracts.js";
+
+export type {
+  CollaborationModeDefinition,
+  CollaborationModeId,
+  CollaborationModeParticipant,
+  CollaborationModeRunInput,
+  CollaborationModeRunResult,
+  CollaborationModeSummary,
+  CollaborationParticipantKind,
+} from "./modes/index.js";
 
 export {
   CollaborationEventType,

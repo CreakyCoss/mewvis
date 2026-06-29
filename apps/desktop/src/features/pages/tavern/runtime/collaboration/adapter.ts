@@ -5,9 +5,6 @@ import {
   buildTavernDirectorPromptContext,
   buildTavernDirectorRuntimeInstruction,
 } from "../director/prompt";
-import type {
-  TavernDirectorPromptContext,
-} from "../director/prompt";
 import {
   buildTavernReplyAgentRequest,
 } from "../reply/request";
@@ -20,134 +17,15 @@ import type {
   TavernCharacter,
 } from "../../types";
 import type {
-  TavernDirectorCollaborationInput,
   TavernDirectorLoopCollaborationInput,
   TavernSpeakerCollaborationInput,
   TavernCollaborationInput,
 } from "./types";
 
-const TAVERN_DIRECTOR_WORKFLOW_MAX_STEPS = 8;
 const TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS = 2;
 
 const tavernSpeakerWorkflowMaxSteps = (speakerCount: number) =>
   Math.max(8, speakerCount * 4);
-
-const tavernDirectorLoopWorkflowMaxSteps = (
-  speakerCount: number,
-  maxRounds: number,
-) => Math.max(12, maxRounds * (speakerCount + 5));
-
-export type TavernDirectorCollaborationPlan = {
-  input: TavernCollaborationInput;
-  promptContext: TavernDirectorPromptContext;
-};
-
-export const buildTavernDirectorCollaborationPlan = ({
-  workspacePath,
-  runtimeAgentId,
-  runtimeModel,
-  room,
-  characters,
-  messages,
-  references,
-  currentUserText,
-  turnTrigger = { type: "user" },
-  selectedTargetCharacterIds = [],
-  maxSpeakers = 3,
-  randomEventOpportunity,
-  storyContext,
-}: TavernDirectorCollaborationInput): TavernDirectorCollaborationPlan => {
-  const directorPromptContext = buildTavernDirectorPromptContext({
-    room,
-    characters,
-    messages,
-    references,
-    currentUserText,
-    turnTrigger,
-    selectedTargetCharacterIds,
-    maxSpeakers,
-    randomEventOpportunity,
-    storyContext,
-  });
-  const directorRoleId = tavernDirectorAgentRoleId(room);
-
-  return {
-    input: {
-      type: "collaboration",
-      workspacePath,
-      sessionRootDir: tavernBridgeSessionRootDir(room),
-      agents: [
-        {
-          id: directorRoleId,
-          label: "酒馆导演",
-          agentId: runtimeAgentId,
-          runtimeModel,
-          systemPrompt: buildTavernBridgeSystemPrompt(room),
-        },
-      ],
-      workflow: {
-        id: "tavern.director-turn",
-        label: "酒馆导演调度",
-        version: "1",
-        maxSteps: TAVERN_DIRECTOR_WORKFLOW_MAX_STEPS,
-        steps: [
-          {
-            id: "director",
-            type: "agent",
-            agentRoleId: directorRoleId,
-            runtimeModel,
-            userMessage: directorPromptContext.isSceneDriveTurn
-              ? "请在没有用户角色发言的前提下，自推动本轮酒馆场景，并只输出严格合法 JSON。"
-              : "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
-            requestContext: directorPromptContext.requestContext,
-            runtimeInstruction: buildTavernDirectorRuntimeInstruction(directorPromptContext),
-            outputKey: "directorRaw",
-          },
-          {
-            id: "normalizeDirectorDecision",
-            type: "transform",
-            dependsOn: ["director"],
-            transform: "tavern.normalizeDirectorDecision",
-            input: {
-              raw: { $ref: "outputs.directorRaw" },
-              characters: characters.map((character) => ({
-                id: character.id,
-                name: character.name,
-              })),
-              maxSpeakers,
-              allowRandomEvent: directorPromptContext.canConsiderRandomEvent,
-              allowIllustrationHints: directorPromptContext.canRequestIllustrationHints,
-            },
-            outputKey: "directorDecision",
-          },
-          {
-            id: "routeDirectorDecision",
-            type: "router",
-            dependsOn: ["normalizeDirectorDecision"],
-            router: "tavern.directorNextRoute",
-            input: { $ref: "outputs.directorDecision" },
-            routes: {
-              speakers: "__end__",
-              narrator: "__end__",
-              end: "__end__",
-            },
-            outputKey: "directorRoute",
-          },
-        ],
-        metadata: {
-          roomId: room.id,
-          currentUserText,
-          selectedTargetCharacterIds,
-        },
-      },
-    },
-    promptContext: directorPromptContext,
-  };
-};
-
-export const buildTavernDirectorCollaborationInput = (
-  input: TavernDirectorCollaborationInput,
-): TavernCollaborationInput => buildTavernDirectorCollaborationPlan(input).input;
 
 export const buildTavernDirectorLoopCollaborationInput = ({
   workspacePath,
@@ -196,150 +74,77 @@ export const buildTavernDirectorLoopCollaborationInput = ({
     }),
   }));
   const normalizedMaxRounds = normalizePositiveInteger(maxRounds, TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS);
+  const workerTargets = speakerRequests.map(({ speaker, request }) => ({
+    characterId: speaker.id,
+    characterName: speaker.name,
+    participantId: request.agentRoleId,
+  }));
 
   return {
-    type: "collaboration",
+    type: "collaborationMode",
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
-    agents: [
+    mode: "supervisor.dispatch-loop",
+    participants: [
       {
         id: directorRoleId,
+        kind: "supervisor",
         label: "酒馆导演",
         agentId: runtimeAgentId,
         runtimeModel,
         systemPrompt: buildTavernBridgeSystemPrompt(room),
-      },
-      ...speakerRequests.map(({ speaker, speakerInput, request }) => ({
-        id: tavernCharacterAgentRoleId(room, speaker),
-        label: speaker.name,
-        agentId: runtimeAgentId,
-        runtimeModel: speakerInput.runtimeModel,
-        systemPrompt: request.systemPrompt,
-      })),
-    ],
-    workflow: {
-      id: "tavern.director-loop",
-      label: "酒馆导演回环调度",
-      version: "1",
-      maxSteps: tavernDirectorLoopWorkflowMaxSteps(speakerRequests.length, normalizedMaxRounds),
-      steps: [
-        {
-          id: "director",
-          type: "agent" as const,
-          agentRoleId: directorRoleId,
-          runtimeModel,
-          userMessage: directorPromptContext.isSceneDriveTurn
-            ? "请根据当前场景和上一轮角色回复继续自推动酒馆场景，并只输出严格合法 JSON。"
-            : "请根据当前用户输入和上一轮角色回复，决定是否继续调度角色发言，并只输出严格合法 JSON。",
-          requestContext: directorPromptContext.requestContext,
+        requestContext: directorPromptContext.requestContext,
+        runtimeInstruction: buildSupervisorDispatchRuntimeInstruction({
           runtimeInstruction: buildDirectorLoopRuntimeInstruction({
             runtimeInstruction: buildTavernDirectorRuntimeInstruction(directorPromptContext),
             speakers,
           }),
-          outputKey: "directorRaw",
+          workerTargets,
+        }),
+        userMessage: directorPromptContext.isSceneDriveTurn
+          ? "请根据当前场景和上一轮角色回复继续自推动酒馆场景，并按 supervisor.dispatch-loop JSON 输出。"
+          : "请根据当前用户输入和上一轮角色回复，给每个候选角色打分，决定是否继续调度，并按 supervisor.dispatch-loop JSON 输出。",
+        capabilities: ["score", "select", "dispatch", "evaluate"],
+        metadata: {
+          roomId: room.id,
+          role: "director",
         },
-        {
-          id: "normalizeDirectorDecision",
-          type: "transform" as const,
-          dependsOn: ["director"],
-          transform: "tavern.normalizeDirectorDecision",
-          input: {
-            raw: { $ref: "outputs.directorRaw" },
-            characters: characters.map((character) => ({
-              id: character.id,
-              name: character.name,
-            })),
-            maxSpeakers,
-            allowRandomEvent: directorPromptContext.canConsiderRandomEvent,
-            allowIllustrationHints: directorPromptContext.canRequestIllustrationHints,
-          },
-          outputKey: "directorDecision",
-        },
-        {
-          id: "routeDirectorDecision",
-          type: "router" as const,
-          dependsOn: ["normalizeDirectorDecision"],
-          router: "tavern.directorNextRoute",
-          input: { $ref: "outputs.directorDecision" },
-          routes: {
-            speakers: "prepareSpeakerDispatches",
-            narrator: "__end__",
-            end: "__end__",
-          },
-          outputKey: "directorRoute",
-        },
-        {
-          id: "prepareSpeakerDispatches",
-          type: "transform" as const,
-          dependsOn: ["routeDirectorDecision"],
-          transform: "tavern.createSpeakerDispatches",
-          input: {
-            decision: { $ref: "outputs.directorDecision" },
-            candidates: speakerRequests.map(({ speaker, speakerInput, request }, index) => ({
-              characterId: speaker.id,
-              invocation: {
-                id: tavernSpeakerDispatchInvocationId(speaker, index),
-                label: speaker.name,
-                agentRoleId: request.agentRoleId,
-                outputKey: tavernSpeakerReplyOutputKey(speaker),
-                runtimeModel: speakerInput.runtimeModel,
-                userMessage: request.userMessage,
-                systemPrompt: request.systemPrompt,
-                requestContext: request.requestContext,
-                runtimeInstruction: buildLoopSpeakerRuntimeInstruction({
-                  runtimeInstruction: request.runtimeInstruction,
-                  speakers,
-                }),
-                metadata: {
-                  characterId: speaker.id,
-                  characterName: speaker.name,
-                },
-              },
-            })),
-          },
-          outputKey: "speakerDispatches",
-        },
-        {
-          id: "dispatchSpeakers",
-          type: "dispatch" as const,
-          dependsOn: ["prepareSpeakerDispatches"],
-          input: { $ref: "outputs.speakerDispatches" },
-          mode: "serial" as const,
-          outputKey: "speakerDispatch",
-        },
-        {
-          id: "incrementDirectorLoopRound",
-          type: "transform" as const,
-          dependsOn: ["dispatchSpeakers"],
-          transform: "tavern.incrementDirectorLoopRound",
-          input: {
-            current: { $ref: "outputs.directorLoopRound" },
-          },
-          outputKey: "directorLoopRound",
-        },
-        {
-          id: "routeDirectorLoop",
-          type: "router" as const,
-          dependsOn: ["incrementDirectorLoopRound"],
-          router: "tavern.directorLoopRoute",
-          input: {
-            round: { $ref: "outputs.directorLoopRound" },
-            maxRounds: normalizedMaxRounds,
-          },
-          routes: {
-            director: "director",
-            end: "__end__",
-          },
-          outputKey: "directorLoopRoute",
-        },
-      ],
-      metadata: {
-        roomId: room.id,
-        currentUserText,
-        selectedTargetCharacterIds,
-        speakerIds: speakers.map((speaker) => speaker.id),
-        maxRounds: normalizedMaxRounds,
       },
+      ...speakerRequests.map(({ speaker, speakerInput, request }) => ({
+        id: tavernCharacterAgentRoleId(room, speaker),
+        kind: "worker" as const,
+        label: speaker.name,
+        agentId: runtimeAgentId,
+        runtimeModel: speakerInput.runtimeModel,
+        systemPrompt: request.systemPrompt,
+        userMessage: request.userMessage,
+        requestContext: request.requestContext,
+        runtimeInstruction: buildLoopSpeakerRuntimeInstruction({
+          runtimeInstruction: request.runtimeInstruction,
+          speakers,
+        }),
+        capabilities: ["speak", "act"],
+        metadata: {
+          characterId: speaker.id,
+          characterName: speaker.name,
+          targetAliases: [speaker.id, speaker.name],
+        },
+      })),
+    ],
+    context: {
+      roomId: room.id,
+      currentUserText,
+      selectedTargetCharacterIds,
+      speakerIds: speakers.map((speaker) => speaker.id),
+      maxSpeakers,
+      turnTrigger,
+      canConsiderRandomEvent: directorPromptContext.canConsiderRandomEvent,
+      canRequestIllustrationHints: directorPromptContext.canRequestIllustrationHints,
+      workerTargets,
+    },
+    options: {
+      maxRounds: normalizedMaxRounds,
+      minScore: 1,
     },
   };
 };
@@ -357,14 +162,8 @@ export const buildTavernSpeakerCollaborationInput = ({
   storyContext,
   turnInstructionByCharacterId = {},
   allowNonverbalReplyCharacterIds = [],
-  directorDecision,
-  directorDecisionRef,
 }: TavernSpeakerCollaborationInput): TavernCollaborationInput => {
   const allowNonverbalReplyIds = new Set(allowNonverbalReplyCharacterIds);
-  const speakerDecisionRef = resolveSpeakerDecisionRef({
-    directorDecision,
-    directorDecisionRef,
-  });
   const requests = speakers.map((speaker) => ({
     speaker,
     request: buildTavernReplyAgentRequest({
@@ -407,29 +206,14 @@ export const buildTavernSpeakerCollaborationInput = ({
           runtimeInstruction: request.runtimeInstruction,
           priorSpeakers: requests.slice(0, index).map((item) => item.speaker),
         }),
-        when: speakerDecisionRef
-          ? {
-              condition: "tavern.shouldRunSpeaker",
-              input: {
-                decision: { $ref: speakerDecisionRef },
-                characterId: speaker.id,
-              },
-            }
-          : undefined,
         outputKey: tavernSpeakerReplyOutputKey(speaker),
       })),
       metadata: {
         roomId: room.id,
         speakerIds: speakers.map((speaker) => speaker.id),
         currentUserText,
-        speakerDecisionRef,
       },
     },
-    input: directorDecision === undefined
-      ? undefined
-      : {
-          directorDecision,
-        },
   };
 };
 
@@ -438,11 +222,6 @@ const tavernSpeakerReplyOutputKey = (
 ) => `reply:${speaker.id}`;
 
 const tavernSpeakerWorkflowStepId = (
-  speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">,
-  index: number,
-) => `speaker-${speaker.id}-${index + 1}`;
-
-const tavernSpeakerDispatchInvocationId = (
   speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">,
   index: number,
 ) => `speaker-${speaker.id}-${index + 1}`;
@@ -456,6 +235,42 @@ const normalizePositiveInteger = (
   }
   return Math.max(1, Math.floor(value));
 };
+
+const buildSupervisorDispatchRuntimeInstruction = ({
+  runtimeInstruction,
+  workerTargets,
+}: {
+  runtimeInstruction?: string | null;
+  workerTargets: Array<{
+    characterId: string;
+    characterName: string;
+    participantId: string;
+  }>;
+}) => [
+  runtimeInstruction,
+  "",
+  "<supervisor_dispatch_loop_contract>",
+  "你当前运行在通用 supervisor.dispatch-loop 模式中；最终输出契约以本段为准。",
+  "必须给所有候选角色评分，且每轮最多选择一个角色回复。",
+  "candidates[].targetId 和 selectedTargetId 必须使用下面的 participantId，而不是 characterId。",
+  JSON.stringify(workerTargets, null, 2),
+  "输出严格 JSON：",
+  "{",
+  "  \"status\": \"continue\" | \"complete\" | \"blocked\",",
+  "  \"candidates\": [{ \"targetId\": string, \"score\": number, \"reason\": string, \"instruction\": string }],",
+  "  \"selectedTargetId\": string,",
+  "  \"selectedInstruction\": string,",
+  "  \"reason\": string,",
+  "  \"artifacts\": [",
+  "    { \"type\": \"narrator\" | \"randomEvent\" | \"illustrationHint\" | \"ambientAction\", \"content\": string, \"targetId\": string }",
+  ,
+  "  ]",
+  ,
+  "}",
+  ,
+  "如果只需要旁白或环境动作而不需要角色回复，status 使用 complete，并把内容放入 artifacts。",
+  "</supervisor_dispatch_loop_contract>",
+].filter(Boolean).join("\n");
 
 const buildDirectorLoopRuntimeInstruction = ({
   runtimeInstruction,
@@ -530,18 +345,4 @@ const buildSpeakerWorkflowRuntimeInstruction = ({
     priorReplyTemplate,
     "</collaboration_previous_speaker_replies>",
   ].filter(Boolean).join("\n");
-};
-
-const resolveSpeakerDecisionRef = ({
-  directorDecision,
-  directorDecisionRef,
-}: {
-  directorDecision?: unknown;
-  directorDecisionRef?: string;
-}) => {
-  const explicitRef = directorDecisionRef?.trim();
-  if (explicitRef) {
-    return explicitRef;
-  }
-  return directorDecision === undefined ? null : "input.directorDecision";
 };

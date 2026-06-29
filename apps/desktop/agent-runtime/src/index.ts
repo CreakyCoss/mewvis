@@ -19,6 +19,39 @@ export {
   createAgentEngine,
 } from "./agent-engine/index.js";
 
+export {
+  BridgeLedgerStorage,
+  buildBridgeSessionContext,
+  resolveBridgeSessionPaths,
+  standardizeBridgeMessageMetadata,
+} from "./runtime-session/index.js";
+
+export type {
+  BridgeBranchSummaryEntry,
+  BridgeCustomEntry,
+  BridgeDisplaySummary,
+  BridgeLedgerEntry,
+  BridgeLedgerEntryBase,
+  BridgeLedgerHeader,
+  BridgeLeafEntry,
+  BridgeMessage,
+  BridgeMessageActorType,
+  BridgeMessageEntry,
+  BridgeMessageMetadata,
+  BridgeMessageRole,
+  BridgeMessageScope,
+  BridgeMessageSource,
+  BridgeRequestContextEntry,
+  BridgeRuntimeInstructionEntry,
+  BridgeRuntimeLink,
+  BridgeSessionContext,
+  BridgeSessionRecordRef,
+  BridgeSessionResultAuxiliaryEntry,
+  BridgeSessionResultMessage,
+  SessionMutationResult,
+  SessionResult,
+} from "./runtime-session/index.js";
+
 export type {
   AgentEngine,
 } from "./agent-engine/index.js";
@@ -27,8 +60,11 @@ export type {
   AgentRuntimeCommand,
   AgentRuntimeEvent,
   AgentRuntimeResult,
+  CollaborationModesRuntimeResult,
   CollaborationRuntimeResult,
+  ListCollaborationModesCommand,
   RunCollaborationCommand,
+  RunCollaborationModeCommand,
 } from "./protocol/index.js";
 
 export {
@@ -40,12 +76,17 @@ export {
   createCollaborationEngine,
   createCollaborationExtensionRegistry,
   createCollaborationRunId,
+  createBuiltinCollaborationModeExtension,
+  createCollaborationModeRegistry,
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,
+  builtinCollaborationModes,
   CollaborationEventType,
   langGraphCollaborationExecutorId,
   nativeCollaborationExecutorId,
   normalizeHandlerId,
+  producerReviewRewriteLoopMode,
+  supervisorDispatchLoopMode,
 } from "./collaboration-engine/index.js";
 
 export type {
@@ -68,7 +109,15 @@ export type {
   CollaborationExtension,
   CollaborationExtensionHandlerContext,
   CollaborationExtensionRegistry,
+  CollaborationModeDefinition,
+  CollaborationModeId,
+  CollaborationModeParticipant,
+  CollaborationModeRegistry,
+  CollaborationModeRunInput,
+  CollaborationModeRunResult,
+  CollaborationModeSummary,
   CollaborationNamedStepCondition,
+  CollaborationParticipantKind,
   CollaborationRouterHandler,
   CollaborationRouterResult,
   CollaborationRouterWorkflowStep,

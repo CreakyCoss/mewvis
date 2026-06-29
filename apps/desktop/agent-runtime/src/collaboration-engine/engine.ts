@@ -19,7 +19,16 @@ import {
   createNativeCollaborationExecutor,
   langGraphCollaborationExecutorId,
 } from "./executors/index.js";
+import {
+  createBuiltinCollaborationModeExtension,
+  createCollaborationModeRegistry,
+  type CollaborationModeDefinition,
+  type CollaborationModeRegistry,
+  type CollaborationModeRunInput,
+  type CollaborationModeRunResult,
+} from "./modes/index.js";
 import { createCollaborationExtensionRegistry } from "./registry/index.js";
+import { CollaborationSessionRecorder } from "./session/recorder.js";
 
 export type CollaborationEngineOptions = {
   runAgent: RunAgentForCollaboration;
@@ -27,6 +36,8 @@ export type CollaborationEngineOptions = {
   defaultExecutorId?: CollaborationExecutorId;
   extensions?: readonly CollaborationExtension[];
   extensionRegistry?: CollaborationExtensionRegistry;
+  modes?: readonly CollaborationModeDefinition[];
+  modeRegistry?: CollaborationModeRegistry;
 };
 
 export const createCollaborationEngine = ({
@@ -34,6 +45,8 @@ export const createCollaborationEngine = ({
   extensions = [],
   extensionRegistry,
   executors = [],
+  modes,
+  modeRegistry,
   runAgent,
 }: CollaborationEngineOptions): CollaborationEngine => {
   const executorById = createExecutorRegistry([
@@ -42,13 +55,16 @@ export const createCollaborationEngine = ({
     ...executors,
   ]);
   const resolvedExtensionRegistry = extensionRegistry ??
-    createCollaborationExtensionRegistry(extensions);
+    createCollaborationExtensionRegistry([
+      createBuiltinCollaborationModeExtension(),
+      ...extensions,
+    ]);
+  const resolvedModeRegistry = modeRegistry ?? createCollaborationModeRegistry(modes);
 
-  return {
-    async run(
-      input: CollaborationRunInput,
-      context: CollaborationRunContext = {},
-    ): Promise<CollaborationRunResult> {
+  const run = async (
+    input: CollaborationRunInput,
+    context: CollaborationRunContext = {},
+  ): Promise<CollaborationRunResult> => {
       const workflowRunId = createCollaborationRunId();
       const steps = input.workflow.steps ?? [];
       if (steps.length === 0) {
@@ -63,7 +79,10 @@ export const createCollaborationEngine = ({
         throw new Error(`协作 workflow 指定了未注册的 executor：${executorId}`);
       }
 
-      const emit = (event: CollaborationEvent) => context.emit?.(event);
+      const recorder = await CollaborationSessionRecorder.create(input);
+      const emit = recorder
+        ? recorder.wrapEmit((event: CollaborationEvent) => context.emit?.(event))
+        : (event: CollaborationEvent) => context.emit?.(event);
       emit({
         type: CollaborationEventType.WorkflowStarted,
         workflowRunId,
@@ -99,8 +118,27 @@ export const createCollaborationEngine = ({
           message: messageFromError(error),
         });
         throw error;
+      } finally {
+        await recorder?.flush();
       }
-    },
+  };
+
+  const runMode = async (
+    input: CollaborationModeRunInput,
+    context: CollaborationRunContext = {},
+  ): Promise<CollaborationModeRunResult> => {
+    const mode = resolvedModeRegistry.require(input.mode);
+    const result = await run(mode.build(input), context);
+    return {
+      ...result,
+      mode: mode.id,
+    };
+  };
+
+  return {
+    listModes: () => resolvedModeRegistry.list(),
+    run,
+    runMode,
   };
 };
 

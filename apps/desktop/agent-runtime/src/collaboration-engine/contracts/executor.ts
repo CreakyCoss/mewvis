@@ -17,6 +17,11 @@ import type {
   CollaborationExecutorId,
   CollaborationRunInput,
 } from "./workflow.js";
+import type {
+  CollaborationModeRunInput,
+  CollaborationModeRunResult,
+  CollaborationModeSummary,
+} from "../modes/contracts.js";
 
 export type CollaborationRunContext = {
   askUser?: AskUser;
@@ -48,4 +53,9 @@ export type CollaborationEngine = {
     input: CollaborationRunInput,
     context?: CollaborationRunContext,
   ): Promise<CollaborationRunResult>;
+  runMode(
+    input: CollaborationModeRunInput,
+    context?: CollaborationRunContext,
+  ): Promise<CollaborationModeRunResult>;
+  listModes(): CollaborationModeSummary[];
 };

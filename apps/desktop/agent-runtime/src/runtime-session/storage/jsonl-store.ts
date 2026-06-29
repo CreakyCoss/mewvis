@@ -35,7 +35,7 @@ const parseJsonLine = <T>(line: string, filePath: string, lineNumber: number): T
 const isHeader = (value: unknown): value is BridgeLedgerHeader =>
   Boolean(value) &&
   typeof value === "object" &&
-  (value as { type?: unknown }).type === "bridge_session";
+  (value as { type?: unknown }).type === "runtime_session";
 
 const leafIdAfterEntry = (entry: BridgeLedgerEntry): string | null =>
   entry.type === "leaf" ? entry.targetId : entry.id;
@@ -61,7 +61,7 @@ export class BridgeLedgerStorage {
       return await BridgeLedgerStorage.open(input.filePath);
     } catch {
       const header: BridgeLedgerHeader = {
-        type: "bridge_session",
+        type: "runtime_session",
         version: 1,
         id: randomUUID(),
         timestamp: nowIso(),

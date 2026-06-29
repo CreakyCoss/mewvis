@@ -5,7 +5,7 @@ export type {
   BridgeSessionResultMessage,
   SessionMutationResult,
   SessionResult,
-} from "./contracts/results.js";
+} from "../../runtime-session/contracts/results.js";
 
 export {
   appendBridgeSessionMessages,

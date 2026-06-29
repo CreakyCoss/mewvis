@@ -4,13 +4,15 @@ import {
 import type {
   AgentClientAgentEvent,
   AgentClientCollaborationEvent,
-  AgentClientCollaborationInput,
   AgentClientCollaborationResult,
 } from "@/agent-client/contracts";
+import type {
+  TavernCollaborationInput,
+} from "./types";
 
 const tavernCollaborationClient = createAgentClient();
 
-export type RunTavernCollaborationInput = AgentClientCollaborationInput & {
+export type RunTavernCollaborationInput = TavernCollaborationInput & {
   onEvent?: (event: AgentClientCollaborationEvent) => void;
   onAgentEvent?: (
     event: Extract<AgentClientCollaborationEvent, { type: "agent_event" }>,
@@ -122,7 +124,9 @@ export const runTavernCollaboration = async ({
         }
       });
 
-      const task = await tavernCollaborationClient.run(input);
+      const task = input.type === "collaborationMode"
+        ? await tavernCollaborationClient.run(input)
+        : await tavernCollaborationClient.run(input);
       taskId = task.taskId;
     } catch (error) {
       rejectOnce(error);

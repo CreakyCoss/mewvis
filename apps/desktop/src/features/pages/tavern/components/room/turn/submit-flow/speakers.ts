@@ -23,9 +23,6 @@ import {
 } from "../../../../presentation/presentation-contracts";
 import { runTavernInnerThought } from "../../../../runtime/reply";
 import { buildTavernCharacterTurnInstruction } from "../../../../runtime/prompt";
-import type {
-  TavernDirectorDecision,
-} from "../../../../runtime/director";
 import {
   buildTavernSpeakerCollaborationInput,
   runTavernCollaboration,
@@ -217,7 +214,6 @@ const runSpeakerReplyThroughCollaboration = async ({
   turnInstruction,
   allowNonverbalReply,
   storyContext,
-  directorDecision,
   onTextDelta,
 }: {
   ctx: TavernPageContextValue;
@@ -231,7 +227,6 @@ const runSpeakerReplyThroughCollaboration = async ({
   turnInstruction: string;
   allowNonverbalReply: boolean;
   storyContext: StoryContextPackage;
-  directorDecision?: TavernDirectorDecision;
   onTextDelta: (delta: string) => void;
 }) => {
   const collaborationInput = buildTavernSpeakerCollaborationInput({
@@ -249,7 +244,6 @@ const runSpeakerReplyThroughCollaboration = async ({
       [speaker.id]: turnInstruction,
     },
     allowNonverbalReplyCharacterIds: allowNonverbalReply ? [speaker.id] : [],
-    directorDecision,
   });
   const output = await runTavernCollaboration({
     ...collaborationInput,
@@ -499,7 +493,6 @@ const finalizeSpeakerReplyRuntime = async ({
   activeReplyRef,
   ctx,
   currentUserText,
-  directorDecision,
   references,
   room,
   runtime,
@@ -513,7 +506,6 @@ const finalizeSpeakerReplyRuntime = async ({
   activeReplyRef: ActiveReplyRef;
   ctx: TavernPageContextValue;
   currentUserText: string;
-  directorDecision?: TavernDirectorDecision;
   references: TavernReferencedFile[];
   room: TavernRoom;
   runtime: SpeakerReplyRuntime;
@@ -563,7 +555,6 @@ const finalizeSpeakerReplyRuntime = async ({
       }),
       allowNonverbalReply: runtime.nonverbalReplyAllowed,
       storyContext,
-      directorDecision,
       onTextDelta: (delta) => appendSpeakerReplyDelta({
         activeReplyRef,
         ctx,
@@ -653,7 +644,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   ctx,
   currentSpeakerRunIndexStart,
   currentUserText,
-  directorDecision,
   directorNonverbalReplyIds,
   directorReason,
   mode,
@@ -673,7 +663,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   ctx: TavernPageContextValue;
   currentSpeakerRunIndexStart: number;
   currentUserText: string;
-  directorDecision?: TavernDirectorDecision;
   directorNonverbalReplyIds: string[];
   directorReason: string;
   mode: TurnMode;
@@ -748,7 +737,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
     allowNonverbalReplyCharacterIds: runtimes
       .filter((runtime) => runtime.nonverbalReplyAllowed)
       .map((runtime) => runtime.speaker.id),
-    directorDecision,
   });
   const output = await runTavernCollaboration({
     ...collaborationInput,
@@ -840,7 +828,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
       activeReplyRef,
       ctx,
       currentUserText,
-      directorDecision,
       references,
       room,
       runtime,
@@ -875,7 +862,6 @@ const runSingleSpeakerReply = async ({
   continuationInstruction,
   directorReason,
   directorNonverbalReplyIds,
-  directorDecision,
   selectedReplyOption,
   text,
   references,
@@ -898,7 +884,6 @@ const runSingleSpeakerReply = async ({
   continuationInstruction?: string;
   directorReason: string;
   directorNonverbalReplyIds: string[];
-  directorDecision?: TavernDirectorDecision;
   selectedReplyOption?: TavernReplyOption;
   text: string;
   references: TavernReferencedFile[];
@@ -1010,7 +995,6 @@ const runSingleSpeakerReply = async ({
     turnInstruction: effectiveTurnInstruction,
     allowNonverbalReply: nonverbalReplyAllowed,
     storyContext,
-    directorDecision,
     onTextDelta: handleReplyTextDelta,
   });
   let finalReply = parseTavernReplyText({
@@ -1049,7 +1033,6 @@ const runSingleSpeakerReply = async ({
       }),
       allowNonverbalReply: nonverbalReplyAllowed,
       storyContext,
-      directorDecision,
       onTextDelta: handleReplyTextDelta,
     });
     finalReply = parseTavernReplyText({
@@ -1127,21 +1110,6 @@ const runSingleSpeakerReply = async ({
   return finalizedMessage;
 };
 
-const isDirectorDecisionCompatibleWithSpeakers = (
-  directorDecision: TavernDirectorDecision | undefined,
-  speakers: TavernCharacter[],
-) => {
-  if (!directorDecision || speakers.length === 0) {
-    return false;
-  }
-
-  const directedSpeakerIds = new Set([
-    ...directorDecision.speakerIds,
-    ...(directorDecision.nonverbalReplyIds ?? []),
-  ]);
-  return speakers.every((speaker) => directedSpeakerIds.has(speaker.id));
-};
-
 const shouldRunSpeakerRoundThroughCollaboration = ({
   continuationRound,
   speakers,
@@ -1161,7 +1129,6 @@ export const runSpeakerReplyFlow = async ({
   references,
   selectedReplyOption,
   speakers,
-  directorDecision,
   availableRoomCharacters,
   mode,
   directorReason,
@@ -1181,7 +1148,6 @@ export const runSpeakerReplyFlow = async ({
   references: TavernReferencedFile[];
   selectedReplyOption?: TavernReplyOption;
   speakers: TavernCharacter[];
-  directorDecision?: TavernDirectorDecision;
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   directorReason: string;
@@ -1204,10 +1170,6 @@ export const runSpeakerReplyFlow = async ({
     const currentSpeakers = speakerQueue;
     speakerQueue = [];
     const activeContinuationInteractionIds = currentContinuationInteractionIds;
-    const currentDirectorDecision = continuationRound === 0 &&
-        isDirectorDecisionCompatibleWithSpeakers(directorDecision, currentSpeakers)
-      ? directorDecision
-      : undefined;
     currentContinuationInteractionIds = [];
 
     if (shouldRunSpeakerRoundThroughCollaboration({
@@ -1223,7 +1185,6 @@ export const runSpeakerReplyFlow = async ({
         currentUserText: text,
         directorReason,
         directorNonverbalReplyIds,
-        directorDecision: currentDirectorDecision,
         selectedReplyOption,
         references,
         runtimeMessages,
@@ -1252,7 +1213,6 @@ export const runSpeakerReplyFlow = async ({
           continuationInstruction: continuationInstructionBySpeakerId.get(speaker.id),
           directorReason,
           directorNonverbalReplyIds,
-          directorDecision: currentDirectorDecision,
           selectedReplyOption,
           text,
           references,

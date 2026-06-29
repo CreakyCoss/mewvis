@@ -163,6 +163,48 @@ export type AgentClientCollaborationInput = {
   enabledSkills?: string[];
 };
 
+export type AgentClientCollaborationModeId =
+  | "supervisor.dispatch-loop"
+  | "producer.review-rewrite-loop"
+  | (string & {});
+
+export type AgentClientCollaborationParticipantKind =
+  | "supervisor"
+  | "worker"
+  | "producer"
+  | "reviewer"
+  | "evaluator";
+
+export type AgentClientCollaborationModeParticipant = {
+  id: string;
+  kind: AgentClientCollaborationParticipantKind;
+  label?: string | null;
+  agentId?: string | null;
+  systemPrompt?: string | null;
+  instruction?: string | null;
+  userMessage?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+  capabilities?: string[];
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AgentClientCollaborationModeInput = {
+  type: "collaborationMode";
+  workspacePath: string;
+  sessionRootDir?: string | null;
+  mode: AgentClientCollaborationModeId;
+  participants: AgentClientCollaborationModeParticipant[];
+  context?: unknown;
+  options?: Record<string, unknown> | null;
+  executor?: AgentClientCollaborationExecutorId | null;
+  allowedTools?: RuntimeAgentToolName[];
+  enabledSkills?: string[];
+};
+
 export type AgentClientChatMessage = {
   role: string;
   content: string;
@@ -191,6 +233,7 @@ export type AgentClientAgentInput = AgentClientAgentTaskInput & {
 export type AgentClientRuntimeInput =
   | AgentClientAgentInput
   | AgentClientChatInput
+  | AgentClientCollaborationModeInput
   | AgentClientCollaborationInput;
 
 export type AgentClientChatResult = {

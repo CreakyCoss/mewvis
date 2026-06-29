@@ -12,7 +12,7 @@ const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
 
 writeFileSync(entryPath, `
-  import { mkdtempSync, rmSync } from "node:fs";
+  import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
   import { tmpdir } from "node:os";
   import { join } from "node:path";
   import {
@@ -85,6 +85,155 @@ writeFileSync(entryPath, `
     assert((workflowStartedEvent as { executorId?: string }).executorId === "langgraph", "workflow_started 应携带 executorId", workflowStartedEvent);
     assert(events.some((event) => event && typeof event === "object" && "type" in event && event.type === CollaborationEventType.AgentEvent), "应包装 agent 事件", events);
     assert(events.some((event) => event && typeof event === "object" && "type" in event && event.type === CollaborationEventType.WorkflowDone), "应发出 workflow_done 事件", events);
+
+    const modeEngine = createCollaborationEngine({
+      runAgent: async (command) => {
+        if (command.agentRoleId === "supervisor") {
+          return {
+            text: JSON.stringify({
+              status: "continue",
+              candidates: [
+                {
+                  targetId: "worker-a",
+                  score: 91,
+                  reason: "worker-a 最适合继续",
+                  instruction: "请 worker-a 给出一句结果",
+                },
+                {
+                  targetId: "worker-b",
+                  score: 12,
+                  reason: "worker-b 暂不需要",
+                },
+              ],
+              selectedTargetId: "worker-a",
+              selectedInstruction: "请 worker-a 给出一句结果",
+              reason: "选择最高分 worker",
+            }),
+          };
+        }
+        return {
+          text: "worker-output:" + command.agentRoleId + ":" + command.userMessage,
+        };
+      },
+    });
+    const modeSummaries = modeEngine.listModes();
+    assert(
+      modeSummaries.some((mode) => mode.id === "supervisor.dispatch-loop") &&
+        modeSummaries.some((mode) => mode.id === "producer.review-rewrite-loop"),
+      "应默认注册两个 collaboration mode",
+      modeSummaries,
+    );
+    const supervisorModeSessionRoot = join(workspacePath, "session-store", "supervisor-mode");
+    const supervisorModeResult = await modeEngine.runMode({
+      mode: "supervisor.dispatch-loop",
+      requestId: "supervisor-mode-smoke",
+      workspacePath,
+      sessionRootDir: supervisorModeSessionRoot,
+      participants: [
+        {
+          id: "supervisor",
+          kind: "supervisor",
+          label: "Supervisor",
+          agentId: "mock",
+          instruction: "负责调度 worker。",
+        },
+        {
+          id: "worker-a",
+          kind: "worker",
+          label: "Worker A",
+          agentId: "mock",
+          instruction: "负责输出 A。",
+        },
+        {
+          id: "worker-b",
+          kind: "worker",
+          label: "Worker B",
+          agentId: "mock",
+          instruction: "负责输出 B。",
+        },
+      ],
+      context: {
+        userText: "mode smoke",
+      },
+      options: {
+        maxRounds: 1,
+      },
+    });
+    assert(supervisorModeResult.mode === "supervisor.dispatch-loop", "runMode 应返回 mode id", supervisorModeResult);
+    assert(
+      supervisorModeResult.steps.some((step) => step.stepId === "dispatchWorker:worker-a-round-1"),
+      "supervisor.dispatch-loop 应只调度选中的 worker",
+      supervisorModeResult.steps,
+    );
+    assert(
+      !supervisorModeResult.steps.some((step) => step.stepId === "dispatchWorker:worker-b-round-1"),
+      "supervisor.dispatch-loop 不应调度低分 worker",
+      supervisorModeResult.steps,
+    );
+    const supervisorTracePath = join(supervisorModeSessionRoot, "trace.jsonl");
+    assert(existsSync(supervisorTracePath), "runMode 应写入 runtime trace", supervisorTracePath);
+    assert(
+      readFileSync(supervisorTracePath, "utf8").includes("collaboration_event"),
+      "runtime trace 应包含 collaboration timeline",
+      readFileSync(supervisorTracePath, "utf8"),
+    );
+
+    let reviewCount = 0;
+    const reviewModeEngine = createCollaborationEngine({
+      runAgent: async (command) => {
+        if (command.agentRoleId === "reviewer") {
+          reviewCount += 1;
+          return {
+            text: JSON.stringify(reviewCount === 1
+              ? {
+                  status: "revise",
+                  score: 62,
+                  reason: "需要重写",
+                  revisionInstruction: "补强冲突。",
+                }
+              : {
+                  status: "approved",
+                  score: 93,
+                  reason: "已通过。",
+                }),
+          };
+        }
+        return {
+          text: "draft-round-" + (reviewCount + 1),
+        };
+      },
+    });
+    const reviewModeResult = await reviewModeEngine.runMode({
+      mode: "producer.review-rewrite-loop",
+      requestId: "review-mode-smoke",
+      workspacePath,
+      sessionRootDir: join(workspacePath, "session-store", "review-mode"),
+      participants: [
+        {
+          id: "producer",
+          kind: "producer",
+          label: "Producer",
+          agentId: "mock",
+        },
+        {
+          id: "reviewer",
+          kind: "reviewer",
+          label: "Reviewer",
+          agentId: "mock",
+        },
+      ],
+      context: {
+        artifactType: "test",
+      },
+      options: {
+        maxRounds: 2,
+      },
+    });
+    assert(reviewModeResult.mode === "producer.review-rewrite-loop", "review-rewrite 应返回 mode id", reviewModeResult);
+    assert(reviewCount === 2, "review-rewrite 应在 revise 后再次审阅", {
+      reviewCount,
+      steps: reviewModeResult.steps.map((step) => step.stepId),
+    });
 
     const explicitNativeEvents: unknown[] = [];
     const explicitNativeResult = await runtime.runCollaboration({

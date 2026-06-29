@@ -61,7 +61,7 @@ export type BridgeMessage = {
 };
 
 export type BridgeLedgerHeader = {
-  type: "bridge_session";
+  type: "runtime_session";
   version: 1;
   id: string;
   timestamp: string;

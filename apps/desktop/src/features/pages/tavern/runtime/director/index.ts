@@ -4,10 +4,6 @@ export {
   type TavernDirectorDecision,
 } from "./decision";
 export {
-  runTavernDirector,
-  type RunTavernDirectorInput,
-} from "./run-director";
-export {
   parseTavernDirectorRoleAssignmentText,
   runTavernDirectorRoleAssignment,
   type TavernDirectorRoleAssignment,

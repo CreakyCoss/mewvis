@@ -1,5 +1,6 @@
 import type {
   AgentClientCollaborationInput,
+  AgentClientCollaborationModeInput,
 } from "@/agent-client/contracts";
 import type {
   RuntimeModelInput,
@@ -12,9 +13,11 @@ import type {
   TavernRoom,
 } from "../../types";
 
-export type TavernCollaborationInput = AgentClientCollaborationInput;
+export type TavernCollaborationInput =
+  | AgentClientCollaborationInput
+  | AgentClientCollaborationModeInput;
 
-export type TavernDirectorCollaborationInput = {
+type TavernDirectorBaseCollaborationInput = {
   workspacePath: string;
   runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
@@ -46,8 +49,6 @@ export type TavernSpeakerCollaborationInput = {
   storyContext?: StoryContextPackage;
   turnInstructionByCharacterId?: Record<string, string | undefined>;
   allowNonverbalReplyCharacterIds?: string[];
-  directorDecision?: unknown;
-  directorDecisionRef?: string;
 };
 
 export type TavernCollaborationSpeakerInput = {
@@ -57,7 +58,7 @@ export type TavernCollaborationSpeakerInput = {
   allowNonverbalReply?: boolean;
 };
 
-export type TavernDirectorLoopCollaborationInput = TavernDirectorCollaborationInput & {
+export type TavernDirectorLoopCollaborationInput = TavernDirectorBaseCollaborationInput & {
   speakerInputs: TavernCollaborationSpeakerInput[];
   maxRounds?: number;
 };

@@ -1,10 +1,10 @@
 # Runtime Session Layers
 
-`session` owns the runtime-side ledger, context projection, runtime prompt assembly, and session mutations.
+`session` owns agent-engine specific prompt assembly, agent session mutations, and runtime command adapters.
 
-- `core/`: pure ledger and prompt algorithms. Keep this layer free of filesystem writes and runtime-specific command handling.
-- `storage/`: filesystem paths, JSONL ledger persistence, and context cache writes.
-- `metadata/`: standard runtime metadata normalization plus app/runtime-specific metadata adapters.
+- Shared ledger storage, context projection, and standard metadata now live in `../../runtime-session/`.
+- `core/`: agent prompt budget helpers.
+- `metadata/`: app/runtime-specific metadata adapters.
 - `operations/`: user/session commands such as create, read, append, edit, delete, rebuild, and compact.
 - `runtime/`: runtime command adapters, event recording, system prompt handling, and agent session planning.
 

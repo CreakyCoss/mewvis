@@ -12,7 +12,8 @@ use commands::{
         edit_agent_runtime_session_message, list_agent_runtime_agents, read_agent_runtime_session,
         rebuild_agent_runtime_agent_session, rebuild_agent_runtime_session,
         run_agent_runtime_agent, run_agent_runtime_chat, run_agent_runtime_collaboration,
-        summarize_agent_runtime_session, AgentRuntimeSupervisor,
+        run_agent_runtime_collaboration_mode, summarize_agent_runtime_session,
+        AgentRuntimeSupervisor,
     },
     app::{
         get_config_database_status, initialize_config_database, rebuild_config_database,
@@ -86,6 +87,7 @@ pub fn run() {
             run_agent_runtime_chat,
             run_agent_runtime_agent,
             run_agent_runtime_collaboration,
+            run_agent_runtime_collaboration_mode,
             answer_agent_runtime_question,
             abort_agent_runtime_agent,
             create_agent_runtime_session,

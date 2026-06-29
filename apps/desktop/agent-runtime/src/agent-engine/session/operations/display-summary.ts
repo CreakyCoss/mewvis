@@ -2,7 +2,7 @@ import { BridgeTaskCommandType } from "../../contracts/protocol.js";
 import type { RuntimeModelInput } from "../../contracts/model.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type { RuntimeChatCommand } from "../../runtimes/types.js";
-import type { BridgeLedgerEntry, BridgeSessionContext } from "../core/types.js";
+import type { BridgeLedgerEntry, BridgeSessionContext } from "../../../runtime-session/core/types.js";
 
 export type DisplaySummaryGenerationResult = {
   summary: string;

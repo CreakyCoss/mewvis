@@ -14,11 +14,11 @@ import type {
 } from "../runtimes/types.js";
 import { resolveAgentSessionDir } from "../session/runtime/agent/session-plan.js";
 import { prepareBridgeRuntimeAgentPrompt } from "../session/runtime/agent/prompt.js";
-import { BridgeLedgerStorage } from "../session/storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../session/storage/paths.js";
+import { BridgeLedgerStorage } from "../../runtime-session/storage/jsonl-store.js";
+import { resolveBridgeSessionPaths } from "../../runtime-session/storage/paths.js";
 import { createPromptLimits, toRuntimeMessages } from "../session/core/prompt-budget.js";
 import { BridgeSessionRecorder } from "../session/runtime/recorder.js";
-import { buildBridgeSessionContext } from "../session/core/projection.js";
+import { buildBridgeSessionContext } from "../../runtime-session/core/projection.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,

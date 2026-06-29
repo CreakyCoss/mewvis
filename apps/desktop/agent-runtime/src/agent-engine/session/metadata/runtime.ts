@@ -4,8 +4,8 @@ import {
   commandRootUserEntryId,
   commandTurnId,
 } from "../runtime/session-link.js";
-import type { BridgeMessageRole } from "../core/types.js";
-import { standardizeBridgeMessageMetadata } from "./standard.js";
+import type { BridgeMessageRole } from "../../../runtime-session/core/types.js";
+import { standardizeBridgeMessageMetadata } from "../../../runtime-session/metadata/standard.js";
 
 type RuntimeCommand = AgentRunCommand | RuntimeChatCommand;
 

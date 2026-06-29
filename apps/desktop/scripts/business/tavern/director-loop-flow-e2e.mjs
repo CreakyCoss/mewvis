@@ -48,38 +48,52 @@ writeFileSync(mockCollaborationPath, `
 
   export const buildTavernDirectorLoopCollaborationInput = realBuildTavernDirectorLoopCollaborationInput;
 
-  const decisionForRound = (round: number) => round === 1
-    ? {
-        speakerIds: ["char-a", "char-b"],
-        nonverbalReplyIds: [],
-        narrator: "灯影压低，柜台下传来第二声轻响。",
-        illustrationHints: [],
-        ambientActions: [],
-        reason: "先让林晏检查，再让谢无声守门。",
-      }
-    : {
-        speakerIds: ["char-a"],
-        nonverbalReplyIds: [],
-        narrator: "林晏拨开柜台缝隙，看见一枚旧钥匙。",
-        illustrationHints: [],
-        ambientActions: [],
-        reason: "线索已经出现，收束到林晏确认。",
-      };
+  const participantForCharacter = (input: any, characterId: string) =>
+    input.participants.find((participant: any) => participant.metadata?.characterId === characterId);
 
-  const outputTextForStep = (step: any, round: number) => {
-    if (step.outputKey === "reply:char-a" && round === 2) {
-      return [
-        "<inner_thought>这枚钥匙可能对应后门。</inner_thought>",
-        "<reply>林晏：「钥匙在柜台缝里。」</reply>",
-      ].join("\\n");
-    }
-    if (step.outputKey === "reply:char-a") {
+  const decisionForRound = (input: any, round: number) => {
+    const firstTarget = participantForCharacter(input, "char-a");
+    const secondTarget = participantForCharacter(input, "char-b");
+    const selected = round === 1 ? firstTarget : secondTarget;
+    return {
+      status: "continue",
+      candidates: [
+        {
+          targetId: firstTarget.id,
+          score: round === 1 ? 92 : 45,
+          reason: round === 1 ? "林晏最适合先检查柜台。" : "林晏已经完成检查。",
+          instruction: "承接现场，给出一句短回应。",
+        },
+        {
+          targetId: secondTarget.id,
+          score: round === 1 ? 44 : 88,
+          reason: round === 1 ? "谢无声暂时守门即可。" : "第二轮需要谢无声回应门口动静。",
+          instruction: "承接现场，给出一句短回应。",
+        },
+      ],
+      selectedTargetId: selected.id,
+      selectedInstruction: "承接现场，给出一句短回应。",
+      artifacts: [
+        {
+          type: "narrator",
+          content: round === 1
+            ? "灯影压低，柜台下传来第二声轻响。"
+            : "门口的风铃短促地响了一下。",
+        },
+      ],
+      reason: round === 1 ? "先让林晏检查。" : "再让谢无声守住门口。",
+    };
+  };
+
+  const outputTextForParticipant = (participant: any) => {
+    const characterId = participant?.metadata?.characterId;
+    if (characterId === "char-a") {
       return [
         "<inner_thought>我先确认柜台下面。</inner_thought>",
         "<reply>林晏：「我去柜台下看看。」</reply>",
       ].join("\\n");
     }
-    if (step.outputKey === "reply:char-b") {
+    if (characterId === "char-b") {
       return [
         "<inner_thought>门口不能没人看。</inner_thought>",
         "<reply>谢无声：「门口交给我。」</reply>",
@@ -166,53 +180,54 @@ writeFileSync(mockCollaborationPath, `
     const steps: any[] = [];
     const output: Record<string, unknown> = {};
     tavernDirectorLoopMockRuns.push(input);
+    const supervisor = input.participants.find((participant: any) => participant.kind === "supervisor");
+    if (!supervisor) {
+      throw new Error("supervisor.dispatch-loop mock requires a supervisor participant");
+    }
 
     onEvent?.({
       type: "workflow_started",
       taskId,
       workflowRunId,
-      workflowId: input.workflow.id,
+      workflowId: input.mode,
       executorId: "langgraph",
     });
 
-    const stepById = new Map((input.workflow.steps ?? []).map((step: any) => [step.id, step]));
-    const directorStep = stepById.get("director");
-    const normalizeStep = stepById.get("normalizeDirectorDecision");
-    const directorRouteStep = stepById.get("routeDirectorDecision");
-    const prepareDispatchStep = stepById.get("prepareSpeakerDispatches");
-    const dispatchStep = stepById.get("dispatchSpeakers");
-    const incrementStep = stepById.get("incrementDirectorLoopRound");
-    const loopRouteStep = stepById.get("routeDirectorLoop");
-    const dispatchCandidates = prepareDispatchStep.input.candidates ?? [];
-    const invocationByCharacterId = new Map(dispatchCandidates.map((candidate: any) => [
-      candidate.characterId,
-      candidate.invocation,
-    ]));
-
     for (const round of [1, 2]) {
-      const decision = decisionForRound(round);
+      const decision = decisionForRound(input, round);
       const directorRaw = JSON.stringify(decision);
-      emitStepStarted({ onEvent, step: directorStep, taskId, workflowRunId });
+      const supervisorStep = {
+        id: "supervisor",
+        type: "agent",
+        agentRoleId: supervisor.id,
+        outputKey: "supervisorRaw",
+      };
+      emitStepStarted({ onEvent, step: supervisorStep, taskId, workflowRunId });
       emitAgentText({
-        agentRoleId: directorStep.agentRoleId,
-        agentTaskId: workflowRunId + ":" + directorStep.id,
+        agentRoleId: supervisorStep.agentRoleId,
+        agentTaskId: workflowRunId + ":" + supervisorStep.id,
         onEvent,
-        stepId: directorStep.id,
+        stepId: supervisorStep.id,
         taskId,
         text: directorRaw,
         workflowRunId,
       });
-      output[directorStep.outputKey] = directorRaw;
+      output[supervisorStep.outputKey] = directorRaw;
       emitStepDone({
         onEvent,
         output: directorRaw,
-        step: directorStep,
+        step: supervisorStep,
         steps,
         taskId,
         text: directorRaw,
         workflowRunId,
       });
 
+      const normalizeStep = {
+        id: "normalizeSupervisorDecision",
+        type: "transform",
+        outputKey: "supervisorDecision",
+      };
       output[normalizeStep.outputKey] = decision;
       emitStepDone({
         onEvent,
@@ -223,42 +238,75 @@ writeFileSync(mockCollaborationPath, `
         workflowRunId,
       });
 
-      output[directorRouteStep.outputKey] = { route: "speakers", targetStepId: prepareDispatchStep.id };
-      emitStepDone({
-        onEvent,
-        output: output[directorRouteStep.outputKey],
-        step: directorRouteStep,
-        steps,
-        taskId,
-        workflowRunId,
-      });
-
-      const scheduledInvocations = decision.speakerIds
-        .map((characterId: string) => invocationByCharacterId.get(characterId))
-        .filter(Boolean);
-      output[prepareDispatchStep.outputKey] = {
-        count: scheduledInvocations.length,
-        invocations: scheduledInvocations,
+      const selectedParticipant = input.participants.find((participant: any) =>
+        participant.id === decision.selectedTargetId
+      );
+      if (!selectedParticipant) {
+        throw new Error("supervisor.dispatch-loop mock selected an unknown participant");
+      }
+      const selectedInvocation = {
+        id: selectedParticipant.id + "-round-" + round,
+        agentRoleId: selectedParticipant.id,
+        outputKey: "worker:" + selectedParticipant.id + ":round:" + round,
+        userMessage: decision.selectedInstruction,
+        metadata: {
+          round,
+          source: "supervisor.dispatch-loop",
+        },
+      };
+      const selectStep = {
+        id: "selectDispatchTarget",
+        type: "transform",
+        outputKey: "supervisorSelection",
+      };
+      output[selectStep.outputKey] = {
+        route: "dispatch",
+        decision,
+        selected: {
+          targetId: selectedParticipant.id,
+          score: decision.candidates.find((candidate: any) => candidate.targetId === selectedParticipant.id)?.score ?? 0,
+          instruction: decision.selectedInstruction,
+        },
+        invocations: [selectedInvocation],
       };
       emitStepDone({
         onEvent,
-        output: output[prepareDispatchStep.outputKey],
-        step: prepareDispatchStep,
+        output: output[selectStep.outputKey],
+        step: selectStep,
         steps,
         taskId,
         workflowRunId,
       });
 
+      const routeStep = {
+        id: "routeDispatchSelection",
+        type: "router",
+        outputKey: "supervisorSelectionRoute",
+      };
+      emitStepDone({
+        onEvent,
+        output: { route: "dispatch", targetStepId: "dispatchWorker" },
+        step: routeStep,
+        steps,
+        taskId,
+        workflowRunId,
+      });
+
+      const dispatchStep = {
+        id: "dispatchWorker",
+        type: "dispatch",
+        outputKey: "workerDispatch",
+      };
       emitStepStarted({ onEvent, step: dispatchStep, taskId, workflowRunId });
       const dispatchResults = [];
-      for (const invocation of scheduledInvocations) {
+      for (const invocation of [selectedInvocation]) {
         const speakerStep = {
           id: dispatchStep.id + ":" + invocation.id,
           type: "agent",
           agentRoleId: invocation.agentRoleId,
           outputKey: invocation.outputKey,
         };
-        const text = outputTextForStep(speakerStep, round);
+        const text = outputTextForParticipant(selectedParticipant);
         emitStepStarted({ onEvent, step: speakerStep, taskId, workflowRunId });
         emitAgentText({
           agentRoleId: speakerStep.agentRoleId,
@@ -299,6 +347,11 @@ writeFileSync(mockCollaborationPath, `
         workflowRunId,
       });
 
+      const incrementStep = {
+        id: "incrementSupervisorRound",
+        type: "transform",
+        outputKey: "supervisorRound",
+      };
       output[incrementStep.outputKey] = round;
       emitStepDone({
         onEvent,
@@ -308,9 +361,15 @@ writeFileSync(mockCollaborationPath, `
         taskId,
         workflowRunId,
       });
+
+      const loopRouteStep = {
+        id: "routeSupervisorLoop",
+        type: "router",
+        outputKey: "supervisorLoopRoute",
+      };
       output[loopRouteStep.outputKey] = {
-        route: round === 1 ? "director" : "end",
-        targetStepId: round === 1 ? "director" : "__end__",
+        route: round === 1 ? "supervisor" : "end",
+        targetStepId: round === 1 ? "supervisor" : "__end__",
       };
       emitStepDone({
         onEvent,
@@ -574,33 +633,27 @@ writeFileSync(entryPath, `
   const persistedTrace = state.workflowTracesByInstance[sceneInstanceId]?.[0];
 
   assert(tavernDirectorLoopMockRuns.length === 1, "导演回环应合并为一次 collaboration 调用", tavernDirectorLoopMockRuns);
-  assert(firstRun.workflow.id === "tavern.director-loop", "应运行 director-loop workflow", firstRun.workflow);
+  assert(firstRun.type === "collaborationMode", "导演回环应使用 collaboration mode", firstRun);
+  assert(firstRun.mode === "supervisor.dispatch-loop", "应运行 supervisor.dispatch-loop mode", firstRun);
   assert(
-    firstRun.agents.map((agent: any) => agent.id).join("|") ===
+    firstRun.participants.map((participant: any) => participant.id).join("|") ===
       [
         tavernDirectorAgentRoleId(room),
         tavernCharacterAgentRoleId(room, characterA),
         tavernCharacterAgentRoleId(room, characterB),
       ].join("|"),
-    "director-loop workflow 应包含导演和候选角色 agents",
-    firstRun.agents,
+    "supervisor.dispatch-loop mode 应包含监督者和候选角色 participants",
+    firstRun.participants,
   );
-  assert(
-    firstRun.workflow.steps.map((step: any) => step.id).join("|") ===
-      "director|normalizeDirectorDecision|routeDirectorDecision|prepareSpeakerDispatches|dispatchSpeakers|incrementDirectorLoopRound|routeDirectorLoop",
-    "director-loop workflow 应包含导演、动态分发、计数、路由步骤",
-    firstRun.workflow.steps,
-  );
-  assert(characterMessages.length === 3, "两轮回环应落地三条角色消息且不能重复 append", characterMessages);
+  assert(characterMessages.length === 2, "两轮回环应每轮落地一个被调度角色且不能重复 append", characterMessages);
   assert(characterMessageIds.size === characterMessages.length, "最终角色消息 id 不应重复", characterMessages);
   assert(narratorMessages.length === 2, "两次导演决策应实时落地旁白消息", narratorMessages);
   assert(characterMessages[0]?.content.includes("柜台下看看"), "第一轮 A 的最终内容应来自流式输出", characterMessages[0]);
-  assert(characterMessages[1]?.content.includes("门口交给我"), "第一轮 B 的最终内容应来自流式输出", characterMessages[1]);
-  assert(characterMessages[2]?.content.includes("钥匙在柜台缝里"), "第二轮 A 的最终内容应来自流式输出", characterMessages[2]);
-  assert(characterMessages[2]?.thought?.includes("后门"), "第二轮 A 的心理内容应被解析落地", characterMessages[2]);
+  assert(characterMessages[1]?.content.includes("门口交给我"), "第二轮 B 的最终内容应来自流式输出", characterMessages[1]);
+  assert(characterMessages[1]?.thought?.includes("门口"), "第二轮 B 的心理内容应被解析落地", characterMessages[1]);
   assert(
-    executionSteps.filter((step) => step.label.endsWith("回环回复") && step.status === "done").length === 3,
-    "三个回环 speaker 执行步骤都应完成",
+    executionSteps.filter((step) => step.label.endsWith("回环回复") && step.status === "done").length === 2,
+    "两个回环 speaker 执行步骤都应完成",
     executionSteps,
   );
   assert(
@@ -609,17 +662,18 @@ writeFileSync(entryPath, `
     executionSteps,
   );
   assert(persistedTrace?.status === "done", "导演回环 workflow trace 应完成", persistedTrace);
-  assert(result.turnMessages.filter((message: any) => message.role === "character").length === 3, "返回值应包含三条角色 turnMessages", result.turnMessages);
+  assert(result.turnMessages.filter((message: any) => message.role === "character").length === 2, "返回值应包含两条角色 turnMessages", result.turnMessages);
   assert(result.turnNarratorTexts.length === 2, "返回值应包含两条导演旁白文本", result.turnNarratorTexts);
-  assert(result.directorDecision?.speakerIds?.[0] === characterA.id, "返回值应保留最后一轮导演决策", result.directorDecision);
-  assert(result.directorReason.includes("收束"), "返回值应保留最后一轮导演理由", result.directorReason);
+  assert(result.directorDecision?.speakerIds?.[0] === characterB.id, "返回值应保留最后一轮导演决策", result.directorDecision);
+  assert(result.directorReason.includes("谢无声"), "返回值应保留最后一轮导演理由", result.directorReason);
   assert(activeReplyRef.message === null && activeReplyRef.text === "", "流程结束后 activeReplyRef 应清空", activeReplyRef);
   assert(errors.length === 0, "测试流程不应产生错误", errors);
 
   console.log(JSON.stringify({
     ok: true,
     collaborationRuns: tavernDirectorLoopMockRuns.length,
-    workflowStepIds: firstRun.workflow.steps.map((step: any) => step.id),
+    mode: firstRun.mode,
+    participantIds: firstRun.participants.map((participant: any) => participant.id),
     characterMessages: characterMessages.map((message: any) => ({
       characterId: message.characterId,
       status: message.status,

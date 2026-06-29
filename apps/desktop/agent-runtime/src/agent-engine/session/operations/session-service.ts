@@ -23,10 +23,10 @@ import {
   resolveAgentSessionDir,
 } from "../runtime/agent/session-plan.js";
 import { prepareBridgeRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
-import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../storage/paths.js";
-import { buildBridgeSessionContext } from "../core/projection.js";
-import type { BridgeMessageRole } from "../core/types.js";
+import { BridgeLedgerStorage } from "../../../runtime-session/storage/jsonl-store.js";
+import { resolveBridgeSessionPaths } from "../../../runtime-session/storage/paths.js";
+import { buildBridgeSessionContext } from "../../../runtime-session/core/projection.js";
+import type { BridgeMessageRole } from "../../../runtime-session/core/types.js";
 import {
   bridgeLedgerOperationMetadata,
   commandBridgeMessageMetadata,
@@ -34,7 +34,7 @@ import {
 import type {
   SessionMutationResult,
   SessionResult,
-} from "../contracts/results.js";
+} from "../../../runtime-session/contracts/results.js";
 import { generateDisplaySummary } from "./display-summary.js";
 
 const openSessionStorage = async (
