@@ -30,7 +30,7 @@ pub struct RunAgentRuntimeChatInput {
 pub struct RunAgentRuntimeChatOutput {
     text: String,
     thinking: Option<String>,
-    bridge_session: Option<Value>,
+    runtime_session: Option<Value>,
 }
 
 #[tauri::command]

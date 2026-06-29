@@ -1,36 +1,36 @@
 import type {
-  BridgeDisplaySummary,
-  BridgeRuntimeLink,
+  RuntimeDisplaySummary,
+  RuntimeLink,
 } from "../contracts/results.js";
 
-export type BridgeMessageRole = "user" | "assistant" | "system";
+export type RuntimeMessageRole = "user" | "assistant" | "system";
 
-export type BridgeMessageActorType =
+export type RuntimeMessageActorType =
   | "user"
   | "agent"
   | "system"
   | "app"
-  | "bridge";
+  | "runtime";
 
-export type BridgeMessageScope = "shared" | "agent_private";
+export type RuntimeMessageScope = "shared" | "agent_private";
 
-export type BridgeMessageSource =
+export type RuntimeMessageSource =
   | "runtime"
   | "app_create_session"
   | "app_append"
   | "app_rebuild"
   | "app_edit"
   | "app_delete"
-  | "bridge_compact"
-  | "bridge_rebuild_agent_session"
-  | "bridge_display_summary"
-  | "bridge_branch";
+  | "runtime_compact"
+  | "runtime_rebuild_agent_session"
+  | "runtime_display_summary"
+  | "runtime_branch";
 
-export type BridgeMessageMetadata = {
-  bridgeMetadataVersion?: 1;
-  actorType?: BridgeMessageActorType;
-  source?: BridgeMessageSource;
-  scope?: BridgeMessageScope;
+export type RuntimeMessageMetadata = {
+  runtimeMetadataVersion?: 1;
+  actorType?: RuntimeMessageActorType;
+  source?: RuntimeMessageSource;
+  scope?: RuntimeMessageScope;
   runtimeId?: string | null;
   runtimeAgentId?: string | null;
   agentRoleId?: string | null;
@@ -52,15 +52,15 @@ export type BridgeMessageMetadata = {
   [key: string]: unknown;
 };
 
-export type BridgeMessage = {
+export type RuntimeMessage = {
   messageRecordId?: string;
-  role: BridgeMessageRole;
+  role: RuntimeMessageRole;
   content: string;
   timestamp: number;
-  metadata?: BridgeMessageMetadata | null;
+  metadata?: RuntimeMessageMetadata | null;
 };
 
-export type BridgeLedgerHeader = {
+export type RuntimeLedgerHeader = {
   type: "runtime_session";
   version: 1;
   id: string;
@@ -69,57 +69,57 @@ export type BridgeLedgerHeader = {
   sessionRootDir: string;
 };
 
-export type BridgeLedgerEntryBase = {
+export type RuntimeLedgerEntryBase = {
   type: string;
   id: string;
   parentId: string | null;
   timestamp: string;
 };
 
-export type BridgeMessageEntry = BridgeLedgerEntryBase & {
+export type RuntimeMessageEntry = RuntimeLedgerEntryBase & {
   type: "message";
-  message: BridgeMessage;
+  message: RuntimeMessage;
 };
 
-export type BridgeRequestContextEntry = BridgeLedgerEntryBase & {
+export type RuntimeRequestContextEntry = RuntimeLedgerEntryBase & {
   type: "request_context";
   content: string;
-  metadata?: BridgeMessageMetadata | null;
+  metadata?: RuntimeMessageMetadata | null;
 };
 
-export type BridgeRuntimeInstructionEntry = BridgeLedgerEntryBase & {
+export type RuntimeInstructionEntry = RuntimeLedgerEntryBase & {
   type: "runtime_instruction";
   content: string;
-  metadata?: BridgeMessageMetadata | null;
+  metadata?: RuntimeMessageMetadata | null;
 };
 
-export type BridgeBranchSummaryEntry = BridgeLedgerEntryBase & {
+export type RuntimeBranchSummaryEntry = RuntimeLedgerEntryBase & {
   type: "branch_summary";
   fromId: string;
   summary: string;
   details?: unknown;
 };
 
-export type BridgeCustomEntry = BridgeLedgerEntryBase & {
+export type RuntimeCustomEntry = RuntimeLedgerEntryBase & {
   type: "custom";
   customType: string;
   data?: unknown;
 };
 
-export type BridgeLeafEntry = BridgeLedgerEntryBase & {
+export type RuntimeLeafEntry = RuntimeLedgerEntryBase & {
   type: "leaf";
   targetId: string | null;
 };
 
-export type BridgeLedgerEntry =
-  | BridgeMessageEntry
-  | BridgeRequestContextEntry
-  | BridgeRuntimeInstructionEntry
-  | BridgeBranchSummaryEntry
-  | BridgeCustomEntry
-  | BridgeLeafEntry;
+export type RuntimeLedgerEntry =
+  | RuntimeMessageEntry
+  | RuntimeRequestContextEntry
+  | RuntimeInstructionEntry
+  | RuntimeBranchSummaryEntry
+  | RuntimeCustomEntry
+  | RuntimeLeafEntry;
 
-export type BridgeSessionRecordRef = {
+export type RuntimeSessionRecordRef = {
   sessionRootDir: string;
   userMessageRecordId?: string | null;
   requestContextRecordId?: string | null;
@@ -127,24 +127,24 @@ export type BridgeSessionRecordRef = {
   assistantMessageRecordId?: string | null;
 };
 
-export type BridgeSessionContext = {
+export type RuntimeSessionContext = {
   summary: string;
-  messages: BridgeMessage[];
+  messages: RuntimeMessage[];
   requestContexts: Array<{
     recordId: string;
     content: string;
     timestamp: number;
-    metadata?: BridgeMessageMetadata | null;
+    metadata?: RuntimeMessageMetadata | null;
   }>;
   runtimeInstructions: Array<{
     recordId: string;
     content: string;
     timestamp: number;
-    metadata?: BridgeMessageMetadata | null;
+    metadata?: RuntimeMessageMetadata | null;
   }>;
-  displaySummary: BridgeDisplaySummary | null;
-  displaySummaries: BridgeDisplaySummary[];
-  runtimeLinks: BridgeRuntimeLink[];
+  displaySummary: RuntimeDisplaySummary | null;
+  displaySummaries: RuntimeDisplaySummary[];
+  runtimeLinks: RuntimeLink[];
   leafId: string | null;
-  entries: BridgeLedgerEntry[];
+  entries: RuntimeLedgerEntry[];
 };

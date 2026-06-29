@@ -1,8 +1,8 @@
-import { BridgeTaskCommandType } from "../../contracts/protocol.js";
+import { AgentTaskCommandType } from "../../contracts/protocol.js";
 import type { RuntimeModelInput } from "../../contracts/model.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type { RuntimeChatCommand } from "../../runtimes/types.js";
-import type { BridgeLedgerEntry, BridgeSessionContext } from "../../../../session/core/types.js";
+import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../../../session/core/types.js";
 
 export type DisplaySummaryGenerationResult = {
   summary: string;
@@ -97,10 +97,10 @@ const splitText = (text: string, maxChars: number) => {
   return chunks;
 };
 
-const entryHeader = (entry: BridgeLedgerEntry) =>
+const entryHeader = (entry: RuntimeLedgerEntry) =>
   `[entry id=${entry.id} type=${entry.type} parent=${entry.parentId ?? "null"} timestamp=${entry.timestamp}]`;
 
-const renderEntry = (entry: BridgeLedgerEntry) => {
+const renderEntry = (entry: RuntimeLedgerEntry) => {
   if (entry.type === "leaf") {
     return "";
   }
@@ -150,7 +150,7 @@ const renderEntry = (entry: BridgeLedgerEntry) => {
   return "";
 };
 
-const renderSummarySource = (context: BridgeSessionContext) =>
+const renderSummarySource = (context: RuntimeSessionContext) =>
   context.entries
     .map(renderEntry)
     .filter((section) => section.trim())
@@ -192,7 +192,7 @@ const buildSummaryUserPrompt = (input: {
 };
 
 export const generateDisplaySummary = async (input: {
-  context: BridgeSessionContext;
+  context: RuntimeSessionContext;
   agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
@@ -222,7 +222,7 @@ export const generateDisplaySummary = async (input: {
     if (chunks.length === 1) {
       llmCallCount += 1;
       const command: RuntimeChatCommand = {
-        type: BridgeTaskCommandType.Chat,
+        type: AgentTaskCommandType.Chat,
         requestId: null,
         agentId: input.agentId ?? null,
         workspacePath: null,
@@ -258,7 +258,7 @@ export const generateDisplaySummary = async (input: {
     for (const [index, chunk] of chunks.entries()) {
       llmCallCount += 1;
       const command: RuntimeChatCommand = {
-        type: BridgeTaskCommandType.Chat,
+        type: AgentTaskCommandType.Chat,
         requestId: null,
         agentId: input.agentId ?? null,
         workspacePath: null,

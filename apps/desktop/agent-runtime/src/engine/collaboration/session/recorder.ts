@@ -5,8 +5,8 @@ import type {
   EmitCollaborationEvent,
 } from "../contracts/index.js";
 import { CollaborationEventType } from "../contracts/index.js";
-import { BridgeLedgerStorage } from "../../../session/storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../../../session/storage/paths.js";
+import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
 import {
   appendRuntimeSessionTraceRecord,
 } from "../../../session/trace/jsonl-trace.js";
@@ -63,7 +63,7 @@ export class CollaborationSessionRecorder {
     private readonly input: {
       collaboration: SessionBackedCollaborationInput;
       tracePath: string;
-      storage: BridgeLedgerStorage;
+      storage: RuntimeLedgerStorage;
       baseLeafId: string | null;
       modeId: string | null;
     },
@@ -76,8 +76,8 @@ export class CollaborationSessionRecorder {
       return null;
     }
 
-    const paths = await resolveBridgeSessionPaths(input);
-    const storage = await BridgeLedgerStorage.openOrCreate({
+    const paths = await resolveRuntimeSessionPaths(input);
+    const storage = await RuntimeLedgerStorage.openOrCreate({
       filePath: paths.ledgerPath,
       workspacePath: input.workspacePath,
       sessionRootDir: input.sessionRootDir,

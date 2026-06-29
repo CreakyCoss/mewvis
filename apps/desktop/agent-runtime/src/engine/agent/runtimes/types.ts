@@ -1,11 +1,11 @@
-import type { BridgeAgentDefinition } from "./agents.js";
+import type { RuntimeAgentDefinition } from "./agents.js";
 import type {
-  BridgeRuntimeResources,
-  BridgeEvent,
+  AgentRuntimeResources,
+  AgentEvent,
   ChatMessageInput,
   ChatResult,
 } from "../contracts/protocol.js";
-import { BridgeTaskCommandType } from "../contracts/protocol.js";
+import { AgentTaskCommandType } from "../contracts/protocol.js";
 import type { RuntimeModelInput } from "../contracts/model.js";
 import type { AskUserInput } from "../tools/types.js";
 
@@ -24,7 +24,7 @@ export type AgentRunCommand = {
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  resources?: BridgeRuntimeResources | null;
+  resources?: AgentRuntimeResources | null;
   sessionLink?: RuntimeSessionLink | null;
 };
 
@@ -51,7 +51,7 @@ export type AgentCompactResult = {
 };
 
 export type RuntimeChatCommand = {
-  type: BridgeTaskCommandType.Chat;
+  type: AgentTaskCommandType.Chat;
   requestId?: string | null;
   agentId?: string | null;
   workspacePath?: string | null;
@@ -82,10 +82,10 @@ export type UserInputRequest = {
 
 export type UserInputHandler = (request: UserInputRequest) => Promise<string>;
 
-export type EmitBridgeEvent = (event: BridgeEvent) => void;
+export type EmitAgentEvent = (event: AgentEvent) => void;
 
 export type RuntimeEmitContext = {
-  emit: EmitBridgeEvent;
+  emit: EmitAgentEvent;
 };
 
 export type AgentRuntimeCallbacks = {
@@ -123,7 +123,7 @@ export type ChatRuntime = {
   ): Promise<ChatResult>;
 };
 
-export type BridgeAgent = BridgeAgentDefinition & {
+export type RuntimeAgent = RuntimeAgentDefinition & {
   agent?: AgentRuntime;
   chat?: ChatRuntime;
 };

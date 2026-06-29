@@ -1,4 +1,4 @@
-import type { BridgeRuntimeResources } from "../contracts/protocol.js";
+import type { AgentRuntimeResources } from "../contracts/protocol.js";
 import type { AgentRunCommand } from "./types.js";
 
 type RuntimeResourceCommand = Pick<
@@ -8,7 +8,7 @@ type RuntimeResourceCommand = Pick<
 
 export const runtimeResourcesFor = (
   command: RuntimeResourceCommand,
-): BridgeRuntimeResources => ({
+): AgentRuntimeResources => ({
   ...(command.resources ?? {}),
   tools: {
     ...(command.resources?.tools ?? {}),

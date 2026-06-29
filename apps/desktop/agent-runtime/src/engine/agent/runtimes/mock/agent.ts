@@ -1,4 +1,4 @@
-import { BridgeEventType } from "../../contracts/protocol.js";
+import { AgentEventType } from "../../contracts/protocol.js";
 import type {
   AgentCompactResult,
   AgentRunResult,
@@ -15,29 +15,29 @@ export class MockAgent implements AgentRuntime {
   async run(command: RuntimeAgentCommand, { emit }: AgentRuntimeContext): Promise<AgentRunResult> {
     const text = createMockAgentText(command);
 
-    emit({ type: BridgeEventType.Started, taskId: command.taskId });
+    emit({ type: AgentEventType.Started, taskId: command.taskId });
     emit({
-      type: BridgeEventType.ThinkingDelta,
+      type: AgentEventType.ThinkingDelta,
       taskId: command.taskId,
       delta: "Mock agent 正在生成模拟结果...\n",
     });
     await sleep(30);
     emit({
-      type: BridgeEventType.ToolStart,
+      type: AgentEventType.ToolStart,
       taskId: command.taskId,
       toolName: "mock_tool",
       args: { promptLength: command.agentTaskPrompt.length },
     });
     await sleep(30);
     emit({
-      type: BridgeEventType.ToolUpdate,
+      type: AgentEventType.ToolUpdate,
       taskId: command.taskId,
       toolName: "mock_tool",
       partialResult: "模拟工具执行中",
     });
     await sleep(30);
     emit({
-      type: BridgeEventType.ToolEnd,
+      type: AgentEventType.ToolEnd,
       taskId: command.taskId,
       toolName: "mock_tool",
       isError: false,
@@ -45,12 +45,12 @@ export class MockAgent implements AgentRuntime {
     });
 
     for (const delta of chunkText(text)) {
-      emit({ type: BridgeEventType.TextDelta, taskId: command.taskId, delta });
+      emit({ type: AgentEventType.TextDelta, taskId: command.taskId, delta });
       await sleep(10);
     }
 
-    emit({ type: BridgeEventType.ThinkingEnd, taskId: command.taskId, content: "模拟完成。" });
-    emit({ type: BridgeEventType.Done, taskId: command.taskId, text });
+    emit({ type: AgentEventType.ThinkingEnd, taskId: command.taskId, content: "模拟完成。" });
+    emit({ type: AgentEventType.Done, taskId: command.taskId, text });
 
     return { text };
   }

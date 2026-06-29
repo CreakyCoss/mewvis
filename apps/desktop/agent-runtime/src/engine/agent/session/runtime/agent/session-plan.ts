@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentRunCommand } from "../../../runtimes/types.js";
-import { resolveBridgeSessionPaths } from "../../../../../session/storage/paths.js";
+import { resolveRuntimeSessionPaths } from "../../../../../session/storage/paths.js";
 
 const sanitizeSegment = (value: string, fallback: string) => {
   const segment = value
@@ -18,7 +18,7 @@ export const createAgentSessionPlan = async (input: {
   runtimeId: string;
   agentRoleId?: string | null;
 }) => {
-  const paths = await resolveBridgeSessionPaths(input);
+  const paths = await resolveRuntimeSessionPaths(input);
   const runtimeKey = sanitizeSegment(input.runtimeId, "runtime");
   const agentRoleId = sanitizeSegment(input.agentRoleId ?? "default", "default");
   const sessionDir = resolve(paths.agentsDir, runtimeKey, agentRoleId);
@@ -39,7 +39,7 @@ export const resolveAgentSessionDir = async (
     return null;
   }
 
-  const paths = await resolveBridgeSessionPaths({
+  const paths = await resolveRuntimeSessionPaths({
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
   });

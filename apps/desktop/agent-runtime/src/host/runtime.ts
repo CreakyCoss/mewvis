@@ -1,5 +1,5 @@
-import type { BridgeEvent } from "../engine/agent/contracts/protocol.js";
-import type { WriteBridgeJsonLine } from "../engine/agent/commands/responses.js";
+import type { AgentEvent } from "../engine/agent/contracts/protocol.js";
+import type { WriteAgentRuntimeJsonLine } from "../engine/agent/commands/responses.js";
 import { createAgentCommandRouter } from "../engine/agent/commands/router.js";
 import { createAgentEngine } from "../engine/agent/index.js";
 import type { AgentRuntimeCallbacks } from "../engine/agent/runtimes/types.js";
@@ -12,8 +12,8 @@ import { createRuntimeRouter } from "./router/index.js";
 export type AgentRuntimeHostOptions = {
   callbacks?: Partial<AgentRuntimeCallbacks>;
   close?: () => void;
-  emit?: (event: BridgeEvent) => void;
-  writeJsonLine?: WriteBridgeJsonLine;
+  emit?: (event: AgentEvent) => void;
+  writeJsonLine?: WriteAgentRuntimeJsonLine;
 };
 
 export const createAgentRuntime = ({

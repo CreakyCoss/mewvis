@@ -1,18 +1,18 @@
 import {
-  BridgeEventType,
-  BridgeResultType,
+  AgentEventType,
+  AgentResultType,
   type AgentDefinitionsResult,
-  type BridgeCommand,
+  type AgentCommand,
   type PingCommand,
   type PongResult,
   type ShutdownAckResult,
   type ShutdownCommand,
   type TaskResult,
 } from "../contracts/protocol.js";
-import type { AgentRunCommand, EmitBridgeEvent } from "../runtimes/types.js";
-import { bridgeAgentManifest } from "../runtimes/registry.js";
+import type { AgentRunCommand, EmitAgentEvent } from "../runtimes/types.js";
+import { runtimeAgentManifest } from "../runtimes/registry.js";
 
-export type WriteBridgeJsonLine = (value: unknown) => void;
+export type WriteAgentRuntimeJsonLine = (value: unknown) => void;
 
 type RequestCommand = {
   requestId?: string | null;
@@ -25,19 +25,19 @@ type TaskResultStatus = { success: true } | { success: false; message: string };
 export const createAgentDefinitionsResult = (
   command: RequestCommand,
 ): AgentDefinitionsResult => ({
-  type: BridgeResultType.AgentDefinitions,
+  type: AgentResultType.AgentDefinitions,
   requestId: command.requestId ?? null,
-  defaultAgentId: bridgeAgentManifest.defaultAgentId,
-  agents: bridgeAgentManifest.definitions,
+  defaultAgentId: runtimeAgentManifest.defaultAgentId,
+  agents: runtimeAgentManifest.definitions,
 });
 
 export const createPongResult = (command: PingCommand): PongResult => ({
-  type: BridgeResultType.Pong,
+  type: AgentResultType.Pong,
   requestId: command.requestId ?? null,
 });
 
 export const createShutdownAckResult = (command: ShutdownCommand): ShutdownAckResult => ({
-  type: BridgeResultType.ShutdownAck,
+  type: AgentResultType.ShutdownAck,
   requestId: command.requestId ?? null,
 });
 
@@ -45,7 +45,7 @@ export const createTaskResult = (
   command: TaskCommand,
   result: TaskResultStatus,
 ): TaskResult => ({
-  type: BridgeResultType.TaskResult,
+  type: AgentResultType.TaskResult,
   requestId: command.requestId ?? null,
   taskId: command.taskId,
   ...result,
@@ -53,23 +53,23 @@ export const createTaskResult = (
 
 export const writeTaskResult = (
   command: TaskCommand,
-  writeJsonLine: WriteBridgeJsonLine,
+  writeJsonLine: WriteAgentRuntimeJsonLine,
   result: TaskResultStatus,
 ) => {
   writeJsonLine(createTaskResult(command, result));
 };
 
 export const emitCommandError = (
-  command: BridgeCommand,
-  emit: EmitBridgeEvent,
+  command: AgentCommand,
+  emit: EmitAgentEvent,
   message: string,
 ) => {
   emit({
-    type: BridgeEventType.Error,
+    type: AgentEventType.Error,
     taskId: taskIdFromCommand(command),
     message,
   });
 };
 
-const taskIdFromCommand = (command: BridgeCommand) =>
+const taskIdFromCommand = (command: AgentCommand) =>
   "taskId" in command ? command.taskId ?? undefined : undefined;

@@ -22,7 +22,7 @@ export const createPiInitialPrompt = (
     bootstrapInstruction
       ? [
         "<session_bootstrap_instruction instruction=\"agent_session_initialization_only\">",
-        "以下内容只用于初始化或重建底层 Agent session 时指导如何使用 bridge ledger 历史，不是用户的新请求。",
+        "以下内容只用于初始化或重建底层 Agent session 时指导如何使用 runtime ledger 历史，不是用户的新请求。",
         bootstrapInstruction,
         "</session_bootstrap_instruction>",
       ].join("\n")

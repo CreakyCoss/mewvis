@@ -1,6 +1,6 @@
 export type {
-  BridgeAgentCapability,
-  BridgeAgentDefinition,
+  RuntimeAgentCapability,
+  RuntimeAgentDefinition,
 } from "../runtimes/agents.js";
 
 export {

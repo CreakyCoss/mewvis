@@ -1,8 +1,8 @@
 import { PiAgent } from "./agent/index.js";
 import { PiChatRuntime } from "./chat/index.js";
-import type { BridgeAgent } from "../types.js";
+import type { RuntimeAgent } from "../types.js";
 
-export const piBridgeAgent = {
+export const piRuntimeAgent = {
   id: "pi",
   label: "Pi",
   description: "使用 Pi coding agent 和 Pi AI 运行真实任务。",
@@ -10,4 +10,4 @@ export const piBridgeAgent = {
   requiresModel: true,
   agent: new PiAgent(),
   chat: new PiChatRuntime(),
-} satisfies BridgeAgent;
+} satisfies RuntimeAgent;

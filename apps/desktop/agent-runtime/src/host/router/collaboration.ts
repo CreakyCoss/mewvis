@@ -1,8 +1,8 @@
 import {
-  BridgeEventType,
+  AgentEventType,
 } from "../../engine/agent/contracts/protocol.js";
-import type { WriteBridgeJsonLine } from "../../engine/agent/commands/responses.js";
-import type { EmitBridgeEvent } from "../../engine/agent/runtimes/types.js";
+import type { WriteAgentRuntimeJsonLine } from "../../engine/agent/commands/responses.js";
+import type { EmitAgentEvent } from "../../engine/agent/runtimes/types.js";
 import type { CollaborationEngine } from "../../engine/collaboration/index.js";
 import { messageFromError } from "../../engine/agent/utils/error.js";
 import {
@@ -16,8 +16,8 @@ type RunCommand = RunCollaborationCommand | RunCollaborationModeCommand;
 
 type RunnerDeps = {
   collaborationEngine: CollaborationEngine;
-  emit: EmitBridgeEvent;
-  writeJsonLine: WriteBridgeJsonLine;
+  emit: EmitAgentEvent;
+  writeJsonLine: WriteAgentRuntimeJsonLine;
 };
 
 const busyMessage = "当前 Agent runtime 已有运行中的协作任务，无法启动新协作";
@@ -35,7 +35,7 @@ export const createCollaborationCommandRunner = (deps: RunnerDeps) => {
 
   const writeBusyResult = (command: RunCommand) => {
     deps.emit({
-      type: BridgeEventType.Error,
+      type: AgentEventType.Error,
       message: busyMessage,
     });
     deps.writeJsonLine({
@@ -97,7 +97,7 @@ export const createCollaborationCommandRunner = (deps: RunnerDeps) => {
     }).catch((error: unknown) => {
       const message = messageFromError(error);
       deps.emit({
-        type: BridgeEventType.Error,
+        type: AgentEventType.Error,
         taskId: taskIdFor(command) || undefined,
         message,
       });

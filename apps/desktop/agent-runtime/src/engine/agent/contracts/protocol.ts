@@ -1,9 +1,9 @@
 import type { AgentToolName } from "../tools/definitions.js";
-import type { BridgeAgentDefinition } from "../runtimes/agents.js";
+import type { RuntimeAgentDefinition } from "../runtimes/agents.js";
 import type { RuntimeModelInput } from "./model.js";
 import type { AskUserInput } from "../tools/types.js";
 
-export enum BridgeTaskCommandType {
+export enum AgentTaskCommandType {
   SendMessage = "send_message",
   AnswerQuestion = "answer_question",
   Chat = "chat",
@@ -12,7 +12,7 @@ export enum BridgeTaskCommandType {
   Shutdown = "shutdown",
 }
 
-export enum BridgeContextCommandType {
+export enum AgentSessionCommandType {
   CreateSession = "create_session",
   Compact = "compact",
   RebuildAgentSession = "rebuild_agent_session",
@@ -24,14 +24,14 @@ export enum BridgeContextCommandType {
   ReadSession = "read_session",
 }
 
-export const BridgeCommandType = {
-  ...BridgeTaskCommandType,
-  ...BridgeContextCommandType,
+export const AgentCommandType = {
+  ...AgentTaskCommandType,
+  ...AgentSessionCommandType,
 } as const;
 
-export type BridgeCommandType = BridgeTaskCommandType | BridgeContextCommandType;
+export type AgentCommandType = AgentTaskCommandType | AgentSessionCommandType;
 
-export enum BridgeResultType {
+export enum AgentResultType {
   AgentDefinitions = "agent_definitions",
   ChatResult = "chat_result",
   Pong = "pong",
@@ -41,7 +41,7 @@ export enum BridgeResultType {
   TaskResult = "task_result",
 }
 
-export enum BridgeEventType {
+export enum AgentEventType {
   Started = "started",
   Question = "question",
   QuestionAnswered = "question_answered",
@@ -56,46 +56,46 @@ export enum BridgeEventType {
   Error = "error",
 }
 
-export type BridgeRuntimeMcpResources = {
+export type AgentRuntimeMcpResources = {
   servers?: unknown[];
   [key: string]: unknown;
 };
 
-export type BridgeRuntimeToolResources = {
+export type AgentRuntimeToolResources = {
   allowed?: AgentToolName[] | null;
 };
 
-export type BridgeRuntimeSkillResources = {
+export type AgentRuntimeSkillResources = {
   bundledPath?: string | string[] | null;
   paths?: string[] | null;
   enabled?: string[] | null;
 };
 
-export type BridgeRuntimeResources = {
-  tools?: BridgeRuntimeToolResources | null;
-  skills?: BridgeRuntimeSkillResources | null;
-  mcp?: BridgeRuntimeMcpResources | null;
+export type AgentRuntimeResources = {
+  tools?: AgentRuntimeToolResources | null;
+  skills?: AgentRuntimeSkillResources | null;
+  mcp?: AgentRuntimeMcpResources | null;
 };
 
-export type BridgeSessionTarget = {
+export type RuntimeSessionTarget = {
   workspacePath: string;
   sessionRootDir?: string | null;
 };
 
-export type BridgeAgentTarget = {
+export type AgentTarget = {
   agentId?: string | null;
   agentRoleId?: string | null;
 };
 
-export type BridgeRunMode = "chat" | "agent";
+export type AgentRunMode = "chat" | "agent";
 
-export type BridgeRuntimeOptions = {
-  mode?: BridgeRunMode | null;
+export type AgentRuntimeOptions = {
+  mode?: AgentRunMode | null;
   taskId?: string | null;
   streamId?: string | null;
   stream?: boolean;
   model?: RuntimeModelInput | null;
-  resources?: BridgeRuntimeResources | null;
+  resources?: AgentRuntimeResources | null;
 };
 
 export type ChatMessageInput = {
@@ -103,7 +103,7 @@ export type ChatMessageInput = {
   content: string;
 };
 
-export type BridgeMessageInput = {
+export type AgentMessageInput = {
   userMessage?: string | null;
   systemPrompt?: string | null;
   requestContext?: string | null;
@@ -113,18 +113,18 @@ export type BridgeMessageInput = {
 };
 
 export type SendMessageCommand = {
-  type: BridgeTaskCommandType.SendMessage;
+  type: AgentTaskCommandType.SendMessage;
   requestId?: string | null;
-  session: BridgeSessionTarget;
-  agent?: BridgeAgentTarget | null;
-  input: BridgeMessageInput & {
+  session: RuntimeSessionTarget;
+  agent?: AgentTarget | null;
+  input: AgentMessageInput & {
     userMessage: string;
   };
-  runtime?: BridgeRuntimeOptions | null;
+  runtime?: AgentRuntimeOptions | null;
 };
 
 export type AnswerQuestionCommand = {
-  type: BridgeTaskCommandType.AnswerQuestion;
+  type: AgentTaskCommandType.AnswerQuestion;
   requestId?: string | null;
   taskId: string;
   questionId: string;
@@ -132,28 +132,28 @@ export type AnswerQuestionCommand = {
 };
 
 export type ListAgentsCommand = {
-  type: BridgeTaskCommandType.ListAgents;
+  type: AgentTaskCommandType.ListAgents;
   requestId?: string | null;
 };
 
 export type ChatCommand = {
-  type: BridgeTaskCommandType.Chat;
+  type: AgentTaskCommandType.Chat;
   requestId?: string | null;
-  session?: BridgeSessionTarget | null;
-  agent?: Pick<BridgeAgentTarget, "agentId"> | null;
-  input: BridgeMessageInput;
-  runtime?: Pick<BridgeRuntimeOptions, "streamId" | "stream" | "model"> | null;
+  session?: RuntimeSessionTarget | null;
+  agent?: Pick<AgentTarget, "agentId"> | null;
+  input: AgentMessageInput;
+  runtime?: Pick<AgentRuntimeOptions, "streamId" | "stream" | "model"> | null;
 };
 
 export type ChatResult = {
-  type: BridgeResultType.ChatResult;
+  type: AgentResultType.ChatResult;
   requestId?: string | null;
   text: string;
   thinking?: string | null;
-  bridgeSession?: BridgeSessionRecordRef | null;
+  runtimeSession?: RuntimeSessionRecordRef | null;
 };
 
-export type BridgeSessionRecordRef = {
+export type RuntimeSessionRecordRef = {
   sessionRootDir: string;
   userMessageRecordId?: string | null;
   requestContextRecordId?: string | null;
@@ -167,66 +167,66 @@ export type SessionCommandBase = {
   sessionRootDir: string;
 };
 
-export type BridgeCompactTarget = {
+export type RuntimeCompactTarget = {
   scope: "agent";
   agentId?: string | null;
   agentRoleId: string;
 };
 
-export type BridgeCompactOptions = {
+export type RuntimeCompactOptions = {
   compactInstruction?: string | null;
 };
 
-export type BridgeAgentSessionRebuildOptions = {
+export type RuntimeAgentSessionRebuildOptions = {
   rebuildInstruction?: string | null;
   userMessage?: string | null;
 };
 
-export type BridgeSummaryOptions = {
+export type RuntimeSummaryOptions = {
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
 };
 
 export type CompactCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.Compact;
-  target: BridgeCompactTarget;
-  options?: BridgeCompactOptions | null;
-  runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
+  type: AgentSessionCommandType.Compact;
+  target: RuntimeCompactTarget;
+  options?: RuntimeCompactOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
 };
 
 export type RebuildAgentSessionCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.RebuildAgentSession;
-  target: BridgeCompactTarget;
-  options?: BridgeAgentSessionRebuildOptions | null;
-  runtime?: Pick<BridgeRuntimeOptions, "model" | "resources"> | null;
+  type: AgentSessionCommandType.RebuildAgentSession;
+  target: RuntimeCompactTarget;
+  options?: RuntimeAgentSessionRebuildOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
 };
 
 export type SummarizeSessionCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.SummarizeSession;
-  agent?: Pick<BridgeAgentTarget, "agentId"> | null;
-  options?: BridgeSummaryOptions | null;
-  runtime?: Pick<BridgeRuntimeOptions, "model"> | null;
+  type: AgentSessionCommandType.SummarizeSession;
+  agent?: Pick<AgentTarget, "agentId"> | null;
+  options?: RuntimeSummaryOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model"> | null;
 };
 
 export type CreateSessionCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.CreateSession;
+  type: AgentSessionCommandType.CreateSession;
   systemPrompt?: string | null;
   metadata?: Record<string, unknown> | null;
 };
 
 export type MessageEditCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.MessageEdit;
+  type: AgentSessionCommandType.MessageEdit;
   messageRecordId: string;
   content: string;
 };
 
 export type MessageDeleteCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.MessageDelete;
+  type: AgentSessionCommandType.MessageDelete;
   messageRecordId: string;
 };
 
 export type MessageAppendCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.MessageAppend;
+  type: AgentSessionCommandType.MessageAppend;
   messages: Array<{
     role: string;
     content: string;
@@ -236,50 +236,50 @@ export type MessageAppendCommand = SessionCommandBase & {
 };
 
 export type RebuildCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.Rebuild;
+  type: AgentSessionCommandType.Rebuild;
   messages: MessageAppendCommand["messages"];
 };
 
 export type ReadSessionCommand = SessionCommandBase & {
-  type: BridgeContextCommandType.ReadSession;
+  type: AgentSessionCommandType.ReadSession;
 };
 
 export type AgentDefinitionsResult = {
-  type: BridgeResultType.AgentDefinitions;
+  type: AgentResultType.AgentDefinitions;
   requestId?: string | null;
   defaultAgentId: string;
-  agents: readonly BridgeAgentDefinition[];
+  agents: readonly RuntimeAgentDefinition[];
 };
 
 export type PingCommand = {
-  type: BridgeTaskCommandType.Ping;
+  type: AgentTaskCommandType.Ping;
   requestId?: string | null;
 };
 
 export type ShutdownCommand = {
-  type: BridgeTaskCommandType.Shutdown;
+  type: AgentTaskCommandType.Shutdown;
   requestId?: string | null;
 };
 
 export type PongResult = {
-  type: BridgeResultType.Pong;
+  type: AgentResultType.Pong;
   requestId?: string | null;
 };
 
 export type ShutdownAckResult = {
-  type: BridgeResultType.ShutdownAck;
+  type: AgentResultType.ShutdownAck;
   requestId?: string | null;
 };
 
 export type TaskResult = {
-  type: BridgeResultType.TaskResult;
+  type: AgentResultType.TaskResult;
   requestId?: string | null;
   taskId: string;
   success: boolean;
   message?: string;
 };
 
-export type BridgeTaskCommand =
+export type AgentTaskCommand =
   | SendMessageCommand
   | AnswerQuestionCommand
   | ChatCommand
@@ -287,7 +287,7 @@ export type BridgeTaskCommand =
   | PingCommand
   | ShutdownCommand;
 
-export type BridgeContextCommand =
+export type AgentSessionCommand =
   | CreateSessionCommand
   | CompactCommand
   | RebuildAgentSessionCommand
@@ -298,25 +298,25 @@ export type BridgeContextCommand =
   | RebuildCommand
   | ReadSessionCommand;
 
-export type BridgeCommand = BridgeTaskCommand | BridgeContextCommand;
+export type AgentCommand = AgentTaskCommand | AgentSessionCommand;
 
-export type BridgeEvent =
-  | { type: BridgeEventType.Started; taskId: string }
+export type AgentEvent =
+  | { type: AgentEventType.Started; taskId: string }
   | {
-    type: BridgeEventType.Question;
+    type: AgentEventType.Question;
     taskId: string;
     questionId: string;
     question: string;
     context?: string | null;
     input?: AskUserInput;
   }
-  | { type: BridgeEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
-  | { type: BridgeEventType.ReplaceText; taskId: string; text: string }
-  | { type: BridgeEventType.TextDelta; taskId: string; delta: string }
-  | { type: BridgeEventType.ThinkingDelta; taskId: string; delta: string }
-  | { type: BridgeEventType.ThinkingEnd; taskId: string; content: string }
-  | { type: BridgeEventType.ToolStart; taskId: string; toolName: string; args: unknown }
-  | { type: BridgeEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
-  | { type: BridgeEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
-  | { type: BridgeEventType.Done; taskId: string; text: string; bridgeSession?: BridgeSessionRecordRef | null }
-  | { type: BridgeEventType.Error; taskId?: string; message: string };
+  | { type: AgentEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
+  | { type: AgentEventType.ReplaceText; taskId: string; text: string }
+  | { type: AgentEventType.TextDelta; taskId: string; delta: string }
+  | { type: AgentEventType.ThinkingDelta; taskId: string; delta: string }
+  | { type: AgentEventType.ThinkingEnd; taskId: string; content: string }
+  | { type: AgentEventType.ToolStart; taskId: string; toolName: string; args: unknown }
+  | { type: AgentEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
+  | { type: AgentEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | { type: AgentEventType.Done; taskId: string; text: string; runtimeSession?: RuntimeSessionRecordRef | null }
+  | { type: AgentEventType.Error; taskId?: string; message: string };

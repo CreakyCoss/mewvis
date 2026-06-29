@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import {
-  BridgeEventType,
+  AgentEventType,
   type AnswerQuestionCommand,
 } from "../contracts/protocol.js";
 import type {
   AgentRuntimeCallbacks,
-  EmitBridgeEvent,
+  EmitAgentEvent,
   UserInputHandler,
 } from "../runtimes/types.js";
 
@@ -22,7 +22,7 @@ export type UserInputManager = {
 };
 
 export const createUserInputManager = (
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
 ): UserInputManager => {
   const pendingQuestions = new Map<string, PendingQuestion>();
 
@@ -35,7 +35,7 @@ export const createUserInputManager = (
     const questionId = randomUUID();
 
     emit({
-      type: BridgeEventType.Question,
+      type: AgentEventType.Question,
       taskId,
       questionId,
       question,
@@ -65,7 +65,7 @@ export const createUserInputManager = (
     pendingQuestions.delete(command.questionId);
     clearTimeout(pendingQuestion.timeout);
     emit({
-      type: BridgeEventType.QuestionAnswered,
+      type: AgentEventType.QuestionAnswered,
       taskId: command.taskId,
       questionId: command.questionId,
       answer: command.answer,

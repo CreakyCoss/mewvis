@@ -49,7 +49,7 @@ const loadEnabledPiSkills = (command: RuntimeAgentCommand): Skill[] => {
   const skills = paths.flatMap((dir) =>
     loadSkillsFromDir({
       dir,
-      source: "bridge",
+      source: "runtime",
     }).skills,
   );
 

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
-  BridgeContextCommandType,
-  BridgeTaskCommandType,
-  type BridgeCommand,
+  AgentSessionCommandType,
+  AgentTaskCommandType,
+  type AgentCommand,
   type ChatCommand,
   type ChatResult,
   type SendMessageCommand,
@@ -12,20 +12,20 @@ import {
   executeAgentRunCommand,
 } from "./execution.js";
 import {
-  appendBridgeSessionMessages,
-  compactBridgeSession,
-  createBridgeSession,
-  deleteBridgeSessionMessage,
-  editBridgeSessionMessage,
-  readBridgeSession,
-  rebuildBridgeAgentSession,
-  rebuildBridgeSession,
-  summarizeBridgeSession,
+  appendRuntimeSessionMessages,
+  compactRuntimeSession,
+  createRuntimeSession,
+  deleteRuntimeSessionMessage,
+  editRuntimeSessionMessage,
+  readRuntimeSession,
+  rebuildRuntimeAgentSession,
+  rebuildRuntimeSession,
+  summarizeRuntimeSession,
 } from "../session/index.js";
 import type {
   AgentRunCommand,
   AgentRuntimeCallbacks,
-  EmitBridgeEvent,
+  EmitAgentEvent,
   RuntimeChatCommand,
 } from "../runtimes/types.js";
 import { createUserInputManager } from "./user-input.js";
@@ -36,14 +36,14 @@ import {
   createShutdownAckResult,
   emitCommandError,
   writeTaskResult,
-  type WriteBridgeJsonLine,
+  type WriteAgentRuntimeJsonLine,
 } from "./responses.js";
 
 type AgentCommandRouterDeps = {
   callbacks?: Partial<AgentRuntimeCallbacks>;
   close: () => void;
-  emit: EmitBridgeEvent;
-  writeJsonLine: WriteBridgeJsonLine;
+  emit: EmitAgentEvent;
+  writeJsonLine: WriteAgentRuntimeJsonLine;
 };
 
 const runningTaskMessage = "当前 Agent runtime 已有运行中的任务，无法启动新任务";
@@ -53,7 +53,7 @@ const sendMessageRunsAgent = (command: SendMessageCommand) =>
   command.runtime?.mode === "agent" || Boolean(command.agent?.agentRoleId?.trim());
 
 const chatCommandFromSendMessage = (command: SendMessageCommand): RuntimeChatCommand => ({
-  type: BridgeTaskCommandType.Chat,
+  type: AgentTaskCommandType.Chat,
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
   workspacePath: command.session.workspacePath,
@@ -73,7 +73,7 @@ const agentRunCommandFromSendMessage = (command: SendMessageCommand): AgentRunCo
   runtimeMode: "agent",
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
-  taskId: command.runtime?.taskId?.trim() || command.requestId?.trim() || `bridge-task-${randomUUID()}`,
+  taskId: command.runtime?.taskId?.trim() || command.requestId?.trim() || `runtime-task-${randomUUID()}`,
   workspacePath: command.session.workspacePath,
   sessionRootDir: command.session.sessionRootDir ?? null,
   agentRoleId: command.agent?.agentRoleId ?? null,
@@ -99,7 +99,7 @@ const runtimeCommandFromSendMessage = (command: SendMessageCommand) =>
 
 const handleChatCommand = async (
   command: RuntimeChatCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
 ): Promise<ChatResult> => {
   const result = await executeChatCommand(command, { emit });
   return {
@@ -110,7 +110,7 @@ const handleChatCommand = async (
 
 const handleAgentRunCommand = async (
   command: AgentRunCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   callbacks: AgentRuntimeCallbacks,
 ) => {
   await executeAgentRunCommand(command, {
@@ -121,7 +121,7 @@ const handleAgentRunCommand = async (
 
 const runChat = async (
   command: RuntimeChatCommand,
-  errorCommand: BridgeCommand,
+  errorCommand: AgentCommand,
   deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine">,
 ) => {
   try {
@@ -133,7 +133,7 @@ const runChat = async (
 
 const runAgentRun = async (
   command: AgentRunCommand,
-  errorCommand: BridgeCommand,
+  errorCommand: AgentCommand,
   deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine"> & {
     callbacks: AgentRuntimeCallbacks;
   },
@@ -158,7 +158,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
   const runAgentWhenIdle = (
     command: AgentRunCommand,
-    errorCommand: BridgeCommand,
+    errorCommand: AgentCommand,
   ) => {
     if (runningTask) {
       emitCommandError(errorCommand, deps.emit, runningTaskMessage);
@@ -179,7 +179,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
   const runChatWhenIdle = async (
     command: RuntimeChatCommand,
-    errorCommand: BridgeCommand,
+    errorCommand: AgentCommand,
   ) => {
     if (runningTask) {
       emitCommandError(errorCommand, deps.emit, runningTaskChatMessage);
@@ -190,7 +190,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   };
 
   const runtimeChatCommandFromChat = (command: ChatCommand): RuntimeChatCommand => ({
-    type: BridgeTaskCommandType.Chat,
+    type: AgentTaskCommandType.Chat,
     requestId: command.requestId ?? null,
     agentId: command.agent?.agentId ?? null,
     workspacePath: command.session?.workspacePath ?? null,
@@ -206,34 +206,34 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
     messages: command.input.messages ?? [],
   });
 
-  const handle = async (command: BridgeCommand): Promise<boolean> => {
+  const handle = async (command: AgentCommand): Promise<boolean> => {
     switch (command.type) {
-      case BridgeTaskCommandType.AnswerQuestion:
+      case AgentTaskCommandType.AnswerQuestion:
         userInput.handleAnswer(command);
         return true;
 
-      case BridgeTaskCommandType.Ping:
+      case AgentTaskCommandType.Ping:
         deps.writeJsonLine(createPongResult(command));
         return true;
 
-      case BridgeTaskCommandType.Shutdown:
+      case AgentTaskCommandType.Shutdown:
         deps.writeJsonLine(createShutdownAckResult(command));
         deps.close();
         return false;
 
-      case BridgeTaskCommandType.ListAgents:
+      case AgentTaskCommandType.ListAgents:
         deps.writeJsonLine(createAgentDefinitionsResult(command));
         return true;
 
-      case BridgeContextCommandType.CreateSession:
+      case AgentSessionCommandType.CreateSession:
         try {
-          deps.writeJsonLine(await createBridgeSession(command));
+          deps.writeJsonLine(await createRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeTaskCommandType.SendMessage:
+      case AgentTaskCommandType.SendMessage:
         {
           const runtimeCommand = runtimeCommandFromSendMessage(command);
           if (runtimeCommand.mode === "agent") {
@@ -244,21 +244,21 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
         }
         return true;
 
-      case BridgeTaskCommandType.Chat:
+      case AgentTaskCommandType.Chat:
         await runChatWhenIdle(runtimeChatCommandFromChat(command), command);
         return true;
 
-      case BridgeContextCommandType.ReadSession:
+      case AgentSessionCommandType.ReadSession:
         try {
-          deps.writeJsonLine(await readBridgeSession(command));
+          deps.writeJsonLine(await readRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeContextCommandType.Compact:
+      case AgentSessionCommandType.Compact:
         try {
-          deps.writeJsonLine(await compactBridgeSession(command, {
+          deps.writeJsonLine(await compactRuntimeSession(command, {
             callbacks,
             emit: deps.emit,
           }));
@@ -267,13 +267,13 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
         }
         return true;
 
-      case BridgeContextCommandType.RebuildAgentSession:
+      case AgentSessionCommandType.RebuildAgentSession:
         if (runningTask) {
           emitCommandError(command, deps.emit, runningTaskMessage);
           return true;
         }
         try {
-          deps.writeJsonLine(await rebuildBridgeAgentSession(command, {
+          deps.writeJsonLine(await rebuildRuntimeAgentSession(command, {
             callbacks,
             emit: () => {},
           }));
@@ -282,41 +282,41 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
         }
         return true;
 
-      case BridgeContextCommandType.SummarizeSession:
+      case AgentSessionCommandType.SummarizeSession:
         try {
-          deps.writeJsonLine(await summarizeBridgeSession(command));
+          deps.writeJsonLine(await summarizeRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeContextCommandType.MessageEdit:
+      case AgentSessionCommandType.MessageEdit:
         try {
-          deps.writeJsonLine(await editBridgeSessionMessage(command));
+          deps.writeJsonLine(await editRuntimeSessionMessage(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeContextCommandType.MessageDelete:
+      case AgentSessionCommandType.MessageDelete:
         try {
-          deps.writeJsonLine(await deleteBridgeSessionMessage(command));
+          deps.writeJsonLine(await deleteRuntimeSessionMessage(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeContextCommandType.MessageAppend:
+      case AgentSessionCommandType.MessageAppend:
         try {
-          deps.writeJsonLine(await appendBridgeSessionMessages(command));
+          deps.writeJsonLine(await appendRuntimeSessionMessages(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
         return true;
 
-      case BridgeContextCommandType.Rebuild:
+      case AgentSessionCommandType.Rebuild:
         try {
-          deps.writeJsonLine(await rebuildBridgeSession(command));
+          deps.writeJsonLine(await rebuildRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }

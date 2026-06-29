@@ -1,10 +1,10 @@
 import type {
   AgentRuntime,
-  BridgeAgent,
+  RuntimeAgent,
   ChatRuntime,
   RuntimeMode,
 } from "./types.js";
-import { resolveBridgeAgent } from "./registry.js";
+import { resolveRuntimeAgent } from "./registry.js";
 
 export type RuntimeResolution =
   | {
@@ -19,34 +19,34 @@ export type RuntimeResolution =
   };
 
 type RuntimeResolver<TMode extends RuntimeMode, TImplementation> = (
-  agent: BridgeAgent,
+  agent: RuntimeAgent,
 ) => {
   mode: TMode;
   implementation: TImplementation;
 };
 
 const runtimeResolvers = {
-  agent: (bridgeAgent) => {
-    const implementation = bridgeAgent.agent;
+  agent: (runtimeAgent) => {
+    const implementation = runtimeAgent.agent;
     if (!implementation) {
-      throw new Error(`agent 不支持 agent runtime：${bridgeAgent.id}`);
+      throw new Error(`agent 不支持 agent runtime：${runtimeAgent.id}`);
     }
 
     return {
       mode: "agent",
-      runtimeId: bridgeAgent.id,
+      runtimeId: runtimeAgent.id,
       implementation,
     };
   },
-  chat: (bridgeAgent) => {
-    const implementation = bridgeAgent.chat;
+  chat: (runtimeAgent) => {
+    const implementation = runtimeAgent.chat;
     if (!implementation) {
-      throw new Error(`agent 不支持 chat runtime：${bridgeAgent.id}`);
+      throw new Error(`agent 不支持 chat runtime：${runtimeAgent.id}`);
     }
 
     return {
       mode: "chat",
-      runtimeId: bridgeAgent.id,
+      runtimeId: runtimeAgent.id,
       implementation,
     };
   },
@@ -62,6 +62,6 @@ export function resolveRuntime(
   mode: RuntimeMode,
   agentId?: string | null,
 ): RuntimeResolution {
-  const bridgeAgent = resolveBridgeAgent(agentId);
-  return runtimeResolvers[mode](bridgeAgent);
+  const runtimeAgent = resolveRuntimeAgent(agentId);
+  return runtimeResolvers[mode](runtimeAgent);
 }

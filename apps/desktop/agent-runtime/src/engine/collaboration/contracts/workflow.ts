@@ -2,7 +2,7 @@ import type {
   RuntimeModelInput,
 } from "../../agent/contracts/model.js";
 import type {
-  BridgeRuntimeResources,
+  AgentRuntimeResources,
 } from "../../agent/contracts/protocol.js";
 import type {
   AgentToolName,
@@ -19,7 +19,7 @@ export type CollaborationAgentRole = {
   runtimeModel?: RuntimeModelInput | null;
   allowedTools?: AgentToolName[];
   enabledSkills?: string[];
-  resources?: BridgeRuntimeResources | null;
+  resources?: AgentRuntimeResources | null;
 };
 
 export type CollaborationWorkflowExecutionMode = "serial" | "parallel";
@@ -43,6 +43,6 @@ export type CollaborationRunInput = {
   sessionRootDir?: string | null;
   workflow: CollaborationWorkflowDefinition;
   agents: readonly CollaborationAgentRole[];
-  resources?: BridgeRuntimeResources | null;
+  resources?: AgentRuntimeResources | null;
   input?: unknown;
 };

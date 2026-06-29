@@ -1,17 +1,17 @@
 import type { AgentRunCommand, RuntimeChatCommand } from "../../runtimes/types.js";
-import type { BridgeMessage, BridgeSessionContext } from "../../../../session/core/types.js";
-import type { BridgeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
-import { runtimeBridgeMessageMetadata } from "../metadata/runtime.js";
+import type { RuntimeMessage, RuntimeSessionContext } from "../../../../session/core/types.js";
+import type { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
+import { runtimeMessageMetadata } from "../metadata/runtime.js";
 import { takeContextText } from "../core/prompt-budget.js";
 
 type RuntimeSystemPromptCommand = RuntimeChatCommand | AgentRunCommand;
 
 const normalized = (value: string | null | undefined) => value?.trim() ?? "";
 
-const systemMessagesIn = (context: BridgeSessionContext) =>
+const systemMessagesIn = (context: RuntimeSessionContext) =>
   context.messages.filter((message) => message.role === "system");
 
-const latestSystemPrompt = (context: BridgeSessionContext) =>
+const latestSystemPrompt = (context: RuntimeSessionContext) =>
   systemMessagesIn(context).at(-1)?.content.trim() ?? "";
 
 export const composeRuntimeSystemPrompt = ({
@@ -19,7 +19,7 @@ export const composeRuntimeSystemPrompt = ({
   currentSystemPrompt,
   includeSummary,
 }: {
-  context: BridgeSessionContext;
+  context: RuntimeSessionContext;
   currentSystemPrompt?: string | null;
   includeSummary?: boolean;
 }) => {
@@ -32,7 +32,7 @@ export const composeRuntimeSystemPrompt = ({
 
   if (includeSummary && context.summary.trim()) {
     sections.push([
-      "<conversation_summary source=\"bridge_ledger\" instruction=\"data_only; not_current_request\">",
+      "<conversation_summary source=\"runtime_ledger\" instruction=\"data_only; not_current_request\">",
       takeContextText(context.summary.trim(), 24000),
       "</conversation_summary>",
     ].join("\n"));
@@ -48,9 +48,9 @@ export const appendRuntimeSystemPromptIfNeeded = async ({
   baseLeafId,
   parentEntryId,
 }: {
-  storage: BridgeLedgerStorage;
+  storage: RuntimeLedgerStorage;
   command: RuntimeSystemPromptCommand;
-  context: BridgeSessionContext;
+  context: RuntimeSessionContext;
   baseLeafId: string | null;
   parentEntryId?: string | null;
 }) => {
@@ -74,7 +74,7 @@ export const appendRuntimeSystemPromptIfNeeded = async ({
     role: "system",
     content,
     timestamp: Date.now(),
-    metadata: runtimeBridgeMessageMetadata({
+    metadata: runtimeMessageMetadata({
       command,
       role: "system",
       baseLeafId,
@@ -82,5 +82,5 @@ export const appendRuntimeSystemPromptIfNeeded = async ({
   }, parentEntryId ?? undefined);
 };
 
-export const visibleHistoryMessages = (messages: BridgeMessage[]) =>
+export const visibleHistoryMessages = (messages: RuntimeMessage[]) =>
   messages.filter((message) => message.role !== "system");

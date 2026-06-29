@@ -5,7 +5,7 @@ import {
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import {
-  BridgeEventType,
+  AgentEventType,
   type ChatResult,
 } from "../../../contracts/protocol.js";
 import type {
@@ -56,14 +56,14 @@ export class PiChatRuntime implements ChatRuntime {
     for await (const event of stream) {
       if (event.type === "text_delta" && command.streamId) {
         context.emit({
-          type: BridgeEventType.TextDelta,
+          type: AgentEventType.TextDelta,
           taskId: command.streamId,
           delta: event.delta,
         });
       }
       if (event.type === "thinking_delta" && command.streamId) {
         context.emit({
-          type: BridgeEventType.ThinkingDelta,
+          type: AgentEventType.ThinkingDelta,
           taskId: command.streamId,
           delta: event.delta,
         });

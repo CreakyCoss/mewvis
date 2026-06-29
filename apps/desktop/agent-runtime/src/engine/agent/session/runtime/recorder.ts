@@ -1,19 +1,19 @@
 import type {
-  BridgeEvent,
+  AgentEvent,
   ChatMessageInput,
 } from "../../contracts/protocol.js";
-import { BridgeEventType } from "../../contracts/protocol.js";
+import { AgentEventType } from "../../contracts/protocol.js";
 import type {
   AgentRunCommand,
-  EmitBridgeEvent,
+  EmitAgentEvent,
   RuntimeChatCommand,
 } from "../../runtimes/types.js";
 import type {
-  BridgeMessage,
-  BridgeSessionRecordRef,
+  RuntimeMessage,
+  RuntimeSessionRecordRef,
 } from "../../../../session/core/types.js";
-import { BridgeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../../../../session/storage/paths.js";
+import { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
 import {
   appendRuntimeSessionTraceRecord,
 } from "../../../../session/trace/jsonl-trace.js";
@@ -21,8 +21,8 @@ import {
   refreshRuntimeSessionManifest,
 } from "../../../../session/manifest/session-manifest.js";
 import {
-  runtimeBridgeEntryMetadata,
-  runtimeBridgeMessageMetadata,
+  runtimeEntryMetadata,
+  runtimeMessageMetadata,
 } from "../metadata/runtime.js";
 import {
   commandParentEntryId,
@@ -38,7 +38,7 @@ type TraceRecord = {
   type: "event" | "error";
   timestamp: string;
   taskId?: string | null;
-  event?: BridgeEvent;
+  event?: AgentEvent;
   message?: string;
 };
 
@@ -81,7 +81,7 @@ const initialUserMessageFor = (
     parentEntryId?: string | null;
     rootUserEntryId?: string | null;
   },
-): BridgeMessage | null => {
+): RuntimeMessage | null => {
   const timestamp = Date.now();
   if ("type" in command && command.type === "chat") {
     const content = contentFromChatMessage(latestUserMessage(command));
@@ -90,7 +90,7 @@ const initialUserMessageFor = (
         role: "user",
         content,
         timestamp,
-        metadata: runtimeBridgeMessageMetadata({
+        metadata: runtimeMessageMetadata({
           command,
           role: "user",
           baseLeafId,
@@ -108,7 +108,7 @@ const initialUserMessageFor = (
         role: "user",
         content,
         timestamp,
-        metadata: runtimeBridgeMessageMetadata({
+        metadata: runtimeMessageMetadata({
           command,
           role: "user",
           baseLeafId,
@@ -125,7 +125,7 @@ const initialUserMessageFor = (
 const taskIdFor = (command: RuntimeChatCommand | AgentRunCommand) =>
   "runtimeMode" in command ? command.taskId : command.streamId ?? null;
 
-export class BridgeSessionRecorder {
+export class RuntimeSessionRecorder {
   private text = "";
   private thinking = "";
   private userEntryId: string | null = null;
@@ -141,23 +141,23 @@ export class BridgeSessionRecorder {
     private readonly input: {
       command: SessionBackedCommand;
       tracePath: string;
-      storage: BridgeLedgerStorage;
+      storage: RuntimeLedgerStorage;
       baseLeafId: string | null;
     },
   ) {}
 
-  static async create(command: RuntimeChatCommand | AgentRunCommand): Promise<BridgeSessionRecorder | null> {
+  static async create(command: RuntimeChatCommand | AgentRunCommand): Promise<RuntimeSessionRecorder | null> {
     if (!hasSession(command)) {
       return null;
     }
 
-    const paths = await resolveBridgeSessionPaths(command);
-    const storage = await BridgeLedgerStorage.openOrCreate({
+    const paths = await resolveRuntimeSessionPaths(command);
+    const storage = await RuntimeLedgerStorage.openOrCreate({
       filePath: paths.ledgerPath,
       workspacePath: command.workspacePath,
       sessionRootDir: command.sessionRootDir,
     });
-    return new BridgeSessionRecorder({
+    return new RuntimeSessionRecorder({
       command,
       tracePath: paths.tracePath,
       storage,
@@ -197,9 +197,9 @@ export class BridgeSessionRecorder {
     return entry;
   }
 
-  wrapEmit(baseEmit: EmitBridgeEvent): EmitBridgeEvent {
+  wrapEmit(baseEmit: EmitAgentEvent): EmitAgentEvent {
     return (event) => {
-      if (event.type === BridgeEventType.Done) {
+      if (event.type === AgentEventType.Done) {
         this.pendingWrite = this.pendingWrite
           .then(async () => {
             await this.captureEvent(event);
@@ -243,7 +243,7 @@ export class BridgeSessionRecorder {
       role: "assistant",
       content: text || thinking,
       timestamp: Date.now(),
-      metadata: runtimeBridgeMessageMetadata({
+      metadata: runtimeMessageMetadata({
         command: this.input.command,
         role: "assistant",
         baseLeafId: this.input.baseLeafId,
@@ -258,7 +258,7 @@ export class BridgeSessionRecorder {
     return entry;
   }
 
-  getSessionRecord(): BridgeSessionRecordRef {
+  getSessionRecord(): RuntimeSessionRecordRef {
     return {
       sessionRootDir: this.input.command.sessionRootDir ?? "",
       userMessageRecordId: this.userEntryId,
@@ -268,18 +268,18 @@ export class BridgeSessionRecorder {
     };
   }
 
-  private decorateEvent(event: BridgeEvent): BridgeEvent {
-    if (event.type !== BridgeEventType.Done) {
+  private decorateEvent(event: AgentEvent): AgentEvent {
+    if (event.type !== AgentEventType.Done) {
       return event;
     }
 
     return {
       ...event,
-      bridgeSession: this.getSessionRecord(),
+      runtimeSession: this.getSessionRecord(),
     };
   }
 
-  private async captureEvent(event: BridgeEvent) {
+  private async captureEvent(event: AgentEvent) {
     await this.appendTrace({
       type: "event",
       timestamp: new Date().toISOString(),
@@ -287,22 +287,22 @@ export class BridgeSessionRecorder {
       event,
     });
 
-    if (event.type === BridgeEventType.TextDelta) {
+    if (event.type === AgentEventType.TextDelta) {
       this.text += event.delta;
     }
-    if (event.type === BridgeEventType.ThinkingDelta) {
+    if (event.type === AgentEventType.ThinkingDelta) {
       this.thinking += event.delta;
     }
-    if (event.type === BridgeEventType.ThinkingEnd) {
+    if (event.type === AgentEventType.ThinkingEnd) {
       this.thinking = event.content;
     }
-    if (event.type === BridgeEventType.Done) {
+    if (event.type === AgentEventType.Done) {
       await this.finalizeAssistantMessage({
         text: event.text,
         runStatus: "done",
       });
     }
-    if (event.type === BridgeEventType.Error) {
+    if (event.type === AgentEventType.Error) {
       await this.appendTrace({
         type: "error",
         timestamp: new Date().toISOString(),
@@ -336,7 +336,7 @@ export class BridgeSessionRecorder {
     if (runtimeInstruction) {
       const entry = await this.input.storage.appendRuntimeInstruction(
         runtimeInstruction,
-        runtimeBridgeEntryMetadata({
+        runtimeEntryMetadata({
           command: this.input.command,
           entryType: "runtime_instruction",
           baseLeafId: this.input.baseLeafId,
@@ -353,7 +353,7 @@ export class BridgeSessionRecorder {
     if (requestContext) {
       const entry = await this.input.storage.appendRequestContext(
         requestContext,
-        runtimeBridgeEntryMetadata({
+        runtimeEntryMetadata({
           command: this.input.command,
           entryType: "request_context",
           baseLeafId: this.input.baseLeafId,

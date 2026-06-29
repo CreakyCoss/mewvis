@@ -1,14 +1,14 @@
 import { mkdir } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 
-export type BridgeSessionPaths = {
+export type RuntimeSessionPaths = {
   sessionDir: string;
   ledgerPath: string;
   tracePath: string;
   agentsDir: string;
 };
 
-export type BridgeSessionPathInput = {
+export type RuntimeSessionPathInput = {
   workspacePath: string;
   sessionRootDir: string;
 };
@@ -25,9 +25,9 @@ const resolveSessionRootDir = (sessionRootDir: string) => {
   return resolve(raw);
 };
 
-export const resolveBridgeSessionPaths = async (
-  input: BridgeSessionPathInput,
-): Promise<BridgeSessionPaths> => {
+export const resolveRuntimeSessionPaths = async (
+  input: RuntimeSessionPathInput,
+): Promise<RuntimeSessionPaths> => {
   const rawWorkspacePath = input.workspacePath.trim();
   if (!rawWorkspacePath) {
     throw new Error("runtime workspacePath 不能为空");

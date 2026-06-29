@@ -69,12 +69,12 @@ type RunAgentOutput = {
 };
 
 type TauriAgentClientChatResult = Omit<AgentClientChatResult, "agentSession"> & {
-  bridgeSession?: AgentClientSession | null;
+  runtimeSession?: AgentClientSession | null;
 };
 
 type TauriAgentClientDoneEvent =
   Omit<Extract<AgentClientAgentEvent, { type: "done" }>, "agentSession"> & {
-    bridgeSession?: AgentClientSession | null;
+    runtimeSession?: AgentClientSession | null;
   };
 
 type TauriAgentClientAgentEvent =
@@ -88,19 +88,19 @@ const normalizeAgentEvent = (
     return event;
   }
 
-  const { bridgeSession, ...rest } = event;
+  const { runtimeSession, ...rest } = event;
   return {
     ...rest,
-    agentSession: bridgeSession ?? null,
+    agentSession: runtimeSession ?? null,
   };
 };
 
 const normalizeChatResult = ({
-  bridgeSession,
+  runtimeSession,
   ...result
 }: TauriAgentClientChatResult): AgentClientChatResult => ({
   ...result,
-  agentSession: bridgeSession ?? null,
+  agentSession: runtimeSession ?? null,
 });
 
 class TauriAgentClient implements AgentClient {

@@ -1,5 +1,5 @@
 import type {
-  BridgeEvent,
+  AgentEvent,
 } from "../../agent/contracts/protocol.js";
 import type {
   CollaborationRunResult,
@@ -41,7 +41,7 @@ export type CollaborationEvent =
     stepId: string;
     agentRoleId: string;
     agentTaskId: string;
-    event: BridgeEvent;
+    event: AgentEvent;
   }
   | {
     type: CollaborationEventType.StepDone;

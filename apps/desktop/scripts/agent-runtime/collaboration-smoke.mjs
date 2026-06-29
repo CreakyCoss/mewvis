@@ -975,7 +975,7 @@ try {
     target: "node22",
     outfile: bundlePath,
     banner: {
-      js: "import { createRequire as __bridgeCreateRequire } from 'node:module'; const require = __bridgeCreateRequire(import.meta.url);",
+      js: "import { createRequire as __runtimeCreateRequire } from 'node:module'; const require = __runtimeCreateRequire(import.meta.url);",
     },
   });
 

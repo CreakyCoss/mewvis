@@ -1,4 +1,4 @@
-export type BridgeDisplaySummary = {
+export type RuntimeDisplaySummary = {
   recordId: string;
   targetLeafId: string;
   summary: string;
@@ -14,7 +14,7 @@ export type BridgeDisplaySummary = {
   entryCount?: number | null;
 };
 
-export type BridgeRuntimeLink = {
+export type RuntimeLink = {
   linkId: string;
   runtime?: string | null;
   runtimeId?: string | null;
@@ -37,7 +37,7 @@ export type BridgeRuntimeLink = {
   endedAt?: number | null;
 };
 
-export type BridgeSessionResultMessage = {
+export type RuntimeSessionResultMessage = {
   messageRecordId: string;
   role: string;
   content: string;
@@ -45,7 +45,7 @@ export type BridgeSessionResultMessage = {
   metadata?: Record<string, unknown> | null;
 };
 
-export type BridgeSessionResultAuxiliaryEntry = {
+export type RuntimeSessionResultAuxiliaryEntry = {
   recordId: string;
   content: string;
   timestamp: number;
@@ -57,12 +57,12 @@ export type SessionResult = {
   requestId?: string | null;
   sessionRootDir: string;
   summary: string;
-  messages: BridgeSessionResultMessage[];
-  requestContexts?: BridgeSessionResultAuxiliaryEntry[];
-  runtimeInstructions?: BridgeSessionResultAuxiliaryEntry[];
-  displaySummary?: BridgeDisplaySummary | null;
-  displaySummaries?: BridgeDisplaySummary[];
-  runtimeLinks?: BridgeRuntimeLink[];
+  messages: RuntimeSessionResultMessage[];
+  requestContexts?: RuntimeSessionResultAuxiliaryEntry[];
+  runtimeInstructions?: RuntimeSessionResultAuxiliaryEntry[];
+  displaySummary?: RuntimeDisplaySummary | null;
+  displaySummaries?: RuntimeDisplaySummary[];
+  runtimeLinks?: RuntimeLink[];
 };
 
 export type SessionMutationResult = Omit<SessionResult, "type"> & {
@@ -71,5 +71,5 @@ export type SessionMutationResult = Omit<SessionResult, "type"> & {
   messageRecordIds?: string[];
   compacted?: boolean;
   rebuilt?: boolean;
-  displaySummary?: BridgeDisplaySummary | null;
+  displaySummary?: RuntimeDisplaySummary | null;
 };

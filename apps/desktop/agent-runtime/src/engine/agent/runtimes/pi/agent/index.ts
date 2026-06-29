@@ -1,4 +1,4 @@
-import { BridgeEventType } from "../../../contracts/protocol.js";
+import { AgentEventType } from "../../../contracts/protocol.js";
 import type {
   AgentCompactResult,
   AgentRunResult,
@@ -30,7 +30,7 @@ export class PiAgent implements AgentRuntime {
       const createdSession = await createPiAgentSession(command, callbacks);
       session = createdSession.session;
       unsubscribe = subscribeToPiAgentSession(command, session, emit, state);
-      emit({ type: BridgeEventType.Started, taskId: command.taskId });
+      emit({ type: AgentEventType.Started, taskId: command.taskId });
 
       const result = await drivePiAgentSession({
         command,
@@ -42,7 +42,7 @@ export class PiAgent implements AgentRuntime {
       });
 
       emit({
-        type: BridgeEventType.Done,
+        type: AgentEventType.Done,
         taskId: command.taskId,
         text: result.text,
       });

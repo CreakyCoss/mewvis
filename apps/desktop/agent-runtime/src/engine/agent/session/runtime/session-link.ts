@@ -4,7 +4,7 @@ import type {
   RuntimeChatCommand,
   RuntimeSessionLink,
 } from "../../runtimes/types.js";
-import type { BridgeLedgerEntry } from "../../../../session/core/types.js";
+import type { RuntimeLedgerEntry } from "../../../../session/core/types.js";
 
 type RuntimeSessionLinkCommand = (RuntimeChatCommand | AgentRunCommand) & {
   sessionLink?: RuntimeSessionLink | null;
@@ -36,7 +36,7 @@ const commandIdTurnId = (command: RuntimeSessionLinkCommand) => {
   return command.streamId ?? command.requestId ?? null;
 };
 
-export const latestTurnIdInEntries = (entries: BridgeLedgerEntry[]) => {
+export const latestTurnIdInEntries = (entries: RuntimeLedgerEntry[]) => {
   for (const entry of entries.slice().reverse()) {
     if (entry.type !== "message") {
       continue;
@@ -51,7 +51,7 @@ export const latestTurnIdInEntries = (entries: BridgeLedgerEntry[]) => {
 
 export const inferCommandTurnId = (
   command: RuntimeSessionLinkCommand,
-  entries?: BridgeLedgerEntry[],
+  entries?: RuntimeLedgerEntry[],
 ) => {
   const explicit = commandTurnId(command);
   if (explicit) {
@@ -65,11 +65,11 @@ export const inferCommandTurnId = (
     }
   }
 
-  return commandIdTurnId(command) ?? `bridge-turn-${randomUUID()}`;
+  return commandIdTurnId(command) ?? `runtime-turn-${randomUUID()}`;
 };
 
 export const shouldRecordRuntimeUserMessage = (
-  entries: BridgeLedgerEntry[],
+  entries: RuntimeLedgerEntry[],
   parentEntryId: string | null | undefined,
 ) => {
   const parentId = parentEntryId?.trim() || null;

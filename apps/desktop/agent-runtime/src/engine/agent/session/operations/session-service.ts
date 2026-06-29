@@ -1,5 +1,5 @@
 import {
-  BridgeResultType,
+  AgentResultType,
   type CompactCommand,
   type CreateSessionCommand,
   type MessageAppendCommand,
@@ -22,17 +22,17 @@ import {
   createAgentSessionPlan,
   resolveAgentSessionDir,
 } from "../runtime/agent/session-plan.js";
-import { prepareBridgeRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
-import { BridgeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../../../../session/storage/paths.js";
+import { prepareRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
+import { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
 import {
   refreshRuntimeSessionManifest,
 } from "../../../../session/manifest/session-manifest.js";
-import { buildBridgeSessionContext } from "../../../../session/core/projection.js";
-import type { BridgeMessageRole } from "../../../../session/core/types.js";
+import { buildRuntimeSessionContext } from "../../../../session/core/projection.js";
+import type { RuntimeMessageRole } from "../../../../session/core/types.js";
 import {
-  bridgeLedgerOperationMetadata,
-  commandBridgeMessageMetadata,
+  runtimeLedgerOperationMetadata,
+  commandRuntimeMessageMetadata,
 } from "../metadata/app.js";
 import type {
   SessionMutationResult,
@@ -43,8 +43,8 @@ import { generateDisplaySummary } from "./display-summary.js";
 const openSessionStorage = async (
   command: { workspacePath: string; sessionRootDir: string },
 ) => {
-  const paths = await resolveBridgeSessionPaths(command);
-  const storage = await BridgeLedgerStorage.openOrCreate({
+  const paths = await resolveRuntimeSessionPaths(command);
+  const storage = await RuntimeLedgerStorage.openOrCreate({
     filePath: paths.ledgerPath,
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
@@ -56,7 +56,7 @@ const openSessionStorage = async (
 const refreshSessionManifest = async (
   command: { workspacePath: string; sessionRootDir: string },
   paths: { ledgerPath: string; tracePath: string },
-  storage: BridgeLedgerStorage,
+  storage: RuntimeLedgerStorage,
 ) => {
   try {
     await refreshRuntimeSessionManifest({
@@ -71,7 +71,7 @@ const refreshSessionManifest = async (
   }
 };
 
-const invalidateBridgeAgentSessionCache = async (
+const invalidateRuntimeAgentSessionCache = async (
   paths: { agentsDir: string },
 ) => {
   await rm(paths.agentsDir, { recursive: true, force: true });
@@ -90,9 +90,9 @@ const defaultAgentSessionRebuildMessage = [
 
 const sessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
-  context: ReturnType<typeof buildBridgeSessionContext>,
+  context: ReturnType<typeof buildRuntimeSessionContext>,
 ): SessionResult => ({
-  type: BridgeResultType.SessionResult,
+  type: AgentResultType.SessionResult,
   requestId: command.requestId ?? null,
   sessionRootDir: command.sessionRootDir,
   summary: context.summary,
@@ -109,24 +109,24 @@ const sessionResultFrom = (
 
 const mutationResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
-  context: ReturnType<typeof buildBridgeSessionContext>,
+  context: ReturnType<typeof buildRuntimeSessionContext>,
   extra: Pick<SessionMutationResult, "messageRecordId" | "messageRecordIds" | "compacted" | "rebuilt" | "displaySummary"> = {},
 ): SessionMutationResult => ({
   ...sessionResultFrom(command, context),
-  type: BridgeResultType.SessionMutationResult,
+  type: AgentResultType.SessionMutationResult,
   ...extra,
 });
 
-export const readBridgeSession = async (
+export const readRuntimeSession = async (
   command: ReadSessionCommand,
 ): Promise<SessionResult> => {
   const { paths, storage } = await openSessionStorage(command);
   await refreshSessionManifest(command, paths, storage);
-  const context = buildBridgeSessionContext(storage, storage.getLeafId());
+  const context = buildRuntimeSessionContext(storage, storage.getLeafId());
   return sessionResultFrom(command, context);
 };
 
-export const createBridgeSession = async (
+export const createRuntimeSession = async (
   command: CreateSessionCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
@@ -135,7 +135,7 @@ export const createBridgeSession = async (
   const systemPrompt = command.systemPrompt?.trim();
 
   if (systemPrompt) {
-    const context = buildBridgeSessionContext(storage);
+    const context = buildRuntimeSessionContext(storage);
     const latestSystemPrompt = context.messages
       .filter((message) => message.role === "system")
       .at(-1)?.content.trim() ?? "";
@@ -147,7 +147,7 @@ export const createBridgeSession = async (
         role: "system",
         content: systemPrompt,
         timestamp: Date.now(),
-        metadata: commandBridgeMessageMetadata({
+        metadata: commandRuntimeMessageMetadata({
           role: "system",
           source: "app_create_session",
           baseLeafId,
@@ -158,7 +158,7 @@ export const createBridgeSession = async (
     }
   }
 
-  const context = buildBridgeSessionContext(storage);
+  const context = buildRuntimeSessionContext(storage);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryId,
@@ -166,7 +166,7 @@ export const createBridgeSession = async (
   });
 };
 
-export const compactBridgeSession = async (
+export const compactRuntimeSession = async (
   command: CompactCommand,
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
@@ -183,7 +183,7 @@ export const compactBridgeSession = async (
     runtimeMode: "agent",
     requestId: command.requestId ?? null,
     agentId: command.target.agentId ?? runtimeId,
-    taskId: command.requestId?.trim() || `bridge-compact-${randomUUID()}`,
+    taskId: command.requestId?.trim() || `runtime-compact-${randomUUID()}`,
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
     agentRoleId: sessionPlan.agentRoleId,
@@ -213,8 +213,8 @@ export const compactBridgeSession = async (
     };
 
   await storage.appendCustom("agent_session_compacted", {
-    ...bridgeLedgerOperationMetadata({
-      source: "bridge_compact",
+    ...runtimeLedgerOperationMetadata({
+      source: "runtime_compact",
       baseLeafId,
     }),
     target: {
@@ -227,14 +227,14 @@ export const compactBridgeSession = async (
     message: compactResult.message ?? null,
     details: compactResult.details ?? null,
   });
-  const context = buildBridgeSessionContext(storage);
+  const context = buildRuntimeSessionContext(storage);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     compacted: compactResult.compacted,
   });
 };
 
-export const rebuildBridgeAgentSession = async (
+export const rebuildRuntimeAgentSession = async (
   command: RebuildAgentSessionCommand,
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
@@ -249,7 +249,7 @@ export const rebuildBridgeAgentSession = async (
   });
   await rm(sessionPlan.agentSessionDir, { recursive: true, force: true });
 
-  const taskId = command.requestId?.trim() || `bridge-rebuild-agent-session-${randomUUID()}`;
+  const taskId = command.requestId?.trim() || `runtime-rebuild-agent-session-${randomUUID()}`;
   const rebuildCommand: AgentRunCommand = {
     runtimeMode: "agent",
     requestId: command.requestId ?? null,
@@ -268,7 +268,7 @@ export const rebuildBridgeAgentSession = async (
     runtimeModel: command.runtime?.model ?? null,
     resources: command.runtime?.resources ?? null,
   };
-  const runtimeCommandWithPrompt = await prepareBridgeRuntimeAgentPrompt(rebuildCommand, runtimeId);
+  const runtimeCommandWithPrompt = await prepareRuntimeAgentPrompt(rebuildCommand, runtimeId);
   const agentSessionDir = await resolveAgentSessionDir(runtimeCommandWithPrompt, runtimeId);
   const runtimeCommand = agentSessionDir
     ? { ...runtimeCommandWithPrompt, agentSessionDir }
@@ -281,8 +281,8 @@ export const rebuildBridgeAgentSession = async (
   });
 
   await storage.appendCustom("agent_session_rebuilt", {
-    ...bridgeLedgerOperationMetadata({
-      source: "bridge_rebuild_agent_session",
+    ...runtimeLedgerOperationMetadata({
+      source: "runtime_rebuild_agent_session",
       baseLeafId,
     }),
     target: {
@@ -298,14 +298,14 @@ export const rebuildBridgeAgentSession = async (
       bootstrapContextChars: runtimeCommand.sessionBootstrapContext?.length ?? 0,
     },
   });
-  const context = buildBridgeSessionContext(storage);
+  const context = buildRuntimeSessionContext(storage);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     rebuilt: true,
   });
 };
 
-export const summarizeBridgeSession = async (
+export const summarizeRuntimeSession = async (
   command: SummarizeSessionCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
@@ -314,7 +314,7 @@ export const summarizeBridgeSession = async (
     throw new Error("无法摘要空 runtime session：当前 session 没有可用 leaf");
   }
 
-  const context = buildBridgeSessionContext(storage, targetLeafId);
+  const context = buildRuntimeSessionContext(storage, targetLeafId);
   const generated = await generateDisplaySummary({
     context,
     agentId: command.agent?.agentId ?? null,
@@ -323,8 +323,8 @@ export const summarizeBridgeSession = async (
     maxSummaryChars: command.options?.maxSummaryChars ?? null,
   });
   await storage.appendCustom("display_summary", {
-    ...bridgeLedgerOperationMetadata({
-      source: "bridge_display_summary",
+    ...runtimeLedgerOperationMetadata({
+      source: "runtime_display_summary",
       baseLeafId: targetLeafId,
     }),
     displayOnly: true,
@@ -343,21 +343,21 @@ export const summarizeBridgeSession = async (
   }, targetLeafId);
   await storage.setLeafId(targetLeafId);
 
-  const nextContext = buildBridgeSessionContext(storage, targetLeafId);
+  const nextContext = buildRuntimeSessionContext(storage, targetLeafId);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, nextContext, {
     displaySummary: nextContext.displaySummary,
   });
 };
 
-const normalizeMessageRole = (role: string): BridgeMessageRole => {
+const normalizeMessageRole = (role: string): RuntimeMessageRole => {
   if (role === "assistant" || role === "system" || role === "user") {
     return role;
   }
   return "user";
 };
 
-export const appendBridgeSessionMessages = async (
+export const appendRuntimeSessionMessages = async (
   command: MessageAppendCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
@@ -371,7 +371,7 @@ export const appendBridgeSessionMessages = async (
     }
     const role = normalizeMessageRole(message.role);
     if (role === "system") {
-      const context = buildBridgeSessionContext(storage);
+      const context = buildRuntimeSessionContext(storage);
       const latestSystemPrompt = context.messages
         .filter((item) => item.role === "system")
         .at(-1)?.content.trim() ?? "";
@@ -386,7 +386,7 @@ export const appendBridgeSessionMessages = async (
       role,
       content,
       timestamp: message.timestamp ?? Date.now(),
-      metadata: commandBridgeMessageMetadata({
+      metadata: commandRuntimeMessageMetadata({
         role,
         source: "app_append",
         baseLeafId,
@@ -396,7 +396,7 @@ export const appendBridgeSessionMessages = async (
     entryIds.push(entry.id);
   }
 
-  const context = buildBridgeSessionContext(storage);
+  const context = buildRuntimeSessionContext(storage);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryIds.at(-1) ?? null,
@@ -404,14 +404,14 @@ export const appendBridgeSessionMessages = async (
   });
 };
 
-export const rebuildBridgeSession = async (
+export const rebuildRuntimeSession = async (
   command: RebuildCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
   const previousLeafId = storage.getLeafId();
   await storage.setLeafId(null);
   await storage.appendCustom("rebuild_started", {
-    ...bridgeLedgerOperationMetadata({
+    ...runtimeLedgerOperationMetadata({
       source: "app_rebuild",
       baseLeafId: previousLeafId,
     }),
@@ -430,7 +430,7 @@ export const rebuildBridgeSession = async (
       role,
       content,
       timestamp: message.timestamp ?? Date.now(),
-      metadata: commandBridgeMessageMetadata({
+      metadata: commandRuntimeMessageMetadata({
         role,
         source: "app_rebuild",
         baseLeafId: previousLeafId,
@@ -440,8 +440,8 @@ export const rebuildBridgeSession = async (
     entryIds.push(entry.id);
   }
 
-  const context = buildBridgeSessionContext(storage);
-  await invalidateBridgeAgentSessionCache(paths);
+  const context = buildRuntimeSessionContext(storage);
+  await invalidateRuntimeAgentSessionCache(paths);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: entryIds.at(-1) ?? null,
@@ -449,7 +449,7 @@ export const rebuildBridgeSession = async (
   });
 };
 
-export const editBridgeSessionMessage = async (
+export const editRuntimeSessionMessage = async (
   command: MessageEditCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
@@ -463,7 +463,7 @@ export const editBridgeSessionMessage = async (
     ...target.message,
     content: command.content,
     timestamp: Date.now(),
-    metadata: commandBridgeMessageMetadata({
+    metadata: commandRuntimeMessageMetadata({
       role: target.message.role,
       source: "app_edit",
       baseLeafId: target.parentId,
@@ -474,15 +474,15 @@ export const editBridgeSessionMessage = async (
       },
     }),
   });
-  const context = buildBridgeSessionContext(storage);
-  await invalidateBridgeAgentSessionCache(paths);
+  const context = buildRuntimeSessionContext(storage);
+  await invalidateRuntimeAgentSessionCache(paths);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: replacement.id,
   });
 };
 
-export const deleteBridgeSessionMessage = async (
+export const deleteRuntimeSessionMessage = async (
   command: MessageDeleteCommand,
 ): Promise<SessionMutationResult> => {
   const { paths, storage } = await openSessionStorage(command);
@@ -493,7 +493,7 @@ export const deleteBridgeSessionMessage = async (
 
   await storage.setLeafId(target.parentId);
   await storage.appendCustom("message_deleted", {
-    ...bridgeLedgerOperationMetadata({
+    ...runtimeLedgerOperationMetadata({
       source: "app_delete",
       baseLeafId: target.parentId,
     }),
@@ -501,8 +501,8 @@ export const deleteBridgeSessionMessage = async (
     role: target.message.role,
     contentPreview: target.message.content.slice(0, 240),
   });
-  const context = buildBridgeSessionContext(storage);
-  await invalidateBridgeAgentSessionCache(paths);
+  const context = buildRuntimeSessionContext(storage);
+  await invalidateRuntimeAgentSessionCache(paths);
   await refreshSessionManifest(command, paths, storage);
   return mutationResultFrom(command, context, {
     messageRecordId: target.id,

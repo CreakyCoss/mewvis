@@ -4,8 +4,8 @@ import {
   commandRootUserEntryId,
   commandTurnId,
 } from "../runtime/session-link.js";
-import type { BridgeMessageRole } from "../../../../session/core/types.js";
-import { standardizeBridgeMessageMetadata } from "../../../../session/metadata/standard.js";
+import type { RuntimeMessageRole } from "../../../../session/core/types.js";
+import { standardizeRuntimeMessageMetadata } from "../../../../session/metadata/standard.js";
 
 type RuntimeCommand = AgentRunCommand | RuntimeChatCommand;
 
@@ -46,9 +46,9 @@ const runtimeCommandRef = (command: RuntimeCommand) => {
   };
 };
 
-export const runtimeBridgeMessageMetadata = (input: {
+export const runtimeMessageMetadata = (input: {
   command: RuntimeCommand;
-  role: BridgeMessageRole;
+  role: RuntimeMessageRole;
   baseLeafId: string | null;
   parentEntryId?: string | null;
   rootUserEntryId?: string | null;
@@ -57,7 +57,7 @@ export const runtimeBridgeMessageMetadata = (input: {
   thinking?: string | null;
 }) => {
   const runtimeRef = runtimeCommandRef(input.command);
-  return standardizeBridgeMessageMetadata({
+  return standardizeRuntimeMessageMetadata({
     role: input.role,
     source: "runtime",
     baseLeafId: input.baseLeafId,
@@ -75,7 +75,7 @@ export const runtimeBridgeMessageMetadata = (input: {
   });
 };
 
-export const runtimeBridgeEntryMetadata = (input: {
+export const runtimeEntryMetadata = (input: {
   command: RuntimeCommand;
   entryType: "request_context" | "runtime_instruction";
   baseLeafId: string | null;
@@ -83,14 +83,14 @@ export const runtimeBridgeEntryMetadata = (input: {
   rootUserEntryId?: string | null;
 }) => {
   const runtimeRef = runtimeCommandRef(input.command);
-  return standardizeBridgeMessageMetadata({
+  return standardizeRuntimeMessageMetadata({
     role: "user",
     source: "runtime",
-    actorType: "bridge",
+    actorType: "runtime",
     baseLeafId: input.baseLeafId,
     metadata: {
       runtime: "runtimeMode" in input.command ? "agent" : "chat",
-      bridgeEntryType: input.entryType,
+      runtimeEntryType: input.entryType,
     },
     turnId: commandTurnId(input.command),
     parentEntryId: input.parentEntryId ?? commandParentEntryId(input.command),

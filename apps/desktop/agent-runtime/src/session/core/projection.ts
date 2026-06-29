@@ -1,19 +1,19 @@
 import type {
-  BridgeLedgerEntry,
-  BridgeMessage,
-  BridgeMessageMetadata,
-  BridgeSessionContext,
+  RuntimeLedgerEntry,
+  RuntimeMessage,
+  RuntimeMessageMetadata,
+  RuntimeSessionContext,
 } from "./types.js";
 import type {
-  BridgeDisplaySummary,
-  BridgeRuntimeLink,
+  RuntimeDisplaySummary,
+  RuntimeLink,
 } from "../contracts/results.js";
-import type { BridgeLedgerStorage } from "../storage/jsonl-store.js";
+import type { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const timestampMs = (entry: BridgeLedgerEntry) =>
+const timestampMs = (entry: RuntimeLedgerEntry) =>
   new Date(entry.timestamp).getTime();
 
 const stringValue = (value: unknown) =>
@@ -22,7 +22,7 @@ const stringValue = (value: unknown) =>
 const numberValue = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-const branchSummaryToMessage = (entry: Extract<BridgeLedgerEntry, { type: "branch_summary" }>): BridgeMessage => ({
+const branchSummaryToMessage = (entry: Extract<RuntimeLedgerEntry, { type: "branch_summary" }>): RuntimeMessage => ({
   messageRecordId: entry.id,
   role: "user",
   content: [
@@ -34,12 +34,12 @@ const branchSummaryToMessage = (entry: Extract<BridgeLedgerEntry, { type: "branc
   ].join("\n"),
   timestamp: new Date(entry.timestamp).getTime(),
   metadata: {
-    bridgeEntryType: "branch_summary",
+    runtimeEntryType: "branch_summary",
     fromId: entry.fromId,
   },
 });
 
-const messageFromEntry = (entry: BridgeLedgerEntry): BridgeMessage | null => {
+const messageFromEntry = (entry: RuntimeLedgerEntry): RuntimeMessage | null => {
   if (entry.type === "message") {
     return {
       ...entry.message,
@@ -53,8 +53,8 @@ const messageFromEntry = (entry: BridgeLedgerEntry): BridgeMessage | null => {
 };
 
 const requestContextFromEntry = (
-  entry: BridgeLedgerEntry,
-): BridgeSessionContext["requestContexts"][number] | null => {
+  entry: RuntimeLedgerEntry,
+): RuntimeSessionContext["requestContexts"][number] | null => {
   if (entry.type !== "request_context") {
     return null;
   }
@@ -67,8 +67,8 @@ const requestContextFromEntry = (
 };
 
 const runtimeInstructionFromEntry = (
-  entry: BridgeLedgerEntry,
-): BridgeSessionContext["runtimeInstructions"][number] | null => {
+  entry: RuntimeLedgerEntry,
+): RuntimeSessionContext["runtimeInstructions"][number] | null => {
   if (entry.type !== "runtime_instruction") {
     return null;
   }
@@ -81,8 +81,8 @@ const runtimeInstructionFromEntry = (
 };
 
 const appendVisibleEntry = (
-  entry: BridgeLedgerEntry,
-  context: Pick<BridgeSessionContext, "messages" | "requestContexts" | "runtimeInstructions">,
+  entry: RuntimeLedgerEntry,
+  context: Pick<RuntimeSessionContext, "messages" | "requestContexts" | "runtimeInstructions">,
 ) => {
   const message = messageFromEntry(entry);
   if (message) {
@@ -99,8 +99,8 @@ const appendVisibleEntry = (
 };
 
 const displaySummaryFromEntry = (
-  entry: BridgeLedgerEntry,
-): BridgeDisplaySummary | null => {
+  entry: RuntimeLedgerEntry,
+): RuntimeDisplaySummary | null => {
   if (entry.type !== "custom" || entry.customType !== "display_summary" || !isRecord(entry.data)) {
     return null;
   }
@@ -129,13 +129,13 @@ const displaySummaryFromEntry = (
 };
 
 const buildDisplaySummaries = (
-  allEntries: BridgeLedgerEntry[],
+  allEntries: RuntimeLedgerEntry[],
   activeEntryIds: Set<string>,
   leafId: string | null,
 ) => {
   const displaySummaries = allEntries
     .map(displaySummaryFromEntry)
-    .filter((summary): summary is BridgeDisplaySummary =>
+    .filter((summary): summary is RuntimeDisplaySummary =>
       Boolean(summary && activeEntryIds.has(summary.targetLeafId))
     )
     .sort((left, right) =>
@@ -149,8 +149,8 @@ const buildDisplaySummaries = (
 };
 
 const metadataFromEntry = (
-  entry: BridgeLedgerEntry,
-): BridgeMessageMetadata | null => {
+  entry: RuntimeLedgerEntry,
+): RuntimeMessageMetadata | null => {
   if (entry.type === "message") {
     return entry.message.metadata ?? null;
   }
@@ -160,10 +160,10 @@ const metadataFromEntry = (
   return null;
 };
 
-const isRuntimeMetadata = (metadata: BridgeMessageMetadata | null): metadata is BridgeMessageMetadata =>
+const isRuntimeMetadata = (metadata: RuntimeMessageMetadata | null): metadata is RuntimeMessageMetadata =>
   metadata?.source === "runtime" || typeof metadata?.runtime === "string";
 
-const runtimeLinkId = (metadata: BridgeMessageMetadata, entry: BridgeLedgerEntry) =>
+const runtimeLinkId = (metadata: RuntimeMessageMetadata, entry: RuntimeLedgerEntry) =>
   metadata.runId?.trim() ||
   metadata.taskId?.trim() ||
   metadata.streamId?.trim() ||
@@ -171,7 +171,7 @@ const runtimeLinkId = (metadata: BridgeMessageMetadata, entry: BridgeLedgerEntry
   entry.id;
 
 const ensureRuntimeLink = (
-  links: Map<string, BridgeRuntimeLink>,
+  links: Map<string, RuntimeLink>,
   linkId: string,
 ) => {
   let link = links.get(linkId);
@@ -210,8 +210,8 @@ const pushUnique = (items: string[], value: string) => {
 };
 
 const applyMetadataToRuntimeLink = (
-  link: BridgeRuntimeLink,
-  metadata: BridgeMessageMetadata,
+  link: RuntimeLink,
+  metadata: RuntimeMessageMetadata,
 ) => {
   link.runtime ??= stringValue(metadata.runtime);
   link.runtimeId ??= stringValue(metadata.runtimeId);
@@ -229,8 +229,8 @@ const applyMetadataToRuntimeLink = (
 };
 
 const appendRuntimeLinkEntry = (
-  link: BridgeRuntimeLink,
-  entry: BridgeLedgerEntry,
+  link: RuntimeLink,
+  entry: RuntimeLedgerEntry,
 ) => {
   const entryTimestamp = timestampMs(entry);
   link.startedAt = link.startedAt == null
@@ -264,8 +264,8 @@ const appendRuntimeLinkEntry = (
   }
 };
 
-const buildRuntimeLinks = (entries: BridgeLedgerEntry[]) => {
-  const links = new Map<string, BridgeRuntimeLink>();
+const buildRuntimeLinks = (entries: RuntimeLedgerEntry[]) => {
+  const links = new Map<string, RuntimeLink>();
 
   for (const entry of entries) {
     const metadata = metadataFromEntry(entry);
@@ -287,10 +287,10 @@ const buildRuntimeLinks = (entries: BridgeLedgerEntry[]) => {
     .sort((left, right) => (left.startedAt ?? 0) - (right.startedAt ?? 0));
 };
 
-export const buildBridgeSessionContext = (
-  storage: BridgeLedgerStorage,
+export const buildRuntimeSessionContext = (
+  storage: RuntimeLedgerStorage,
   leafId: string | null = storage.getLeafId(),
-): BridgeSessionContext => {
+): RuntimeSessionContext => {
   const entries = storage.getPathToRoot(leafId);
   const activeEntryIds = new Set(entries.map((entry) => entry.id));
   const { displaySummary, displaySummaries } = buildDisplaySummaries(
@@ -298,9 +298,9 @@ export const buildBridgeSessionContext = (
     activeEntryIds,
     leafId,
   );
-  const messages: BridgeMessage[] = [];
-  const requestContexts: BridgeSessionContext["requestContexts"] = [];
-  const runtimeInstructions: BridgeSessionContext["runtimeInstructions"] = [];
+  const messages: RuntimeMessage[] = [];
+  const requestContexts: RuntimeSessionContext["requestContexts"] = [];
+  const runtimeInstructions: RuntimeSessionContext["runtimeInstructions"] = [];
   const visible = { messages, requestContexts, runtimeInstructions };
 
   for (const entry of entries) {

@@ -1,7 +1,7 @@
 import type {
   AgentRunCommand,
   AgentRunResult,
-  EmitBridgeEvent,
+  EmitAgentEvent,
 } from "../../agent/runtimes/types.js";
 import type {
   CollaborationHandlerRegistry,
@@ -27,7 +27,7 @@ export type CollaborationRunContext = {
 };
 
 export type RunAgentForCollaborationContext = {
-  emit: EmitBridgeEvent;
+  emit: EmitAgentEvent;
 };
 
 export type RunAgentForCollaboration = (

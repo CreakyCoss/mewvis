@@ -10,8 +10,8 @@ export {
 
 export type {
   AgentToolName as RuntimeAgentToolName,
-  BridgeAgentCapability as RuntimeAgentCapability,
-  BridgeAgentDefinition as RuntimeAgentDefinition,
+  RuntimeAgentCapability,
+  RuntimeAgentDefinition,
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,

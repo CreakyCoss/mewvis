@@ -279,7 +279,7 @@ try {
     "send_message chat 应使用 create_session 缓存的 systemPrompt，并传递 userMessage/requestContext",
     aliasChatResult,
   );
-  assert(aliasChatResult.bridgeSession?.userMessageRecordId, "send_message chat 应返回 bridge user messageRecordId", aliasChatResult);
+  assert(aliasChatResult.runtimeSession?.userMessageRecordId, "send_message chat 应返回 runtime user messageRecordId", aliasChatResult);
 
   const aliasAfterChat = await request({
     type: "read_session",
@@ -352,7 +352,7 @@ try {
     aliasAfterAgent.messages.at(-2)?.content === "send_message agent 用户消息" &&
       aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId === aliasAgentRoleId &&
       aliasAfterAgent.messages.at(-1)?.role === "assistant",
-    "send_message agent 应写回标准 bridge user/assistant 消息",
+    "send_message agent 应写回标准 runtime user/assistant 消息",
     aliasAfterAgent.messages,
   );
   const aliasLedger = readLedgerFile(aliasLedgerPath);
@@ -396,8 +396,8 @@ try {
   );
   assert(taskResult.success === true, "mock send_message agent 应成功", taskResult);
   assert(
-    done.bridgeSession?.userMessageRecordId && done.bridgeSession?.assistantMessageRecordId,
-    "done 事件应携带 bridge messageRecordIds",
+    done.runtimeSession?.userMessageRecordId && done.runtimeSession?.assistantMessageRecordId,
+    "done 事件应携带 runtime messageRecordIds",
     done,
   );
   assert(
@@ -444,7 +444,7 @@ try {
     taskAssistantMessage,
   );
   assert(
-    taskUserMessage?.metadata?.bridgeMetadataVersion === 1 &&
+    taskUserMessage?.metadata?.runtimeMetadataVersion === 1 &&
       taskUserMessage?.metadata?.actorType === "user" &&
       taskUserMessage?.metadata?.source === "runtime" &&
       taskUserMessage?.metadata?.scope === "shared" &&
@@ -457,11 +457,11 @@ try {
       typeof taskUserMessage?.metadata?.baseLeafId === "string" &&
       !("agentSessionRunId" in (taskUserMessage?.metadata ?? {})) &&
       !("agentSessionDir" in (taskUserMessage?.metadata ?? {})),
-    "runtime user 消息应携带标准 bridge metadata",
+    "runtime user 消息应携带标准 runtime metadata",
     taskUserMessage?.metadata,
   );
   assert(
-    taskAssistantMessage?.metadata?.bridgeMetadataVersion === 1 &&
+    taskAssistantMessage?.metadata?.runtimeMetadataVersion === 1 &&
       taskAssistantMessage?.metadata?.actorType === "agent" &&
       taskAssistantMessage?.metadata?.source === "runtime" &&
       taskAssistantMessage?.metadata?.scope === "shared" &&
@@ -472,15 +472,15 @@ try {
       taskAssistantMessage?.metadata?.turnId === taskId &&
       !("agentSessionRunId" in (taskAssistantMessage?.metadata ?? {})) &&
       !("agentSessionDir" in (taskAssistantMessage?.metadata ?? {})),
-    "runtime assistant 消息应携带标准 bridge metadata",
+    "runtime assistant 消息应携带标准 runtime metadata",
     taskAssistantMessage?.metadata,
   );
 
   const taskLedger = readLedger();
   assert(taskLedger.header.workspacePath === workspacePath, "ledger header 应记录 workspacePath", taskLedger.header);
   assert(taskLedger.header.sessionRootDir === sessionRootDir, "ledger header 应记录 sessionRootDir", taskLedger.header);
-  const taskUserEntry = taskLedger.entry(done.bridgeSession.userMessageRecordId);
-  const taskAssistantEntry = taskLedger.entry(done.bridgeSession.assistantMessageRecordId);
+  const taskUserEntry = taskLedger.entry(done.runtimeSession.userMessageRecordId);
+  const taskAssistantEntry = taskLedger.entry(done.runtimeSession.assistantMessageRecordId);
   assert(taskUserEntry?.type === "message", "userMessageRecordId 应指向 message entry", taskUserEntry);
   assert(taskAssistantEntry?.type === "message", "assistantMessageRecordId 应指向 message entry", taskAssistantEntry);
   assert(taskAssistantEntry.parentId === taskUserEntry.id, "assistant entry 应挂在 user entry 之后", {
@@ -492,7 +492,7 @@ try {
     "assistant metadata 应记录本次 run 的 user entry",
     taskAssistantEntry.message.metadata,
   );
-  assert(!("leafId" in (done.bridgeSession ?? {})), "done 事件不应向应用侧暴露 leafId", done.bridgeSession);
+  assert(!("leafId" in (done.runtimeSession ?? {})), "done 事件不应向应用侧暴露 leafId", done.runtimeSession);
 
   const oneShotTaskId = "mock-one-shot-agent";
   const oneShotAgentRoleId = "mock-one-shot-agent-role";
@@ -527,8 +527,8 @@ try {
   );
   assert(oneShotTaskResult.success === true, "空 sessionRootDir 的一次性 agent 应成功", oneShotTaskResult);
   assert(
-    !oneShotDone.bridgeSession,
-    "空 sessionRootDir 的一次性 agent done 事件不应携带 bridgeSession",
+    !oneShotDone.runtimeSession,
+    "空 sessionRootDir 的一次性 agent done 事件不应携带 runtimeSession",
     oneShotDone,
   );
   assert(
@@ -563,11 +563,11 @@ try {
     requestId: "edit-user",
     workspacePath,
     sessionRootDir,
-    messageRecordId: done.bridgeSession.userMessageRecordId,
+    messageRecordId: done.runtimeSession.userMessageRecordId,
     content: "改写后的用户任务：只保留新的分支。",
   }, "session_mutation_result");
   assert(
-    edited.messageRecordId && edited.messageRecordId !== done.bridgeSession.userMessageRecordId,
+    edited.messageRecordId && edited.messageRecordId !== done.runtimeSession.userMessageRecordId,
     "edit 应创建替换 messageRecordId",
     edited,
   );
@@ -649,8 +649,8 @@ try {
     deleteMarker,
   );
   assert(
-    deleteMarker.data?.bridgeMetadataVersion === 1 &&
-      deleteMarker.data?.actorType === "bridge" &&
+    deleteMarker.data?.runtimeMetadataVersion === 1 &&
+      deleteMarker.data?.actorType === "runtime" &&
       deleteMarker.data?.source === "app_delete" &&
       deleteMarker.data?.scope === "shared" &&
       deleteMarker.data?.baseLeafId === taskUserEntry.parentId,
@@ -697,7 +697,7 @@ try {
     rebuiltUserEntry,
   });
   assert(
-    rebuildStart?.data?.bridgeMetadataVersion === 1 &&
+    rebuildStart?.data?.runtimeMetadataVersion === 1 &&
       rebuildStart?.data?.source === "app_rebuild" &&
       rebuildStart?.data?.scope === "shared",
     "rebuild_started 应携带标准 ledger operation metadata",
@@ -740,15 +740,15 @@ try {
   assert(!("leafId" in compacted), "compact mutation 结果不应向应用侧暴露 leafId", compacted);
   assert(
     !compactLedger.entries.some((entry) => entry.type === "compaction"),
-    "手动 compact 底层 agent 不应写入 bridge compaction entry",
+    "手动 compact 底层 agent 不应写入 runtime compaction entry",
     compactLedger.entries.filter((entry) => entry.type === "compaction"),
   );
   const compactEntry = [...compactLedger.entries].reverse()
     .find((entry) => entry.type === "custom" && entry.customType === "agent_session_compacted");
   assert(
     compactEntry?.type === "custom" &&
-      compactEntry.data?.bridgeMetadataVersion === 1 &&
-      compactEntry.data?.source === "bridge_compact" &&
+      compactEntry.data?.runtimeMetadataVersion === 1 &&
+      compactEntry.data?.source === "runtime_compact" &&
       compactEntry.data?.scope === "shared" &&
       compactEntry.data?.target?.runtimeId === "mock" &&
       compactEntry.data?.target?.agentRoleId === initialAgentRoleId &&
@@ -902,7 +902,7 @@ try {
   assert(
     directDone.text.includes("系统提示词：E2E Agent 系统提示词。") &&
       directDone.text.includes("用户消息：send_message agent 直接用户消息"),
-    "direct send_message agent 应由 bridge 将 systemPrompt/userMessage 分别传给底层 runtime",
+    "direct send_message agent 应由 runtime 将 systemPrompt/userMessage 分别传给底层 runtime",
     directDone.text,
   );
   assert(
@@ -937,7 +937,7 @@ try {
       afterDirectTask.messages.at(-2)?.metadata?.runtimeId === "mock" &&
       afterDirectTask.messages.at(-2)?.metadata?.agentRoleId === directAgentRoleId &&
       afterDirectTask.messages.at(-1)?.role === "assistant",
-    "direct send_message agent 应按 bridge 标准消息账本记录 user/assistant",
+    "direct send_message agent 应按 runtime 标准消息账本记录 user/assistant",
     afterDirectTask.messages,
   );
   assert(
@@ -950,7 +950,7 @@ try {
   );
   assert(
     afterDirectTask.requestContexts?.at(-1)?.content === directRequestContext &&
-      afterDirectTask.requestContexts.at(-1)?.metadata?.bridgeEntryType === "request_context",
+      afterDirectTask.requestContexts.at(-1)?.metadata?.runtimeEntryType === "request_context",
     "requestContext 应作为独立 data-only ledger entry 记录",
     afterDirectTask.requestContexts,
   );
@@ -1204,7 +1204,7 @@ try {
   }), "chat_result");
   assert(
     chatResult.text.includes("chat 命令的新用户消息"),
-    "chat runtime 应收到 bridge 注入后的最新 userMessage",
+    "chat runtime 应收到 runtime 注入后的最新 userMessage",
     chatResult,
   );
   assert(
@@ -1212,7 +1212,7 @@ try {
     "chat runtime 应收到 requestContext，但最新用户消息仍应是 userMessage",
     chatResult,
   );
-  assert(chatResult.bridgeSession?.userMessageRecordId, "chat_result 应携带 bridge user messageRecordId", chatResult);
+  assert(chatResult.runtimeSession?.userMessageRecordId, "chat_result 应携带 runtime user messageRecordId", chatResult);
   const afterChat = await request({
     type: "read_session",
     requestId: "read-after-chat-user-message",
@@ -1223,10 +1223,10 @@ try {
     afterChat.messages.at(-2)?.content === "chat 命令的新用户消息" &&
       afterChat.messages.at(-2)?.metadata?.source === "runtime" &&
       afterChat.messages.at(-1)?.role === "assistant",
-    "chat userMessage 应由 bridge 写入账本，并追加 assistant 回复",
+    "chat userMessage 应由 runtime 写入账本，并追加 assistant 回复",
     afterChat.messages,
   );
-  assert(chatResult.bridgeSession?.assistantMessageRecordId, "chat_result 应携带 bridge assistant messageRecordId", chatResult);
+  assert(chatResult.runtimeSession?.assistantMessageRecordId, "chat_result 应携带 runtime assistant messageRecordId", chatResult);
   assert(
     afterChat.requestContexts?.at(-1)?.content === "chat 本次引用资料：request-context-chat-only。" &&
       afterChat.runtimeInstructions?.at(-1)?.content === "chat 本轮临时说明：只验证链路。",
@@ -1273,17 +1273,17 @@ try {
   assert(firstSerialTaskResult.success === true, "first serial send_message agent 应成功", firstSerialTaskResult);
 
   const firstSerialLedger = readLedger();
-  const firstSerialInstructionEntry = firstSerialLedger.entry(firstSerialDone.bridgeSession.runtimeInstructionRecordId);
-  const firstSerialAssistantEntry = firstSerialLedger.entry(firstSerialDone.bridgeSession.assistantMessageRecordId);
+  const firstSerialInstructionEntry = firstSerialLedger.entry(firstSerialDone.runtimeSession.runtimeInstructionRecordId);
+  const firstSerialAssistantEntry = firstSerialLedger.entry(firstSerialDone.runtimeSession.assistantMessageRecordId);
   assert(
-    !("sessionLink" in (firstSerialDone.bridgeSession ?? {})) &&
-      firstSerialDone.bridgeSession?.userMessageRecordId === null &&
+    !("sessionLink" in (firstSerialDone.runtimeSession ?? {})) &&
+      firstSerialDone.runtimeSession?.userMessageRecordId === null &&
       firstSerialInstructionEntry?.parentId === serialRoot.messageRecordId &&
       firstSerialAssistantEntry?.message?.metadata?.rootUserEntryId === serialRoot.messageRecordId &&
       firstSerialAssistantEntry?.message?.metadata?.recordUserMessage === false,
-    "父节点已经是 user 时，bridge 应自动把 agent run 视为内部 handoff，不重复写 user，且不向事件暴露 sessionLink",
+    "父节点已经是 user 时，runtime 应自动把 agent run 视为内部 handoff，不重复写 user，且不向事件暴露 sessionLink",
     {
-      bridgeSession: firstSerialDone.bridgeSession,
+      runtimeSession: firstSerialDone.runtimeSession,
       firstSerialInstructionEntry,
       firstSerialAssistantEntry,
       serialRoot,
@@ -1314,18 +1314,18 @@ try {
   );
   assert(serialTaskResult.success === true, "serial send_message agent 应成功", serialTaskResult);
   assert(
-    !("sessionLink" in (serialDone.bridgeSession ?? {})) &&
-      serialDone.bridgeSession?.userMessageRecordId === null,
+    !("sessionLink" in (serialDone.runtimeSession ?? {})) &&
+      serialDone.runtimeSession?.userMessageRecordId === null,
     "serial done 不应暴露 sessionLink，也不应创建新的 user entry",
     {
-      bridgeSession: serialDone.bridgeSession,
+      runtimeSession: serialDone.runtimeSession,
       firstSerialAssistantEntry,
       serialRoot,
     },
   );
   const serialLedger = readLedger();
-  const serialInstructionEntry = serialLedger.entry(serialDone.bridgeSession.runtimeInstructionRecordId);
-  const serialAssistantEntry = serialLedger.entry(serialDone.bridgeSession.assistantMessageRecordId);
+  const serialInstructionEntry = serialLedger.entry(serialDone.runtimeSession.runtimeInstructionRecordId);
+  const serialAssistantEntry = serialLedger.entry(serialDone.runtimeSession.assistantMessageRecordId);
   assert(
     serialInstructionEntry?.type === "runtime_instruction" &&
       serialInstructionEntry.parentId === firstSerialAssistantEntry.id &&
@@ -1396,7 +1396,7 @@ try {
     sendMessageChatUser: aliasAfterChat.messages.at(-2)?.content,
     sendMessageAgentUser: aliasAfterAgent.messages.at(-2)?.content,
     sendMessageAgentRoleId: aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId,
-    doneBridgeSession: done.bridgeSession,
+    doneRuntimeSession: done.runtimeSession,
     taskMessages: afterTask.messages.length,
     taskLedgerParent: `${taskUserEntry.id}->${taskAssistantEntry.id}`,
     runtimeMetadata: {
@@ -1424,7 +1424,7 @@ try {
     directAgentRunAgentRoleId: directAgentRoleId,
     directAgentRunUserMessage: afterDirectTask.messages.at(-2)?.content,
     directRequestContextDelivered: directDone.text.includes(`请求上下文：${directRequestContext}`),
-    directRequestContextRecordId: directDone.bridgeSession?.requestContextRecordId,
+    directRequestContextRecordId: directDone.runtimeSession?.requestContextRecordId,
     tavernRoleAHiddenFromRoleBSecret:
       !tavernADone.text.includes(tavernSecret) && !tavernARebuildDone.text.includes(tavernSecret),
     immutableSystemRejected: enhancedSystemTaskResult.success === false,
@@ -1434,7 +1434,7 @@ try {
     chatRuntimeInstructionEntry: afterChat.runtimeInstructions?.at(-1)?.content,
     serialParentEntryId: serialAssistantEntry.message.metadata?.parentEntryId,
     serialRootUserEntryId: serialAssistantEntry.message.metadata?.rootUserEntryId,
-    serialRuntimeInstructionRecordId: serialDone.bridgeSession?.runtimeInstructionRecordId,
+    serialRuntimeInstructionRecordId: serialDone.runtimeSession?.runtimeInstructionRecordId,
     ledgerLines: finalLedger.entries.length + 1,
     traceLines: readFileSync(tracePath, "utf8").trim().split("\n").length,
     manifestEntryCount: finalManifest.entryCount,

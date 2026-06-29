@@ -1,6 +1,6 @@
 import {
-  BridgeEventType,
-  type BridgeEvent,
+  AgentEventType,
+  type AgentEvent,
   type ChatResult,
 } from "../contracts/protocol.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
@@ -13,12 +13,12 @@ import type {
   RuntimeAgentCommand,
 } from "../runtimes/types.js";
 import { resolveAgentSessionDir } from "../session/runtime/agent/session-plan.js";
-import { prepareBridgeRuntimeAgentPrompt } from "../session/runtime/agent/prompt.js";
-import { BridgeLedgerStorage } from "../../../session/storage/jsonl-store.js";
-import { resolveBridgeSessionPaths } from "../../../session/storage/paths.js";
+import { prepareRuntimeAgentPrompt } from "../session/runtime/agent/prompt.js";
+import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
 import { createPromptLimits, toRuntimeMessages } from "../session/core/prompt-budget.js";
-import { BridgeSessionRecorder } from "../session/runtime/recorder.js";
-import { buildBridgeSessionContext } from "../../../session/core/projection.js";
+import { RuntimeSessionRecorder } from "../session/runtime/recorder.js";
+import { buildRuntimeSessionContext } from "../../../session/core/projection.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,
@@ -82,7 +82,7 @@ const executeAgentRunCommandWithRecording = async (
 ): Promise<AgentRunResult> => {
   const { runtimeId, implementation } = resolveRuntime("agent", command.agentId);
   const runtimeCommand = await prepareRuntimeAgentCommand(command, runtimeId);
-  const recorder = await BridgeSessionRecorder.create(runtimeCommand);
+  const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
   await recorder?.recordInitialUserMessage();
   try {
     return await implementation.run(runtimeCommand, recorder
@@ -97,7 +97,7 @@ const prepareRuntimeAgentCommand = async (
   command: AgentRunCommand,
   runtimeId: string,
 ): Promise<RuntimeAgentCommand> => {
-  const commandWithPrompt = await prepareBridgeRuntimeAgentPrompt(command, runtimeId);
+  const commandWithPrompt = await prepareRuntimeAgentPrompt(command, runtimeId);
   const agentSessionDir = await resolveAgentSessionDir(commandWithPrompt, runtimeId);
   return agentSessionDir
     ? { ...commandWithPrompt, agentSessionDir }
@@ -110,7 +110,7 @@ export const executeChatCommand = async (
 ): Promise<ChatResult> => {
   const { implementation } = resolveRuntime("chat", command.agentId);
   const runtimeCommand = await prepareRuntimeChatCommand(command);
-  const recorder = await BridgeSessionRecorder.create(runtimeCommand);
+  const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
   await recorder?.recordInitialUserMessage();
   let lastError: unknown;
 
@@ -150,7 +150,7 @@ export const executeChatCommand = async (
         await recorder.flush();
         return {
           ...result,
-          bridgeSession: recorder.getSessionRecord(),
+          runtimeSession: recorder.getSessionRecord(),
         };
       }
       return result;
@@ -191,7 +191,7 @@ const latestUserMessageContent = (command: RuntimeChatCommand) => {
 };
 
 const resolveCommandParentEntryId = (
-  storage: BridgeLedgerStorage,
+  storage: RuntimeLedgerStorage,
   parentEntryId: string | null | undefined,
 ) => {
   const normalized = parentEntryId?.trim() || null;
@@ -199,7 +199,7 @@ const resolveCommandParentEntryId = (
     return null;
   }
   if (!storage.getEntry(normalized)) {
-    throw new Error(`parentEntryId 必须指向当前 bridge ledger 中已存在的 entry：${normalized}`);
+    throw new Error(`parentEntryId 必须指向当前 runtime ledger 中已存在的 entry：${normalized}`);
   }
   return normalized;
 };
@@ -210,18 +210,18 @@ const prepareRuntimeChatCommand = async (
   const userMessage = latestUserMessageContent(command);
 
   if (command.userMessage?.trim() && command.workspacePath?.trim() && command.sessionRootDir?.trim()) {
-    const paths = await resolveBridgeSessionPaths({
+    const paths = await resolveRuntimeSessionPaths({
       workspacePath: command.workspacePath,
       sessionRootDir: command.sessionRootDir,
     });
-    const storage = await BridgeLedgerStorage.openOrCreate({
+    const storage = await RuntimeLedgerStorage.openOrCreate({
       filePath: paths.ledgerPath,
       workspacePath: command.workspacePath,
       sessionRootDir: command.sessionRootDir,
     });
     const parentEntryId = resolveCommandParentEntryId(storage, commandParentEntryId(command));
     const contextLeafId = parentEntryId ?? storage.getLeafId();
-    const sessionContext = buildBridgeSessionContext(storage, contextLeafId);
+    const sessionContext = buildRuntimeSessionContext(storage, contextLeafId);
     const commandWithRecording = {
       ...command,
       recordUserMessage: shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId),
@@ -243,7 +243,7 @@ const prepareRuntimeChatCommand = async (
       parentEntryId: contextLeafId,
     });
     const runtimeParentEntryId = systemEntry?.id ?? parentEntryId ?? commandParentEntryId(commandWithTurn);
-    const updatedSessionContext = buildBridgeSessionContext(
+    const updatedSessionContext = buildRuntimeSessionContext(
       storage,
       systemEntry?.id ?? contextLeafId,
     );
@@ -352,16 +352,16 @@ const isRetryableExecutionError = (error: unknown) => {
   return RETRYABLE_ERROR_MESSAGES.some((keyword) => message.includes(keyword));
 };
 
-const isVisibleChatOutputEvent = (command: RuntimeChatCommand, event: BridgeEvent) => {
+const isVisibleChatOutputEvent = (command: RuntimeChatCommand, event: AgentEvent) => {
   if (!command.streamId || !("taskId" in event) || event.taskId !== command.streamId) {
     return false;
   }
 
-  return event.type === BridgeEventType.TextDelta
-    || event.type === BridgeEventType.ThinkingDelta
-    || event.type === BridgeEventType.ReplaceText
-    || event.type === BridgeEventType.ThinkingEnd
-    || event.type === BridgeEventType.Done;
+  return event.type === AgentEventType.TextDelta
+    || event.type === AgentEventType.ThinkingDelta
+    || event.type === AgentEventType.ReplaceText
+    || event.type === AgentEventType.ThinkingEnd
+    || event.type === AgentEventType.Done;
 };
 
 const retryDelayMs = (attempt: number) =>

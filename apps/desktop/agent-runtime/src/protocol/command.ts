@@ -1,4 +1,4 @@
-import type { BridgeCommand } from "../engine/agent/contracts/protocol.js";
+import type { AgentCommand } from "../engine/agent/contracts/protocol.js";
 import type {
   CollaborationModeRunInput,
   CollaborationRunInput,
@@ -60,7 +60,7 @@ export type RunCollaborationModeCommand = {
 };
 
 export type AgentRuntimeCommand =
-  | BridgeCommand
+  | AgentCommand
   | GetCollaborationTimelineCommand
   | GetRuntimeSessionCommand
   | ListCollaborationModesCommand

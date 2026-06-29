@@ -1,6 +1,6 @@
 import {
-  BridgeEventType,
-  BridgeResultType,
+  AgentEventType,
+  AgentResultType,
   type ChatResult,
 } from "../../contracts/protocol.js";
 import type {
@@ -19,19 +19,19 @@ export class MockChatRuntime implements ChatRuntime {
 
     if (command.stream !== false && command.streamId) {
       context.emit({
-        type: BridgeEventType.ThinkingDelta,
+        type: AgentEventType.ThinkingDelta,
         taskId: command.streamId,
         delta: `${thinking}\n`,
       });
 
       for (const delta of chunkText(text)) {
-        context.emit({ type: BridgeEventType.TextDelta, taskId: command.streamId, delta });
+        context.emit({ type: AgentEventType.TextDelta, taskId: command.streamId, delta });
         await sleep(10);
       }
     }
 
     return {
-      type: BridgeResultType.ChatResult,
+      type: AgentResultType.ChatResult,
       text,
       thinking,
     };

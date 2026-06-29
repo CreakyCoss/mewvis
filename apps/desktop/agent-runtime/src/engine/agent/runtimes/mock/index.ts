@@ -1,8 +1,8 @@
-import type { BridgeAgent } from "../types.js";
+import type { RuntimeAgent } from "../types.js";
 import { MockAgent } from "./agent.js";
 import { MockChatRuntime } from "./chat.js";
 
-export const mockBridgeAgent = {
+export const mockRuntimeAgent = {
   id: "mock",
   label: "Mock",
   description: "本地模拟回复，用于验证 agent-runtime 与 engine/agent 链路。",
@@ -10,4 +10,4 @@ export const mockBridgeAgent = {
   requiresModel: false,
   agent: new MockAgent(),
   chat: new MockChatRuntime(),
-} satisfies BridgeAgent;
+} satisfies RuntimeAgent;

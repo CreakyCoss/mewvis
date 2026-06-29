@@ -1,10 +1,10 @@
 import {
-  BridgeEventType,
+  AgentEventType,
 } from "../../../contracts/protocol.js";
 import type {
   AgentRunResult,
   AgentRuntimeCallbacks,
-  EmitBridgeEvent,
+  EmitAgentEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
 import {
@@ -24,7 +24,7 @@ type DrivePiAgentSessionInput = {
   command: RuntimeAgentCommand;
   session: PiAgentSession;
   callbacks: AgentRuntimeCallbacks;
-  emit: EmitBridgeEvent;
+  emit: EmitAgentEvent;
   state: PiAgentRunState;
   shouldBootstrap: boolean;
 };
@@ -56,7 +56,7 @@ export const drivePiAgentSession = async ({
 const nextPromptFromAskUserToolCall = async (
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
 ) => {
   const toolCall = parsePiAskUserFunctionCall(state.assistantText || state.streamedText);
@@ -65,7 +65,7 @@ const nextPromptFromAskUserToolCall = async (
   }
 
   emit({
-    type: BridgeEventType.ReplaceText,
+    type: AgentEventType.ReplaceText,
     taskId: command.taskId,
     text: "",
   });

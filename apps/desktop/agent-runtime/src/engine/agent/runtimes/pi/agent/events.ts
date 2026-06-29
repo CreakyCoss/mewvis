@@ -1,9 +1,9 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
-  BridgeEventType,
+  AgentEventType,
 } from "../../../contracts/protocol.js";
 import type {
-  EmitBridgeEvent,
+  EmitAgentEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
 import { messageFromError } from "../../../utils/error.js";
@@ -26,7 +26,7 @@ export const createPiAgentRunState = (): PiAgentRunState => ({
 export const subscribeToPiAgentSession = (
   command: RuntimeAgentCommand,
   session: PiAgentSession,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
 ) =>
   session.subscribe((event) => {
@@ -41,7 +41,7 @@ export const throwPiSessionError = (state: PiAgentRunState) => {
 
 export const reportPiAgentRunError = (
   command: RuntimeAgentCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   error: unknown,
   state: PiAgentRunState,
 ) => {
@@ -51,7 +51,7 @@ export const reportPiAgentRunError = (
 
   state.errorReported = true;
   emit({
-    type: BridgeEventType.Error,
+    type: AgentEventType.Error,
     taskId: command.taskId,
     message: messageFromError(error),
   });
@@ -59,7 +59,7 @@ export const reportPiAgentRunError = (
 
 const handlePiSessionEvent = (
   command: RuntimeAgentCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
   event: AgentSessionEvent,
 ) => {
@@ -93,7 +93,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_start":
       emit({
-        type: BridgeEventType.ToolStart,
+        type: AgentEventType.ToolStart,
         taskId: command.taskId,
         toolName: event.toolName,
         args: event.args,
@@ -101,7 +101,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_update":
       emit({
-        type: BridgeEventType.ToolUpdate,
+        type: AgentEventType.ToolUpdate,
         taskId: command.taskId,
         toolName: event.toolName,
         partialResult: event.partialResult,
@@ -109,7 +109,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_end":
       emit({
-        type: BridgeEventType.ToolEnd,
+        type: AgentEventType.ToolEnd,
         taskId: command.taskId,
         toolName: event.toolName,
         isError: event.isError,
@@ -123,7 +123,7 @@ const handlePiSessionEvent = (
 
 const handlePiMessageUpdate = (
   command: RuntimeAgentCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
   event: Extract<AgentSessionEvent, { type: "message_update" }>,
 ) => {
@@ -132,21 +132,21 @@ const handlePiMessageUpdate = (
       state.assistantText += event.assistantMessageEvent.delta;
       state.streamedText += event.assistantMessageEvent.delta;
       emit({
-        type: BridgeEventType.TextDelta,
+        type: AgentEventType.TextDelta,
         taskId: command.taskId,
         delta: event.assistantMessageEvent.delta,
       });
       return;
     case "thinking_delta":
       emit({
-        type: BridgeEventType.ThinkingDelta,
+        type: AgentEventType.ThinkingDelta,
         taskId: command.taskId,
         delta: event.assistantMessageEvent.delta,
       });
       return;
     case "thinking_end":
       emit({
-        type: BridgeEventType.ThinkingEnd,
+        type: AgentEventType.ThinkingEnd,
         taskId: command.taskId,
         content: event.assistantMessageEvent.content,
       });
@@ -170,7 +170,7 @@ const handlePiMessageUpdate = (
 
 const handlePiMessageEnd = (
   command: RuntimeAgentCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
   event: Extract<AgentSessionEvent, { type: "message_end" }>,
 ) => {
@@ -181,7 +181,7 @@ const handlePiMessageEnd = (
   const thinking = getPiMessageThinking(event);
   if (thinking) {
     emit({
-      type: BridgeEventType.ThinkingEnd,
+      type: AgentEventType.ThinkingEnd,
       taskId: command.taskId,
       content: thinking,
     });
@@ -230,7 +230,7 @@ const piMessageError = (message: { errorMessage?: string; stopReason?: string })
 
 const setPiSessionError = (
   command: RuntimeAgentCommand,
-  emit: EmitBridgeEvent,
+  emit: EmitAgentEvent,
   state: PiAgentRunState,
   message: string,
 ) => {

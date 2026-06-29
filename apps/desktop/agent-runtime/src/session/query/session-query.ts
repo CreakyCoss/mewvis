@@ -1,10 +1,10 @@
 import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import type {
-  BridgeLedgerEntry,
-  BridgeLedgerHeader,
+  RuntimeLedgerEntry,
+  RuntimeLedgerHeader,
 } from "../core/types.js";
-import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
+import { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 import {
   readRuntimeSessionTraceRecords,
   type RuntimeSessionTraceRecord,
@@ -60,8 +60,8 @@ export type RuntimeSessionTimelineItem = {
 export type RuntimeSessionSnapshot = {
   session: RuntimeSessionSummary;
   ledger?: {
-    header: BridgeLedgerHeader;
-    entries: BridgeLedgerEntry[];
+    header: RuntimeLedgerHeader;
+    entries: RuntimeLedgerEntry[];
   } | null;
   trace?: RuntimeSessionTraceRecord[];
   timeline?: RuntimeSessionTimelineItem[];
@@ -105,7 +105,7 @@ const isNotFoundError = (error: unknown) =>
 
 const openLedgerOrNull = async (ledgerPath: string) => {
   try {
-    return await BridgeLedgerStorage.open(ledgerPath);
+    return await RuntimeLedgerStorage.open(ledgerPath);
   } catch (error: unknown) {
     if (isNotFoundError(error)) {
       return null;
@@ -152,7 +152,7 @@ const summarizeSession = async (
   } = {},
 ): Promise<{
   summary: RuntimeSessionSummary;
-  ledger: BridgeLedgerStorage | null;
+  ledger: RuntimeLedgerStorage | null;
   trace: RuntimeSessionTraceRecord[];
 }> => {
   const paths = runtimeSessionPaths(target);

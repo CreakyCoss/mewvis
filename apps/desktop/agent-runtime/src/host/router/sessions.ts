@@ -1,8 +1,8 @@
 import {
-  BridgeEventType,
+  AgentEventType,
 } from "../../engine/agent/contracts/protocol.js";
-import type { WriteBridgeJsonLine } from "../../engine/agent/commands/responses.js";
-import type { EmitBridgeEvent } from "../../engine/agent/runtimes/types.js";
+import type { WriteAgentRuntimeJsonLine } from "../../engine/agent/commands/responses.js";
+import type { EmitAgentEvent } from "../../engine/agent/runtimes/types.js";
 import { messageFromError } from "../../engine/agent/utils/error.js";
 import {
   getCollaborationTimeline,
@@ -23,8 +23,8 @@ type QueryCommand =
   | ListRuntimeSessionsCommand;
 
 type HandlerDeps = {
-  emit: EmitBridgeEvent;
-  writeJsonLine: WriteBridgeJsonLine;
+  emit: EmitAgentEvent;
+  writeJsonLine: WriteAgentRuntimeJsonLine;
 };
 
 export const handleSessionQueryCommand = async (
@@ -87,7 +87,7 @@ export const handleSessionQueryCommand = async (
     }
   } catch (error: unknown) {
     deps.emit({
-      type: BridgeEventType.Error,
+      type: AgentEventType.Error,
       message: messageFromError(error),
     });
   }

@@ -1,20 +1,20 @@
 export type {
-  BridgeDisplaySummary,
-  BridgeRuntimeLink,
-  BridgeSessionResultAuxiliaryEntry,
-  BridgeSessionResultMessage,
+  RuntimeDisplaySummary,
+  RuntimeLink,
+  RuntimeSessionResultAuxiliaryEntry,
+  RuntimeSessionResultMessage,
   SessionMutationResult,
   SessionResult,
 } from "../../../session/contracts/results.js";
 
 export {
-  appendBridgeSessionMessages,
-  compactBridgeSession,
-  createBridgeSession,
-  deleteBridgeSessionMessage,
-  editBridgeSessionMessage,
-  readBridgeSession,
-  rebuildBridgeAgentSession,
-  rebuildBridgeSession,
-  summarizeBridgeSession,
+  appendRuntimeSessionMessages,
+  compactRuntimeSession,
+  createRuntimeSession,
+  deleteRuntimeSessionMessage,
+  editRuntimeSessionMessage,
+  readRuntimeSession,
+  rebuildRuntimeAgentSession,
+  rebuildRuntimeSession,
+  summarizeRuntimeSession,
 } from "./operations/session-service.js";

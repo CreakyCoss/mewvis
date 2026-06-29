@@ -378,7 +378,7 @@ try {
     runtimeInstruction: "严格保留 marker，输出 JSON。",
   }), "chat_result", CHAT_TIMEOUT_MS);
   expectMarker(chatResult.text, chatMarker, "chat_result");
-  assert(chatResult.bridgeSession?.userMessageRecordId, "chat_result 应返回 user messageRecordId", chatResult);
+  assert(chatResult.runtimeSession?.userMessageRecordId, "chat_result 应返回 user messageRecordId", chatResult);
 
   const agentARoleId = "live-agent-a";
   const agentA1Marker = `${runMarker}_AGENT_A1`;
@@ -728,7 +728,7 @@ try {
       aFirstHiddenFromBSecret: !tavernARun.done.text.includes(tavernSecret),
       aRebuildHiddenFromBSecret: !tavernARebuildRun.done.text.includes(tavernSecret),
     },
-    bridgeLedger: {
+    runtimeLedger: {
       sharedSummary: finalSession.summary,
       displaySummaryRecordId: displaySummaryResult.displaySummary?.recordId,
       displaySummaryChunkCount: displaySummaryResult.displaySummary?.chunkCount,

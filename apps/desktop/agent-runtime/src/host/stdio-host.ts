@@ -1,13 +1,13 @@
 import {
-  BridgeEventType,
+  AgentEventType,
 } from "../engine/agent/contracts/protocol.js";
 import type {
   AgentRuntimeCommand,
 } from "../protocol/index.js";
 import {
-  createStdioBridgeReader,
+  createStdioRuntimeReader,
   parseAgentRuntimeCommand,
-  writeBridgeEvent,
+  writeAgentEvent,
   writeJsonLine,
 } from "../transport/stdio.js";
 import {
@@ -28,14 +28,14 @@ export type AgentRuntimeStdioOptions = Omit<
 export const runAgentRuntimeStdio = async (
   options: AgentRuntimeStdioOptions = {},
 ) => {
-  const reader = createStdioBridgeReader();
+  const reader = createStdioRuntimeReader();
   const runtime = createAgentRuntime({
     ...options,
     close: () => {
       options.close?.();
       reader.close();
     },
-    emit: writeBridgeEvent,
+    emit: writeAgentEvent,
     writeJsonLine,
   });
 
@@ -45,8 +45,8 @@ export const runAgentRuntimeStdio = async (
       try {
         command = parseAgentRuntimeCommand(line);
       } catch (error: unknown) {
-        writeBridgeEvent({
-          type: BridgeEventType.Error,
+        writeAgentEvent({
+          type: AgentEventType.Error,
           message: messageFromError(error),
         });
         continue;

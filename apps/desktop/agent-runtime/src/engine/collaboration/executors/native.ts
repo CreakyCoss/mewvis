@@ -1,5 +1,5 @@
 import type {
-  BridgeRuntimeResources,
+  AgentRuntimeResources,
 } from "../../agent/contracts/protocol.js";
 import { messageFromError } from "../../agent/utils/error.js";
 import type {
@@ -1079,10 +1079,10 @@ const valueIncludes = (value: unknown, expected: unknown) => {
 };
 
 const mergeRuntimeResources = (
-  globalResources: BridgeRuntimeResources | null,
+  globalResources: AgentRuntimeResources | null,
   role: CollaborationAgentRole,
   step: CollaborationAgentWorkflowStep,
-): BridgeRuntimeResources | null => {
+): AgentRuntimeResources | null => {
   const base = {
     ...(globalResources ?? {}),
     ...(role.resources ?? {}),

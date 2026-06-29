@@ -1,6 +1,6 @@
-import type { WriteBridgeJsonLine } from "../../engine/agent/commands/responses.js";
+import type { WriteAgentRuntimeJsonLine } from "../../engine/agent/commands/responses.js";
 import type { AgentCommandRouter } from "../../engine/agent/commands/router.js";
-import type { EmitBridgeEvent } from "../../engine/agent/runtimes/types.js";
+import type { EmitAgentEvent } from "../../engine/agent/runtimes/types.js";
 import type { CollaborationEngine } from "../../engine/collaboration/index.js";
 import {
   AgentRuntimeCommandType,
@@ -12,8 +12,8 @@ import { createCollaborationCommandRunner } from "./collaboration.js";
 import { handleSessionQueryCommand } from "./sessions.js";
 
 type RuntimeRouterDeps = {
-  emit: EmitBridgeEvent;
-  writeJsonLine: WriteBridgeJsonLine;
+  emit: EmitAgentEvent;
+  writeJsonLine: WriteAgentRuntimeJsonLine;
   collaborationEngine: CollaborationEngine;
   agentCommandRouter: AgentCommandRouter;
 };

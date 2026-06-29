@@ -1,4 +1,4 @@
-import type { BridgeMessage } from "../../../../session/core/types.js";
+import type { RuntimeMessage } from "../../../../session/core/types.js";
 
 export type PromptModelContext = {
   contextWindow?: number | null;
@@ -51,7 +51,7 @@ export const takeContextText = (text: string, maxChars: number) =>
     : `${text.slice(0, Math.max(0, maxChars))}\n\n[内容已按上下文预算截断]`;
 
 export const toRuntimeMessages = (
-  messages: BridgeMessage[],
+  messages: RuntimeMessage[],
   currentUserText: string,
   limits: PromptLimits,
   requestContext?: string | null,

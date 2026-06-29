@@ -1,9 +1,9 @@
 import type {
-  BridgeMessageActorType,
-  BridgeMessageMetadata,
-  BridgeMessageRole,
-  BridgeMessageScope,
-  BridgeMessageSource,
+  RuntimeMessageActorType,
+  RuntimeMessageMetadata,
+  RuntimeMessageRole,
+  RuntimeMessageScope,
+  RuntimeMessageSource,
 } from "../core/types.js";
 
 type AgentSessionRef = {
@@ -12,11 +12,11 @@ type AgentSessionRef = {
 };
 
 type StandardMetadataInput = {
-  role: BridgeMessageRole;
-  source: BridgeMessageSource;
-  scope?: BridgeMessageScope;
+  role: RuntimeMessageRole;
+  source: RuntimeMessageSource;
+  scope?: RuntimeMessageScope;
   metadata?: Record<string, unknown> | null;
-  actorType?: BridgeMessageActorType;
+  actorType?: RuntimeMessageActorType;
   runtimeId?: string | null;
   agentRoleId?: string | null;
   agentSessionId?: string | null;
@@ -33,7 +33,7 @@ type StandardMetadataInput = {
   thinking?: string | null;
 };
 
-const actorTypeForRole = (role: BridgeMessageRole): BridgeMessageActorType => {
+const actorTypeForRole = (role: RuntimeMessageRole): RuntimeMessageActorType => {
   if (role === "assistant") {
     return "agent";
   }
@@ -72,7 +72,7 @@ const parseAgentSessionId = (agentSessionId?: string | null): AgentSessionRef =>
   };
 };
 
-export const standardizeBridgeMessageMetadata = ({
+export const standardizeRuntimeMessageMetadata = ({
   role,
   source,
   scope = "shared",
@@ -92,12 +92,12 @@ export const standardizeBridgeMessageMetadata = ({
   parentUserEntryId,
   runStatus,
   thinking,
-}: StandardMetadataInput): BridgeMessageMetadata => {
+}: StandardMetadataInput): RuntimeMessageMetadata => {
   const {
     agentSessionDir: _discardAgentSessionDir,
     agentSessionRunId: _discardAgentSessionRunId,
     ...existing
-  } = (metadata ?? {}) as BridgeMessageMetadata & {
+  } = (metadata ?? {}) as RuntimeMessageMetadata & {
     agentSessionDir?: unknown;
     agentSessionRunId?: unknown;
   };
@@ -112,7 +112,7 @@ export const standardizeBridgeMessageMetadata = ({
 
   return {
     ...existing,
-    bridgeMetadataVersion: 1,
+    runtimeMetadataVersion: 1,
     actorType: actorType ?? existing.actorType ?? actorTypeForRole(role),
     source,
     scope,

@@ -6,9 +6,9 @@ import { execSync } from "node:child_process";
 import { arch as hostArch, platform as hostPlatform } from "node:os";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const bridgeRoot = join(scriptDir, "..");
-const desktopRoot = join(bridgeRoot, "..");
-const outputDir = join(bridgeRoot, "dist");
+const runtimeRoot = join(scriptDir, "..");
+const desktopRoot = join(runtimeRoot, "..");
+const outputDir = join(runtimeRoot, "dist");
 const targetDir = join(desktopRoot, "src-tauri", "target");
 const cacheDir = join(targetDir, "node-runtime-cache");
 

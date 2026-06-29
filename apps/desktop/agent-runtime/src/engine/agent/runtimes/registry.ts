@@ -1,19 +1,19 @@
-import type { BridgeAgentDefinition } from "./agents.js";
-import type { BridgeAgent } from "./types.js";
-import { mockBridgeAgent } from "./mock/index.js";
-import { piBridgeAgent } from "./pi/index.js";
+import type { RuntimeAgentDefinition } from "./agents.js";
+import type { RuntimeAgent } from "./types.js";
+import { mockRuntimeAgent } from "./mock/index.js";
+import { piRuntimeAgent } from "./pi/index.js";
 
-const bridgeAgents = Object.freeze([
-  piBridgeAgent,
-  mockBridgeAgent,
-] satisfies readonly BridgeAgent[]);
+const runtimeAgents = Object.freeze([
+  piRuntimeAgent,
+  mockRuntimeAgent,
+] satisfies readonly RuntimeAgent[]);
 
-const createBridgeAgentRegistry = (
-  agents: readonly BridgeAgent[],
-): Readonly<Record<string, BridgeAgent>> =>
+const createRuntimeAgentRegistry = (
+  agents: readonly RuntimeAgent[],
+): Readonly<Record<string, RuntimeAgent>> =>
   Object.freeze(Object.fromEntries(agents.map((agent) => [agent.id, agent])));
 
-const toBridgeAgentDefinition = (agent: BridgeAgent): BridgeAgentDefinition =>
+const toRuntimeAgentDefinition = (agent: RuntimeAgent): RuntimeAgentDefinition =>
   Object.freeze({
     id: agent.id,
     label: agent.label,
@@ -22,19 +22,19 @@ const toBridgeAgentDefinition = (agent: BridgeAgent): BridgeAgentDefinition =>
     requiresModel: agent.requiresModel,
   });
 
-const bridgeAgentRegistry = createBridgeAgentRegistry(bridgeAgents);
+const runtimeAgentRegistry = createRuntimeAgentRegistry(runtimeAgents);
 
-export const bridgeAgentManifest = Object.freeze({
-  defaultAgentId: piBridgeAgent.id,
-  definitions: Object.freeze(bridgeAgents.map(toBridgeAgentDefinition)),
+export const runtimeAgentManifest = Object.freeze({
+  defaultAgentId: piRuntimeAgent.id,
+  definitions: Object.freeze(runtimeAgents.map(toRuntimeAgentDefinition)),
 });
 
-export const resolveBridgeAgent = (agentId?: string | null) => {
-  const resolvedAgentId = agentId?.trim() || bridgeAgentManifest.defaultAgentId;
-  const bridgeAgent = bridgeAgentRegistry[resolvedAgentId];
-  if (!bridgeAgent) {
+export const resolveRuntimeAgent = (agentId?: string | null) => {
+  const resolvedAgentId = agentId?.trim() || runtimeAgentManifest.defaultAgentId;
+  const runtimeAgent = runtimeAgentRegistry[resolvedAgentId];
+  if (!runtimeAgent) {
     throw new Error(`未配置 agent：${resolvedAgentId}`);
   }
 
-  return bridgeAgent;
+  return runtimeAgent;
 };

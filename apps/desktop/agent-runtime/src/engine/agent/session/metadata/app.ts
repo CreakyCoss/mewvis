@@ -1,31 +1,31 @@
 import type {
-  BridgeMessageActorType,
-  BridgeMessageRole,
-  BridgeMessageScope,
-  BridgeMessageSource,
+  RuntimeMessageActorType,
+  RuntimeMessageRole,
+  RuntimeMessageScope,
+  RuntimeMessageSource,
 } from "../../../../session/core/types.js";
-import { standardizeBridgeMessageMetadata } from "../../../../session/metadata/standard.js";
+import { standardizeRuntimeMessageMetadata } from "../../../../session/metadata/standard.js";
 
-export const commandBridgeMessageMetadata = (input: {
-  role: BridgeMessageRole;
-  source: Extract<BridgeMessageSource, "app_create_session" | "app_append" | "app_rebuild" | "app_edit">;
+export const commandRuntimeMessageMetadata = (input: {
+  role: RuntimeMessageRole;
+  source: Extract<RuntimeMessageSource, "app_create_session" | "app_append" | "app_rebuild" | "app_edit">;
   baseLeafId: string | null;
   metadata?: Record<string, unknown> | null;
 }) =>
-  standardizeBridgeMessageMetadata({
+  standardizeRuntimeMessageMetadata({
     role: input.role,
     source: input.source,
     baseLeafId: input.baseLeafId,
     metadata: input.metadata,
   });
 
-export const bridgeLedgerOperationMetadata = (input: {
-  source: BridgeMessageSource;
+export const runtimeLedgerOperationMetadata = (input: {
+  source: RuntimeMessageSource;
   baseLeafId: string | null;
   [key: string]: unknown;
 }) => ({
   ...input,
-  bridgeMetadataVersion: 1,
-  actorType: "bridge" satisfies BridgeMessageActorType,
-  scope: "shared" satisfies BridgeMessageScope,
+  runtimeMetadataVersion: 1,
+  actorType: "runtime" satisfies RuntimeMessageActorType,
+  scope: "shared" satisfies RuntimeMessageScope,
 });

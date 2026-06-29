@@ -7,14 +7,14 @@ import type {
   Usage,
 } from "@earendil-works/pi-ai";
 import {
-  BridgeResultType,
+  AgentResultType,
   type ChatMessageInput,
   type ChatResult,
 } from "../../../contracts/protocol.js";
 import type { RuntimeChatCommand } from "../../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatResult => ({
-  type: BridgeResultType.ChatResult,
+  type: AgentResultType.ChatResult,
   text: textFromPiMessage(message),
   thinking: thinkingFromPiMessage(message),
 });

@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import type {
-  BridgeLedgerEntry,
-  BridgeLedgerHeader,
-  BridgeLeafEntry,
-  BridgeMessage,
-  BridgeMessageMetadata,
-  BridgeMessageEntry,
-  BridgeRequestContextEntry,
-  BridgeRuntimeInstructionEntry,
+  RuntimeLedgerEntry,
+  RuntimeLedgerHeader,
+  RuntimeLeafEntry,
+  RuntimeMessage,
+  RuntimeMessageMetadata,
+  RuntimeMessageEntry,
+  RuntimeRequestContextEntry,
+  RuntimeInstructionEntry,
 } from "../core/types.js";
 
 const nowIso = () => new Date().toISOString();
@@ -32,21 +32,21 @@ const parseJsonLine = <T>(line: string, filePath: string, lineNumber: number): T
   }
 };
 
-const isHeader = (value: unknown): value is BridgeLedgerHeader =>
+const isHeader = (value: unknown): value is RuntimeLedgerHeader =>
   Boolean(value) &&
   typeof value === "object" &&
   (value as { type?: unknown }).type === "runtime_session";
 
-const leafIdAfterEntry = (entry: BridgeLedgerEntry): string | null =>
+const leafIdAfterEntry = (entry: RuntimeLedgerEntry): string | null =>
   entry.type === "leaf" ? entry.targetId : entry.id;
 
-export class BridgeLedgerStorage {
-  private readonly byId: Map<string, BridgeLedgerEntry>;
+export class RuntimeLedgerStorage {
+  private readonly byId: Map<string, RuntimeLedgerEntry>;
 
   private constructor(
     readonly filePath: string,
-    readonly header: BridgeLedgerHeader,
-    private readonly entries: BridgeLedgerEntry[],
+    readonly header: RuntimeLedgerHeader,
+    private readonly entries: RuntimeLedgerEntry[],
     private leafId: string | null,
   ) {
     this.byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -56,11 +56,11 @@ export class BridgeLedgerStorage {
     filePath: string;
     workspacePath: string;
     sessionRootDir: string;
-  }): Promise<BridgeLedgerStorage> {
+  }): Promise<RuntimeLedgerStorage> {
     try {
-      return await BridgeLedgerStorage.open(input.filePath);
+      return await RuntimeLedgerStorage.open(input.filePath);
     } catch {
-      const header: BridgeLedgerHeader = {
+      const header: RuntimeLedgerHeader = {
         type: "runtime_session",
         version: 1,
         id: randomUUID(),
@@ -69,11 +69,11 @@ export class BridgeLedgerStorage {
         sessionRootDir: input.sessionRootDir,
       };
       await writeFile(input.filePath, `${JSON.stringify(header)}\n`, "utf8");
-      return new BridgeLedgerStorage(input.filePath, header, [], null);
+      return new RuntimeLedgerStorage(input.filePath, header, [], null);
     }
   }
 
-  static async open(filePath: string): Promise<BridgeLedgerStorage> {
+  static async open(filePath: string): Promise<RuntimeLedgerStorage> {
     const content = await readFile(filePath, "utf8");
     const lines = content.split("\n").filter((line) => line.trim());
     const [headerLine, ...entryLines] = lines;
@@ -87,14 +87,14 @@ export class BridgeLedgerStorage {
     }
 
     const entries = entryLines.map((line, index) =>
-      parseJsonLine<BridgeLedgerEntry>(line, filePath, index + 2)
+      parseJsonLine<RuntimeLedgerEntry>(line, filePath, index + 2)
     );
     const leafId = entries.reduce<string | null>(
       (_current, entry) => leafIdAfterEntry(entry),
       null,
     );
 
-    return new BridgeLedgerStorage(filePath, header, entries, leafId);
+    return new RuntimeLedgerStorage(filePath, header, entries, leafId);
   }
 
   getLeafId() {
@@ -113,7 +113,7 @@ export class BridgeLedgerStorage {
     return createShortId(this.byId);
   }
 
-  async appendEntry<TEntry extends BridgeLedgerEntry>(entry: TEntry): Promise<TEntry> {
+  async appendEntry<TEntry extends RuntimeLedgerEntry>(entry: TEntry): Promise<TEntry> {
     await appendFile(this.filePath, `${JSON.stringify(entry)}\n`, "utf8");
     this.entries.push(entry);
     this.byId.set(entry.id, entry);
@@ -122,10 +122,10 @@ export class BridgeLedgerStorage {
   }
 
   async appendMessage(
-    message: BridgeMessage,
+    message: RuntimeMessage,
     parentId: string | null = this.leafId,
     id = this.createEntryId(),
-  ): Promise<BridgeMessageEntry> {
+  ): Promise<RuntimeMessageEntry> {
     return this.appendEntry({
       type: "message",
       id,
@@ -137,9 +137,9 @@ export class BridgeLedgerStorage {
 
   async appendRequestContext(
     content: string,
-    metadata: BridgeMessageMetadata | null,
+    metadata: RuntimeMessageMetadata | null,
     parentId: string | null = this.leafId,
-  ): Promise<BridgeRequestContextEntry> {
+  ): Promise<RuntimeRequestContextEntry> {
     return this.appendEntry({
       type: "request_context",
       id: this.createEntryId(),
@@ -152,9 +152,9 @@ export class BridgeLedgerStorage {
 
   async appendRuntimeInstruction(
     content: string,
-    metadata: BridgeMessageMetadata | null,
+    metadata: RuntimeMessageMetadata | null,
     parentId: string | null = this.leafId,
-  ): Promise<BridgeRuntimeInstructionEntry> {
+  ): Promise<RuntimeInstructionEntry> {
     return this.appendEntry({
       type: "runtime_instruction",
       id: this.createEntryId(),
@@ -180,7 +180,7 @@ export class BridgeLedgerStorage {
     });
   }
 
-  async setLeafId(targetId: string | null): Promise<BridgeLeafEntry> {
+  async setLeafId(targetId: string | null): Promise<RuntimeLeafEntry> {
     if (targetId !== null && !this.byId.has(targetId)) {
       throw new Error(`runtime ledger entry 不存在：${targetId}`);
     }
@@ -196,10 +196,10 @@ export class BridgeLedgerStorage {
 
   getPathToRoot(leafId: string | null = this.leafId) {
     if (leafId === null) {
-      return [] satisfies BridgeLedgerEntry[];
+      return [] satisfies RuntimeLedgerEntry[];
     }
 
-    const path: BridgeLedgerEntry[] = [];
+    const path: RuntimeLedgerEntry[] = [];
     let current = this.byId.get(leafId);
     if (!current) {
       throw new Error(`runtime ledger leaf 不存在：${leafId}`);

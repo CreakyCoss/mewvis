@@ -1,9 +1,9 @@
-export type BridgeAgentCapability = "agent" | "chat";
+export type RuntimeAgentCapability = "agent" | "chat";
 
-export type BridgeAgentDefinition = Readonly<{
+export type RuntimeAgentDefinition = Readonly<{
   id: string;
   label: string;
   description: string;
-  capabilities: readonly BridgeAgentCapability[];
+  capabilities: readonly RuntimeAgentCapability[];
   requiresModel: boolean;
 }>;

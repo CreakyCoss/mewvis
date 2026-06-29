@@ -1,10 +1,10 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
-  BridgeLedgerEntry,
-  BridgeLedgerHeader,
+  RuntimeLedgerEntry,
+  RuntimeLedgerHeader,
 } from "../core/types.js";
-import { BridgeLedgerStorage } from "../storage/jsonl-store.js";
+import { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 import {
   readRuntimeSessionTraceRecords,
   type RuntimeSessionTraceRecord,
@@ -36,7 +36,7 @@ type RuntimeSessionManifestInput = {
   sessionRootDir: string;
   ledgerPath: string;
   tracePath: string;
-  ledger?: BridgeLedgerStorage | null;
+  ledger?: RuntimeLedgerStorage | null;
   trace?: RuntimeSessionTraceRecord[];
 };
 
@@ -49,7 +49,7 @@ const isNotFoundError = (error: unknown) =>
 const stringValue = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : null;
 
-const timestampOfEntry = (entry: BridgeLedgerEntry) =>
+const timestampOfEntry = (entry: RuntimeLedgerEntry) =>
   typeof entry.timestamp === "string" ? entry.timestamp : null;
 
 const latestTimestamp = (timestamps: Array<string | null | undefined>) =>
@@ -101,7 +101,7 @@ const isRuntimeSessionManifest = (value: unknown): value is RuntimeSessionManife
 
 const openLedgerOrNull = async (ledgerPath: string) => {
   try {
-    return await BridgeLedgerStorage.open(ledgerPath);
+    return await RuntimeLedgerStorage.open(ledgerPath);
   } catch (error: unknown) {
     if (isNotFoundError(error)) {
       return null;

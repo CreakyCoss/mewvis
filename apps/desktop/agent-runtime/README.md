@@ -104,7 +104,7 @@ runtime.collaboration.listModes();
 
 Collaboration handlers do not own a question protocol. Agent steps run through the
 host-provided agent runner. SDK hosts can pass `callbacks.requestUserInput` to
-`createAgentRuntime`; stdio hosts use the bridge question protocol internally.
+`createAgentRuntime`; stdio hosts use the agent question protocol internally.
 
 ### stdio
 
