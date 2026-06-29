@@ -13,7 +13,7 @@ import type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
-} from "../session/query/session-query.js";
+} from "../session/contracts/query.js";
 import type { CollaborationRunResult } from "../engine/collaboration/contracts/state.js";
 import type { CollaborationModeSummary } from "../engine/collaboration/modes/contracts.js";
 

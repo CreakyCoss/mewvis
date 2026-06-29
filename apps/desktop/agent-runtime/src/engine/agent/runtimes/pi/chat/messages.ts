@@ -6,15 +6,13 @@ import type {
   Model,
   Usage,
 } from "@earendil-works/pi-ai";
-import {
-  AgentResultType,
-  type ChatMessageInput,
-  type ChatResult,
-} from "../../../../../protocol/agent.js";
+import type {
+  ChatMessageInput,
+  RuntimeChatResult,
+} from "../../../contracts/chat.js";
 import type { RuntimeChatCommand } from "../../types.js";
 
-export const createPiChatResult = (message: AssistantMessage): ChatResult => ({
-  type: AgentResultType.ChatResult,
+export const createPiChatResult = (message: AssistantMessage): RuntimeChatResult => ({
   text: textFromPiMessage(message),
   thinking: thinkingFromPiMessage(message),
 });

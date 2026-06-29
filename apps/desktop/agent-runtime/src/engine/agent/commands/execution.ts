@@ -2,7 +2,7 @@ import {
   AgentEventType,
   type AgentEvent,
 } from "../contracts/events.js";
-import type { ChatResult } from "../../../protocol/agent.js";
+import type { RuntimeChatResult } from "../contracts/chat.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
@@ -107,7 +107,7 @@ const prepareRuntimeAgentCommand = async (
 export const executeChatCommand = async (
   command: RuntimeChatCommand,
   context: ChatRuntimeContext,
-): Promise<ChatResult> => {
+): Promise<RuntimeChatResult> => {
   const { implementation } = resolveRuntime("chat", command.agentId);
   const runtimeCommand = await prepareRuntimeChatCommand(command);
   const recorder = await RuntimeSessionRecorder.create(runtimeCommand);

@@ -7,10 +7,12 @@ import type {
 } from "../contracts/event.js";
 import { CollaborationEventType } from "../contracts/event.js";
 import type {
-  CollaborationExecutionState,
   CollaborationSkippedStepResult,
   CollaborationStepResult,
 } from "../contracts/state.js";
+import type {
+  CollaborationExecutionState,
+} from "../state/execution-state.js";
 import type {
   CollaborationExecutor,
   CollaborationExecutorRunInput,

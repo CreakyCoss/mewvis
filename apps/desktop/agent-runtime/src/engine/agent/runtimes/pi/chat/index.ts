@@ -4,9 +4,7 @@ import {
   type AssistantMessage,
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
-import {
-  type ChatResult,
-} from "../../../../../protocol/agent.js";
+import type { RuntimeChatResult } from "../../../contracts/chat.js";
 import { AgentEventType } from "../../../contracts/events.js";
 import type {
   ChatRuntime,
@@ -27,13 +25,13 @@ import {
 export class PiChatRuntime implements ChatRuntime {
   readonly id = "pi-ai";
 
-  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
     return command.stream === false
       ? this.complete(command, context)
       : this.stream(command, context);
   }
 
-  private async complete(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+  private async complete(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
     const request = this.createRequest(command, context);
     const message = await completeSimple(
       request.model,
@@ -44,7 +42,7 @@ export class PiChatRuntime implements ChatRuntime {
     return createPiChatResult(message);
   }
 
-  private async stream(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<ChatResult> {
+  private async stream(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
     const request = this.createRequest(command, context);
     const stream = streamSimple(
       request.model,

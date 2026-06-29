@@ -9,7 +9,7 @@ import {
   type RebuildAgentSessionCommand,
   type RebuildCommand,
   type SummarizeSessionCommand,
-} from "../../../../protocol/agent.js";
+} from "../../contracts/index.js";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { resolveRuntime } from "../../runtimes/resolver.js";

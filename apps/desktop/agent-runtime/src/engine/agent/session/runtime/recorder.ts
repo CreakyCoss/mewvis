@@ -1,6 +1,6 @@
 import type {
   ChatMessageInput,
-} from "../../../../protocol/agent.js";
+} from "../../contracts/chat.js";
 import {
   AgentEventType,
   type AgentEvent,

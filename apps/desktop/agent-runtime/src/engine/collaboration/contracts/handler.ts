@@ -4,7 +4,7 @@ import type {
 } from "./event.js";
 import type {
   CollaborationExecutionState,
-} from "./state.js";
+} from "../state/execution-state.js";
 import type {
   CollaborationConditionWorkflowStep,
   CollaborationRouterWorkflowStep,

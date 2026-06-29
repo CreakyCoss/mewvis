@@ -61,6 +61,7 @@ export type CollaborationModeRunResult = CollaborationRunResult & {
   mode: CollaborationModeId;
 };
 
+
 export type CollaborationModeDefinition = {
   id: CollaborationModeId;
   label: string;

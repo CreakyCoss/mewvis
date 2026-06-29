@@ -7,7 +7,7 @@ import {
   type ShutdownAckResult,
   type ShutdownCommand,
   type TaskResult,
-} from "../../../protocol/agent.js";
+} from "../contracts/index.js";
 import { AgentEventType } from "../contracts/events.js";
 import type { AgentRunCommand, EmitAgentEvent } from "../runtimes/types.js";
 import { runtimeAgentManifest } from "../runtimes/registry.js";

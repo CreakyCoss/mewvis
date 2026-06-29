@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
   AgentSessionCommandType,
+  AgentResultType,
   AgentTaskCommandType,
   type AgentCommand,
   type ChatCommand,
   type ChatResult,
   type SendMessageCommand,
-} from "../../../protocol/agent.js";
+} from "../contracts/index.js";
 import {
   executeChatCommand,
   executeAgentRunCommand,
@@ -53,7 +54,7 @@ const sendMessageRunsAgent = (command: SendMessageCommand) =>
   command.runtime?.mode === "agent" || Boolean(command.agent?.agentRoleId?.trim());
 
 const chatCommandFromSendMessage = (command: SendMessageCommand): RuntimeChatCommand => ({
-  type: AgentTaskCommandType.Chat,
+  type: "chat",
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
   workspacePath: command.session.workspacePath,
@@ -103,6 +104,7 @@ const handleChatCommand = async (
 ): Promise<ChatResult> => {
   const result = await executeChatCommand(command, { emit });
   return {
+    type: AgentResultType.ChatResult,
     ...result,
     requestId: command.requestId ?? null,
   };
@@ -190,7 +192,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   };
 
   const runtimeChatCommandFromChat = (command: ChatCommand): RuntimeChatCommand => ({
-    type: AgentTaskCommandType.Chat,
+    type: "chat",
     requestId: command.requestId ?? null,
     agentId: command.agent?.agentId ?? null,
     workspacePath: command.session?.workspacePath ?? null,

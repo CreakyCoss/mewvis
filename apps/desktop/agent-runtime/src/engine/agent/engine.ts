@@ -1,4 +1,4 @@
-import type { ChatResult } from "../../protocol/agent.js";
+import type { RuntimeChatResult } from "./contracts/chat.js";
 import {
   executeAgentRunCommand,
   executeChatCommand,
@@ -19,7 +19,7 @@ export type AgentEngine = {
   chat(
     command: RuntimeChatCommand,
     context: ChatRuntimeContext,
-  ): Promise<ChatResult>;
+  ): Promise<RuntimeChatResult>;
 };
 
 export const createAgentEngine = (): AgentEngine => ({

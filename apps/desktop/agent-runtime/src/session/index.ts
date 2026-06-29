@@ -4,7 +4,11 @@ export type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
-} from "./query/session-query.js";
+} from "./contracts/query.js";
+
+export type {
+  RuntimeSessionTraceRecord,
+} from "./contracts/trace.js";
 
 export {
   buildRuntimeSessionTimeline,

@@ -20,13 +20,6 @@ export type CollaborationSkippedStepResult = {
   condition?: CollaborationStepCondition | null;
 };
 
-export type CollaborationExecutionState = {
-  input: unknown;
-  output: Record<string, unknown>;
-  stepResultById: Map<string, CollaborationStepResult>;
-  skippedStepById: Map<string, CollaborationSkippedStepResult>;
-};
-
 export type CollaborationRunResult = {
   workflowRunId: string;
   executorId?: string;

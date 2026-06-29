@@ -1,4 +1,3 @@
-import { AgentTaskCommandType } from "../../../../protocol/agent.js";
 import type { RuntimeModelInput } from "../../contracts/model.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type { RuntimeChatCommand } from "../../runtimes/types.js";
@@ -222,7 +221,7 @@ export const generateDisplaySummary = async (input: {
     if (chunks.length === 1) {
       llmCallCount += 1;
       const command: RuntimeChatCommand = {
-        type: AgentTaskCommandType.Chat,
+        type: "chat",
         requestId: null,
         agentId: input.agentId ?? null,
         workspacePath: null,
@@ -258,7 +257,7 @@ export const generateDisplaySummary = async (input: {
     for (const [index, chunk] of chunks.entries()) {
       llmCallCount += 1;
       const command: RuntimeChatCommand = {
-        type: AgentTaskCommandType.Chat,
+        type: "chat",
         requestId: null,
         agentId: input.agentId ?? null,
         workspacePath: null,
