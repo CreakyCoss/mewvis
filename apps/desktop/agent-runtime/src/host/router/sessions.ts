@@ -1,6 +1,6 @@
 import {
   AgentEventType,
-} from "../../engine/agent/contracts/protocol.js";
+} from "../../engine/agent/contracts/events.js";
 import type { WriteAgentRuntimeJsonLine } from "../../engine/agent/commands/responses.js";
 import type { EmitAgentEvent } from "../../engine/agent/runtimes/types.js";
 import { messageFromError } from "../../engine/agent/utils/error.js";

@@ -1,6 +1,6 @@
 import type {
   CollaborationAgentInvocation,
-} from "../contracts/index.js";
+} from "../contracts/step.js";
 import type {
   CollaborationHandlerBundle,
 } from "../contracts/handler.js";

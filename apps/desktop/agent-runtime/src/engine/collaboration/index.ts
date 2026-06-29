@@ -5,11 +5,20 @@ export {
 
 export type {
   CollaborationEngine,
+} from "./contracts/executor.js";
+
+export type {
   CollaborationExecutorId,
-  CollaborationEvent,
   CollaborationRunInput,
+} from "./contracts/workflow.js";
+
+export type {
   CollaborationRunResult,
-} from "./contracts/index.js";
+} from "./contracts/state.js";
+
+export type {
+  CollaborationEvent,
+} from "./contracts/event.js";
 
 export type {
   CollaborationModeRunInput,
@@ -18,4 +27,4 @@ export type {
 
 export {
   CollaborationEventType,
-} from "./contracts/index.js";
+} from "./contracts/event.js";

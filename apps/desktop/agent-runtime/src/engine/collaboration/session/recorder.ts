@@ -1,10 +1,14 @@
 import type {
   CollaborationEvent,
-  CollaborationRunInput,
-  CollaborationStepResult,
   EmitCollaborationEvent,
-} from "../contracts/index.js";
-import { CollaborationEventType } from "../contracts/index.js";
+} from "../contracts/event.js";
+import { CollaborationEventType } from "../contracts/event.js";
+import type {
+  CollaborationStepResult,
+} from "../contracts/state.js";
+import type {
+  CollaborationRunInput,
+} from "../contracts/workflow.js";
 import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
 import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
 import {

@@ -1,3 +1,8 @@
+import type { AgentEvent } from "../engine/agent/contracts/events.js";
+import type { CollaborationEvent } from "../engine/collaboration/contracts/event.js";
+
+export type AgentRuntimeEvent = AgentEvent | CollaborationEvent;
+
 export {
   AgentRuntimeCommandType,
 } from "./command.js";
@@ -10,7 +15,6 @@ export type {
   RunCollaborationCommand,
   RunCollaborationModeCommand,
 } from "./command.js";
-export type { AgentRuntimeEvent } from "./event.js";
 export {
   AgentRuntimeResultType,
 } from "./result.js";

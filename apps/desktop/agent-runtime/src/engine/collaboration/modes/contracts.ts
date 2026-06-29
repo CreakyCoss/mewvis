@@ -3,7 +3,7 @@ import type {
 } from "../../agent/contracts/model.js";
 import type {
   AgentRuntimeResources,
-} from "../../agent/contracts/protocol.js";
+} from "../../agent/contracts/resources.js";
 import type {
   AgentToolName,
 } from "../../agent/tools/definitions.js";

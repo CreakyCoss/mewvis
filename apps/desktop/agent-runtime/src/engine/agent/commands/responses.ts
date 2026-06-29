@@ -1,5 +1,4 @@
 import {
-  AgentEventType,
   AgentResultType,
   type AgentDefinitionsResult,
   type AgentCommand,
@@ -8,7 +7,8 @@ import {
   type ShutdownAckResult,
   type ShutdownCommand,
   type TaskResult,
-} from "../contracts/protocol.js";
+} from "../../../protocol/agent.js";
+import { AgentEventType } from "../contracts/events.js";
 import type { AgentRunCommand, EmitAgentEvent } from "../runtimes/types.js";
 import { runtimeAgentManifest } from "../runtimes/registry.js";
 

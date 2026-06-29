@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
-import {
-  AgentEventType,
-  type AnswerQuestionCommand,
-} from "../contracts/protocol.js";
+import type { AnswerQuestionCommand } from "../../../protocol/agent.js";
+import { AgentEventType } from "../contracts/events.js";
 import type {
   AgentRuntimeCallbacks,
   EmitAgentEvent,

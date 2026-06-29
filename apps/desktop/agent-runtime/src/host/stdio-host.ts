@@ -1,6 +1,6 @@
 import {
   AgentEventType,
-} from "../engine/agent/contracts/protocol.js";
+} from "../engine/agent/contracts/events.js";
 import type {
   AgentRuntimeCommand,
 } from "../protocol/index.js";

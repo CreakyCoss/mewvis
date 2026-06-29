@@ -1,4 +1,4 @@
-import { AgentEventType } from "./engine/agent/contracts/protocol.js";
+import { AgentEventType } from "./engine/agent/contracts/events.js";
 import { messageFromError } from "./engine/agent/utils/error.js";
 import { runAgentRuntimeStdio } from "./host/stdio-host.js";
 import { writeAgentEvent } from "./transport/stdio.js";

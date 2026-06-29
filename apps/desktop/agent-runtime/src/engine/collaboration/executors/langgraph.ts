@@ -7,12 +7,18 @@ import {
 import type {
   CollaborationExecutor,
   CollaborationExecutorRunInput,
-  CollaborationRunInput,
-  CollaborationRouterWorkflowStep,
+} from "../contracts/executor.js";
+import type {
   CollaborationSkippedStepResult,
   CollaborationStepResult,
+} from "../contracts/state.js";
+import type {
+  CollaborationRouterWorkflowStep,
   CollaborationWorkflowStep,
-} from "../contracts/index.js";
+} from "../contracts/step.js";
+import type {
+  CollaborationRunInput,
+} from "../contracts/workflow.js";
 import {
   collectCollaborationRunResult,
   createCollaborationExecutionState,

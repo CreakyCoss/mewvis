@@ -1,17 +1,26 @@
 export type {
   RuntimeAgentCapability,
   RuntimeAgentDefinition,
-} from "../runtimes/agents.js";
+} from "./agents.js";
+
+export type {
+  AgentEvent,
+  RuntimeSessionRecordRef,
+} from "./events.js";
 
 export {
-  AGENT_TOOL_DEFINITIONS,
-  DEFAULT_ALLOWED_AGENT_TOOLS,
-  normalizeAllowedAgentTools,
-} from "../tools/definitions.js";
-export type { AgentToolName } from "../tools/definitions.js";
+  AgentEventType,
+} from "./events.js";
 
 export type {
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,
 } from "./model.js";
+
+export type {
+  AgentRuntimeMcpResources,
+  AgentRuntimeResources,
+  AgentRuntimeSkillResources,
+  AgentRuntimeToolResources,
+} from "./resources.js";

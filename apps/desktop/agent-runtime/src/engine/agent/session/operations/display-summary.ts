@@ -1,4 +1,4 @@
-import { AgentTaskCommandType } from "../../contracts/protocol.js";
+import { AgentTaskCommandType } from "../../../../protocol/agent.js";
 import type { RuntimeModelInput } from "../../contracts/model.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type { RuntimeChatCommand } from "../../runtimes/types.js";

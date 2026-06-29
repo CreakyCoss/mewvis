@@ -1,4 +1,4 @@
-import type { AgentEvent } from "../engine/agent/contracts/protocol.js";
+import type { AgentEvent } from "../engine/agent/contracts/events.js";
 import type { WriteAgentRuntimeJsonLine } from "../engine/agent/commands/responses.js";
 import { createAgentCommandRouter } from "../engine/agent/commands/router.js";
 import { createAgentEngine } from "../engine/agent/index.js";
@@ -6,7 +6,7 @@ import type { AgentRuntimeCallbacks } from "../engine/agent/runtimes/types.js";
 import {
   createCollaborationEngine,
 } from "../engine/collaboration/index.js";
-import type { RunAgentForCollaboration } from "../engine/collaboration/contracts/index.js";
+import type { RunAgentForCollaboration } from "../engine/collaboration/contracts/executor.js";
 import { createRuntimeRouter } from "./router/index.js";
 
 export type AgentRuntimeHostOptions = {

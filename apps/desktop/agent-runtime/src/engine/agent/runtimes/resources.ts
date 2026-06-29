@@ -1,4 +1,4 @@
-import type { AgentRuntimeResources } from "../contracts/protocol.js";
+import type { AgentRuntimeResources } from "../contracts/resources.js";
 import type { AgentRunCommand } from "./types.js";
 
 type RuntimeResourceCommand = Pick<

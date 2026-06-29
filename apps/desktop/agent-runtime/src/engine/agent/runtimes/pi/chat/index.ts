@@ -5,9 +5,9 @@ import {
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import {
-  AgentEventType,
   type ChatResult,
-} from "../../../contracts/protocol.js";
+} from "../../../../../protocol/agent.js";
+import { AgentEventType } from "../../../contracts/events.js";
 import type {
   ChatRuntime,
   ChatRuntimeContext,

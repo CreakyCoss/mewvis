@@ -1,4 +1,4 @@
-import type { RuntimeAgentDefinition } from "./agents.js";
+import type { RuntimeAgentDefinition } from "../contracts/agents.js";
 import type { RuntimeAgent } from "./types.js";
 import { mockRuntimeAgent } from "./mock/index.js";
 import { piRuntimeAgent } from "./pi/index.js";

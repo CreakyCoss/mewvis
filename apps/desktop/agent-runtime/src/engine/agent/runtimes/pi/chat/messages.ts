@@ -10,7 +10,7 @@ import {
   AgentResultType,
   type ChatMessageInput,
   type ChatResult,
-} from "../../../contracts/protocol.js";
+} from "../../../../../protocol/agent.js";
 import type { RuntimeChatCommand } from "../../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatResult => ({

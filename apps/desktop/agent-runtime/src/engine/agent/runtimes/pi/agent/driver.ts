@@ -1,6 +1,6 @@
 import {
   AgentEventType,
-} from "../../../contracts/protocol.js";
+} from "../../../contracts/events.js";
 import type {
   AgentRunResult,
   AgentRuntimeCallbacks,

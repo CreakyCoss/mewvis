@@ -3,8 +3,8 @@ import { createInterface } from "node:readline/promises";
 import {
   AgentCommandType,
   type AgentCommand,
-  type AgentEvent,
-} from "../engine/agent/contracts/protocol.js";
+} from "../protocol/agent.js";
+import type { AgentEvent } from "../engine/agent/contracts/events.js";
 import {
   AgentRuntimeCommandType,
   type AgentRuntimeCommand,

@@ -1,7 +1,7 @@
-import type { AgentToolName } from "../tools/definitions.js";
-import type { RuntimeAgentDefinition } from "../runtimes/agents.js";
-import type { RuntimeModelInput } from "./model.js";
-import type { AskUserInput } from "../tools/types.js";
+import type { RuntimeAgentDefinition } from "../engine/agent/contracts/agents.js";
+import type { RuntimeSessionRecordRef } from "../engine/agent/contracts/events.js";
+import type { RuntimeModelInput } from "../engine/agent/contracts/model.js";
+import type { AgentRuntimeResources } from "../engine/agent/contracts/resources.js";
 
 export enum AgentTaskCommandType {
   SendMessage = "send_message",
@@ -40,42 +40,6 @@ export enum AgentResultType {
   ShutdownAck = "shutdown_ack",
   TaskResult = "task_result",
 }
-
-export enum AgentEventType {
-  Started = "started",
-  Question = "question",
-  QuestionAnswered = "question_answered",
-  ReplaceText = "replace_text",
-  TextDelta = "text_delta",
-  ThinkingDelta = "thinking_delta",
-  ThinkingEnd = "thinking_end",
-  ToolStart = "tool_start",
-  ToolUpdate = "tool_update",
-  ToolEnd = "tool_end",
-  Done = "done",
-  Error = "error",
-}
-
-export type AgentRuntimeMcpResources = {
-  servers?: unknown[];
-  [key: string]: unknown;
-};
-
-export type AgentRuntimeToolResources = {
-  allowed?: AgentToolName[] | null;
-};
-
-export type AgentRuntimeSkillResources = {
-  bundledPath?: string | string[] | null;
-  paths?: string[] | null;
-  enabled?: string[] | null;
-};
-
-export type AgentRuntimeResources = {
-  tools?: AgentRuntimeToolResources | null;
-  skills?: AgentRuntimeSkillResources | null;
-  mcp?: AgentRuntimeMcpResources | null;
-};
 
 export type RuntimeSessionTarget = {
   workspacePath: string;
@@ -151,14 +115,6 @@ export type ChatResult = {
   text: string;
   thinking?: string | null;
   runtimeSession?: RuntimeSessionRecordRef | null;
-};
-
-export type RuntimeSessionRecordRef = {
-  sessionRootDir: string;
-  userMessageRecordId?: string | null;
-  requestContextRecordId?: string | null;
-  runtimeInstructionRecordId?: string | null;
-  assistantMessageRecordId?: string | null;
 };
 
 export type SessionCommandBase = {
@@ -299,24 +255,3 @@ export type AgentSessionCommand =
   | ReadSessionCommand;
 
 export type AgentCommand = AgentTaskCommand | AgentSessionCommand;
-
-export type AgentEvent =
-  | { type: AgentEventType.Started; taskId: string }
-  | {
-    type: AgentEventType.Question;
-    taskId: string;
-    questionId: string;
-    question: string;
-    context?: string | null;
-    input?: AskUserInput;
-  }
-  | { type: AgentEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
-  | { type: AgentEventType.ReplaceText; taskId: string; text: string }
-  | { type: AgentEventType.TextDelta; taskId: string; delta: string }
-  | { type: AgentEventType.ThinkingDelta; taskId: string; delta: string }
-  | { type: AgentEventType.ThinkingEnd; taskId: string; content: string }
-  | { type: AgentEventType.ToolStart; taskId: string; toolName: string; args: unknown }
-  | { type: AgentEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
-  | { type: AgentEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
-  | { type: AgentEventType.Done; taskId: string; text: string; runtimeSession?: RuntimeSessionRecordRef | null }
-  | { type: AgentEventType.Error; taskId?: string; message: string };

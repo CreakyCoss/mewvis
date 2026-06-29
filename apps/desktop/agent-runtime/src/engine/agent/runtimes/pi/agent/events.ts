@@ -1,7 +1,7 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
   AgentEventType,
-} from "../../../contracts/protocol.js";
+} from "../../../contracts/events.js";
 import type {
   EmitAgentEvent,
   RuntimeAgentCommand,

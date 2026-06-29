@@ -1,8 +1,6 @@
-import type { AgentCommand } from "../engine/agent/contracts/protocol.js";
-import type {
-  CollaborationModeRunInput,
-  CollaborationRunInput,
-} from "../engine/collaboration/index.js";
+import type { AgentCommand } from "./agent.js";
+import type { CollaborationRunInput } from "../engine/collaboration/contracts/workflow.js";
+import type { CollaborationModeRunInput } from "../engine/collaboration/modes/contracts.js";
 
 export enum AgentRuntimeCommandType {
   GetCollaborationTimeline = "get_collaboration_timeline",

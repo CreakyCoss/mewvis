@@ -6,7 +6,7 @@ import {
   type ChatCommand,
   type ChatResult,
   type SendMessageCommand,
-} from "../contracts/protocol.js";
+} from "../../../protocol/agent.js";
 import {
   executeChatCommand,
   executeAgentRunCommand,

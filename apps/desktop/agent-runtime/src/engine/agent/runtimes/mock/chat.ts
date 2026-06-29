@@ -1,8 +1,8 @@
 import {
-  AgentEventType,
   AgentResultType,
   type ChatResult,
-} from "../../contracts/protocol.js";
+} from "../../../../protocol/agent.js";
+import { AgentEventType } from "../../contracts/events.js";
 import type {
   ChatRuntime,
   ChatRuntimeContext,

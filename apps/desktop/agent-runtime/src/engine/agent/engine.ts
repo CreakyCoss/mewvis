@@ -1,4 +1,4 @@
-import type { ChatResult } from "./contracts/protocol.js";
+import type { ChatResult } from "../../protocol/agent.js";
 import {
   executeAgentRunCommand,
   executeChatCommand,

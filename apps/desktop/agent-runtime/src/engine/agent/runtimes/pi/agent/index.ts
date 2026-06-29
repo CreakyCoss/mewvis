@@ -1,4 +1,4 @@
-import { AgentEventType } from "../../../contracts/protocol.js";
+import { AgentEventType } from "../../../contracts/events.js";
 import type {
   AgentCompactResult,
   AgentRunResult,

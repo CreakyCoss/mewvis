@@ -1,7 +1,7 @@
 import type {
   CollaborationAgentRole,
   CollaborationRunInput,
-} from "../contracts/index.js";
+} from "../contracts/workflow.js";
 import type {
   CollaborationModeParticipant,
   CollaborationModeRunInput,

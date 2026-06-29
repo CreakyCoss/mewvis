@@ -1,32 +1,40 @@
 import type {
   AgentRuntimeResources,
-} from "../../agent/contracts/protocol.js";
+} from "../../agent/contracts/resources.js";
 import { messageFromError } from "../../agent/utils/error.js";
 import type {
-  CollaborationAgentRole,
   CollaborationEvent,
+} from "../contracts/event.js";
+import { CollaborationEventType } from "../contracts/event.js";
+import type {
   CollaborationExecutionState,
+  CollaborationSkippedStepResult,
+  CollaborationStepResult,
+} from "../contracts/state.js";
+import type {
   CollaborationExecutor,
   CollaborationExecutorRunInput,
   CollaborationRunContext,
-  CollaborationRunInput,
-  CollaborationSkippedStepResult,
-  CollaborationAgentInvocation,
-  CollaborationStepResult,
+  RunAgentForCollaboration,
+} from "../contracts/executor.js";
+import type {
   CollaborationTransformWorkflowStep,
   CollaborationConditionWorkflowStep,
   CollaborationDispatchWorkflowStep,
   CollaborationRouterWorkflowStep,
   CollaborationStepCondition,
   CollaborationAgentWorkflowStep,
+  CollaborationAgentInvocation,
   CollaborationWorkflowStep,
-  RunAgentForCollaboration,
-} from "../contracts/index.js";
+} from "../contracts/step.js";
+import type {
+  CollaborationAgentRole,
+  CollaborationRunInput,
+} from "../contracts/workflow.js";
 import type {
   CollaborationHandlerContext,
   CollaborationRouterResult,
 } from "../contracts/handler.js";
-import { CollaborationEventType } from "../contracts/index.js";
 
 export const nativeCollaborationExecutorId = "native" as const;
 

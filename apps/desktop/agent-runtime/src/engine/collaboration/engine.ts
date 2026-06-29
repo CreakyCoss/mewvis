@@ -1,17 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { messageFromError } from "../agent/utils/error.js";
+import {
+  CollaborationEventType,
+  type CollaborationEvent,
+} from "./contracts/event.js";
 import type {
-  CollaborationEvent,
   CollaborationEngine,
   CollaborationExecutor,
-  CollaborationExecutorId,
   CollaborationRunContext,
-  CollaborationRunInput,
-  CollaborationRunResult,
-  CollaborationWorkflowStep,
   RunAgentForCollaboration,
-} from "./contracts/index.js";
-import { CollaborationEventType } from "./contracts/index.js";
+} from "./contracts/executor.js";
+import type {
+  CollaborationRunResult,
+} from "./contracts/state.js";
+import type {
+  CollaborationWorkflowStep,
+} from "./contracts/step.js";
+import type {
+  CollaborationExecutorId,
+  CollaborationRunInput,
+} from "./contracts/workflow.js";
 import {
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,

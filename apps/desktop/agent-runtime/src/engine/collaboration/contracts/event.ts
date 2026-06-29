@@ -1,6 +1,6 @@
 import type {
   AgentEvent,
-} from "../../agent/contracts/protocol.js";
+} from "../../agent/contracts/events.js";
 import type {
   CollaborationRunResult,
   CollaborationSkippedStepResult,

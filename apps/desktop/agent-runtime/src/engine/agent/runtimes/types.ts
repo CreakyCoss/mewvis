@@ -1,11 +1,11 @@
-import type { RuntimeAgentDefinition } from "./agents.js";
+import type { RuntimeAgentDefinition } from "../contracts/agents.js";
+import type { AgentEvent } from "../contracts/events.js";
+import type { AgentRuntimeResources } from "../contracts/resources.js";
 import type {
-  AgentRuntimeResources,
-  AgentEvent,
   ChatMessageInput,
   ChatResult,
-} from "../contracts/protocol.js";
-import { AgentTaskCommandType } from "../contracts/protocol.js";
+} from "../../../protocol/agent.js";
+import { AgentTaskCommandType } from "../../../protocol/agent.js";
 import type { RuntimeModelInput } from "../contracts/model.js";
 import type { AskUserInput } from "../tools/types.js";
 

@@ -8,16 +8,6 @@ export {
 } from "./event.js";
 
 export type {
-  CollaborationEngine,
-  CollaborationExecutor,
-  CollaborationExecutorRunInput,
-  CollaborationRunContext,
-  RunAgentForCollaboration,
-  RunAgentForCollaborationContext,
-} from "./executor.js";
-
-export type {
-  CollaborationExecutionState,
   CollaborationRunResult,
   CollaborationSkippedStepResult,
   CollaborationStepResult,
