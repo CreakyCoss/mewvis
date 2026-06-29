@@ -1,7 +1,7 @@
 import type {
   CollaborationAgentInvocation,
   CollaborationAgentRole,
-} from "../../contracts.js";
+} from "../../contracts/index.js";
 import type {
   CollaborationModeDefinition,
   CollaborationModeParticipant,

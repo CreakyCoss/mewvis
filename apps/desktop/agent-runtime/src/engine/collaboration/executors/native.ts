@@ -21,12 +21,12 @@ import type {
   CollaborationAgentWorkflowStep,
   CollaborationWorkflowStep,
   RunAgentForCollaboration,
-} from "../contracts.js";
+} from "../contracts/index.js";
 import type {
   CollaborationHandlerContext,
   CollaborationRouterResult,
 } from "../contracts/handler.js";
-import { CollaborationEventType } from "../contracts.js";
+import { CollaborationEventType } from "../contracts/index.js";
 
 export const nativeCollaborationExecutorId = "native" as const;
 

@@ -12,7 +12,7 @@ import type {
   CollaborationSkippedStepResult,
   CollaborationStepResult,
   CollaborationWorkflowStep,
-} from "../contracts.js";
+} from "../contracts/index.js";
 import {
   collectCollaborationRunResult,
   createCollaborationExecutionState,

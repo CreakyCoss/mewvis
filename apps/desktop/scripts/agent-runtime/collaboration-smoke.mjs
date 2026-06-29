@@ -10,19 +10,25 @@ const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
+const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engine/collaboration/index.ts");
+const sessionEntry = resolve(desktopRoot, "agent-runtime/src/session/index.ts");
 
 writeFileSync(entryPath, `
   import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
   import { tmpdir } from "node:os";
   import { join } from "node:path";
   import {
+    createAgentRuntime,
+  } from ${JSON.stringify(runtimeEntry)};
+  import {
     CollaborationEventType,
     createCollaborationEngine,
-    createAgentRuntime,
+  } from ${JSON.stringify(collaborationEntry)};
+  import {
     getCollaborationTimeline,
     getRuntimeSessionSnapshot,
     listRuntimeSessions,
-  } from ${JSON.stringify(runtimeEntry)};
+  } from ${JSON.stringify(sessionEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) {

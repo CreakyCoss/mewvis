@@ -10,8 +10,8 @@ import type {
   CollaborationRunResult,
   CollaborationWorkflowStep,
   RunAgentForCollaboration,
-} from "./contracts.js";
-import { CollaborationEventType } from "./contracts.js";
+} from "./contracts/index.js";
+import { CollaborationEventType } from "./contracts/index.js";
 import {
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,

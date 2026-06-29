@@ -3,8 +3,8 @@ import type {
   CollaborationRunInput,
   CollaborationStepResult,
   EmitCollaborationEvent,
-} from "../contracts.js";
-import { CollaborationEventType } from "../contracts.js";
+} from "../contracts/index.js";
+import { CollaborationEventType } from "../contracts/index.js";
 import { BridgeLedgerStorage } from "../../../session/storage/jsonl-store.js";
 import { resolveBridgeSessionPaths } from "../../../session/storage/paths.js";
 import {
