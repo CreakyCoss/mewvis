@@ -7,7 +7,7 @@ export type ChatMessageInput = {
   content: string;
 };
 
-export type RuntimeChatResult = {
+export type ChatRunResult = {
   text: string;
   thinking?: string | null;
   runtimeSession?: RuntimeSessionRecordRef | null;

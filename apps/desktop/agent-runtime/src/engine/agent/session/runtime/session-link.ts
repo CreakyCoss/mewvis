@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type {
   AgentRunCommand,
-  RuntimeChatCommand,
+  ChatRunCommand,
   RuntimeSessionLink,
 } from "../../runtimes/types.js";
 import type { RuntimeLedgerEntry } from "../../../../session/core/types.js";
 
-type RuntimeSessionLinkCommand = (RuntimeChatCommand | AgentRunCommand) & {
+type RuntimeSessionLinkCommand = (ChatRunCommand | AgentRunCommand) & {
   sessionLink?: RuntimeSessionLink | null;
   recordUserMessage?: boolean | null;
 };

@@ -1,16 +1,16 @@
-import type { RuntimeChatResult } from "../../contracts/chat.js";
+import type { ChatRunResult } from "../../contracts/chat.js";
 import { AgentEventType } from "../../contracts/events.js";
 import type {
   ChatRuntime,
   ChatRuntimeContext,
-  RuntimeChatCommand,
+  ChatRunCommand,
 } from "../types.js";
 import { chunkText, createMockChatText, sleep } from "./response.js";
 
 export class MockChatRuntime implements ChatRuntime {
   readonly id = "mock";
 
-  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
+  async chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     const text = createMockChatText(command);
     const thinking = "Mock chat runtime 跳过真实模型调用，直接生成固定格式回复。";
 

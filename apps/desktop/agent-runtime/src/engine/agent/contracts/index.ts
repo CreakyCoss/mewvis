@@ -5,7 +5,7 @@ export type {
 
 export type {
   ChatMessageInput,
-  RuntimeChatResult,
+  ChatRunResult,
 } from "./chat.js";
 
 export {

@@ -1,4 +1,4 @@
-import type { AgentRunCommand, RuntimeChatCommand } from "../../runtimes/types.js";
+import type { AgentRunCommand, ChatRunCommand } from "../../runtimes/types.js";
 import {
   commandParentEntryId,
   commandRootUserEntryId,
@@ -7,7 +7,7 @@ import {
 import type { RuntimeMessageRole } from "../../../../session/core/types.js";
 import { standardizeRuntimeMessageMetadata } from "../../../../session/metadata/standard.js";
 
-type RuntimeCommand = AgentRunCommand | RuntimeChatCommand;
+type RuntimeCommand = AgentRunCommand | ChatRunCommand;
 
 const isAgentRunCommand = (command: RuntimeCommand): command is AgentRunCommand =>
   "runtimeMode" in command && command.runtimeMode === "agent";

@@ -8,17 +8,17 @@ import type {
 } from "@earendil-works/pi-ai";
 import type {
   ChatMessageInput,
-  RuntimeChatResult,
+  ChatRunResult,
 } from "../../../contracts/chat.js";
-import type { RuntimeChatCommand } from "../../types.js";
+import type { ChatRunCommand } from "../../types.js";
 
-export const createPiChatResult = (message: AssistantMessage): RuntimeChatResult => ({
+export const createPiChatResult = (message: AssistantMessage): ChatRunResult => ({
   text: textFromPiMessage(message),
   thinking: thinkingFromPiMessage(message),
 });
 
 export const createPiChatContext = (
-  command: RuntimeChatCommand,
+  command: ChatRunCommand,
   model: Model<Api>,
 ): Context => ({
   systemPrompt: command.systemPrompt ?? undefined,

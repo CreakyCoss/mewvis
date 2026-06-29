@@ -1,7 +1,7 @@
 import type { RuntimeAgentDefinition } from "../contracts/agents.js";
 import type {
   ChatMessageInput,
-  RuntimeChatResult,
+  ChatRunResult,
 } from "../contracts/chat.js";
 import type { AgentEvent } from "../contracts/events.js";
 import type { AgentRuntimeResources } from "../contracts/resources.js";
@@ -49,7 +49,7 @@ export type AgentCompactResult = {
   details?: unknown;
 };
 
-export type RuntimeChatCommand = {
+export type ChatRunCommand = {
   type: "chat";
   requestId?: string | null;
   agentId?: string | null;
@@ -117,9 +117,9 @@ export type AgentRuntime = {
 export type ChatRuntime = {
   readonly id: string;
   chat(
-    command: RuntimeChatCommand,
+    command: ChatRunCommand,
     context: ChatRuntimeContext,
-  ): Promise<RuntimeChatResult>;
+  ): Promise<ChatRunResult>;
 };
 
 export type RuntimeAgent = RuntimeAgentDefinition & {

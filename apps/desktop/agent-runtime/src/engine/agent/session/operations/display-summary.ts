@@ -1,6 +1,6 @@
 import type { RuntimeModelInput } from "../../contracts/model.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
-import type { RuntimeChatCommand } from "../../runtimes/types.js";
+import type { ChatRunCommand } from "../../runtimes/types.js";
 import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../../../session/core/types.js";
 
 export type DisplaySummaryGenerationResult = {
@@ -220,7 +220,7 @@ export const generateDisplaySummary = async (input: {
     const chunks = splitText(text, budget.chunkChars);
     if (chunks.length === 1) {
       llmCallCount += 1;
-      const command: RuntimeChatCommand = {
+      const command: ChatRunCommand = {
         type: "chat",
         requestId: null,
         agentId: input.agentId ?? null,
@@ -256,7 +256,7 @@ export const generateDisplaySummary = async (input: {
     const chunkSummaries: string[] = [];
     for (const [index, chunk] of chunks.entries()) {
       llmCallCount += 1;
-      const command: RuntimeChatCommand = {
+      const command: ChatRunCommand = {
         type: "chat",
         requestId: null,
         agentId: input.agentId ?? null,

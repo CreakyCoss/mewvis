@@ -2,7 +2,7 @@ import type {
   RuntimeAgentDefinition,
 } from "./agents.js";
 import type {
-  RuntimeChatResult,
+  ChatRunResult,
 } from "./chat.js";
 
 export enum AgentResultType {
@@ -15,7 +15,7 @@ export enum AgentResultType {
   TaskResult = "task_result",
 }
 
-export type ChatResult = RuntimeChatResult & {
+export type ChatResult = ChatRunResult & {
   type: AgentResultType.ChatResult;
   requestId?: string | null;
 };

@@ -2,14 +2,14 @@ import {
   AgentEventType,
   type AgentEvent,
 } from "../contracts/events.js";
-import type { RuntimeChatResult } from "../contracts/chat.js";
+import type { ChatRunResult } from "../contracts/chat.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
   AgentRunResult,
   AgentRuntimeContext,
   ChatRuntimeContext,
-  RuntimeChatCommand,
+  ChatRunCommand,
   RuntimeAgentCommand,
 } from "../runtimes/types.js";
 import { resolveAgentSessionDir } from "../session/runtime/agent/session-plan.js";
@@ -105,11 +105,11 @@ const prepareRuntimeAgentCommand = async (
 };
 
 export const executeChatCommand = async (
-  command: RuntimeChatCommand,
+  command: ChatRunCommand,
   context: ChatRuntimeContext,
-): Promise<RuntimeChatResult> => {
+): Promise<ChatRunResult> => {
   const { implementation } = resolveRuntime("chat", command.agentId);
-  const runtimeCommand = await prepareRuntimeChatCommand(command);
+  const runtimeCommand = await prepareChatRunCommand(command);
   const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
   await recorder?.recordInitialUserMessage();
   let lastError: unknown;
@@ -175,7 +175,7 @@ export const executeChatCommand = async (
   throw lastError;
 };
 
-const latestUserMessageContent = (command: RuntimeChatCommand) => {
+const latestUserMessageContent = (command: ChatRunCommand) => {
   const direct = command.userMessage?.trim();
   if (direct) {
     return direct;
@@ -204,9 +204,9 @@ const resolveCommandParentEntryId = (
   return normalized;
 };
 
-const prepareRuntimeChatCommand = async (
-  command: RuntimeChatCommand,
-): Promise<RuntimeChatCommand> => {
+const prepareChatRunCommand = async (
+  command: ChatRunCommand,
+): Promise<ChatRunCommand> => {
   const userMessage = latestUserMessageContent(command);
 
   if (command.userMessage?.trim() && command.workspacePath?.trim() && command.sessionRootDir?.trim()) {
@@ -352,7 +352,7 @@ const isRetryableExecutionError = (error: unknown) => {
   return RETRYABLE_ERROR_MESSAGES.some((keyword) => message.includes(keyword));
 };
 
-const isVisibleChatOutputEvent = (command: RuntimeChatCommand, event: AgentEvent) => {
+const isVisibleChatOutputEvent = (command: ChatRunCommand, event: AgentEvent) => {
   if (!command.streamId || !("taskId" in event) || event.taskId !== command.streamId) {
     return false;
   }

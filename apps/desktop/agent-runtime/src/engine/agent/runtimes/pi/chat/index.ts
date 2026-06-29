@@ -4,12 +4,12 @@ import {
   type AssistantMessage,
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
-import type { RuntimeChatResult } from "../../../contracts/chat.js";
+import type { ChatRunResult } from "../../../contracts/chat.js";
 import { AgentEventType } from "../../../contracts/events.js";
 import type {
   ChatRuntime,
   ChatRuntimeContext,
-  RuntimeChatCommand,
+  ChatRunCommand,
 } from "../../types.js";
 import {
   createPiRuntimeModel,
@@ -25,13 +25,13 @@ import {
 export class PiChatRuntime implements ChatRuntime {
   readonly id = "pi-ai";
 
-  async chat(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
+  async chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     return command.stream === false
       ? this.complete(command, context)
       : this.stream(command, context);
   }
 
-  private async complete(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
+  private async complete(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     const request = this.createRequest(command, context);
     const message = await completeSimple(
       request.model,
@@ -42,7 +42,7 @@ export class PiChatRuntime implements ChatRuntime {
     return createPiChatResult(message);
   }
 
-  private async stream(command: RuntimeChatCommand, context: ChatRuntimeContext): Promise<RuntimeChatResult> {
+  private async stream(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     const request = this.createRequest(command, context);
     const stream = streamSimple(
       request.model,
@@ -79,7 +79,7 @@ export class PiChatRuntime implements ChatRuntime {
     return createPiChatResult(message);
   }
 
-  private createRequest(command: RuntimeChatCommand, context: ChatRuntimeContext) {
+  private createRequest(command: ChatRunCommand, context: ChatRuntimeContext) {
     const runtimeModel = requirePiRuntimeConfig(command);
     const apiKey = requirePiApiKey(runtimeModel);
     const model = createPiRuntimeModel(runtimeModel);

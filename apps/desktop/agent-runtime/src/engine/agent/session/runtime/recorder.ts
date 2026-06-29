@@ -8,7 +8,7 @@ import {
 import type {
   AgentRunCommand,
   EmitAgentEvent,
-  RuntimeChatCommand,
+  ChatRunCommand,
 } from "../../runtimes/types.js";
 import type {
   RuntimeMessage,
@@ -31,7 +31,7 @@ import {
   commandRootUserEntryId,
 } from "./session-link.js";
 
-type SessionBackedCommand = (RuntimeChatCommand | AgentRunCommand) & {
+type SessionBackedCommand = (ChatRunCommand | AgentRunCommand) & {
   workspacePath: string;
   sessionRootDir: string;
 };
@@ -44,10 +44,10 @@ type TraceRecord = {
   message?: string;
 };
 
-const isAgentRunCommand = (command: RuntimeChatCommand | AgentRunCommand): command is AgentRunCommand =>
+const isAgentRunCommand = (command: ChatRunCommand | AgentRunCommand): command is AgentRunCommand =>
   "runtimeMode" in command && command.runtimeMode === "agent";
 
-const hasSession = (command: RuntimeChatCommand | AgentRunCommand): command is SessionBackedCommand => {
+const hasSession = (command: ChatRunCommand | AgentRunCommand): command is SessionBackedCommand => {
   const candidate = command as SessionBackedCommand;
   return (("type" in command && command.type === "chat") || isAgentRunCommand(command)) &&
     typeof candidate.workspacePath === "string" &&
@@ -58,7 +58,7 @@ const hasSession = (command: RuntimeChatCommand | AgentRunCommand): command is S
 const contentFromChatMessage = (message: ChatMessageInput | undefined) =>
   message?.content?.trim() ?? "";
 
-const latestUserMessage = (command: RuntimeChatCommand) => {
+const latestUserMessage = (command: ChatRunCommand) => {
   if (command.userMessage?.trim()) {
     return {
       role: "user",
@@ -77,7 +77,7 @@ const latestUserMessage = (command: RuntimeChatCommand) => {
 };
 
 const initialUserMessageFor = (
-  command: RuntimeChatCommand | AgentRunCommand,
+  command: ChatRunCommand | AgentRunCommand,
   baseLeafId: string | null,
   input?: {
     parentEntryId?: string | null;
@@ -124,7 +124,7 @@ const initialUserMessageFor = (
   return null;
 };
 
-const taskIdFor = (command: RuntimeChatCommand | AgentRunCommand) =>
+const taskIdFor = (command: ChatRunCommand | AgentRunCommand) =>
   "runtimeMode" in command ? command.taskId : command.streamId ?? null;
 
 export class RuntimeSessionRecorder {
@@ -148,7 +148,7 @@ export class RuntimeSessionRecorder {
     },
   ) {}
 
-  static async create(command: RuntimeChatCommand | AgentRunCommand): Promise<RuntimeSessionRecorder | null> {
+  static async create(command: ChatRunCommand | AgentRunCommand): Promise<RuntimeSessionRecorder | null> {
     if (!hasSession(command)) {
       return null;
     }

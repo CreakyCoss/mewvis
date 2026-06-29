@@ -1,10 +1,10 @@
-import type { AgentRunCommand, RuntimeChatCommand } from "../../runtimes/types.js";
+import type { AgentRunCommand, ChatRunCommand } from "../../runtimes/types.js";
 import type { RuntimeMessage, RuntimeSessionContext } from "../../../../session/core/types.js";
 import type { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
 import { runtimeMessageMetadata } from "../metadata/runtime.js";
 import { takeContextText } from "../core/prompt-budget.js";
 
-type RuntimeSystemPromptCommand = RuntimeChatCommand | AgentRunCommand;
+type RuntimeSystemPromptCommand = ChatRunCommand | AgentRunCommand;
 
 const normalized = (value: string | null | undefined) => value?.trim() ?? "";
 

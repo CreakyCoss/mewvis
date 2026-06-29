@@ -27,7 +27,7 @@ import type {
   AgentRunCommand,
   AgentRuntimeCallbacks,
   EmitAgentEvent,
-  RuntimeChatCommand,
+  ChatRunCommand,
 } from "../runtimes/types.js";
 import { createUserInputManager } from "./user-input.js";
 import { messageFromError } from "../utils/error.js";
@@ -53,7 +53,7 @@ const runningTaskChatMessage = "当前 Agent runtime 已有运行中的任务，
 const sendMessageRunsAgent = (command: SendMessageCommand) =>
   command.runtime?.mode === "agent" || Boolean(command.agent?.agentRoleId?.trim());
 
-const chatCommandFromSendMessage = (command: SendMessageCommand): RuntimeChatCommand => ({
+const chatRunCommandFromSendMessage = (command: SendMessageCommand): ChatRunCommand => ({
   type: "chat",
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
@@ -95,11 +95,11 @@ const runtimeCommandFromSendMessage = (command: SendMessageCommand) =>
     }
     : {
       mode: "chat" as const,
-      command: chatCommandFromSendMessage(command),
+      command: chatRunCommandFromSendMessage(command),
     };
 
 const handleChatCommand = async (
-  command: RuntimeChatCommand,
+  command: ChatRunCommand,
   emit: EmitAgentEvent,
 ): Promise<ChatResult> => {
   const result = await executeChatCommand(command, { emit });
@@ -122,7 +122,7 @@ const handleAgentRunCommand = async (
 };
 
 const runChat = async (
-  command: RuntimeChatCommand,
+  command: ChatRunCommand,
   errorCommand: AgentCommand,
   deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine">,
 ) => {
@@ -180,7 +180,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   };
 
   const runChatWhenIdle = async (
-    command: RuntimeChatCommand,
+    command: ChatRunCommand,
     errorCommand: AgentCommand,
   ) => {
     if (runningTask) {
@@ -191,7 +191,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
     await runChat(command, errorCommand, deps);
   };
 
-  const runtimeChatCommandFromChat = (command: ChatCommand): RuntimeChatCommand => ({
+  const chatRunCommandFromChat = (command: ChatCommand): ChatRunCommand => ({
     type: "chat",
     requestId: command.requestId ?? null,
     agentId: command.agent?.agentId ?? null,
@@ -247,7 +247,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
         return true;
 
       case AgentTaskCommandType.Chat:
-        await runChatWhenIdle(runtimeChatCommandFromChat(command), command);
+        await runChatWhenIdle(chatRunCommandFromChat(command), command);
         return true;
 
       case AgentSessionCommandType.ReadSession:

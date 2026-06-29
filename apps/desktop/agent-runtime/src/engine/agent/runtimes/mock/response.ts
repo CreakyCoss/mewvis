@@ -1,5 +1,5 @@
 import type {
-  RuntimeChatCommand,
+  ChatRunCommand,
   RuntimeAgentCommand,
 } from "../types.js";
 import {
@@ -27,7 +27,7 @@ export const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-export const createMockChatText = (command: RuntimeChatCommand) => {
+export const createMockChatText = (command: ChatRunCommand) => {
   const latestUserMessage = [...command.messages]
     .reverse()
     .find((message) => message.role === "user");
