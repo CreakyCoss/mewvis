@@ -35,9 +35,10 @@ frontend. Hosts such as Tauri should call the CLI over stdio. Tests and embedded
 Node integrations can call the SDK directly.
 
 Application-specific business logic should not be imported from `agent-runtime`.
-The desktop app composes it through `agent-runtime-host/`, which can inject host
-extensions when a product needs custom transforms, conditions, or routers. Other
-apps can copy `agent-runtime/` and provide their own host.
+The bundled desktop runtime uses `agent-runtime/src/cli.ts` directly. If a
+product needs custom transforms, conditions, or routers, that product should
+create its own small host entrypoint and pass extension handlers into
+`runAgentRuntimeStdioCli()`.
 
 ## Public Modes
 
