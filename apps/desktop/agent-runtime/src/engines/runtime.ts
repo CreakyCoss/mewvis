@@ -1,26 +1,37 @@
 import type {
   AgentDefinitionsResult,
-  AgentRuntimeCallbacks,
-  AgentRunCommand,
+  AgentToolsResult,
+  AskUserInput,
   ChatResult,
-  ChatRunCommand,
-  ListAgentsCommand,
-  PingCommand,
   PongResult,
+  RuntimeModelsResult,
   ShutdownAckResult,
-  ShutdownCommand,
   TaskResult,
 } from "./protocol/agent.js";
-import type {
-  AgentRuntimeCommand,
-  GetCollaborationTimelineCommand,
-  GetRuntimeSessionCommand,
-  ListCollaborationModesCommand,
-  ListRuntimeSessionsCommand,
-  RunCollaborationCommand,
-  RunCollaborationModeCommand,
-} from "./protocol/command.js";
+import type { AgentRuntimeCommand } from "./protocol/command.js";
 import type { AgentRuntimeEvent } from "./protocol/event.js";
+import type {
+  AgentRunInput,
+  AgentToolsQuery,
+  AnswerQuestionInput,
+  AppendSessionMessagesInput,
+  ChatInput,
+  CollaborationTimelineQuery,
+  CompactSessionInput,
+  CreateSessionInput,
+  DeleteSessionMessageInput,
+  EditSessionMessageInput,
+  ReadSessionInput,
+  RebuildAgentSessionInput,
+  RebuildSessionInput,
+  RunChatInput,
+  RunCollaborationInput,
+  RunCollaborationModeInput,
+  RuntimeSessionQuery,
+  RuntimeSessionsQuery,
+  SendMessageInput,
+  SummarizeSessionInput,
+} from "./protocol/input.js";
 import type {
   AgentRuntimeResult,
   CollaborationModesRuntimeResult,
@@ -29,11 +40,27 @@ import type {
   RuntimeSessionResult,
   RuntimeSessionsResult,
 } from "./protocol/result.js";
+import type {
+  SessionMutationResult,
+  SessionResult,
+} from "./protocol/session.js";
 
 export type EmitAgentRuntimeEvent = (event: AgentRuntimeEvent) => void;
 export type EmitAgentRuntimeResult = (result: AgentRuntimeResult) => void;
 
-export type RuntimeEngineCallbacks = Partial<AgentRuntimeCallbacks> & {
+export type RuntimeUserInputRequest = {
+  taskId: string;
+  question: string;
+  context?: string | null;
+  input?: AskUserInput;
+};
+
+export type RuntimeUserInputHandler = (
+  request: RuntimeUserInputRequest,
+) => Promise<string>;
+
+export type RuntimeEngineCallbacks = {
+  requestUserInput?: RuntimeUserInputHandler;
   onEvent?: EmitAgentRuntimeEvent;
   onResult?: EmitAgentRuntimeResult;
 };
@@ -48,27 +75,42 @@ export abstract class AgentRuntimeEngine {
 
   abstract handle(command: AgentRuntimeCommand): Promise<boolean>;
 
-  abstract ping(command: PingCommand): Promise<PongResult>;
-  abstract shutdown(command: ShutdownCommand): Promise<ShutdownAckResult>;
-  abstract listAgents(command: ListAgentsCommand): Promise<AgentDefinitionsResult>;
-  abstract chat(command: ChatRunCommand): Promise<ChatResult>;
-  abstract runAgent(command: AgentRunCommand): Promise<TaskResult>;
+  abstract ping(): Promise<PongResult>;
+  abstract shutdown(): Promise<ShutdownAckResult>;
+  abstract waitForRunningTask(): Promise<void>;
+
+  abstract listAgents(): Promise<AgentDefinitionsResult>;
+  abstract listAgentTools(input?: AgentToolsQuery): Promise<AgentToolsResult>;
+  abstract listRuntimeModels(): Promise<RuntimeModelsResult>;
+  abstract sendMessage(input: SendMessageInput): Promise<ChatResult | TaskResult>;
+  abstract answerQuestion(input: AnswerQuestionInput): Promise<void>;
+  abstract runChat(input: RunChatInput): Promise<ChatResult>;
+  abstract chat(input: ChatInput): Promise<ChatResult>;
+  abstract runAgent(input: AgentRunInput): Promise<TaskResult>;
+
+  abstract createSession(input: CreateSessionInput): Promise<SessionMutationResult>;
+  abstract readSession(input: ReadSessionInput): Promise<SessionResult>;
+  abstract compactSession(input: CompactSessionInput): Promise<SessionMutationResult>;
+  abstract rebuildAgentSession(
+    input: RebuildAgentSessionInput,
+  ): Promise<SessionMutationResult>;
+  abstract summarizeSession(input: SummarizeSessionInput): Promise<SessionMutationResult>;
+  abstract editSessionMessage(input: EditSessionMessageInput): Promise<SessionMutationResult>;
+  abstract deleteSessionMessage(input: DeleteSessionMessageInput): Promise<SessionMutationResult>;
+  abstract appendSessionMessages(input: AppendSessionMessagesInput): Promise<SessionMutationResult>;
+  abstract rebuildSession(input: RebuildSessionInput): Promise<SessionMutationResult>;
 
   abstract listRuntimeSessions(
-    command: ListRuntimeSessionsCommand,
+    input: RuntimeSessionsQuery,
   ): Promise<RuntimeSessionsResult>;
-  abstract getRuntimeSession(command: GetRuntimeSessionCommand): Promise<RuntimeSessionResult>;
-  abstract getCollaborationTimeline(
-    command: GetCollaborationTimelineCommand,
+  abstract readRuntimeSession(input: RuntimeSessionQuery): Promise<RuntimeSessionResult>;
+  abstract readCollaborationTimeline(
+    input: CollaborationTimelineQuery,
   ): Promise<CollaborationTimelineResult>;
 
-  abstract listCollaborationModes(
-    command: ListCollaborationModesCommand,
-  ): Promise<CollaborationModesRuntimeResult>;
-  abstract runCollaboration(command: RunCollaborationCommand): Promise<CollaborationRuntimeResult>;
+  abstract listCollaborationModes(): Promise<CollaborationModesRuntimeResult>;
+  abstract runCollaboration(input: RunCollaborationInput): Promise<CollaborationRuntimeResult>;
   abstract runCollaborationMode(
-    command: RunCollaborationModeCommand,
+    input: RunCollaborationModeInput,
   ): Promise<CollaborationRuntimeResult>;
-
-  abstract waitForRunningTask(): Promise<void>;
 }

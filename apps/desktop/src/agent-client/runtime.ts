@@ -1,6 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { RuntimeAgentDefinition } from "@/agent-client/protocol";
+import type {
+  AgentToolsResult,
+  RuntimeAgentDefinition,
+} from "@/agent-client/protocol";
 import type {
   AgentClientAgentEvent,
   AgentClientChatEvent,
@@ -25,8 +28,13 @@ export type AgentClientAgentDefinitionsResult = Readonly<{
   agents: readonly RuntimeAgentDefinition[];
 }>;
 
+export type AgentClientAgentToolsResult = Readonly<
+  Pick<AgentToolsResult, "agentId" | "tools" | "defaultToolNames">
+>;
+
 export interface AgentClient {
   listAgents(): Promise<AgentClientAgentDefinitionsResult>;
+  listAgentTools(input?: { agentId?: string | null }): Promise<AgentClientAgentToolsResult>;
   run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
   run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
   run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
@@ -48,6 +56,7 @@ export interface AgentClient {
 // These names must match the Rust Tauri command and event names exactly.
 const TAURI_AGENT_CLIENT_COMMANDS = {
   listAgents: "list_agent_runtime_agents",
+  listAgentTools: "list_agent_runtime_tools",
   runAgent: "run_agent_runtime_agent",
   runChat: "run_agent_runtime_chat",
   runCollaboration: "run_agent_runtime_collaboration",
@@ -106,6 +115,13 @@ const normalizeChatResult = ({
 class TauriAgentClient implements AgentClient {
   async listAgents(): Promise<AgentClientAgentDefinitionsResult> {
     return invoke<AgentClientAgentDefinitionsResult>(TAURI_AGENT_CLIENT_COMMANDS.listAgents);
+  }
+
+  async listAgentTools(input: { agentId?: string | null } = {}): Promise<AgentClientAgentToolsResult> {
+    return invoke<AgentClientAgentToolsResult>(
+      TAURI_AGENT_CLIENT_COMMANDS.listAgentTools,
+      { input },
+    );
   }
 
   async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
@@ -264,6 +280,14 @@ class WebPreviewAgentClient implements AgentClient {
           requiresModel: false,
         },
       ],
+    };
+  }
+
+  async listAgentTools(): Promise<AgentClientAgentToolsResult> {
+    return {
+      agentId: "web-preview",
+      tools: [],
+      defaultToolNames: [],
     };
   }
 

@@ -272,7 +272,7 @@ try {
   );
 
   send({
-    type: "get_runtime_session",
+    type: "read_runtime_session",
     requestId: "stdio-session-query",
     workspacePath,
     sessionRootDir: dispatchSessionRootDir,
@@ -291,7 +291,7 @@ try {
   );
 
   send({
-    type: "get_collaboration_timeline",
+    type: "read_collaboration_timeline",
     requestId: "stdio-collaboration-timeline-query",
     workspacePath,
     sessionRootDir: dispatchSessionRootDir,

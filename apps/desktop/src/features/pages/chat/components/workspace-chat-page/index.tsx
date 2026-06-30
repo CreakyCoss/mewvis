@@ -2,10 +2,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Folder, PanelRight } from "lucide-react";
 import { toast } from "sonner";
-import {
-  DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
-  normalizeAllowedRuntimeAgentTools,
-  type RuntimeAgentToolName,
+import type {
+  AgentToolSummary,
 } from "@/agent-client/protocol";
 import { createAgentClient } from "@/agent-client/runtime";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
@@ -206,9 +204,8 @@ export const WorkspaceChatPage = ({
   });
   const [composerResetKey, setComposerResetKey] = useState(0);
   const [chatError, setChatError] = useState("");
-  const [allowedAgentTools, setAllowedAgentTools] = useState<RuntimeAgentToolName[]>(() => [
-    ...DEFAULT_ALLOWED_RUNTIME_AGENT_TOOLS,
-  ]);
+  const [agentTools, setAgentTools] = useState<AgentToolSummary[]>([]);
+  const [allowedAgentTools, setAllowedAgentTools] = useState<string[]>([]);
   const [selectedSkillGroupIds, setSelectedSkillGroupIds] = useState<string[]>([
     ALL_SKILLS_GROUP_ID,
   ]);
@@ -264,6 +261,35 @@ export const WorkspaceChatPage = ({
   } = useWorkspaceSkills({
     workspaceId: workspace.id,
   });
+  useEffect(() => {
+    let cancelled = false;
+    agentClient.listAgentTools({
+      agentId: runtimeAgentId || null,
+    }).then((result) => {
+      if (cancelled) return;
+
+      const availableToolNames = new Set(result.tools.map((tool) => tool.name));
+      setAgentTools([...result.tools]);
+      setAllowedAgentTools((current) => {
+        const next = current.filter((toolName) => availableToolNames.has(toolName));
+        if (next.length > 0) {
+          return [...new Set(next)];
+        }
+        return result.defaultToolNames.filter((toolName) =>
+          availableToolNames.has(toolName));
+      });
+    }).catch((error) => {
+      if (!cancelled) {
+        console.error("Failed to load agent runtime tools", error);
+        setAgentTools([]);
+        setAllowedAgentTools([]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agentClient, runtimeAgentId]);
   const availableSkillGroupIds = useMemo(
     () => new Set(skillGroups.map((group) => group.id)),
     [skillGroups],
@@ -647,10 +673,10 @@ export const WorkspaceChatPage = ({
     scrollActiveThinkingToBottom,
   ]);
 
-  const toggleAllowedAgentTool = useCallback((toolId: RuntimeAgentToolName, enabled: boolean) => {
+  const toggleAllowedAgentTool = useCallback((toolId: string, enabled: boolean) => {
     setAllowedAgentTools((current) => {
       if (enabled) {
-        return current.includes(toolId) ? current : normalizeAllowedRuntimeAgentTools([...current, toolId]);
+        return current.includes(toolId) ? current : [...new Set([...current, toolId])];
       }
 
       return current.filter((item) => item !== toolId);
@@ -1144,6 +1170,7 @@ export const WorkspaceChatPage = ({
     runtimeModels,
     selectedRuntimeModelId,
     selectedRuntimeModel,
+    agentTools,
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,

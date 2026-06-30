@@ -13,9 +13,8 @@ import {
   Wrench,
 } from "lucide-react";
 import {
-  RUNTIME_AGENT_TOOL_DEFINITIONS,
+  type AgentToolSummary,
   type RuntimeAgentDefinition,
-  type RuntimeAgentToolName,
 } from "@/agent-client/protocol";
 import {
   getActiveReferenceToken,
@@ -68,7 +67,8 @@ type ComposerProps = {
   selectedRuntimeModelId: string;
   selectedRuntimeModel: RuntimeModelOption | null;
   selectedAgent: AgentProfile | null;
-  allowedAgentTools: RuntimeAgentToolName[];
+  agentTools: readonly AgentToolSummary[];
+  allowedAgentTools: string[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
@@ -78,7 +78,7 @@ type ComposerProps = {
   onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onRuntimeModelChange: (id: string) => void;
-  onToggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
+  onToggleAllowedAgentTool: (toolId: string, enabled: boolean) => void;
   onSkillGroupChange: (skillGroupId: string, checked: boolean) => void;
   onSubmit: (input: ComposerSubmitInput) => void;
   onAbortTask: () => void;
@@ -108,6 +108,7 @@ export const Composer = memo(({
   selectedRuntimeModelId,
   selectedRuntimeModel,
   selectedAgent,
+  agentTools,
   allowedAgentTools,
   skillGroups,
   defaultSkillGroupId,
@@ -591,13 +592,15 @@ export const Composer = memo(({
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuLabel>工具</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {RUNTIME_AGENT_TOOL_DEFINITIONS.map((tool) => (
+                {agentTools.length === 0 ? (
+                  <DropdownMenuItem disabled>暂无工具</DropdownMenuItem>
+                ) : agentTools.map((tool) => (
                   <DropdownMenuCheckboxItem
                     key={tool.name}
                     checked={allowedAgentTools.includes(tool.name)}
                     onSelect={(event) => event.preventDefault()}
                     onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                    title={tool.description}
+                    title={tool.description ?? undefined}
                   >
                     {tool.label}
                   </DropdownMenuCheckboxItem>

@@ -1,5 +1,4 @@
 import type {
-  RuntimeAgentToolName,
   RuntimeModelInput,
 } from "@/agent-client/protocol";
 import type { AgentClientSession } from "./session";
@@ -15,7 +14,7 @@ export type AgentClientAgentTaskInput = {
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
 };
 
@@ -29,7 +28,7 @@ export type AgentClientCollaborationAgentRole = {
   agentId?: string | null;
   systemPrompt?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
 };
 
@@ -80,7 +79,7 @@ export type AgentClientCollaborationAgentWorkflowStep =
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
   maxRetries?: number | null;
 };
@@ -98,7 +97,7 @@ export type AgentClientCollaborationAgentInvocation = {
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
   metadata?: Record<string, unknown> | null;
   maxRetries?: number | null;
@@ -159,7 +158,7 @@ export type AgentClientCollaborationInput = {
   workflow: AgentClientCollaborationWorkflowDefinition;
   agents: AgentClientCollaborationAgentRole[];
   input?: unknown;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
 };
 
@@ -186,7 +185,7 @@ export type AgentClientCollaborationModeParticipant = {
   requestContext?: string | null;
   runtimeInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
   capabilities?: string[];
   metadata?: Record<string, unknown> | null;
@@ -201,7 +200,7 @@ export type AgentClientCollaborationModeInput = {
   context?: unknown;
   options?: Record<string, unknown> | null;
   executor?: AgentClientCollaborationExecutorId | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
 };
 

@@ -1,16 +1,18 @@
 import { build } from "esbuild";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const desktopRoot = process.cwd();
+const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-agent-runtime-collab-"));
 const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
-const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/index.ts");
+const agentProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/agent.ts");
+const commandProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/command.ts");
+const resultProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/result.ts");
 const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/collaboration/index.ts");
 const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/session/index.ts");
 
@@ -23,9 +25,14 @@ writeFileSync(entryPath, `
   } from ${JSON.stringify(runtimeEntry)};
   import {
     AgentResultType,
+    AgentTaskCommandType,
+  } from ${JSON.stringify(agentProtocolEntry)};
+  import {
     AgentRuntimeCommandType,
+  } from ${JSON.stringify(commandProtocolEntry)};
+  import {
     AgentRuntimeResultType,
-  } from ${JSON.stringify(protocolEntry)};
+  } from ${JSON.stringify(resultProtocolEntry)};
   import {
     CollaborationEventType,
     createCollaborationEngine,
@@ -58,6 +65,45 @@ writeFileSync(entryPath, `
         },
       },
     });
+    const toolsResult = await runtime.listAgentTools();
+    assert(
+      toolsResult.tools.some((tool) => tool.name === "read") &&
+        toolsResult.defaultToolNames.includes("read"),
+      "SDK 应能直接查询 agent 工具定义",
+      toolsResult,
+    );
+    const modelsResult = await runtime.listRuntimeModels();
+    assert(
+      Object.keys(modelsResult.catalog).length > 0,
+      "SDK 应能直接查询 runtime 模型目录",
+      modelsResult,
+    );
+    await runtime.handle({
+      type: AgentTaskCommandType.ListAgentTools,
+      requestId: "agent-tools-handle-smoke",
+    });
+    assert(
+      results.some((candidate) =>
+        candidate && typeof candidate === "object" &&
+          "type" in candidate &&
+          candidate.type === AgentResultType.AgentTools
+      ),
+      "SDK handle 应通过 onResult 返回 agent_tools",
+      results,
+    );
+    await runtime.handle({
+      type: AgentTaskCommandType.ListRuntimeModels,
+      requestId: "runtime-models-handle-smoke",
+    });
+    assert(
+      results.some((candidate) =>
+        candidate && typeof candidate === "object" &&
+          "type" in candidate &&
+          candidate.type === AgentResultType.RuntimeModels
+      ),
+      "SDK handle 应通过 onResult 返回 runtime_models",
+      results,
+    );
     await runtime.handle({
       type: AgentRuntimeCommandType.RunCollaboration,
       requestId: "collaboration-smoke-request",

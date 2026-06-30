@@ -1,7 +1,9 @@
 import type {
   AgentDefinitionsResult,
+  AgentToolsResult,
   ChatResult,
   PongResult,
+  RuntimeModelsResult,
   ShutdownAckResult,
   TaskResult,
 } from "./agent.js";
@@ -60,11 +62,13 @@ export type CollaborationTimelineResult = {
 
 export type AgentRuntimeResult =
   | AgentDefinitionsResult
+  | AgentToolsResult
   | ChatResult
   | CollaborationModesRuntimeResult
   | CollaborationRuntimeResult
   | CollaborationTimelineResult
   | PongResult
+  | RuntimeModelsResult
   | RuntimeSessionResult
   | RuntimeSessionsResult
   | SessionResult

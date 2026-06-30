@@ -1,6 +1,9 @@
 import { useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
-import type { RuntimeAgentDefinition, RuntimeAgentToolName } from "@/agent-client/protocol";
+import type {
+  AgentToolSummary,
+  RuntimeAgentDefinition,
+} from "@/agent-client/protocol";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,7 +57,8 @@ export type ChatPanelViewModel = {
   runtimeModels: RuntimeModelOption[];
   selectedRuntimeModelId: string;
   selectedRuntimeModel: RuntimeModelOption | null;
-  allowedAgentTools: RuntimeAgentToolName[];
+  agentTools: readonly AgentToolSummary[];
+  allowedAgentTools: string[];
   skillGroups: WorkspaceSkillGroup[];
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
@@ -72,7 +76,7 @@ export type ChatPanelViewModel = {
   setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
-  toggleAllowedAgentTool: (toolId: RuntimeAgentToolName, enabled: boolean) => void;
+  toggleAllowedAgentTool: (toolId: string, enabled: boolean) => void;
   toggleSelectedSkillGroup: (skillGroupId: string, checked: boolean) => void;
   sendMessage: (input: ComposerSubmitInput) => Promise<void>;
   onAbortTask: () => void;
@@ -251,6 +255,7 @@ export const ChatPanel = () => {
     runtimeModels,
     selectedRuntimeModelId,
     selectedRuntimeModel,
+    agentTools,
     allowedAgentTools,
     skillGroups,
     defaultSkillGroupId,
@@ -303,6 +308,7 @@ export const ChatPanel = () => {
       selectedRuntimeModelId={selectedRuntimeModelId}
       selectedRuntimeModel={selectedRuntimeModel}
       selectedAgent={selectedAgent}
+      agentTools={agentTools}
       allowedAgentTools={allowedAgentTools}
       skillGroups={skillGroups}
       defaultSkillGroupId={defaultSkillGroupId}

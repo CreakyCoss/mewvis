@@ -47,6 +47,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   runtimeModels: [],
   selectedRuntimeModelId: "",
   selectedRuntimeModel: null,
+  agentTools: [],
   allowedAgentTools: [],
   skillGroups: [],
   defaultSkillGroupId: ALL_SKILLS_GROUP_ID,

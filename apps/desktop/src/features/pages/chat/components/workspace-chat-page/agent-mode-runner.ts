@@ -1,8 +1,4 @@
 import type { MutableRefObject } from "react";
-import {
-  normalizeAllowedRuntimeAgentTools,
-  type RuntimeAgentToolName,
-} from "@/agent-client/protocol";
 import type { AgentClient } from "@/agent-client/runtime";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -47,7 +43,7 @@ type RunAgentTurnDeps = {
   activateAgentTaskId: (taskId: string) => void;
   handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
   effectiveRuntimeModel: RuntimeModelOption | null;
-  allowedAgentTools: RuntimeAgentToolName[];
+  allowedAgentTools: string[];
   currentSessionTitle: string;
 };
 
@@ -87,9 +83,7 @@ export const runAgentTurn = async (
   prepareActiveAgentRun({
     messageId: assistantMessageId,
   });
-  const allowedToolsForRun = normalizeAllowedRuntimeAgentTools(
-    allowedAgentTools,
-  );
+  const allowedToolsForRun = [...new Set(allowedAgentTools)];
   const task = await agentClient.run({
     type: "agent",
     agentId: runtimeAgentId,

@@ -2,8 +2,6 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   AgentCommandType,
-} from "../engines/protocol/index.js";
-import {
   AgentRuntimeCommandType,
   type AgentRuntimeCommand,
 } from "../engines/protocol/index.js";

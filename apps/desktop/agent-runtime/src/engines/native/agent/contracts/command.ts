@@ -13,6 +13,8 @@ export enum AgentTaskCommandType {
   AnswerQuestion = "answer_question",
   Chat = "chat",
   ListAgents = "list_agents",
+  ListAgentTools = "list_agent_tools",
+  ListRuntimeModels = "list_runtime_models",
   Ping = "ping",
   Shutdown = "shutdown",
 }
@@ -87,6 +89,17 @@ export type AnswerQuestionCommand = {
 
 export type ListAgentsCommand = {
   type: AgentTaskCommandType.ListAgents;
+  requestId?: string | null;
+};
+
+export type ListAgentToolsCommand = {
+  type: AgentTaskCommandType.ListAgentTools;
+  requestId?: string | null;
+  agentId?: string | null;
+};
+
+export type ListRuntimeModelsCommand = {
+  type: AgentTaskCommandType.ListRuntimeModels;
   requestId?: string | null;
 };
 
@@ -197,6 +210,8 @@ export type AgentTaskCommand =
   | AnswerQuestionCommand
   | ChatCommand
   | ListAgentsCommand
+  | ListAgentToolsCommand
+  | ListRuntimeModelsCommand
   | PingCommand
   | ShutdownCommand;
 

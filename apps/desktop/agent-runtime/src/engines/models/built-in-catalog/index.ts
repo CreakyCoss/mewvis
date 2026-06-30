@@ -2,13 +2,13 @@ import { MODEL_PROVIDER_CONFIG } from "../provider-config.js";
 import { RAW_MODEL_CATALOG } from "./data.js";
 import type {
   CatalogModel,
-  CatalogProvider,
-  ModelInputModality,
-  ModelCatalog,
+  RuntimeModelCatalog,
+  RuntimeModelInputModality,
+  RuntimeModelProviderSummary,
 } from "../types.js";
 
 type RawCatalogModel = Omit<CatalogModel, "input"> & {
-  input: readonly ModelInputModality[];
+  input: readonly RuntimeModelInputModality[];
 };
 
 type RawCatalogProvider = {
@@ -45,7 +45,7 @@ const buildCatalogModelMap = (
 const buildCatalogProvider = (
   provider: string,
   rawProviderCatalog: RawCatalogProvider,
-): CatalogProvider | null => {
+): RuntimeModelProviderSummary | null => {
   const catalogConfig = MODEL_PROVIDER_CONFIG[provider];
   if (!catalogConfig) return null;
 
@@ -65,8 +65,8 @@ const buildCatalogProvider = (
   };
 };
 
-const buildModelCatalog = (): ModelCatalog => {
-  const catalog: ModelCatalog = {};
+const buildModelCatalog = (): RuntimeModelCatalog => {
+  const catalog: RuntimeModelCatalog = {};
 
   for (const [provider, rawProviderCatalog] of Object.entries(rawModelCatalog)) {
     const providerCatalog = buildCatalogProvider(

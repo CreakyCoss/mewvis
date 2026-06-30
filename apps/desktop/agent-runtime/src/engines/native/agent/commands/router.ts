@@ -3,6 +3,7 @@ import {
   AgentSessionCommandType,
   AgentResultType,
   AgentTaskCommandType,
+  type AnswerQuestionCommand,
   type AgentCommand,
   type ChatCommand,
   type ChatResult,
@@ -33,7 +34,9 @@ import { createUserInputManager } from "./user-input.js";
 import { messageFromError } from "../../error.js";
 import {
   createAgentDefinitionsResult,
+  createAgentToolsResult,
   createPongResult,
+  createRuntimeModelsResult,
   createShutdownAckResult,
   emitCommandError,
   writeTaskResult,
@@ -53,7 +56,9 @@ const runningTaskChatMessage = "当前 Agent runtime 已有运行中的任务，
 const sendMessageRunsAgent = (command: SendMessageCommand) =>
   command.runtime?.mode === "agent" || Boolean(command.agent?.agentRoleId?.trim());
 
-const chatRunCommandFromSendMessage = (command: SendMessageCommand): ChatRunCommand => ({
+export const chatRunCommandFromSendMessage = (
+  command: SendMessageCommand,
+): ChatRunCommand => ({
   type: "chat",
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
@@ -70,7 +75,9 @@ const chatRunCommandFromSendMessage = (command: SendMessageCommand): ChatRunComm
   messages: command.input.messages ?? [],
 });
 
-const agentRunCommandFromSendMessage = (command: SendMessageCommand): AgentRunCommand => ({
+export const agentRunCommandFromSendMessage = (
+  command: SendMessageCommand,
+): AgentRunCommand => ({
   runtimeMode: "agent",
   requestId: command.requestId ?? null,
   agentId: command.agent?.agentId ?? null,
@@ -87,7 +94,7 @@ const agentRunCommandFromSendMessage = (command: SendMessageCommand): AgentRunCo
   resources: command.runtime?.resources ?? null,
 });
 
-const runtimeCommandFromSendMessage = (command: SendMessageCommand) =>
+export const runtimeCommandFromSendMessage = (command: SendMessageCommand) =>
   sendMessageRunsAgent(command)
     ? {
       mode: "agent" as const,
@@ -120,6 +127,23 @@ const handleAgentRunCommand = async (
     emit,
   });
 };
+
+export const chatRunCommandFromChat = (command: ChatCommand): ChatRunCommand => ({
+  type: "chat",
+  requestId: command.requestId ?? null,
+  agentId: command.agent?.agentId ?? null,
+  workspacePath: command.session?.workspacePath ?? null,
+  sessionRootDir: command.session?.sessionRootDir ?? null,
+  streamId: command.runtime?.streamId ?? null,
+  stream: command.runtime?.stream,
+  runtimeModel: command.runtime?.model ?? null,
+  systemPrompt: command.input.systemPrompt ?? "",
+  userMessage: command.input.userMessage ?? null,
+  requestContext: command.input.requestContext ?? null,
+  runtimeInstruction: command.input.runtimeInstruction ?? null,
+  bootstrapInstruction: command.input.bootstrapInstruction ?? null,
+  messages: command.input.messages ?? [],
+});
 
 const runChat = async (
   command: ChatRunCommand,
@@ -191,27 +215,14 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
     await runChat(command, errorCommand, deps);
   };
 
-  const chatRunCommandFromChat = (command: ChatCommand): ChatRunCommand => ({
-    type: "chat",
-    requestId: command.requestId ?? null,
-    agentId: command.agent?.agentId ?? null,
-    workspacePath: command.session?.workspacePath ?? null,
-    sessionRootDir: command.session?.sessionRootDir ?? null,
-    streamId: command.runtime?.streamId ?? null,
-    stream: command.runtime?.stream,
-    runtimeModel: command.runtime?.model ?? null,
-    systemPrompt: command.input.systemPrompt ?? "",
-    userMessage: command.input.userMessage ?? null,
-    requestContext: command.input.requestContext ?? null,
-    runtimeInstruction: command.input.runtimeInstruction ?? null,
-    bootstrapInstruction: command.input.bootstrapInstruction ?? null,
-    messages: command.input.messages ?? [],
-  });
+  const answerQuestion = (command: AnswerQuestionCommand) => {
+    userInput.handleAnswer(command);
+  };
 
   const handle = async (command: AgentCommand): Promise<boolean> => {
     switch (command.type) {
       case AgentTaskCommandType.AnswerQuestion:
-        userInput.handleAnswer(command);
+        answerQuestion(command);
         return true;
 
       case AgentTaskCommandType.Ping:
@@ -225,6 +236,14 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentTaskCommandType.ListAgents:
         deps.writeJsonLine(createAgentDefinitionsResult(command));
+        return true;
+
+      case AgentTaskCommandType.ListAgentTools:
+        deps.writeJsonLine(createAgentToolsResult(command));
+        return true;
+
+      case AgentTaskCommandType.ListRuntimeModels:
+        deps.writeJsonLine(createRuntimeModelsResult(command));
         return true;
 
       case AgentSessionCommandType.CreateSession:
@@ -336,6 +355,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   };
 
   return {
+    answerQuestion,
     callbacks,
     handle,
     waitForRunningTask,

@@ -5,9 +5,9 @@ import type {
 } from "./collaboration.js";
 
 export enum AgentRuntimeCommandType {
-  GetCollaborationTimeline = "get_collaboration_timeline",
-  GetRuntimeSession = "get_runtime_session",
   ListRuntimeSessions = "list_runtime_sessions",
+  ReadRuntimeSession = "read_runtime_session",
+  ReadCollaborationTimeline = "read_collaboration_timeline",
   ListCollaborationModes = "list_collaboration_modes",
   RunCollaboration = "run_collaboration",
   RunCollaborationMode = "run_collaboration_mode",
@@ -27,8 +27,8 @@ export type ListRuntimeSessionsCommand = {
   maxDepth?: number | null;
 };
 
-export type GetRuntimeSessionCommand = {
-  type: AgentRuntimeCommandType.GetRuntimeSession;
+export type ReadRuntimeSessionCommand = {
+  type: AgentRuntimeCommandType.ReadRuntimeSession;
   requestId?: string | null;
   workspacePath: string;
   sessionRootDir: string;
@@ -38,8 +38,8 @@ export type GetRuntimeSessionCommand = {
   timelineLimit?: number | null;
 };
 
-export type GetCollaborationTimelineCommand = {
-  type: AgentRuntimeCommandType.GetCollaborationTimeline;
+export type ReadCollaborationTimelineCommand = {
+  type: AgentRuntimeCommandType.ReadCollaborationTimeline;
   requestId?: string | null;
   workspacePath: string;
   sessionRootDir: string;
@@ -61,9 +61,9 @@ export type RunCollaborationModeCommand = {
 
 export type AgentRuntimeCommand =
   | AgentCommand
-  | GetCollaborationTimelineCommand
-  | GetRuntimeSessionCommand
   | ListCollaborationModesCommand
   | ListRuntimeSessionsCommand
+  | ReadCollaborationTimelineCommand
+  | ReadRuntimeSessionCommand
   | RunCollaborationCommand
   | RunCollaborationModeCommand;

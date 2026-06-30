@@ -1,5 +1,4 @@
 import type {
-  RuntimeAgentToolName,
   RuntimeModelInput,
 } from "@/agent-client/protocol";
 import {
@@ -17,7 +16,7 @@ export type RunTavernOneShotAgentInput = {
   requestContext?: string | null;
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
-  allowedTools?: RuntimeAgentToolName[];
+  allowedTools?: string[];
   enabledSkills?: string[];
   onTextDelta?: (delta: string) => void;
   onThinkingDelta?: (delta: string) => void;

@@ -1,79 +1,388 @@
-export {
-  AgentCommandType,
-  AgentEventType,
-  AgentResultType,
-  AgentSessionCommandType,
-  AgentTaskCommandType,
-} from "../native/agent/contracts/index.js";
-
-export type {
-  AgentCommand,
-  AgentDefinitionsResult,
-  AgentEvent,
-  AgentMessageInput,
-  AgentRunMode,
-  AgentRuntimeOptions,
-  AgentSessionCommand,
-  AgentTarget,
-  AgentTaskCommand,
-  AnswerQuestionCommand,
-  ChatCommand,
-  ChatMessageInput,
-  ChatResult,
-  ChatRunResult,
-  CompactCommand,
-  CreateSessionCommand,
-  ListAgentsCommand,
-  MessageAppendCommand,
-  MessageDeleteCommand,
-  MessageEditCommand,
-  PingCommand,
-  PongResult,
-  ReadSessionCommand,
-  RebuildAgentSessionCommand,
-  RebuildCommand,
-  RuntimeAgentCapability,
-  RuntimeAgentDefinition,
-  RuntimeAgentSessionRebuildOptions,
-  RuntimeApiFormat,
-  RuntimeCompactOptions,
-  RuntimeCompactTarget,
+import type {
+  RuntimeModelCatalog,
   RuntimeModelInput,
-  RuntimeSessionRecordRef,
-  RuntimeSessionTarget,
-  RuntimeSummaryOptions,
-  RuntimeThinkingLevel,
-  SendMessageCommand,
-  ShutdownAckResult,
-  ShutdownCommand,
-  SummarizeSessionCommand,
-  TaskResult,
-} from "../native/agent/contracts/index.js";
+} from "../models/types.js";
 
-export type {
-  AgentRuntimeCallbacks,
-  AgentRuntimeContext as AgentRunContext,
-  AgentRunCommand,
-  AgentRunResult,
-  ChatRuntimeContext,
-  ChatRunCommand,
-  EmitAgentEvent,
-} from "../native/agent/runtimes/types.js";
+export type AgentRuntimeMcpResources = {
+  servers?: unknown[];
+  [key: string]: unknown;
+};
 
-export type { AskUserInput } from "../native/agent/tools/types.js";
+export type AgentRuntimeToolResources = {
+  allowed?: string[] | null;
+};
 
-export {
-  AGENT_TOOL_DEFINITIONS,
-  DEFAULT_ALLOWED_AGENT_TOOLS,
-  normalizeAllowedAgentTools,
-} from "../native/agent/tools/definitions.js";
+export type AgentRuntimeSkillResources = {
+  bundledPath?: string | string[] | null;
+  paths?: string[] | null;
+  enabled?: string[] | null;
+};
 
-export type {
-  AgentToolDefinition,
-  AgentToolName,
-  KnownAgentToolName,
-} from "../native/agent/tools/definitions.js";
+export type AgentRuntimeResources = {
+  tools?: AgentRuntimeToolResources | null;
+  skills?: AgentRuntimeSkillResources | null;
+  mcp?: AgentRuntimeMcpResources | null;
+};
 
-export { MODEL_CATALOG } from "../native/agent/models/index.js";
+export type RuntimeAgentCapability = "agent" | "chat";
 
-export type { CatalogModel } from "../native/agent/models/index.js";
+export type RuntimeAgentDefinition = Readonly<{
+  id: string;
+  label: string;
+  description: string;
+  capabilities: readonly RuntimeAgentCapability[];
+  requiresModel: boolean;
+}>;
+
+export type ChatMessageInput = {
+  role: string;
+  content: string;
+};
+
+export enum AgentTaskCommandType {
+  SendMessage = "send_message",
+  AnswerQuestion = "answer_question",
+  Chat = "chat",
+  ListAgents = "list_agents",
+  ListAgentTools = "list_agent_tools",
+  ListRuntimeModels = "list_runtime_models",
+  Ping = "ping",
+  Shutdown = "shutdown",
+}
+
+export enum AgentSessionCommandType {
+  CreateSession = "create_session",
+  Compact = "compact",
+  RebuildAgentSession = "rebuild_agent_session",
+  SummarizeSession = "summarize_session",
+  MessageEdit = "message_edit",
+  MessageDelete = "message_delete",
+  MessageAppend = "message_append",
+  Rebuild = "rebuild",
+  ReadSession = "read_session",
+}
+
+export const AgentCommandType = {
+  ...AgentTaskCommandType,
+  ...AgentSessionCommandType,
+} as const;
+
+export type AgentCommandType = AgentTaskCommandType | AgentSessionCommandType;
+
+type RuntimeSessionTarget = {
+  workspacePath: string;
+  sessionRootDir?: string | null;
+};
+
+type AgentTarget = {
+  agentId?: string | null;
+  agentRoleId?: string | null;
+};
+
+type AgentRunMode = "chat" | "agent";
+
+type AgentRuntimeOptions = {
+  mode?: AgentRunMode | null;
+  taskId?: string | null;
+  streamId?: string | null;
+  stream?: boolean;
+  model?: RuntimeModelInput | null;
+  resources?: AgentRuntimeResources | null;
+};
+
+type AgentMessageInput = {
+  userMessage?: string | null;
+  systemPrompt?: string | null;
+  requestContext?: string | null;
+  runtimeInstruction?: string | null;
+  bootstrapInstruction?: string | null;
+  messages?: ChatMessageInput[];
+};
+
+export type SendMessageCommand = {
+  type: AgentTaskCommandType.SendMessage;
+  requestId?: string | null;
+  session: RuntimeSessionTarget;
+  agent?: AgentTarget | null;
+  input: AgentMessageInput & {
+    userMessage: string;
+  };
+  runtime?: AgentRuntimeOptions | null;
+};
+
+export type AnswerQuestionCommand = {
+  type: AgentTaskCommandType.AnswerQuestion;
+  requestId?: string | null;
+  taskId: string;
+  questionId: string;
+  answer: string;
+};
+
+export type ListAgentsCommand = {
+  type: AgentTaskCommandType.ListAgents;
+  requestId?: string | null;
+};
+
+export type ListAgentToolsCommand = {
+  type: AgentTaskCommandType.ListAgentTools;
+  requestId?: string | null;
+  agentId?: string | null;
+};
+
+export type ListRuntimeModelsCommand = {
+  type: AgentTaskCommandType.ListRuntimeModels;
+  requestId?: string | null;
+};
+
+export type ChatCommand = {
+  type: AgentTaskCommandType.Chat;
+  requestId?: string | null;
+  session?: RuntimeSessionTarget | null;
+  agent?: Pick<AgentTarget, "agentId"> | null;
+  input: AgentMessageInput;
+  runtime?: Pick<AgentRuntimeOptions, "streamId" | "stream" | "model"> | null;
+};
+
+type SessionCommandBase = {
+  requestId?: string | null;
+  workspacePath: string;
+  sessionRootDir: string;
+};
+
+type RuntimeCompactTarget = {
+  scope: "agent";
+  agentId?: string | null;
+  agentRoleId: string;
+};
+
+type RuntimeCompactOptions = {
+  compactInstruction?: string | null;
+};
+
+type RuntimeAgentSessionRebuildOptions = {
+  rebuildInstruction?: string | null;
+  userMessage?: string | null;
+};
+
+type RuntimeSummaryOptions = {
+  summaryInstruction?: string | null;
+  maxSummaryChars?: number | null;
+};
+
+export type CompactCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.Compact;
+  target: RuntimeCompactTarget;
+  options?: RuntimeCompactOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
+};
+
+export type RebuildAgentSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.RebuildAgentSession;
+  target: RuntimeCompactTarget;
+  options?: RuntimeAgentSessionRebuildOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
+};
+
+export type SummarizeSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.SummarizeSession;
+  agent?: Pick<AgentTarget, "agentId"> | null;
+  options?: RuntimeSummaryOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model"> | null;
+};
+
+export type CreateSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.CreateSession;
+  systemPrompt?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type MessageEditCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.MessageEdit;
+  messageRecordId: string;
+  content: string;
+};
+
+export type MessageDeleteCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.MessageDelete;
+  messageRecordId: string;
+};
+
+export type MessageAppendCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.MessageAppend;
+  messages: Array<{
+    role: string;
+    content: string;
+    timestamp?: number | null;
+    metadata?: Record<string, unknown> | null;
+  }>;
+};
+
+export type RebuildCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.Rebuild;
+  messages: MessageAppendCommand["messages"];
+};
+
+export type ReadSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.ReadSession;
+};
+
+export type PingCommand = {
+  type: AgentTaskCommandType.Ping;
+  requestId?: string | null;
+};
+
+export type ShutdownCommand = {
+  type: AgentTaskCommandType.Shutdown;
+  requestId?: string | null;
+};
+
+export type AgentTaskCommand =
+  | SendMessageCommand
+  | AnswerQuestionCommand
+  | ChatCommand
+  | ListAgentsCommand
+  | ListAgentToolsCommand
+  | ListRuntimeModelsCommand
+  | PingCommand
+  | ShutdownCommand;
+
+export type AgentSessionCommand =
+  | CreateSessionCommand
+  | CompactCommand
+  | RebuildAgentSessionCommand
+  | SummarizeSessionCommand
+  | MessageEditCommand
+  | MessageDeleteCommand
+  | MessageAppendCommand
+  | RebuildCommand
+  | ReadSessionCommand;
+
+export type AgentCommand = AgentTaskCommand | AgentSessionCommand;
+
+export type AskUserInputType = "text" | "select";
+
+export type AskUserOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+export type AskUserInput = {
+  type: AskUserInputType;
+  label?: string;
+  options?: AskUserOption[];
+  selected?: string;
+};
+
+export enum AgentEventType {
+  Started = "started",
+  Question = "question",
+  QuestionAnswered = "question_answered",
+  ReplaceText = "replace_text",
+  TextDelta = "text_delta",
+  ThinkingDelta = "thinking_delta",
+  ThinkingEnd = "thinking_end",
+  ToolStart = "tool_start",
+  ToolUpdate = "tool_update",
+  ToolEnd = "tool_end",
+  Done = "done",
+  Error = "error",
+}
+
+export type RuntimeSessionRecordRef = {
+  sessionRootDir: string;
+  userMessageRecordId?: string | null;
+  requestContextRecordId?: string | null;
+  runtimeInstructionRecordId?: string | null;
+  assistantMessageRecordId?: string | null;
+};
+
+export type AgentEvent =
+  | { type: AgentEventType.Started; taskId: string }
+  | {
+    type: AgentEventType.Question;
+    taskId: string;
+    questionId: string;
+    question: string;
+    context?: string | null;
+    input?: AskUserInput;
+  }
+  | { type: AgentEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
+  | { type: AgentEventType.ReplaceText; taskId: string; text: string }
+  | { type: AgentEventType.TextDelta; taskId: string; delta: string }
+  | { type: AgentEventType.ThinkingDelta; taskId: string; delta: string }
+  | { type: AgentEventType.ThinkingEnd; taskId: string; content: string }
+  | { type: AgentEventType.ToolStart; taskId: string; toolName: string; args: unknown }
+  | { type: AgentEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
+  | { type: AgentEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | { type: AgentEventType.Done; taskId: string; text: string; runtimeSession?: RuntimeSessionRecordRef | null }
+  | { type: AgentEventType.Error; taskId?: string; message: string };
+
+export enum AgentResultType {
+  AgentDefinitions = "agent_definitions",
+  AgentTools = "agent_tools",
+  ChatResult = "chat_result",
+  Pong = "pong",
+  RuntimeModels = "runtime_models",
+  SessionResult = "session_result",
+  SessionMutationResult = "session_mutation_result",
+  ShutdownAck = "shutdown_ack",
+  TaskResult = "task_result",
+}
+
+type ChatRunResult = {
+  text: string;
+  thinking?: string | null;
+  runtimeSession?: RuntimeSessionRecordRef | null;
+};
+
+export type ChatResult = ChatRunResult & {
+  type: AgentResultType.ChatResult;
+  requestId?: string | null;
+};
+
+export type AgentDefinitionsResult = {
+  type: AgentResultType.AgentDefinitions;
+  requestId?: string | null;
+  defaultAgentId: string;
+  agents: readonly RuntimeAgentDefinition[];
+};
+
+export type AgentToolSummary = {
+  name: string;
+  label: string;
+  description?: string | null;
+  enabledByDefault: boolean;
+};
+
+export type AgentToolsResult = {
+  type: AgentResultType.AgentTools;
+  requestId?: string | null;
+  agentId?: string | null;
+  tools: readonly AgentToolSummary[];
+  defaultToolNames: readonly string[];
+};
+
+export type RuntimeModelsResult = {
+  type: AgentResultType.RuntimeModels;
+  requestId?: string | null;
+  catalog: RuntimeModelCatalog;
+};
+
+export type PongResult = {
+  type: AgentResultType.Pong;
+  requestId?: string | null;
+};
+
+export type ShutdownAckResult = {
+  type: AgentResultType.ShutdownAck;
+  requestId?: string | null;
+};
+
+export type TaskResult = {
+  type: AgentResultType.TaskResult;
+  requestId?: string | null;
+  taskId: string;
+  success: boolean;
+  message?: string;
+};

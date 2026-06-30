@@ -1,9 +1,9 @@
-import type { CatalogProviderApi } from "./types.js";
+import type { RuntimeModelCatalogApi } from "./types.js";
 
 type CatalogProviderConfig = {
   websiteUrl: string;
   models?: string[];
-  apis: CatalogProviderApi[];
+  apis: RuntimeModelCatalogApi[];
 };
 
 // App-level provider exposure policy shared by model catalog implementations.

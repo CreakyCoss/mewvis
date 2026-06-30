@@ -195,7 +195,7 @@ pub async fn get_agent_runtime_session(
     call_session_runtime(
         app,
         json!({
-            "type": "get_runtime_session",
+            "type": "read_runtime_session",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "includeLedger": input.include_ledger,
@@ -218,7 +218,7 @@ pub async fn get_agent_runtime_collaboration_timeline(
     call_session_runtime(
         app,
         json!({
-            "type": "get_collaboration_timeline",
+            "type": "read_collaboration_timeline",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "workflowRunId": input.workflow_run_id,

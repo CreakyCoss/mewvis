@@ -27,6 +27,8 @@ export type {
   CompactCommand,
   CreateSessionCommand,
   ListAgentsCommand,
+  ListAgentToolsCommand,
+  ListRuntimeModelsCommand,
   MessageAppendCommand,
   MessageDeleteCommand,
   MessageEditCommand,
@@ -59,15 +61,22 @@ export {
 
 export type {
   AgentDefinitionsResult,
+  AgentToolsResult,
+  AgentToolSummary,
   ChatResult,
   PongResult,
+  RuntimeModelsResult,
   ShutdownAckResult,
   TaskResult,
 } from "./result.js";
 
 export type {
   RuntimeApiFormat,
+  RuntimeModelCatalog,
+  RuntimeModelCatalogApi,
   RuntimeModelInput,
+  RuntimeModelProviderSummary,
+  RuntimeModelSummary,
   RuntimeThinkingLevel,
 } from "./model.js";
 

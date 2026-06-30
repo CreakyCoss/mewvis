@@ -4,11 +4,14 @@ import type {
 import type {
   ChatRunResult,
 } from "./chat.js";
+import type { RuntimeModelCatalog } from "./model.js";
 
 export enum AgentResultType {
   AgentDefinitions = "agent_definitions",
+  AgentTools = "agent_tools",
   ChatResult = "chat_result",
   Pong = "pong",
+  RuntimeModels = "runtime_models",
   SessionResult = "session_result",
   SessionMutationResult = "session_mutation_result",
   ShutdownAck = "shutdown_ack",
@@ -25,6 +28,27 @@ export type AgentDefinitionsResult = {
   requestId?: string | null;
   defaultAgentId: string;
   agents: readonly RuntimeAgentDefinition[];
+};
+
+export type AgentToolSummary = {
+  name: string;
+  label: string;
+  description?: string | null;
+  enabledByDefault: boolean;
+};
+
+export type AgentToolsResult = {
+  type: AgentResultType.AgentTools;
+  requestId?: string | null;
+  agentId?: string | null;
+  tools: readonly AgentToolSummary[];
+  defaultToolNames: readonly string[];
+};
+
+export type RuntimeModelsResult = {
+  type: AgentResultType.RuntimeModels;
+  requestId?: string | null;
+  catalog: RuntimeModelCatalog;
 };
 
 export type PongResult = {
