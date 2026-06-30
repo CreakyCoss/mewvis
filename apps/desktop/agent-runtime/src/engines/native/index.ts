@@ -136,7 +136,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       callbacks,
       close,
       emit: this.emitAgentEvent,
-      writeJsonLine: this.emitInternalResult,
+      emitResult: this.emitResult,
     });
 
     const runAgentForCollaboration: RunAgentForCollaboration = (command, context) =>
@@ -547,9 +547,6 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     this.emitEvent(event);
   };
 
-  private readonly emitInternalResult = (result: unknown) => {
-    this.emitResult(result as AgentRuntimeResult);
-  };
 }
 
 export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) =>

@@ -1,5 +1,6 @@
 import {
   AgentResultType,
+  type AgentRuntimeResult,
   type AgentDefinitionsResult,
   type AgentCommand,
   type AgentToolsResult,
@@ -17,7 +18,7 @@ import {
 } from "../tools/definitions.js";
 import { MODEL_CATALOG } from "../../../models/index.js";
 
-export type WriteAgentRuntimeJsonLine = (value: unknown) => void;
+export type EmitAgentRuntimeResult = (result: AgentRuntimeResult) => void;
 
 type RequestCommand = {
   requestId?: string | null;
@@ -101,12 +102,12 @@ export const createTaskResult = (
   ...result,
 });
 
-export const writeTaskResult = (
+export const emitTaskResult = (
   command: TaskCommand,
-  writeJsonLine: WriteAgentRuntimeJsonLine,
+  emitResult: EmitAgentRuntimeResult,
   result: TaskResultStatus,
 ) => {
-  writeJsonLine(createTaskResult(command, result));
+  emitResult(createTaskResult(command, result));
 };
 
 export const emitCommandError = (

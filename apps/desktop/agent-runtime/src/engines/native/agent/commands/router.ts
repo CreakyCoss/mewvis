@@ -39,15 +39,15 @@ import {
   createRuntimeModelsResult,
   createShutdownAckResult,
   emitCommandError,
-  writeTaskResult,
-  type WriteAgentRuntimeJsonLine,
+  emitTaskResult,
+  type EmitAgentRuntimeResult,
 } from "./responses.js";
 
 type AgentCommandRouterDeps = {
   callbacks?: Partial<AgentRuntimeCallbacks>;
   close: () => void;
   emit: EmitAgentEvent;
-  writeJsonLine: WriteAgentRuntimeJsonLine;
+  emitResult: EmitAgentRuntimeResult;
 };
 
 const runningTaskMessage = "当前 Agent runtime 已有运行中的任务，无法启动新任务";
@@ -148,10 +148,10 @@ export const chatRunCommandFromChat = (command: ChatCommand): ChatRunCommand => 
 const runChat = async (
   command: ChatRunCommand,
   errorCommand: AgentCommand,
-  deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine">,
+  deps: Pick<AgentCommandRouterDeps, "emit" | "emitResult">,
 ) => {
   try {
-    deps.writeJsonLine(await handleChatCommand(command, deps.emit));
+    deps.emitResult(await handleChatCommand(command, deps.emit));
   } catch (error: unknown) {
     emitCommandError(errorCommand, deps.emit, messageFromError(error));
   }
@@ -160,17 +160,17 @@ const runChat = async (
 const runAgentRun = async (
   command: AgentRunCommand,
   errorCommand: AgentCommand,
-  deps: Pick<AgentCommandRouterDeps, "emit" | "writeJsonLine"> & {
+  deps: Pick<AgentCommandRouterDeps, "emit" | "emitResult"> & {
     callbacks: AgentRuntimeCallbacks;
   },
 ) => {
   try {
     await handleAgentRunCommand(command, deps.emit, deps.callbacks);
-    writeTaskResult(command, deps.writeJsonLine, { success: true });
+    emitTaskResult(command, deps.emitResult, { success: true });
   } catch (error: unknown) {
     const message = messageFromError(error);
     emitCommandError(errorCommand, deps.emit, message);
-    writeTaskResult(command, deps.writeJsonLine, { success: false, message });
+    emitTaskResult(command, deps.emitResult, { success: false, message });
   }
 };
 
@@ -188,7 +188,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
   ) => {
     if (runningTask) {
       emitCommandError(errorCommand, deps.emit, runningTaskMessage);
-      writeTaskResult(command, deps.writeJsonLine, {
+      emitTaskResult(command, deps.emitResult, {
         success: false,
         message: runningTaskMessage,
       });
@@ -226,29 +226,29 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
         return true;
 
       case AgentTaskCommandType.Ping:
-        deps.writeJsonLine(createPongResult(command));
+        deps.emitResult(createPongResult(command));
         return true;
 
       case AgentTaskCommandType.Shutdown:
-        deps.writeJsonLine(createShutdownAckResult(command));
+        deps.emitResult(createShutdownAckResult(command));
         deps.close();
         return false;
 
       case AgentTaskCommandType.ListAgents:
-        deps.writeJsonLine(createAgentDefinitionsResult(command));
+        deps.emitResult(createAgentDefinitionsResult(command));
         return true;
 
       case AgentTaskCommandType.ListAgentTools:
-        deps.writeJsonLine(createAgentToolsResult(command));
+        deps.emitResult(createAgentToolsResult(command));
         return true;
 
       case AgentTaskCommandType.ListRuntimeModels:
-        deps.writeJsonLine(createRuntimeModelsResult(command));
+        deps.emitResult(createRuntimeModelsResult(command));
         return true;
 
       case AgentSessionCommandType.CreateSession:
         try {
-          deps.writeJsonLine(await createRuntimeSession(command));
+          deps.emitResult(await createRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -271,7 +271,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.ReadSession:
         try {
-          deps.writeJsonLine(await readRuntimeSession(command));
+          deps.emitResult(await readRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -279,7 +279,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.Compact:
         try {
-          deps.writeJsonLine(await compactRuntimeSession(command, {
+          deps.emitResult(await compactRuntimeSession(command, {
             callbacks,
             emit: deps.emit,
           }));
@@ -294,7 +294,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
           return true;
         }
         try {
-          deps.writeJsonLine(await rebuildRuntimeAgentSession(command, {
+          deps.emitResult(await rebuildRuntimeAgentSession(command, {
             callbacks,
             emit: () => {},
           }));
@@ -305,7 +305,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.SummarizeSession:
         try {
-          deps.writeJsonLine(await summarizeRuntimeSession(command));
+          deps.emitResult(await summarizeRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -313,7 +313,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.MessageEdit:
         try {
-          deps.writeJsonLine(await editRuntimeSessionMessage(command));
+          deps.emitResult(await editRuntimeSessionMessage(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -321,7 +321,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.MessageDelete:
         try {
-          deps.writeJsonLine(await deleteRuntimeSessionMessage(command));
+          deps.emitResult(await deleteRuntimeSessionMessage(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -329,7 +329,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.MessageAppend:
         try {
-          deps.writeJsonLine(await appendRuntimeSessionMessages(command));
+          deps.emitResult(await appendRuntimeSessionMessages(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
@@ -337,7 +337,7 @@ export const createAgentCommandRouter = (deps: AgentCommandRouterDeps) => {
 
       case AgentSessionCommandType.Rebuild:
         try {
-          deps.writeJsonLine(await rebuildRuntimeSession(command));
+          deps.emitResult(await rebuildRuntimeSession(command));
         } catch (error: unknown) {
           emitCommandError(command, deps.emit, messageFromError(error));
         }
