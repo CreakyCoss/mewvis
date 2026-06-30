@@ -142,31 +142,10 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       run: this.agentEngine.runAgent,
     };
     this.commandRouter = createNativeRuntimeCommandRouter({
+      engine: this,
       emitEvent: this.emitEvent,
       emitResult: this.emitResult,
-      ping: () => this.ping(),
-      shutdown: () => this.shutdown(),
-      listAgents: () => this.listAgents(),
-      listAgentTools: (input) => this.listAgentTools(input),
-      listRuntimeModels: () => this.listRuntimeModels(),
-      answerQuestion: (input) => this.answerQuestion(input),
-      chat: (input) => this.chat(input),
       runAgentCommand: (command) => this.executeAgentRun(command),
-      createSession: (input) => this.createSession(input),
-      readSession: (input) => this.readSession(input),
-      compactSession: (input) => this.compactSession(input),
-      rebuildAgentSession: (input) => this.rebuildAgentSession(input),
-      summarizeSession: (input) => this.summarizeSession(input),
-      editSessionMessage: (input) => this.editSessionMessage(input),
-      deleteSessionMessage: (input) => this.deleteSessionMessage(input),
-      appendSessionMessages: (input) => this.appendSessionMessages(input),
-      rebuildSession: (input) => this.rebuildSession(input),
-      listRuntimeSessions: (input) => this.listRuntimeSessions(input),
-      readRuntimeSession: (input) => this.readRuntimeSession(input),
-      readCollaborationTimeline: (input) => this.readCollaborationTimeline(input),
-      listCollaborationModes: () => this.listCollaborationModes(),
-      runCollaboration: (input) => this.runCollaboration(input),
-      runCollaborationMode: (input) => this.runCollaborationMode(input),
     });
   }
 
