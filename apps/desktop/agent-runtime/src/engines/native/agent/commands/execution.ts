@@ -1,13 +1,13 @@
 import {
   AgentEventType,
   type AgentEvent,
-} from "../contracts/events.js";
-import type { ChatRunResult } from "../contracts/chat.js";
+} from "../../../protocol/index.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
   AgentRunResult,
   AgentRuntimeContext,
+  ChatRunResult,
   ChatRuntimeContext,
   ChatRunCommand,
   RuntimeAgentCommand,

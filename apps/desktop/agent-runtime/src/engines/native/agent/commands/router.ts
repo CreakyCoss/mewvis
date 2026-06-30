@@ -8,7 +8,7 @@ import {
   type ChatCommand,
   type ChatResult,
   type SendMessageCommand,
-} from "../contracts/index.js";
+} from "../../../protocol/index.js";
 import {
   executeChatCommand,
   executeAgentRunCommand,

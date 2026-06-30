@@ -1,10 +1,10 @@
 import type {
   ChatMessageInput,
-} from "../../contracts/chat.js";
+} from "../../../../protocol/index.js";
 import {
   AgentEventType,
   type AgentEvent,
-} from "../../contracts/events.js";
+} from "../../../../protocol/index.js";
 import type {
   AgentRunCommand,
   EmitAgentEvent,

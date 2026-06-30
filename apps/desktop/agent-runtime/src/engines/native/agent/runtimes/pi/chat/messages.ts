@@ -8,9 +8,11 @@ import type {
 } from "@earendil-works/pi-ai";
 import type {
   ChatMessageInput,
+} from "../../../../../protocol/index.js";
+import type {
+  ChatRunCommand,
   ChatRunResult,
-} from "../../../contracts/chat.js";
-import type { ChatRunCommand } from "../../types.js";
+} from "../../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatRunResult => ({
   text: textFromPiMessage(message),

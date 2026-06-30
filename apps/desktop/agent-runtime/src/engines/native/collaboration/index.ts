@@ -9,16 +9,10 @@ export type {
 
 export type {
   CollaborationExecutorId,
-  CollaborationRunInput,
-} from "./contracts/workflow.js";
-
-export type {
-  CollaborationRunResult,
-} from "./contracts/state.js";
-
-export type {
   CollaborationEvent,
-} from "./contracts/event.js";
+  CollaborationRunInput,
+  CollaborationRunResult,
+} from "../../protocol/index.js";
 
 export type {
   CollaborationModeRunInput,
@@ -27,4 +21,4 @@ export type {
 
 export {
   CollaborationEventType,
-} from "./contracts/event.js";
+} from "../../protocol/index.js";

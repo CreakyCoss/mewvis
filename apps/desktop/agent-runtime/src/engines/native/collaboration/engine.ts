@@ -3,23 +3,17 @@ import { messageFromError } from "../error.js";
 import {
   CollaborationEventType,
   type CollaborationEvent,
-} from "./contracts/event.js";
+  type CollaborationExecutorId,
+  type CollaborationRunInput,
+  type CollaborationRunResult,
+  type CollaborationWorkflowStep,
+} from "../../protocol/index.js";
 import type {
   CollaborationEngine,
   CollaborationExecutor,
   CollaborationRunContext,
   RunAgentForCollaboration,
 } from "./contracts/executor.js";
-import type {
-  CollaborationRunResult,
-} from "./contracts/state.js";
-import type {
-  CollaborationWorkflowStep,
-} from "./contracts/step.js";
-import type {
-  CollaborationExecutorId,
-  CollaborationRunInput,
-} from "./contracts/workflow.js";
 import {
   createLangGraphCollaborationExecutor,
   createNativeCollaborationExecutor,

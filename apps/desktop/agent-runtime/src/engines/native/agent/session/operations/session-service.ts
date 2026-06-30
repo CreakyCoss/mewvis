@@ -8,8 +8,10 @@ import {
   type ReadSessionCommand,
   type RebuildAgentSessionCommand,
   type RebuildCommand,
+  type SessionMutationResult,
+  type SessionResult,
   type SummarizeSessionCommand,
-} from "../../contracts/index.js";
+} from "../../../../protocol/index.js";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { resolveRuntime } from "../../runtimes/resolver.js";
@@ -34,10 +36,6 @@ import {
   runtimeLedgerOperationMetadata,
   commandRuntimeMessageMetadata,
 } from "../metadata/app.js";
-import type {
-  SessionMutationResult,
-  SessionResult,
-} from "../../../../protocol/session.js";
 import { generateDisplaySummary } from "./display-summary.js";
 
 const openSessionStorage = async (

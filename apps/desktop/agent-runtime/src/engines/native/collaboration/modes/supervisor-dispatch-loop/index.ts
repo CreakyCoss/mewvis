@@ -3,11 +3,11 @@ import type {
 } from "../../contracts/step.js";
 import type {
   CollaborationAgentRole,
-} from "../../contracts/workflow.js";
-import type {
-  CollaborationModeDefinition,
   CollaborationModeParticipant,
   CollaborationModeRunInput,
+} from "../../../../protocol/index.js";
+import type {
+  CollaborationModeDefinition,
 } from "../contracts.js";
 import {
   createModeRunInput,

@@ -1,12 +1,14 @@
-import type { RuntimeAgentDefinition } from "../contracts/agents.js";
 import type {
+  AgentEvent,
+  AgentRuntimeResources,
+  AskUserInput,
   ChatMessageInput,
-  ChatRunResult,
-} from "../contracts/chat.js";
-import type { AgentEvent } from "../contracts/events.js";
-import type { AgentRuntimeResources } from "../contracts/resources.js";
-import type { RuntimeModelInput } from "../contracts/model.js";
-import type { AskUserInput } from "../tools/types.js";
+  ChatResult,
+  RuntimeAgentDefinition,
+  RuntimeModelInput,
+} from "../../../protocol/index.js";
+
+export type ChatRunResult = Omit<ChatResult, "type" | "requestId">;
 
 export type AgentRunCommand = {
   runtimeMode: "agent";

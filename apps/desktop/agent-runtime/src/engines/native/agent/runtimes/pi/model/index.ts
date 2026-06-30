@@ -7,7 +7,7 @@ import type {
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,
-} from "../../../contracts/model.js";
+} from "../../../../../protocol/index.js";
 import type {
   ChatRunCommand,
   RuntimeAgentCommand,

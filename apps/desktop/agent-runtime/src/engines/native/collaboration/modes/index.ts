@@ -1,12 +1,15 @@
 export type {
   CollaborationModeDefinition,
+  CollaborationModeRunResult,
+} from "./contracts.js";
+
+export type {
   CollaborationModeId,
   CollaborationModeParticipant,
   CollaborationModeRunInput,
-  CollaborationModeRunResult,
   CollaborationModeSummary,
   CollaborationParticipantKind,
-} from "./contracts.js";
+} from "../../../protocol/index.js";
 
 export {
   builtinCollaborationModes,

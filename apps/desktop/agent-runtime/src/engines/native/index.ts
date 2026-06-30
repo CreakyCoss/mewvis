@@ -1,4 +1,3 @@
-import type { AgentCommand as InternalAgentCommand } from "./agent/contracts/index.js";
 import {
   AgentRuntimeEngine,
   type RuntimeEngineOptions,
@@ -84,15 +83,11 @@ import type {
   EmitAgentEvent,
 } from "./agent/runtimes/types.js";
 import { createCollaborationEngine } from "./collaboration/index.js";
-import type { RunAgentForCollaboration } from "./collaboration/contracts/executor.js";
 import type {
-  CollaborationRunInput as InternalCollaborationRunInput,
-} from "./collaboration/contracts/workflow.js";
-import type {
-  CollaborationModeRunInput as InternalCollaborationModeRunInput,
-} from "./collaboration/modes/contracts.js";
+  EmitCollaborationEvent,
+  RunAgentForCollaboration,
+} from "./collaboration/contracts/executor.js";
 import type { CollaborationEngine } from "./collaboration/index.js";
-import type { EmitCollaborationEvent } from "./collaboration/contracts/event.js";
 import {
   getCollaborationTimeline,
   getRuntimeSessionSnapshot,
@@ -186,7 +181,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
         return true;
 
       default:
-        return this.agentCommandRouter.handle(command as InternalAgentCommand);
+        return this.agentCommandRouter.handle(command);
     }
   }
 
@@ -429,7 +424,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       {
         ...input,
         requestId: input.requestId ?? null,
-      } as InternalCollaborationRunInput,
+      },
       { emit: this.emitCollaborationEvent },
     );
     return {
@@ -446,7 +441,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       {
         ...input,
         requestId: input.requestId ?? null,
-      } as InternalCollaborationModeRunInput,
+      },
       { emit: this.emitCollaborationEvent },
     );
     return {

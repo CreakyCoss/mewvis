@@ -1,4 +1,3 @@
-import type { ChatRunResult } from "./contracts/chat.js";
 import {
   executeAgentRunCommand,
   executeChatCommand,
@@ -7,6 +6,7 @@ import type {
   AgentRunCommand,
   AgentRunResult,
   AgentRuntimeContext,
+  ChatRunResult,
   ChatRuntimeContext,
   ChatRunCommand,
 } from "./runtimes/types.js";

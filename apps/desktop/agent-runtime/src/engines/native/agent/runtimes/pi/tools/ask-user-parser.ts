@@ -3,7 +3,7 @@ import {
   type AskUserToolCall,
   normalizeAskUserInput,
 } from "../../../tools/ask-user.js";
-import type { AskUserInput } from "../../../tools/types.js";
+import type { AskUserInput } from "../../../../../protocol/index.js";
 import { findXmlElement, parseXmlFragment } from "../../../utils/xml.js";
 
 export const parsePiAskUserFunctionCall = (text: string): AskUserToolCall | null => {

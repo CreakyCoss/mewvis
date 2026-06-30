@@ -1,9 +1,8 @@
-import {
-  AskUserInputType,
-  type AskUserInput,
-  type AskUserOption,
-  type ToolParameterDefinition,
-} from "./types.js";
+import type {
+  AskUserInput,
+  AskUserOption,
+} from "../../../protocol/index.js";
+import type { ToolParameterDefinition } from "./types.js";
 
 const stringParam = (
   description: string,
@@ -39,8 +38,8 @@ const ASK_USER_TOOL_PARAMETERS = {
           type: "union",
           description: "The UI control type to render for the answer",
           anyOf: [
-            literalParam(AskUserInputType.Text),
-            literalParam(AskUserInputType.Select),
+            literalParam("text"),
+            literalParam("select"),
           ],
         },
         label: stringParam("Short label shown above the control", true),
@@ -103,7 +102,7 @@ export const normalizeAskUserInput = (value: unknown): AskUserInput | undefined 
 };
 
 const normalizeInputType = (value: unknown) => {
-  if (value === AskUserInputType.Select || value === AskUserInputType.Text) {
+  if (value === "select" || value === "text") {
     return value;
   }
 

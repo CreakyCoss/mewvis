@@ -1,19 +1,16 @@
 import type {
   CollaborationEvent,
-  EmitCollaborationEvent,
-} from "./event.js";
+  CollaborationConditionWorkflowStep,
+  CollaborationRouterWorkflowStep,
+  CollaborationRunInput,
+  CollaborationTransformWorkflowStep,
+  CollaborationWorkflowStep,
+} from "../../../protocol/index.js";
 import type {
   CollaborationExecutionState,
 } from "../state/execution-state.js";
-import type {
-  CollaborationConditionWorkflowStep,
-  CollaborationRouterWorkflowStep,
-  CollaborationTransformWorkflowStep,
-  CollaborationWorkflowStep,
-} from "./step.js";
-import type {
-  CollaborationRunInput,
-} from "./workflow.js";
+
+export type EmitCollaborationEvent = (event: CollaborationEvent) => void;
 
 export type CollaborationHandlerContext<
   TStep extends CollaborationWorkflowStep = CollaborationWorkflowStep,

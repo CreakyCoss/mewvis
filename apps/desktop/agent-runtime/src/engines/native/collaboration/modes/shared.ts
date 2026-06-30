@@ -1,11 +1,9 @@
 import type {
   CollaborationAgentRole,
-  CollaborationRunInput,
-} from "../contracts/workflow.js";
-import type {
   CollaborationModeParticipant,
   CollaborationModeRunInput,
-} from "./contracts.js";
+  CollaborationRunInput,
+} from "../../../protocol/index.js";
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);

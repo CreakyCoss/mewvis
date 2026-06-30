@@ -5,22 +5,22 @@ import type {
 } from "../../agent/runtimes/types.js";
 import type {
   CollaborationHandlerRegistry,
+  EmitCollaborationEvent,
 } from "./handler.js";
 import type {
-  EmitCollaborationEvent,
-} from "./event.js";
-import type {
-  CollaborationRunResult,
-} from "./state.js";
-import type {
   CollaborationExecutorId,
-  CollaborationRunInput,
-} from "./workflow.js";
-import type {
   CollaborationModeRunInput,
-  CollaborationModeRunResult,
   CollaborationModeSummary,
+  CollaborationRunResult,
+  CollaborationRunInput,
+} from "../../../protocol/index.js";
+import type {
+  CollaborationModeRunResult,
 } from "../modes/contracts.js";
+
+export type {
+  EmitCollaborationEvent,
+} from "./handler.js";
 
 export type CollaborationRunContext = {
   emit?: EmitCollaborationEvent;

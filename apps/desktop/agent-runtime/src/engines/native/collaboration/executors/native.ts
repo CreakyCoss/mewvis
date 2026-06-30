@@ -1,15 +1,20 @@
 import type {
   AgentRuntimeResources,
-} from "../../agent/contracts/resources.js";
-import { messageFromError } from "../../error.js";
-import type {
+  CollaborationAgentRole,
+  CollaborationAgentWorkflowStep,
+  CollaborationConditionWorkflowStep,
+  CollaborationDispatchWorkflowStep,
   CollaborationEvent,
-} from "../contracts/event.js";
-import { CollaborationEventType } from "../contracts/event.js";
-import type {
+  CollaborationRouterWorkflowStep,
+  CollaborationRunInput,
   CollaborationSkippedStepResult,
+  CollaborationStepCondition,
   CollaborationStepResult,
-} from "../contracts/state.js";
+  CollaborationTransformWorkflowStep,
+  CollaborationWorkflowStep,
+} from "../../../protocol/index.js";
+import { CollaborationEventType } from "../../../protocol/index.js";
+import { messageFromError } from "../../error.js";
 import type {
   CollaborationExecutionState,
 } from "../state/execution-state.js";
@@ -20,19 +25,8 @@ import type {
   RunAgentForCollaboration,
 } from "../contracts/executor.js";
 import type {
-  CollaborationTransformWorkflowStep,
-  CollaborationConditionWorkflowStep,
-  CollaborationDispatchWorkflowStep,
-  CollaborationRouterWorkflowStep,
-  CollaborationStepCondition,
-  CollaborationAgentWorkflowStep,
   CollaborationAgentInvocation,
-  CollaborationWorkflowStep,
 } from "../contracts/step.js";
-import type {
-  CollaborationAgentRole,
-  CollaborationRunInput,
-} from "../contracts/workflow.js";
 import type {
   CollaborationHandlerContext,
   CollaborationRouterResult,

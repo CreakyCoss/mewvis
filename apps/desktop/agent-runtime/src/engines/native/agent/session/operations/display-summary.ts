@@ -1,4 +1,4 @@
-import type { RuntimeModelInput } from "../../contracts/model.js";
+import type { RuntimeModelInput } from "../../../../protocol/index.js";
 import { resolveRuntime } from "../../runtimes/resolver.js";
 import type { ChatRunCommand } from "../../runtimes/types.js";
 import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../../session/core/types.js";
