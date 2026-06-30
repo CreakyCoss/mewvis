@@ -1,8 +1,8 @@
 import {
   createRuntimeEngine,
-  type RuntimeEngine,
-  type AskUserInput,
-} from "../engine/index.js";
+} from "../engines/index.js";
+import type { AgentRuntimeEngine } from "../engines/runtime.js";
+import type { AskUserInput } from "../engines/protocol/index.js";
 
 type AgentRuntimeUserInputRequest = {
   taskId: string;
@@ -21,16 +21,11 @@ type AgentRuntimeSdkOptions = {
   };
 };
 
-type AgentRuntimeSdk = Pick<
-  RuntimeEngine,
-  "agent" | "collaboration" | "waitForRunningTask"
->;
-
 export const createAgentRuntime = (
   options: AgentRuntimeSdkOptions = {},
-): AgentRuntimeSdk => {
+): AgentRuntimeEngine => {
   const requestUserInput = options.callbacks?.requestUserInput;
-  const runtime = createRuntimeEngine({
+  return createRuntimeEngine({
     callbacks: requestUserInput
       ? {
           requestUserInput: (request) =>
@@ -41,10 +36,4 @@ export const createAgentRuntime = (
         }
       : undefined,
   });
-
-  return {
-    agent: runtime.agent,
-    collaboration: runtime.collaboration,
-    waitForRunningTask: runtime.waitForRunningTask,
-  };
 };

@@ -5,7 +5,7 @@ import { MockChatRuntime } from "./chat.js";
 export const mockRuntimeAgent = {
   id: "mock",
   label: "Mock",
-  description: "本地模拟回复，用于验证 agent-runtime 与 engine/agent 链路。",
+  description: "本地模拟回复，用于验证 agent-runtime 与 engines/native/agent 链路。",
   capabilities: ["agent", "chat"],
   requiresModel: false,
   agent: new MockAgent(),

@@ -1,10 +1,10 @@
 import {
-  AgentEventType,
   createRuntimeEngine,
-} from "../engine/index.js";
-import type {
-  AgentRuntimeCommand,
-} from "../protocol/command.js";
+} from "../engines/index.js";
+import {
+  AgentEventType,
+  type AgentRuntimeCommand,
+} from "../engines/protocol/index.js";
 import {
   createStdioRuntimeReader,
   parseAgentRuntimeCommand,

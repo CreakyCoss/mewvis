@@ -13,7 +13,7 @@ export default defineConfig(async () => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@agent-runtime": path.resolve(__dirname, "./agent-runtime/src"),
-      "@engine": path.resolve(__dirname, "./agent-runtime/src/engine"),
+      "@engines": path.resolve(__dirname, "./agent-runtime/src/engines"),
     },
   },
 

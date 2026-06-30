@@ -1,8 +1,8 @@
+import type { AgentCommand } from "./agent.js";
 import type {
-  AgentCommand,
   CollaborationModeRunInput,
   CollaborationRunInput,
-} from "../engine/index.js";
+} from "./collaboration.js";
 
 export enum AgentRuntimeCommandType {
   GetCollaborationTimeline = "get_collaboration_timeline",

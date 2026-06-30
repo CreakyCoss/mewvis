@@ -2,11 +2,11 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   AgentCommandType,
-} from "../engine/index.js";
+} from "../engines/protocol/index.js";
 import {
   AgentRuntimeCommandType,
   type AgentRuntimeCommand,
-} from "../protocol/command.js";
+} from "../engines/protocol/index.js";
 
 export type StdioRuntimeReader = ReturnType<typeof createInterface>;
 

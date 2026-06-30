@@ -1,6 +1,6 @@
 # Runtime Session Layers
 
-`engine/agent/session` owns agent-specific prompt assembly, agent session mutations, and runtime command adapters.
+`engines/native/agent/session` owns agent-specific prompt assembly, agent session mutations, and runtime command adapters.
 
 - Shared ledger storage, context projection, and standard metadata live in `../../session/`.
 - `core/`: agent prompt budget helpers.

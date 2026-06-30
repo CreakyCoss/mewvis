@@ -1,8 +1,8 @@
 # Agent Runtime
 
-`agent-runtime` is the reusable runtime boundary for Novel Claw agents. It keeps
-the external protocol stable while allowing the internal execution strategy to
-switch between a single-agent engine and a collaboration engine.
+`agent-runtime` is the reusable runtime boundary for Novel Claw agents. External
+adapters choose CLI or SDK mode and normalize inputs; the engine layer owns the
+standard runtime protocol and can switch the concrete implementation behind it.
 
 ## Layering
 
@@ -12,26 +12,29 @@ agent-runtime/
     index.ts                  Public SDK exports.
     sdk/                      Public in-process SDK facade.
     cli/                      stdio CLI entrypoint and CLI-only helpers.
-    protocol/                 Stable command, event, and result contracts.
-    engine/
-      index.ts                Runtime composition and command routing.
-      session/                Shared ledger, trace, manifest, and projection.
-      agent/                  Single-agent runtime implementation.
-      collaboration/          Multi-agent workflow orchestration.
-        contracts/            Workflow, step, event, state, and extension types.
-        registry/             Extension handler registry.
-        executors/            Pluggable workflow executors.
+    engines/
+      index.ts                Engine factory and implementation selection.
+      runtime.ts              Standard AgentRuntimeEngine abstract class.
+      protocol/               Standard command, result, event, and session protocol.
+      native/                 Built-in engine implementation.
+        session/              Shared ledger, trace, manifest, and projection.
+        agent/                Single-agent runtime implementation.
+        collaboration/        Multi-agent workflow orchestration.
+          contracts/          Native workflow, step, event, state, and extension types.
+          registry/           Extension handler registry.
+          executors/          Pluggable workflow executors.
 ```
 
 The intended dependency direction is:
 
 ```text
-index -> sdk -> engine
-cli   -> protocol
-      -> engine -> engine/agent
-                -> engine/session
-                -> engine/collaboration -> engine/agent
-                                        -> executors/native
+index -> sdk -> engines/index -> engines/runtime
+cli   -> engines/index
+      -> engines/protocol
+      -> engines -> native -> engines/native/agent
+                          -> engines/native/session
+                          -> engines/native/collaboration -> engines/native/agent
+                                                     -> executors/native
 ```
 
 Application code should normally call `createAgentClient()` from the desktop
@@ -41,7 +44,7 @@ Node integrations can call the SDK directly.
 Application-specific business logic should not be imported from `agent-runtime`.
 The bundled desktop runtime uses `agent-runtime/src/cli/index.ts` directly. If a
 product needs custom transforms, conditions, or routers, that product should
-create its own small process entrypoint around the SDK or CLI protocol.
+create its own small process entrypoint around the SDK or engine command protocol.
 
 ## Public Modes
 
@@ -52,6 +55,7 @@ access.
 
 ```ts
 import { createAgentRuntime } from "./src/index.js";
+import { AgentRuntimeCommandType } from "./src/engines/protocol/index.js";
 
 const runtime = createAgentRuntime({
   callbacks: {
@@ -59,41 +63,46 @@ const runtime = createAgentRuntime({
   },
 });
 
-await runtime.collaboration.run({
+await runtime.runCollaboration({
+  type: AgentRuntimeCommandType.RunCollaboration,
   requestId: "request-1",
-  workspacePath: "/path/to/workspace",
-  sessionRootDir: "agent-runtime/session",
-  agents: [
-    {
-      id: "planner",
-      label: "Planner",
-      agentId: "mock",
-      systemPrompt: "You plan the work.",
-    },
-  ],
-  workflow: {
-    id: "example.workflow",
-    steps: [
+  input: {
+    requestId: "request-1",
+    workspacePath: "/path/to/workspace",
+    sessionRootDir: "agent-runtime/session",
+    agents: [
       {
-        id: "plan",
-        type: "agent",
-        agentRoleId: "planner",
-        userMessage: "Create a short plan.",
-        outputKey: "plan",
+        id: "planner",
+        label: "Planner",
+        agentId: "mock",
+        systemPrompt: "You plan the work.",
       },
     ],
+    workflow: {
+      id: "example.workflow",
+      steps: [
+        {
+          id: "plan",
+          type: "agent",
+          agentRoleId: "planner",
+          userMessage: "Create a short plan.",
+          outputKey: "plan",
+        },
+      ],
+    },
   },
 });
 ```
 
-Direct SDK helpers are grouped by runtime domain:
+Direct SDK methods follow the standard `AgentRuntimeEngine` capability surface:
 
 ```ts
-await runtime.agent.run(command, { callbacks: { requestUserInput }, emit });
-await runtime.agent.chat(command, { emit });
-await runtime.collaboration.run(input, { emit });
-await runtime.collaboration.runMode(input, { emit });
-runtime.collaboration.listModes();
+await runtime.chat(command);
+await runtime.runAgent(command);
+await runtime.getRuntimeSession(command);
+await runtime.runCollaboration(command);
+await runtime.runCollaborationMode(command);
+await runtime.listCollaborationModes(command);
 ```
 
 Collaboration handlers do not own a question protocol. Agent steps run through the
@@ -106,8 +115,8 @@ Use stdio when the runtime is owned by another process. The host starts
 `agent-runtime/dist/cli.js`, writes one JSON command per line to stdin, and reads
 one JSON event or result per line from stdout.
 
-The stdio transport accepts single-agent commands and the `run_collaboration`
-command through the agent-runtime protocol.
+The stdio transport accepts engine commands such as single-agent commands and
+`run_collaboration`.
 
 ## Command Shape
 
@@ -132,7 +141,7 @@ The new collaboration command is:
 
 `workflow.steps` supports these generic step types:
 
-- `agent`: call an agent role through `engine/agent`
+- `agent`: call an agent role through `engines/native/agent`
 - `dispatch`: dynamically call one or more agent invocations from structured input
 - `transform`: run a registered data transformer
 - `condition`: run a registered boolean condition and store the result
@@ -276,7 +285,7 @@ different prompts can safely share the same workflow session.
 
 ## Collaboration Executors
 
-`engine/collaboration` has a thin engine facade and pluggable executors. The
+`engines/native/collaboration` has a thin engine facade and pluggable executors. The
 default executor is `"langgraph"`, which uses `@langchain/langgraph` to run the
 shared workflow contract as a StateGraph. `"native"` is also registered as a
 built-in TypeScript implementation for serial and dependency-aware parallel
@@ -304,7 +313,7 @@ To route a workflow through another registered implementation, set
 }
 ```
 
-The public protocol does not change when the executor changes. The engine still
+The engine protocol does not change when the executor changes. The engine still
 emits `workflow_started`, `workflow_done`, and `error`, and the executor emits
 step and nested agent events. `workflow_started` and `collaboration_result`
 include `executorId` so debug surfaces can show which backend handled a run.
@@ -314,7 +323,7 @@ There is no separate host or CLI default executor setting; set
 
 ## Event Stream
 
-Single-agent events are forwarded unchanged from `engine/agent`.
+Single-agent events are forwarded unchanged from `engines/native/agent`.
 
 Collaboration emits these events:
 
@@ -379,7 +388,7 @@ client that does not start Node.
 Use these names consistently:
 
 - `agent-runtime` for the whole reusable runtime package.
-- `engine/agent` for single-agent execution.
-- `engine/collaboration` for multi-agent orchestration.
+- `engines/native/agent` for single-agent execution.
+- `engines/native/collaboration` for multi-agent orchestration.
 - `session` for shared runtime session storage, traces, manifests, and projections.
 - `createAgentClient()` for the frontend-facing client facade.

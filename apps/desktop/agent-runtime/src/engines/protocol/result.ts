@@ -1,12 +1,14 @@
 import type {
   AgentDefinitionsResult,
   ChatResult,
-  CollaborationModeSummary,
-  CollaborationRunResult,
   PongResult,
   ShutdownAckResult,
   TaskResult,
-} from "../engine/index.js";
+} from "./agent.js";
+import type {
+  CollaborationModeSummary,
+  CollaborationRunResult,
+} from "./collaboration.js";
 import type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,

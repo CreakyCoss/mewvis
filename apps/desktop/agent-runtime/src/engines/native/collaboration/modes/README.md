@@ -1,6 +1,6 @@
 # Collaboration Modes
 
-`engine/collaboration/modes` contains safe, reusable workflow presets. Product
+`engines/native/collaboration/modes` contains safe, reusable workflow presets. Product
 code should choose a mode and provide typed participants/context; it should not
 assemble arbitrary workflow JSON unless it is intentionally using the lower-level
 `run_collaboration` API.
