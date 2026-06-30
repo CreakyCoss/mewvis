@@ -1,4 +1,4 @@
-import type { RuntimeModelCatalogApi } from "./types.js";
+import type { RuntimeModelCatalogApi } from "../../protocol/model.js";
 
 type CatalogProviderConfig = {
   websiteUrl: string;
@@ -6,7 +6,7 @@ type CatalogProviderConfig = {
   apis: RuntimeModelCatalogApi[];
 };
 
-// App-level provider exposure policy shared by model catalog implementations.
+// App-level provider exposure policy for the built-in model catalog.
 export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
   deepseek: {
     websiteUrl: "https://www.deepseek.com",

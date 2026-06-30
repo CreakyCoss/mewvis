@@ -1,8 +1,8 @@
-import type { AgentCommand } from "./agent.js";
+import type { AgentCommand } from "../agent/index.js";
 import type {
   CollaborationModeRunInput,
   CollaborationRunInput,
-} from "./collaboration.js";
+} from "../collaboration/index.js";
 
 export enum AgentRuntimeCommandType {
   ListRuntimeSessions = "list_runtime_sessions",

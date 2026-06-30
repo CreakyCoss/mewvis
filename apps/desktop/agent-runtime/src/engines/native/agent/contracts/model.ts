@@ -6,4 +6,4 @@ export type {
   RuntimeModelProviderSummary,
   RuntimeModelSummary,
   RuntimeThinkingLevel,
-} from "../../../models/types.js";
+} from "../../../protocol/model.js";

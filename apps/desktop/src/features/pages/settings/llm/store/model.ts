@@ -1,6 +1,6 @@
-import {
-  MODEL_CATALOG,
-  type CatalogModel,
+import { MODEL_CATALOG } from "@/agent-client/model-catalog";
+import type {
+  CatalogModel,
   RuntimeModelInput,
   RuntimeThinkingLevel,
 } from "@/agent-client/protocol";

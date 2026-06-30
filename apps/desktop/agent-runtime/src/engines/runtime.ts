@@ -1,49 +1,43 @@
 import type {
   AgentDefinitionsResult,
-  AgentToolsResult,
-  AskUserInput,
-  ChatResult,
-  PongResult,
-  RuntimeModelsResult,
-  ShutdownAckResult,
-  TaskResult,
-} from "./protocol/agent.js";
-import type { AgentRuntimeCommand } from "./protocol/command.js";
-import type { AgentRuntimeEvent } from "./protocol/event.js";
-import type {
+  AgentRuntimeCommand,
+  AgentRuntimeEvent,
+  AgentRuntimeResult,
   AgentRunInput,
+  AgentToolsResult,
   AgentToolsQuery,
   AnswerQuestionInput,
   AppendSessionMessagesInput,
+  AskUserInput,
   ChatInput,
+  ChatResult,
+  CollaborationModesRuntimeResult,
+  CollaborationRuntimeResult,
   CollaborationTimelineQuery,
+  CollaborationTimelineResult,
   CompactSessionInput,
   CreateSessionInput,
   DeleteSessionMessageInput,
   EditSessionMessageInput,
-  ReadSessionInput,
+  PongResult,
   RebuildAgentSessionInput,
   RebuildSessionInput,
+  ReadSessionInput,
   RunChatInput,
   RunCollaborationInput,
   RunCollaborationModeInput,
+  RuntimeModelsResult,
   RuntimeSessionQuery,
-  RuntimeSessionsQuery,
-  SendMessageInput,
-  SummarizeSessionInput,
-} from "./protocol/input.js";
-import type {
-  AgentRuntimeResult,
-  CollaborationModesRuntimeResult,
-  CollaborationRuntimeResult,
-  CollaborationTimelineResult,
   RuntimeSessionResult,
+  RuntimeSessionsQuery,
   RuntimeSessionsResult,
-} from "./protocol/result.js";
-import type {
+  SendMessageInput,
   SessionMutationResult,
   SessionResult,
-} from "./protocol/session.js";
+  ShutdownAckResult,
+  SummarizeSessionInput,
+  TaskResult,
+} from "./protocol/index.js";
 
 export type EmitAgentRuntimeEvent = (event: AgentRuntimeEvent) => void;
 export type EmitAgentRuntimeResult = (result: AgentRuntimeResult) => void;

@@ -1,18 +1,5 @@
-import type {
-  AgentEvent,
-  AgentRuntimeResources,
-} from "./agent.js";
-import type { RuntimeModelInput } from "../models/types.js";
-
-export enum CollaborationEventType {
-  WorkflowStarted = "workflow_started",
-  StepStarted = "step_started",
-  AgentEvent = "agent_event",
-  StepDone = "step_done",
-  StepSkipped = "step_skipped",
-  WorkflowDone = "workflow_done",
-  Error = "error",
-}
+import type { AgentRuntimeResources } from "../agent/index.js";
+import type { RuntimeModelInput } from "../model.js";
 
 export type CollaborationStepType =
   | "agent"
@@ -183,75 +170,3 @@ export type CollaborationModeSummary = {
   label: string;
   version: string;
 };
-
-export type CollaborationStepResult = {
-  stepId: string;
-  stepType: CollaborationStepType;
-  outputKey: string;
-  output: unknown;
-  text: string;
-  agentRoleId?: string;
-  agentTaskId?: string;
-  route?: string | null;
-};
-
-export type CollaborationSkippedStepResult = {
-  stepId: string;
-  reason: string;
-  condition?: CollaborationStepCondition | null;
-};
-
-export type CollaborationRunResult = {
-  workflowRunId: string;
-  executorId?: string;
-  steps: CollaborationStepResult[];
-  skippedSteps?: CollaborationSkippedStepResult[];
-  output?: unknown;
-};
-
-export type CollaborationEvent =
-  | {
-    type: CollaborationEventType.WorkflowStarted;
-    workflowRunId: string;
-    workflowId: string;
-    executorId: string;
-  }
-  | {
-    type: CollaborationEventType.StepStarted;
-    workflowRunId: string;
-    stepId: string;
-    stepType: CollaborationStepType;
-    agentRoleId?: string;
-    agentTaskId?: string;
-  }
-  | {
-    type: CollaborationEventType.AgentEvent;
-    workflowRunId: string;
-    stepId: string;
-    agentRoleId: string;
-    agentTaskId: string;
-    event: AgentEvent;
-  }
-  | {
-    type: CollaborationEventType.StepDone;
-    workflowRunId: string;
-    step: CollaborationStepResult;
-  }
-  | {
-    type: CollaborationEventType.StepSkipped;
-    workflowRunId: string;
-    step: CollaborationSkippedStepResult;
-  }
-  | {
-    type: CollaborationEventType.WorkflowDone;
-    workflowRunId: string;
-    result: CollaborationRunResult;
-  }
-  | {
-    type: CollaborationEventType.Error;
-    workflowRunId: string;
-    stepId?: string;
-    agentRoleId?: string;
-    agentTaskId?: string;
-    message: string;
-  };

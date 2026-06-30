@@ -1,7 +1,3 @@
-export {
-  MODEL_CATALOG,
-} from "@agent-runtime/engines/protocol";
-
 export type {
   AgentToolsResult,
   AgentToolSummary,

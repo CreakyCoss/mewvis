@@ -1,12 +1,12 @@
 import type {
   AgentRuntimeResources,
   ChatMessageInput,
-} from "./agent.js";
-import type { RuntimeModelInput } from "../models/types.js";
+} from "../agent/index.js";
 import type {
   CollaborationModeRunInput,
   CollaborationRunInput,
-} from "./collaboration.js";
+} from "../collaboration/index.js";
+import type { RuntimeModelInput } from "../model.js";
 
 export type AgentToolsQuery = {
   agentId?: string | null;

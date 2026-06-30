@@ -6,18 +6,18 @@ import type {
   RuntimeModelsResult,
   ShutdownAckResult,
   TaskResult,
-} from "./agent.js";
+} from "../agent/index.js";
 import type {
   CollaborationModeSummary,
   CollaborationRunResult,
-} from "./collaboration.js";
+} from "../collaboration/index.js";
 import type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
   SessionMutationResult,
   SessionResult,
-} from "./session.js";
+} from "../session.js";
 
 export enum AgentRuntimeResultType {
   CollaborationTimelineResult = "collaboration_timeline_result",

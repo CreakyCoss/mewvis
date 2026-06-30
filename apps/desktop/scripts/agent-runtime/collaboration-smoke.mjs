@@ -10,9 +10,7 @@ const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
-const agentProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/agent.ts");
-const commandProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/command.ts");
-const resultProtocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/result.ts");
+const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/index.ts");
 const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/collaboration/index.ts");
 const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/session/index.ts");
 
@@ -25,14 +23,10 @@ writeFileSync(entryPath, `
   } from ${JSON.stringify(runtimeEntry)};
   import {
     AgentResultType,
-    AgentTaskCommandType,
-  } from ${JSON.stringify(agentProtocolEntry)};
-  import {
     AgentRuntimeCommandType,
-  } from ${JSON.stringify(commandProtocolEntry)};
-  import {
     AgentRuntimeResultType,
-  } from ${JSON.stringify(resultProtocolEntry)};
+    AgentTaskCommandType,
+  } from ${JSON.stringify(protocolEntry)};
   import {
     CollaborationEventType,
     createCollaborationEngine,

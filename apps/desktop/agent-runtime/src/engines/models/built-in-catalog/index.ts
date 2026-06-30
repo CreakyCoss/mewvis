@@ -1,11 +1,11 @@
-import { MODEL_PROVIDER_CONFIG } from "../provider-config.js";
+import { MODEL_PROVIDER_CONFIG } from "./config.js";
 import { RAW_MODEL_CATALOG } from "./data.js";
 import type {
   CatalogModel,
   RuntimeModelCatalog,
   RuntimeModelInputModality,
   RuntimeModelProviderSummary,
-} from "../types.js";
+} from "../../protocol/model.js";
 
 type RawCatalogModel = Omit<CatalogModel, "input"> & {
   input: readonly RuntimeModelInputModality[];
