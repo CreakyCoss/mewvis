@@ -18,7 +18,7 @@ export type {
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeThinkingLevel,
-} from "@engine/agent/contracts";
+} from "@agent-runtime";
 
 export type {
   CatalogModel,

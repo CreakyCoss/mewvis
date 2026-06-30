@@ -1,7 +1,7 @@
 import type {
   AgentRuntimeResources,
 } from "../../agent/contracts/resources.js";
-import { messageFromError } from "../../agent/utils/error.js";
+import { messageFromError } from "../../error.js";
 import type {
   CollaborationEvent,
 } from "../contracts/event.js";
@@ -267,7 +267,6 @@ export const runStepWithRetry = async ({
 };
 
 const runAgentStepWithRetry = async ({
-  context,
   emit,
   input,
   roleById,

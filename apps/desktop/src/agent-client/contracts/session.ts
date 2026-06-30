@@ -9,8 +9,6 @@ export type AgentClientSession = {
 export type AgentClientRuntimeSessionSummary = {
   workspacePath: string;
   sessionRootDir: string;
-  ledgerPath: string;
-  tracePath: string;
   sessionId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

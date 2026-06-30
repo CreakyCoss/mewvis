@@ -30,7 +30,7 @@ import type {
   ChatRunCommand,
 } from "../runtimes/types.js";
 import { createUserInputManager } from "./user-input.js";
-import { messageFromError } from "../utils/error.js";
+import { messageFromError } from "../../error.js";
 import {
   createAgentDefinitionsResult,
   createPongResult,

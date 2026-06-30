@@ -6,7 +6,7 @@ import type {
   EmitAgentEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
-import { messageFromError } from "../../../utils/error.js";
+import { messageFromError } from "../../../../error.js";
 import type { PiAgentSession } from "./session.js";
 
 export type PiAgentRunState = {

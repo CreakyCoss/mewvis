@@ -1,4 +1,4 @@
-import type { RuntimeMessage } from "../../../../session/core/types.js";
+import type { RuntimeMessage } from "../../../session/core/types.js";
 
 export type PromptModelContext = {
   contextWindow?: number | null;

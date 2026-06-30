@@ -2,7 +2,6 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
   RuntimeLedgerEntry,
-  RuntimeLedgerHeader,
 } from "../core/types.js";
 import { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 import {

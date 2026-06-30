@@ -9,14 +9,14 @@ import type {
 import type {
   CollaborationRunInput,
 } from "../contracts/workflow.js";
-import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
+import { RuntimeLedgerStorage } from "../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../session/storage/paths.js";
 import {
   appendRuntimeSessionTraceRecord,
-} from "../../../session/trace/jsonl-trace.js";
+} from "../../session/trace/jsonl-trace.js";
 import {
   refreshRuntimeSessionManifest,
-} from "../../../session/manifest/session-manifest.js";
+} from "../../session/manifest/session-manifest.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;

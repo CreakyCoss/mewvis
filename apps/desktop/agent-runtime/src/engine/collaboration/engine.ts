@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { messageFromError } from "../agent/utils/error.js";
+import { messageFromError } from "../error.js";
 import {
   CollaborationEventType,
   type CollaborationEvent,

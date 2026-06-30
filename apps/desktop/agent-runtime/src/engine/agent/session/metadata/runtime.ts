@@ -4,8 +4,8 @@ import {
   commandRootUserEntryId,
   commandTurnId,
 } from "../runtime/session-link.js";
-import type { RuntimeMessageRole } from "../../../../session/core/types.js";
-import { standardizeRuntimeMessageMetadata } from "../../../../session/metadata/standard.js";
+import type { RuntimeMessageRole } from "../../../session/core/types.js";
+import { standardizeRuntimeMessageMetadata } from "../../../session/metadata/standard.js";
 
 type RuntimeCommand = AgentRunCommand | ChatRunCommand;
 

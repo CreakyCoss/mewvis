@@ -5,7 +5,7 @@ export type {
   RuntimeSessionResultMessage,
   SessionMutationResult,
   SessionResult,
-} from "../../../session/contracts/results.js";
+} from "../../../protocol/session.js";
 
 export {
   appendRuntimeSessionMessages,

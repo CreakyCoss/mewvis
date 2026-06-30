@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentRunCommand } from "../../../runtimes/types.js";
-import { resolveRuntimeSessionPaths } from "../../../../../session/storage/paths.js";
+import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
 
 const sanitizeSegment = (value: string, fallback: string) => {
   const segment = value

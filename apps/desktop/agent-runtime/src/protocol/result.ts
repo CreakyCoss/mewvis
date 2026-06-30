@@ -1,21 +1,19 @@
 import type {
-  ChatResult,
   AgentDefinitionsResult,
+  ChatResult,
+  CollaborationModeSummary,
+  CollaborationRunResult,
   PongResult,
   ShutdownAckResult,
   TaskResult,
-} from "./agent.js";
-import type {
-  SessionMutationResult,
-  SessionResult,
-} from "../session/contracts/results.js";
+} from "../engine/index.js";
 import type {
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
-} from "../session/contracts/query.js";
-import type { CollaborationRunResult } from "../engine/collaboration/contracts/state.js";
-import type { CollaborationModeSummary } from "../engine/collaboration/modes/contracts.js";
+  SessionMutationResult,
+  SessionResult,
+} from "./session.js";
 
 export enum AgentRuntimeResultType {
   CollaborationTimelineResult = "collaboration_timeline_result",

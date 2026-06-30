@@ -1,38 +1,24 @@
 import {
   AgentEventType,
-} from "../engine/agent/contracts/events.js";
+  createRuntimeEngine,
+} from "../engine/index.js";
 import type {
   AgentRuntimeCommand,
-} from "../protocol/index.js";
+} from "../protocol/command.js";
 import {
   createStdioRuntimeReader,
   parseAgentRuntimeCommand,
   writeAgentEvent,
   writeJsonLine,
-} from "../transport/stdio.js";
-import {
-  messageFromError,
-} from "../engine/agent/utils/error.js";
-import {
-  createAgentRuntime,
-  type AgentRuntimeHostOptions,
-} from "./runtime.js";
+} from "./stdio.js";
 
-export type AgentRuntimeStdioOptions = Omit<
-  AgentRuntimeHostOptions,
-  "close" | "emit" | "writeJsonLine"
-> & {
-  close?: () => void;
-};
+const cliErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
-export const runAgentRuntimeStdio = async (
-  options: AgentRuntimeStdioOptions = {},
-) => {
+const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();
-  const runtime = createAgentRuntime({
-    ...options,
+  const runtime = createRuntimeEngine({
     close: () => {
-      options.close?.();
       reader.close();
     },
     emit: writeAgentEvent,
@@ -45,9 +31,10 @@ export const runAgentRuntimeStdio = async (
       try {
         command = parseAgentRuntimeCommand(line);
       } catch (error: unknown) {
+        const message = cliErrorMessage(error);
         writeAgentEvent({
           type: AgentEventType.Error,
-          message: messageFromError(error),
+          message,
         });
         continue;
       }
@@ -61,3 +48,13 @@ export const runAgentRuntimeStdio = async (
     await runtime.waitForRunningTask();
   }
 };
+
+runAgentRuntimeCli().catch((error: unknown) => {
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  console.error(message);
+  writeAgentEvent({
+    type: AgentEventType.Error,
+    message,
+  });
+  process.exitCode = 1;
+});

@@ -2,13 +2,14 @@ export type {
   RuntimeSessionListOptions,
   RuntimeSessionQueryTarget,
   RuntimeSessionSnapshot,
-  RuntimeSessionSummary,
-  RuntimeSessionTimelineItem,
-} from "./contracts/query.js";
+} from "./query/types.js";
 
 export type {
-  RuntimeSessionTraceRecord,
-} from "./contracts/trace.js";
+  RuntimeSessionSummary,
+  RuntimeSessionTimelineItem,
+} from "../../protocol/session.js";
+
+export type { RuntimeSessionTraceRecord } from "./trace/types.js";
 
 export {
   buildRuntimeSessionTimeline,

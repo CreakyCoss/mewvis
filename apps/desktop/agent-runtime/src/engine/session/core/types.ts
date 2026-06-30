@@ -1,7 +1,7 @@
 import type {
   RuntimeDisplaySummary,
   RuntimeLink,
-} from "../contracts/results.js";
+} from "../../../protocol/session.js";
 
 export type RuntimeMessageRole = "user" | "assistant" | "system";
 

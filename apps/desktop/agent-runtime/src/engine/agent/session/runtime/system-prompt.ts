@@ -1,6 +1,6 @@
 import type { AgentRunCommand, ChatRunCommand } from "../../runtimes/types.js";
-import type { RuntimeMessage, RuntimeSessionContext } from "../../../../session/core/types.js";
-import type { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
+import type { RuntimeMessage, RuntimeSessionContext } from "../../../session/core/types.js";
+import type { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
 import { runtimeMessageMetadata } from "../metadata/runtime.js";
 import { takeContextText } from "../core/prompt-budget.js";
 

@@ -1,11 +1,7 @@
 import { appendFile, readFile } from "node:fs/promises";
-import type {
-  RuntimeSessionTraceRecord,
-} from "../contracts/trace.js";
+import type { RuntimeSessionTraceRecord } from "./types.js";
 
-export type {
-  RuntimeSessionTraceRecord,
-} from "../contracts/trace.js";
+export type { RuntimeSessionTraceRecord } from "./types.js";
 
 const withTimestamp = <TRecord extends RuntimeSessionTraceRecord>(
   record: TRecord,

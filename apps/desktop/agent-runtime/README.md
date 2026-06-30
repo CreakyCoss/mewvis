@@ -10,12 +10,12 @@ switch between a single-agent engine and a collaboration engine.
 agent-runtime/
   src/
     index.ts                  Public SDK exports.
-    cli.ts                    stdio entrypoint for Tauri or external hosts.
-    host/                     Runtime composition and command routing.
+    sdk/                      Public in-process SDK facade.
+    cli/                      stdio CLI entrypoint and CLI-only helpers.
     protocol/                 Stable command, event, and result contracts.
-    transport/                Transport adapters such as stdio.
-    session/                  Shared ledger, trace, manifest, and projection.
     engine/
+      index.ts                Runtime composition and command routing.
+      session/                Shared ledger, trace, manifest, and projection.
       agent/                  Single-agent runtime implementation.
       collaboration/          Multi-agent workflow orchestration.
         contracts/            Workflow, step, event, state, and extension types.
@@ -26,10 +26,12 @@ agent-runtime/
 The intended dependency direction is:
 
 ```text
-transport -> host -> protocol
-                  -> engine/agent
-                  -> engine/collaboration -> engine/agent
-                                          -> executors/native
+index -> sdk -> engine
+cli   -> protocol
+      -> engine -> engine/agent
+                -> engine/session
+                -> engine/collaboration -> engine/agent
+                                        -> executors/native
 ```
 
 Application code should normally call `createAgentClient()` from the desktop
@@ -37,10 +39,9 @@ frontend. Hosts such as Tauri should call the CLI over stdio. Tests and embedded
 Node integrations can call the SDK directly.
 
 Application-specific business logic should not be imported from `agent-runtime`.
-The bundled desktop runtime uses `agent-runtime/src/cli.ts` directly. If a
+The bundled desktop runtime uses `agent-runtime/src/cli/index.ts` directly. If a
 product needs custom transforms, conditions, or routers, that product should
-create its own small host entrypoint and pass extension handlers into
-`runAgentRuntimeStdio()`.
+create its own small process entrypoint around the SDK or CLI protocol.
 
 ## Public Modes
 
@@ -56,38 +57,31 @@ const runtime = createAgentRuntime({
   callbacks: {
     requestUserInput,
   },
-  writeJsonLine: (value) => {
-    process.stdout.write(`${JSON.stringify(value)}\n`);
-  },
 });
 
-await runtime.handle({
-  type: "run_collaboration",
+await runtime.collaboration.run({
   requestId: "request-1",
-  input: {
-    requestId: "request-1",
-    workspacePath: "/path/to/workspace",
-    sessionRootDir: "agent-runtime/session",
-    agents: [
+  workspacePath: "/path/to/workspace",
+  sessionRootDir: "agent-runtime/session",
+  agents: [
+    {
+      id: "planner",
+      label: "Planner",
+      agentId: "mock",
+      systemPrompt: "You plan the work.",
+    },
+  ],
+  workflow: {
+    id: "example.workflow",
+    steps: [
       {
-        id: "planner",
-        label: "Planner",
-        agentId: "mock",
-        systemPrompt: "You plan the work.",
+        id: "plan",
+        type: "agent",
+        agentRoleId: "planner",
+        userMessage: "Create a short plan.",
+        outputKey: "plan",
       },
     ],
-    workflow: {
-      id: "example.workflow",
-      steps: [
-        {
-          id: "plan",
-          type: "agent",
-          agentRoleId: "planner",
-          userMessage: "Create a short plan.",
-          outputKey: "plan",
-        },
-      ],
-    },
   },
 });
 ```

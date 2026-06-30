@@ -7,7 +7,7 @@ import type {
 import type {
   RuntimeDisplaySummary,
   RuntimeLink,
-} from "../contracts/results.js";
+} from "../../../protocol/session.js";
 import type { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

@@ -14,11 +14,11 @@ import type {
 } from "../runtimes/types.js";
 import { resolveAgentSessionDir } from "../session/runtime/agent/session-plan.js";
 import { prepareRuntimeAgentPrompt } from "../session/runtime/agent/prompt.js";
-import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
+import { RuntimeLedgerStorage } from "../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../session/storage/paths.js";
 import { createPromptLimits, toRuntimeMessages } from "../session/core/prompt-budget.js";
 import { RuntimeSessionRecorder } from "../session/runtime/recorder.js";
-import { buildRuntimeSessionContext } from "../../../session/core/projection.js";
+import { buildRuntimeSessionContext } from "../../session/core/projection.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,
@@ -29,7 +29,7 @@ import {
   shouldRecordRuntimeUserMessage,
   withSessionLink,
 } from "../session/runtime/session-link.js";
-import { messageFromError } from "../utils/error.js";
+import { messageFromError } from "../../error.js";
 
 const CHAT_TIMEOUT_MS = 10 * 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 2;

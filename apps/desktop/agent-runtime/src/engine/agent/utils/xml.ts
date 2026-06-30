@@ -9,11 +9,11 @@ export type XmlElement = {
 
 const decodeXmlText = (value: string) =>
   value
-    .replaceAll("&quot;", "\"")
-    .replaceAll("&apos;", "'")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&amp;", "&");
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 
 const parseAttributes = (value: string): AttributeMap => {
   const attributes: AttributeMap = {};

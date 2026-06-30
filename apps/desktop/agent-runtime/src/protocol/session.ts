@@ -1,3 +1,44 @@
+export type RuntimeSessionSummary = {
+  workspacePath: string;
+  sessionRootDir: string;
+  sessionId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  leafId?: string | null;
+  entryCount: number;
+  traceCount: number;
+  workflowRunIds: string[];
+  workflowIds: string[];
+  modeIds: string[];
+  latestWorkflowRunId?: string | null;
+};
+
+export type RuntimeSessionTimelineItem = {
+  id: string;
+  index: number;
+  source: "agent" | "collaboration" | "runtime";
+  type: string;
+  timestamp?: string | null;
+  taskId?: string | null;
+  workflowRunId?: string | null;
+  workflowId?: string | null;
+  modeId?: string | null;
+  stepId?: string | null;
+  stepType?: string | null;
+  agentRoleId?: string | null;
+  agentTaskId?: string | null;
+  status?: "started" | "done" | "skipped" | "error" | null;
+  detail?: string | null;
+  payload?: unknown;
+};
+
+export type RuntimeSessionSnapshot = {
+  session: RuntimeSessionSummary;
+  ledger?: unknown | null;
+  trace?: unknown[];
+  timeline?: RuntimeSessionTimelineItem[];
+};
+
 export type RuntimeDisplaySummary = {
   recordId: string;
   targetLeafId: string;

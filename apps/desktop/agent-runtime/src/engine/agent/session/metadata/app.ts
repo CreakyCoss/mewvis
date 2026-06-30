@@ -3,8 +3,8 @@ import type {
   RuntimeMessageRole,
   RuntimeMessageScope,
   RuntimeMessageSource,
-} from "../../../../session/core/types.js";
-import { standardizeRuntimeMessageMetadata } from "../../../../session/metadata/standard.js";
+} from "../../../session/core/types.js";
+import { standardizeRuntimeMessageMetadata } from "../../../session/metadata/standard.js";
 
 export const commandRuntimeMessageMetadata = (input: {
   role: RuntimeMessageRole;

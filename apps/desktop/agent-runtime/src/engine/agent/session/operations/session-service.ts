@@ -23,13 +23,13 @@ import {
   resolveAgentSessionDir,
 } from "../runtime/agent/session-plan.js";
 import { prepareRuntimeAgentPrompt } from "../runtime/agent/prompt.js";
-import { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
+import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
+import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
 import {
   refreshRuntimeSessionManifest,
-} from "../../../../session/manifest/session-manifest.js";
-import { buildRuntimeSessionContext } from "../../../../session/core/projection.js";
-import type { RuntimeMessageRole } from "../../../../session/core/types.js";
+} from "../../../session/manifest/session-manifest.js";
+import { buildRuntimeSessionContext } from "../../../session/core/projection.js";
+import type { RuntimeMessageRole } from "../../../session/core/types.js";
 import {
   runtimeLedgerOperationMetadata,
   commandRuntimeMessageMetadata,
@@ -37,7 +37,7 @@ import {
 import type {
   SessionMutationResult,
   SessionResult,
-} from "../../../../session/contracts/results.js";
+} from "../../../../protocol/session.js";
 import { generateDisplaySummary } from "./display-summary.js";
 
 const openSessionStorage = async (

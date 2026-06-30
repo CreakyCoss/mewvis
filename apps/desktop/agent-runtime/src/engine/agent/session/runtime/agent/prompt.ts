@@ -2,18 +2,18 @@ import type {
   AgentRunCommand,
   RuntimeAgentCommand,
 } from "../../../runtimes/types.js";
-import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata } from "../../../../../session/core/types.js";
-import { RuntimeLedgerStorage } from "../../../../../session/storage/jsonl-store.js";
+import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata } from "../../../../session/core/types.js";
+import { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
 import {
   createAgentSessionPlan,
 } from "./session-plan.js";
-import { resolveRuntimeSessionPaths } from "../../../../../session/storage/paths.js";
+import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
 import {
   createPromptLimits,
   takeContextText,
   type PromptLimits,
 } from "../../core/prompt-budget.js";
-import { buildRuntimeSessionContext } from "../../../../../session/core/projection.js";
+import { buildRuntimeSessionContext } from "../../../../session/core/projection.js";
 import {
   appendRuntimeSystemPromptIfNeeded,
   composeRuntimeSystemPrompt,

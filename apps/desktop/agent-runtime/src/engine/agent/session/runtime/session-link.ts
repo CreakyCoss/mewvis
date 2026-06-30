@@ -4,7 +4,7 @@ import type {
   ChatRunCommand,
   RuntimeSessionLink,
 } from "../../runtimes/types.js";
-import type { RuntimeLedgerEntry } from "../../../../session/core/types.js";
+import type { RuntimeLedgerEntry } from "../../../session/core/types.js";
 
 type RuntimeSessionLinkCommand = (ChatRunCommand | AgentRunCommand) & {
   sessionLink?: RuntimeSessionLink | null;

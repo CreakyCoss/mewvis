@@ -1,15 +1,15 @@
 import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import type {
+  RuntimeSessionSummary,
+  RuntimeSessionTimelineItem,
+} from "../../../protocol/session.js";
+import type {
   RuntimeSessionListOptions,
   RuntimeSessionQueryTarget,
   RuntimeSessionSnapshot,
-  RuntimeSessionSummary,
-  RuntimeSessionTimelineItem,
-} from "../contracts/query.js";
-import type {
-  RuntimeSessionTraceRecord,
-} from "../contracts/trace.js";
+} from "./types.js";
+import type { RuntimeSessionTraceRecord } from "../trace/types.js";
 import { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
 import {
   readRuntimeSessionTraceRecords,
@@ -78,8 +78,6 @@ const summaryFromManifest = (
 ): RuntimeSessionSummary => ({
   workspacePath: manifest.workspacePath,
   sessionRootDir: manifest.sessionRootDir,
-  ledgerPath: manifest.ledgerPath,
-  tracePath: manifest.tracePath,
   sessionId: manifest.sessionId ?? null,
   createdAt: manifest.createdAt ?? null,
   updatedAt: manifest.updatedAt ?? null,

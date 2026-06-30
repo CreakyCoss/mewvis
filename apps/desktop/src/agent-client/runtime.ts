@@ -313,8 +313,6 @@ class WebPreviewAgentClient implements AgentClient {
       session: {
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
-        ledgerPath: "",
-        tracePath: "",
         entryCount: 0,
         traceCount: 0,
         workflowRunIds: [],
@@ -331,8 +329,6 @@ class WebPreviewAgentClient implements AgentClient {
       session: {
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
-        ledgerPath: "",
-        tracePath: "",
         entryCount: 0,
         traceCount: 0,
         workflowRunIds: [],
