@@ -5,7 +5,6 @@ import {
 import {
   AgentEventType,
   AgentResultType,
-  AgentRuntimeCommandType,
   AgentRuntimeResultType,
   AgentSessionCommandType,
   AgentTaskCommandType,
@@ -33,9 +32,7 @@ import {
   type RebuildSessionInput,
   type ReadSessionInput,
   type RunChatInput,
-  type RunCollaborationCommand,
   type RunCollaborationInput,
-  type RunCollaborationModeCommand,
   type RunCollaborationModeInput,
   type RuntimeModelsResult,
   type RuntimeSessionQuery,
@@ -51,9 +48,9 @@ import {
 } from "../protocol/index.js";
 import {
   chatRunCommandFromChat,
-  createAgentCommandRouter,
   runtimeCommandFromSendMessage,
-} from "./agent/commands/router.js";
+} from "./agent/commands/adapter.js";
+import { createUserInputManager } from "./agent/commands/user-input.js";
 import {
   createAgentDefinitionsResult,
   createAgentToolsResult,
@@ -79,6 +76,7 @@ import {
 } from "./agent/index.js";
 import type {
   AgentRunCommand,
+  AgentRuntimeCallbacks,
   ChatRunCommand,
   EmitAgentEvent,
 } from "./agent/runtimes/types.js";
@@ -94,19 +92,10 @@ import {
   listRuntimeSessions,
 } from "./session/index.js";
 import { messageFromError } from "./error.js";
-
-const collaborationBusyMessage = "当前 Agent runtime 已有运行中的协作任务，无法启动新协作";
-
-type RequestCommand = {
-  requestId?: string | null;
-};
-
-const commandInputFrom = <TCommand extends { type: unknown; requestId?: string | null }>(
-  command: TCommand,
-): Omit<TCommand, "type" | "requestId"> => {
-  const { type: _type, requestId: _requestId, ...input } = command;
-  return input;
-};
+import {
+  createNativeRuntimeCommandRouter,
+  type NativeRuntimeCommandRouter,
+} from "./router.js";
 
 export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   readonly id = "native";
@@ -120,8 +109,9 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   private readonly emitEvent: (event: AgentRuntimeEvent) => void;
   private readonly emitResult: (result: AgentRuntimeResult) => void;
   private readonly agentEngine = createAgentEngine();
-  private readonly agentCommandRouter;
-  private activeCollaborationRun: Promise<void> | null = null;
+  private readonly runtimeCallbacks: AgentRuntimeCallbacks;
+  private readonly userInput: ReturnType<typeof createUserInputManager>;
+  private readonly commandRouter: NativeRuntimeCommandRouter;
 
   constructor({
     callbacks,
@@ -132,16 +122,15 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     this.close = close;
     this.emitEvent = callbacks?.onEvent ?? (() => undefined);
     this.emitResult = callbacks?.onResult ?? (() => undefined);
-    this.agentCommandRouter = createAgentCommandRouter({
-      callbacks,
-      close,
-      emit: this.emitAgentEvent,
-      emitResult: this.emitResult,
-    });
+    this.userInput = createUserInputManager(this.emitAgentEvent);
+    this.runtimeCallbacks = {
+      requestUserInput: callbacks?.requestUserInput ??
+        this.userInput.callbacks.requestUserInput,
+    };
 
     const runAgentForCollaboration: RunAgentForCollaboration = (command, context) =>
       this.agentEngine.runAgent(command, {
-        callbacks: this.agentCommandRouter.callbacks,
+        callbacks: this.runtimeCallbacks,
         emit: context.emit,
       });
 
@@ -152,37 +141,37 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       chat: this.agentEngine.chat,
       run: this.agentEngine.runAgent,
     };
+    this.commandRouter = createNativeRuntimeCommandRouter({
+      emitEvent: this.emitEvent,
+      emitResult: this.emitResult,
+      ping: () => this.ping(),
+      shutdown: () => this.shutdown(),
+      listAgents: () => this.listAgents(),
+      listAgentTools: (input) => this.listAgentTools(input),
+      listRuntimeModels: () => this.listRuntimeModels(),
+      answerQuestion: (input) => this.answerQuestion(input),
+      chat: (input) => this.chat(input),
+      runAgentCommand: (command) => this.executeAgentRun(command),
+      createSession: (input) => this.createSession(input),
+      readSession: (input) => this.readSession(input),
+      compactSession: (input) => this.compactSession(input),
+      rebuildAgentSession: (input) => this.rebuildAgentSession(input),
+      summarizeSession: (input) => this.summarizeSession(input),
+      editSessionMessage: (input) => this.editSessionMessage(input),
+      deleteSessionMessage: (input) => this.deleteSessionMessage(input),
+      appendSessionMessages: (input) => this.appendSessionMessages(input),
+      rebuildSession: (input) => this.rebuildSession(input),
+      listRuntimeSessions: (input) => this.listRuntimeSessions(input),
+      readRuntimeSession: (input) => this.readRuntimeSession(input),
+      readCollaborationTimeline: (input) => this.readCollaborationTimeline(input),
+      listCollaborationModes: () => this.listCollaborationModes(),
+      runCollaboration: (input) => this.runCollaboration(input),
+      runCollaborationMode: (input) => this.runCollaborationMode(input),
+    });
   }
 
   async handle(command: AgentRuntimeCommand): Promise<boolean> {
-    switch (command.type) {
-      case AgentRuntimeCommandType.ListCollaborationModes:
-        this.emitCommandResult(command, await this.listCollaborationModes());
-        return true;
-
-      case AgentRuntimeCommandType.ListRuntimeSessions:
-        await this.emitQueryResult(command, () =>
-          this.listRuntimeSessions(commandInputFrom(command)));
-        return true;
-
-      case AgentRuntimeCommandType.ReadRuntimeSession:
-        await this.emitQueryResult(command, () =>
-          this.readRuntimeSession(commandInputFrom(command)));
-        return true;
-
-      case AgentRuntimeCommandType.ReadCollaborationTimeline:
-        await this.emitQueryResult(command, () =>
-          this.readCollaborationTimeline(commandInputFrom(command)));
-        return true;
-
-      case AgentRuntimeCommandType.RunCollaboration:
-      case AgentRuntimeCommandType.RunCollaborationMode:
-        this.runCollaborationCommand(command);
-        return true;
-
-      default:
-        return this.agentCommandRouter.handle(command);
-    }
+    return this.commandRouter.handle(command);
   }
 
   async ping(): Promise<PongResult> {
@@ -196,10 +185,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   }
 
   async waitForRunningTask() {
-    await this.agentCommandRouter.waitForRunningTask();
-    if (this.activeCollaborationRun) {
-      await this.activeCollaborationRun.catch(() => undefined);
-    }
+    await this.commandRouter.waitForRunningTask();
   }
 
   async listAgents(): Promise<AgentDefinitionsResult> {
@@ -227,7 +213,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   }
 
   async answerQuestion(input: AnswerQuestionInput): Promise<void> {
-    this.agentCommandRouter.answerQuestion({
+    this.userInput.handleAnswer({
       ...input,
       requestId: null,
       type: AgentTaskCommandType.AnswerQuestion as const,
@@ -256,14 +242,17 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   }
 
   async runAgent(input: AgentRunInput): Promise<TaskResult> {
-    const command: AgentRunCommand = {
+    return this.executeAgentRun({
       ...input,
       runtimeMode: "agent",
       requestId: null,
-    };
+    });
+  }
+
+  private async executeAgentRun(command: AgentRunCommand): Promise<TaskResult> {
     try {
       await this.agentEngine.runAgent(command, {
-        callbacks: this.agentCommandRouter.callbacks,
+        callbacks: this.runtimeCallbacks,
         emit: this.emitAgentEvent,
       });
       return createTaskResult(command, { success: true });
@@ -300,7 +289,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       requestId: null,
       type: AgentSessionCommandType.Compact as const,
     }, {
-      callbacks: this.agentCommandRouter.callbacks,
+      callbacks: this.runtimeCallbacks,
       emit: this.emitAgentEvent,
     });
   }
@@ -313,7 +302,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       requestId: null,
       type: AgentSessionCommandType.RebuildAgentSession as const,
     }, {
-      callbacks: this.agentCommandRouter.callbacks,
+      callbacks: this.runtimeCallbacks,
       emit: () => undefined,
     });
   }
@@ -449,94 +438,6 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       requestId: input.requestId ?? null,
       ...result,
     };
-  }
-
-  private emitCommandResult(command: RequestCommand, result: AgentRuntimeResult) {
-    this.emitResult({
-      ...result,
-      requestId: command.requestId ?? null,
-    } as AgentRuntimeResult);
-  }
-
-  private async emitQueryResult(
-    command: RequestCommand,
-    query: () => Promise<RuntimeSessionsResult | RuntimeSessionResult | CollaborationTimelineResult>,
-  ) {
-    try {
-      this.emitCommandResult(command, await query());
-    } catch (error: unknown) {
-      this.emitAgentEvent({
-        type: AgentEventType.Error,
-        message: messageFromError(error),
-      });
-    }
-  }
-
-  private taskIdFor(command: RunCollaborationCommand | RunCollaborationModeCommand) {
-    return command.requestId?.trim() || command.input.requestId?.trim() || "";
-  }
-
-  private emitCollaborationBusyResult(
-    command: RunCollaborationCommand | RunCollaborationModeCommand,
-  ) {
-    this.emitAgentEvent({
-      type: AgentEventType.Error,
-      message: collaborationBusyMessage,
-    });
-    this.emitResult({
-      type: AgentRuntimeResultType.CollaborationResult,
-      requestId: command.requestId ?? null,
-      workflowRunId: "",
-      steps: [],
-      success: false,
-      message: collaborationBusyMessage,
-    });
-    this.emitResult({
-      type: AgentResultType.TaskResult,
-      requestId: command.requestId ?? null,
-      taskId: this.taskIdFor(command),
-      success: false,
-      message: collaborationBusyMessage,
-    });
-  }
-
-  private runCollaborationCommand(
-    command: RunCollaborationCommand | RunCollaborationModeCommand,
-  ) {
-    if (this.activeCollaborationRun) {
-      this.emitCollaborationBusyResult(command);
-      return;
-    }
-
-    const run = command.type === AgentRuntimeCommandType.RunCollaborationMode
-      ? this.runCollaborationMode(command.input)
-      : this.runCollaboration(command.input);
-
-    this.activeCollaborationRun = run.then((result) => {
-      this.emitCommandResult(command, result);
-      this.emitResult({
-        type: AgentResultType.TaskResult,
-        requestId: command.requestId ?? null,
-        taskId: this.taskIdFor(command),
-        success: true,
-      });
-    }).catch((error: unknown) => {
-      const message = messageFromError(error);
-      this.emitAgentEvent({
-        type: AgentEventType.Error,
-        taskId: this.taskIdFor(command) || undefined,
-        message,
-      });
-      this.emitResult({
-        type: AgentResultType.TaskResult,
-        requestId: command.requestId ?? null,
-        taskId: this.taskIdFor(command),
-        success: false,
-        message,
-      });
-    }).finally(() => {
-      this.activeCollaborationRun = null;
-    });
   }
 
   private readonly emitAgentEvent: EmitAgentEvent = (event) => {

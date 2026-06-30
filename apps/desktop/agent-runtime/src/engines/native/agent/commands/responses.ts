@@ -1,24 +1,19 @@
 import {
   AgentResultType,
-  type AgentRuntimeResult,
   type AgentDefinitionsResult,
-  type AgentCommand,
   type AgentToolsResult,
   type PongResult,
   type RuntimeModelsResult,
   type ShutdownAckResult,
   type TaskResult,
-  AgentEventType,
 } from "../../../protocol/index.js";
-import type { AgentRunCommand, EmitAgentEvent } from "../runtimes/types.js";
+import type { AgentRunCommand } from "../runtimes/types.js";
 import { runtimeAgentManifest } from "../runtimes/registry.js";
 import {
   AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS,
 } from "../tools/definitions.js";
 import { MODEL_CATALOG } from "../../../models/index.js";
-
-export type EmitAgentRuntimeResult = (result: AgentRuntimeResult) => void;
 
 type RequestCommand = {
   requestId?: string | null;
@@ -101,26 +96,3 @@ export const createTaskResult = (
   taskId: command.taskId,
   ...result,
 });
-
-export const emitTaskResult = (
-  command: TaskCommand,
-  emitResult: EmitAgentRuntimeResult,
-  result: TaskResultStatus,
-) => {
-  emitResult(createTaskResult(command, result));
-};
-
-export const emitCommandError = (
-  command: AgentCommand,
-  emit: EmitAgentEvent,
-  message: string,
-) => {
-  emit({
-    type: AgentEventType.Error,
-    taskId: taskIdFromCommand(command),
-    message,
-  });
-};
-
-const taskIdFromCommand = (command: AgentCommand) =>
-  "taskId" in command ? command.taskId ?? undefined : undefined;
