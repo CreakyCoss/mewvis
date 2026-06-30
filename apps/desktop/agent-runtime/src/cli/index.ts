@@ -21,8 +21,10 @@ const runAgentRuntimeCli = async () => {
     close: () => {
       reader.close();
     },
-    emit: writeAgentEvent,
-    writeJsonLine,
+    callbacks: {
+      onEvent: writeAgentEvent,
+      onResult: writeJsonLine,
+    },
   });
 
   try {

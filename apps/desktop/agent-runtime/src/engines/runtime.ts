@@ -4,7 +4,6 @@ import type {
   AgentRunCommand,
   ChatResult,
   ChatRunCommand,
-  EmitAgentEvent,
   ListAgentsCommand,
   PingCommand,
   PongResult,
@@ -21,7 +20,9 @@ import type {
   RunCollaborationCommand,
   RunCollaborationModeCommand,
 } from "./protocol/command.js";
+import type { AgentRuntimeEvent } from "./protocol/event.js";
 import type {
+  AgentRuntimeResult,
   CollaborationModesRuntimeResult,
   CollaborationRuntimeResult,
   CollaborationTimelineResult,
@@ -29,13 +30,17 @@ import type {
   RuntimeSessionsResult,
 } from "./protocol/result.js";
 
-export type WriteAgentRuntimeJsonLine = (value: unknown) => void;
+export type EmitAgentRuntimeEvent = (event: AgentRuntimeEvent) => void;
+export type EmitAgentRuntimeResult = (result: AgentRuntimeResult) => void;
+
+export type RuntimeEngineCallbacks = Partial<AgentRuntimeCallbacks> & {
+  onEvent?: EmitAgentRuntimeEvent;
+  onResult?: EmitAgentRuntimeResult;
+};
 
 export type RuntimeEngineOptions = {
-  callbacks?: Partial<AgentRuntimeCallbacks>;
+  callbacks?: RuntimeEngineCallbacks;
   close?: () => void;
-  emit?: EmitAgentEvent;
-  writeJsonLine?: WriteAgentRuntimeJsonLine;
 };
 
 export abstract class AgentRuntimeEngine {

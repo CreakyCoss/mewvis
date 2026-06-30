@@ -27,8 +27,10 @@ import {
   type RunCollaborationCommand,
   type RunCollaborationModeCommand,
 } from "../protocol/command.js";
+import type { AgentRuntimeEvent } from "../protocol/event.js";
 import {
   AgentRuntimeResultType,
+  type AgentRuntimeResult,
   type CollaborationModesRuntimeResult,
   type CollaborationRuntimeResult,
   type CollaborationTimelineResult,
@@ -46,12 +48,8 @@ import {
   createAgentEngine,
   type AgentEngine,
 } from "./agent/index.js";
-import type {
-  EmitAgentEvent,
-} from "./agent/runtimes/types.js";
-import {
-  createCollaborationEngine,
-} from "./collaboration/index.js";
+import type { EmitAgentEvent } from "./agent/runtimes/types.js";
+import { createCollaborationEngine } from "./collaboration/index.js";
 import type { RunAgentForCollaboration } from "./collaboration/contracts/executor.js";
 import type {
   CollaborationRunInput as InternalCollaborationRunInput,
@@ -60,6 +58,7 @@ import type {
   CollaborationModeRunInput as InternalCollaborationModeRunInput,
 } from "./collaboration/modes/contracts.js";
 import type { CollaborationEngine } from "./collaboration/index.js";
+import type { EmitCollaborationEvent } from "./collaboration/contracts/event.js";
 import {
   getCollaborationTimeline,
   getRuntimeSessionSnapshot,
@@ -78,8 +77,8 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   readonly collaboration: CollaborationEngine;
 
   private readonly close: () => void;
-  private readonly emit: EmitAgentEvent;
-  private readonly writeJsonLine: (value: unknown) => void;
+  private readonly emitEvent: (event: AgentRuntimeEvent) => void;
+  private readonly emitResult: (result: AgentRuntimeResult) => void;
   private readonly agentEngine = createAgentEngine();
   private readonly agentCommandRouter;
   private activeCollaborationRun: Promise<void> | null = null;
@@ -87,19 +86,17 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   constructor({
     callbacks,
     close = () => undefined,
-    emit = () => undefined,
-    writeJsonLine = () => undefined,
   }: RuntimeEngineOptions = {}) {
     super();
 
     this.close = close;
-    this.emit = emit;
-    this.writeJsonLine = writeJsonLine;
+    this.emitEvent = callbacks?.onEvent ?? (() => undefined);
+    this.emitResult = callbacks?.onResult ?? (() => undefined);
     this.agentCommandRouter = createAgentCommandRouter({
       callbacks,
       close,
-      emit,
-      writeJsonLine,
+      emit: this.emitAgentEvent,
+      writeJsonLine: this.emitInternalResult,
     });
 
     const runAgentForCollaboration: RunAgentForCollaboration = (command, context) =>
@@ -132,7 +129,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   }
 
   async chat(command: ChatRunCommand): Promise<ChatResult> {
-    const result = await this.agentEngine.chat(command, { emit: this.emit });
+    const result = await this.agentEngine.chat(command, { emit: this.emitAgentEvent });
     return {
       type: AgentResultType.ChatResult,
       requestId: command.requestId ?? null,
@@ -144,12 +141,12 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     try {
       await this.agentEngine.runAgent(command, {
         callbacks: this.agentCommandRouter.callbacks,
-        emit: this.emit,
+        emit: this.emitAgentEvent,
       });
       return createTaskResult(command, { success: true });
     } catch (error: unknown) {
       const message = messageFromError(error);
-      this.emit({
+      this.emitAgentEvent({
         type: AgentEventType.Error,
         taskId: command.taskId,
         message,
@@ -227,7 +224,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
         ...command.input,
         requestId: command.input.requestId ?? command.requestId ?? null,
       } as InternalCollaborationRunInput,
-      { emit: this.writeJsonLine },
+      { emit: this.emitCollaborationEvent },
     );
     return {
       type: AgentRuntimeResultType.CollaborationResult,
@@ -244,7 +241,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
         ...command.input,
         requestId: command.input.requestId ?? command.requestId ?? null,
       } as InternalCollaborationModeRunInput,
-      { emit: this.writeJsonLine },
+      { emit: this.emitCollaborationEvent },
     );
     return {
       type: AgentRuntimeResultType.CollaborationResult,
@@ -256,19 +253,19 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   async handle(command: AgentRuntimeCommand): Promise<boolean> {
     switch (command.type) {
       case AgentRuntimeCommandType.ListCollaborationModes:
-        this.writeJsonLine(await this.listCollaborationModes(command));
+        this.emitResult(await this.listCollaborationModes(command));
         return true;
 
       case AgentRuntimeCommandType.ListRuntimeSessions:
-        await this.writeSessionQueryResult(() => this.listRuntimeSessions(command));
+        await this.emitSessionQueryResult(() => this.listRuntimeSessions(command));
         return true;
 
       case AgentRuntimeCommandType.GetRuntimeSession:
-        await this.writeSessionQueryResult(() => this.getRuntimeSession(command));
+        await this.emitSessionQueryResult(() => this.getRuntimeSession(command));
         return true;
 
       case AgentRuntimeCommandType.GetCollaborationTimeline:
-        await this.writeSessionQueryResult(() => this.getCollaborationTimeline(command));
+        await this.emitSessionQueryResult(() => this.getCollaborationTimeline(command));
         return true;
 
       case AgentRuntimeCommandType.RunCollaboration:
@@ -288,13 +285,13 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     }
   }
 
-  private async writeSessionQueryResult(
+  private async emitSessionQueryResult(
     query: () => Promise<RuntimeSessionsResult | RuntimeSessionResult | CollaborationTimelineResult>,
   ) {
     try {
-      this.writeJsonLine(await query());
+      this.emitResult(await query());
     } catch (error: unknown) {
-      this.emit({
+      this.emitAgentEvent({
         type: AgentEventType.Error,
         message: messageFromError(error),
       });
@@ -305,14 +302,14 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     return command.requestId?.trim() || command.input.requestId?.trim() || "";
   }
 
-  private writeCollaborationBusyResult(
+  private emitCollaborationBusyResult(
     command: RunCollaborationCommand | RunCollaborationModeCommand,
   ) {
-    this.emit({
+    this.emitAgentEvent({
       type: AgentEventType.Error,
       message: collaborationBusyMessage,
     });
-    this.writeJsonLine({
+    this.emitResult({
       type: AgentRuntimeResultType.CollaborationResult,
       requestId: command.requestId ?? null,
       workflowRunId: "",
@@ -320,7 +317,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       success: false,
       message: collaborationBusyMessage,
     });
-    this.writeJsonLine({
+    this.emitResult({
       type: AgentResultType.TaskResult,
       requestId: command.requestId ?? null,
       taskId: this.taskIdFor(command),
@@ -333,7 +330,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     command: RunCollaborationCommand | RunCollaborationModeCommand,
   ) {
     if (this.activeCollaborationRun) {
-      this.writeCollaborationBusyResult(command);
+      this.emitCollaborationBusyResult(command);
       return;
     }
 
@@ -342,8 +339,8 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       : this.runCollaboration(command);
 
     this.activeCollaborationRun = run.then((result) => {
-      this.writeJsonLine(result);
-      this.writeJsonLine({
+      this.emitResult(result);
+      this.emitResult({
         type: AgentResultType.TaskResult,
         requestId: command.requestId ?? null,
         taskId: this.taskIdFor(command),
@@ -351,12 +348,12 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       });
     }).catch((error: unknown) => {
       const message = messageFromError(error);
-      this.emit({
+      this.emitAgentEvent({
         type: AgentEventType.Error,
         taskId: this.taskIdFor(command) || undefined,
         message,
       });
-      this.writeJsonLine({
+      this.emitResult({
         type: AgentResultType.TaskResult,
         requestId: command.requestId ?? null,
         taskId: this.taskIdFor(command),
@@ -367,6 +364,18 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       this.activeCollaborationRun = null;
     });
   }
+
+  private readonly emitAgentEvent: EmitAgentEvent = (event) => {
+    this.emitEvent(event);
+  };
+
+  private readonly emitCollaborationEvent: EmitCollaborationEvent = (event) => {
+    this.emitEvent(event);
+  };
+
+  private readonly emitInternalResult = (result: unknown) => {
+    this.emitResult(result as AgentRuntimeResult);
+  };
 }
 
 export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) =>

@@ -10,6 +10,7 @@ const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
+const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/index.ts");
 const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/collaboration/index.ts");
 const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/session/index.ts");
 
@@ -20,6 +21,11 @@ writeFileSync(entryPath, `
   import {
     createAgentRuntime,
   } from ${JSON.stringify(runtimeEntry)};
+  import {
+    AgentResultType,
+    AgentRuntimeCommandType,
+    AgentRuntimeResultType,
+  } from ${JSON.stringify(protocolEntry)};
   import {
     CollaborationEventType,
     createCollaborationEngine,
@@ -39,51 +45,83 @@ writeFileSync(entryPath, `
 
   const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-collab-sdk-"));
   const events: unknown[] = [];
+  const results: unknown[] = [];
 
   try {
-    const runtime = createAgentRuntime();
-    const result = await runtime.collaboration.run({
-      workspacePath,
-      sessionRootDir: join(workspacePath, "session-store", "collaboration-smoke"),
-      workflow: {
-        id: "collaboration-smoke",
-        steps: [
+    const runtime = createAgentRuntime({
+      callbacks: {
+        onEvent: (event) => {
+          events.push(event);
+        },
+        onResult: (result) => {
+          results.push(result);
+        },
+      },
+    });
+    await runtime.handle({
+      type: AgentRuntimeCommandType.RunCollaboration,
+      requestId: "collaboration-smoke-request",
+      input: {
+        workspacePath,
+        sessionRootDir: join(workspacePath, "session-store", "collaboration-smoke"),
+        workflow: {
+          id: "collaboration-smoke",
+          steps: [
+            {
+              id: "planner",
+              type: "agent",
+              agentRoleId: "planner",
+              userMessage: "请生成一个协作 smoke test 的计划。",
+              outputKey: "plan",
+            },
+            {
+              id: "writer",
+              type: "agent",
+              agentRoleId: "writer",
+              userMessage: "请基于上一轮计划生成简短结果。",
+              outputKey: "draft",
+            },
+          ],
+        },
+        agents: [
           {
             id: "planner",
-            type: "agent",
-            agentRoleId: "planner",
-            userMessage: "请生成一个协作 smoke test 的计划。",
-            outputKey: "plan",
+            label: "Planner",
+            agentId: "mock",
+            systemPrompt: "你是协作 smoke test 的共享系统角色。",
           },
           {
             id: "writer",
-            type: "agent",
-            agentRoleId: "writer",
-            userMessage: "请基于上一轮计划生成简短结果。",
-            outputKey: "draft",
+            label: "Writer",
+            agentId: "mock",
+            systemPrompt: "你是协作 smoke test 的共享系统角色。",
           },
         ],
       },
-      agents: [
-        {
-          id: "planner",
-          label: "Planner",
-          agentId: "mock",
-          systemPrompt: "你是协作 smoke test 的共享系统角色。",
-        },
-        {
-          id: "writer",
-          label: "Writer",
-          agentId: "mock",
-          systemPrompt: "你是协作 smoke test 的共享系统角色。",
-        },
-      ],
-    }, {
-      emit: (event) => {
-        events.push(event);
-      },
     });
+    await runtime.waitForRunningTask();
 
+    const result = results.find((candidate) =>
+      candidate && typeof candidate === "object" &&
+        "type" in candidate &&
+        candidate.type === AgentRuntimeResultType.CollaborationResult
+    ) as {
+      executorId?: string;
+      output?: unknown;
+      steps: Array<{ text: string }>;
+    } | undefined;
+    assert(result, "SDK handle 应通过 onResult 返回 collaboration_result", results);
+    assert(
+      results.some((candidate) =>
+        candidate && typeof candidate === "object" &&
+          "type" in candidate &&
+          candidate.type === AgentResultType.TaskResult &&
+          "success" in candidate &&
+          candidate.success === true
+      ),
+      "SDK handle 应通过 onResult 返回 task_result",
+      results,
+    );
     assert(result.steps.length === 2, "应执行两个协作 step", result);
     assert(result.executorId === "langgraph", "默认协作 executor 应为 LangGraph", result);
     assert(typeof result.output === "object" && result.output !== null, "应返回对象形式输出", result);

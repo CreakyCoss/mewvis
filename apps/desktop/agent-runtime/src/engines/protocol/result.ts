@@ -29,6 +29,8 @@ export type CollaborationRuntimeResult = CollaborationRunResult & {
   type: AgentRuntimeResultType.CollaborationResult;
   requestId?: string | null;
   mode?: string | null;
+  success?: boolean;
+  message?: string;
 };
 
 export type CollaborationModesRuntimeResult = {

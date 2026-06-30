@@ -1,22 +1,31 @@
 import {
   createRuntimeEngine,
 } from "../engines/index.js";
-import type { AgentRuntimeEngine } from "../engines/runtime.js";
-import type { AskUserInput } from "../engines/protocol/index.js";
+import type {
+  AgentRuntimeEngine,
+  RuntimeEngineCallbacks,
+} from "../engines/runtime.js";
+import type {
+  AgentRuntimeEvent,
+  AgentRuntimeResult,
+  AskUserInput,
+} from "../engines/protocol/index.js";
 
-type AgentRuntimeUserInputRequest = {
+export type AgentRuntimeUserInputRequest = {
   taskId: string;
   question: string;
   context?: string | null;
   input?: AskUserInput | null;
 };
 
-type AgentRuntimeUserInputHandler = (
+export type AgentRuntimeUserInputHandler = (
   request: AgentRuntimeUserInputRequest,
 ) => Promise<string>;
 
-type AgentRuntimeSdkOptions = {
+export type AgentRuntimeSdkOptions = {
   callbacks?: {
+    onEvent?: (event: AgentRuntimeEvent) => void;
+    onResult?: (result: AgentRuntimeResult) => void;
     requestUserInput?: AgentRuntimeUserInputHandler;
   };
 };
@@ -24,16 +33,25 @@ type AgentRuntimeSdkOptions = {
 export const createAgentRuntime = (
   options: AgentRuntimeSdkOptions = {},
 ): AgentRuntimeEngine => {
-  const requestUserInput = options.callbacks?.requestUserInput;
-  return createRuntimeEngine({
-    callbacks: requestUserInput
-      ? {
-          requestUserInput: (request) =>
-            requestUserInput({
-              ...request,
-              input: request.input ?? null,
-            }),
-        }
-      : undefined,
-  });
+  const callbacks = options.callbacks;
+  const requestUserInput = callbacks?.requestUserInput;
+  const runtimeCallbacks: RuntimeEngineCallbacks = {};
+
+  if (callbacks?.onEvent) {
+    runtimeCallbacks.onEvent = callbacks.onEvent;
+  }
+  if (callbacks?.onResult) {
+    runtimeCallbacks.onResult = callbacks.onResult;
+  }
+  if (requestUserInput) {
+    runtimeCallbacks.requestUserInput = (request) =>
+      requestUserInput({
+        ...request,
+        input: request.input ?? null,
+      });
+  }
+
+  return Object.keys(runtimeCallbacks).length > 0
+    ? createRuntimeEngine({ callbacks: runtimeCallbacks })
+    : createRuntimeEngine();
 };
