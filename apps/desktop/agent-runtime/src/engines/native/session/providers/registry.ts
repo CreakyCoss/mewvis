@@ -4,18 +4,28 @@ import type {
   RuntimeSessionProviderId,
 } from "./types.js";
 
-const providers = new Map<RuntimeSessionProviderId, RuntimeSessionProvider>();
+const runtimeSessionProviders = Object.freeze([
+  jsonlRuntimeSessionProvider,
+] satisfies readonly RuntimeSessionProvider[]);
 
-export const registerRuntimeSessionProvider = (
-  provider: RuntimeSessionProvider,
-) => {
-  providers.set(provider.id, provider);
-};
+const createRuntimeSessionProviderRegistry = (
+  providers: readonly RuntimeSessionProvider[],
+): Readonly<Record<string, RuntimeSessionProvider>> =>
+  Object.freeze(Object.fromEntries(
+    providers.map((provider) => [provider.id, provider]),
+  ));
+
+const runtimeSessionProviderRegistry = createRuntimeSessionProviderRegistry(
+  runtimeSessionProviders,
+);
+
+export const runtimeSessionProviderManifest = Object.freeze({
+  defaultProviderId: jsonlRuntimeSessionProvider.id,
+  providers: Object.freeze(runtimeSessionProviders.map((provider) => provider.id)),
+});
 
 export const getRuntimeSessionProvider = (
   id: RuntimeSessionProviderId,
-) => providers.get(id) ?? null;
+) => runtimeSessionProviderRegistry[id] ?? null;
 
-export const listRuntimeSessionProviders = () => [...providers.values()];
-
-registerRuntimeSessionProvider(jsonlRuntimeSessionProvider);
+export const listRuntimeSessionProviders = () => [...runtimeSessionProviders];

@@ -8,9 +8,9 @@ import {
 } from "./model/metadata.js";
 import type {
   RuntimeSessionHandle,
+  RuntimeSessionProvider,
   RuntimeSessionStore,
 } from "./providers/types.js";
-import { resolveRuntimeSessionProvider } from "./providers/resolver.js";
 import { takeContextText } from "./model/prompt-budget.js";
 import type { RuntimeSessionCommand } from "./model/runtime-command.js";
 import {
@@ -22,8 +22,9 @@ import {
 
 export const openRuntimeSessionStorage = async (
   command: { workspacePath: string; sessionRootDir: string },
+  provider: RuntimeSessionProvider,
 ) => {
-  return resolveRuntimeSessionProvider().openOrCreate(command);
+  return provider.openOrCreate(command);
 };
 
 export const refreshRuntimeSessionManifest = async (
@@ -122,6 +123,11 @@ type SessionTurnCommand = RuntimeSessionCommand & {
   sessionRootDir?: string | null;
 };
 
+export type RuntimeSessionTurnOptions = {
+  includeSummary?: boolean;
+  preserveRecordUserMessageFalse?: boolean;
+};
+
 const resolveCommandParentEntryId = (
   storage: RuntimeSessionStore,
   parentEntryId: string | null | undefined,
@@ -145,10 +151,8 @@ export const prepareRuntimeSessionTurn = async <
   TCommand extends SessionTurnCommand,
 >(
   command: TCommand,
-  options: {
-    includeSummary?: boolean;
-    preserveRecordUserMessageFalse?: boolean;
-  } = {},
+  provider: RuntimeSessionProvider,
+  options: RuntimeSessionTurnOptions = {},
 ) => {
   if (!hasRuntimeSessionTarget(command)) {
     return null;
@@ -157,7 +161,7 @@ export const prepareRuntimeSessionTurn = async <
   const { storage } = await openRuntimeSessionStorage({
     workspacePath: command.workspacePath as string,
     sessionRootDir: command.sessionRootDir as string,
-  });
+  }, provider);
   const parentEntryId = resolveCommandParentEntryId(storage, commandParentEntryId(command));
   const contextLeafId = parentEntryId ?? storage.getLeafId();
   const sessionContext = buildRuntimeSessionContext(storage, contextLeafId);

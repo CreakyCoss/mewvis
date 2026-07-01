@@ -16,7 +16,6 @@ import type {
   CollaborationTimelineQuery,
   CollaborationTimelineResult,
   CompactSessionInput,
-  CreateSessionInput,
   DeleteSessionMessageInput,
   EditSessionMessageInput,
   PongResult,
@@ -82,7 +81,6 @@ export abstract class AgentRuntimeEngine {
   abstract chat(input: ChatInput): Promise<ChatResult>;
   abstract runAgent(input: AgentRunInput): Promise<TaskResult>;
 
-  abstract createSession(input: CreateSessionInput): Promise<SessionMutationResult>;
   abstract readSession(input: ReadSessionInput): Promise<SessionResult>;
   abstract compactSession(input: CompactSessionInput): Promise<SessionMutationResult>;
   abstract rebuildAgentSession(

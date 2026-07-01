@@ -1,9 +1,8 @@
 import type { AgentRunCommand } from "../runtimes/types.js";
 import {
-  clearRuntimeSessionArtifactDir,
-  resolveRuntimeSessionArtifactDir,
   sanitizeSessionArtifactSegment,
 } from "../../session/artifacts.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
 
 export const createAgentSessionPlan = async (input: {
   workspacePath: string;
@@ -13,7 +12,7 @@ export const createAgentSessionPlan = async (input: {
 }) => {
   const runtimeKey = sanitizeSessionArtifactSegment(input.runtimeId, "runtime");
   const agentRoleId = sanitizeSessionArtifactSegment(input.agentRoleId ?? "default", "default");
-  const sessionDir = await resolveRuntimeSessionArtifactDir(input, [
+  const sessionDir = await createRuntimeSessionManager(input).resolveArtifactDir([
     "agents",
     runtimeKey,
     agentRoleId,
@@ -47,5 +46,5 @@ export const clearAgentSessionArtifacts = async (input: {
   workspacePath: string;
   sessionRootDir: string;
 }) => {
-  await clearRuntimeSessionArtifactDir(input, ["agents"]);
+  await createRuntimeSessionManager(input).clearArtifactDir(["agents"]);
 };

@@ -13,6 +13,7 @@ import {
 } from "../../protocol/index.js";
 import type {
   RuntimeSessionPathInput,
+  RuntimeSessionProvider,
 } from "./providers/types.js";
 import { buildRuntimeSessionContext } from "./model/projection.js";
 import type { RuntimeMessageRole } from "./model/ledger.js";
@@ -81,8 +82,9 @@ export const runtimeSessionMutationResultFrom = (
 
 export const readRuntimeSession = async (
   command: ReadSessionCommand,
+  provider: RuntimeSessionProvider,
 ): Promise<SessionResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   await refreshRuntimeSessionManifest(handle);
   const context = buildRuntimeSessionContext(storage, storage.getLeafId());
@@ -91,8 +93,9 @@ export const readRuntimeSession = async (
 
 export const createRuntimeSession = async (
   command: CreateSessionCommand,
+  provider: RuntimeSessionProvider,
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const baseLeafId = storage.getLeafId();
   let entryId: string | null = null;
@@ -132,9 +135,10 @@ export const createRuntimeSession = async (
 
 export const summarizeRuntimeSession = async (
   command: SummarizeSessionCommand,
+  provider: RuntimeSessionProvider,
   options: RuntimeSessionSummarizeOptions,
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const targetLeafId = storage.getLeafId();
   if (!targetLeafId) {
@@ -186,8 +190,9 @@ const normalizeMessageRole = (role: string): RuntimeMessageRole => {
 
 export const appendRuntimeSessionMessages = async (
   command: MessageAppendCommand,
+  provider: RuntimeSessionProvider,
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const entryIds: string[] = [];
   const baseLeafId = storage.getLeafId();
@@ -234,9 +239,10 @@ export const appendRuntimeSessionMessages = async (
 
 export const rebuildRuntimeSession = async (
   command: RebuildCommand,
+  provider: RuntimeSessionProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const previousLeafId = storage.getLeafId();
   await storage.setLeafId(null);
@@ -281,9 +287,10 @@ export const rebuildRuntimeSession = async (
 
 export const editRuntimeSessionMessage = async (
   command: MessageEditCommand,
+  provider: RuntimeSessionProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const target = storage.getEntry(command.messageRecordId);
   if (!target || target.type !== "message") {
@@ -316,9 +323,10 @@ export const editRuntimeSessionMessage = async (
 
 export const deleteRuntimeSessionMessage = async (
   command: MessageDeleteCommand,
+  provider: RuntimeSessionProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
   const target = storage.getEntry(command.messageRecordId);
   if (!target || target.type !== "message") {

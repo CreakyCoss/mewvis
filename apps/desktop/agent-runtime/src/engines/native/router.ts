@@ -232,8 +232,7 @@ export const createNativeRuntimeCommandRouter = (
         return true;
 
       case AgentSessionCommandType.CreateSession:
-        await emitCommandActionResult(command, () =>
-          deps.engine.createSession(commandInputFrom(command)));
+        emitCommandError(command, "create_session 是 native session 内部初始化能力，不作为外部 runtime 命令暴露");
         return true;
 
       case AgentSessionCommandType.ReadSession:

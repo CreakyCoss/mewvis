@@ -7,10 +7,7 @@ import type {
 } from "../../../protocol/index.js";
 import { buildRuntimeSessionContext } from "../../session/model/projection.js";
 import { runtimeLedgerOperationMetadata } from "../../session/model/metadata.js";
-import {
-  openRuntimeSessionStorage,
-  refreshRuntimeSessionManifest,
-} from "../../session/writer.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
 import {
   runtimeSessionMutationResultFrom,
 } from "../../session/service.js";
@@ -48,7 +45,8 @@ export const compactRuntimeSession = async (
   command: CompactCommand,
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const sessionManager = createRuntimeSessionManager(command);
+  const handle = await sessionManager.openHandle();
   const { storage } = handle;
   const baseLeafId = storage.getLeafId();
   const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
@@ -102,7 +100,7 @@ export const compactRuntimeSession = async (
     details: compactResult.details ?? null,
   });
   const context = buildRuntimeSessionContext(storage);
-  await refreshRuntimeSessionManifest(handle);
+  await sessionManager.refreshManifest(handle);
   return runtimeSessionMutationResultFrom(command, context, {
     compacted: compactResult.compacted,
   });
@@ -112,7 +110,8 @@ export const rebuildRuntimeAgentSession = async (
   command: RebuildAgentSessionCommand,
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const handle = await openRuntimeSessionStorage(command);
+  const sessionManager = createRuntimeSessionManager(command);
+  const handle = await sessionManager.openHandle();
   const { storage } = handle;
   const baseLeafId = storage.getLeafId();
   const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
@@ -169,7 +168,7 @@ export const rebuildRuntimeAgentSession = async (
     },
   });
   const context = buildRuntimeSessionContext(storage);
-  await refreshRuntimeSessionManifest(handle);
+  await sessionManager.refreshManifest(handle);
   return runtimeSessionMutationResultFrom(command, context, {
     rebuilt: true,
   });

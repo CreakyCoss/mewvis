@@ -15,7 +15,7 @@ import {
   inferCommandTurnId,
   withSessionLink,
 } from "../../session/model/runtime-link.js";
-import { prepareRuntimeSessionTurn } from "../../session/writer.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
 
 type RuntimeAgentHistoryMessage = {
   id: string;
@@ -224,7 +224,10 @@ export const prepareRuntimeAgentPrompt = async (
     };
   }
 
-  const preparedTurn = await prepareRuntimeSessionTurn(command, {
+  const preparedTurn = await createRuntimeSessionManager({
+    workspacePath: command.workspacePath,
+    sessionRootDir: command.sessionRootDir,
+  }).prepareTurn(command, {
     includeSummary: false,
     preserveRecordUserMessageFalse: true,
   });

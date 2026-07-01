@@ -8,7 +8,7 @@ import type {
   EmitCollaborationEvent,
 } from "./contracts/handler.js";
 import type { RuntimeSessionHandle } from "../session/providers/types.js";
-import { resolveRuntimeSessionProvider } from "../session/providers/resolver.js";
+import { createRuntimeSessionManager } from "../session/index.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;
@@ -71,8 +71,7 @@ export class CollaborationSessionRecorder {
       return null;
     }
 
-    const provider = resolveRuntimeSessionProvider();
-    const handle = await provider.openOrCreate(input);
+    const handle = await createRuntimeSessionManager(input).openHandle();
 
     return new CollaborationSessionRecorder({
       collaboration: input,

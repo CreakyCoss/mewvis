@@ -23,7 +23,7 @@ import {
   commandParentEntryId,
   commandRootUserEntryId,
 } from "../../session/model/runtime-link.js";
-import { resolveRuntimeSessionProvider } from "../../session/providers/resolver.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
 
 type EmitAgentEvent = (event: AgentEvent) => void;
 
@@ -145,8 +145,7 @@ export class RuntimeSessionRecorder {
       return null;
     }
 
-    const provider = resolveRuntimeSessionProvider();
-    const handle = await provider.openOrCreate(command);
+    const handle = await createRuntimeSessionManager(command).openHandle();
     return new RuntimeSessionRecorder({
       command,
       handle,

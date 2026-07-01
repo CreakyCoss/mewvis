@@ -16,9 +16,7 @@ import { resolveAgentSessionDir } from "../session/artifacts.js";
 import { prepareRuntimeAgentPrompt } from "../session/prompt.js";
 import { createPromptLimits, toRuntimeMessages } from "../../session/model/prompt-budget.js";
 import { RuntimeSessionRecorder } from "../session/recorder.js";
-import {
-  prepareRuntimeSessionTurn,
-} from "../../session/writer.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
 import { messageFromError } from "../../error.js";
 
 const CHAT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -186,13 +184,19 @@ const prepareChatRunCommand = async (
   const userMessage = latestUserMessageContent(command);
 
   if (command.userMessage?.trim() && command.workspacePath?.trim() && command.sessionRootDir?.trim()) {
-    const preparedTurn = await prepareRuntimeSessionTurn({
-      ...command,
-      messages: command.messages ?? [],
-    }, {
-      includeSummary: true,
-      preserveRecordUserMessageFalse: true,
-    });
+    const preparedTurn = await createRuntimeSessionManager({
+      workspacePath: command.workspacePath,
+      sessionRootDir: command.sessionRootDir,
+    }).prepareTurn(
+      {
+        ...command,
+        messages: command.messages ?? [],
+      },
+      {
+        includeSummary: true,
+        preserveRecordUserMessageFalse: true,
+      },
+    );
     if (!preparedTurn) {
       throw new Error("chat 命令启用 runtime session 时必须提供 workspacePath 和 sessionRootDir");
     }
