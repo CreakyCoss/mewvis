@@ -31,10 +31,10 @@ The intended dependency direction is:
 index -> sdk -> engines/index -> engines/runtime
 cli   -> engines/index
       -> engines/protocol
-      -> engines -> native -> engines/native/agent
-                          -> engines/native/session
-                          -> engines/native/collaboration -> engines/native/agent
-                                                     -> executors/native
+      -> engines/drivers/native -> engines/drivers/native/agent
+                                -> engines/drivers/native/session
+                                -> engines/drivers/native/collaboration -> engines/drivers/native/agent
+                                                                   -> executors/native
 ```
 
 Application code should normally call `createAgentClient()` from the desktop
@@ -141,7 +141,7 @@ The new collaboration command is:
 
 `workflow.steps` supports these generic step types:
 
-- `agent`: call an agent role through `engines/native/agent`
+- `agent`: call an agent role through `engines/drivers/native/agent`
 - `dispatch`: dynamically call one or more agent invocations from structured input
 - `transform`: run a registered data transformer
 - `condition`: run a registered boolean condition and store the result
@@ -285,7 +285,7 @@ different prompts can safely share the same workflow session.
 
 ## Collaboration Executors
 
-`engines/native/collaboration` has a thin engine facade and pluggable executors. The
+`engines/drivers/native/collaboration` has a thin engine facade and pluggable executors. The
 default executor is `"langgraph"`, which uses `@langchain/langgraph` to run the
 shared workflow contract as a StateGraph. `"native"` is also registered as a
 built-in TypeScript implementation for serial and dependency-aware parallel
@@ -323,7 +323,7 @@ There is no separate host or CLI default executor setting; set
 
 ## Event Stream
 
-Single-agent events are forwarded unchanged from `engines/native/agent`.
+Single-agent events are forwarded unchanged from `engines/drivers/native/agent`.
 
 Collaboration emits these events:
 
@@ -388,7 +388,7 @@ client that does not start Node.
 Use these names consistently:
 
 - `agent-runtime` for the whole reusable runtime package.
-- `engines/native/agent` for single-agent execution.
-- `engines/native/collaboration` for multi-agent orchestration.
+- `engines/drivers/native/agent` for single-agent execution.
+- `engines/drivers/native/collaboration` for multi-agent orchestration.
 - `session` for shared runtime session storage, traces, manifests, and projections.
 - `createAgentClient()` for the frontend-facing client facade.
