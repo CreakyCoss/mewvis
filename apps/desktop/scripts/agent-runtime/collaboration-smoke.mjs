@@ -11,8 +11,8 @@ const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
 const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
 const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/index.ts");
-const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/collaboration/index.ts");
-const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/native/session/index.ts");
+const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/collaboration/index.ts");
+const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/session/index.ts");
 
 writeFileSync(entryPath, `
   import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";

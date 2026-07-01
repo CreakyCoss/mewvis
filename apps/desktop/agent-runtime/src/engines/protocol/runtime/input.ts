@@ -8,9 +8,7 @@ import type {
 } from "../collaboration/index.js";
 import type { RuntimeModelInput } from "../model.js";
 
-export type AgentToolsQuery = {
-  agentId?: string | null;
-};
+export type AgentToolsQuery = Record<string, never>;
 
 type SessionTargetShape = {
   workspacePath: string;
@@ -23,7 +21,6 @@ type RequiredSessionTargetShape = {
 };
 
 type AgentTargetShape = {
-  agentId?: string | null;
   agentRoleId?: string | null;
 };
 
@@ -62,7 +59,6 @@ export type AnswerQuestionInput = {
 
 export type RunChatInput = {
   session?: SessionTargetShape | null;
-  agent?: Pick<AgentTargetShape, "agentId"> | null;
   input: AgentMessageShape;
   runtime?: Pick<RuntimeOptionsShape, "streamId" | "stream" | "model"> | null;
 };
@@ -74,7 +70,6 @@ type SessionLinkShape = {
 };
 
 export type ChatInput = {
-  agentId?: string | null;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
   streamId?: string | null;
@@ -91,7 +86,6 @@ export type ChatInput = {
 };
 
 export type AgentRunInput = {
-  agentId?: string | null;
   taskId: string;
   workspacePath: string;
   sessionRootDir?: string | null;
@@ -116,7 +110,6 @@ export type ReadSessionInput = RequiredSessionTargetShape;
 
 type CompactTargetShape = {
   scope: "agent";
-  agentId?: string | null;
   agentRoleId: string;
 };
 
@@ -138,7 +131,6 @@ export type RebuildAgentSessionInput = RequiredSessionTargetShape & {
 };
 
 export type SummarizeSessionInput = RequiredSessionTargetShape & {
-  agent?: Pick<AgentTargetShape, "agentId"> | null;
   options?: {
     summaryInstruction?: string | null;
     maxSummaryChars?: number | null;

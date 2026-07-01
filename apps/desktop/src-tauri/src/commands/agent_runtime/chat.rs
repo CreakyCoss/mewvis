@@ -12,7 +12,6 @@ const AGENT_RUNTIME_CHAT_EVENT: &str = "agent_runtime_chat_event";
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunAgentRuntimeChatInput {
-    agent_id: Option<String>,
     workspace_path: Option<String>,
     session_root_dir: Option<String>,
     stream_id: Option<String>,
@@ -69,9 +68,6 @@ fn chat_with_agent_runtime_blocking(
     let command = json!({
         "type": "chat",
         "session": session,
-        "agent": {
-            "agentId": input.agent_id,
-        },
         "input": {
             "systemPrompt": input.system_prompt,
             "userMessage": input.user_message,

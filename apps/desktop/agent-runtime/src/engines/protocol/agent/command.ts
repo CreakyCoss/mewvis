@@ -6,7 +6,6 @@ export enum AgentTaskCommandType {
   SendMessage = "send_message",
   AnswerQuestion = "answer_question",
   Chat = "chat",
-  ListAgents = "list_agents",
   ListAgentTools = "list_agent_tools",
   ListRuntimeModels = "list_runtime_models",
   Ping = "ping",
@@ -39,7 +38,6 @@ type RuntimeSessionTarget = {
 };
 
 type AgentTarget = {
-  agentId?: string | null;
   agentRoleId?: string | null;
 };
 
@@ -82,15 +80,9 @@ export type AnswerQuestionCommand = {
   answer: string;
 };
 
-export type ListAgentsCommand = {
-  type: AgentTaskCommandType.ListAgents;
-  requestId?: string | null;
-};
-
 export type ListAgentToolsCommand = {
   type: AgentTaskCommandType.ListAgentTools;
   requestId?: string | null;
-  agentId?: string | null;
 };
 
 export type ListRuntimeModelsCommand = {
@@ -102,7 +94,6 @@ export type ChatCommand = {
   type: AgentTaskCommandType.Chat;
   requestId?: string | null;
   session?: RuntimeSessionTarget | null;
-  agent?: Pick<AgentTarget, "agentId"> | null;
   input: AgentMessageInput;
   runtime?: Pick<AgentRuntimeOptions, "streamId" | "stream" | "model"> | null;
 };
@@ -115,7 +106,6 @@ type SessionCommandBase = {
 
 type RuntimeCompactTarget = {
   scope: "agent";
-  agentId?: string | null;
   agentRoleId: string;
 };
 
@@ -149,7 +139,6 @@ export type RebuildAgentSessionCommand = SessionCommandBase & {
 
 export type SummarizeSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.SummarizeSession;
-  agent?: Pick<AgentTarget, "agentId"> | null;
   options?: RuntimeSummaryOptions | null;
   runtime?: Pick<AgentRuntimeOptions, "model"> | null;
 };
@@ -211,7 +200,6 @@ export type AgentTaskCommand =
   | SendMessageCommand
   | AnswerQuestionCommand
   | ChatCommand
-  | ListAgentsCommand
   | ListAgentToolsCommand
   | ListRuntimeModelsCommand
   | PingCommand

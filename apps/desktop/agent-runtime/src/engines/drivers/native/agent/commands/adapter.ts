@@ -16,7 +16,6 @@ const chatRunCommandFromSendMessage = (
 ): ChatRunCommand => ({
   type: "chat",
   requestId: command.requestId ?? null,
-  agentId: command.agent?.agentId ?? null,
   workspacePath: command.session.workspacePath,
   sessionRootDir: command.session.sessionRootDir ?? null,
   streamId: command.runtime?.streamId ?? null,
@@ -35,7 +34,6 @@ const agentRunCommandFromSendMessage = (
 ): AgentRunCommand => ({
   runtimeMode: "agent",
   requestId: command.requestId ?? null,
-  agentId: command.agent?.agentId ?? null,
   taskId: command.runtime?.taskId?.trim() ||
     command.requestId?.trim() ||
     `runtime-task-${randomUUID()}`,
@@ -65,7 +63,6 @@ export const runtimeCommandFromSendMessage = (command: SendMessageCommand) =>
 export const chatRunCommandFromChat = (command: ChatCommand): ChatRunCommand => ({
   type: "chat",
   requestId: command.requestId ?? null,
-  agentId: command.agent?.agentId ?? null,
   workspacePath: command.session?.workspacePath ?? null,
   sessionRootDir: command.session?.sessionRootDir ?? null,
   streamId: command.runtime?.streamId ?? null,

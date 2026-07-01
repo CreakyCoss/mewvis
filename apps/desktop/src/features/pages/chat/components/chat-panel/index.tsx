@@ -2,7 +2,6 @@ import { useState, type Dispatch, type RefObject, type SetStateAction } from "re
 import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
 import type {
   AgentToolSummary,
-  RuntimeAgentDefinition,
 } from "@/agent-client/protocol";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,9 +49,6 @@ export type ChatPanelViewModel = {
   isSending: boolean;
   activeAgentTaskId: string;
   isSettingsLoading: boolean;
-  availableRuntimeAgents: readonly RuntimeAgentDefinition[];
-  selectedRuntimeAgent: RuntimeAgentDefinition | null;
-  runtimeAgentId: string;
   agentProfiles: AgentProfile[];
   runtimeModels: RuntimeModelOption[];
   selectedRuntimeModelId: string;
@@ -73,7 +69,6 @@ export type ChatPanelViewModel = {
   setAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   setCustomAgentQuestionAnswer: Dispatch<SetStateAction<string>>;
   submitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
-  setSelectedRuntimeAgentId: Dispatch<SetStateAction<string>>;
   setSelectedAgentId: Dispatch<SetStateAction<string>>;
   setSelectedRuntimeModelId: (id: string) => void;
   toggleAllowedAgentTool: (toolId: string, enabled: boolean) => void;
@@ -248,9 +243,6 @@ export const ChatPanel = () => {
     isSending,
     activeAgentTaskId,
     isSettingsLoading,
-    availableRuntimeAgents,
-    selectedRuntimeAgent,
-    runtimeAgentId,
     agentProfiles,
     runtimeModels,
     selectedRuntimeModelId,
@@ -266,7 +258,6 @@ export const ChatPanel = () => {
     setAgentQuestionAnswer,
     setCustomAgentQuestionAnswer,
     submitAgentQuestionAnswer,
-    setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,
@@ -300,9 +291,6 @@ export const ChatPanel = () => {
       isSettingsLoading={isSettingsLoading}
       showThinkingProcess={showThinkingProcess}
       showToolCallProcess={showToolCallProcess}
-      runtimeAgents={availableRuntimeAgents}
-      selectedRuntimeAgent={selectedRuntimeAgent}
-      selectedRuntimeAgentId={runtimeAgentId}
       agentProfiles={agentProfiles}
       runtimeModels={runtimeModels}
       selectedRuntimeModelId={selectedRuntimeModelId}
@@ -316,7 +304,6 @@ export const ChatPanel = () => {
       selectedSkillGroupLabel={selectedSkillGroupLabel}
       onShowThinkingProcessChange={setShowThinkingProcess}
       onShowToolCallProcessChange={setShowToolCallProcess}
-      onRuntimeAgentChange={setSelectedRuntimeAgentId}
       onSelectedAgentChange={setSelectedAgentId}
       onRuntimeModelChange={setSelectedRuntimeModelId}
       onToggleAllowedAgentTool={toggleAllowedAgentTool}

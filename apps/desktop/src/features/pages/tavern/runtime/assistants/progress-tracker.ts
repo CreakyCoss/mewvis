@@ -27,7 +27,6 @@ import {
 
 export type RunTavernProgressTrackingInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -41,7 +40,6 @@ export type RunTavernProgressTrackingInput = {
 
 export const runTavernProgressTracking = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -61,7 +59,6 @@ export const runTavernProgressTracking = async ({
     storyContext,
   });
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernProgressTrackerAgentRoleId(room),

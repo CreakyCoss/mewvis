@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import {
   type AgentToolSummary,
-  type RuntimeAgentDefinition,
 } from "@/agent-client/protocol";
 import {
   getActiveReferenceToken,
@@ -59,9 +58,6 @@ type ComposerProps = {
   isSettingsLoading: boolean;
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
-  runtimeAgents: readonly RuntimeAgentDefinition[];
-  selectedRuntimeAgent: RuntimeAgentDefinition | null;
-  selectedRuntimeAgentId: string;
   agentProfiles: AgentProfile[];
   runtimeModels: RuntimeModelOption[];
   selectedRuntimeModelId: string;
@@ -75,7 +71,6 @@ type ComposerProps = {
   selectedSkillGroupLabel: string;
   onShowThinkingProcessChange: (value: boolean) => void;
   onShowToolCallProcessChange: (value: boolean) => void;
-  onRuntimeAgentChange: (agentId: string) => void;
   onSelectedAgentChange: (agentId: string) => void;
   onRuntimeModelChange: (id: string) => void;
   onToggleAllowedAgentTool: (toolId: string, enabled: boolean) => void;
@@ -100,9 +95,6 @@ export const Composer = memo(({
   isSettingsLoading,
   showThinkingProcess,
   showToolCallProcess,
-  runtimeAgents,
-  selectedRuntimeAgent,
-  selectedRuntimeAgentId,
   agentProfiles,
   runtimeModels,
   selectedRuntimeModelId,
@@ -116,7 +108,6 @@ export const Composer = memo(({
   selectedSkillGroupLabel,
   onShowThinkingProcessChange,
   onShowToolCallProcessChange,
-  onRuntimeAgentChange,
   onSelectedAgentChange,
   onRuntimeModelChange,
   onToggleAllowedAgentTool,
@@ -174,21 +165,16 @@ export const Composer = memo(({
     [fileReferenceMatches],
   );
   const visibleAllowedAgentTools = allowedAgentTools;
-  const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
   const selectedModelLabel = selectedRuntimeModel
     ? selectedRuntimeModel.modelName
     : "选择模型";
   const selectedModelTitle = selectedRuntimeModel
     ? formatRuntimeModelTitle(selectedRuntimeModel)
     : selectedModelLabel;
-  const modelLabel = !runtimeAgentRequiresModel
-    ? "无需模型"
-    : selectedModelLabel;
   const selectedAgentLabel = selectedAgent?.name ?? "不使用角色";
   const modelMenuLabel = selectedAgent
-    ? `${modelLabel} · ${selectedAgent.name}`
-    : modelLabel;
-  const runtimeAgentLabel = selectedRuntimeAgent?.label ?? "运行时";
+    ? `${selectedModelLabel} · ${selectedAgent.name}`
+    : selectedModelLabel;
   const enabledProcessOptionLabel = [
     showThinkingProcess ? "思考" : "",
     showToolCallProcess ? "工具" : "",
@@ -352,7 +338,7 @@ export const Composer = memo(({
                   variant="ghost"
                   size="sm"
                   className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
-                  title={`模型：${runtimeAgentRequiresModel ? selectedModelTitle : modelLabel}；角色：${selectedAgentLabel}`}
+                  title={`模型：${selectedModelTitle}；角色：${selectedAgentLabel}`}
                 >
                   <Orbit className="size-3.5 shrink-0" />
                   <span className="min-w-0 truncate">{modelMenuLabel}</span>
@@ -422,26 +408,6 @@ export const Composer = memo(({
                           </DropdownMenuRadioItem>
                         ))
                       )}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger title={runtimeAgentLabel}>
-                    <Bot className="size-3.5" />
-                    <span className="min-w-0 flex-1 truncate">执行</span>
-                    <span className="max-w-28 truncate text-xs text-muted-foreground">{runtimeAgentLabel}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-60">
-                    <DropdownMenuRadioGroup value={selectedRuntimeAgentId} onValueChange={onRuntimeAgentChange}>
-                      {runtimeAgents.map((agent) => (
-                        <DropdownMenuRadioItem
-                          key={agent.id}
-                          value={agent.id}
-                          title={agent.description}
-                        >
-                          <span className="truncate">{agent.label}</span>
-                        </DropdownMenuRadioItem>
-                      ))}
                     </DropdownMenuRadioGroup>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>

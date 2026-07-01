@@ -8,7 +8,6 @@ import type {
 
 export type TavernQuickSummaryInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];

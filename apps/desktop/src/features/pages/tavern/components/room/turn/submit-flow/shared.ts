@@ -342,7 +342,6 @@ export const resolveManagedUserText = async ({
   ctx.setTurnStatus("导演正在代你生成本轮回复...");
   return runTavernManagedUserReply({
     workspacePath: ctx.workspace.path,
-    runtimeAgentId: ctx.runtimeAgentId,
     runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
     room,
     characters: ctx.roomCharacters,

@@ -74,7 +74,6 @@ export const submitRoomTurn = async ({
     isSending,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     setError,
   } = ctx;
@@ -92,11 +91,6 @@ export const submitRoomTurn = async ({
 
   if (!runtimeModel) {
     setError("请先在设置中选择模型，再进入酒馆对话。");
-    return;
-  }
-
-  if (!runtimeAgentId) {
-    setError("请先选择可用的 Agent 运行配置。");
     return;
   }
 

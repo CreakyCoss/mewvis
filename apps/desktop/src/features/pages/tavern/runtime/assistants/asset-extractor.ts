@@ -21,7 +21,6 @@ export type { TavernExtractedAssetDraft } from "./asset-extractor/types";
 
 export type RunTavernAssetExtractionInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -34,7 +33,6 @@ export type RunTavernAssetExtractionInput = {
 
 export const runTavernAssetExtraction = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -53,7 +51,6 @@ export const runTavernAssetExtraction = async ({
     storyContext,
   });
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernArchivistAgentRoleId(room),

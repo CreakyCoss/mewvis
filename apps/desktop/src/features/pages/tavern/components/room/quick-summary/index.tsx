@@ -77,7 +77,6 @@ export const QuickSummary = ({
     roomCharacters,
     roomMessages,
     runtimeModel,
-    runtimeAgentId,
     isSending,
     visualPreset,
     setIsQuickSummaryBusy,
@@ -184,18 +183,12 @@ export const QuickSummary = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      setError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     const summaryMessages = getQuickSummarySourceMessages(roomMessages);
     const sceneId = getRoomActiveSceneId(activeRoom);
 
     setIsGeneratingSummary(true);
     void generateQuickSummary({
       workspacePath: workspace.path,
-      runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: activeRoom,
       characters: roomCharacters,
@@ -227,7 +220,6 @@ export const QuickSummary = ({
     isSending,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     signature,
     workspace.id,
@@ -261,18 +253,12 @@ export const QuickSummary = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      setError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     const novelMessages = getQuickSummarySourceMessages(roomMessages);
     const sceneId = getRoomActiveSceneId(activeRoom);
 
     setIsGeneratingNovel(true);
     void generateQuickNovel({
       workspacePath: workspace.path,
-      runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: activeRoom,
       characters: roomCharacters,
@@ -303,7 +289,6 @@ export const QuickSummary = ({
     isSending,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     signature,
     workspace.id,

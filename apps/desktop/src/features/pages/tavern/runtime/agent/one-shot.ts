@@ -7,7 +7,6 @@ import {
 } from "./run-agent";
 
 export type RunTavernOneShotAgentInput = {
-  agentId?: string | null;
   workspacePath: string;
   agentRoleId?: string | null;
   runtimeModel?: RuntimeModelInput | null;

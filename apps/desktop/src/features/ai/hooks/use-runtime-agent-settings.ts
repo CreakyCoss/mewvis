@@ -1,36 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
-  RuntimeAgentCapability,
-  RuntimeAgentDefinition,
-} from "@/agent-client/protocol";
 import { getAiAgentSettings } from "@/features/pages/settings/agent/api";
 import type { AiAgent } from "@/features/pages/settings/agent/types";
 import { resolveAgentProfiles } from "@/features/pages/settings/agent/utils";
 import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 
-type RuntimeAgentSource = {
-  listAgents: () => Promise<Readonly<{
-    agents: readonly RuntimeAgentDefinition[];
-    defaultAgentId: string;
-  }>>;
-};
-
 type UseRuntimeAgentSettingsInput = {
-  agentClient: RuntimeAgentSource;
-  capability?: RuntimeAgentCapability;
+  agentClient?: unknown;
+  capability?: unknown;
 };
 
-export const useRuntimeAgentSettings = ({
-  agentClient,
-  capability = "agent",
-}: UseRuntimeAgentSettingsInput) => {
+export const useRuntimeAgentSettings = (_input: UseRuntimeAgentSettingsInput = {}) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModelError = useLlmSettingsStore((store) => store.error);
 
-  const [runtimeAgents, setRuntimeAgents] = useState<RuntimeAgentDefinition[]>([]);
-  const [defaultRuntimeAgentId, setDefaultRuntimeAgentId] = useState("");
-  const [selectedRuntimeAgentId, setSelectedRuntimeAgentId] = useState("");
   const [selectedRuntimeModelId, setSelectedRuntimeModelId] = useState("");
   const [agents, setAgents] = useState<AiAgent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
@@ -64,28 +47,9 @@ export const useRuntimeAgentSettings = ({
     }
   }, [loadLlmSettings]);
 
-  const loadRuntimeAgents = useCallback(async () => {
-    try {
-      const definitions = await agentClient.listAgents();
-      setRuntimeAgents([...definitions.agents]);
-      setDefaultRuntimeAgentId(definitions.defaultAgentId);
-      setSelectedRuntimeAgentId((currentAgentId) =>
-        definitions.agents.some((agent) => agent.id === currentAgentId)
-          ? currentAgentId
-          : definitions.defaultAgentId
-      );
-    } catch (caught) {
-      setSettingsError(String(caught));
-    }
-  }, [agentClient]);
-
   useEffect(() => {
     void loadLlmOptions();
   }, [loadLlmOptions]);
-
-  useEffect(() => {
-    void loadRuntimeAgents();
-  }, [loadRuntimeAgents]);
 
   useEffect(() => {
     setSelectedRuntimeModelId((currentId) => {
@@ -100,19 +64,7 @@ export const useRuntimeAgentSettings = ({
       ?? null,
     [runtimeModels, selectedRuntimeModelId],
   );
-  const availableRuntimeAgents = useMemo(
-    () => runtimeAgents.filter((agent) => agent.capabilities.includes(capability)),
-    [capability, runtimeAgents],
-  );
-  const selectedRuntimeAgent = useMemo(
-    () => availableRuntimeAgents.find((agent) => agent.id === selectedRuntimeAgentId)
-      ?? availableRuntimeAgents.find((agent) => agent.id === defaultRuntimeAgentId)
-      ?? availableRuntimeAgents[0]
-      ?? null,
-    [availableRuntimeAgents, defaultRuntimeAgentId, selectedRuntimeAgentId],
-  );
-  const runtimeAgentId = selectedRuntimeAgent?.id ?? defaultRuntimeAgentId;
-  const runtimeAgentRequiresModel = selectedRuntimeAgent?.requiresModel ?? true;
+  const runtimeAgentRequiresModel = true;
   const agentProfiles = useMemo(() => resolveAgentProfiles(agents), [agents]);
   const selectedAgent = useMemo(
     () => agentProfiles.find((agent) => agent.id === selectedAgentId) ?? null,
@@ -126,12 +78,6 @@ export const useRuntimeAgentSettings = ({
     }
   }, [runtimeModelError]);
 
-  useEffect(() => {
-    if (selectedRuntimeAgent && selectedRuntimeAgent.id !== selectedRuntimeAgentId) {
-      setSelectedRuntimeAgentId(selectedRuntimeAgent.id);
-    }
-  }, [selectedRuntimeAgent, selectedRuntimeAgentId]);
-
   return {
     runtimeModels,
     selectedRuntimeModelId,
@@ -142,11 +88,6 @@ export const useRuntimeAgentSettings = ({
     setSettingsError,
     isSettingsLoading,
     selectedRuntimeModel,
-    availableRuntimeAgents,
-    selectedRuntimeAgent,
-    selectedRuntimeAgentId,
-    setSelectedRuntimeAgentId,
-    runtimeAgentId,
     runtimeAgentRequiresModel,
     agentProfiles,
     selectedAgent,

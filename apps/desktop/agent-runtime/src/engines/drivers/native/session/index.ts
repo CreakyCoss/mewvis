@@ -29,6 +29,7 @@ import type {
   RuntimeSessionMutationHooks,
   RuntimeSessionPathInput,
   RuntimeSessionProvider,
+  RuntimeSessionProviderId,
   RuntimeSessionTraceInput,
   RuntimeSessionTraceRecord,
   RuntimeSessionTurnOptions,
@@ -37,7 +38,9 @@ import type {
 type SessionManagerInput<TInput extends RuntimeSessionPathInput> =
   Omit<TInput, keyof RuntimeSessionPathInput>;
 
-export type RuntimeSessionManagerTarget = RuntimeSessionPathInput;
+export type RuntimeSessionManagerTarget = RuntimeSessionPathInput & {
+  providerId?: RuntimeSessionProviderId | null;
+};
 
 class RuntimeSessionManager {
   readonly workspacePath: string;
@@ -273,14 +276,18 @@ class RuntimeSessionManager {
 
 export const createRuntimeSessionManager = (
   target: RuntimeSessionManagerTarget,
-) => new RuntimeSessionManager(target, resolveRuntimeSessionProvider());
+) => new RuntimeSessionManager(
+  target,
+  resolveRuntimeSessionProvider(target.providerId),
+);
 
 export const listRuntimeSessions = async (
   input: RuntimeSessionsQuery,
+  providerId?: RuntimeSessionProviderId | null,
 ): Promise<RuntimeSessionsResult> => ({
   type: AgentRuntimeResultType.RuntimeSessionsResult,
   requestId: null,
-  sessions: await resolveRuntimeSessionProvider().listRuntimeSessions({
+  sessions: await resolveRuntimeSessionProvider(providerId).listRuntimeSessions({
     workspacePath: input.workspacePath,
     rootDir: input.rootDir,
     limit: input.limit,

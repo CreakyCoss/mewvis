@@ -15,7 +15,7 @@ mod types;
 pub use agent::{
     abort_agent_runtime_agent, answer_agent_runtime_question, run_agent_runtime_agent,
 };
-pub use agents::{list_agent_runtime_agents, list_agent_runtime_tools};
+pub use agents::list_agent_runtime_tools;
 pub use chat::run_agent_runtime_chat;
 pub use collaboration::{
     run_agent_runtime_collaboration, run_agent_runtime_collaboration_mode,

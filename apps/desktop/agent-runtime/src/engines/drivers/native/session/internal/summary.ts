@@ -238,12 +238,12 @@ const buildSummaryUserPrompt = (input: {
 export const generateDisplaySummary = async (input: {
   context: RuntimeSessionContextView;
   sourceEntries?: RuntimeSessionSummarySourceEntry[];
-  agentId?: string | null;
+  runtimeId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
 }): Promise<DisplaySummaryGenerationResult> => {
-  const { runtimeId, implementation } = resolveRuntime("chat", input.agentId);
+  const { runtimeId, implementation } = resolveRuntime("chat", input.runtimeId);
   const budget = createSummaryBudget(input.runtimeModel, input.maxSummaryChars);
   const source = input.sourceEntries
     ? renderSummarySource(input.sourceEntries)
@@ -271,7 +271,7 @@ export const generateDisplaySummary = async (input: {
       const command: ChatRunCommand = {
         type: "chat",
         requestId: null,
-        agentId: input.agentId ?? null,
+        runtimeId,
         workspacePath: null,
         sessionRootDir: null,
         stream: false,
@@ -307,7 +307,7 @@ export const generateDisplaySummary = async (input: {
       const command: ChatRunCommand = {
         type: "chat",
         requestId: null,
-        agentId: input.agentId ?? null,
+        runtimeId,
         workspacePath: null,
         sessionRootDir: null,
         stream: false,

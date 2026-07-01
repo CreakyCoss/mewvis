@@ -27,7 +27,6 @@ import {
 
 export type TavernUserReplySuggestionInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -38,7 +37,6 @@ export type TavernUserReplySuggestionInput = {
 
 export const runTavernUserReplySuggestions = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -55,7 +53,6 @@ export const runTavernUserReplySuggestions = async ({
   });
 
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernQuickReplyAgentRoleId(room),
@@ -84,7 +81,6 @@ export const runTavernUserReplySuggestions = async ({
 
 export const runTavernManagedUserReply = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -103,7 +99,6 @@ export const runTavernManagedUserReply = async ({
 
   const runManagedReplyRequest = async (content: string) => {
     const result = await runTavernRuntimeAgent({
-      agentId: runtimeAgentId,
       workspacePath,
       sessionRootDir: tavernBridgeSessionRootDir(room),
       agentRoleId: tavernManagedUserAgentRoleId(room),

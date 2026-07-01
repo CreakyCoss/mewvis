@@ -131,7 +131,6 @@ const generateMissingInnerThought = async ({
   try {
     return await runTavernInnerThought({
       workspacePath: ctx.workspace.path,
-      runtimeAgentId: ctx.runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: runtimeRoom,
       activeCharacter: speaker,
@@ -178,7 +177,6 @@ const compactSpeakerKnowledgeIfNeeded = async ({
     const compactResult = await compactTavernAgentKnowledge({
       workspacePath: ctx.workspace.path,
       room,
-      runtimeAgentId: ctx.runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       agentRoleId: tavernCharacterAgentRoleId(room, speaker),
       compactInstruction: [
@@ -231,7 +229,6 @@ const runSpeakerReplyThroughCollaboration = async ({
 }) => {
   const collaborationInput = buildTavernSpeakerCollaborationInput({
     workspacePath: ctx.workspace.path,
-    runtimeAgentId: ctx.runtimeAgentId,
     runtimeModel: requireTavernRuntimeModelInput(speakerRuntimeModel),
     room: runtimeRoom,
     speakers: [speaker],
@@ -718,7 +715,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
 
   const collaborationInput = buildTavernSpeakerCollaborationInput({
     workspacePath: ctx.workspace.path,
-    runtimeAgentId: ctx.runtimeAgentId,
     runtimeModel: requireTavernRuntimeModelInput(firstRuntime.speakerRuntimeModel),
     room: runtimeRoom,
     speakers,

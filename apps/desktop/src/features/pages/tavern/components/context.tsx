@@ -36,7 +36,6 @@ export type TavernPageProps = {
   workspace: Workspace;
   files: WorkspaceFileEntry[];
   runtimeModel: RuntimeModelOption | null;
-  runtimeAgentId: string;
   isHomeFullscreen?: boolean;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
@@ -45,7 +44,7 @@ export type TavernPageProps = {
 
 type TavernPageProviderProps = Pick<
   TavernPageProps,
-  "workspace" | "runtimeModel" | "runtimeAgentId"
+  "workspace" | "runtimeModel"
 >;
 
 export type TavernPageContextValue = TavernPageProviderProps & {
@@ -114,7 +113,6 @@ export const TavernPageProvider = ({
   children,
   workspace,
   runtimeModel,
-  runtimeAgentId,
 }: TavernPageProviderProps & {
   children: ReactNode;
 }) => {
@@ -367,7 +365,6 @@ export const TavernPageProvider = ({
   const value = useMemo<TavernPageContextValue>(() => ({
     workspace,
     runtimeModel,
-    runtimeAgentId,
     state,
     setState,
     draft,
@@ -436,7 +433,6 @@ export const TavernPageProvider = ({
     resetExecutionTrace,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     state,
     turnStatus,

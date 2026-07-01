@@ -44,7 +44,6 @@ import { SceneNovelizerDraftView } from "./SceneNovelizerDraftView";
 type SceneNovelizerPanelProps = {
   source: SceneNovelSource;
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput | null;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
@@ -130,7 +129,6 @@ const createLocalDraft = (
 export const SceneNovelizerPanel = ({
   source,
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   disabled = false,
   onBusyChange,
@@ -222,7 +220,6 @@ export const SceneNovelizerPanel = ({
     try {
       const nextDraft = await runSceneNovelizer({
         workspacePath,
-        agentId: runtimeAgentId,
         runtimeModel,
         source: effectiveSource,
         autoRewrite: true,

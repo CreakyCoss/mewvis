@@ -19,7 +19,6 @@ export type TavernCollaborationInput =
 
 type TavernDirectorBaseCollaborationInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -38,7 +37,6 @@ type TavernDirectorBaseCollaborationInput = {
 
 export type TavernSpeakerCollaborationInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   speakers: TavernCharacter[];

@@ -18,6 +18,7 @@ const cliErrorMessage = (error: unknown) =>
 const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();
   const runtime = createRuntimeEngine({
+    profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
     close: () => {
       reader.close();
     },

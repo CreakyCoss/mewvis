@@ -23,6 +23,7 @@ export type AgentRuntimeUserInputHandler = (
 ) => Promise<string>;
 
 export type AgentRuntimeSdkOptions = {
+  profileId?: string | null;
   callbacks?: {
     onEvent?: (event: AgentRuntimeEvent) => void;
     onResult?: (result: AgentRuntimeResult) => void;
@@ -51,7 +52,12 @@ export const createAgentRuntime = (
       });
   }
 
-  return Object.keys(runtimeCallbacks).length > 0
-    ? createRuntimeEngine({ callbacks: runtimeCallbacks })
-    : createRuntimeEngine();
+  const runtimeOptions = {
+    profileId: options.profileId,
+    ...(Object.keys(runtimeCallbacks).length > 0
+      ? { callbacks: runtimeCallbacks }
+      : {}),
+  };
+
+  return createRuntimeEngine(runtimeOptions);
 };

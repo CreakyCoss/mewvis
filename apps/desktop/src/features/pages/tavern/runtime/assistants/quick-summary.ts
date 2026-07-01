@@ -16,7 +16,6 @@ export type { TavernQuickSummaryInput } from "./quick-summary/types";
 
 export const runTavernQuickSummary = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -45,7 +44,6 @@ export const runTavernQuickSummary = async ({
   const result = await summarizeTavernBridgeSession({
     workspacePath,
     room,
-    runtimeAgentId,
     runtimeModel,
     maxSummaryChars: 4200,
     summaryInstruction: [
@@ -63,7 +61,6 @@ export const runTavernQuickSummary = async ({
 
 export const runTavernQuickNovel = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -73,7 +70,6 @@ export const runTavernQuickNovel = async ({
   const prompt = buildTavernQuickNovelPrompt({ room, characters, messages, storyContext });
 
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernQuickNovelAgentRoleId(room),

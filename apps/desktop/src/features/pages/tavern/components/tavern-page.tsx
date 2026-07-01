@@ -224,7 +224,6 @@ export const TavernPage = ({
   workspace,
   files,
   runtimeModel,
-  runtimeAgentId,
   isHomeFullscreen = false,
   initialRoomId,
   initialSceneInstanceId,
@@ -233,7 +232,6 @@ export const TavernPage = ({
   <TavernPageProvider
     workspace={workspace}
     runtimeModel={runtimeModel}
-    runtimeAgentId={runtimeAgentId}
   >
     <TavernPageContent
       files={files}
@@ -273,7 +271,6 @@ const TavernPageContent = ({
     patchRoom,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     setDraft,
     setDraftCursor,
@@ -585,7 +582,6 @@ const TavernPageContent = ({
       alreadyAssigned ||
       roleAssignmentRoomIdsRef.current.has(activeRoom.id) ||
       !runtimeModel ||
-      !runtimeAgentId ||
       roomCharacters.length === 0
     ) {
       return;
@@ -602,7 +598,6 @@ const TavernPageContent = ({
     withTavernTimeout(
       runTavernDirectorRoleAssignment({
         workspacePath: workspace.path,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
@@ -702,7 +697,6 @@ const TavernPageContent = ({
     isTavernStateHydrated,
     patchRoom,
     roomCharacters,
-    runtimeAgentId,
     runtimeModel,
     viewMode,
     workspace.path,
@@ -818,11 +812,6 @@ const TavernPageContent = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      setError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     if (!activeRoom) {
       setError("当前房间还没有可生成回复的场景。");
       return;
@@ -838,7 +827,6 @@ const TavernPageContent = ({
     try {
       const suggestions = await runTavernUserReplySuggestions({
         workspacePath: workspace.path,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
@@ -866,7 +854,6 @@ const TavernPageContent = ({
     roomCharacters,
     roomMessages,
     runtimeModel,
-    runtimeAgentId,
     workspace.path,
   ]);
 

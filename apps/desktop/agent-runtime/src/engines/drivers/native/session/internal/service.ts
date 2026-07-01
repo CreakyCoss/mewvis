@@ -253,7 +253,6 @@ export const summarizeRuntimeSession = async (
   const generated = await generateDisplaySummary({
     context: contextViewFrom(context),
     sourceEntries: summarySourceEntriesFromContext(context),
-    agentId: command.agent?.agentId ?? null,
     runtimeModel: command.runtime?.model ?? null,
     summaryInstruction: command.options?.summaryInstruction ?? null,
     maxSummaryChars: command.options?.maxSummaryChars ?? null,

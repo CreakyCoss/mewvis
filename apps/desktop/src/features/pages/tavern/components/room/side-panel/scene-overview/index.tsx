@@ -1213,7 +1213,6 @@ export const SceneOverviewSection = ({
     roomCharacters,
     roomMessages,
     runtimeModel,
-    runtimeAgentId,
     isSending,
     patchRoom,
     appendMessagesToRoom,
@@ -1359,11 +1358,6 @@ export const SceneOverviewSection = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      reportError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     if (roomCharacters.length === 0) {
       reportError("当前房间还没有可更新状态的角色。");
       return;
@@ -1400,7 +1394,6 @@ export const SceneOverviewSection = ({
     try {
       const factEvents = await runTavernProgressTracking({
         workspacePath: workspace.path,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,

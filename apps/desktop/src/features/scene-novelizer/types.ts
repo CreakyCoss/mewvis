@@ -109,7 +109,6 @@ export type SceneNovelDraft = {
 
 export type SceneNovelizerRunInput = {
   workspacePath: string;
-  agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   source: SceneNovelSource;
   autoRewrite?: boolean;

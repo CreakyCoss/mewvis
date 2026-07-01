@@ -48,7 +48,7 @@ const maintenanceRuntimeCommand = (
 ): RuntimeAgentCommand => ({
   runtimeMode: "agent",
   requestId: command.requestId ?? null,
-  agentId: command.agentId ?? null,
+  runtimeId: command.runtimeId ?? null,
   taskId: command.taskId,
   workspacePath: command.workspacePath,
   sessionRootDir: command.sessionRootDir,
@@ -247,7 +247,7 @@ export const summarizePiAgentSession = async (
       {
         type: "chat",
         requestId: command.requestId ?? null,
-        agentId: command.agentId ?? null,
+        runtimeId: command.runtimeId ?? null,
         workspacePath: null,
         sessionRootDir: null,
         stream: false,
@@ -301,7 +301,7 @@ const createPiAgentSummaryResult = async (
       timestamp: generatedAt,
       generatedAt,
       summaryInstruction: command.summaryInstruction ?? null,
-      runtimeId: command.runtimeId ?? command.agentId ?? null,
+      runtimeId: command.runtimeId ?? null,
       modelId: command.runtimeModel?.modelId ?? null,
       sourceCharCount: summaryResult.sourceCharCount,
       chunkCount: null,

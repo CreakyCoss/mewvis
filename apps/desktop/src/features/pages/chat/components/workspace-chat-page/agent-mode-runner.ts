@@ -34,7 +34,6 @@ type RunAgentTurnInput = {
 type RunAgentTurnDeps = {
   workspace: Workspace;
   activeSkills: WorkspacePromptSkillContext[];
-  runtimeAgentId: string;
   updateMessage: UpdateMessage;
   agentClient: AgentClient;
   setChatError: (message: string) => void;
@@ -57,7 +56,6 @@ export const runAgentTurn = async (
   {
     workspace,
     activeSkills,
-    runtimeAgentId,
     updateMessage,
     agentClient,
     setChatError,
@@ -79,14 +77,12 @@ export const runAgentTurn = async (
   }
 
   const agentRoleId = agentPromptPayload.agentRoleId;
-  const agentSessionStatusId = `${runtimeAgentId}/${agentRoleId}`;
   prepareActiveAgentRun({
     messageId: assistantMessageId,
   });
   const allowedToolsForRun = [...new Set(allowedAgentTools)];
   const task = await agentClient.run({
     type: "agent",
-    agentId: runtimeAgentId,
     workspacePath: workspace.path,
     sessionRootDir: createAgentSessionRootDir(nextSessionId),
     agentRoleId,
@@ -106,8 +102,7 @@ export const runAgentTurn = async (
     sessionId: nextSessionId,
     title: currentSessionTitle,
     messageId: assistantMessageId,
-    agentSessionId: agentSessionStatusId,
-    agentId: runtimeAgentId,
+    agentSessionId: agentRoleId,
     messages: nextMessages,
     pendingQuestion: null,
     questionAnswer: "",

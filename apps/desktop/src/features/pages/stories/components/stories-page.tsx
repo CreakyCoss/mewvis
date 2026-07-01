@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { createAgentClient } from "@/agent-client/runtime";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
@@ -21,16 +20,11 @@ import type { StoryDraft } from "./story-form-utils";
 import type { StoryConfigTab } from "./story-tabs";
 
 export const StoriesPage = () => {
-  const agentClient = useMemo(() => createAgentClient(), []);
   const {
-    runtimeAgentId,
     runtimeAgentRequiresModel,
     selectedRuntimeModel,
     settingsError,
-  } = useRuntimeAgentSettings({
-    agentClient,
-    capability: "chat",
-  });
+  } = useRuntimeAgentSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -95,7 +89,6 @@ export const StoriesPage = () => {
   } = useStoryManuscripts({
     activeStory,
     persistStory,
-    runtimeAgentId,
     runtimeAgentRequiresModel,
     selectedRuntimeModel,
     settingsError,

@@ -92,7 +92,7 @@ export class MockAgent implements AgentRuntime {
         timestamp: generatedAt,
         generatedAt,
         summaryInstruction: command.summaryInstruction ?? null,
-        runtimeId: command.runtimeId ?? command.agentId ?? null,
+        runtimeId: command.runtimeId ?? null,
         modelId: command.runtimeModel?.modelId ?? null,
         sourceCharCount: 0,
         chunkCount: null,

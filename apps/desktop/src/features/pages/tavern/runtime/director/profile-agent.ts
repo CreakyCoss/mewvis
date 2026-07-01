@@ -15,7 +15,6 @@ import { runTavernOneShotAgent } from "../agent";
 
 export type RunTavernDirectorProfileAgentInput = {
   workspacePath: string;
-  agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -222,14 +221,12 @@ const buildDirectorProfileRequestContext = (
 
 export const runTavernDirectorProfileAgent = async ({
   workspacePath,
-  agentId,
   runtimeModel,
   room,
   characters,
   storyContext,
 }: RunTavernDirectorProfileAgentInput): Promise<TavernDirectorProfile> => {
   const result = await runTavernOneShotAgent({
-    agentId,
     workspacePath,
     agentRoleId: DIRECTOR_PROFILE_AGENT_ROLE_ID,
     runtimeModel,

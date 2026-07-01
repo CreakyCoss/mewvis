@@ -11,6 +11,7 @@ import type { RuntimeSessionRecordRef } from "./model/context.js";
 import { resolveRuntimeSessionProvider } from "./providers/resolver.js";
 import type {
   RuntimeSessionAssistantMessageInput,
+  RuntimeSessionProviderId,
   RuntimeSessionRunRecorder,
 } from "./providers/types.js";
 
@@ -34,13 +35,16 @@ export class RuntimeSessionRecorder {
     private readonly delegate: RuntimeSessionRunRecorder,
   ) {}
 
-  static async create(command: RuntimeSessionCommand): Promise<RuntimeSessionRecorder | null> {
+  static async create(
+    command: RuntimeSessionCommand,
+    providerId?: RuntimeSessionProviderId | null,
+  ): Promise<RuntimeSessionRecorder | null> {
     if (!hasSession(command)) {
       return null;
     }
 
     return new RuntimeSessionRecorder(
-      await resolveRuntimeSessionProvider().createRecorder(command),
+      await resolveRuntimeSessionProvider(providerId).createRecorder(command),
     );
   }
 

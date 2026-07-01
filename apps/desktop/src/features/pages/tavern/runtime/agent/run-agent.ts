@@ -17,7 +17,6 @@ import type {
 const tavernAgentClient = createAgentClient();
 
 export type RunTavernRuntimeAgentInput = {
-  agentId?: string | null;
   workspacePath: string;
   sessionRootDir?: string | null;
   agentRoleId: string;
@@ -144,7 +143,6 @@ export async function runTavernRuntimeAgent(
 
       const task = await tavernAgentClient.run({
         type: "agent",
-        agentId: input.agentId,
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
         agentRoleId: input.agentRoleId,

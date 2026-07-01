@@ -15,10 +15,15 @@ import {
   agentRunUserMessage,
   buildAgentTaskPrompt,
 } from "../prompt.js";
+import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
 export type PreparedRuntimeAgentRun = {
   command: RuntimeAgentCommand;
   nativeSession?: AgentRuntimeNativeSession;
+};
+
+export type PrepareRuntimeAgentRunOptions = {
+  sessionProviderId?: RuntimeSessionProviderId | null;
 };
 
 const resolveAgentRunRoleKey = (command: AgentRunCommand) => {
@@ -40,6 +45,7 @@ const nativeSessionFor = (
 export const prepareRuntimeAgentRun = async (
   command: AgentRunCommand,
   runtimeId: string,
+  options: PrepareRuntimeAgentRunOptions = {},
 ): Promise<PreparedRuntimeAgentRun> => {
   const userMessage = agentRunUserMessage(command);
   if (!command.sessionRootDir?.trim()) {
@@ -67,6 +73,7 @@ export const prepareRuntimeAgentRun = async (
   const sessionManager = createRuntimeSessionManager({
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
+    providerId: options.sessionProviderId,
   });
   const preparedTurn = await sessionManager.prepareTurn(command, {
     includeSummary: false,
@@ -80,6 +87,7 @@ export const prepareRuntimeAgentRun = async (
   const sessionPlan = await createAgentSessionPlan({
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
+    sessionProviderId: options.sessionProviderId,
     runtimeId,
     agentRoleId: resolveAgentRunRoleKey(command),
   });

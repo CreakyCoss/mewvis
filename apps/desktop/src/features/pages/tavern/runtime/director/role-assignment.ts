@@ -18,13 +18,11 @@ export type { TavernDirectorRoleAssignment } from "./role-assignment/types";
 
 export const runTavernDirectorRoleAssignment = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
 }: {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   characters: TavernCharacter[];
@@ -34,7 +32,6 @@ export const runTavernDirectorRoleAssignment = async ({
   const prompt = buildTavernDirectorRoleAssignmentPrompt({ room, characters });
 
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernDirectorAgentRoleId(room),

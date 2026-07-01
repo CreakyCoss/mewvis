@@ -8,6 +8,7 @@ import type {
   EmitCollaborationEvent,
 } from "./contracts/handler.js";
 import { createRuntimeSessionManager } from "../session/index.js";
+import type { RuntimeSessionProviderId } from "../session/providers/types.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;
@@ -64,12 +65,16 @@ export class CollaborationSessionRecorder {
 
   static async create(
     input: CollaborationRunInput,
+    providerId?: RuntimeSessionProviderId | null,
   ): Promise<CollaborationSessionRecorder | null> {
     if (!hasSession(input)) {
       return null;
     }
 
-    const session = createRuntimeSessionManager(input);
+    const session = createRuntimeSessionManager({
+      ...input,
+      providerId,
+    });
     await session.refreshSession();
 
     return new CollaborationSessionRecorder({

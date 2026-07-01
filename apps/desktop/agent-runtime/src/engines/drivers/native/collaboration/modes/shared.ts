@@ -43,7 +43,6 @@ export const participantToAgentRole = (
 ): CollaborationAgentRole => ({
   id: participant.id,
   label: participant.label?.trim() || participant.id,
-  agentId: participant.agentId ?? null,
   systemPrompt: participant.systemPrompt ?? participant.instruction ?? null,
   runtimeModel: participant.runtimeModel ?? null,
   allowedTools: participant.allowedTools,

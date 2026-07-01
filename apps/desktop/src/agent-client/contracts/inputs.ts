@@ -4,7 +4,6 @@ import type {
 import type { AgentClientSession } from "./session";
 
 export type AgentClientAgentTaskInput = {
-  agentId?: string | null;
   workspacePath: string;
   sessionRootDir?: string | null;
   agentRoleId?: string | null;
@@ -25,7 +24,6 @@ export type AgentClientAgentTask = {
 export type AgentClientCollaborationAgentRole = {
   id: string;
   label: string;
-  agentId?: string | null;
   systemPrompt?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   allowedTools?: string[];
@@ -178,7 +176,6 @@ export type AgentClientCollaborationModeParticipant = {
   id: string;
   kind: AgentClientCollaborationParticipantKind;
   label?: string | null;
-  agentId?: string | null;
   systemPrompt?: string | null;
   instruction?: string | null;
   userMessage?: string | null;
@@ -211,7 +208,6 @@ export type AgentClientChatMessage = {
 
 export type AgentClientChatInput = {
   type: "chat";
-  agentId?: string | null;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
   runtimeModel?: RuntimeModelInput | null;

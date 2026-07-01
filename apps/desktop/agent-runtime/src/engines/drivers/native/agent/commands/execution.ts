@@ -16,6 +16,7 @@ import { createPromptLimits, toRuntimeMessages } from "../../session/model/promp
 import { RuntimeSessionRecorder } from "../../session/recorder.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
 import { messageFromError } from "../../error.js";
+import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
 const CHAT_TIMEOUT_MS = 10 * 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 2;
@@ -60,14 +61,32 @@ const RETRYABLE_ERROR_MESSAGES = [
 export const executeAgentRunCommand = (
   command: AgentRunCommand,
   context: AgentRuntimeContext,
-): Promise<AgentRunResult> => executeAgentRunCommandWithRecording(command, context);
+  options: AgentEngineOptions = {},
+): Promise<AgentRunResult> => executeAgentRunCommandWithRecording(command, context, options);
+
+export type AgentEngineOptions = {
+  agentRuntimeId?: string | null;
+  chatRuntimeId?: string | null;
+  sessionProviderId?: RuntimeSessionProviderId | null;
+};
+
+const runtimeIdOverride = (
+  commandRuntimeId: string | null | undefined,
+  defaultId: string | null | undefined,
+) => commandRuntimeId?.trim() || defaultId?.trim() || null;
 
 const executeAgentRunCommandWithRecording = async (
   command: AgentRunCommand,
   context: AgentRuntimeContext,
+  options: AgentEngineOptions,
 ): Promise<AgentRunResult> => {
-  const { runtimeId, implementation } = resolveRuntime("agent", command.agentId);
-  const preparedRun = await prepareRuntimeAgentRun(command, runtimeId);
+  const { runtimeId, implementation } = resolveRuntime(
+    "agent",
+    runtimeIdOverride(command.runtimeId, options.agentRuntimeId),
+  );
+  const preparedRun = await prepareRuntimeAgentRun(command, runtimeId, {
+    sessionProviderId: options.sessionProviderId,
+  });
   const runtimeCommand = preparedRun.command;
   const runtimeContext = preparedRun.nativeSession
     ? {
@@ -75,7 +94,10 @@ const executeAgentRunCommandWithRecording = async (
       nativeSession: preparedRun.nativeSession,
     }
     : context;
-  const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
+  const recorder = await RuntimeSessionRecorder.create(
+    runtimeCommand,
+    options.sessionProviderId,
+  );
   await recorder?.recordInitialUserMessage();
   try {
     return await implementation.run(runtimeCommand, recorder
@@ -89,10 +111,17 @@ const executeAgentRunCommandWithRecording = async (
 export const executeChatCommand = async (
   command: ChatRunCommand,
   context: ChatRuntimeContext,
+  options: AgentEngineOptions = {},
 ): Promise<ChatRunResult> => {
-  const { implementation } = resolveRuntime("chat", command.agentId);
-  const runtimeCommand = await prepareChatRunCommand(command);
-  const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
+  const { implementation } = resolveRuntime(
+    "chat",
+    runtimeIdOverride(command.runtimeId, options.chatRuntimeId),
+  );
+  const runtimeCommand = await prepareChatRunCommand(command, options);
+  const recorder = await RuntimeSessionRecorder.create(
+    runtimeCommand,
+    options.sessionProviderId,
+  );
   await recorder?.recordInitialUserMessage();
   let lastError: unknown;
 
@@ -174,6 +203,7 @@ const latestUserMessageContent = (command: ChatRunCommand) => {
 
 const prepareChatRunCommand = async (
   command: ChatRunCommand,
+  options: AgentEngineOptions = {},
 ): Promise<ChatRunCommand> => {
   const userMessage = latestUserMessageContent(command);
 
@@ -181,6 +211,7 @@ const prepareChatRunCommand = async (
     const preparedTurn = await createRuntimeSessionManager({
       workspacePath: command.workspacePath,
       sessionRootDir: command.sessionRootDir,
+      providerId: options.sessionProviderId,
     }).prepareTurn(
       {
         ...command,

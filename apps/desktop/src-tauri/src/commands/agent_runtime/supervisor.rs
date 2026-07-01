@@ -585,7 +585,7 @@ impl AgentRuntimeWorker {
                     continue;
                 }
                 Some("shutdown_ack") => continue,
-                Some("chat_result" | "agent_definitions") => {
+                Some("chat_result") => {
                     self.touch();
                     continue;
                 }

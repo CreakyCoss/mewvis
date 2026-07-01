@@ -22,7 +22,6 @@ export const SidePanel = ({
     activeRoom,
     roomCharacters,
     roomMessages,
-    runtimeAgentId,
     runtimeModel,
     visualPreset,
     workspace,
@@ -74,7 +73,6 @@ export const SidePanel = ({
             messages={roomMessages}
             characters={roomCharacters}
             workspace={workspace}
-            runtimeAgentId={runtimeAgentId}
             runtimeModel={runtimeModel}
             disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsNovelizerOperationBusy}

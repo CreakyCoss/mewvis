@@ -187,7 +187,7 @@ const sanitizeSegment = (value: string | null | undefined): string | null => {
 
 const runtimeCommandRef = (command: RuntimeCommand) => {
   if (isAgentRunCommand(command)) {
-    const runtimeId = sanitizeSegment(command.agentId ?? null);
+    const runtimeId = sanitizeSegment(command.runtimeId ?? null);
     const agentRoleId = sanitizeSegment(command.agentRoleId ?? null);
     const agentSessionId = runtimeId && agentRoleId ? `${runtimeId}/${agentRoleId}` : null;
     return {
@@ -201,7 +201,7 @@ const runtimeCommandRef = (command: RuntimeCommand) => {
   }
 
   return {
-    runtimeId: command.agentId ?? null,
+    runtimeId: command.runtimeId ?? null,
     agentRoleId: null,
     agentSessionId: null,
     runId: command.streamId ?? command.requestId ?? null,

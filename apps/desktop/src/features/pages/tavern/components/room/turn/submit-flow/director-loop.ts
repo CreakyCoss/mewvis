@@ -241,7 +241,6 @@ export const runDirectorLoopTurn = async ({
   await runTavernCollaboration({
     ...buildTavernDirectorLoopCollaborationInput({
       workspacePath: ctx.workspace.path,
-      runtimeAgentId: ctx.runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: runtimeRoom,
       characters: availableRoomCharacters,

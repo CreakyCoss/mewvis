@@ -10,7 +10,6 @@ export type TavernTextFieldAgentMode = "polish" | "inspire";
 
 export type TavernTextFieldAgentInput = {
   workspacePath: string;
-  agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   mode: TavernTextFieldAgentMode;
   fieldLabel: string;
@@ -21,7 +20,7 @@ export type TavernTextFieldAgentInput = {
 
 export type TavernTextFieldAgentRequest = Omit<
   TavernTextFieldAgentInput,
-  "workspacePath" | "agentId" | "runtimeModel"
+  "workspacePath" | "runtimeModel"
 >;
 
 const TEXT_FIELD_AGENT_ROLE_ID = "tavern-one-shot-field-writer";
@@ -55,7 +54,6 @@ export const runTavernTextFieldAgent = async (
   input: TavernTextFieldAgentInput,
 ) => {
   const result = await runTavernOneShotAgent({
-    agentId: input.agentId,
     workspacePath: input.workspacePath,
     agentRoleId: TEXT_FIELD_AGENT_ROLE_ID,
     runtimeModel: input.runtimeModel,

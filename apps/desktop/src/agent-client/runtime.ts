@@ -2,7 +2,6 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
   AgentToolsResult,
-  RuntimeAgentDefinition,
 } from "@/agent-client/protocol";
 import type {
   AgentClientAgentEvent,
@@ -23,18 +22,12 @@ import type {
 } from "./contracts";
 import { dispatchAgentClientOutputEvent } from "./output";
 
-export type AgentClientAgentDefinitionsResult = Readonly<{
-  defaultAgentId: string;
-  agents: readonly RuntimeAgentDefinition[];
-}>;
-
 export type AgentClientAgentToolsResult = Readonly<
-  Pick<AgentToolsResult, "agentId" | "tools" | "defaultToolNames">
+  Pick<AgentToolsResult, "tools" | "defaultToolNames">
 >;
 
 export interface AgentClient {
-  listAgents(): Promise<AgentClientAgentDefinitionsResult>;
-  listAgentTools(input?: { agentId?: string | null }): Promise<AgentClientAgentToolsResult>;
+  listAgentTools(): Promise<AgentClientAgentToolsResult>;
   run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
   run(input: AgentClientChatInput): Promise<AgentClientChatResult>;
   run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask>;
@@ -55,7 +48,6 @@ export interface AgentClient {
 
 // These names must match the Rust Tauri command and event names exactly.
 const TAURI_AGENT_CLIENT_COMMANDS = {
-  listAgents: "list_agent_runtime_agents",
   listAgentTools: "list_agent_runtime_tools",
   runAgent: "run_agent_runtime_agent",
   runChat: "run_agent_runtime_chat",
@@ -113,14 +105,10 @@ const normalizeChatResult = ({
 });
 
 class TauriAgentClient implements AgentClient {
-  async listAgents(): Promise<AgentClientAgentDefinitionsResult> {
-    return invoke<AgentClientAgentDefinitionsResult>(TAURI_AGENT_CLIENT_COMMANDS.listAgents);
-  }
-
-  async listAgentTools(input: { agentId?: string | null } = {}): Promise<AgentClientAgentToolsResult> {
+  async listAgentTools(): Promise<AgentClientAgentToolsResult> {
     return invoke<AgentClientAgentToolsResult>(
       TAURI_AGENT_CLIENT_COMMANDS.listAgentTools,
-      { input },
+      { input: {} },
     );
   }
 
@@ -151,7 +139,10 @@ class TauriAgentClient implements AgentClient {
   }
 
   private async runAgent(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
-    const { type: _type, ...taskInput } = input;
+    const {
+      type: _type,
+      ...taskInput
+    } = input;
     const result = await invoke<RunAgentOutput>(
       TAURI_AGENT_CLIENT_COMMANDS.runAgent,
       { input: taskInput },
@@ -206,7 +197,6 @@ class TauriAgentClient implements AgentClient {
 
     return invoke<TauriAgentClientChatResult>(TAURI_AGENT_CLIENT_COMMANDS.runChat, {
       input: {
-        agentId: input.agentId,
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
         streamId,
@@ -268,24 +258,8 @@ class TauriAgentClient implements AgentClient {
 }
 
 class WebPreviewAgentClient implements AgentClient {
-  async listAgents(): Promise<AgentClientAgentDefinitionsResult> {
-    return {
-      defaultAgentId: "web-preview",
-      agents: [
-        {
-          id: "web-preview",
-          label: "Web 预览",
-          description: "用于普通浏览器预览界面的占位运行时。",
-          capabilities: ["chat", "agent"],
-          requiresModel: false,
-        },
-      ],
-    };
-  }
-
   async listAgentTools(): Promise<AgentClientAgentToolsResult> {
     return {
-      agentId: "web-preview",
       tools: [],
       defaultToolNames: [],
     };

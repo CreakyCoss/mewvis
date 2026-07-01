@@ -1,7 +1,6 @@
 import { Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
-import { createAgentClient } from "@/agent-client/runtime";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
 import {
@@ -91,11 +90,9 @@ const TavernContainer = ({
   initialSceneInstanceId,
   onExitHomeFullscreen,
 }: TavernContainerProps) => {
-  const agentClient = useMemo(() => createAgentClient(), []);
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
-  const [runtimeAgentId, setRuntimeAgentId] = useState("");
 
   useEffect(() => {
     void loadSettings();
@@ -121,32 +118,11 @@ const TavernContainer = ({
     };
   }, [workspace.path]);
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    void agentClient.listAgents()
-      .then((result) => {
-        if (!isCancelled) {
-          setRuntimeAgentId(result.defaultAgentId || result.agents[0]?.id || "");
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setRuntimeAgentId("");
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [agentClient]);
-
   return (
     <TavernSurface
       workspace={workspace}
       files={files}
       runtimeModel={runtimeModels[0] ?? null}
-      runtimeAgentId={runtimeAgentId}
       isHomeFullscreen={isHomeFullscreen}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}

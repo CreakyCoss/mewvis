@@ -2,8 +2,6 @@ export type {
   AgentToolsResult,
   AgentToolSummary,
   CatalogModel,
-  RuntimeAgentCapability,
-  RuntimeAgentDefinition,
   RuntimeApiFormat,
   RuntimeModelCatalog,
   RuntimeModelCatalogApi,

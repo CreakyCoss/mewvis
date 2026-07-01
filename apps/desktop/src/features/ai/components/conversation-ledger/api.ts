@@ -50,7 +50,6 @@ export async function disposeLedgerWorkers(input: {
 export async function summarizeLedger(input: {
   workspacePath: string;
   sessionRootDir: string;
-  agentId?: string | null;
   agentRoleId?: string | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
@@ -66,7 +65,6 @@ export async function summarizeLedger(input: {
 export async function compactLedger(input: {
   workspacePath: string;
   sessionRootDir: string;
-  agentId?: string | null;
   agentRoleId: string;
   compactInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
@@ -81,7 +79,6 @@ export async function compactLedger(input: {
 export async function rebuildAgentLedgerSession(input: {
   workspacePath: string;
   sessionRootDir: string;
-  agentId?: string | null;
   agentRoleId: string;
   rebuildInstruction?: string | null;
   userMessage?: string | null;

@@ -9,7 +9,9 @@ const runtimesRoot = join(
   desktopRoot,
   "agent-runtime",
   "src",
-  "engine",
+  "engines",
+  "drivers",
+  "native",
   "agent",
   "runtimes",
 );

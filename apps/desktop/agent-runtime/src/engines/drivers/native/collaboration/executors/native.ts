@@ -902,7 +902,6 @@ const buildAgentCommand = (
   return {
     runtimeMode: "agent" as const,
     requestId: input.requestId ?? null,
-    agentId: role.agentId ?? null,
     agentRoleId: role.id,
     taskId,
     workspacePath: input.workspacePath,

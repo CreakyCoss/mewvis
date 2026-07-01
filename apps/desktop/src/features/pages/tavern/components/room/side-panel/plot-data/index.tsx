@@ -162,7 +162,6 @@ export const PlotDataSection = ({
     roomCharacters,
     roomMessages,
     runtimeModel,
-    runtimeAgentId,
     patchRoom,
     reportError,
     resetExecutionTrace,
@@ -231,11 +230,6 @@ export const PlotDataSection = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      reportError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     if (roomCharacters.length === 0) {
       reportError("当前房间还没有可整理的角色。");
       return;
@@ -271,7 +265,6 @@ export const PlotDataSection = ({
     try {
       const extractedDraft = await runTavernAssetExtraction({
         workspacePath: workspace.path,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,

@@ -1,5 +1,4 @@
 import type {
-  AgentDefinitionsResult,
   AgentToolsResult,
   ChatResult,
   PongResult,
@@ -61,7 +60,6 @@ export type CollaborationTimelineResult = {
 };
 
 export type AgentRuntimeResult =
-  | AgentDefinitionsResult
   | AgentToolsResult
   | ChatResult
   | CollaborationModesRuntimeResult

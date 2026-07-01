@@ -1,5 +1,4 @@
 import type {
-  AgentDefinitionsResult,
   AgentRuntimeCommand,
   AgentRuntimeEvent,
   AgentRuntimeResult,
@@ -62,6 +61,7 @@ export type RuntimeEngineCallbacks = {
 export type RuntimeEngineOptions = {
   callbacks?: RuntimeEngineCallbacks;
   close?: () => void;
+  profileId?: string | null;
 };
 
 export abstract class AgentRuntimeEngine {
@@ -73,7 +73,6 @@ export abstract class AgentRuntimeEngine {
   abstract shutdown(): Promise<ShutdownAckResult>;
   abstract waitForRunningTask(): Promise<void>;
 
-  abstract listAgents(): Promise<AgentDefinitionsResult>;
   abstract listAgentTools(input?: AgentToolsQuery): Promise<AgentToolsResult>;
   abstract listRuntimeModels(): Promise<RuntimeModelsResult>;
   abstract sendMessage(input: SendMessageInput): Promise<ChatResult | TaskResult>;

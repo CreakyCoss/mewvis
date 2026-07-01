@@ -9,7 +9,6 @@ export type StoryWriterAgentMode = "polish" | "expand";
 
 export type StoryWriterAgentInput = {
   workspacePath: string;
-  agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   story: StoryAsset;
   nodeId: string;
@@ -68,7 +67,6 @@ export const runStoryWriterAgent = async (
   const storyWriterAgentClient = createAgentClient();
   const result = await storyWriterAgentClient.run({
     type: "chat",
-    agentId: input.agentId,
     workspacePath: input.workspacePath,
     runtimeModel: input.runtimeModel,
     systemPrompt: buildStoryWriterSystemPrompt(),

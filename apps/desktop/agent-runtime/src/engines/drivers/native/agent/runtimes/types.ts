@@ -17,7 +17,7 @@ export type ChatRunResult = Omit<ChatResult, "type" | "requestId">;
 export type AgentRunCommand = {
   runtimeMode: "agent";
   requestId?: string | null;
-  agentId?: string | null;
+  runtimeId?: string | null;
   taskId: string;
   workspacePath: string;
   sessionRootDir?: string | null;
@@ -45,7 +45,6 @@ export type RuntimeAgentCommand = AgentRunCommand & {
 
 export type RuntimeAgentSessionMaintenanceCommand = {
   requestId?: string | null;
-  agentId?: string | null;
   runtimeId?: string | null;
   taskId: string;
   workspacePath: string;
@@ -74,7 +73,7 @@ export type RuntimeAgentSummarizeCommand = RuntimeAgentSessionMaintenanceCommand
 export type ChatRunCommand = {
   type: "chat";
   requestId?: string | null;
-  agentId?: string | null;
+  runtimeId?: string | null;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
   streamId?: string | null;

@@ -23,7 +23,6 @@ export const ConversationLedger = ({
   workspacePath,
   chatId,
   runtimeModel,
-  agentId,
   summaryInstruction,
 }: ConversationLedgerProps) => {
   const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
@@ -96,7 +95,6 @@ export const ConversationLedger = ({
       const result = await summarizeLedger({
         workspacePath,
         sessionRootDir,
-        agentId,
         runtimeModel: summaryRuntimeModel,
         summaryInstruction: summaryInstruction ?? DEFAULT_SUMMARY_INSTRUCTION,
       });
@@ -108,7 +106,6 @@ export const ConversationLedger = ({
       setIsSummaryRefreshing(false);
     }
   }, [
-    agentId,
     resolveSummaryRuntimeModel,
     sessionRootDir,
     summaryInstruction,

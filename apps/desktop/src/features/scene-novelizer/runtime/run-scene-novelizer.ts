@@ -104,7 +104,6 @@ const buildReviewInstruction = (source: SceneNovelizerRunInput["source"]) => [
 
 const runSceneNovelizerCollaboration = async ({
   workspacePath,
-  agentId,
   runtimeModel,
   source,
   autoRewrite,
@@ -179,7 +178,6 @@ const runSceneNovelizerCollaboration = async ({
             id: SCENE_NOVELIZER_AGENT_ROLE_ID,
             kind: "producer",
             label: "场景小说写手",
-            agentId,
             runtimeModel,
             systemPrompt: buildSceneNovelizerSystemPrompt(source),
             requestContext: buildSceneNovelizerRequestContext(source),
@@ -191,7 +189,6 @@ const runSceneNovelizerCollaboration = async ({
             id: SCENE_NOVELIZER_REVIEWER_ROLE_ID,
             kind: "reviewer",
             label: "小说稿审阅",
-            agentId,
             runtimeModel,
             systemPrompt: "你是场景小说稿审阅 agent，只审阅 producer 的正文并输出严格 JSON。",
             instruction: buildReviewInstruction(source),
@@ -241,7 +238,6 @@ const readOutputText = (
 
 export const runSceneNovelizer = async ({
   workspacePath,
-  agentId,
   runtimeModel,
   source,
   autoRewrite = true,
@@ -249,7 +245,6 @@ export const runSceneNovelizer = async ({
 }: SceneNovelizerRunInput): Promise<SceneNovelDraft> => {
   const result = await runSceneNovelizerCollaboration({
     workspacePath,
-    agentId,
     runtimeModel,
     source,
     autoRewrite,

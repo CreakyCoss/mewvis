@@ -1,6 +1,7 @@
 import {
   executeAgentRunCommand,
   executeChatCommand,
+  type AgentEngineOptions,
 } from "./commands/execution.js";
 import type {
   AgentRunCommand,
@@ -22,7 +23,9 @@ export type AgentEngine = {
   ): Promise<ChatRunResult>;
 };
 
-export const createAgentEngine = (): AgentEngine => ({
-  runAgent: executeAgentRunCommand,
-  chat: executeChatCommand,
+export const createAgentEngine = (options: AgentEngineOptions = {}): AgentEngine => ({
+  runAgent: (command, context) =>
+    executeAgentRunCommand(command, context, options),
+  chat: (command, context) =>
+    executeChatCommand(command, context, options),
 });

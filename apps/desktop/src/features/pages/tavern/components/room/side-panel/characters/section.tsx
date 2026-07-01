@@ -76,7 +76,6 @@ export const CharacterStatusSection = ({
     roomCharacters,
     roomMessages,
     runtimeModel,
-    runtimeAgentId,
     isSending,
     patchRoom,
     reportError,
@@ -216,11 +215,6 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      reportError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     const availableMessages = roomMessages.filter((message) =>
       message.status !== "streaming" && message.status !== "error"
     );
@@ -246,7 +240,6 @@ export const CharacterStatusSection = ({
     try {
       const extractedDraft = await runTavernAssetExtraction({
         workspacePath: workspace.path,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         room: activeRoom,
         characters: roomCharacters,
@@ -303,18 +296,12 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      reportError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     setCompactingCharacterIds((current) => new Set([...current, characterId]));
     reportError("");
     try {
       const result = await compactTavernAgentKnowledge({
         workspacePath: workspace.path,
         room: activeRoom,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         agentRoleId: tavernCharacterAgentRoleId(activeRoom, character),
         compactInstruction: [
@@ -348,18 +335,12 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    if (!runtimeAgentId) {
-      reportError("请先选择可用的 Agent 运行配置。");
-      return;
-    }
-
     setRebuildingCharacterIds((current) => new Set([...current, characterId]));
     reportError("");
     try {
       await rebuildTavernAgentKnowledge({
         workspacePath: workspace.path,
         room: activeRoom,
-        runtimeAgentId,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
         agentRoleId: tavernCharacterAgentRoleId(activeRoom, character),
         rebuildInstruction: [

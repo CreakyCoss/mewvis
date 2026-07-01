@@ -60,7 +60,6 @@ pub struct CreateAgentRuntimeSessionInput {
 pub struct CompactAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
-    agent_id: Option<String>,
     agent_role_id: String,
     compact_instruction: Option<String>,
     runtime_model: Option<AgentRuntimeModelInput>,
@@ -71,7 +70,6 @@ pub struct CompactAgentRuntimeSessionInput {
 pub struct RebuildAgentRuntimeAgentSessionInput {
     workspace_path: String,
     session_root_dir: String,
-    agent_id: Option<String>,
     agent_role_id: String,
     rebuild_instruction: Option<String>,
     user_message: Option<String>,
@@ -83,7 +81,6 @@ pub struct RebuildAgentRuntimeAgentSessionInput {
 pub struct SummarizeAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
-    agent_id: Option<String>,
     agent_role_id: Option<String>,
     summary_instruction: Option<String>,
     max_summary_chars: Option<u64>,
@@ -292,7 +289,6 @@ pub async fn compact_agent_runtime_session(
             "sessionRootDir": session_root_dir,
             "target": {
                 "scope": "agent",
-                "agentId": input.agent_id,
                 "agentRoleId": input.agent_role_id,
             },
             "options": {
@@ -322,7 +318,6 @@ pub async fn rebuild_agent_runtime_agent_session(
             "sessionRootDir": session_root_dir,
             "target": {
                 "scope": "agent",
-                "agentId": input.agent_id,
                 "agentRoleId": input.agent_role_id,
             },
             "options": {
@@ -346,7 +341,6 @@ pub async fn summarize_agent_runtime_session(
     let SummarizeAgentRuntimeSessionInput {
         workspace_path,
         session_root_dir,
-        agent_id,
         agent_role_id,
         summary_instruction,
         max_summary_chars,
@@ -364,7 +358,6 @@ pub async fn summarize_agent_runtime_session(
             "sessionRootDir": session_root_dir,
             "target": {
                 "scope": "agent",
-                "agentId": agent_id,
                 "agentRoleId": agent_role_id,
             },
             "options": {
@@ -380,9 +373,6 @@ pub async fn summarize_agent_runtime_session(
             "type": "summarize_session",
             "workspacePath": workspace_path,
             "sessionRootDir": session_root_dir,
-            "agent": {
-                "agentId": agent_id,
-            },
             "options": {
                 "summaryInstruction": summary_instruction,
                 "maxSummaryChars": max_summary_chars,

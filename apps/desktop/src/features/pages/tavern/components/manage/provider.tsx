@@ -1,6 +1,5 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { createAgentClient } from "@/agent-client/runtime";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
@@ -75,10 +74,8 @@ export const ManagementProvider = ({
   onCloseActiveRoom,
   children,
 }: ManagementProviderProps) => {
-  const agentClient = useMemo(() => createAgentClient(), []);
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
-  const [runtimeAgentId, setRuntimeAgentId] = useState("");
   const activeRoom = useMemo(
     () => state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null,
     [state.activeRoomId, state.rooms],
@@ -104,26 +101,6 @@ export const ManagementProvider = ({
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    void agentClient.listAgents()
-      .then((result) => {
-        if (!isCancelled) {
-          setRuntimeAgentId(result.defaultAgentId || result.agents[0]?.id || "");
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setRuntimeAgentId("");
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [agentClient]);
 
   const reportError = useCallback((message: string) => {
     onError?.(message);
@@ -607,27 +584,18 @@ export const ManagementProvider = ({
       throw new Error(TAVERN_RUNTIME_MODEL_UNAVAILABLE);
     }
 
-    if (!runtimeAgentId) {
-      throw new Error("当前 Agent 运行时不可用，请稍后重试。");
-    }
-
     return runTavernTextFieldAgent({
       ...request,
       workspacePath: workspace.path,
-      agentId: runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
     });
-  }, [runtimeAgentId, runtimeModel, workspace.path]);
+  }, [runtimeModel, workspace.path]);
 
   const regenerateDirectorProfile = useCallback(async (
     room: TavernRoom,
   ) => {
     if (!runtimeModel) {
       throw new Error(TAVERN_RUNTIME_MODEL_UNAVAILABLE);
-    }
-
-    if (!runtimeAgentId) {
-      throw new Error("当前 Agent 运行时不可用，请稍后重试。");
     }
 
     const roomCharacterById = new Map(
@@ -642,12 +610,11 @@ export const ManagementProvider = ({
 
     return runTavernDirectorProfileAgent({
       workspacePath: workspace.path,
-      agentId: runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room,
       characters,
     });
-  }, [characterById, runtimeAgentId, runtimeModel, workspace.path]);
+  }, [characterById, runtimeModel, workspace.path]);
 
   const value = useMemo<ManagementContextValue>(() => ({
         rooms: state.rooms,

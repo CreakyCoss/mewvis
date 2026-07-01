@@ -29,11 +29,11 @@ export const runtimeAgentManifest = Object.freeze({
   definitions: Object.freeze(runtimeAgents.map(toRuntimeAgentDefinition)),
 });
 
-export const resolveRuntimeAgent = (agentId?: string | null) => {
-  const resolvedAgentId = agentId?.trim() || runtimeAgentManifest.defaultAgentId;
-  const runtimeAgent = runtimeAgentRegistry[resolvedAgentId];
+export const resolveRuntimeAgent = (runtimeId?: string | null) => {
+  const resolvedRuntimeId = runtimeId?.trim() || runtimeAgentManifest.defaultAgentId;
+  const runtimeAgent = runtimeAgentRegistry[resolvedRuntimeId];
   if (!runtimeAgent) {
-    throw new Error(`未配置 agent：${resolvedAgentId}`);
+    throw new Error(`未配置 runtime agent：${resolvedRuntimeId}`);
   }
 
   return runtimeAgent;

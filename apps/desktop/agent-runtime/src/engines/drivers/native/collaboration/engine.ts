@@ -15,9 +15,8 @@ import type {
   RunAgentForCollaboration,
 } from "./contracts/executor.js";
 import {
-  createLangGraphCollaborationExecutor,
-  createNativeCollaborationExecutor,
-  langGraphCollaborationExecutorId,
+  collaborationExecutorManifest,
+  createBuiltinCollaborationExecutors,
 } from "./executors/index.js";
 import {
   createCollaborationModeRegistry,
@@ -29,23 +28,27 @@ import {
 import { createBuiltinCollaborationModeHandlers } from "./modes/handlers.js";
 import { createCollaborationHandlerRegistry } from "./registry/handler-registry.js";
 import { CollaborationSessionRecorder } from "./runtime-session-recorder.js";
+import type { RuntimeSessionProviderId } from "../session/providers/types.js";
 
 export type CollaborationEngineOptions = {
   runAgent: RunAgentForCollaboration;
   executors?: readonly CollaborationExecutor[];
+  defaultExecutorId?: CollaborationExecutorId | null;
   modes?: readonly CollaborationModeDefinition[];
   modeRegistry?: CollaborationModeRegistry;
+  sessionProviderId?: RuntimeSessionProviderId | null;
 };
 
 export const createCollaborationEngine = ({
+  defaultExecutorId = collaborationExecutorManifest.defaultExecutorId,
   executors = [],
   modes,
   modeRegistry,
   runAgent,
+  sessionProviderId,
 }: CollaborationEngineOptions): CollaborationEngine => {
   const executorById = createExecutorRegistry([
-    createNativeCollaborationExecutor(),
-    createLangGraphCollaborationExecutor(),
+    ...createBuiltinCollaborationExecutors(),
     ...executors,
   ]);
   const resolvedHandlerRegistry = createCollaborationHandlerRegistry([
@@ -65,13 +68,13 @@ export const createCollaborationEngine = ({
 
       validateWorkflowSteps(input.workflow.id, steps);
 
-      const executorId = resolveExecutorId(input.workflow.executor);
+      const executorId = resolveExecutorId(input.workflow.executor, defaultExecutorId);
       const executor = executorById.get(executorId);
       if (!executor) {
         throw new Error(`协作 workflow 指定了未注册的 executor：${executorId}`);
       }
 
-      const recorder = await CollaborationSessionRecorder.create(input);
+      const recorder = await CollaborationSessionRecorder.create(input, sessionProviderId);
       const emit = recorder
         ? recorder.wrapEmit((event: CollaborationEvent) => context.emit?.(event))
         : (event: CollaborationEvent) => context.emit?.(event);
@@ -148,9 +151,10 @@ const createExecutorRegistry = (
 
 const resolveExecutorId = (
   executorId: CollaborationExecutorId | null | undefined,
+  defaultExecutorId: CollaborationExecutorId | null | undefined,
 ) => {
   const normalized = typeof executorId === "string" ? executorId.trim() : "";
-  return normalized || langGraphCollaborationExecutorId;
+  return normalized || defaultExecutorId || collaborationExecutorManifest.defaultExecutorId;
 };
 
 const normalizeExecutorResult = (

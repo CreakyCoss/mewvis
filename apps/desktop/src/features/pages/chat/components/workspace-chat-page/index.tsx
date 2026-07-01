@@ -242,10 +242,6 @@ export const WorkspaceChatPage = ({
     settingsError,
     isSettingsLoading,
     selectedRuntimeModel,
-    availableRuntimeAgents,
-    selectedRuntimeAgent,
-    setSelectedRuntimeAgentId,
-    runtimeAgentId,
     runtimeAgentRequiresModel,
     agentProfiles,
     selectedAgent,
@@ -263,9 +259,7 @@ export const WorkspaceChatPage = ({
   });
   useEffect(() => {
     let cancelled = false;
-    agentClient.listAgentTools({
-      agentId: runtimeAgentId || null,
-    }).then((result) => {
+    agentClient.listAgentTools().then((result) => {
       if (cancelled) return;
 
       const availableToolNames = new Set(result.tools.map((tool) => tool.name));
@@ -289,7 +283,7 @@ export const WorkspaceChatPage = ({
     return () => {
       cancelled = true;
     };
-  }, [agentClient, runtimeAgentId]);
+  }, [agentClient]);
   const availableSkillGroupIds = useMemo(
     () => new Set(skillGroups.map((group) => group.id)),
     [skillGroups],
@@ -1063,7 +1057,6 @@ export const WorkspaceChatPage = ({
       }, {
         workspace,
         activeSkills,
-        runtimeAgentId,
         updateMessage,
         agentClient,
         setChatError,
@@ -1163,9 +1156,6 @@ export const WorkspaceChatPage = ({
     isSending,
     activeAgentTaskId: visibleActiveAgentTaskId,
     isSettingsLoading,
-    availableRuntimeAgents,
-    selectedRuntimeAgent,
-    runtimeAgentId,
     agentProfiles,
     runtimeModels,
     selectedRuntimeModelId,
@@ -1186,7 +1176,6 @@ export const WorkspaceChatPage = ({
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,
     setCustomAgentQuestionAnswer: setCustomAgentQuestionAnswerDraft,
     submitAgentQuestionAnswer,
-    setSelectedRuntimeAgentId,
     setSelectedAgentId,
     setSelectedRuntimeModelId,
     toggleAllowedAgentTool,

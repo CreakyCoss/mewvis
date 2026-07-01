@@ -19,7 +19,6 @@ import { getPendingDraftCount } from "./story-form-utils";
 type UseStoryManuscriptsInput = {
   activeStory: StoryAsset | null;
   persistStory: (story: StoryAsset) => void;
-  runtimeAgentId: string;
   runtimeAgentRequiresModel: boolean;
   selectedRuntimeModel: RuntimeModelOption | null;
   settingsError: string;
@@ -29,7 +28,6 @@ type UseStoryManuscriptsInput = {
 export const useStoryManuscripts = ({
   activeStory,
   persistStory,
-  runtimeAgentId,
   runtimeAgentRequiresModel,
   selectedRuntimeModel,
   settingsError,
@@ -116,16 +114,12 @@ export const useStoryManuscripts = ({
     if (settingsError) {
       throw new Error(settingsError);
     }
-    if (!runtimeAgentId) {
-      throw new Error("请先选择可用的 Agent 运行配置。");
-    }
     if (runtimeAgentRequiresModel && !selectedRuntimeModel) {
       throw new Error("请先在设置中选择模型。");
     }
 
     return runStoryWriterAgent({
       workspacePath: workspace.path,
-      agentId: runtimeAgentId,
       runtimeModel: selectedRuntimeModel ? requireRuntimeModelInput(selectedRuntimeModel) : null,
       story: activeStory,
       nodeId,

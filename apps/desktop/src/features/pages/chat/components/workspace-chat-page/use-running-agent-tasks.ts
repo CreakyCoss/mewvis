@@ -15,7 +15,6 @@ export type RunningAgentTaskContext = {
   title: string;
   messageId: string;
   agentSessionId: string;
-  agentId: string;
   messages: ChatMessage[];
   pendingQuestion: PendingAgentQuestion | null;
   questionAnswer: string;

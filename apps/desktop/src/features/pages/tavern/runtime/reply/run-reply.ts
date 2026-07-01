@@ -24,7 +24,6 @@ import {
 } from "../scene-selectors";
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoom;
   activeCharacter: TavernCharacter;
@@ -61,7 +60,6 @@ const resolveInnerThoughtSceneText = (
 
 export const runTavernInnerThought = async ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   activeCharacter,
@@ -95,7 +93,6 @@ export const runTavernInnerThought = async ({
     statusSnapshot: room.statusSnapshot,
   });
   const result = await runTavernRuntimeAgent({
-    agentId: runtimeAgentId,
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agentRoleId: tavernCharacterAgentRoleId(room, activeCharacter),

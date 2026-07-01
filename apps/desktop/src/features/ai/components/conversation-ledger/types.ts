@@ -96,6 +96,5 @@ export type ConversationLedgerProps = {
   workspacePath: string;
   chatId: string | null;
   runtimeModel?: RuntimeModelInput | null;
-  agentId?: string | null;
   summaryInstruction?: string | null;
 };

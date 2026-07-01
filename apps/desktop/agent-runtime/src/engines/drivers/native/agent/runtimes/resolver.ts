@@ -55,13 +55,13 @@ const runtimeResolvers = {
   chat: RuntimeResolver<"chat", ChatRuntime>;
 };
 
-export function resolveRuntime(mode: "agent", agentId?: string | null): Extract<RuntimeResolution, { mode: "agent" }>;
-export function resolveRuntime(mode: "chat", agentId?: string | null): Extract<RuntimeResolution, { mode: "chat" }>;
-export function resolveRuntime(mode: RuntimeMode, agentId?: string | null): RuntimeResolution;
+export function resolveRuntime(mode: "agent", runtimeId?: string | null): Extract<RuntimeResolution, { mode: "agent" }>;
+export function resolveRuntime(mode: "chat", runtimeId?: string | null): Extract<RuntimeResolution, { mode: "chat" }>;
+export function resolveRuntime(mode: RuntimeMode, runtimeId?: string | null): RuntimeResolution;
 export function resolveRuntime(
   mode: RuntimeMode,
-  agentId?: string | null,
+  runtimeId?: string | null,
 ): RuntimeResolution {
-  const runtimeAgent = resolveRuntimeAgent(agentId);
+  const runtimeAgent = resolveRuntimeAgent(runtimeId);
   return runtimeResolvers[mode](runtimeAgent);
 }

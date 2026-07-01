@@ -207,10 +207,6 @@ export const createNativeRuntimeCommandRouter = (
         emitCommandResult(command, await deps.engine.shutdown());
         return false;
 
-      case AgentTaskCommandType.ListAgents:
-        emitCommandResult(command, await deps.engine.listAgents());
-        return true;
-
       case AgentTaskCommandType.ListAgentTools:
         emitCommandResult(command, await deps.engine.listAgentTools(commandInputFrom(command)));
         return true;

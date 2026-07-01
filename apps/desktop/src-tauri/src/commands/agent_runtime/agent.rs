@@ -16,7 +16,6 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunAgentRuntimeAgentInput {
-    agent_id: Option<String>,
     workspace_path: String,
     chat_session_id: Option<String>,
     session_root_dir: Option<String>,
@@ -98,7 +97,6 @@ pub fn run_agent_runtime_agent(
             "sessionRootDir": session_root_dir,
         },
         "agent": {
-            "agentId": input.agent_id,
             "agentRoleId": input.agent_role_id,
         },
         "input": {
@@ -165,7 +163,6 @@ fn session_key_for_task(
     task_id: &str,
     session_root_dir: Option<&str>,
 ) -> String {
-    let agent_id = input.agent_id.as_deref().unwrap_or("<default>");
     let session_scope = session_root_dir
         .or_else(|| {
             input
@@ -175,7 +172,7 @@ fn session_key_for_task(
         })
         .unwrap_or(task_id);
 
-    format!("{}|{}|{}", input.workspace_path, agent_id, session_scope)
+    format!("{}|{}", input.workspace_path, session_scope)
 }
 
 fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String> {

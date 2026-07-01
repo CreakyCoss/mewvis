@@ -1,6 +1,5 @@
 import {
   AgentResultType,
-  type AgentDefinitionsResult,
   type AgentToolsResult,
   type PongResult,
   type RuntimeModelsResult,
@@ -8,7 +7,6 @@ import {
   type TaskResult,
 } from "../../../../protocol/index.js";
 import type { AgentRunCommand } from "../runtimes/types.js";
-import { runtimeAgentManifest } from "../runtimes/registry.js";
 import {
   AGENT_TOOL_DEFINITIONS,
   DEFAULT_ALLOWED_AGENT_TOOLS,
@@ -23,21 +21,11 @@ type TaskCommand = Pick<AgentRunCommand, "requestId" | "taskId">;
 
 type TaskResultStatus = { success: true } | { success: false; message: string };
 
-export const createAgentDefinitionsResult = (
-  command: RequestCommand,
-): AgentDefinitionsResult => ({
-  type: AgentResultType.AgentDefinitions,
-  requestId: command.requestId ?? null,
-  defaultAgentId: runtimeAgentManifest.defaultAgentId,
-  agents: runtimeAgentManifest.definitions,
-});
-
 export const createAgentToolsResult = (
-  command: RequestCommand & { agentId?: string | null },
+  command: RequestCommand,
 ): AgentToolsResult => ({
   type: AgentResultType.AgentTools,
   requestId: command.requestId ?? null,
-  agentId: command.agentId ?? null,
   tools: AGENT_TOOL_DEFINITIONS,
   defaultToolNames: [...DEFAULT_ALLOWED_AGENT_TOOLS],
 });

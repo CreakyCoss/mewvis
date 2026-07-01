@@ -88,7 +88,6 @@ export const runProgressTrackingStep = async ({
     const progressTurnId = userMessage.turnId ?? userMessage.id;
     const progressFactEvents = await runTavernProgressTracking({
       workspacePath: ctx.workspace.path,
-      runtimeAgentId: ctx.runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: runtimeRoom,
       characters: ctx.roomCharacters,
@@ -210,7 +209,6 @@ export const runAssetExtractionStep = async ({
   try {
     const extractedDraft = await runTavernAssetExtraction({
       workspacePath: ctx.workspace.path,
-      runtimeAgentId: ctx.runtimeAgentId,
       runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
       room: runtimeRoom,
       characters: ctx.roomCharacters,

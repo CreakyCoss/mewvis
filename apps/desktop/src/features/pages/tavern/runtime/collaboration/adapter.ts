@@ -29,7 +29,6 @@ const tavernSpeakerWorkflowMaxSteps = (speakerCount: number) =>
 
 export const buildTavernDirectorLoopCollaborationInput = ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   characters,
@@ -90,7 +89,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
         id: directorRoleId,
         kind: "supervisor",
         label: "酒馆导演",
-        agentId: runtimeAgentId,
         runtimeModel,
         systemPrompt: buildTavernBridgeSystemPrompt(room),
         requestContext: directorPromptContext.requestContext,
@@ -114,7 +112,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
         id: tavernCharacterAgentRoleId(room, speaker),
         kind: "worker" as const,
         label: speaker.name,
-        agentId: runtimeAgentId,
         runtimeModel: speakerInput.runtimeModel,
         systemPrompt: request.systemPrompt,
         userMessage: request.userMessage,
@@ -151,7 +148,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
 
 export const buildTavernSpeakerCollaborationInput = ({
   workspacePath,
-  runtimeAgentId,
   runtimeModel,
   room,
   speakers,
@@ -186,7 +182,6 @@ export const buildTavernSpeakerCollaborationInput = ({
     agents: requests.map(({ speaker, request }) => ({
       id: tavernCharacterAgentRoleId(room, speaker),
       label: speaker.name,
-      agentId: runtimeAgentId,
       runtimeModel,
       systemPrompt: request.systemPrompt,
     })),

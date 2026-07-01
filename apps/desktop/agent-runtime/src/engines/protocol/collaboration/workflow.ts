@@ -90,7 +90,6 @@ export type CollaborationWorkflowStep =
 export type CollaborationAgentRole = {
   id: string;
   label: string;
-  agentId?: string | null;
   systemPrompt?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   allowedTools?: string[];
@@ -139,7 +138,6 @@ export type CollaborationModeParticipant = {
   id: string;
   kind: CollaborationParticipantKind;
   label?: string | null;
-  agentId?: string | null;
   systemPrompt?: string | null;
   instruction?: string | null;
   userMessage?: string | null;

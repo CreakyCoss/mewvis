@@ -31,7 +31,6 @@ export const TavernSceneNovelizerSection = ({
   messages,
   characters,
   workspace,
-  runtimeAgentId,
   runtimeModel,
   disabled,
   onBusyChange,
@@ -40,7 +39,6 @@ export const TavernSceneNovelizerSection = ({
   messages: TavernMessage[];
   characters: TavernCharacter[];
   workspace: Workspace;
-  runtimeAgentId: string;
   runtimeModel: RuntimeModelOption | null;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
@@ -114,7 +112,6 @@ export const TavernSceneNovelizerSection = ({
             <SceneNovelizerPanel
               source={source}
               workspacePath={workspace.path}
-              runtimeAgentId={runtimeAgentId}
               runtimeModel={runtimeModelInput}
               disabled={disabled}
               onBusyChange={handleBusyChange}

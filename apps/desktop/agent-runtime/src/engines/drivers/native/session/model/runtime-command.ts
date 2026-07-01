@@ -12,7 +12,7 @@ export type RuntimeChatMessageInput = {
 export type RuntimeAgentSessionCommand = {
   runtimeMode: "agent";
   requestId?: string | null;
-  agentId?: string | null;
+  runtimeId?: string | null;
   taskId: string;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
@@ -28,7 +28,7 @@ export type RuntimeAgentSessionCommand = {
 export type RuntimeChatSessionCommand = {
   type: "chat";
   requestId?: string | null;
-  agentId?: string | null;
+  runtimeId?: string | null;
   workspacePath?: string | null;
   sessionRootDir?: string | null;
   streamId?: string | null;

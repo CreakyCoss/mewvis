@@ -1,9 +1,7 @@
 import type { RuntimeModelCatalog } from "../model.js";
-import type { RuntimeAgentDefinition } from "./definition.js";
 import type { RuntimeSessionRecordRef } from "./event.js";
 
 export enum AgentResultType {
-  AgentDefinitions = "agent_definitions",
   AgentTools = "agent_tools",
   ChatResult = "chat_result",
   Pong = "pong",
@@ -25,13 +23,6 @@ export type ChatResult = ChatRunResult & {
   requestId?: string | null;
 };
 
-export type AgentDefinitionsResult = {
-  type: AgentResultType.AgentDefinitions;
-  requestId?: string | null;
-  defaultAgentId: string;
-  agents: readonly RuntimeAgentDefinition[];
-};
-
 export type AgentToolSummary = {
   name: string;
   label: string;
@@ -42,7 +33,6 @@ export type AgentToolSummary = {
 export type AgentToolsResult = {
   type: AgentResultType.AgentTools;
   requestId?: string | null;
-  agentId?: string | null;
   tools: readonly AgentToolSummary[];
   defaultToolNames: readonly string[];
 };

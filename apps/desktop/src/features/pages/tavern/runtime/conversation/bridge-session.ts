@@ -168,7 +168,6 @@ export const rebuildTavernBridgeSessionFromMessages = async ({
 export const summarizeTavernBridgeSession = async ({
   workspacePath,
   room,
-  runtimeAgentId,
   agentRoleId,
   runtimeModel,
   summaryInstruction,
@@ -176,14 +175,12 @@ export const summarizeTavernBridgeSession = async ({
 }: {
   workspacePath: string;
   room: TavernRoom;
-  runtimeAgentId?: string | null;
   agentRoleId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
 }): Promise<LedgerResult | null> => summarizeLedger({
   ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentId: runtimeAgentId,
   agentRoleId,
   runtimeModel,
   summaryInstruction,
@@ -193,20 +190,17 @@ export const summarizeTavernBridgeSession = async ({
 export const compactTavernAgentKnowledge = async ({
   workspacePath,
   room,
-  runtimeAgentId,
   runtimeModel,
   agentRoleId,
   compactInstruction,
 }: {
   workspacePath: string;
   room: TavernRoom;
-  runtimeAgentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   agentRoleId: string;
   compactInstruction?: string | null;
 }) => compactLedger({
   ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentId: runtimeAgentId,
   agentRoleId,
   runtimeModel,
   compactInstruction,
@@ -215,7 +209,6 @@ export const compactTavernAgentKnowledge = async ({
 export const rebuildTavernAgentKnowledge = async ({
   workspacePath,
   room,
-  runtimeAgentId,
   runtimeModel,
   agentRoleId,
   rebuildInstruction,
@@ -223,14 +216,12 @@ export const rebuildTavernAgentKnowledge = async ({
 }: {
   workspacePath: string;
   room: TavernRoom;
-  runtimeAgentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   agentRoleId: string;
   rebuildInstruction?: string | null;
   userMessage?: string | null;
 }) => rebuildAgentLedgerSession({
   ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentId: runtimeAgentId,
   agentRoleId,
   runtimeModel,
   rebuildInstruction,
