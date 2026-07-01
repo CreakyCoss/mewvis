@@ -36,6 +36,10 @@ export type AgentRunCommand = {
 export type RuntimeAgentCommand = AgentRunCommand & {
   agentTaskPrompt: string;
   sessionBootstrapContext?: string | null;
+  nativeSessionContextRef?: {
+    agentRoleId: string;
+    anchorRecordId?: string | null;
+  } | null;
   agentSessionDir?: string | null;
 };
 

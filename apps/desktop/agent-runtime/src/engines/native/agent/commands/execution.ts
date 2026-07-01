@@ -10,10 +10,8 @@ import type {
   ChatRunResult,
   ChatRuntimeContext,
   ChatRunCommand,
-  RuntimeAgentCommand,
 } from "../runtimes/types.js";
-import { resolveAgentSessionDir } from "../session/artifacts.js";
-import { prepareRuntimeAgentPrompt } from "../session/prompt.js";
+import { prepareRuntimeAgentRun } from "./prepare-run.js";
 import { createPromptLimits, toRuntimeMessages } from "../../session/model/prompt-budget.js";
 import { RuntimeSessionRecorder } from "../../session/recorder.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
@@ -69,27 +67,23 @@ const executeAgentRunCommandWithRecording = async (
   context: AgentRuntimeContext,
 ): Promise<AgentRunResult> => {
   const { runtimeId, implementation } = resolveRuntime("agent", command.agentId);
-  const runtimeCommand = await prepareRuntimeAgentCommand(command, runtimeId);
+  const preparedRun = await prepareRuntimeAgentRun(command, runtimeId);
+  const runtimeCommand = preparedRun.command;
+  const runtimeContext = preparedRun.nativeSession
+    ? {
+      ...context,
+      nativeSession: preparedRun.nativeSession,
+    }
+    : context;
   const recorder = await RuntimeSessionRecorder.create(runtimeCommand);
   await recorder?.recordInitialUserMessage();
   try {
     return await implementation.run(runtimeCommand, recorder
-      ? { ...context, emit: recorder.wrapEmit(context.emit) }
-      : context);
+      ? { ...runtimeContext, emit: recorder.wrapEmit(runtimeContext.emit) }
+      : runtimeContext);
   } finally {
     await recorder?.flush();
   }
-};
-
-const prepareRuntimeAgentCommand = async (
-  command: AgentRunCommand,
-  runtimeId: string,
-): Promise<RuntimeAgentCommand> => {
-  const commandWithPrompt = await prepareRuntimeAgentPrompt(command, runtimeId);
-  const agentSessionDir = await resolveAgentSessionDir(commandWithPrompt, runtimeId);
-  return agentSessionDir
-    ? { ...commandWithPrompt, agentSessionDir }
-    : commandWithPrompt;
 };
 
 export const executeChatCommand = async (

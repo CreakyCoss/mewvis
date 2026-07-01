@@ -4,6 +4,7 @@ import {
 import type {
   AgentRunResult,
   AgentRuntimeCallbacks,
+  AgentRuntimeNativeSession,
   EmitAgentEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
@@ -25,6 +26,7 @@ type DrivePiAgentSessionInput = {
   session: PiAgentSession;
   callbacks: AgentRuntimeCallbacks;
   emit: EmitAgentEvent;
+  nativeSession?: AgentRuntimeNativeSession;
   state: PiAgentRunState;
   shouldBootstrap: boolean;
 };
@@ -34,10 +36,15 @@ export const drivePiAgentSession = async ({
   session,
   callbacks,
   emit,
+  nativeSession,
   state,
   shouldBootstrap,
 }: DrivePiAgentSessionInput): Promise<AgentRunResult> => {
-  let nextPrompt: string | null = createPiInitialPrompt(command, shouldBootstrap);
+  let nextPrompt: string | null = await createPiInitialPrompt(
+    command,
+    shouldBootstrap,
+    nativeSession,
+  );
   while (nextPrompt) {
     state.assistantText = "";
     state.streamedText = "";

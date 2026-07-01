@@ -1,8 +1,42 @@
-import type { RuntimeAgentCommand } from "../../types.js";
+import type {
+  AgentRuntimeNativeSession,
+  RuntimeAgentCommand,
+} from "../../types.js";
+import {
+  buildAgentBootstrapContext,
+} from "../../../prompt.js";
+import {
+  createPromptLimits,
+} from "../../../../session/model/prompt-budget.js";
 
-export const createPiInitialPrompt = (
+const readBootstrapContext = async (
+  command: RuntimeAgentCommand,
+  nativeSession?: AgentRuntimeNativeSession,
+) => {
+  const direct = command.sessionBootstrapContext?.trim();
+  if (direct) {
+    return direct;
+  }
+
+  const contextRef = command.nativeSessionContextRef;
+  if (!nativeSession || !contextRef?.agentRoleId) {
+    return "";
+  }
+
+  const context = await nativeSession.readAgentVisibleContext({
+    agentRoleId: contextRef.agentRoleId,
+    anchorRecordId: contextRef.anchorRecordId ?? null,
+  });
+  return buildAgentBootstrapContext(
+    context,
+    createPromptLimits(command.runtimeModel),
+  );
+};
+
+export const createPiInitialPrompt = async (
   command: RuntimeAgentCommand,
   shouldBootstrap: boolean,
+  nativeSession?: AgentRuntimeNativeSession,
 ) => {
   if (!shouldBootstrap) {
     return command.agentTaskPrompt;
@@ -10,7 +44,7 @@ export const createPiInitialPrompt = (
 
   const systemPrompt = command.systemPrompt?.trim();
   const bootstrapInstruction = command.bootstrapInstruction?.trim();
-  const bootstrapContext = command.sessionBootstrapContext?.trim();
+  const bootstrapContext = await readBootstrapContext(command, nativeSession);
   return [
     systemPrompt
       ? [
@@ -22,7 +56,7 @@ export const createPiInitialPrompt = (
     bootstrapInstruction
       ? [
         "<session_bootstrap_instruction instruction=\"agent_session_initialization_only\">",
-        "以下内容只用于初始化或重建底层 Agent session 时指导如何使用 runtime ledger 历史，不是用户的新请求。",
+        "以下内容只用于初始化或重建底层 Agent session 时指导如何使用 native session 历史，不是用户的新请求。",
         bootstrapInstruction,
         "</session_bootstrap_instruction>",
       ].join("\n")

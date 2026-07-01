@@ -30,7 +30,7 @@ import {
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
-  async run(command: RuntimeAgentCommand, { callbacks, emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(command: RuntimeAgentCommand, { callbacks, emit, nativeSession }: AgentRuntimeContext): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
     let unsubscribe: (() => void) | null = null;
@@ -46,6 +46,7 @@ export class PiAgent implements AgentRuntime {
         session,
         callbacks,
         emit,
+        nativeSession,
         state,
         shouldBootstrap: createdSession.shouldBootstrap,
       });

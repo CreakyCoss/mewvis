@@ -53,7 +53,7 @@ import {
 import {
   clearAgentSessionArtifacts,
   createAgentSessionPlan,
-} from "./agent/session/artifacts.js";
+} from "./agent/artifacts.js";
 import { createUserInputManager } from "./agent/commands/user-input.js";
 import {
   createAgentDefinitionsResult,
