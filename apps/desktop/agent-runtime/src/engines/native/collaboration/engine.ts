@@ -28,7 +28,7 @@ import {
 } from "./modes/index.js";
 import { createBuiltinCollaborationModeHandlers } from "./modes/handlers.js";
 import { createCollaborationHandlerRegistry } from "./registry/handler-registry.js";
-import { CollaborationSessionRecorder } from "./session/recorder.js";
+import { CollaborationSessionRecorder } from "./runtime-session-recorder.js";
 
 export type CollaborationEngineOptions = {
   runAgent: RunAgentForCollaboration;

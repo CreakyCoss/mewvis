@@ -1,20 +1,21 @@
 import { randomUUID } from "node:crypto";
 import type {
-  AgentRunCommand,
-  ChatRunCommand,
+  RuntimeAgentSessionCommand,
+  RuntimeSessionCommand,
   RuntimeSessionLink,
-} from "../../runtimes/types.js";
-import type { RuntimeLedgerEntry } from "../../../session/core/types.js";
+} from "./runtime-command.js";
+import { isRuntimeAgentSessionCommand } from "./runtime-command.js";
+import type { RuntimeLedgerEntry } from "./ledger.js";
 
-type RuntimeSessionLinkCommand = (ChatRunCommand | AgentRunCommand) & {
+type RuntimeSessionLinkCommand = RuntimeSessionCommand & {
   sessionLink?: RuntimeSessionLink | null;
   recordUserMessage?: boolean | null;
 };
 
 const isAgentRunCommand = (
   command: RuntimeSessionLinkCommand,
-): command is AgentRunCommand & { sessionLink?: RuntimeSessionLink | null } =>
-  "runtimeMode" in command && command.runtimeMode === "agent";
+): command is RuntimeAgentSessionCommand & { sessionLink?: RuntimeSessionLink | null } =>
+  isRuntimeAgentSessionCommand(command);
 
 export const sessionLinkFor = (
   command: RuntimeSessionLinkCommand,

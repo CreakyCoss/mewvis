@@ -1,40 +1,31 @@
-import type {
-  ChatMessageInput,
-} from "../../../../protocol/index.js";
 import {
   AgentEventType,
   type AgentEvent,
-} from "../../../../protocol/index.js";
+} from "../../../protocol/index.js";
 import type {
-  AgentRunCommand,
-  EmitAgentEvent,
-  ChatRunCommand,
-} from "../../runtimes/types.js";
+  RuntimeChatMessageInput,
+  RuntimeAgentSessionCommand,
+  RuntimeChatSessionCommand,
+  RuntimeSessionCommand,
+  SessionBackedRuntimeCommand,
+} from "../../session/model/runtime-command.js";
+import { isRuntimeAgentSessionCommand } from "../../session/model/runtime-command.js";
 import type {
   RuntimeMessage,
   RuntimeSessionRecordRef,
-} from "../../../session/core/types.js";
-import { RuntimeLedgerStorage } from "../../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../../session/storage/paths.js";
-import {
-  appendRuntimeSessionTraceRecord,
-} from "../../../session/trace/jsonl-trace.js";
-import {
-  refreshRuntimeSessionManifest,
-} from "../../../session/manifest/session-manifest.js";
+} from "../../session/model/ledger.js";
+import type { RuntimeSessionHandle } from "../../session/providers/types.js";
 import {
   runtimeEntryMetadata,
   runtimeMessageMetadata,
-} from "../metadata/runtime.js";
+} from "../../session/model/metadata.js";
 import {
   commandParentEntryId,
   commandRootUserEntryId,
-} from "./session-link.js";
+} from "../../session/model/runtime-link.js";
+import { resolveRuntimeSessionProvider } from "../../session/providers/resolver.js";
 
-type SessionBackedCommand = (ChatRunCommand | AgentRunCommand) & {
-  workspacePath: string;
-  sessionRootDir: string;
-};
+type EmitAgentEvent = (event: AgentEvent) => void;
 
 type TraceRecord = {
   type: "event" | "error";
@@ -44,21 +35,23 @@ type TraceRecord = {
   message?: string;
 };
 
-const isAgentRunCommand = (command: ChatRunCommand | AgentRunCommand): command is AgentRunCommand =>
-  "runtimeMode" in command && command.runtimeMode === "agent";
+const isChatRunCommand = (
+  command: RuntimeSessionCommand,
+): command is RuntimeChatSessionCommand =>
+  "type" in command && command.type === "chat";
 
-const hasSession = (command: ChatRunCommand | AgentRunCommand): command is SessionBackedCommand => {
-  const candidate = command as SessionBackedCommand;
-  return (("type" in command && command.type === "chat") || isAgentRunCommand(command)) &&
+const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
+  const candidate = command as SessionBackedRuntimeCommand;
+  return (isChatRunCommand(command) || isRuntimeAgentSessionCommand(command)) &&
     typeof candidate.workspacePath === "string" &&
     typeof candidate.sessionRootDir === "string" &&
     Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim());
 };
 
-const contentFromChatMessage = (message: ChatMessageInput | undefined) =>
+const contentFromChatMessage = (message: RuntimeChatMessageInput | undefined) =>
   message?.content?.trim() ?? "";
 
-const latestUserMessage = (command: ChatRunCommand) => {
+const latestUserMessage = (command: RuntimeChatSessionCommand) => {
   if (command.userMessage?.trim()) {
     return {
       role: "user",
@@ -77,7 +70,7 @@ const latestUserMessage = (command: ChatRunCommand) => {
 };
 
 const initialUserMessageFor = (
-  command: ChatRunCommand | AgentRunCommand,
+  command: RuntimeSessionCommand,
   baseLeafId: string | null,
   input?: {
     parentEntryId?: string | null;
@@ -85,7 +78,7 @@ const initialUserMessageFor = (
   },
 ): RuntimeMessage | null => {
   const timestamp = Date.now();
-  if ("type" in command && command.type === "chat") {
+  if (isChatRunCommand(command)) {
     const content = contentFromChatMessage(latestUserMessage(command));
     return content
       ? {
@@ -103,7 +96,7 @@ const initialUserMessageFor = (
       : null;
   }
 
-  if (isAgentRunCommand(command)) {
+  if (isRuntimeAgentSessionCommand(command)) {
     const content = command.userMessage.trim();
     return content
       ? {
@@ -124,7 +117,7 @@ const initialUserMessageFor = (
   return null;
 };
 
-const taskIdFor = (command: ChatRunCommand | AgentRunCommand) =>
+const taskIdFor = (command: RuntimeSessionCommand) =>
   "runtimeMode" in command ? command.taskId : command.streamId ?? null;
 
 export class RuntimeSessionRecorder {
@@ -141,29 +134,23 @@ export class RuntimeSessionRecorder {
 
   private constructor(
     private readonly input: {
-      command: SessionBackedCommand;
-      tracePath: string;
-      storage: RuntimeLedgerStorage;
+      command: SessionBackedRuntimeCommand;
+      handle: RuntimeSessionHandle;
       baseLeafId: string | null;
     },
   ) {}
 
-  static async create(command: ChatRunCommand | AgentRunCommand): Promise<RuntimeSessionRecorder | null> {
+  static async create(command: RuntimeSessionCommand): Promise<RuntimeSessionRecorder | null> {
     if (!hasSession(command)) {
       return null;
     }
 
-    const paths = await resolveRuntimeSessionPaths(command);
-    const storage = await RuntimeLedgerStorage.openOrCreate({
-      filePath: paths.ledgerPath,
-      workspacePath: command.workspacePath,
-      sessionRootDir: command.sessionRootDir,
-    });
+    const provider = resolveRuntimeSessionProvider();
+    const handle = await provider.openOrCreate(command);
     return new RuntimeSessionRecorder({
       command,
-      tracePath: paths.tracePath,
-      storage,
-      baseLeafId: storage.getLeafId(),
+      handle,
+      baseLeafId: handle.storage.getLeafId(),
     });
   }
 
@@ -176,7 +163,7 @@ export class RuntimeSessionRecorder {
       return null;
     }
 
-    const userEntryId = this.input.storage.createEntryId();
+    const userEntryId = this.input.handle.storage.createEntryId();
     const message = initialUserMessageFor(
       this.input.command,
       this.input.baseLeafId,
@@ -189,7 +176,7 @@ export class RuntimeSessionRecorder {
       return null;
     }
 
-    const entry = await this.input.storage.appendMessage(
+    const entry = await this.input.handle.storage.appendMessage(
       message,
       this.intentLeafId ?? this.parentEntryId ?? undefined,
       userEntryId,
@@ -241,7 +228,7 @@ export class RuntimeSessionRecorder {
 
     const assistantParentId = this.userEntryId ?? this.intentLeafId ?? this.parentEntryId ?? undefined;
     const parentUserEntryId = this.userEntryId ?? this.rootUserEntryId;
-    const entry = await this.input.storage.appendMessage({
+    const entry = await this.input.handle.storage.appendMessage({
       role: "assistant",
       content: text || thinking,
       timestamp: Date.now(),
@@ -315,18 +302,12 @@ export class RuntimeSessionRecorder {
   }
 
   private async appendTrace(record: TraceRecord) {
-    await appendRuntimeSessionTraceRecord(this.input.tracePath, record);
+    await this.input.handle.appendTrace(record);
   }
 
   private async refreshManifest() {
     try {
-      await refreshRuntimeSessionManifest({
-        workspacePath: this.input.command.workspacePath,
-        sessionRootDir: this.input.command.sessionRootDir,
-        ledgerPath: this.input.storage.filePath,
-        tracePath: this.input.tracePath,
-        ledger: this.input.storage,
-      });
+      await this.input.handle.refreshManifest();
     } catch (error: unknown) {
       console.warn(`runtime session manifest 刷新失败：${String(error)}`);
     }
@@ -336,7 +317,7 @@ export class RuntimeSessionRecorder {
     let currentParentId = parentEntryId;
     const runtimeInstruction = this.input.command.runtimeInstruction?.trim();
     if (runtimeInstruction) {
-      const entry = await this.input.storage.appendRuntimeInstruction(
+      const entry = await this.input.handle.storage.appendRuntimeInstruction(
         runtimeInstruction,
         runtimeEntryMetadata({
           command: this.input.command,
@@ -353,7 +334,7 @@ export class RuntimeSessionRecorder {
 
     const requestContext = this.input.command.requestContext?.trim();
     if (requestContext) {
-      const entry = await this.input.storage.appendRequestContext(
+      const entry = await this.input.handle.storage.appendRequestContext(
         requestContext,
         runtimeEntryMetadata({
           command: this.input.command,
@@ -377,7 +358,7 @@ export class RuntimeSessionRecorder {
       return this.input.baseLeafId;
     }
 
-    if (!this.input.storage.getEntry(parentEntryId)) {
+    if (!this.input.handle.storage.getEntry(parentEntryId)) {
       throw new Error(`parentEntryId 必须指向当前 runtime ledger 中已存在的 entry：${parentEntryId}`);
     }
     return parentEntryId;
@@ -386,7 +367,7 @@ export class RuntimeSessionRecorder {
   private resolveRootUserEntryId(parentEntryId: string | null) {
     const rootUserEntryId = commandRootUserEntryId(this.input.command)?.trim() || null;
     if (rootUserEntryId) {
-      const root = this.input.storage.getEntry(rootUserEntryId);
+      const root = this.input.handle.storage.getEntry(rootUserEntryId);
       if (!root || root.type !== "message" || root.message.role !== "user") {
         throw new Error(`rootUserEntryId 必须指向当前 runtime ledger 中的 user message：${rootUserEntryId}`);
       }
@@ -401,7 +382,7 @@ export class RuntimeSessionRecorder {
       return null;
     }
 
-    const path = this.input.storage.getPathToRoot(fromEntryId);
+    const path = this.input.handle.storage.getPathToRoot(fromEntryId);
     for (const entry of path.slice().reverse()) {
       if (entry.type === "message" && entry.message.role === "user") {
         return entry.id;

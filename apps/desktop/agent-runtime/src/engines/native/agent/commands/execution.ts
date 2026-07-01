@@ -12,23 +12,13 @@ import type {
   ChatRunCommand,
   RuntimeAgentCommand,
 } from "../runtimes/types.js";
-import { resolveAgentSessionDir } from "../session/runtime/agent/session-plan.js";
-import { prepareRuntimeAgentPrompt } from "../session/runtime/agent/prompt.js";
-import { RuntimeLedgerStorage } from "../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../session/storage/paths.js";
-import { createPromptLimits, toRuntimeMessages } from "../session/core/prompt-budget.js";
-import { RuntimeSessionRecorder } from "../session/runtime/recorder.js";
-import { buildRuntimeSessionContext } from "../../session/core/projection.js";
+import { resolveAgentSessionDir } from "../session/artifacts.js";
+import { prepareRuntimeAgentPrompt } from "../session/prompt.js";
+import { createPromptLimits, toRuntimeMessages } from "../../session/model/prompt-budget.js";
+import { RuntimeSessionRecorder } from "../session/recorder.js";
 import {
-  appendRuntimeSystemPromptIfNeeded,
-  composeRuntimeSystemPrompt,
-} from "../session/runtime/system-prompt.js";
-import {
-  commandParentEntryId,
-  inferCommandTurnId,
-  shouldRecordRuntimeUserMessage,
-  withSessionLink,
-} from "../session/runtime/session-link.js";
+  prepareRuntimeSessionTurn,
+} from "../../session/writer.js";
 import { messageFromError } from "../../error.js";
 
 const CHAT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -190,68 +180,27 @@ const latestUserMessageContent = (command: ChatRunCommand) => {
   return "";
 };
 
-const resolveCommandParentEntryId = (
-  storage: RuntimeLedgerStorage,
-  parentEntryId: string | null | undefined,
-) => {
-  const normalized = parentEntryId?.trim() || null;
-  if (!normalized) {
-    return null;
-  }
-  if (!storage.getEntry(normalized)) {
-    throw new Error(`parentEntryId 必须指向当前 runtime ledger 中已存在的 entry：${normalized}`);
-  }
-  return normalized;
-};
-
 const prepareChatRunCommand = async (
   command: ChatRunCommand,
 ): Promise<ChatRunCommand> => {
   const userMessage = latestUserMessageContent(command);
 
   if (command.userMessage?.trim() && command.workspacePath?.trim() && command.sessionRootDir?.trim()) {
-    const paths = await resolveRuntimeSessionPaths({
-      workspacePath: command.workspacePath,
-      sessionRootDir: command.sessionRootDir,
-    });
-    const storage = await RuntimeLedgerStorage.openOrCreate({
-      filePath: paths.ledgerPath,
-      workspacePath: command.workspacePath,
-      sessionRootDir: command.sessionRootDir,
-    });
-    const parentEntryId = resolveCommandParentEntryId(storage, commandParentEntryId(command));
-    const contextLeafId = parentEntryId ?? storage.getLeafId();
-    const sessionContext = buildRuntimeSessionContext(storage, contextLeafId);
-    const commandWithRecording = {
+    const preparedTurn = await prepareRuntimeSessionTurn({
       ...command,
-      recordUserMessage: shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId),
       messages: command.messages ?? [],
-    };
-    const commandWithTurn = withSessionLink(commandWithRecording, {
-      turnId: inferCommandTurnId(commandWithRecording, sessionContext.entries),
-    });
-    const systemPrompt = composeRuntimeSystemPrompt({
-      context: sessionContext,
-      currentSystemPrompt: commandWithTurn.systemPrompt,
+    }, {
       includeSummary: true,
+      preserveRecordUserMessageFalse: true,
     });
-    const systemEntry = await appendRuntimeSystemPromptIfNeeded({
-      storage,
-      command: commandWithTurn,
-      context: sessionContext,
-      baseLeafId: contextLeafId,
-      parentEntryId: contextLeafId,
-    });
-    const runtimeParentEntryId = systemEntry?.id ?? parentEntryId ?? commandParentEntryId(commandWithTurn);
-    const updatedSessionContext = buildRuntimeSessionContext(
-      storage,
-      systemEntry?.id ?? contextLeafId,
-    );
+    if (!preparedTurn) {
+      throw new Error("chat 命令启用 runtime session 时必须提供 workspacePath 和 sessionRootDir");
+    }
     return {
-      ...withSessionLink(commandWithTurn, { parentEntryId: runtimeParentEntryId }),
-      systemPrompt,
+      ...preparedTurn.command,
+      systemPrompt: preparedTurn.systemPrompt,
       messages: toRuntimeMessages(
-        updatedSessionContext.messages,
+        preparedTurn.updatedSessionContext.messages,
         userMessage,
         createPromptLimits(command.runtimeModel),
         command.requestContext,

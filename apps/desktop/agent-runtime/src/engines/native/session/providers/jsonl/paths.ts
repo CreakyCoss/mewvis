@@ -1,16 +1,13 @@
 import { mkdir } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
+import type {
+  RuntimeSessionPathInput,
+  RuntimeSessionPaths,
+} from "../types.js";
 
-export type RuntimeSessionPaths = {
-  sessionDir: string;
+export type JsonlRuntimeSessionPaths = RuntimeSessionPaths & {
   ledgerPath: string;
   tracePath: string;
-  agentsDir: string;
-};
-
-export type RuntimeSessionPathInput = {
-  workspacePath: string;
-  sessionRootDir: string;
 };
 
 const resolveSessionRootDir = (sessionRootDir: string) => {
@@ -27,7 +24,7 @@ const resolveSessionRootDir = (sessionRootDir: string) => {
 
 export const resolveRuntimeSessionPaths = async (
   input: RuntimeSessionPathInput,
-): Promise<RuntimeSessionPaths> => {
+): Promise<JsonlRuntimeSessionPaths> => {
   const rawWorkspacePath = input.workspacePath.trim();
   if (!rawWorkspacePath) {
     throw new Error("runtime workspacePath 不能为空");
@@ -36,13 +33,10 @@ export const resolveRuntimeSessionPaths = async (
   const sessionDir = resolveSessionRootDir(input.sessionRootDir);
   await mkdir(sessionDir, { recursive: true });
 
-  const agentsDir = resolve(sessionDir, "agents");
-  await mkdir(agentsDir, { recursive: true });
-
   return {
     sessionDir,
+    artifactsDir: sessionDir,
     ledgerPath: resolve(sessionDir, "ledger.jsonl"),
     tracePath: resolve(sessionDir, "trace.jsonl"),
-    agentsDir,
   };
 };

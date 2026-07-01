@@ -2,18 +2,26 @@ export type {
   RuntimeSessionListOptions,
   RuntimeSessionQueryTarget,
   RuntimeSessionSnapshot,
-} from "./query/types.js";
+} from "./providers/types.js";
 
 export type {
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../protocol/session.js";
 
-export type { RuntimeSessionTraceRecord } from "./trace/types.js";
+export type { RuntimeSessionTraceRecord } from "./providers/types.js";
 
 export {
-  buildRuntimeSessionTimeline,
-  getCollaborationTimeline,
-  getRuntimeSessionSnapshot,
-  listRuntimeSessions,
-} from "./query/session-query.js";
+  createNativeSessionService,
+  type NativeSessionService,
+  type NativeSessionMaintenanceHandlers,
+} from "./native-session-service.js";
+
+export {
+  resolveRuntimeSessionProvider,
+} from "./providers/resolver.js";
+
+export type {
+  RuntimeSessionProvider,
+  RuntimeSessionProviderId,
+} from "./providers/types.js";

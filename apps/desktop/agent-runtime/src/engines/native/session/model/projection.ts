@@ -3,12 +3,12 @@ import type {
   RuntimeMessage,
   RuntimeMessageMetadata,
   RuntimeSessionContext,
-} from "./types.js";
+} from "./ledger.js";
 import type {
   RuntimeDisplaySummary,
   RuntimeLink,
 } from "../../../protocol/session.js";
-import type { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
+import type { RuntimeSessionStore } from "../providers/types.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -288,7 +288,7 @@ const buildRuntimeLinks = (entries: RuntimeLedgerEntry[]) => {
 };
 
 export const buildRuntimeSessionContext = (
-  storage: RuntimeLedgerStorage,
+  storage: RuntimeSessionStore,
   leafId: string | null = storage.getLeafId(),
 ): RuntimeSessionContext => {
   const entries = storage.getPathToRoot(leafId);

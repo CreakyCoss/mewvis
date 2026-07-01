@@ -1,7 +1,7 @@
-import type { RuntimeModelInput } from "../../../../protocol/index.js";
-import { resolveRuntime } from "../../runtimes/resolver.js";
-import type { ChatRunCommand } from "../../runtimes/types.js";
-import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../../session/core/types.js";
+import type { RuntimeModelInput } from "../../../protocol/index.js";
+import { resolveRuntime } from "../runtimes/resolver.js";
+import type { ChatRunCommand } from "../runtimes/types.js";
+import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../session/model/ledger.js";
 
 export type DisplaySummaryGenerationResult = {
   summary: string;

@@ -1,29 +1,21 @@
 import type {
   AgentRunCommand,
   RuntimeAgentCommand,
-} from "../../../runtimes/types.js";
-import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata } from "../../../../session/core/types.js";
-import { RuntimeLedgerStorage } from "../../../../session/storage/jsonl-store.js";
+} from "../runtimes/types.js";
+import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata } from "../../session/model/ledger.js";
 import {
   createAgentSessionPlan,
-} from "./session-plan.js";
-import { resolveRuntimeSessionPaths } from "../../../../session/storage/paths.js";
+} from "./artifacts.js";
 import {
   createPromptLimits,
   takeContextText,
   type PromptLimits,
-} from "../../core/prompt-budget.js";
-import { buildRuntimeSessionContext } from "../../../../session/core/projection.js";
+} from "../../session/model/prompt-budget.js";
 import {
-  appendRuntimeSystemPromptIfNeeded,
-  composeRuntimeSystemPrompt,
-} from "../system-prompt.js";
-import {
-  commandParentEntryId,
   inferCommandTurnId,
-  shouldRecordRuntimeUserMessage,
   withSessionLink,
-} from "../session-link.js";
+} from "../../session/model/runtime-link.js";
+import { prepareRuntimeSessionTurn } from "../../session/writer.js";
 
 type RuntimeAgentHistoryMessage = {
   id: string;
@@ -164,20 +156,6 @@ const resolveAgentRunRoleKey = (command: AgentRunCommand) => {
   return agentKey;
 };
 
-const resolveCommandParentEntryId = (
-  storage: RuntimeLedgerStorage,
-  parentEntryId: string | null | undefined,
-) => {
-  const normalized = parentEntryId?.trim() || null;
-  if (!normalized) {
-    return null;
-  }
-  if (!storage.getEntry(normalized)) {
-    throw new Error(`parentEntryId 必须指向当前 runtime ledger 中已存在的 entry：${normalized}`);
-  }
-  return normalized;
-};
-
 const userMessageForAgentRun = (command: AgentRunCommand) => {
   const direct = command.userMessage?.trim();
   if (direct) {
@@ -246,44 +224,14 @@ export const prepareRuntimeAgentPrompt = async (
     };
   }
 
-  const paths = await resolveRuntimeSessionPaths({
-    workspacePath: command.workspacePath,
-    sessionRootDir: command.sessionRootDir,
-  });
-  const storage = await RuntimeLedgerStorage.openOrCreate({
-    filePath: paths.ledgerPath,
-    workspacePath: command.workspacePath,
-    sessionRootDir: command.sessionRootDir,
-  });
-  const parentEntryId = resolveCommandParentEntryId(storage, commandParentEntryId(command));
-  const contextLeafId = parentEntryId ?? storage.getLeafId();
-  const sessionContext = buildRuntimeSessionContext(storage, contextLeafId);
-  const commandWithRecording = {
-    ...command,
-    recordUserMessage: command.recordUserMessage === false
-      ? false
-      : shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId),
-  };
-  const commandWithTurn = withSessionLink(commandWithRecording, {
-    turnId: inferCommandTurnId(commandWithRecording, sessionContext.entries),
-  });
-  const systemPrompt = composeRuntimeSystemPrompt({
-    context: sessionContext,
-    currentSystemPrompt: commandWithTurn.systemPrompt,
+  const preparedTurn = await prepareRuntimeSessionTurn(command, {
     includeSummary: false,
+    preserveRecordUserMessageFalse: true,
   });
-  const systemEntry = await appendRuntimeSystemPromptIfNeeded({
-    storage,
-    command: commandWithTurn,
-    context: sessionContext,
-    baseLeafId: contextLeafId,
-    parentEntryId: contextLeafId,
-  });
-  const runtimeParentEntryId = systemEntry?.id ?? parentEntryId ?? commandParentEntryId(commandWithTurn);
-  const updatedSessionContext = buildRuntimeSessionContext(
-    storage,
-    systemEntry?.id ?? contextLeafId,
-  );
+  if (!preparedTurn) {
+    throw new Error("agent 消息启用 runtime session 时必须提供 workspacePath 和 sessionRootDir");
+  }
+  const commandWithTurn = preparedTurn.command;
 
   const sessionPlan = await createAgentSessionPlan({
     workspacePath: command.workspacePath,
@@ -292,13 +240,13 @@ export const prepareRuntimeAgentPrompt = async (
     agentRoleId: resolveAgentRunRoleKey(command),
   });
   const limits = createPromptLimits(command.runtimeModel);
-  const bootstrapHistory = toAgentHistory(updatedSessionContext.entries, sessionPlan.agentRoleId);
+  const bootstrapHistory = toAgentHistory(preparedTurn.updatedSessionContext.entries, sessionPlan.agentRoleId);
   const runtimeBootstrapContext = buildBootstrapContext(bootstrapHistory, limits);
   const agentTaskPrompt = buildAgentRuntimePrompt(commandWithTurn, userMessage);
 
   return {
-    ...withSessionLink(commandWithTurn, { parentEntryId: runtimeParentEntryId }),
-    systemPrompt,
+    ...commandWithTurn,
+    systemPrompt: preparedTurn.systemPrompt,
     agentRoleId: sessionPlan.agentRoleId,
     userMessage,
     agentTaskPrompt,

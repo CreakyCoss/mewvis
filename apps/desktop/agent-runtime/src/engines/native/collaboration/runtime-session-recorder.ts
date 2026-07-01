@@ -2,19 +2,13 @@ import type {
   CollaborationEvent,
   CollaborationRunInput,
   CollaborationStepResult,
-} from "../../../protocol/index.js";
-import { CollaborationEventType } from "../../../protocol/index.js";
+} from "../../protocol/index.js";
+import { CollaborationEventType } from "../../protocol/index.js";
 import type {
   EmitCollaborationEvent,
-} from "../contracts/handler.js";
-import { RuntimeLedgerStorage } from "../../session/storage/jsonl-store.js";
-import { resolveRuntimeSessionPaths } from "../../session/storage/paths.js";
-import {
-  appendRuntimeSessionTraceRecord,
-} from "../../session/trace/jsonl-trace.js";
-import {
-  refreshRuntimeSessionManifest,
-} from "../../session/manifest/session-manifest.js";
+} from "./contracts/handler.js";
+import type { RuntimeSessionHandle } from "../session/providers/types.js";
+import { resolveRuntimeSessionProvider } from "../session/providers/resolver.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;
@@ -64,8 +58,7 @@ export class CollaborationSessionRecorder {
   private constructor(
     private readonly input: {
       collaboration: SessionBackedCollaborationInput;
-      tracePath: string;
-      storage: RuntimeLedgerStorage;
+      handle: RuntimeSessionHandle;
       baseLeafId: string | null;
       modeId: string | null;
     },
@@ -78,18 +71,13 @@ export class CollaborationSessionRecorder {
       return null;
     }
 
-    const paths = await resolveRuntimeSessionPaths(input);
-    const storage = await RuntimeLedgerStorage.openOrCreate({
-      filePath: paths.ledgerPath,
-      workspacePath: input.workspacePath,
-      sessionRootDir: input.sessionRootDir,
-    });
+    const provider = resolveRuntimeSessionProvider();
+    const handle = await provider.openOrCreate(input);
 
     return new CollaborationSessionRecorder({
       collaboration: input,
-      tracePath: paths.tracePath,
-      storage,
-      baseLeafId: storage.getLeafId(),
+      handle,
+      baseLeafId: handle.storage.getLeafId(),
       modeId: modeIdFrom(input),
     });
   }
@@ -111,28 +99,19 @@ export class CollaborationSessionRecorder {
   }
 
   private async captureEvent(event: CollaborationEvent) {
-    await appendRuntimeSessionTraceRecord<CollaborationTimelineRecord>(
-      this.input.tracePath,
-      {
-        type: "collaboration_event",
-        workflowRunId: event.workflowRunId,
-        workflowId: this.input.collaboration.workflow.id,
-        modeId: this.input.modeId,
-        event,
-      },
-    );
+    await this.input.handle.appendTrace<CollaborationTimelineRecord>({
+      type: "collaboration_event",
+      workflowRunId: event.workflowRunId,
+      workflowId: this.input.collaboration.workflow.id,
+      modeId: this.input.modeId,
+      event,
+    });
     await this.appendLedgerEvent(event);
   }
 
   private async refreshManifest() {
     try {
-      await refreshRuntimeSessionManifest({
-        workspacePath: this.input.collaboration.workspacePath,
-        sessionRootDir: this.input.collaboration.sessionRootDir,
-        ledgerPath: this.input.storage.filePath,
-        tracePath: this.input.tracePath,
-        ledger: this.input.storage,
-      });
+      await this.input.handle.refreshManifest();
     } catch (error: unknown) {
       console.warn(`collaboration session manifest 刷新失败：${String(error)}`);
     }
@@ -153,7 +132,7 @@ export class CollaborationSessionRecorder {
     };
 
     if (event.type === CollaborationEventType.WorkflowStarted) {
-      await this.input.storage.appendCustom("collaboration_run_started", {
+      await this.input.handle.storage.appendCustom("collaboration_run_started", {
         ...common,
         executorId: event.executorId,
       });
@@ -161,7 +140,7 @@ export class CollaborationSessionRecorder {
     }
 
     if (event.type === CollaborationEventType.StepStarted) {
-      await this.input.storage.appendCustom("collaboration_step_started", {
+      await this.input.handle.storage.appendCustom("collaboration_step_started", {
         ...common,
         stepId: event.stepId,
         stepType: event.stepType,
@@ -172,7 +151,7 @@ export class CollaborationSessionRecorder {
     }
 
     if (event.type === CollaborationEventType.StepDone) {
-      await this.input.storage.appendCustom("collaboration_step_done", {
+      await this.input.handle.storage.appendCustom("collaboration_step_done", {
         ...common,
         step: summarizeStep(event.step),
       });
@@ -180,7 +159,7 @@ export class CollaborationSessionRecorder {
     }
 
     if (event.type === CollaborationEventType.StepSkipped) {
-      await this.input.storage.appendCustom("collaboration_step_skipped", {
+      await this.input.handle.storage.appendCustom("collaboration_step_skipped", {
         ...common,
         step: event.step,
       });
@@ -188,7 +167,7 @@ export class CollaborationSessionRecorder {
     }
 
     if (event.type === CollaborationEventType.WorkflowDone) {
-      await this.input.storage.appendCustom("collaboration_run_done", {
+      await this.input.handle.storage.appendCustom("collaboration_run_done", {
         ...common,
         executorId: event.result.executorId ?? null,
         stepCount: event.result.steps.length,
@@ -199,7 +178,7 @@ export class CollaborationSessionRecorder {
     }
 
     if (event.type === CollaborationEventType.Error) {
-      await this.input.storage.appendCustom("collaboration_run_error", {
+      await this.input.handle.storage.appendCustom("collaboration_run_error", {
         ...common,
         stepId: event.stepId ?? null,
         agentRoleId: event.agentRoleId ?? null,

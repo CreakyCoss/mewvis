@@ -7,6 +7,7 @@ import type {
   RuntimeAgentDefinition,
   RuntimeModelInput,
 } from "../../../protocol/index.js";
+import type { RuntimeSessionLink } from "../../session/model/runtime-command.js";
 
 export type ChatRunResult = Omit<ChatResult, "type" | "requestId">;
 
@@ -27,12 +28,6 @@ export type AgentRunCommand = {
   runtimeModel?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
   sessionLink?: RuntimeSessionLink | null;
-};
-
-export type RuntimeSessionLink = {
-  parentEntryId?: string | null;
-  rootUserEntryId?: string | null;
-  turnId?: string | null;
 };
 
 export type RuntimeAgentCommand = AgentRunCommand & {

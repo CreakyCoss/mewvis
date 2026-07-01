@@ -2,12 +2,12 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
   RuntimeLedgerEntry,
-} from "../core/types.js";
-import { RuntimeLedgerStorage } from "../storage/jsonl-store.js";
+} from "../../model/ledger.js";
+import { RuntimeLedgerStorage } from "./store.js";
 import {
   readRuntimeSessionTraceRecords,
   type RuntimeSessionTraceRecord,
-} from "../trace/jsonl-trace.js";
+} from "./trace.js";
 
 export type RuntimeSessionManifest = {
   type: "runtime_session_manifest";
@@ -30,7 +30,7 @@ export type RuntimeSessionManifest = {
 
 export type RuntimeSessionSummaryLike = Omit<RuntimeSessionManifest, "type" | "version">;
 
-type RuntimeSessionManifestInput = {
+export type RuntimeSessionManifestInput = {
   workspacePath: string;
   sessionRootDir: string;
   ledgerPath: string;

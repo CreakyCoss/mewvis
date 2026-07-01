@@ -9,7 +9,7 @@ import type {
   RuntimeMessageEntry,
   RuntimeRequestContextEntry,
   RuntimeInstructionEntry,
-} from "../core/types.js";
+} from "../../model/ledger.js";
 
 const nowIso = () => new Date().toISOString();
 
