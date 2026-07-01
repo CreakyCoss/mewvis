@@ -15,7 +15,7 @@ import type {
 import { resolveAgentSessionDir } from "../session/artifacts.js";
 import { prepareRuntimeAgentPrompt } from "../session/prompt.js";
 import { createPromptLimits, toRuntimeMessages } from "../../session/model/prompt-budget.js";
-import { RuntimeSessionRecorder } from "../../session/index.js";
+import { RuntimeSessionRecorder } from "../../session/recorder.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
 import { messageFromError } from "../../error.js";
 

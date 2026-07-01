@@ -2,10 +2,10 @@ import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
   RuntimeSessionPathInput,
-} from "./providers/types.js";
+} from "../providers/types.js";
 import type {
   RuntimeSessionStorageProvider,
-} from "./internal/storage.js";
+} from "./storage.js";
 
 export const sanitizeSessionArtifactSegment = (value: string, fallback: string) => {
   const segment = value

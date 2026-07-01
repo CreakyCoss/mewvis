@@ -5,7 +5,7 @@ import type {
 import {
   clearRuntimeSessionArtifactDir,
   resolveRuntimeSessionArtifactDir,
-} from "../../artifacts.js";
+} from "../../internal/artifacts.js";
 import { refreshRuntimeSessionManifest } from "./manifest.js";
 import { resolveRuntimeSessionPaths } from "./paths.js";
 import {

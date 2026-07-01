@@ -24,8 +24,6 @@ const isChatRunCommand = (
 const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
   const candidate = command as SessionBackedRuntimeCommand;
   return (isChatRunCommand(command) || isRuntimeAgentSessionCommand(command)) &&
-    typeof candidate.workspacePath === "string" &&
-    typeof candidate.sessionRootDir === "string" &&
     Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim());
 };
 
