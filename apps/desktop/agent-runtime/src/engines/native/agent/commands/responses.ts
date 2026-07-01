@@ -38,12 +38,7 @@ export const createAgentToolsResult = (
   type: AgentResultType.AgentTools,
   requestId: command.requestId ?? null,
   agentId: command.agentId ?? null,
-  tools: AGENT_TOOL_DEFINITIONS.map((tool) => ({
-    name: tool.name,
-    label: tool.label,
-    description: tool.description,
-    enabledByDefault: tool.enabledByDefault,
-  })),
+  tools: AGENT_TOOL_DEFINITIONS,
   defaultToolNames: [...DEFAULT_ALLOWED_AGENT_TOOLS],
 });
 
@@ -52,29 +47,7 @@ export const createRuntimeModelsResult = (
 ): RuntimeModelsResult => ({
   type: AgentResultType.RuntimeModels,
   requestId: command.requestId ?? null,
-  catalog: Object.fromEntries(
-    Object.entries(MODEL_CATALOG).map(([providerId, provider]) => [
-      providerId,
-      {
-        websiteUrl: provider.websiteUrl,
-        apis: provider.apis.map((api) => ({ ...api })),
-        models: Object.fromEntries(
-          Object.entries(provider.models).map(([modelId, model]) => [
-            modelId,
-            {
-              ...model,
-              input: [...model.input],
-              cost: { ...model.cost },
-              thinkingLevelMap: model.thinkingLevelMap
-                ? { ...model.thinkingLevelMap }
-                : undefined,
-              headers: model.headers ? { ...model.headers } : undefined,
-            },
-          ]),
-        ),
-      },
-    ]),
-  ),
+  catalog: MODEL_CATALOG,
 });
 
 export const createPongResult = (command: RequestCommand): PongResult => ({
