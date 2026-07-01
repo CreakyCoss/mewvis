@@ -9,6 +9,7 @@ import type {
   RuntimeMessageEntry,
   RuntimeRequestContextEntry,
   RuntimeInstructionEntry,
+  RuntimeBranchSummaryEntry,
 } from "../../model/ledger.js";
 
 const nowIso = () => new Date().toISOString();
@@ -177,6 +178,27 @@ export class RuntimeLedgerStorage {
       timestamp: nowIso(),
       customType,
       data,
+    });
+  }
+
+  async appendBranchSummary(
+    fromId: string,
+    summary: string,
+    details?: unknown,
+    parentId: string | null = null,
+  ): Promise<RuntimeBranchSummaryEntry> {
+    if (!this.byId.has(fromId)) {
+      throw new Error(`runtime ledger compact 来源 entry 不存在：${fromId}`);
+    }
+
+    return this.appendEntry({
+      type: "branch_summary",
+      id: this.createEntryId(),
+      parentId,
+      timestamp: nowIso(),
+      fromId,
+      summary,
+      details,
     });
   }
 

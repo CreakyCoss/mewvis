@@ -8,3 +8,4 @@ export {
   listRuntimeSessions,
   type RuntimeSessionManagerTarget,
 } from "./manager.js";
+export { RuntimeSessionRecorder } from "./recorder.js";

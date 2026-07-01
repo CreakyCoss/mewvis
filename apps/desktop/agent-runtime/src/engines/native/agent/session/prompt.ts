@@ -2,7 +2,6 @@ import type {
   AgentRunCommand,
   RuntimeAgentCommand,
 } from "../runtimes/types.js";
-import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata } from "../../session/model/ledger.js";
 import {
   createAgentSessionPlan,
 } from "./artifacts.js";
@@ -11,90 +10,17 @@ import {
   takeContextText,
   type PromptLimits,
 } from "../../session/model/prompt-budget.js";
+import type {
+  RuntimeAgentVisibleContext,
+} from "../../session/model/agent-context.js";
 import {
   inferCommandTurnId,
   withSessionLink,
 } from "../../session/model/runtime-link.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
 
-type RuntimeAgentHistoryMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  metadata?: Record<string, unknown> | null;
-};
-
-type RuntimeAgentHistory = {
-  recentMessages: RuntimeAgentHistoryMessage[];
-  requestContexts: RuntimeAgentHistoryMessage[];
-  runtimeInstructions: RuntimeAgentHistoryMessage[];
-  agentRoleId?: string | null;
-};
-
-const roleLabel = (role: RuntimeMessage["role"]) =>
-  role === "assistant" ? "assistant" : "user";
-
-const metadataAgentRoleId = (metadata?: RuntimeMessageMetadata | null) =>
-  metadata?.agentRoleId?.trim() || metadata?.agentKey?.trim() || null;
-
-const belongsToAgent = (
-  metadata: RuntimeMessageMetadata | null | undefined,
-  agentRoleId: string,
-) => metadataAgentRoleId(metadata) === agentRoleId;
-
-const toAgentHistory = (
-  entries: RuntimeLedgerEntry[],
-  agentRoleId: string,
-): RuntimeAgentHistory => {
-  const recentMessages: RuntimeAgentHistory["recentMessages"] = [];
-  const requestContexts: RuntimeAgentHistory["requestContexts"] = [];
-  const runtimeInstructions: RuntimeAgentHistory["runtimeInstructions"] = [];
-
-  for (const entry of entries) {
-    if (entry.type === "message" && belongsToAgent(entry.message.metadata, agentRoleId)) {
-      recentMessages.push({
-        id: entry.id,
-        role: roleLabel(entry.message.role),
-        content: entry.message.content,
-        timestamp: entry.message.timestamp,
-        metadata: entry.message.metadata ?? null,
-      });
-      continue;
-    }
-
-    if (entry.type === "request_context" && belongsToAgent(entry.metadata, agentRoleId)) {
-      requestContexts.push({
-        id: entry.id,
-        role: "user",
-        content: entry.content,
-        timestamp: new Date(entry.timestamp).getTime(),
-        metadata: entry.metadata ?? null,
-      });
-      continue;
-    }
-
-    if (entry.type === "runtime_instruction" && belongsToAgent(entry.metadata, agentRoleId)) {
-      runtimeInstructions.push({
-        id: entry.id,
-        role: "user",
-        content: entry.content,
-        timestamp: new Date(entry.timestamp).getTime(),
-        metadata: entry.metadata ?? null,
-      });
-    }
-  }
-
-  return {
-    recentMessages,
-    requestContexts,
-    runtimeInstructions,
-    agentRoleId,
-  };
-};
-
 const formatRecentHistory = (
-  messages: RuntimeAgentHistory["recentMessages"],
+  messages: RuntimeAgentVisibleContext["recentMessages"],
   maxChars: number,
 ) => {
   let remaining = maxChars;
@@ -118,7 +44,7 @@ const formatRecentHistory = (
 };
 
 const buildBootstrapContext = (
-  history: RuntimeAgentHistory,
+  history: RuntimeAgentVisibleContext,
   limits: PromptLimits,
 ) => {
   const sections = [
@@ -224,10 +150,11 @@ export const prepareRuntimeAgentPrompt = async (
     };
   }
 
-  const preparedTurn = await createRuntimeSessionManager({
+  const sessionManager = createRuntimeSessionManager({
     workspacePath: command.workspacePath,
     sessionRootDir: command.sessionRootDir,
-  }).prepareTurn(command, {
+  });
+  const preparedTurn = await sessionManager.prepareTurn(command, {
     includeSummary: false,
     preserveRecordUserMessageFalse: true,
   });
@@ -243,7 +170,10 @@ export const prepareRuntimeAgentPrompt = async (
     agentRoleId: resolveAgentRunRoleKey(command),
   });
   const limits = createPromptLimits(command.runtimeModel);
-  const bootstrapHistory = toAgentHistory(preparedTurn.updatedSessionContext.entries, sessionPlan.agentRoleId);
+  const bootstrapHistory = await sessionManager.readAgentVisibleContext({
+    agentRoleId: sessionPlan.agentRoleId,
+    anchorRecordId: preparedTurn.runtimeParentRecordId ?? preparedTurn.contextAnchorId,
+  });
   const runtimeBootstrapContext = buildBootstrapContext(bootstrapHistory, limits);
   const agentTaskPrompt = buildAgentRuntimePrompt(commandWithTurn, userMessage);
 

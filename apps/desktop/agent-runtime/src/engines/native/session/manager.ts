@@ -16,31 +16,23 @@ import {
   type SessionResult,
   type SummarizeSessionInput,
 } from "../../protocol/index.js";
-import {
-  clearRuntimeSessionArtifactDir,
-  resolveRuntimeSessionArtifactDir,
-} from "./artifacts.js";
 import { resolveRuntimeSessionProvider } from "./providers/resolver.js";
 import type {
-  RuntimeSessionHandle,
+  RuntimeAgentVisibleContext,
+} from "./model/agent-context.js";
+import type {
+  RuntimeSessionAgentVisibleContextInput,
+  RuntimeSessionCompactInput,
+  RuntimeSessionDeleteInput,
+  RuntimeSessionEventInput,
+  RuntimeSessionMutationHooks,
   RuntimeSessionPathInput,
   RuntimeSessionProvider,
+  RuntimeSessionSummarizeOptions,
+  RuntimeSessionTraceInput,
+  RuntimeSessionTraceRecord,
+  RuntimeSessionTurnOptions,
 } from "./providers/types.js";
-import {
-  appendRuntimeSessionMessages,
-  deleteRuntimeSessionMessage,
-  editRuntimeSessionMessage,
-  readRuntimeSession,
-  rebuildRuntimeSession,
-  summarizeRuntimeSession,
-  type RuntimeSessionMutationHooks,
-  type RuntimeSessionSummarizeOptions,
-} from "./internal/service.js";
-import {
-  prepareRuntimeSessionTurn,
-  refreshRuntimeSessionManifest,
-  type RuntimeSessionTurnOptions,
-} from "./internal/writer.js";
 import type { RuntimeSessionCommand } from "./model/runtime-command.js";
 
 type SessionManagerInput<TInput extends RuntimeSessionPathInput> =
@@ -51,6 +43,7 @@ export type RuntimeSessionManagerTarget = RuntimeSessionPathInput;
 class RuntimeSessionManager {
   readonly workspacePath: string;
   readonly sessionRootDir: string;
+  private readonly ready: Promise<void>;
 
   constructor(
     target: RuntimeSessionManagerTarget,
@@ -58,117 +51,187 @@ class RuntimeSessionManager {
   ) {
     this.workspacePath = target.workspacePath;
     this.sessionRootDir = target.sessionRootDir;
+    this.ready = this.provider.initSession(this.target);
   }
 
-  openHandle(): Promise<RuntimeSessionHandle> {
-    return this.provider.openOrCreate(this.target);
+  async refreshSession(): Promise<void> {
+    await this.ensureReady();
+    return this.provider.refreshSession(this.target);
   }
 
-  refreshManifest(handle: RuntimeSessionHandle): Promise<void> {
-    return refreshRuntimeSessionManifest(handle);
-  }
-
-  prepareTurn<TCommand extends RuntimeSessionCommand>(
+  async prepareTurn<TCommand extends RuntimeSessionCommand>(
     command: TCommand,
     options: RuntimeSessionTurnOptions = {},
   ) {
-    return prepareRuntimeSessionTurn({
+    await this.ensureReady();
+    return this.provider.prepareTurn({
       ...command,
       ...this.target,
-    }, this.provider, options);
+    }, options);
   }
 
-  readSession(
+  async readSession(
     input: SessionManagerInput<ReadSessionInput> = {},
   ): Promise<SessionResult> {
-    return readRuntimeSession({
+    await this.ensureReady();
+    return this.provider.readSession({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.ReadSession as const,
-    }, this.provider);
+    });
   }
 
-  summarizeSession(
+  async summarizeSession(
     input: SessionManagerInput<SummarizeSessionInput>,
     options: RuntimeSessionSummarizeOptions,
   ): Promise<SessionMutationResult> {
-    return summarizeRuntimeSession({
+    await this.ensureReady();
+    return this.provider.summarizeSession({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.SummarizeSession as const,
-    }, this.provider, options);
+    }, options);
   }
 
-  editSessionMessage(
+  async editSessionMessage(
     input: SessionManagerInput<EditSessionMessageInput>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
-    return editRuntimeSessionMessage({
+    await this.ensureReady();
+    const result = await this.provider.editSessionMessage({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.MessageEdit as const,
-    }, this.provider, hooks);
+    });
+    await hooks.invalidateDerivedArtifacts?.(this.target);
+    return result;
   }
 
-  deleteSessionMessage(
+  async deleteSessionMessage(
     input: SessionManagerInput<DeleteSessionMessageInput>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
-    return deleteRuntimeSessionMessage({
+    await this.ensureReady();
+    const result = await this.provider.deleteSessionMessage({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.MessageDelete as const,
-    }, this.provider, hooks);
+    });
+    await hooks.invalidateDerivedArtifacts?.(this.target);
+    return result;
   }
 
-  appendSessionMessages(
+  async appendSessionMessages(
     input: SessionManagerInput<AppendSessionMessagesInput>,
   ): Promise<SessionMutationResult> {
-    return appendRuntimeSessionMessages({
+    await this.ensureReady();
+    return this.provider.appendSessionMessages({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.MessageAppend as const,
-    }, this.provider);
+    });
   }
 
-  rebuildSession(
+  async rebuildSession(
     input: SessionManagerInput<RebuildSessionInput>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
-    return rebuildRuntimeSession({
+    await this.ensureReady();
+    const result = await this.provider.rebuildSession({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.Rebuild as const,
-    }, this.provider, hooks);
+    });
+    await hooks.invalidateDerivedArtifacts?.(this.target);
+    return result;
+  }
+
+  async compactSession(
+    input: SessionManagerInput<RuntimeSessionCompactInput> = {},
+  ): Promise<SessionMutationResult> {
+    await this.ensureReady();
+    return this.provider.compactSession({
+      ...input,
+      ...this.target,
+      requestId: null,
+    });
+  }
+
+  async deleteSession(
+    input: SessionManagerInput<RuntimeSessionDeleteInput> = {},
+  ): Promise<void> {
+    await this.ensureReady();
+    await this.provider.deleteSession({
+      ...input,
+      ...this.target,
+      requestId: null,
+    });
+  }
+
+  async readAgentVisibleContext(
+    input: SessionManagerInput<RuntimeSessionAgentVisibleContextInput>,
+  ): Promise<RuntimeAgentVisibleContext> {
+    await this.ensureReady();
+    return this.provider.readAgentVisibleContext({
+      ...input,
+      ...this.target,
+    });
+  }
+
+  async recordSessionEvent(
+    input: SessionManagerInput<RuntimeSessionEventInput>,
+  ): Promise<SessionMutationResult> {
+    await this.ensureReady();
+    return this.provider.recordSessionEvent({
+      ...input,
+      ...this.target,
+      requestId: null,
+    });
+  }
+
+  async appendTraceRecord<TRecord extends RuntimeSessionTraceRecord>(
+    input: SessionManagerInput<RuntimeSessionTraceInput<TRecord>>,
+  ): Promise<TRecord> {
+    await this.ensureReady();
+    return this.provider.appendTraceRecord({
+      ...input,
+      ...this.target,
+    });
   }
 
   async readRuntimeSession(
     input: SessionManagerInput<RuntimeSessionQuery> = {},
   ): Promise<RuntimeSessionResult> {
+    await this.ensureReady();
+    const snapshot = await this.provider.getRuntimeSessionSnapshot(
+      this.target,
+      {
+        includeLedger: input.includeLedger,
+        includeTrace: input.includeTrace,
+        includeTimeline: input.includeTimeline,
+        timelineLimit: input.timelineLimit,
+      },
+    );
     return {
       type: AgentRuntimeResultType.RuntimeSessionResult,
       requestId: null,
-      ...(await this.provider.getRuntimeSessionSnapshot(
-        this.target,
-        {
-          includeLedger: input.includeLedger,
-          includeTrace: input.includeTrace,
-          includeTimeline: input.includeTimeline,
-          timelineLimit: input.timelineLimit,
-        },
-      )),
+      session: snapshot.session,
+      ledger: snapshot.raw ?? null,
+      trace: snapshot.trace,
+      timeline: snapshot.timeline,
     };
   }
 
   async readCollaborationTimeline(
     input: SessionManagerInput<CollaborationTimelineQuery> = {},
   ): Promise<CollaborationTimelineResult> {
+    await this.ensureReady();
     return {
       type: AgentRuntimeResultType.CollaborationTimelineResult,
       requestId: null,
@@ -182,12 +245,24 @@ class RuntimeSessionManager {
     };
   }
 
-  resolveArtifactDir(segments: string[]): Promise<string> {
-    return resolveRuntimeSessionArtifactDir(this.provider, this.target, segments);
+  async resolveArtifactDir(segments: string[]): Promise<string> {
+    await this.ensureReady();
+    return this.provider.resolveArtifactDir({
+      ...this.target,
+      segments,
+    });
   }
 
-  clearArtifactDir(segments: string[]): Promise<void> {
-    return clearRuntimeSessionArtifactDir(this.provider, this.target, segments);
+  async clearArtifactDir(segments: string[]): Promise<void> {
+    await this.ensureReady();
+    return this.provider.clearArtifactDir({
+      ...this.target,
+      segments,
+    });
+  }
+
+  private ensureReady(): Promise<void> {
+    return this.ready;
   }
 
   private get target(): RuntimeSessionPathInput {

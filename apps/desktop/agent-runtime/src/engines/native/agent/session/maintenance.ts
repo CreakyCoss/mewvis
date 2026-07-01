@@ -5,12 +5,7 @@ import type {
   RebuildAgentSessionCommand,
   SessionMutationResult,
 } from "../../../protocol/index.js";
-import { buildRuntimeSessionContext } from "../../session/model/projection.js";
-import { runtimeLedgerOperationMetadata } from "../../session/model/metadata.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
-import {
-  runtimeSessionMutationResultFrom,
-} from "../../session/internal/service.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
@@ -46,9 +41,6 @@ export const compactRuntimeSession = async (
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
   const sessionManager = createRuntimeSessionManager(command);
-  const handle = await sessionManager.openHandle();
-  const { storage } = handle;
-  const baseLeafId = storage.getLeafId();
   const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
   const sessionPlan = await createAgentSessionPlan({
     workspacePath: command.workspacePath,
@@ -84,25 +76,23 @@ export const compactRuntimeSession = async (
       message: `${runtimeId} agent runtime 不支持手动压缩`,
     };
 
-  await storage.appendCustom("agent_session_compacted", {
-    ...runtimeLedgerOperationMetadata({
-      source: "runtime_compact",
-      baseLeafId,
-    }),
-    target: {
-      scope: command.target.scope,
-      runtimeId,
-      agentRoleId: sessionPlan.agentRoleId,
-      agentSessionId: sessionPlan.agentSessionId,
+  return sessionManager.recordSessionEvent({
+    eventType: "agent_session_compacted",
+    metadataSource: "runtime_compact",
+    data: {
+      target: {
+        scope: command.target.scope,
+        runtimeId,
+        agentRoleId: sessionPlan.agentRoleId,
+        agentSessionId: sessionPlan.agentSessionId,
+      },
+      compacted: compactResult.compacted,
+      message: compactResult.message ?? null,
+      details: compactResult.details ?? null,
     },
-    compacted: compactResult.compacted,
-    message: compactResult.message ?? null,
-    details: compactResult.details ?? null,
-  });
-  const context = buildRuntimeSessionContext(storage);
-  await sessionManager.refreshManifest(handle);
-  return runtimeSessionMutationResultFrom(command, context, {
-    compacted: compactResult.compacted,
+    result: {
+      compacted: compactResult.compacted,
+    },
   });
 };
 
@@ -111,9 +101,6 @@ export const rebuildRuntimeAgentSession = async (
   runtimeContext?: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
   const sessionManager = createRuntimeSessionManager(command);
-  const handle = await sessionManager.openHandle();
-  const { storage } = handle;
-  const baseLeafId = storage.getLeafId();
   const { runtimeId, implementation } = resolveRuntime("agent", command.target.agentId);
   const sessionPlan = await createAgentSessionPlan({
     workspacePath: command.workspacePath,
@@ -149,27 +136,25 @@ export const rebuildRuntimeAgentSession = async (
     : runtimeCommandWithPrompt;
   const result = await implementation.run(runtimeCommand, runtimeContext ?? fallbackRuntimeContext);
 
-  await storage.appendCustom("agent_session_rebuilt", {
-    ...runtimeLedgerOperationMetadata({
-      source: "runtime_rebuild_agent_session",
-      baseLeafId,
-    }),
-    target: {
-      scope: command.target.scope,
-      runtimeId,
-      agentRoleId: sessionPlan.agentRoleId,
-      agentSessionId: sessionPlan.agentSessionId,
+  return sessionManager.recordSessionEvent({
+    eventType: "agent_session_rebuilt",
+    metadataSource: "runtime_rebuild_agent_session",
+    data: {
+      target: {
+        scope: command.target.scope,
+        runtimeId,
+        agentRoleId: sessionPlan.agentRoleId,
+        agentSessionId: sessionPlan.agentSessionId,
+      },
+      rebuilt: true,
+      message: result.text?.trim() || null,
+      details: {
+        taskId,
+        bootstrapContextChars: runtimeCommand.sessionBootstrapContext?.length ?? 0,
+      },
     },
-    rebuilt: true,
-    message: result.text?.trim() || null,
-    details: {
-      taskId,
-      bootstrapContextChars: runtimeCommand.sessionBootstrapContext?.length ?? 0,
+    result: {
+      rebuilt: true,
     },
-  });
-  const context = buildRuntimeSessionContext(storage);
-  await sessionManager.refreshManifest(handle);
-  return runtimeSessionMutationResultFrom(command, context, {
-    rebuilt: true,
   });
 };

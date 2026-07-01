@@ -1,4 +1,4 @@
-import type { RuntimeMessage } from "./ledger.js";
+import type { RuntimeMessage } from "./context.js";
 
 export type PromptModelContext = {
   contextWindow?: number | null;

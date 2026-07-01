@@ -1,31 +1,39 @@
 import {
   AgentEventType,
   type AgentEvent,
-} from "../../../protocol/index.js";
+} from "../../../../protocol/index.js";
 import type {
   RuntimeChatMessageInput,
   RuntimeAgentSessionCommand,
   RuntimeChatSessionCommand,
   RuntimeSessionCommand,
   SessionBackedRuntimeCommand,
-} from "../../session/model/runtime-command.js";
-import { isRuntimeAgentSessionCommand } from "../../session/model/runtime-command.js";
+} from "../../model/runtime-command.js";
+import { isRuntimeAgentSessionCommand } from "../../model/runtime-command.js";
 import type {
   RuntimeMessage,
   RuntimeSessionRecordRef,
-} from "../../session/model/ledger.js";
-import type { RuntimeSessionHandle } from "../../session/providers/types.js";
+} from "../../model/ledger.js";
+import type {
+  RuntimeSessionHandle,
+  RuntimeSessionStorageProvider,
+} from "../../internal/storage.js";
+import type {
+  RuntimeSessionAssistantMessageInput,
+  RuntimeSessionRunRecorder,
+} from "../types.js";
 import {
   runtimeEntryMetadata,
   runtimeMessageMetadata,
-} from "../../session/model/metadata.js";
+} from "../../model/metadata.js";
 import {
   commandParentEntryId,
   commandRootUserEntryId,
-} from "../../session/model/runtime-link.js";
-import { createRuntimeSessionManager } from "../../session/index.js";
-
-type EmitAgentEvent = (event: AgentEvent) => void;
+} from "../../model/runtime-link.js";
+import {
+  openRuntimeSessionStorage,
+  refreshRuntimeSessionManifest,
+} from "../../internal/writer.js";
 
 type TraceRecord = {
   type: "event" | "error";
@@ -39,14 +47,6 @@ const isChatRunCommand = (
   command: RuntimeSessionCommand,
 ): command is RuntimeChatSessionCommand =>
   "type" in command && command.type === "chat";
-
-const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
-  const candidate = command as SessionBackedRuntimeCommand;
-  return (isChatRunCommand(command) || isRuntimeAgentSessionCommand(command)) &&
-    typeof candidate.workspacePath === "string" &&
-    typeof candidate.sessionRootDir === "string" &&
-    Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim());
-};
 
 const contentFromChatMessage = (message: RuntimeChatMessageInput | undefined) =>
   message?.content?.trim() ?? "";
@@ -120,7 +120,7 @@ const initialUserMessageFor = (
 const taskIdFor = (command: RuntimeSessionCommand) =>
   "runtimeMode" in command ? command.taskId : command.streamId ?? null;
 
-export class RuntimeSessionRecorder {
+export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
   private text = "";
   private thinking = "";
   private userEntryId: string | null = null;
@@ -130,7 +130,6 @@ export class RuntimeSessionRecorder {
   private assistantEntryId: string | null = null;
   private parentEntryId: string | null = null;
   private rootUserEntryId: string | null = null;
-  private pendingWrite: Promise<void> = Promise.resolve();
 
   private constructor(
     private readonly input: {
@@ -140,13 +139,12 @@ export class RuntimeSessionRecorder {
     },
   ) {}
 
-  static async create(command: RuntimeSessionCommand): Promise<RuntimeSessionRecorder | null> {
-    if (!hasSession(command)) {
-      return null;
-    }
-
-    const handle = await createRuntimeSessionManager(command).openHandle();
-    return new RuntimeSessionRecorder({
+  static async create(
+    command: SessionBackedRuntimeCommand,
+    storageProvider: RuntimeSessionStorageProvider,
+  ): Promise<JsonlRuntimeSessionRecorder> {
+    const handle = await openRuntimeSessionStorage(command, storageProvider);
+    return new JsonlRuntimeSessionRecorder({
       command,
       handle,
       baseLeafId: handle.storage.getLeafId(),
@@ -159,7 +157,7 @@ export class RuntimeSessionRecorder {
     this.intentLeafId = await this.recordIntentEntries(this.parentEntryId);
 
     if (this.input.command.recordUserMessage === false) {
-      return null;
+      return;
     }
 
     const userEntryId = this.input.handle.storage.createEntryId();
@@ -172,7 +170,7 @@ export class RuntimeSessionRecorder {
       },
     );
     if (!message) {
-      return null;
+      return;
     }
 
     const entry = await this.input.handle.storage.appendMessage(
@@ -182,92 +180,9 @@ export class RuntimeSessionRecorder {
     );
     this.userEntryId = entry.id;
     this.rootUserEntryId ??= entry.id;
-    return entry;
   }
 
-  wrapEmit(baseEmit: EmitAgentEvent): EmitAgentEvent {
-    return (event) => {
-      if (event.type === AgentEventType.Done) {
-        this.pendingWrite = this.pendingWrite
-          .then(async () => {
-            await this.captureEvent(event);
-            baseEmit(this.decorateEvent(event));
-          })
-          .catch((error: unknown) => {
-            console.warn(`runtime session recorder 写入失败：${String(error)}`);
-            baseEmit(this.decorateEvent(event));
-          });
-        return;
-      }
-
-      this.pendingWrite = this.pendingWrite
-        .then(() => this.captureEvent(event))
-        .catch((error: unknown) => {
-          console.warn(`runtime session recorder 写入失败：${String(error)}`);
-        });
-      baseEmit(this.decorateEvent(event));
-    };
-  }
-
-  async flush() {
-    await this.pendingWrite;
-    await this.refreshManifest();
-  }
-
-  async finalizeAssistantMessage(input: {
-    text?: string | null;
-    thinking?: string | null;
-    runStatus?: "done" | "error";
-  } = {}) {
-    const text = (input.text ?? this.text).trim();
-    const thinking = (input.thinking ?? this.thinking).trim();
-    if (!text && !thinking) {
-      return null;
-    }
-
-    const assistantParentId = this.userEntryId ?? this.intentLeafId ?? this.parentEntryId ?? undefined;
-    const parentUserEntryId = this.userEntryId ?? this.rootUserEntryId;
-    const entry = await this.input.handle.storage.appendMessage({
-      role: "assistant",
-      content: text || thinking,
-      timestamp: Date.now(),
-      metadata: runtimeMessageMetadata({
-        command: this.input.command,
-        role: "assistant",
-        baseLeafId: this.input.baseLeafId,
-        parentEntryId: assistantParentId ?? null,
-        rootUserEntryId: this.rootUserEntryId,
-        parentUserEntryId,
-        runStatus: input.runStatus ?? "done",
-        thinking: thinking || null,
-      }),
-    }, assistantParentId);
-    this.assistantEntryId = entry.id;
-    return entry;
-  }
-
-  getSessionRecord(): RuntimeSessionRecordRef {
-    return {
-      sessionRootDir: this.input.command.sessionRootDir ?? "",
-      userMessageRecordId: this.userEntryId,
-      requestContextRecordId: this.requestContextEntryId,
-      runtimeInstructionRecordId: this.runtimeInstructionEntryId,
-      assistantMessageRecordId: this.assistantEntryId,
-    };
-  }
-
-  private decorateEvent(event: AgentEvent): AgentEvent {
-    if (event.type !== AgentEventType.Done) {
-      return event;
-    }
-
-    return {
-      ...event,
-      runtimeSession: this.getSessionRecord(),
-    };
-  }
-
-  private async captureEvent(event: AgentEvent) {
+  async recordEvent(event: AgentEvent) {
     await this.appendTrace({
       type: "event",
       timestamp: new Date().toISOString(),
@@ -300,16 +215,53 @@ export class RuntimeSessionRecorder {
     }
   }
 
-  private async appendTrace(record: TraceRecord) {
-    await this.input.handle.appendTrace(record);
+  async finalizeAssistantMessage(input: RuntimeSessionAssistantMessageInput = {}) {
+    const text = (input.text ?? this.text).trim();
+    const thinking = (input.thinking ?? this.thinking).trim();
+    if (!text && !thinking) {
+      return;
+    }
+
+    const assistantParentId = this.userEntryId ?? this.intentLeafId ?? this.parentEntryId ?? undefined;
+    const parentUserEntryId = this.userEntryId ?? this.rootUserEntryId;
+    const entry = await this.input.handle.storage.appendMessage({
+      role: "assistant",
+      content: text || thinking,
+      timestamp: Date.now(),
+      metadata: runtimeMessageMetadata({
+        command: this.input.command,
+        role: "assistant",
+        baseLeafId: this.input.baseLeafId,
+        parentEntryId: assistantParentId ?? null,
+        rootUserEntryId: this.rootUserEntryId,
+        parentUserEntryId,
+        runStatus: input.runStatus ?? "done",
+        thinking: thinking || null,
+      }),
+    }, assistantParentId);
+    this.assistantEntryId = entry.id;
   }
 
-  private async refreshManifest() {
+  getSessionRecord(): RuntimeSessionRecordRef {
+    return {
+      sessionRootDir: this.input.command.sessionRootDir ?? "",
+      userMessageRecordId: this.userEntryId,
+      requestContextRecordId: this.requestContextEntryId,
+      runtimeInstructionRecordId: this.runtimeInstructionEntryId,
+      assistantMessageRecordId: this.assistantEntryId,
+    };
+  }
+
+  async flush() {
     try {
-      await this.input.handle.refreshManifest();
+      await refreshRuntimeSessionManifest(this.input.handle);
     } catch (error: unknown) {
       console.warn(`runtime session manifest 刷新失败：${String(error)}`);
     }
+  }
+
+  private async appendTrace(record: TraceRecord) {
+    await this.input.handle.appendTrace(record);
   }
 
   private async recordIntentEntries(parentEntryId: string | null) {

@@ -8,7 +8,7 @@ import type {
   RuntimeDisplaySummary,
   RuntimeLink,
 } from "../../../protocol/session.js";
-import type { RuntimeSessionStore } from "../providers/types.js";
+import type { RuntimeSessionStore } from "../internal/storage.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);

@@ -1,18 +1,29 @@
 import type {
-  RuntimeInstructionEntry,
-  RuntimeLedgerEntry,
-  RuntimeLedgerHeader,
-  RuntimeMessage,
-  RuntimeMessageEntry,
-  RuntimeMessageMetadata,
-  RuntimeRequestContextEntry,
-  RuntimeCustomEntry,
-  RuntimeLeafEntry,
-} from "../model/ledger.js";
+  AgentEvent,
+  MessageAppendCommand,
+  MessageDeleteCommand,
+  MessageEditCommand,
+  ReadSessionCommand,
+  RebuildCommand,
+  SessionMutationResult,
+  SessionResult,
+  SummarizeSessionCommand,
+} from "../../../protocol/index.js";
+import type {
+  RuntimeAgentVisibleContext,
+  RuntimeMessageSource,
+  RuntimeSessionRecordRef,
+  RuntimeSessionContextView,
+} from "../model/context.js";
 import type {
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../../protocol/session.js";
+import type { RuntimeModelInput } from "../../../protocol/model.js";
+import type {
+  RuntimeSessionCommand,
+  SessionBackedRuntimeCommand,
+} from "../model/runtime-command.js";
 
 export type RuntimeSessionProviderId = "jsonl" | (string & {});
 
@@ -39,10 +50,7 @@ export type RuntimeSessionQueryTarget = {
 
 export type RuntimeSessionSnapshot = {
   session: RuntimeSessionSummary;
-  ledger?: {
-    header: RuntimeLedgerHeader;
-    entries: RuntimeLedgerEntry[];
-  } | null;
+  raw?: unknown;
   trace?: RuntimeSessionTraceRecord[];
   timeline?: RuntimeSessionTimelineItem[];
 };
@@ -54,47 +62,121 @@ export type RuntimeSessionListOptions = {
   maxDepth?: number | null;
 };
 
-export type RuntimeSessionStore = {
-  readonly header: RuntimeLedgerHeader;
-  getLeafId(): string | null;
-  getEntries(): RuntimeLedgerEntry[];
-  getEntry(id: string): RuntimeLedgerEntry | undefined;
-  createEntryId(): string;
-  appendMessage(
-    message: RuntimeMessage,
-    parentId?: string | null,
-    id?: string,
-  ): Promise<RuntimeMessageEntry>;
-  appendRequestContext(
-    content: string,
-    metadata: RuntimeMessageMetadata | null,
-    parentId?: string | null,
-  ): Promise<RuntimeRequestContextEntry>;
-  appendRuntimeInstruction(
-    content: string,
-    metadata: RuntimeMessageMetadata | null,
-    parentId?: string | null,
-  ): Promise<RuntimeInstructionEntry>;
-  appendCustom(
-    customType: string,
-    data?: unknown,
-    parentId?: string | null,
-  ): Promise<RuntimeCustomEntry>;
-  setLeafId(targetId: string | null): Promise<RuntimeLeafEntry>;
-  getPathToRoot(leafId?: string | null): RuntimeLedgerEntry[];
+export type RuntimeSessionDisplaySummaryResult = {
+  summary: string;
+  runtimeId: string;
+  modelId: string | null;
+  sourceCharCount: number;
+  chunkCount: number;
+  llmCallCount: number;
 };
 
-export type RuntimeSessionHandle = {
-  paths: RuntimeSessionPaths;
-  storage: RuntimeSessionStore;
-  appendTrace<TRecord extends RuntimeSessionTraceRecord>(record: TRecord): Promise<TRecord>;
-  refreshManifest(): Promise<void>;
+export type RuntimeSessionDisplaySummaryGenerator = (input: {
+  context: RuntimeSessionContextView;
+  rawContext?: unknown;
+  agentId?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  summaryInstruction?: string | null;
+  maxSummaryChars?: number | null;
+}) => Promise<RuntimeSessionDisplaySummaryResult>;
+
+export type RuntimeSessionSummarizeOptions = {
+  generateDisplaySummary: RuntimeSessionDisplaySummaryGenerator;
+};
+
+export type RuntimeSessionMutationHooks = {
+  invalidateDerivedArtifacts?(input: RuntimeSessionPathInput): Promise<void>;
+};
+
+export type RuntimeSessionCompactInput = RuntimeSessionPathInput & {
+  requestId?: string | null;
+  summary?: string | null;
+  details?: unknown;
+};
+
+export type RuntimeSessionDeleteInput = RuntimeSessionPathInput & {
+  requestId?: string | null;
+};
+
+export type RuntimeSessionAgentVisibleContextInput = RuntimeSessionPathInput & {
+  agentRoleId: string;
+  anchorRecordId?: string | null;
+};
+
+export type RuntimeSessionEventInput = RuntimeSessionPathInput & {
+  requestId?: string | null;
+  eventType: string;
+  data?: unknown;
+  metadataSource?: RuntimeMessageSource | null;
+  result?: Partial<Pick<SessionMutationResult, "compacted" | "rebuilt">>;
+};
+
+export type RuntimeSessionTraceInput<TRecord extends RuntimeSessionTraceRecord> =
+  RuntimeSessionPathInput & {
+    record: TRecord;
+  };
+
+export type RuntimeSessionTurnOptions = {
+  includeSummary?: boolean;
+  preserveRecordUserMessageFalse?: boolean;
+};
+
+export type RuntimeSessionPreparedTurn<TCommand extends RuntimeSessionCommand> = {
+  command: TCommand;
+  contextAnchorId: string | null;
+  runtimeParentRecordId?: string | null;
+  sessionContext: RuntimeSessionContextView;
+  systemPrompt: string;
+  updatedSessionContext: RuntimeSessionContextView;
+};
+
+export type RuntimeSessionArtifactInput = RuntimeSessionPathInput & {
+  segments: string[];
+};
+
+export type RuntimeSessionAssistantMessageInput = {
+  text?: string | null;
+  thinking?: string | null;
+  runStatus?: "done" | "error";
+};
+
+export type RuntimeSessionRunRecorder = {
+  recordInitialUserMessage(): Promise<void>;
+  recordEvent(event: AgentEvent): Promise<void>;
+  finalizeAssistantMessage(input?: RuntimeSessionAssistantMessageInput): Promise<void>;
+  getSessionRecord(): RuntimeSessionRecordRef;
+  flush(): Promise<void>;
 };
 
 export type RuntimeSessionProvider = {
   readonly id: RuntimeSessionProviderId;
-  resolvePaths(input: RuntimeSessionPathInput): Promise<RuntimeSessionPaths>;
-  openOrCreate(input: RuntimeSessionPathInput): Promise<RuntimeSessionHandle>;
+  initSession(input: RuntimeSessionPathInput): Promise<void>;
+  refreshSession(input: RuntimeSessionPathInput): Promise<void>;
+  createRecorder(input: SessionBackedRuntimeCommand): Promise<RuntimeSessionRunRecorder>;
+  prepareTurn<TCommand extends RuntimeSessionCommand>(
+    input: TCommand & RuntimeSessionPathInput,
+    options?: RuntimeSessionTurnOptions,
+  ): Promise<RuntimeSessionPreparedTurn<TCommand> | null>;
+  readSession(input: ReadSessionCommand): Promise<SessionResult>;
+  summarizeSession(
+    input: SummarizeSessionCommand,
+    options: RuntimeSessionSummarizeOptions,
+  ): Promise<SessionMutationResult>;
+  appendSessionMessages(input: MessageAppendCommand): Promise<SessionMutationResult>;
+  rebuildSession(input: RebuildCommand): Promise<SessionMutationResult>;
+  editSessionMessage(input: MessageEditCommand): Promise<SessionMutationResult>;
+  deleteSessionMessage(input: MessageDeleteCommand): Promise<SessionMutationResult>;
+  compactSession(input: RuntimeSessionCompactInput): Promise<SessionMutationResult>;
+  deleteSession(input: RuntimeSessionDeleteInput): Promise<void>;
+  readAgentVisibleContext(
+    input: RuntimeSessionAgentVisibleContextInput,
+  ): Promise<RuntimeAgentVisibleContext>;
+  recordSessionEvent(input: RuntimeSessionEventInput): Promise<SessionMutationResult>;
+  appendTraceRecord<TRecord extends RuntimeSessionTraceRecord>(
+    input: RuntimeSessionTraceInput<TRecord>,
+  ): Promise<TRecord>;
+  resolveArtifactDir(input: RuntimeSessionArtifactInput): Promise<string>;
+  clearArtifactDir(input: RuntimeSessionArtifactInput): Promise<void>;
   listRuntimeSessions(input: RuntimeSessionListOptions): Promise<RuntimeSessionSummary[]>;
   getRuntimeSessionSnapshot(
     target: RuntimeSessionQueryTarget,

@@ -2,8 +2,10 @@ import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
   RuntimeSessionPathInput,
-  RuntimeSessionProvider,
 } from "./providers/types.js";
+import type {
+  RuntimeSessionStorageProvider,
+} from "./internal/storage.js";
 
 export const sanitizeSessionArtifactSegment = (value: string, fallback: string) => {
   const segment = value
@@ -25,7 +27,7 @@ export const resolveSessionArtifactPath = (
 );
 
 export const resolveRuntimeSessionArtifactDir = async (
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   input: RuntimeSessionPathInput,
   segments: string[],
 ) => {
@@ -36,7 +38,7 @@ export const resolveRuntimeSessionArtifactDir = async (
 };
 
 export const clearRuntimeSessionArtifactDir = async (
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   input: RuntimeSessionPathInput,
   segments: string[],
 ) => {

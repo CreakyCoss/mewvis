@@ -1,7 +1,7 @@
 import type { RuntimeModelInput } from "../../../protocol/index.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type { ChatRunCommand } from "../runtimes/types.js";
-import type { RuntimeLedgerEntry, RuntimeSessionContext } from "../../session/model/ledger.js";
+import type { RuntimeSessionContextView } from "../../session/model/context.js";
 
 export type DisplaySummaryGenerationResult = {
   summary: string;
@@ -15,6 +15,28 @@ export type DisplaySummaryGenerationResult = {
 type SummaryBudget = {
   chunkChars: number;
   maxSummaryChars: number;
+};
+
+type SummaryRawEntry = {
+  type: string;
+  id: string;
+  parentId?: string | null;
+  timestamp: string;
+  message?: {
+    role?: string | null;
+    content?: string | null;
+    metadata?: unknown;
+  };
+  content?: string | null;
+  metadata?: unknown;
+  fromId?: string | null;
+  summary?: string | null;
+  customType?: string | null;
+  data?: unknown;
+};
+
+type SummaryRawContext = {
+  entries: SummaryRawEntry[];
 };
 
 const DEFAULT_CONTEXT_WINDOW = 128000;
@@ -96,10 +118,10 @@ const splitText = (text: string, maxChars: number) => {
   return chunks;
 };
 
-const entryHeader = (entry: RuntimeLedgerEntry) =>
+const entryHeader = (entry: SummaryRawEntry) =>
   `[entry id=${entry.id} type=${entry.type} parent=${entry.parentId ?? "null"} timestamp=${entry.timestamp}]`;
 
-const renderEntry = (entry: RuntimeLedgerEntry) => {
+const renderEntry = (entry: SummaryRawEntry) => {
   if (entry.type === "leaf") {
     return "";
   }
@@ -109,8 +131,8 @@ const renderEntry = (entry: RuntimeLedgerEntry) => {
   if (entry.type === "message") {
     return [
       entryHeader(entry),
-      `<message role="${entry.message.role}" metadata=${compactJson(entry.message.metadata ?? null)}>`,
-      entry.message.content,
+      `<message role="${entry.message?.role ?? "unknown"}" metadata=${compactJson(entry.message?.metadata ?? null)}>`,
+      entry.message?.content ?? "",
       "</message>",
     ].join("\n");
   }
@@ -118,7 +140,7 @@ const renderEntry = (entry: RuntimeLedgerEntry) => {
     return [
       entryHeader(entry),
       `<request_context metadata=${compactJson(entry.metadata ?? null)}>`,
-      entry.content,
+      entry.content ?? "",
       "</request_context>",
     ].join("\n");
   }
@@ -126,22 +148,22 @@ const renderEntry = (entry: RuntimeLedgerEntry) => {
     return [
       entryHeader(entry),
       `<runtime_instruction metadata=${compactJson(entry.metadata ?? null)}>`,
-      entry.content,
+      entry.content ?? "",
       "</runtime_instruction>",
     ].join("\n");
   }
   if (entry.type === "branch_summary") {
     return [
       entryHeader(entry),
-      `<branch_summary from="${entry.fromId}">`,
-      entry.summary,
+      `<branch_summary from="${entry.fromId ?? ""}">`,
+      entry.summary ?? "",
       "</branch_summary>",
     ].join("\n");
   }
   if (entry.type === "custom") {
     return [
       entryHeader(entry),
-      `<custom customType="${entry.customType}">`,
+      `<custom customType="${entry.customType ?? ""}">`,
       compactJson(entry.data ?? null),
       "</custom>",
     ].join("\n");
@@ -149,11 +171,31 @@ const renderEntry = (entry: RuntimeLedgerEntry) => {
   return "";
 };
 
-const renderSummarySource = (context: RuntimeSessionContext) =>
+const renderSummarySource = (context: SummaryRawContext) =>
   context.entries
     .map(renderEntry)
     .filter((section) => section.trim())
     .join("\n\n");
+
+const isRuntimeSessionContext = (value: unknown): value is SummaryRawContext =>
+  Boolean(value) &&
+  typeof value === "object" &&
+  Array.isArray((value as { entries?: unknown }).entries);
+
+const renderViewSummarySource = (context: RuntimeSessionContextView) => [
+  ...context.messages.map((message) => [
+    `[message id=${message.messageRecordId ?? "unknown"} role=${message.role} timestamp=${message.timestamp}]`,
+    message.content,
+  ].join("\n")),
+  ...context.requestContexts.map((entry) => [
+    `[request_context id=${entry.recordId} timestamp=${entry.timestamp}]`,
+    entry.content,
+  ].join("\n")),
+  ...context.runtimeInstructions.map((entry) => [
+    `[runtime_instruction id=${entry.recordId} timestamp=${entry.timestamp}]`,
+    entry.content,
+  ].join("\n")),
+].filter((section) => section.trim()).join("\n\n");
 
 const buildSummaryUserPrompt = (input: {
   source: string;
@@ -191,7 +233,8 @@ const buildSummaryUserPrompt = (input: {
 };
 
 export const generateDisplaySummary = async (input: {
-  context: RuntimeSessionContext;
+  context: RuntimeSessionContextView;
+  rawContext?: unknown;
   agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
@@ -199,7 +242,9 @@ export const generateDisplaySummary = async (input: {
 }): Promise<DisplaySummaryGenerationResult> => {
   const { runtimeId, implementation } = resolveRuntime("chat", input.agentId);
   const budget = createSummaryBudget(input.runtimeModel, input.maxSummaryChars);
-  const source = renderSummarySource(input.context);
+  const source = isRuntimeSessionContext(input.rawContext)
+    ? renderSummarySource(input.rawContext)
+    : renderViewSummarySource(input.context);
   if (!source.trim()) {
     return {
       summary: "当前会话没有可摘要内容。",

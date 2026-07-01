@@ -245,7 +245,7 @@ export const getRuntimeSessionSnapshot = async (
   const { summary, ledger, trace } = await summarizeSession(target);
   return {
     session: summary,
-    ledger: options.includeLedger
+    raw: options.includeLedger
       ? ledger && {
           header: ledger.header,
           entries: ledger.getEntries(),

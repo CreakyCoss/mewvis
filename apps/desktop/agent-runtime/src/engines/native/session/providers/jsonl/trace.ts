@@ -21,6 +21,10 @@ export const appendRuntimeSessionTraceRecord = async <
   return nextRecord;
 };
 
+export const ensureRuntimeSessionTraceFile = async (tracePath: string) => {
+  await appendFile(tracePath, "", "utf8");
+};
+
 export const readRuntimeSessionTraceRecords = async (
   tracePath: string,
 ): Promise<RuntimeSessionTraceRecord[]> => {

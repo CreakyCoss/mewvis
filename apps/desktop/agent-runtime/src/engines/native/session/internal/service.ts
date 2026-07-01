@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import {
   AgentResultType,
   type CreateSessionCommand,
@@ -6,15 +7,24 @@ import {
   type MessageEditCommand,
   type ReadSessionCommand,
   type RebuildCommand,
-  type RuntimeModelInput,
   type SessionMutationResult,
   type SessionResult,
   type SummarizeSessionCommand,
 } from "../../../protocol/index.js";
 import type {
-  RuntimeSessionPathInput,
-  RuntimeSessionProvider,
+  RuntimeSessionAgentVisibleContextInput,
+  RuntimeSessionCompactInput,
+  RuntimeSessionDeleteInput,
+  RuntimeSessionEventInput,
+  RuntimeSessionMutationHooks,
+  RuntimeSessionSummarizeOptions,
 } from "../providers/types.js";
+import type {
+  RuntimeSessionStorageProvider,
+} from "./storage.js";
+import {
+  buildRuntimeAgentVisibleContext,
+} from "../model/agent-context.js";
 import { buildRuntimeSessionContext } from "../model/projection.js";
 import type { RuntimeMessageRole } from "../model/ledger.js";
 import {
@@ -25,31 +35,6 @@ import {
   openRuntimeSessionStorage,
   refreshRuntimeSessionManifest,
 } from "./writer.js";
-
-export type RuntimeSessionDisplaySummaryResult = {
-  summary: string;
-  runtimeId: string;
-  modelId: string | null;
-  sourceCharCount: number;
-  chunkCount: number;
-  llmCallCount: number;
-};
-
-export type RuntimeSessionDisplaySummaryGenerator = (input: {
-  context: ReturnType<typeof buildRuntimeSessionContext>;
-  agentId?: string | null;
-  runtimeModel?: RuntimeModelInput | null;
-  summaryInstruction?: string | null;
-  maxSummaryChars?: number | null;
-}) => Promise<RuntimeSessionDisplaySummaryResult>;
-
-export type RuntimeSessionMutationHooks = {
-  invalidateDerivedArtifacts?(input: RuntimeSessionPathInput): Promise<void>;
-};
-
-export type RuntimeSessionSummarizeOptions = {
-  generateDisplaySummary: RuntimeSessionDisplaySummaryGenerator;
-};
 
 export const runtimeSessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
@@ -80,9 +65,12 @@ export const runtimeSessionMutationResultFrom = (
   ...extra,
 });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 export const readRuntimeSession = async (
   command: ReadSessionCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
 ): Promise<SessionResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
@@ -91,9 +79,66 @@ export const readRuntimeSession = async (
   return runtimeSessionResultFrom(command, context);
 };
 
+export const readRuntimeSessionAgentVisibleContext = async (
+  input: RuntimeSessionAgentVisibleContextInput,
+  provider: RuntimeSessionStorageProvider,
+) => {
+  const agentRoleId = input.agentRoleId.trim();
+  if (!agentRoleId) {
+    throw new Error("agentRoleId 不能为空");
+  }
+
+  const handle = await openRuntimeSessionStorage(input, provider);
+  const { storage } = handle;
+  const context = buildRuntimeSessionContext(
+    storage,
+    input.anchorRecordId?.trim() || storage.getLeafId(),
+  );
+  return buildRuntimeAgentVisibleContext(context.entries, agentRoleId);
+};
+
+const contextViewFrom = ({
+  leafId: _leafId,
+  entries: _entries,
+  ...context
+}: ReturnType<typeof buildRuntimeSessionContext>) => context;
+
+export const recordRuntimeSessionEvent = async (
+  input: RuntimeSessionEventInput,
+  provider: RuntimeSessionStorageProvider,
+): Promise<SessionMutationResult> => {
+  const eventType = input.eventType.trim();
+  if (!eventType) {
+    throw new Error("runtime session eventType 不能为空");
+  }
+
+  const handle = await openRuntimeSessionStorage(input, provider);
+  const { storage } = handle;
+  const baseLeafId = storage.getLeafId();
+  const metadata = input.metadataSource
+    ? runtimeLedgerOperationMetadata({
+      source: input.metadataSource,
+      baseLeafId,
+    })
+    : { baseLeafId };
+  const payload = isRecord(input.data)
+    ? {
+      ...metadata,
+      ...input.data,
+    }
+    : {
+      ...metadata,
+      value: input.data ?? null,
+    };
+  await storage.appendCustom(eventType, payload);
+  const context = buildRuntimeSessionContext(storage);
+  await refreshRuntimeSessionManifest(handle);
+  return runtimeSessionMutationResultFrom(input, context, input.result);
+};
+
 export const createRuntimeSession = async (
   command: CreateSessionCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
@@ -135,7 +180,7 @@ export const createRuntimeSession = async (
 
 export const summarizeRuntimeSession = async (
   command: SummarizeSessionCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   options: RuntimeSessionSummarizeOptions,
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
@@ -147,7 +192,8 @@ export const summarizeRuntimeSession = async (
 
   const context = buildRuntimeSessionContext(storage, targetLeafId);
   const generated = await options.generateDisplaySummary({
-    context,
+    context: contextViewFrom(context),
+    rawContext: context,
     agentId: command.agent?.agentId ?? null,
     runtimeModel: command.runtime?.model ?? null,
     summaryInstruction: command.options?.summaryInstruction ?? null,
@@ -190,7 +236,7 @@ const normalizeMessageRole = (role: string): RuntimeMessageRole => {
 
 export const appendRuntimeSessionMessages = async (
   command: MessageAppendCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
@@ -239,7 +285,7 @@ export const appendRuntimeSessionMessages = async (
 
 export const rebuildRuntimeSession = async (
   command: RebuildCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
@@ -287,7 +333,7 @@ export const rebuildRuntimeSession = async (
 
 export const editRuntimeSessionMessage = async (
   command: MessageEditCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
@@ -323,7 +369,7 @@ export const editRuntimeSessionMessage = async (
 
 export const deleteRuntimeSessionMessage = async (
   command: MessageDeleteCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   hooks: RuntimeSessionMutationHooks = {},
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
@@ -349,4 +395,45 @@ export const deleteRuntimeSessionMessage = async (
   return runtimeSessionMutationResultFrom(command, context, {
     messageRecordId: target.id,
   });
+};
+
+export const compactRuntimeSessionContent = async (
+  input: RuntimeSessionCompactInput,
+  provider: RuntimeSessionStorageProvider,
+): Promise<SessionMutationResult> => {
+  const handle = await openRuntimeSessionStorage(input, provider);
+  const { storage } = handle;
+  const targetLeafId = storage.getLeafId();
+  if (!targetLeafId) {
+    throw new Error("无法压缩空 runtime session：当前 session 没有可用 leaf");
+  }
+
+  const context = buildRuntimeSessionContext(storage, targetLeafId);
+  const summary = input.summary?.trim() || context.displaySummary?.summary.trim() || "";
+  if (!summary) {
+    throw new Error("无法压缩 runtime session：必须提供 summary，或先生成 displaySummary");
+  }
+
+  const entry = await storage.appendBranchSummary(targetLeafId, summary, {
+    ...runtimeLedgerOperationMetadata({
+      source: "runtime_compact",
+      baseLeafId: targetLeafId,
+    }),
+    details: input.details ?? null,
+  });
+  const nextContext = buildRuntimeSessionContext(storage, entry.id);
+  await refreshRuntimeSessionManifest(handle);
+  return runtimeSessionMutationResultFrom(input, nextContext, {
+    compacted: true,
+    messageRecordId: entry.id,
+    messageRecordIds: [entry.id],
+  });
+};
+
+export const deleteRuntimeSession = async (
+  input: RuntimeSessionDeleteInput,
+  provider: RuntimeSessionStorageProvider,
+) => {
+  const paths = await provider.resolvePaths(input);
+  await rm(paths.sessionDir, { recursive: true, force: true });
 };

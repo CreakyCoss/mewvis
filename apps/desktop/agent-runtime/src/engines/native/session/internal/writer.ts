@@ -8,8 +8,11 @@ import {
 } from "../model/metadata.js";
 import type {
   RuntimeSessionHandle,
-  RuntimeSessionProvider,
+  RuntimeSessionStorageProvider,
   RuntimeSessionStore,
+} from "./storage.js";
+import type {
+  RuntimeSessionTurnOptions,
 } from "../providers/types.js";
 import { takeContextText } from "../model/prompt-budget.js";
 import type { RuntimeSessionCommand } from "../model/runtime-command.js";
@@ -22,7 +25,7 @@ import {
 
 export const openRuntimeSessionStorage = async (
   command: { workspacePath: string; sessionRootDir: string },
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
 ) => {
   return provider.openOrCreate(command);
 };
@@ -123,11 +126,6 @@ type SessionTurnCommand = RuntimeSessionCommand & {
   sessionRootDir?: string | null;
 };
 
-export type RuntimeSessionTurnOptions = {
-  includeSummary?: boolean;
-  preserveRecordUserMessageFalse?: boolean;
-};
-
 const resolveCommandParentEntryId = (
   storage: RuntimeSessionStore,
   parentEntryId: string | null | undefined,
@@ -151,7 +149,7 @@ export const prepareRuntimeSessionTurn = async <
   TCommand extends SessionTurnCommand,
 >(
   command: TCommand,
-  provider: RuntimeSessionProvider,
+  provider: RuntimeSessionStorageProvider,
   options: RuntimeSessionTurnOptions = {},
 ) => {
   if (!hasRuntimeSessionTarget(command)) {
