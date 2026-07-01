@@ -17,12 +17,9 @@ convenience.
   snapshot, collaboration timeline, artifact paths, storage handles, and
   session-backed runtime turn preparation. The manager resolves the active
   provider once when it is created and passes that provider to internal helpers.
-- `service.ts`: session application service for create/read/append/edit/delete,
-  rebuild, and summarize. It uses the provider contract and does not know which
-  provider is active.
-- `writer.ts`: stable internal write/turn helpers used by runtime consumers.
-  It owns opening a session handle, refreshing manifests, and preparing
-  session-backed runtime turns.
+- `internal/`: manager implementation helpers. `service.ts` handles
+  read/append/edit/delete/rebuild/summarize operations; `writer.ts` owns handle
+  opening, manifest refresh, and session-backed runtime turn preparation.
 - `model/`: ledger entry types, context projection, metadata normalization,
   runtime command/link types, and prompt budget helpers.
 - `providers/`: replaceable storage providers. Provider selection follows the

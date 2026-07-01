@@ -1,24 +1,24 @@
-import { buildRuntimeSessionContext } from "./model/projection.js";
+import { buildRuntimeSessionContext } from "../model/projection.js";
 import type {
   RuntimeMessage,
   RuntimeSessionContext,
-} from "./model/ledger.js";
+} from "../model/ledger.js";
 import {
   runtimeMessageMetadata,
-} from "./model/metadata.js";
+} from "../model/metadata.js";
 import type {
   RuntimeSessionHandle,
   RuntimeSessionProvider,
   RuntimeSessionStore,
-} from "./providers/types.js";
-import { takeContextText } from "./model/prompt-budget.js";
-import type { RuntimeSessionCommand } from "./model/runtime-command.js";
+} from "../providers/types.js";
+import { takeContextText } from "../model/prompt-budget.js";
+import type { RuntimeSessionCommand } from "../model/runtime-command.js";
 import {
   commandParentEntryId,
   inferCommandTurnId,
   shouldRecordRuntimeUserMessage,
   withSessionLink,
-} from "./model/runtime-link.js";
+} from "../model/runtime-link.js";
 
 export const openRuntimeSessionStorage = async (
   command: { workspacePath: string; sessionRootDir: string },

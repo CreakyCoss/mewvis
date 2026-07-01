@@ -10,17 +10,17 @@ import {
   type SessionMutationResult,
   type SessionResult,
   type SummarizeSessionCommand,
-} from "../../protocol/index.js";
+} from "../../../protocol/index.js";
 import type {
   RuntimeSessionPathInput,
   RuntimeSessionProvider,
-} from "./providers/types.js";
-import { buildRuntimeSessionContext } from "./model/projection.js";
-import type { RuntimeMessageRole } from "./model/ledger.js";
+} from "../providers/types.js";
+import { buildRuntimeSessionContext } from "../model/projection.js";
+import type { RuntimeMessageRole } from "../model/ledger.js";
 import {
   runtimeLedgerOperationMetadata,
   commandRuntimeMessageMetadata,
-} from "./model/metadata.js";
+} from "../model/metadata.js";
 import {
   openRuntimeSessionStorage,
   refreshRuntimeSessionManifest,

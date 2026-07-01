@@ -35,12 +35,12 @@ import {
   summarizeRuntimeSession,
   type RuntimeSessionMutationHooks,
   type RuntimeSessionSummarizeOptions,
-} from "./service.js";
+} from "./internal/service.js";
 import {
   prepareRuntimeSessionTurn,
   refreshRuntimeSessionManifest,
   type RuntimeSessionTurnOptions,
-} from "./writer.js";
+} from "./internal/writer.js";
 import type { RuntimeSessionCommand } from "./model/runtime-command.js";
 
 type SessionManagerInput<TInput extends RuntimeSessionPathInput> =
@@ -48,7 +48,7 @@ type SessionManagerInput<TInput extends RuntimeSessionPathInput> =
 
 export type RuntimeSessionManagerTarget = RuntimeSessionPathInput;
 
-export class RuntimeSessionManager {
+class RuntimeSessionManager {
   readonly workspacePath: string;
   readonly sessionRootDir: string;
 

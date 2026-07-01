@@ -10,7 +10,7 @@ import { runtimeLedgerOperationMetadata } from "../../session/model/metadata.js"
 import { createRuntimeSessionManager } from "../../session/index.js";
 import {
   runtimeSessionMutationResultFrom,
-} from "../../session/service.js";
+} from "../../session/internal/service.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,

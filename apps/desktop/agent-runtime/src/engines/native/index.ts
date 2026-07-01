@@ -68,7 +68,7 @@ import {
 } from "./agent/commands/responses.js";
 import {
   createRuntimeSessionManager,
-  listRuntimeSessions as listNativeRuntimeSessions,
+  listRuntimeSessions as listRuntimeSessionSummaries,
 } from "./session/index.js";
 import {
   createAgentEngine,
@@ -325,7 +325,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   async listRuntimeSessions(
     input: RuntimeSessionsQuery,
   ): Promise<RuntimeSessionsResult> {
-    return listNativeRuntimeSessions(input);
+    return listRuntimeSessionSummaries(input);
   }
 
   async readRuntimeSession(input: RuntimeSessionQuery): Promise<RuntimeSessionResult> {

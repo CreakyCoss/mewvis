@@ -6,6 +6,5 @@ export type {
 export {
   createRuntimeSessionManager,
   listRuntimeSessions,
-  RuntimeSessionManager,
   type RuntimeSessionManagerTarget,
 } from "./manager.js";
