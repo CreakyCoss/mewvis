@@ -169,6 +169,7 @@ export const summarizeTavernBridgeSession = async ({
   workspacePath,
   room,
   runtimeAgentId,
+  agentRoleId,
   runtimeModel,
   summaryInstruction,
   maxSummaryChars,
@@ -176,12 +177,14 @@ export const summarizeTavernBridgeSession = async ({
   workspacePath: string;
   room: TavernRoom;
   runtimeAgentId?: string | null;
+  agentRoleId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
 }): Promise<LedgerResult | null> => summarizeLedger({
   ...tavernBridgeSessionInput({ workspacePath, room }),
   agentId: runtimeAgentId,
+  agentRoleId,
   runtimeModel,
   summaryInstruction,
   maxSummaryChars,

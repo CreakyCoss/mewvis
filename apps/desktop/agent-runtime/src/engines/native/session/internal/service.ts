@@ -17,7 +17,6 @@ import type {
   RuntimeSessionDeleteInput,
   RuntimeSessionEventInput,
   RuntimeSessionMutationHooks,
-  RuntimeSessionSummarizeOptions,
 } from "../providers/types.js";
 import type {
   RuntimeSessionStorageProvider,
@@ -35,6 +34,10 @@ import {
   openRuntimeSessionStorage,
   refreshRuntimeSessionManifest,
 } from "./writer.js";
+import {
+  generateDisplaySummary,
+  type RuntimeSessionSummarySourceEntry,
+} from "./summary.js";
 
 export const runtimeSessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
@@ -102,6 +105,63 @@ const contextViewFrom = ({
   entries: _entries,
   ...context
 }: ReturnType<typeof buildRuntimeSessionContext>) => context;
+
+const summarySourceEntriesFromContext = (
+  context: ReturnType<typeof buildRuntimeSessionContext>,
+): RuntimeSessionSummarySourceEntry[] =>
+  context.entries.flatMap((entry): RuntimeSessionSummarySourceEntry[] => {
+    if (entry.type === "leaf") {
+      return [];
+    }
+    if (entry.type === "message") {
+      return [{
+        kind: "message",
+        recordId: entry.id,
+        timestamp: entry.message.timestamp,
+        role: entry.message.role,
+        content: entry.message.content,
+        metadata: entry.message.metadata ?? null,
+      }];
+    }
+    if (entry.type === "request_context") {
+      return [{
+        kind: "request_context",
+        recordId: entry.id,
+        timestamp: entry.timestamp,
+        content: entry.content,
+        metadata: entry.metadata ?? null,
+      }];
+    }
+    if (entry.type === "runtime_instruction") {
+      return [{
+        kind: "runtime_instruction",
+        recordId: entry.id,
+        timestamp: entry.timestamp,
+        content: entry.content,
+        metadata: entry.metadata ?? null,
+      }];
+    }
+    if (entry.type === "branch_summary") {
+      return [{
+        kind: "branch_summary",
+        recordId: entry.id,
+        timestamp: entry.timestamp,
+        fromRecordId: entry.fromId,
+        summary: entry.summary,
+        metadata: entry.details ?? null,
+      }];
+    }
+    if (entry.customType === "display_summary") {
+      return [];
+    }
+    return [{
+      kind: "event",
+      recordId: entry.id,
+      timestamp: entry.timestamp,
+      eventType: entry.customType,
+      data: entry.data ?? null,
+    }];
+  });
 
 export const recordRuntimeSessionEvent = async (
   input: RuntimeSessionEventInput,
@@ -181,7 +241,6 @@ export const createRuntimeSession = async (
 export const summarizeRuntimeSession = async (
   command: SummarizeSessionCommand,
   provider: RuntimeSessionStorageProvider,
-  options: RuntimeSessionSummarizeOptions,
 ): Promise<SessionMutationResult> => {
   const handle = await openRuntimeSessionStorage(command, provider);
   const { storage } = handle;
@@ -191,9 +250,9 @@ export const summarizeRuntimeSession = async (
   }
 
   const context = buildRuntimeSessionContext(storage, targetLeafId);
-  const generated = await options.generateDisplaySummary({
+  const generated = await generateDisplaySummary({
     context: contextViewFrom(context),
-    rawContext: context,
+    sourceEntries: summarySourceEntriesFromContext(context),
     agentId: command.agent?.agentId ?? null,
     runtimeModel: command.runtime?.model ?? null,
     summaryInstruction: command.options?.summaryInstruction ?? null,

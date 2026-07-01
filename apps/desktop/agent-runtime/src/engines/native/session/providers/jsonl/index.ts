@@ -119,8 +119,8 @@ export const jsonlRuntimeSessionProvider: RuntimeSessionProvider = {
     return readRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
   },
 
-  summarizeSession(input, options) {
-    return summarizeRuntimeSession(input, jsonlRuntimeSessionStorageProvider, options);
+  summarizeSession(input) {
+    return summarizeRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
   },
 
   appendSessionMessages(input) {

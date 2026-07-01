@@ -240,9 +240,9 @@ export const createNativeRuntimeCommandRouter = (
           deps.engine.readSession(commandInputFrom(command)));
         return true;
 
-      case AgentSessionCommandType.Compact:
+      case AgentSessionCommandType.CompactAgentSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.compactSession(commandInputFrom(command)));
+          deps.engine.compactAgentSession(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.RebuildAgentSession:
@@ -257,6 +257,11 @@ export const createNativeRuntimeCommandRouter = (
       case AgentSessionCommandType.SummarizeSession:
         await emitCommandActionResult(command, () =>
           deps.engine.summarizeSession(commandInputFrom(command)));
+        return true;
+
+      case AgentSessionCommandType.SummarizeAgentSession:
+        await emitCommandActionResult(command, () =>
+          deps.engine.summarizeAgentSession(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.MessageEdit:

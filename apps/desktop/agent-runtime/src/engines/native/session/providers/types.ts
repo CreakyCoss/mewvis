@@ -19,7 +19,6 @@ import type {
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../../protocol/session.js";
-import type { RuntimeModelInput } from "../../../protocol/model.js";
 import type {
   RuntimeSessionCommand,
   SessionBackedRuntimeCommand,
@@ -60,28 +59,6 @@ export type RuntimeSessionListOptions = {
   rootDir: string;
   limit?: number | null;
   maxDepth?: number | null;
-};
-
-export type RuntimeSessionDisplaySummaryResult = {
-  summary: string;
-  runtimeId: string;
-  modelId: string | null;
-  sourceCharCount: number;
-  chunkCount: number;
-  llmCallCount: number;
-};
-
-export type RuntimeSessionDisplaySummaryGenerator = (input: {
-  context: RuntimeSessionContextView;
-  rawContext?: unknown;
-  agentId?: string | null;
-  runtimeModel?: RuntimeModelInput | null;
-  summaryInstruction?: string | null;
-  maxSummaryChars?: number | null;
-}) => Promise<RuntimeSessionDisplaySummaryResult>;
-
-export type RuntimeSessionSummarizeOptions = {
-  generateDisplaySummary: RuntimeSessionDisplaySummaryGenerator;
 };
 
 export type RuntimeSessionMutationHooks = {
@@ -158,10 +135,7 @@ export type RuntimeSessionProvider = {
     options?: RuntimeSessionTurnOptions,
   ): Promise<RuntimeSessionPreparedTurn<TCommand> | null>;
   readSession(input: ReadSessionCommand): Promise<SessionResult>;
-  summarizeSession(
-    input: SummarizeSessionCommand,
-    options: RuntimeSessionSummarizeOptions,
-  ): Promise<SessionMutationResult>;
+  summarizeSession(input: SummarizeSessionCommand): Promise<SessionMutationResult>;
   appendSessionMessages(input: MessageAppendCommand): Promise<SessionMutationResult>;
   rebuildSession(input: RebuildCommand): Promise<SessionMutationResult>;
   editSessionMessage(input: MessageEditCommand): Promise<SessionMutationResult>;

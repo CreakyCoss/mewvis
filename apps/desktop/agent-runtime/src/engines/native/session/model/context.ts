@@ -22,7 +22,6 @@ export type RuntimeMessageSource =
   | "app_edit"
   | "app_delete"
   | "runtime_compact"
-  | "runtime_rebuild_agent_session"
   | "runtime_display_summary"
   | "runtime_branch";
 

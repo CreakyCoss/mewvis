@@ -1,7 +1,7 @@
 import type { RuntimeModelInput } from "../../../protocol/index.js";
-import { resolveRuntime } from "../runtimes/resolver.js";
-import type { ChatRunCommand } from "../runtimes/types.js";
-import type { RuntimeSessionContextView } from "../../session/model/context.js";
+import { resolveRuntime } from "../../agent/runtimes/resolver.js";
+import type { ChatRunCommand } from "../../agent/runtimes/types.js";
+import type { RuntimeSessionContextView } from "../model/context.js";
 
 export type DisplaySummaryGenerationResult = {
   summary: string;
@@ -17,27 +17,44 @@ type SummaryBudget = {
   maxSummaryChars: number;
 };
 
-type SummaryRawEntry = {
-  type: string;
-  id: string;
-  parentId?: string | null;
-  timestamp: string;
-  message?: {
-    role?: string | null;
-    content?: string | null;
+export type RuntimeSessionSummarySourceEntry =
+  | {
+    kind: "message";
+    recordId: string;
+    timestamp: number | string;
+    role: string;
+    content: string;
     metadata?: unknown;
+  }
+  | {
+    kind: "request_context";
+    recordId: string;
+    timestamp: number | string;
+    content: string;
+    metadata?: unknown;
+  }
+  | {
+    kind: "runtime_instruction";
+    recordId: string;
+    timestamp: number | string;
+    content: string;
+    metadata?: unknown;
+  }
+  | {
+    kind: "branch_summary";
+    recordId: string;
+    timestamp: number | string;
+    fromRecordId?: string | null;
+    summary: string;
+    metadata?: unknown;
+  }
+  | {
+    kind: "event";
+    recordId: string;
+    timestamp: number | string;
+    eventType: string;
+    data?: unknown;
   };
-  content?: string | null;
-  metadata?: unknown;
-  fromId?: string | null;
-  summary?: string | null;
-  customType?: string | null;
-  data?: unknown;
-};
-
-type SummaryRawContext = {
-  entries: SummaryRawEntry[];
-};
 
 const DEFAULT_CONTEXT_WINDOW = 128000;
 const DEFAULT_MAX_TOKENS = 4096;
@@ -47,7 +64,7 @@ const MAX_RECURSION_DEPTH = 4;
 const SUMMARY_SYSTEM_PROMPT = [
   "你是 agent-runtime 的会话展示摘要生成器。",
   "你的输出只用于前端展示，不参与后续模型上下文、重建或压缩。",
-  "只基于用户提供的会话账本内容摘要，不编造未出现的信息。",
+  "只基于用户提供的会话内容摘要，不编造未出现的信息。",
   "保留关键用户意图、助手结论、重要运行链路、编辑/删除/重建等事件。",
   "如果内容包含私密角色信息，按账本事实客观概括，不把摘要写成某个角色可见的上下文。",
 ].join("\n");
@@ -118,69 +135,55 @@ const splitText = (text: string, maxChars: number) => {
   return chunks;
 };
 
-const entryHeader = (entry: SummaryRawEntry) =>
-  `[entry id=${entry.id} type=${entry.type} parent=${entry.parentId ?? "null"} timestamp=${entry.timestamp}]`;
+const entryHeader = (entry: RuntimeSessionSummarySourceEntry) =>
+  `[entry id=${entry.recordId} kind=${entry.kind} timestamp=${entry.timestamp}]`;
 
-const renderEntry = (entry: SummaryRawEntry) => {
-  if (entry.type === "leaf") {
-    return "";
-  }
-  if (entry.type === "custom" && entry.customType === "display_summary") {
-    return "";
-  }
-  if (entry.type === "message") {
+const renderSummaryEntry = (entry: RuntimeSessionSummarySourceEntry) => {
+  if (entry.kind === "message") {
     return [
       entryHeader(entry),
-      `<message role="${entry.message?.role ?? "unknown"}" metadata=${compactJson(entry.message?.metadata ?? null)}>`,
-      entry.message?.content ?? "",
+      `<message role="${entry.role}" metadata=${compactJson(entry.metadata ?? null)}>`,
+      entry.content,
       "</message>",
     ].join("\n");
   }
-  if (entry.type === "request_context") {
+  if (entry.kind === "request_context") {
     return [
       entryHeader(entry),
       `<request_context metadata=${compactJson(entry.metadata ?? null)}>`,
-      entry.content ?? "",
+      entry.content,
       "</request_context>",
     ].join("\n");
   }
-  if (entry.type === "runtime_instruction") {
+  if (entry.kind === "runtime_instruction") {
     return [
       entryHeader(entry),
       `<runtime_instruction metadata=${compactJson(entry.metadata ?? null)}>`,
-      entry.content ?? "",
+      entry.content,
       "</runtime_instruction>",
     ].join("\n");
   }
-  if (entry.type === "branch_summary") {
+  if (entry.kind === "branch_summary") {
     return [
       entryHeader(entry),
-      `<branch_summary from="${entry.fromId ?? ""}">`,
-      entry.summary ?? "",
+      `<branch_summary from="${entry.fromRecordId ?? ""}" metadata=${compactJson(entry.metadata ?? null)}>`,
+      entry.summary,
       "</branch_summary>",
     ].join("\n");
   }
-  if (entry.type === "custom") {
-    return [
-      entryHeader(entry),
-      `<custom customType="${entry.customType ?? ""}">`,
-      compactJson(entry.data ?? null),
-      "</custom>",
-    ].join("\n");
-  }
-  return "";
+  return [
+    entryHeader(entry),
+    `<event type="${entry.eventType}">`,
+    compactJson(entry.data ?? null),
+    "</event>",
+  ].join("\n");
 };
 
-const renderSummarySource = (context: SummaryRawContext) =>
-  context.entries
-    .map(renderEntry)
+const renderSummarySource = (entries: RuntimeSessionSummarySourceEntry[]) =>
+  entries
+    .map(renderSummaryEntry)
     .filter((section) => section.trim())
     .join("\n\n");
-
-const isRuntimeSessionContext = (value: unknown): value is SummaryRawContext =>
-  Boolean(value) &&
-  typeof value === "object" &&
-  Array.isArray((value as { entries?: unknown }).entries);
 
 const renderViewSummarySource = (context: RuntimeSessionContextView) => [
   ...context.messages.map((message) => [
@@ -207,7 +210,7 @@ const buildSummaryUserPrompt = (input: {
 }) => {
   const sections = [
     input.mode === "chunk"
-      ? `请摘要以下会话账本分块（${input.chunkIndex}/${input.chunkCount}）。`
+      ? `请摘要以下会话内容分块（${input.chunkIndex}/${input.chunkCount}）。`
       : "请生成当前分支的展示摘要。",
     input.summaryInstruction?.trim()
       ? [
@@ -224,9 +227,9 @@ const buildSummaryUserPrompt = (input: {
       "不要输出 XML 标签，不要添加账本外信息。",
       "</output_requirements>",
     ].join("\n"),
-    "<session_ledger_source>",
+    "<session_summary_source>",
     input.source,
-    "</session_ledger_source>",
+    "</session_summary_source>",
   ];
 
   return sections.filter((section) => section.trim()).join("\n\n");
@@ -234,7 +237,7 @@ const buildSummaryUserPrompt = (input: {
 
 export const generateDisplaySummary = async (input: {
   context: RuntimeSessionContextView;
-  rawContext?: unknown;
+  sourceEntries?: RuntimeSessionSummarySourceEntry[];
   agentId?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
@@ -242,8 +245,8 @@ export const generateDisplaySummary = async (input: {
 }): Promise<DisplaySummaryGenerationResult> => {
   const { runtimeId, implementation } = resolveRuntime("chat", input.agentId);
   const budget = createSummaryBudget(input.runtimeModel, input.maxSummaryChars);
-  const source = isRuntimeSessionContext(input.rawContext)
-    ? renderSummarySource(input.rawContext)
+  const source = input.sourceEntries
+    ? renderSummarySource(input.sourceEntries)
     : renderViewSummarySource(input.context);
   if (!source.trim()) {
     return {

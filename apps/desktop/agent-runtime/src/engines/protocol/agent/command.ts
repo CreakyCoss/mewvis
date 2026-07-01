@@ -15,9 +15,10 @@ export enum AgentTaskCommandType {
 
 export enum AgentSessionCommandType {
   CreateSession = "create_session",
-  Compact = "compact",
+  CompactAgentSession = "compact_agent_session",
   RebuildAgentSession = "rebuild_agent_session",
   SummarizeSession = "summarize_session",
+  SummarizeAgentSession = "summarize_agent_session",
   MessageEdit = "message_edit",
   MessageDelete = "message_delete",
   MessageAppend = "message_append",
@@ -132,8 +133,8 @@ type RuntimeSummaryOptions = {
   maxSummaryChars?: number | null;
 };
 
-export type CompactCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.Compact;
+export type CompactAgentSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.CompactAgentSession;
   target: RuntimeCompactTarget;
   options?: RuntimeCompactOptions | null;
   runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
@@ -149,6 +150,13 @@ export type RebuildAgentSessionCommand = SessionCommandBase & {
 export type SummarizeSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.SummarizeSession;
   agent?: Pick<AgentTarget, "agentId"> | null;
+  options?: RuntimeSummaryOptions | null;
+  runtime?: Pick<AgentRuntimeOptions, "model"> | null;
+};
+
+export type SummarizeAgentSessionCommand = SessionCommandBase & {
+  type: AgentSessionCommandType.SummarizeAgentSession;
+  target: RuntimeCompactTarget;
   options?: RuntimeSummaryOptions | null;
   runtime?: Pick<AgentRuntimeOptions, "model"> | null;
 };
@@ -211,9 +219,10 @@ export type AgentTaskCommand =
 
 export type AgentSessionCommand =
   | CreateSessionCommand
-  | CompactCommand
+  | CompactAgentSessionCommand
   | RebuildAgentSessionCommand
   | SummarizeSessionCommand
+  | SummarizeAgentSessionCommand
   | MessageEditCommand
   | MessageDeleteCommand
   | MessageAppendCommand

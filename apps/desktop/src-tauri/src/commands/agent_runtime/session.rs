@@ -84,6 +84,7 @@ pub struct SummarizeAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
     agent_id: Option<String>,
+    agent_role_id: Option<String>,
     summary_instruction: Option<String>,
     max_summary_chars: Option<u64>,
     runtime_model: Option<AgentRuntimeModelInput>,
@@ -286,7 +287,7 @@ pub async fn compact_agent_runtime_session(
     call_session_runtime(
         app,
         json!({
-            "type": "compact",
+            "type": "compact_agent_session",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "target": {
@@ -342,28 +343,56 @@ pub async fn summarize_agent_runtime_session(
     app: AppHandle,
     input: SummarizeAgentRuntimeSessionInput,
 ) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
+    let SummarizeAgentRuntimeSessionInput {
+        workspace_path,
+        session_root_dir,
+        agent_id,
+        agent_role_id,
+        summary_instruction,
+        max_summary_chars,
+        runtime_model,
+    } = input;
+    let session_root_dir = resolve_session_root_dir(&workspace_path, &session_root_dir)?;
+    let agent_role_id = agent_role_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let command = if let Some(agent_role_id) = agent_role_id {
         json!({
-            "type": "summarize_session",
-            "workspacePath": input.workspace_path,
+            "type": "summarize_agent_session",
+            "workspacePath": workspace_path,
             "sessionRootDir": session_root_dir,
-            "agent": {
-                "agentId": input.agent_id,
+            "target": {
+                "scope": "agent",
+                "agentId": agent_id,
+                "agentRoleId": agent_role_id,
             },
             "options": {
-                "summaryInstruction": input.summary_instruction,
-                "maxSummaryChars": input.max_summary_chars,
+                "summaryInstruction": summary_instruction,
+                "maxSummaryChars": max_summary_chars,
             },
             "runtime": {
-                "model": input.runtime_model,
+                "model": runtime_model,
             },
-        }),
-        &["session_mutation_result"],
-    )
-    .await
+        })
+    } else {
+        json!({
+            "type": "summarize_session",
+            "workspacePath": workspace_path,
+            "sessionRootDir": session_root_dir,
+            "agent": {
+                "agentId": agent_id,
+            },
+            "options": {
+                "summaryInstruction": summary_instruction,
+                "maxSummaryChars": max_summary_chars,
+            },
+            "runtime": {
+                "model": runtime_model,
+            },
+        })
+    };
+    call_session_runtime(app, command, &["session_mutation_result"]).await
 }
 
 #[tauri::command]

@@ -29,7 +29,6 @@ import type {
   RuntimeSessionMutationHooks,
   RuntimeSessionPathInput,
   RuntimeSessionProvider,
-  RuntimeSessionSummarizeOptions,
   RuntimeSessionTraceInput,
   RuntimeSessionTraceRecord,
   RuntimeSessionTurnOptions,
@@ -84,7 +83,6 @@ class RuntimeSessionManager {
 
   async summarizeSession(
     input: SessionManagerInput<SummarizeSessionInput>,
-    options: RuntimeSessionSummarizeOptions,
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
     return this.provider.summarizeSession({
@@ -92,7 +90,7 @@ class RuntimeSessionManager {
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.SummarizeSession as const,
-    }, options);
+    });
   }
 
   async editSessionMessage(

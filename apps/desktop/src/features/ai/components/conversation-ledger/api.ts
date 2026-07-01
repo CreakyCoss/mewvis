@@ -51,6 +51,7 @@ export async function summarizeLedger(input: {
   workspacePath: string;
   sessionRootDir: string;
   agentId?: string | null;
+  agentRoleId?: string | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
   runtimeModel?: RuntimeModelInput | null;

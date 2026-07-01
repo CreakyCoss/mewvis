@@ -15,7 +15,7 @@ import type {
   CollaborationRuntimeResult,
   CollaborationTimelineQuery,
   CollaborationTimelineResult,
-  CompactSessionInput,
+  CompactAgentSessionInput,
   DeleteSessionMessageInput,
   EditSessionMessageInput,
   PongResult,
@@ -34,6 +34,7 @@ import type {
   SessionMutationResult,
   SessionResult,
   ShutdownAckResult,
+  SummarizeAgentSessionInput,
   SummarizeSessionInput,
   TaskResult,
 } from "./protocol/index.js";
@@ -82,11 +83,12 @@ export abstract class AgentRuntimeEngine {
   abstract runAgent(input: AgentRunInput): Promise<TaskResult>;
 
   abstract readSession(input: ReadSessionInput): Promise<SessionResult>;
-  abstract compactSession(input: CompactSessionInput): Promise<SessionMutationResult>;
+  abstract compactAgentSession(input: CompactAgentSessionInput): Promise<SessionMutationResult>;
   abstract rebuildAgentSession(
     input: RebuildAgentSessionInput,
   ): Promise<SessionMutationResult>;
   abstract summarizeSession(input: SummarizeSessionInput): Promise<SessionMutationResult>;
+  abstract summarizeAgentSession(input: SummarizeAgentSessionInput): Promise<SessionMutationResult>;
   abstract editSessionMessage(input: EditSessionMessageInput): Promise<SessionMutationResult>;
   abstract deleteSessionMessage(input: DeleteSessionMessageInput): Promise<SessionMutationResult>;
   abstract appendSessionMessages(input: AppendSessionMessagesInput): Promise<SessionMutationResult>;

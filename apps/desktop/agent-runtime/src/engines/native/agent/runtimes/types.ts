@@ -6,7 +6,10 @@ import type {
   ChatResult,
   RuntimeAgentDefinition,
   RuntimeModelInput,
+  SessionMutationResult,
+  SessionResult,
 } from "../../../protocol/index.js";
+import type { RuntimeAgentVisibleContext } from "../../session/model/agent-context.js";
 import type { RuntimeSessionLink } from "../../session/model/runtime-command.js";
 
 export type ChatRunResult = Omit<ChatResult, "type" | "requestId">;
@@ -36,14 +39,32 @@ export type RuntimeAgentCommand = AgentRunCommand & {
   agentSessionDir?: string | null;
 };
 
-export type RuntimeAgentCompactCommand = RuntimeAgentCommand & {
+export type RuntimeAgentSessionMaintenanceCommand = {
+  requestId?: string | null;
+  agentId?: string | null;
+  runtimeId?: string | null;
+  taskId: string;
+  workspacePath: string;
+  sessionRootDir: string;
+  agentRoleId: string;
+  agentSessionId?: string | null;
+  runtimeModel?: RuntimeModelInput | null;
+  resources?: AgentRuntimeResources | null;
+  agentSessionDir?: string | null;
+};
+
+export type RuntimeAgentCompactCommand = RuntimeAgentSessionMaintenanceCommand & {
   compactInstructions?: string | null;
 };
 
-export type AgentCompactResult = {
-  compacted: boolean;
-  message?: string | null;
-  details?: unknown;
+export type RuntimeAgentRebuildCommand = RuntimeAgentSessionMaintenanceCommand & {
+  rebuildInstruction?: string | null;
+  userMessage?: string | null;
+};
+
+export type RuntimeAgentSummarizeCommand = RuntimeAgentSessionMaintenanceCommand & {
+  summaryInstruction?: string | null;
+  maxSummaryChars?: number | null;
 };
 
 export type ChatRunCommand = {
@@ -88,8 +109,17 @@ export type AgentRuntimeCallbacks = {
   requestUserInput: UserInputHandler;
 };
 
+export type AgentRuntimeNativeSession = {
+  readSession(): Promise<SessionResult>;
+  readAgentVisibleContext(input: {
+    agentRoleId: string;
+    anchorRecordId?: string | null;
+  }): Promise<RuntimeAgentVisibleContext>;
+};
+
 export type AgentRuntimeContext = RuntimeEmitContext & {
   callbacks: AgentRuntimeCallbacks;
+  nativeSession?: AgentRuntimeNativeSession;
 };
 
 export type ChatRuntimeContext = RuntimeEmitContext & {
@@ -108,7 +138,15 @@ export type AgentRuntime = {
   compact?(
     command: RuntimeAgentCompactCommand,
     context: AgentRuntimeContext,
-  ): Promise<AgentCompactResult>;
+  ): Promise<SessionMutationResult>;
+  rebuild?(
+    command: RuntimeAgentRebuildCommand,
+    context: AgentRuntimeContext,
+  ): Promise<SessionMutationResult>;
+  summarize?(
+    command: RuntimeAgentSummarizeCommand,
+    context: AgentRuntimeContext,
+  ): Promise<SessionMutationResult>;
 };
 
 export type ChatRuntime = {

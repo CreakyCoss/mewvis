@@ -120,7 +120,7 @@ type CompactTargetShape = {
   agentRoleId: string;
 };
 
-export type CompactSessionInput = RequiredSessionTargetShape & {
+export type CompactAgentSessionInput = RequiredSessionTargetShape & {
   target: CompactTargetShape;
   options?: {
     compactInstruction?: string | null;
@@ -139,6 +139,15 @@ export type RebuildAgentSessionInput = RequiredSessionTargetShape & {
 
 export type SummarizeSessionInput = RequiredSessionTargetShape & {
   agent?: Pick<AgentTargetShape, "agentId"> | null;
+  options?: {
+    summaryInstruction?: string | null;
+    maxSummaryChars?: number | null;
+  } | null;
+  runtime?: Pick<RuntimeOptionsShape, "model"> | null;
+};
+
+export type SummarizeAgentSessionInput = RequiredSessionTargetShape & {
+  target: CompactTargetShape;
   options?: {
     summaryInstruction?: string | null;
     maxSummaryChars?: number | null;
