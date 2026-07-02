@@ -1,9 +1,9 @@
-type AgentToolDefinitionShape = {
+export type AgentToolDefinition = Readonly<{
   name: string;
   label: string;
   description: string;
   enabledByDefault: boolean;
-};
+}>;
 
 export const AGENT_TOOL_DEFINITIONS = Object.freeze([
   {
@@ -54,16 +54,10 @@ export const AGENT_TOOL_DEFINITIONS = Object.freeze([
     description: "执行工作区 shell 命令",
     enabledByDefault: false,
   },
-] as const satisfies readonly AgentToolDefinitionShape[]);
+] as const satisfies readonly AgentToolDefinition[]);
 
 export type KnownAgentToolName = (typeof AGENT_TOOL_DEFINITIONS)[number]["name"];
 export type AgentToolName = KnownAgentToolName | (string & {});
-export type AgentToolDefinition = Readonly<{
-  name: AgentToolName;
-  label: string;
-  description: string;
-  enabledByDefault: boolean;
-}>;
 
 export const DEFAULT_ALLOWED_AGENT_TOOLS: readonly AgentToolName[] = Object.freeze(
   AGENT_TOOL_DEFINITIONS.filter((tool) => tool.enabledByDefault).map((tool) => tool.name),

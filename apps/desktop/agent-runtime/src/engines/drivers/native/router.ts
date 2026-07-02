@@ -96,7 +96,7 @@ export const createNativeRuntimeCommandRouter = (
       return;
     }
 
-    await emitCommandActionResult(command, () => deps.engine.chat(chatCommand));
+    await emitCommandActionResult(command, () => deps.engine.agent.chat(chatCommand));
   };
 
   const runAgentCommandWhenIdle = (
@@ -167,8 +167,8 @@ export const createNativeRuntimeCommandRouter = (
     }
 
     const run = command.type === AgentRuntimeCommandType.RunCollaborationMode
-      ? deps.engine.runCollaborationMode(command.input)
-      : deps.engine.runCollaboration(command.input);
+      ? deps.engine.collaboration.runMode(command.input)
+      : deps.engine.collaboration.run(command.input);
 
     activeCollaborationRun = run.then((result) => {
       emitCommandResult(command, result);
@@ -208,15 +208,18 @@ export const createNativeRuntimeCommandRouter = (
         return false;
 
       case AgentTaskCommandType.ListAgentTools:
-        emitCommandResult(command, await deps.engine.listAgentTools(commandInputFrom(command)));
+        emitCommandResult(
+          command,
+          await deps.engine.capabilities.listAgentTools(commandInputFrom(command)),
+        );
         return true;
 
       case AgentTaskCommandType.ListRuntimeModels:
-        emitCommandResult(command, await deps.engine.listRuntimeModels());
+        emitCommandResult(command, await deps.engine.capabilities.listRuntimeModels());
         return true;
 
       case AgentTaskCommandType.AnswerQuestion:
-        await deps.engine.answerQuestion(commandInputFrom(command));
+        await deps.engine.agent.answerQuestion(commandInputFrom(command));
         return true;
 
       case AgentTaskCommandType.SendMessage:
@@ -233,12 +236,12 @@ export const createNativeRuntimeCommandRouter = (
 
       case AgentSessionCommandType.ReadSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.readSession(commandInputFrom(command)));
+          deps.engine.session.admin.read(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.CompactAgentSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.compactAgentSession(commandInputFrom(command)));
+          deps.engine.session.agent.compact(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.RebuildAgentSession:
@@ -247,61 +250,61 @@ export const createNativeRuntimeCommandRouter = (
           return true;
         }
         await emitCommandActionResult(command, () =>
-          deps.engine.rebuildAgentSession(commandInputFrom(command)));
+          deps.engine.session.agent.rebuild(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.SummarizeSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.summarizeSession(commandInputFrom(command)));
+          deps.engine.session.admin.summarize(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.SummarizeAgentSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.summarizeAgentSession(commandInputFrom(command)));
+          deps.engine.session.agent.summarize(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.MessageEdit:
         await emitCommandActionResult(command, () =>
-          deps.engine.editSessionMessage(commandInputFrom(command)));
+          deps.engine.session.admin.editMessage(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.MessageDelete:
         await emitCommandActionResult(command, () =>
-          deps.engine.deleteSessionMessage(commandInputFrom(command)));
+          deps.engine.session.admin.deleteMessage(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.MessageAppend:
         await emitCommandActionResult(command, () =>
-          deps.engine.appendSessionMessages(commandInputFrom(command)));
+          deps.engine.session.admin.appendMessages(commandInputFrom(command)));
         return true;
 
       case AgentSessionCommandType.Rebuild:
         await emitCommandActionResult(command, () =>
-          deps.engine.rebuildSession(commandInputFrom(command)));
+          deps.engine.session.admin.rebuild(commandInputFrom(command)));
         return true;
 
       case AgentRuntimeCommandType.ListCollaborationModes:
-        emitCommandResult(command, await deps.engine.listCollaborationModes());
+        emitCommandResult(command, await deps.engine.collaboration.listModes());
         return true;
 
       case AgentRuntimeCommandType.ListRuntimeSessions:
         await emitCommandActionResult(command, () =>
-          deps.engine.listRuntimeSessions(commandInputFrom(command)));
+          deps.engine.session.list(commandInputFrom(command)));
         return true;
 
       case AgentRuntimeCommandType.ReadRuntimeSession:
         await emitCommandActionResult(command, () =>
-          deps.engine.readRuntimeSession(commandInputFrom(command)));
+          deps.engine.session.read(commandInputFrom(command)));
         return true;
 
       case AgentRuntimeCommandType.ReadRuntimeSessionDebug:
         await emitCommandActionResult(command, () =>
-          deps.engine.readRuntimeSessionDebug(commandInputFrom(command)));
+          deps.engine.session.debug.read(commandInputFrom(command)));
         return true;
 
       case AgentRuntimeCommandType.ReadCollaborationTimeline:
         await emitCommandActionResult(command, () =>
-          deps.engine.readCollaborationTimeline(commandInputFrom(command)));
+          deps.engine.collaboration.readTimeline(commandInputFrom(command)));
         return true;
 
       case AgentRuntimeCommandType.RunCollaboration:

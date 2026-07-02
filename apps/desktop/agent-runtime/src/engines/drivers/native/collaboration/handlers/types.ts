@@ -68,5 +68,3 @@ export type CollaborationHandlerRegistry = {
     routers: string[];
   };
 };
-
-export type EmitHandlerEvent = (event: CollaborationEvent) => void;
