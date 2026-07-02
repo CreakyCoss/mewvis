@@ -25,9 +25,7 @@ type CollaborationTimelineRecord = {
 const hasSession = (
   input: CollaborationRunInput,
 ): input is SessionBackedCollaborationInput =>
-  typeof input.workspacePath === "string" &&
-  Boolean(input.workspacePath.trim()) &&
-  typeof input.sessionRootDir === "string" &&
+  Boolean(input.workspacePath.trim()) && typeof input.sessionRootDir === "string" &&
   Boolean(input.sessionRootDir.trim());
 
 const modeIdFrom = (input: CollaborationRunInput) => {
