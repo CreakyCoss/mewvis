@@ -130,14 +130,17 @@ class RuntimeSessionManager {
 
   async appendSessionMessages(
     input: SessionManagerInput<AppendSessionMessagesInput>,
+    hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
-    return this.provider.appendSessionMessages({
+    const result = await this.provider.appendSessionMessages({
       ...input,
       ...this.target,
       requestId: null,
       type: AgentSessionCommandType.MessageAppend as const,
     });
+    await hooks.invalidateDerivedArtifacts?.(this.target);
+    return result;
   }
 
   async rebuildSession(

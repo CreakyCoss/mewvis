@@ -252,6 +252,7 @@ class NativeAgentRuntimeSessionAdminSurface implements AgentRuntimeSessionAdmin 
   async appendMessages(input: AppendSessionMessagesInput): Promise<SessionMutationResult> {
     return this.runtimeSessionManagerFor(input).appendSessionMessages(
       withoutRuntimeSessionTarget(input),
+      { invalidateDerivedArtifacts: this.clearAgentSessionArtifacts },
     );
   }
 
