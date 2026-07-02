@@ -1,9 +1,9 @@
-import type { CollaborationExecutorId } from "../../protocol/index.js";
+import type { CollaborationRuntimeId } from "../../protocol/index.js";
 import { mockRuntimeAgent } from "./agent/runtimes/mock/index.js";
 import { runtimeAgentManifest } from "./agent/runtimes/registry.js";
 import {
-  collaborationExecutorManifest,
-} from "./collaboration/executors/index.js";
+  collaborationRuntimeManifest,
+} from "./collaboration/runtimes/registry.js";
 import { runtimeSessionProviderManifest } from "./session/providers/registry.js";
 import type { RuntimeSessionProviderId } from "./session/providers/types.js";
 
@@ -14,7 +14,7 @@ export type NativeRuntimeProfile = {
   label: string;
   agentRuntimeId: string;
   chatRuntimeId: string;
-  collaborationExecutorId: CollaborationExecutorId;
+  collaborationRuntimeId: CollaborationRuntimeId;
   sessionProviderId: RuntimeSessionProviderId;
 };
 
@@ -23,7 +23,7 @@ const defaultNativeRuntimeProfile = Object.freeze({
   label: "Pi + LangGraph + Jsonl",
   agentRuntimeId: runtimeAgentManifest.defaultAgentId,
   chatRuntimeId: runtimeAgentManifest.defaultAgentId,
-  collaborationExecutorId: collaborationExecutorManifest.defaultExecutorId,
+  collaborationRuntimeId: collaborationRuntimeManifest.defaultRuntimeId,
   sessionProviderId: runtimeSessionProviderManifest.defaultProviderId,
 } satisfies NativeRuntimeProfile);
 
@@ -32,7 +32,7 @@ const mockNativeRuntimeProfile = Object.freeze({
   label: "Mock + LangGraph + Jsonl",
   agentRuntimeId: mockRuntimeAgent.id,
   chatRuntimeId: mockRuntimeAgent.id,
-  collaborationExecutorId: collaborationExecutorManifest.defaultExecutorId,
+  collaborationRuntimeId: collaborationRuntimeManifest.defaultRuntimeId,
   sessionProviderId: runtimeSessionProviderManifest.defaultProviderId,
 } satisfies NativeRuntimeProfile);
 

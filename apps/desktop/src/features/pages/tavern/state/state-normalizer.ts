@@ -224,7 +224,7 @@ const normalizeWorkflowTraceEvent = (
     type: candidate.type,
     workflowRunId: candidate.workflowRunId,
     workflowId: typeof candidate.workflowId === "string" ? candidate.workflowId : undefined,
-    executorId: typeof candidate.executorId === "string" ? candidate.executorId : undefined,
+    runtimeId: typeof candidate.runtimeId === "string" ? candidate.runtimeId : undefined,
     stepId: typeof candidate.stepId === "string" ? candidate.stepId : undefined,
     stepType: normalizeWorkflowTraceStepType(candidate.stepType),
     agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
@@ -257,7 +257,7 @@ const normalizeWorkflowTraceRun = (
     id: candidate.id,
     workflowRunId: candidate.workflowRunId,
     workflowId: candidate.workflowId,
-    executorId: typeof candidate.executorId === "string" ? candidate.executorId : undefined,
+    runtimeId: typeof candidate.runtimeId === "string" ? candidate.runtimeId : undefined,
     taskId: typeof candidate.taskId === "string" ? candidate.taskId : undefined,
     anchorMessageId: typeof candidate.anchorMessageId === "string"
       ? candidate.anchorMessageId

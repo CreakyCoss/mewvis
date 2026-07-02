@@ -76,27 +76,27 @@ const jsonlRuntimeSessionStorageProvider: RuntimeSessionStorageProvider = {
   },
 };
 
-export const jsonlRuntimeSessionProvider: RuntimeSessionProvider = {
-  id: "jsonl",
+class JsonlRuntimeSessionProvider implements RuntimeSessionProvider {
+  readonly id = "jsonl" as const;
 
-  async initSession(input) {
+  initSession: RuntimeSessionProvider["initSession"] = async (input) => {
     const handle = await jsonlRuntimeSessionStorageProvider.openOrCreate(input);
     await handle.refreshManifest();
-  },
+  };
 
-  async refreshSession(input) {
+  refreshSession: RuntimeSessionProvider["refreshSession"] = async (input) => {
     const handle = await jsonlRuntimeSessionStorageProvider.openOrCreate(input);
     await handle.refreshManifest();
-  },
+  };
 
-  createRecorder(input) {
+  createRecorder: RuntimeSessionProvider["createRecorder"] = (input) => {
     return JsonlRuntimeSessionRecorder.create(
       input,
       jsonlRuntimeSessionStorageProvider,
     );
-  },
+  };
 
-  async prepareTurn(input, options) {
+  prepareTurn: RuntimeSessionProvider["prepareTurn"] = async (input, options) => {
     const prepared = await prepareRuntimeSessionTurn(
       input,
       jsonlRuntimeSessionStorageProvider,
@@ -113,78 +113,86 @@ export const jsonlRuntimeSessionProvider: RuntimeSessionProvider = {
       systemPrompt: prepared.systemPrompt,
       updatedSessionContext: contextViewFrom(prepared.updatedSessionContext),
     };
-  },
+  };
 
-  readSession(input) {
+  readSession: RuntimeSessionProvider["readSession"] = (input) => {
     return readRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  summarizeSession(input) {
+  summarizeSession: RuntimeSessionProvider["summarizeSession"] = (input) => {
     return summarizeRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  appendSessionMessages(input) {
+  appendSessionMessages: RuntimeSessionProvider["appendSessionMessages"] = (input) => {
     return appendRuntimeSessionMessages(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  rebuildSession(input) {
+  rebuildSession: RuntimeSessionProvider["rebuildSession"] = (input) => {
     return rebuildRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  editSessionMessage(input) {
+  editSessionMessage: RuntimeSessionProvider["editSessionMessage"] = (input) => {
     return editRuntimeSessionMessage(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  deleteSessionMessage(input) {
+  deleteSessionMessage: RuntimeSessionProvider["deleteSessionMessage"] = (input) => {
     return deleteRuntimeSessionMessage(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  compactSession(input) {
+  compactSession: RuntimeSessionProvider["compactSession"] = (input) => {
     return compactRuntimeSessionContent(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  deleteSession(input) {
+  deleteSession: RuntimeSessionProvider["deleteSession"] = (input) => {
     return deleteRuntimeSession(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  readAgentVisibleContext(input) {
+  readAgentVisibleContext: RuntimeSessionProvider["readAgentVisibleContext"] = (input) => {
     return readRuntimeSessionAgentVisibleContext(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  recordSessionEvent(input) {
+  recordSessionEvent: RuntimeSessionProvider["recordSessionEvent"] = (input) => {
     return recordRuntimeSessionEvent(input, jsonlRuntimeSessionStorageProvider);
-  },
+  };
 
-  async appendTraceRecord(input) {
+  appendTraceRecord: RuntimeSessionProvider["appendTraceRecord"] = async (input) => {
     const handle = await jsonlRuntimeSessionStorageProvider.openOrCreate(input);
     return handle.appendTrace(input.record);
-  },
+  };
 
-  resolveArtifactDir(input) {
+  resolveArtifactDir: RuntimeSessionProvider["resolveArtifactDir"] = (input) => {
     return resolveRuntimeSessionArtifactDir(
       jsonlRuntimeSessionStorageProvider,
       input,
       input.segments,
     );
-  },
+  };
 
-  clearArtifactDir(input) {
+  clearArtifactDir: RuntimeSessionProvider["clearArtifactDir"] = (input) => {
     return clearRuntimeSessionArtifactDir(
       jsonlRuntimeSessionStorageProvider,
       input,
       input.segments,
     );
-  },
+  };
 
-  listRuntimeSessions(input) {
+  listRuntimeSessions: RuntimeSessionProvider["listRuntimeSessions"] = (input) => {
     return listRuntimeSessions(input);
-  },
+  };
 
-  getRuntimeSessionSnapshot(target, options) {
+  getRuntimeSessionSnapshot: RuntimeSessionProvider["getRuntimeSessionSnapshot"] = (
+    target,
+    options,
+  ) => {
     return getRuntimeSessionSnapshot(target, options);
-  },
+  };
 
-  getCollaborationTimeline(target, options) {
+  getCollaborationTimeline: RuntimeSessionProvider["getCollaborationTimeline"] = (
+    target,
+    options,
+  ) => {
     return getCollaborationTimeline(target, options);
-  },
-};
+  };
+}
+
+export const jsonlRuntimeSessionProvider = new JsonlRuntimeSessionProvider();

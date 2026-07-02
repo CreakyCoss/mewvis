@@ -25,7 +25,7 @@ export type {
   AgentClientCollaborationAgentWorkflowStep,
   AgentClientCollaborationBaseWorkflowStep,
   AgentClientCollaborationConditionWorkflowStep,
-  AgentClientCollaborationExecutorId,
+  AgentClientCollaborationRuntimeId,
   AgentClientCollaborationInput,
   AgentClientCollaborationModeId,
   AgentClientCollaborationModeInput,

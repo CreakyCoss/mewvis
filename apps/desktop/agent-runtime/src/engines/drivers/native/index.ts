@@ -84,7 +84,7 @@ import { createCollaborationEngine } from "./collaboration/index.js";
 import type {
   EmitCollaborationEvent,
   RunAgentForCollaboration,
-} from "./collaboration/contracts/executor.js";
+} from "./collaboration/runtimes/types.js";
 import type { CollaborationEngine } from "./collaboration/index.js";
 import { messageFromError } from "./error.js";
 import {
@@ -183,7 +183,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
 
     this.collaboration = createCollaborationEngine({
       runAgent: runAgentForCollaboration,
-      defaultExecutorId: this.profile.collaborationExecutorId,
+      defaultRuntimeId: this.profile.collaborationRuntimeId,
       sessionProviderId: this.profile.sessionProviderId,
     });
     this.agent = {

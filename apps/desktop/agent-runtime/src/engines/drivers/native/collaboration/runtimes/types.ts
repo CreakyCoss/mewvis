@@ -6,21 +6,16 @@ import type {
 import type {
   CollaborationHandlerRegistry,
   EmitCollaborationEvent,
-} from "./handler.js";
+} from "../handlers/types.js";
 import type {
-  CollaborationExecutorId,
-  CollaborationModeRunInput,
-  CollaborationModeSummary,
+  CollaborationRuntimeId,
   CollaborationRunResult,
   CollaborationRunInput,
 } from "../../../../protocol/index.js";
-import type {
-  CollaborationModeRunResult,
-} from "../modes/contracts.js";
 
 export type {
   EmitCollaborationEvent,
-} from "./handler.js";
+} from "../handlers/types.js";
 
 export type CollaborationRunContext = {
   emit?: EmitCollaborationEvent;
@@ -35,29 +30,17 @@ export type RunAgentForCollaboration = (
   context: RunAgentForCollaborationContext,
 ) => Promise<AgentRunResult>;
 
-export type CollaborationExecutorRunInput = {
+export type CollaborationRuntimeRunInput = {
   input: CollaborationRunInput;
   context: CollaborationRunContext;
   workflowRunId: string;
-  executorId: string;
+  runtimeId: string;
   emit: EmitCollaborationEvent;
   runAgent: RunAgentForCollaboration;
   handlerRegistry: CollaborationHandlerRegistry;
 };
 
-export type CollaborationExecutor = {
-  id: CollaborationExecutorId;
-  run(input: CollaborationExecutorRunInput): Promise<CollaborationRunResult>;
-};
-
-export type CollaborationEngine = {
-  run(
-    input: CollaborationRunInput,
-    context?: CollaborationRunContext,
-  ): Promise<CollaborationRunResult>;
-  runMode(
-    input: CollaborationModeRunInput,
-    context?: CollaborationRunContext,
-  ): Promise<CollaborationModeRunResult>;
-  listModes(): CollaborationModeSummary[];
+export type CollaborationRuntime = {
+  id: CollaborationRuntimeId;
+  run(input: CollaborationRuntimeRunInput): Promise<CollaborationRunResult>;
 };

@@ -190,7 +190,7 @@ writeFileSync(mockCollaborationPath, `
       taskId,
       workflowRunId,
       workflowId: input.mode,
-      executorId: "langgraph",
+      runtimeId: "langgraph",
     });
 
     for (const round of [1, 2]) {
@@ -383,7 +383,7 @@ writeFileSync(mockCollaborationPath, `
 
     const result = {
       workflowRunId,
-      executorId: "langgraph",
+      runtimeId: "langgraph",
       steps,
       skippedSteps: [],
       output,

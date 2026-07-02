@@ -223,7 +223,7 @@ writeFileSync(entryPath, `
     taskId: "trace-task",
     workflowRunId: traceWorkflowRunId,
     workflowId: "trace.workflow",
-    executorId: "langgraph",
+    runtimeId: "langgraph",
   }, { scopeLabel: "Trace" });
   applyTavernCollaborationTraceEvent(traceCtx, {
     type: "step_started",
@@ -272,7 +272,7 @@ writeFileSync(entryPath, `
     workflowRunId: traceWorkflowRunId,
     result: {
       workflowRunId: traceWorkflowRunId,
-      executorId: "langgraph",
+      runtimeId: "langgraph",
       steps: [{
         stepId: "planner",
         stepType: "agent",

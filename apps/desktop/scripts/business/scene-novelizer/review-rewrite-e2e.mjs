@@ -39,7 +39,7 @@ writeFileSync(mockAgentClientPath, `
           taskId,
           workflowRunId,
           workflowId: "producer.review-rewrite-loop:scene-novelizer",
-          executorId: "langgraph",
+          runtimeId: "langgraph",
         });
         emit({
           type: "workflow_done",
@@ -47,7 +47,7 @@ writeFileSync(mockAgentClientPath, `
           workflowRunId,
           result: {
             workflowRunId,
-            executorId: "langgraph",
+            runtimeId: "langgraph",
             mode: "producer.review-rewrite-loop",
             steps: [
               {

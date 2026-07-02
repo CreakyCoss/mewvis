@@ -1,7 +1,7 @@
 import type {
   CollaborationSkippedStepResult,
   CollaborationStepResult,
-} from "../../../../protocol/index.js";
+} from "../../../../../protocol/index.js";
 
 export type CollaborationExecutionState = {
   input: unknown;

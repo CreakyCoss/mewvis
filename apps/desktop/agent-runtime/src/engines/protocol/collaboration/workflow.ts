@@ -99,13 +99,13 @@ export type CollaborationAgentRole = {
 
 export type CollaborationWorkflowExecutionMode = "serial" | "parallel";
 
-export type CollaborationExecutorId = "native" | "langgraph" | (string & {});
+export type CollaborationRuntimeId = "native" | "langgraph" | (string & {});
 
 export type CollaborationWorkflowDefinition = {
   id: string;
   label?: string | null;
   version?: string | null;
-  executor?: CollaborationExecutorId | null;
+  runtime?: CollaborationRuntimeId | null;
   executionMode?: CollaborationWorkflowExecutionMode | null;
   maxSteps?: number | null;
   steps?: readonly CollaborationWorkflowStep[];
@@ -160,7 +160,7 @@ export type CollaborationModeRunInput = {
   context?: unknown;
   options?: Record<string, unknown> | null;
   resources?: AgentRuntimeResources | null;
-  executor?: CollaborationExecutorId | null;
+  runtime?: CollaborationRuntimeId | null;
 };
 
 export type CollaborationModeSummary = {

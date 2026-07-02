@@ -66,7 +66,7 @@ export type AgentClientCollaborationSkippedStepResult = {
 
 export type AgentClientCollaborationResult = {
   workflowRunId: string;
-  executorId?: string;
+  runtimeId?: string;
   mode?: string | null;
   steps: AgentClientCollaborationStepResult[];
   skippedSteps?: AgentClientCollaborationSkippedStepResult[];
@@ -79,7 +79,7 @@ export type AgentClientCollaborationEvent =
     taskId: string;
     workflowRunId: string;
     workflowId: string;
-    executorId: string;
+    runtimeId: string;
   }
   | {
     type: "step_started";
@@ -122,7 +122,7 @@ export type AgentClientCollaborationEvent =
     taskId: string;
     requestId?: string | null;
     workflowRunId: string;
-    executorId?: string;
+    runtimeId?: string;
     mode?: string | null;
     steps: AgentClientCollaborationStepResult[];
     skippedSteps?: AgentClientCollaborationSkippedStepResult[];

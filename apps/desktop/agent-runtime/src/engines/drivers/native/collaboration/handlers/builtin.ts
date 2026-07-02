@@ -1,15 +1,15 @@
 import type {
   CollaborationAgentInvocation,
-} from "../contracts/step.js";
+} from "../runtimes/shared/step.js";
 import type {
   CollaborationHandlerBundle,
-} from "../contracts/handler.js";
+} from "./types.js";
 import {
   isRecord,
   numberValue,
   parseJsonObjectFromText,
   stringValue,
-} from "./shared.js";
+} from "../modes/shared.js";
 
 type SupervisorCandidate = {
   targetId: string;

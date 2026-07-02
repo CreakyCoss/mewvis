@@ -1,6 +1,6 @@
 import type {
   CollaborationAgentInvocation,
-} from "../../contracts/step.js";
+} from "../../runtimes/shared/step.js";
 import type {
   CollaborationAgentRole,
   CollaborationModeParticipant,
@@ -201,7 +201,7 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
         id: modeWorkflowId(modeId, input.requestId),
         label: "Supervisor Dispatch Loop",
         version: "1",
-        executor: input.executor ?? null,
+        runtime: input.runtime ?? null,
         maxSteps: Math.max(20, maxRounds * 8 + 4),
         steps: [
           {

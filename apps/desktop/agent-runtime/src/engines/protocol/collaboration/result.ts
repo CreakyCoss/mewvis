@@ -22,7 +22,7 @@ export type CollaborationSkippedStepResult = {
 
 export type CollaborationRunResult = {
   workflowRunId: string;
-  executorId?: string;
+  runtimeId?: string;
   steps: CollaborationStepResult[];
   skippedSteps?: CollaborationSkippedStepResult[];
   output?: unknown;

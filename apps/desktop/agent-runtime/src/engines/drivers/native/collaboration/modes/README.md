@@ -14,7 +14,7 @@ Every mode accepts:
 - `participants`: typed agent roles used by the mode.
 - `context`: product data rendered into the workflow prompt.
 - `options`: mode-specific controls such as loop limits or thresholds.
-- `executor`: optional executor override, otherwise the runtime default is used.
+- `runtime`: optional runtime override, otherwise the runtime default is used.
 
 Every mode emits normal collaboration events and writes runtime session trace
 records when `sessionRootDir` is present. Query the resulting session with
@@ -114,6 +114,6 @@ Exit behavior:
 ## Handler Policy
 
 Add a new mode when the orchestration pattern is reusable across products.
-Prefer mode-specific transforms/routers in `modes/handlers.ts` when they are
+Prefer mode-specific transforms/routers in `handlers/builtin.ts` when they are
 generic. Product-specific parsing or UI projection should live outside
 `agent-runtime` and consume the generic mode output.

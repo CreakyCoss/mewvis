@@ -26,9 +26,9 @@ writeFileSync(entryPath, `
     AgentRuntimeCommandType,
     AgentRuntimeResultType,
     AgentTaskCommandType,
+    CollaborationEventType,
   } from ${JSON.stringify(protocolEntry)};
   import {
-    CollaborationEventType,
     createCollaborationEngine,
   } from ${JSON.stringify(collaborationEntry)};
   import {
@@ -146,7 +146,7 @@ writeFileSync(entryPath, `
         "type" in candidate &&
         candidate.type === AgentRuntimeResultType.CollaborationResult
     ) as {
-      executorId?: string;
+      runtimeId?: string;
       output?: unknown;
       steps: Array<{ text: string }>;
     } | undefined;
@@ -163,12 +163,12 @@ writeFileSync(entryPath, `
       results,
     );
     assert(result.steps.length === 2, "应执行两个协作 step", result);
-    assert(result.executorId === "langgraph", "默认协作 executor 应为 LangGraph", result);
+    assert(result.runtimeId === "langgraph", "默认协作 runtime 应为 LangGraph", result);
     assert(typeof result.output === "object" && result.output !== null, "应返回对象形式输出", result);
     assert(result.steps.every((step) => step.text.includes("Mock agent 已完成模拟任务。")), "每个 step 应由 mock agent 完成", result.steps);
     const workflowStartedEvent = events.find((event) => event && typeof event === "object" && "type" in event && event.type === CollaborationEventType.WorkflowStarted);
     assert(workflowStartedEvent, "应发出 workflow_started 事件", events);
-    assert((workflowStartedEvent as { executorId?: string }).executorId === "langgraph", "workflow_started 应携带 executorId", workflowStartedEvent);
+    assert((workflowStartedEvent as { runtimeId?: string }).runtimeId === "langgraph", "workflow_started 应携带 runtimeId", workflowStartedEvent);
     assert(events.some((event) => event && typeof event === "object" && "type" in event && event.type === CollaborationEventType.AgentEvent), "应包装 agent 事件", events);
     assert(events.some((event) => event && typeof event === "object" && "type" in event && event.type === CollaborationEventType.WorkflowDone), "应发出 workflow_done 事件", events);
 
@@ -439,13 +439,13 @@ writeFileSync(entryPath, `
       sessionRootDir: join(workspacePath, "session-store", "collaboration-explicit-native"),
       workflow: {
         id: "collaboration-explicit-native-smoke",
-        executor: "native",
+        runtime: "native",
         steps: [
           {
             id: "planner",
             type: "agent",
             agentRoleId: "planner",
-            userMessage: "请生成显式 native executor 的计划。",
+            userMessage: "请生成显式 native runtime 的计划。",
             outputKey: "plan",
           },
         ],
@@ -455,7 +455,7 @@ writeFileSync(entryPath, `
           id: "planner",
           label: "Planner",
           agentId: "mock",
-          systemPrompt: "你是显式 native executor smoke test 的角色。",
+          systemPrompt: "你是显式 native runtime smoke test 的角色。",
         },
       ],
     }, {
@@ -463,13 +463,13 @@ writeFileSync(entryPath, `
         explicitNativeEvents.push(event);
       },
     });
-    assert(explicitNativeResult.executorId === "native", "workflow.executor=native 应显式选择 native executor", explicitNativeResult);
+    assert(explicitNativeResult.runtimeId === "native", "workflow.runtime=native 应显式选择 native runtime", explicitNativeResult);
     assert(
       explicitNativeEvents.some((event) =>
         event && typeof event === "object" &&
         "type" in event &&
         event.type === CollaborationEventType.WorkflowStarted &&
-        (event as { executorId?: string }).executorId === "native"
+        (event as { runtimeId?: string }).runtimeId === "native"
       ),
       "显式 native workflow 应体现在 workflow_started 事件",
       explicitNativeEvents,
@@ -486,7 +486,7 @@ writeFileSync(entryPath, `
             id: "planner",
             type: "agent",
             agentRoleId: "planner",
-            userMessage: "请生成默认 executor 的计划。",
+            userMessage: "请生成默认 runtime 的计划。",
             outputKey: "plan",
           },
         ],
@@ -496,7 +496,7 @@ writeFileSync(entryPath, `
           id: "planner",
           label: "Planner",
           agentId: "mock",
-          systemPrompt: "你是默认 executor smoke test 的角色。",
+          systemPrompt: "你是默认 runtime smoke test 的角色。",
         },
       ],
     }, {
@@ -504,15 +504,15 @@ writeFileSync(entryPath, `
         implicitDefaultEvents.push(event);
       },
     });
-    assert(implicitDefaultResult.executorId === "langgraph", "未配置 workflow.executor 时应使用默认 LangGraph executor", implicitDefaultResult);
+    assert(implicitDefaultResult.runtimeId === "langgraph", "未配置 workflow.runtime 时应使用默认 LangGraph runtime", implicitDefaultResult);
     assert(
       implicitDefaultEvents.some((event) =>
         event && typeof event === "object" &&
         "type" in event &&
         event.type === CollaborationEventType.WorkflowStarted &&
-        (event as { executorId?: string }).executorId === "langgraph"
+        (event as { runtimeId?: string }).runtimeId === "langgraph"
       ),
-      "默认 executor 应体现在 workflow_started 事件",
+      "默认 runtime 应体现在 workflow_started 事件",
       implicitDefaultEvents,
     );
 
@@ -670,7 +670,7 @@ writeFileSync(entryPath, `
         { id: "speaker", label: "Loop Speaker" },
       ],
     });
-    assert(loopResult.executorId === "langgraph", "router 回环默认应走 LangGraph", loopResult);
+    assert(loopResult.runtimeId === "langgraph", "router 回环默认应走 LangGraph", loopResult);
     assert(loopAgentMessages.join("|") === "Round 1|Round 2|Round 3", "router 回环应按路由重复执行 step 直到 end", loopAgentMessages);
     assert((loopResult.output as { count?: number }).count === 3, "router 回环应保留最后一轮 output", loopResult.output);
     assert(loopResult.steps.find((step) => step.stepId === "next")?.route === "end", "router 回环最后一次 route 应为 end", loopResult.steps);
@@ -681,13 +681,13 @@ writeFileSync(entryPath, `
       workflow: {
         ...loopWorkflow,
         id: "native-router-loop-smoke",
-        executor: "native",
+        runtime: "native",
       },
       agents: [
         { id: "speaker", label: "Loop Speaker" },
       ],
     });
-    assert(nativeLoopResult.executorId === "native", "显式 native router 回环应走 native executor", nativeLoopResult);
+    assert(nativeLoopResult.runtimeId === "native", "显式 native router 回环应走 native runtime", nativeLoopResult);
     assert(loopAgentMessages.join("|") === "Round 1|Round 2|Round 3", "native router 回环应按路由重复执行 step 直到 end", loopAgentMessages);
     assert((nativeLoopResult.output as { count?: number }).count === 3, "native router 回环应保留最后一轮 output", nativeLoopResult.output);
 
@@ -698,7 +698,7 @@ writeFileSync(entryPath, `
         workflow: {
           ...loopWorkflow,
           id: "native-router-loop-max-steps-smoke",
-          executor: "native",
+          runtime: "native",
           maxSteps: 2,
         },
         agents: [
@@ -779,7 +779,7 @@ writeFileSync(entryPath, `
         { id: "reviewer", label: "Reviewer" },
       ],
     });
-    assert(dispatchResult.executorId === "langgraph", "dispatch 默认应走 LangGraph", dispatchResult);
+    assert(dispatchResult.runtimeId === "langgraph", "dispatch 默认应走 LangGraph", dispatchResult);
     assert(
       dispatchCommands.map((command) => command.roleId + ":" + command.userMessage).join("|") ===
         "writer:Write dynamic dispatch|reviewer:Review dynamic dispatch",
@@ -799,14 +799,14 @@ writeFileSync(entryPath, `
       workflow: {
         ...dispatchWorkflow,
         id: "native-dispatch-smoke",
-        executor: "native" as const,
+        runtime: "native" as const,
       },
       agents: [
         { id: "writer", label: "Writer" },
         { id: "reviewer", label: "Reviewer" },
       ],
     });
-    assert(nativeDispatchResult.executorId === "native", "显式 native dispatch 应走 native executor", nativeDispatchResult);
+    assert(nativeDispatchResult.runtimeId === "native", "显式 native dispatch 应走 native runtime", nativeDispatchResult);
     assert(
       dispatchCommands.map((command) => command.roleId + ":" + command.userMessage).join("|") ===
         "writer:Write native dispatch|reviewer:Review native dispatch",
@@ -844,7 +844,7 @@ writeFileSync(entryPath, `
       },
       workflow: {
         id: "langgraph-collaboration-smoke",
-        executor: "langgraph",
+        runtime: "langgraph",
         executionMode: "parallel",
         steps: [
           {
@@ -908,11 +908,11 @@ writeFileSync(entryPath, `
       },
     });
 
-    assert(langGraphResult.executorId === "langgraph", "workflow.executor=langgraph 应选择 LangGraph executor", langGraphResult);
+    assert(langGraphResult.runtimeId === "langgraph", "workflow.runtime=langgraph 应选择 LangGraph runtime", langGraphResult);
     assert(langGraphStartedRoleIds.slice(0, 2).sort().join("|") === "left|right", "LangGraph parallel 模式应先启动无依赖 step", langGraphStartedRoleIds);
-    assert(langGraphAttempts.get("reviewer") === 2, "LangGraph executor 应复用 step maxRetries", Array.from(langGraphAttempts.entries()));
-    assert(langGraphResult.steps.map((step) => step.stepId).join("|") === "left|right|reviewer", "LangGraph executor 应按 workflow step 顺序稳定返回", langGraphResult.steps);
-    assert(langGraphResult.skippedSteps?.map((step) => step.stepId).join("|") === "optional|afterOptional", "LangGraph executor 应保留 skippedSteps", langGraphResult.skippedSteps);
+    assert(langGraphAttempts.get("reviewer") === 2, "LangGraph runtime 应复用 step maxRetries", Array.from(langGraphAttempts.entries()));
+    assert(langGraphResult.steps.map((step) => step.stepId).join("|") === "left|right|reviewer", "LangGraph runtime 应按 workflow step 顺序稳定返回", langGraphResult.steps);
+    assert(langGraphResult.skippedSteps?.map((step) => step.stepId).join("|") === "optional|afterOptional", "LangGraph runtime 应保留 skippedSteps", langGraphResult.skippedSteps);
     assert(langGraphReviewerMessages.at(-1)?.includes("left:Left langgraph workflow"), "LangGraph reviewer 应能引用 output.left", langGraphReviewerMessages);
     assert(langGraphReviewerMessages.at(-1)?.includes("right:Right langgraph workflow"), "LangGraph reviewer 应能引用 steps.right.text", langGraphReviewerMessages);
     assert(
@@ -920,45 +920,45 @@ writeFileSync(entryPath, `
         event && typeof event === "object" &&
         "type" in event &&
         event.type === CollaborationEventType.WorkflowStarted &&
-        (event as { executorId?: string }).executorId === "langgraph"
+        (event as { runtimeId?: string }).runtimeId === "langgraph"
       ),
-      "LangGraph workflow_started 应携带 executorId",
+      "LangGraph workflow_started 应携带 runtimeId",
       langGraphEvents,
     );
 
     let customRunAgentCalled = false;
-    const customExecutorEngine = createCollaborationEngine({
+    const customRuntimeEngine = createCollaborationEngine({
       runAgent: async () => {
         customRunAgentCalled = true;
-        throw new Error("custom executor should not call runAgent");
+        throw new Error("custom runtime should not call runAgent");
       },
-      executors: [{
+      runtimes: [{
         id: "custom-smoke",
-        run: async ({ executorId, workflowRunId }) => ({
+        run: async ({ runtimeId, workflowRunId }) => ({
           workflowRunId,
-          executorId,
+          runtimeId,
           steps: [{
             stepId: "custom",
             stepType: "agent",
             agentRoleId: "custom-role",
             agentTaskId: workflowRunId + ":custom",
             outputKey: "custom",
-            output: "custom executor result",
-            text: "custom executor result",
+            output: "custom runtime result",
+            text: "custom runtime result",
           }],
           skippedSteps: [],
           output: {
-            selectedExecutorId: executorId,
+            selectedRuntimeId: runtimeId,
           },
         }),
       }],
     });
     const customEvents: unknown[] = [];
-    const customResult = await customExecutorEngine.run({
+    const customResult = await customRuntimeEngine.run({
       workspacePath,
       workflow: {
-        id: "custom-executor-smoke",
-        executor: "custom-smoke",
+        id: "custom-runtime-smoke",
+        runtime: "custom-smoke",
         steps: [{
           id: "custom",
           type: "agent",
@@ -972,23 +972,23 @@ writeFileSync(entryPath, `
         customEvents.push(event);
       },
     });
-    assert(customResult.executorId === "custom-smoke", "workflow.executor 应选择注册的自定义 executor", customResult);
-    assert(!customRunAgentCalled, "自定义 executor 不应自动调用 native runAgent", customResult);
+    assert(customResult.runtimeId === "custom-smoke", "workflow.runtime 应选择注册的自定义 runtime", customResult);
+    assert(!customRunAgentCalled, "自定义 runtime 不应自动调用 native runAgent", customResult);
     assert(
       customEvents.some((event) =>
         event && typeof event === "object" &&
         "type" in event &&
         event.type === CollaborationEventType.WorkflowStarted &&
-        (event as { executorId?: string }).executorId === "custom-smoke"
+        (event as { runtimeId?: string }).runtimeId === "custom-smoke"
       ),
-      "自定义 executor 的 workflow_started 应携带 executorId",
+      "自定义 runtime 的 workflow_started 应携带 runtimeId",
       customEvents,
     );
 
     console.log(JSON.stringify({
       ok: true,
       workflowRunId: result.workflowRunId,
-      executorId: result.executorId,
+      runtimeId: result.runtimeId,
       steps: result.steps.map((step) => ({
         stepId: step.stepId,
         agentRoleId: step.agentRoleId,
@@ -997,12 +997,12 @@ writeFileSync(entryPath, `
       eventCount: events.length,
       explicitNative: {
         workflowRunId: explicitNativeResult.workflowRunId,
-        executorId: explicitNativeResult.executorId,
+        runtimeId: explicitNativeResult.runtimeId,
         eventCount: explicitNativeEvents.length,
       },
       implicitDefault: {
         workflowRunId: implicitDefaultResult.workflowRunId,
-        executorId: implicitDefaultResult.executorId,
+        runtimeId: implicitDefaultResult.runtimeId,
         eventCount: implicitDefaultEvents.length,
       },
       advanced: {
@@ -1035,7 +1035,7 @@ writeFileSync(entryPath, `
       },
       custom: {
         workflowRunId: customResult.workflowRunId,
-        executorId: customResult.executorId,
+        runtimeId: customResult.runtimeId,
         eventCount: customEvents.length,
       },
     }, null, 2));

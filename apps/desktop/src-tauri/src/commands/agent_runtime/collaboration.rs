@@ -33,7 +33,7 @@ pub struct RunAgentRuntimeCollaborationModeInput {
     participants: Vec<Value>,
     context: Option<Value>,
     options: Option<Value>,
-    executor: Option<String>,
+    runtime: Option<String>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
 }
@@ -165,7 +165,7 @@ pub fn run_agent_runtime_collaboration_mode(
             "participants": input.participants,
             "context": input.context,
             "options": input.options,
-            "executor": input.executor,
+            "runtime": input.runtime,
             "resources": {
                 "tools": {
                     "allowed": allowed_tools,

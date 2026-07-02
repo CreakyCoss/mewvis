@@ -1042,7 +1042,7 @@ export type TavernWorkflowTraceEvent = {
   type: string;
   workflowRunId: string;
   workflowId?: string;
-  executorId?: string;
+  runtimeId?: string;
   stepId?: string;
   stepType?: "agent" | "dispatch" | "transform" | "condition" | "router";
   agentRoleId?: string;
@@ -1052,7 +1052,7 @@ export type TavernWorkflowTraceEvent = {
 };
 
 export type TavernWorkflowTraceResult = {
-  executorId?: string;
+  runtimeId?: string;
   steps: Array<{
     stepId: string;
     stepType?: "agent" | "dispatch" | "transform" | "condition" | "router";
@@ -1073,7 +1073,7 @@ export type TavernWorkflowTraceRun = {
   id: string;
   workflowRunId: string;
   workflowId: string;
-  executorId?: string;
+  runtimeId?: string;
   taskId?: string;
   anchorMessageId?: string;
   scopeLabel?: string;

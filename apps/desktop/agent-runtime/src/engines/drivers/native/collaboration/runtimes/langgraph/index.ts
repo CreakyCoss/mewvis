@@ -5,24 +5,24 @@ import {
   StateGraph,
 } from "@langchain/langgraph";
 import type {
-  CollaborationExecutor,
-  CollaborationExecutorRunInput,
-} from "../contracts/executor.js";
+  CollaborationRuntime,
+  CollaborationRuntimeRunInput,
+} from "../types.js";
 import type {
   CollaborationRunInput,
   CollaborationSkippedStepResult,
   CollaborationStepResult,
   CollaborationRouterWorkflowStep,
   CollaborationWorkflowStep,
-} from "../../../../protocol/index.js";
+} from "../../../../../protocol/index.js";
 import {
   collectCollaborationRunResult,
   createCollaborationExecutionState,
   normalizeWorkflowMaxSteps,
   runStepWithRetry,
-} from "./native.js";
+} from "../shared/step-runner.js";
 
-export const langGraphCollaborationExecutorId = "langgraph" as const;
+export const langGraphCollaborationRuntimeId = "langgraph" as const;
 
 type LangGraphWorkflowState = {
   input: unknown;
@@ -73,17 +73,17 @@ type LangGraphWorkflowBuilder = StateGraph<
   string
 >;
 
-export const createLangGraphCollaborationExecutor = (): CollaborationExecutor => ({
-  id: langGraphCollaborationExecutorId,
+export const createLangGraphCollaborationRuntime = (): CollaborationRuntime => ({
+  id: langGraphCollaborationRuntimeId,
   async run({
     context,
     emit,
-    executorId,
+    runtimeId,
     handlerRegistry,
     input,
     runAgent,
     workflowRunId,
-  }: CollaborationExecutorRunInput) {
+  }: CollaborationRuntimeRunInput) {
     const steps = input.workflow.steps ?? [];
     const roleById = new Map(input.agents.map((role) => [role.id, role]));
     let graph = new StateGraph(WorkflowStateAnnotation) as LangGraphWorkflowBuilder;
@@ -143,7 +143,7 @@ export const createLangGraphCollaborationExecutor = (): CollaborationExecutor =>
     });
 
     return collectCollaborationRunResult({
-      executorId,
+      runtimeId,
       state: executionState,
       steps,
       workflowRunId,

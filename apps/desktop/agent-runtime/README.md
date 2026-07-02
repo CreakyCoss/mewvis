@@ -20,9 +20,10 @@ agent-runtime/
         session/              Shared ledger, trace, manifest, and projection.
         agent/                Single-agent runtime implementation.
         collaboration/        Multi-agent workflow orchestration.
-          contracts/          Native workflow, step, event, state, and extension types.
-          registry/           Extension handler registry.
-          executors/          Pluggable workflow executors.
+          commands/           Collaboration run orchestration.
+          handlers/           Transform, condition, and router handlers.
+          modes/              Reusable workflow presets.
+          runtimes/           Pluggable workflow runtimes.
 ```
 
 The intended dependency direction is:
@@ -34,7 +35,7 @@ cli   -> engines/index
       -> engines/drivers/native -> engines/drivers/native/agent
                                 -> engines/drivers/native/session
                                 -> engines/drivers/native/collaboration -> engines/drivers/native/agent
-                                                                   -> executors/native
+                                                                   -> runtimes/native
 ```
 
 Application code should normally call `createAgentClient()` from the desktop
@@ -193,7 +194,7 @@ available in parallel mode because parallel scheduling is dependency-based.
 
 Set `workflow.maxSteps` to bound serial router loops. When omitted, the runtime
 uses a conservative default based on the number of steps. Both the LangGraph and
-native executors enforce this limit.
+native runtimes enforce this limit.
 
 ```json
 {
@@ -283,10 +284,10 @@ collaboration runs. They are rendered into the step runtime instruction instead
 of being written as the shared session system prompt, so multiple roles with
 different prompts can safely share the same workflow session.
 
-## Collaboration Executors
+## Collaboration Runtimes
 
-`engines/drivers/native/collaboration` has a thin engine facade and pluggable executors. The
-default executor is `"langgraph"`, which uses `@langchain/langgraph` to run the
+`engines/drivers/native/collaboration` has a thin engine facade and pluggable runtimes. The
+default runtime is `"langgraph"`, which uses `@langchain/langgraph` to run the
 shared workflow contract as a StateGraph. `"native"` is also registered as a
 built-in TypeScript implementation for serial and dependency-aware parallel
 workflows. Callers normally omit the field:
@@ -301,25 +302,25 @@ workflows. Callers normally omit the field:
 ```
 
 To route a workflow through another registered implementation, set
-`workflow.executor`:
+`workflow.runtime`:
 
 ```json
 {
   "workflow": {
     "id": "workflow-id",
-    "executor": "native",
+    "runtime": "native",
     "steps": []
   }
 }
 ```
 
-The engine protocol does not change when the executor changes. The engine still
-emits `workflow_started`, `workflow_done`, and `error`, and the executor emits
+The engine protocol does not change when the runtime changes. The engine still
+emits `workflow_started`, `workflow_done`, and `error`, and the runtime emits
 step and nested agent events. `workflow_started` and `collaboration_result`
-include `executorId` so debug surfaces can show which backend handled a run.
+include `runtimeId` so debug surfaces can show which backend handled a run.
 
-There is no separate host or CLI default executor setting; set
-`workflow.executor` on the workflow when a run needs a non-default executor.
+There is no separate host or CLI default runtime setting; set
+`workflow.runtime` on the workflow when a run needs a non-default runtime.
 
 ## Event Stream
 

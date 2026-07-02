@@ -2,13 +2,13 @@ import type {
   CollaborationEvent,
   CollaborationRunInput,
   CollaborationStepResult,
-} from "../../../protocol/index.js";
-import { CollaborationEventType } from "../../../protocol/index.js";
+} from "../../../../protocol/index.js";
+import { CollaborationEventType } from "../../../../protocol/index.js";
 import type {
   EmitCollaborationEvent,
-} from "./contracts/handler.js";
-import { createRuntimeSessionManager } from "../session/index.js";
-import type { RuntimeSessionProviderId } from "../session/providers/types.js";
+} from "../handlers/types.js";
+import { createRuntimeSessionManager } from "../../session/index.js";
+import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
 type SessionBackedCollaborationInput = CollaborationRunInput & {
   sessionRootDir: string;
@@ -139,7 +139,7 @@ export class CollaborationSessionRecorder {
         eventType: "collaboration_run_started",
         data: {
           ...common,
-          executorId: event.executorId,
+          runtimeId: event.runtimeId,
         },
       });
       return;
@@ -186,7 +186,7 @@ export class CollaborationSessionRecorder {
         eventType: "collaboration_run_done",
         data: {
           ...common,
-          executorId: event.result.executorId ?? null,
+          runtimeId: event.result.runtimeId ?? null,
           stepCount: event.result.steps.length,
           skippedStepCount: event.result.skippedSteps?.length ?? 0,
           outputKeys: outputKeysFrom(event.result.output),

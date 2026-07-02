@@ -2,7 +2,7 @@ import type {
   AgentRuntimeResources,
   CollaborationAgentWorkflowStep,
   RuntimeModelInput,
-} from "../../../../protocol/index.js";
+} from "../../../../../protocol/index.js";
 
 export type CollaborationTemplateRef = {
   $ref: string;

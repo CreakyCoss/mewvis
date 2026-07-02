@@ -147,10 +147,10 @@ try {
   );
   assert(result.requestId === "stdio-collaboration-smoke", "应保留 requestId", result);
   assert(result.workflowRunId?.startsWith("workflow-"), "应返回 workflowRunId", result);
-  assert(result.executorId === "langgraph", "stdio collaboration_result 默认应携带 LangGraph executorId", result);
+  assert(result.runtimeId === "langgraph", "stdio collaboration_result 默认应携带 LangGraph runtimeId", result);
   assert(result.steps?.map((step) => step.stepId).join("|") === "planner|writer", "应执行两个不同角色的协作 step", result);
   assert(result.skippedSteps?.map((step) => step.stepId).join("|") === "optional", "应返回 skippedSteps", result);
-  assert(seen.some((item) => item.type === "workflow_started" && item.executorId === "langgraph"), "应输出携带 executorId 的 workflow_started 事件", seen);
+  assert(seen.some((item) => item.type === "workflow_started" && item.runtimeId === "langgraph"), "应输出携带 runtimeId 的 workflow_started 事件", seen);
   assert(seen.some((item) => item.type === "agent_event"), "应输出包装后的 agent_event 事件", seen);
   assert(seen.some((item) => item.type === "step_skipped"), "应输出 step_skipped 事件", seen);
 
@@ -162,13 +162,13 @@ try {
       sessionRootDir: join(workspacePath, "session-store", "stdio-native-collaboration"),
       workflow: {
         id: "stdio-native-collaboration-smoke",
-        executor: "native",
+        runtime: "native",
         steps: [
           {
             id: "planner",
             type: "agent",
             agentRoleId: "planner",
-            userMessage: "请验证显式 native executor。",
+            userMessage: "请验证显式 native runtime。",
             outputKey: "plan",
           },
         ],
@@ -178,7 +178,7 @@ try {
           id: "planner",
           label: "Planner",
           agentId: "mock",
-          systemPrompt: "你是显式 native executor stdio smoke test 的角色。",
+          systemPrompt: "你是显式 native runtime stdio smoke test 的角色。",
         },
       ],
     },
@@ -188,14 +188,14 @@ try {
     item.type === "collaboration_result" &&
     item.requestId === "stdio-native-collaboration-smoke"
   );
-  assert(nativeResult.executorId === "native", "workflow.executor=native 应显式选择 native executor", nativeResult);
+  assert(nativeResult.runtimeId === "native", "workflow.runtime=native 应显式选择 native runtime", nativeResult);
   assert(
     seen.some((item) =>
       item.type === "workflow_started" &&
       item.workflowId === "stdio-native-collaboration-smoke" &&
-      item.executorId === "native"
+      item.runtimeId === "native"
     ),
-    "stdio 显式 native workflow_started 应携带 executorId",
+    "stdio 显式 native workflow_started 应携带 runtimeId",
     seen,
   );
 
@@ -256,7 +256,7 @@ try {
     item.type === "collaboration_result" &&
     item.requestId === "stdio-dispatch-collaboration-smoke"
   );
-  assert(dispatchResult.executorId === "langgraph", "stdio dispatch 默认应走 LangGraph executor", dispatchResult);
+  assert(dispatchResult.runtimeId === "langgraph", "stdio dispatch 默认应走 LangGraph runtime", dispatchResult);
   assert(dispatchResult.output?.writerOut?.includes("Write stdio dispatch"), "stdio dispatch 应写回动态 writer output", dispatchResult);
   assert(dispatchResult.output?.reviewerOut?.includes("Review Mock agent 已完成模拟任务"), "stdio dispatch 后续 invocation 应能引用前序 output", dispatchResult);
   assert(
@@ -334,7 +334,7 @@ try {
       },
       workflow: {
         id: "stdio-langgraph-collaboration-smoke",
-        executor: "langgraph",
+        runtime: "langgraph",
         executionMode: "parallel",
         steps: [
           {
@@ -388,15 +388,15 @@ try {
     item.type === "collaboration_result" &&
     item.requestId === "stdio-langgraph-collaboration-smoke"
   );
-  assert(langGraphResult.executorId === "langgraph", "stdio collaboration_result 应支持 LangGraph executor", langGraphResult);
+  assert(langGraphResult.runtimeId === "langgraph", "stdio collaboration_result 应支持 LangGraph runtime", langGraphResult);
   assert(langGraphResult.steps?.map((step) => step.stepId).join("|") === "left|right|reviewer", "LangGraph stdio 结果应按 workflow step 顺序返回", langGraphResult);
   assert(
     seen.some((item) =>
       item.type === "workflow_started" &&
       item.workflowId === "stdio-langgraph-collaboration-smoke" &&
-      item.executorId === "langgraph"
+      item.runtimeId === "langgraph"
     ),
-    "stdio 应输出携带 langgraph executorId 的 workflow_started 事件",
+    "stdio 应输出携带 langgraph runtimeId 的 workflow_started 事件",
     seen,
   );
 

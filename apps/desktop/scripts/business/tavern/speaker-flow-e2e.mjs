@@ -110,7 +110,7 @@ writeFileSync(mockCollaborationPath, `
       taskId,
       workflowRunId,
       workflowId: input.workflow.id,
-      executorId: "langgraph",
+      runtimeId: "langgraph",
     });
 
     const steps = [];
@@ -161,7 +161,7 @@ writeFileSync(mockCollaborationPath, `
 
     const result = {
       workflowRunId,
-      executorId: "langgraph",
+      runtimeId: "langgraph",
       steps,
       skippedSteps: [],
       output,

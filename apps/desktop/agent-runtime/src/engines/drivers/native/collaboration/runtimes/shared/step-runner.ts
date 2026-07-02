@@ -12,80 +12,35 @@ import type {
   CollaborationStepResult,
   CollaborationTransformWorkflowStep,
   CollaborationWorkflowStep,
-} from "../../../../protocol/index.js";
-import { CollaborationEventType } from "../../../../protocol/index.js";
-import { messageFromError } from "../../error.js";
+} from "../../../../../protocol/index.js";
+import { CollaborationEventType } from "../../../../../protocol/index.js";
+import { messageFromError } from "../../../error.js";
 import type {
   CollaborationExecutionState,
-} from "../state/execution-state.js";
+} from "./execution-state.js";
 import type {
-  CollaborationExecutor,
-  CollaborationExecutorRunInput,
+  CollaborationRuntimeRunInput,
   CollaborationRunContext,
   RunAgentForCollaboration,
-} from "../contracts/executor.js";
+} from "../types.js";
 import type {
   CollaborationAgentInvocation,
-} from "../contracts/step.js";
+} from "./step.js";
 import type {
   CollaborationHandlerContext,
   CollaborationRouterResult,
-} from "../contracts/handler.js";
+} from "../../handlers/types.js";
 
-export const nativeCollaborationExecutorId = "native" as const;
+export type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStepResult;
 
-export const createNativeCollaborationExecutor = (): CollaborationExecutor => ({
-  id: nativeCollaborationExecutorId,
-  async run({
-    context,
-    emit,
-    executorId,
-    input,
-    handlerRegistry,
-    runAgent,
-    workflowRunId,
-  }: CollaborationExecutorRunInput) {
-    const steps = input.workflow.steps ?? [];
-    const roleById = new Map(input.agents.map((role) => [role.id, role]));
-    const state = createCollaborationExecutionState(input.input);
-
-    const executeStep = (step: CollaborationWorkflowStep) =>
-      runStepWithRetry({
-        context,
-        emit,
-        input,
-        handlerRegistry,
-        roleById,
-        runAgent,
-        state,
-        step,
-        workflowRunId,
-      });
-
-    if (input.workflow.executionMode === "parallel") {
-      assertNoDynamicRouterSteps(steps);
-      await runParallelSteps(steps, executeStep);
-    } else {
-      await runSerialSteps(steps, executeStep, input.workflow.maxSteps);
-    }
-
-    return collectCollaborationRunResult({
-      executorId,
-      state,
-      steps,
-      workflowRunId,
-    });
-  },
-});
-
-type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStepResult;
-
-type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOutcome>;
+export type ExecuteStep = (
+  step: CollaborationWorkflowStep,
+) => Promise<StepExecutionOutcome>;
 
 export type RunStepInput = {
   context: CollaborationRunContext;
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   roleById: Map<string, CollaborationAgentRole>;
   runAgent: RunAgentForCollaboration;
@@ -113,12 +68,12 @@ export const createCollaborationExecutionState = (
 });
 
 export const collectCollaborationRunResult = ({
-  executorId,
+  runtimeId,
   state,
   steps,
   workflowRunId,
 }: {
-  executorId: string;
+  runtimeId: string;
   state: CollaborationExecutionState;
   steps: readonly CollaborationWorkflowStep[];
   workflowRunId: string;
@@ -133,7 +88,7 @@ export const collectCollaborationRunResult = ({
 
   return {
     workflowRunId,
-    executorId,
+    runtimeId,
     steps: [...stepResults, ...dynamicStepResults],
     skippedSteps,
     output: state.output,
@@ -413,7 +368,7 @@ const runTransformStep = async ({
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationTransformWorkflowStep;
@@ -457,7 +412,7 @@ const runConditionStep = async ({
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationConditionWorkflowStep;
@@ -501,7 +456,7 @@ const runRouterStep = async ({
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationRouterWorkflowStep;
@@ -539,7 +494,7 @@ const runRouterStep = async ({
   return stepResult;
 };
 
-const runParallelSteps = async (
+export const runParallelSteps = async (
   steps: readonly CollaborationWorkflowStep[],
   executeStep: ExecuteStep,
 ) => {
@@ -571,7 +526,7 @@ const runParallelSteps = async (
   }
 };
 
-const runSerialSteps = async (
+export const runSerialSteps = async (
   steps: readonly CollaborationWorkflowStep[],
   executeStep: ExecuteStep,
   maxSteps: number | null | undefined,
@@ -644,7 +599,9 @@ const normalizeRouterDestination = (value: string | null | undefined) => {
   return destination === "end" || destination === "__end__" ? "__end__" : destination;
 };
 
-const assertNoDynamicRouterSteps = (steps: readonly CollaborationWorkflowStep[]) => {
+export const assertNoDynamicRouterSteps = (
+  steps: readonly CollaborationWorkflowStep[],
+) => {
   const dynamicRouter = steps.find((step) =>
     step.type === "router" && step.routes && Object.keys(step.routes).length > 0
   );
@@ -750,7 +707,7 @@ const shouldRunStep = async ({
   workflowRunId,
 }: {
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationWorkflowStep;
@@ -781,7 +738,7 @@ const evaluateCondition = async ({
 }: {
   condition: CollaborationStepCondition;
   emit: (event: CollaborationEvent) => void;
-  handlerRegistry: CollaborationExecutorRunInput["handlerRegistry"];
+  handlerRegistry: CollaborationRuntimeRunInput["handlerRegistry"];
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: CollaborationWorkflowStep;

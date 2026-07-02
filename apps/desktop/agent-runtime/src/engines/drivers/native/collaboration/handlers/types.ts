@@ -8,7 +8,7 @@ import type {
 } from "../../../../protocol/index.js";
 import type {
   CollaborationExecutionState,
-} from "../state/execution-state.js";
+} from "../runtimes/shared/execution-state.js";
 
 export type EmitCollaborationEvent = (event: CollaborationEvent) => void;
 

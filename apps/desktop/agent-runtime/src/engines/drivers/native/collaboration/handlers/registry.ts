@@ -4,7 +4,7 @@ import type {
   CollaborationHandlerRegistry,
   CollaborationRouterHandler,
   CollaborationTransformHandler,
-} from "../contracts/handler.js";
+} from "./types.js";
 
 type HandlerKind = "transform" | "condition" | "router";
 
