@@ -179,10 +179,14 @@ export type RuntimeSessionsQuery = {
 };
 
 export type RuntimeSessionQuery = RequiredSessionTargetShape & {
-  includeLedger?: boolean | null;
-  includeTrace?: boolean | null;
   includeTimeline?: boolean | null;
   timelineLimit?: number | null;
+};
+
+export type RuntimeSessionDebugQuery = RequiredSessionTargetShape & {
+  includeLedger?: boolean | null;
+  includeTrace?: boolean | null;
+  traceLimit?: number | null;
 };
 
 export type CollaborationTimelineQuery = RequiredSessionTargetShape & {

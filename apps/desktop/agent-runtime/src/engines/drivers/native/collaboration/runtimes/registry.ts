@@ -9,10 +9,8 @@ import {
   langGraphCollaborationRuntimeId,
 } from "./langgraph/index.js";
 import type {
-  CollaborationRuntimeId,
-} from "../../../../protocol/index.js";
-import type {
   CollaborationRuntime,
+  CollaborationRuntimeId,
 } from "./types.js";
 
 export {

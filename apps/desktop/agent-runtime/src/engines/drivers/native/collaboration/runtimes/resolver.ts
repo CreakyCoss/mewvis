@@ -3,10 +3,8 @@ import {
   listCollaborationRuntimes,
 } from "./registry.js";
 import type {
-  CollaborationRuntimeId,
-} from "../../../../protocol/index.js";
-import type {
   CollaborationRuntime,
+  CollaborationRuntimeId,
 } from "./types.js";
 
 export type CollaborationRuntimeResolverOptions = {
@@ -24,11 +22,11 @@ export const createCollaborationRuntimeResolver = ({
   ]);
 
   return {
-    resolve(runtimeId?: CollaborationRuntimeId | null): CollaborationRuntime {
-      const id = resolveRuntimeId(runtimeId, defaultRuntimeId);
+    resolve(): CollaborationRuntime {
+      const id = resolveRuntimeId(defaultRuntimeId);
       const runtime = runtimeById.get(id);
       if (!runtime) {
-        throw new Error(`协作 workflow 指定了未注册的 runtime：${id}`);
+        throw new Error(`native runtime profile 指定了未注册的协作 runtime：${id}`);
       }
       return runtime;
     },
@@ -46,9 +44,5 @@ const createRuntimeRegistry = (
 };
 
 const resolveRuntimeId = (
-  runtimeId: CollaborationRuntimeId | null | undefined,
   defaultRuntimeId: CollaborationRuntimeId | null | undefined,
-) => {
-  const normalized = typeof runtimeId === "string" ? runtimeId.trim() : "";
-  return normalized || defaultRuntimeId || collaborationRuntimeManifest.defaultRuntimeId;
-};
+) => defaultRuntimeId?.trim() || collaborationRuntimeManifest.defaultRuntimeId;

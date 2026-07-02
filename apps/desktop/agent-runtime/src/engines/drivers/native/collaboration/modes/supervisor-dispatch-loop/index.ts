@@ -201,7 +201,6 @@ export const supervisorDispatchLoopMode: CollaborationModeDefinition = {
         id: modeWorkflowId(modeId, input.requestId),
         label: "Supervisor Dispatch Loop",
         version: "1",
-        runtime: input.runtime ?? null,
         maxSteps: Math.max(20, maxRounds * 8 + 4),
         steps: [
           {

@@ -7,6 +7,7 @@ import type {
 export enum AgentRuntimeCommandType {
   ListRuntimeSessions = "list_runtime_sessions",
   ReadRuntimeSession = "read_runtime_session",
+  ReadRuntimeSessionDebug = "read_runtime_session_debug",
   ReadCollaborationTimeline = "read_collaboration_timeline",
   ListCollaborationModes = "list_collaboration_modes",
   RunCollaboration = "run_collaboration",
@@ -32,10 +33,18 @@ export type ReadRuntimeSessionCommand = {
   requestId?: string | null;
   workspacePath: string;
   sessionRootDir: string;
-  includeLedger?: boolean | null;
-  includeTrace?: boolean | null;
   includeTimeline?: boolean | null;
   timelineLimit?: number | null;
+};
+
+export type ReadRuntimeSessionDebugCommand = {
+  type: AgentRuntimeCommandType.ReadRuntimeSessionDebug;
+  requestId?: string | null;
+  workspacePath: string;
+  sessionRootDir: string;
+  includeLedger?: boolean | null;
+  includeTrace?: boolean | null;
+  traceLimit?: number | null;
 };
 
 export type ReadCollaborationTimelineCommand = {
@@ -64,6 +73,7 @@ export type AgentRuntimeCommand =
   | ListCollaborationModesCommand
   | ListRuntimeSessionsCommand
   | ReadCollaborationTimelineCommand
+  | ReadRuntimeSessionDebugCommand
   | ReadRuntimeSessionCommand
   | RunCollaborationCommand
   | RunCollaborationModeCommand;

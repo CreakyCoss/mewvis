@@ -68,12 +68,10 @@ export const createCollaborationExecutionState = (
 });
 
 export const collectCollaborationRunResult = ({
-  runtimeId,
   state,
   steps,
   workflowRunId,
 }: {
-  runtimeId: string;
   state: CollaborationExecutionState;
   steps: readonly CollaborationWorkflowStep[];
   workflowRunId: string;
@@ -88,7 +86,6 @@ export const collectCollaborationRunResult = ({
 
   return {
     workflowRunId,
-    runtimeId,
     steps: [...stepResults, ...dynamicStepResults],
     skippedSteps,
     output: state.output,

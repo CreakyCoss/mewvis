@@ -78,7 +78,6 @@ export const createLangGraphCollaborationRuntime = (): CollaborationRuntime => (
   async run({
     context,
     emit,
-    runtimeId,
     handlerRegistry,
     input,
     runAgent,
@@ -143,7 +142,6 @@ export const createLangGraphCollaborationRuntime = (): CollaborationRuntime => (
     });
 
     return collectCollaborationRunResult({
-      runtimeId,
       state: executionState,
       steps,
       workflowRunId,

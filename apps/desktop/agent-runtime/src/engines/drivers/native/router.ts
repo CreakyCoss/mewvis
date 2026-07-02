@@ -294,6 +294,11 @@ export const createNativeRuntimeCommandRouter = (
           deps.engine.readRuntimeSession(commandInputFrom(command)));
         return true;
 
+      case AgentRuntimeCommandType.ReadRuntimeSessionDebug:
+        await emitCommandActionResult(command, () =>
+          deps.engine.readRuntimeSessionDebug(commandInputFrom(command)));
+        return true;
+
       case AgentRuntimeCommandType.ReadCollaborationTimeline:
         await emitCommandActionResult(command, () =>
           deps.engine.readCollaborationTimeline(commandInputFrom(command)));

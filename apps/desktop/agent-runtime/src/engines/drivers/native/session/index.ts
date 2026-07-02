@@ -8,6 +8,8 @@ import {
   type EditSessionMessageInput,
   type ReadSessionInput,
   type RebuildSessionInput,
+  type RuntimeSessionDebugQuery,
+  type RuntimeSessionDebugResult,
   type RuntimeSessionQuery,
   type RuntimeSessionResult,
   type RuntimeSessionsQuery,
@@ -213,8 +215,6 @@ class RuntimeSessionManager {
     const snapshot = await this.provider.getRuntimeSessionSnapshot(
       this.target,
       {
-        includeLedger: input.includeLedger,
-        includeTrace: input.includeTrace,
         includeTimeline: input.includeTimeline,
         timelineLimit: input.timelineLimit,
       },
@@ -223,9 +223,28 @@ class RuntimeSessionManager {
       type: AgentRuntimeResultType.RuntimeSessionResult,
       requestId: null,
       session: snapshot.session,
-      ledger: snapshot.raw ?? null,
-      trace: snapshot.trace,
       timeline: snapshot.timeline,
+    };
+  }
+
+  async readRuntimeSessionDebug(
+    input: SessionManagerInput<RuntimeSessionDebugQuery> = {},
+  ): Promise<RuntimeSessionDebugResult> {
+    await this.ensureReady();
+    const snapshot = await this.provider.getRuntimeSessionDebugSnapshot(
+      this.target,
+      {
+        includeLedger: input.includeLedger,
+        includeTrace: input.includeTrace,
+        traceLimit: input.traceLimit,
+      },
+    );
+    return {
+      type: AgentRuntimeResultType.RuntimeSessionDebugResult,
+      requestId: null,
+      session: snapshot.session,
+      ledger: snapshot.ledger,
+      trace: snapshot.trace,
     };
   }
 

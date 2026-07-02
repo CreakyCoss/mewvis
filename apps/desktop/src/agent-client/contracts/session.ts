@@ -37,11 +37,17 @@ export type AgentClientRuntimeSessionTimelineItem = {
   agentTaskId?: string | null;
   status?: "started" | "done" | "skipped" | "error" | null;
   detail?: string | null;
-  payload?: unknown;
 };
 
 export type AgentClientRuntimeSessionSnapshot = {
   type?: "runtime_session_result";
+  requestId?: string | null;
+  session: AgentClientRuntimeSessionSummary;
+  timeline?: AgentClientRuntimeSessionTimelineItem[];
+};
+
+export type AgentClientRuntimeSessionDebugSnapshot = {
+  type?: "runtime_session_debug_result";
   requestId?: string | null;
   session: AgentClientRuntimeSessionSummary;
   ledger?: {
@@ -49,7 +55,6 @@ export type AgentClientRuntimeSessionSnapshot = {
     entries: unknown[];
   } | null;
   trace?: unknown[];
-  timeline?: AgentClientRuntimeSessionTimelineItem[];
 };
 
 export type AgentClientRuntimeSessionsResult = {
@@ -76,10 +81,16 @@ export type AgentClientListRuntimeSessionsInput = {
 export type AgentClientGetRuntimeSessionInput = {
   workspacePath: string;
   sessionRootDir: string;
-  includeLedger?: boolean | null;
-  includeTrace?: boolean | null;
   includeTimeline?: boolean | null;
   timelineLimit?: number | null;
+};
+
+export type AgentClientGetRuntimeSessionDebugInput = {
+  workspacePath: string;
+  sessionRootDir: string;
+  includeLedger?: boolean | null;
+  includeTrace?: boolean | null;
+  traceLimit?: number | null;
 };
 
 export type AgentClientGetCollaborationTimelineInput = {

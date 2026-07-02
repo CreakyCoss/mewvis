@@ -18,6 +18,7 @@ type CollaborationTimelineRecord = {
   type: "collaboration_event";
   workflowRunId: string;
   workflowId: string;
+  runtimeId: string;
   modeId?: string | null;
   event: CollaborationEvent;
 };
@@ -57,12 +58,14 @@ export class CollaborationSessionRecorder {
     private readonly input: {
       collaboration: SessionBackedCollaborationInput;
       session: ReturnType<typeof createRuntimeSessionManager>;
+      runtimeId: string;
       modeId: string | null;
     },
   ) {}
 
   static async create(
     input: CollaborationRunInput,
+    runtimeId: string,
     providerId?: RuntimeSessionProviderId | null,
   ): Promise<CollaborationSessionRecorder | null> {
     if (!hasSession(input)) {
@@ -78,6 +81,7 @@ export class CollaborationSessionRecorder {
     return new CollaborationSessionRecorder({
       collaboration: input,
       session,
+      runtimeId,
       modeId: modeIdFrom(input),
     });
   }
@@ -104,6 +108,7 @@ export class CollaborationSessionRecorder {
         type: "collaboration_event",
         workflowRunId: event.workflowRunId,
         workflowId: this.input.collaboration.workflow.id,
+        runtimeId: this.input.runtimeId,
         modeId: this.input.modeId,
         event,
       } satisfies CollaborationTimelineRecord,
@@ -129,16 +134,14 @@ export class CollaborationSessionRecorder {
       source: "collaboration",
       workflowRunId: event.workflowRunId,
       workflowId: this.input.collaboration.workflow.id,
+      runtimeId: this.input.runtimeId,
       modeId: this.input.modeId,
     };
 
     if (event.type === CollaborationEventType.WorkflowStarted) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_run_started",
-        data: {
-          ...common,
-          runtimeId: event.runtimeId,
-        },
+        data: common,
       });
       return;
     }
@@ -184,7 +187,6 @@ export class CollaborationSessionRecorder {
         eventType: "collaboration_run_done",
         data: {
           ...common,
-          runtimeId: event.result.runtimeId ?? null,
           stepCount: event.result.steps.length,
           skippedStepCount: event.result.skippedSteps?.length ?? 0,
           outputKeys: outputKeysFrom(event.result.output),

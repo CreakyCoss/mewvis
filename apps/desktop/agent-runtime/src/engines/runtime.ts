@@ -25,6 +25,8 @@ import type {
   RunCollaborationInput,
   RunCollaborationModeInput,
   RuntimeModelsResult,
+  RuntimeSessionDebugQuery,
+  RuntimeSessionDebugResult,
   RuntimeSessionQuery,
   RuntimeSessionResult,
   RuntimeSessionsQuery,
@@ -97,6 +99,9 @@ export abstract class AgentRuntimeEngine {
     input: RuntimeSessionsQuery,
   ): Promise<RuntimeSessionsResult>;
   abstract readRuntimeSession(input: RuntimeSessionQuery): Promise<RuntimeSessionResult>;
+  abstract readRuntimeSessionDebug(
+    input: RuntimeSessionDebugQuery,
+  ): Promise<RuntimeSessionDebugResult>;
   abstract readCollaborationTimeline(
     input: CollaborationTimelineQuery,
   ): Promise<CollaborationTimelineResult>;

@@ -11,6 +11,7 @@ import type {
   CollaborationRunResult,
 } from "../collaboration/index.js";
 import type {
+  RuntimeSessionDebugSnapshot,
   RuntimeSessionSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
@@ -22,6 +23,7 @@ export enum AgentRuntimeResultType {
   CollaborationTimelineResult = "collaboration_timeline_result",
   CollaborationResult = "collaboration_result",
   CollaborationModesResult = "collaboration_modes_result",
+  RuntimeSessionDebugResult = "runtime_session_debug_result",
   RuntimeSessionResult = "runtime_session_result",
   RuntimeSessionsResult = "runtime_sessions_result",
 }
@@ -51,6 +53,11 @@ export type RuntimeSessionResult = RuntimeSessionSnapshot & {
   requestId?: string | null;
 };
 
+export type RuntimeSessionDebugResult = RuntimeSessionDebugSnapshot & {
+  type: AgentRuntimeResultType.RuntimeSessionDebugResult;
+  requestId?: string | null;
+};
+
 export type CollaborationTimelineResult = {
   type: AgentRuntimeResultType.CollaborationTimelineResult;
   requestId?: string | null;
@@ -67,6 +74,7 @@ export type AgentRuntimeResult =
   | CollaborationTimelineResult
   | PongResult
   | RuntimeModelsResult
+  | RuntimeSessionDebugResult
   | RuntimeSessionResult
   | RuntimeSessionsResult
   | SessionResult

@@ -98,7 +98,6 @@ export const producerReviewRewriteLoopMode: CollaborationModeDefinition = {
         id: modeWorkflowId(modeId, input.requestId),
         label: "Producer Review Rewrite Loop",
         version: "1",
-        runtime: input.runtime ?? null,
         maxSteps: Math.max(16, maxRounds * 5 + 4),
         steps: [
           {

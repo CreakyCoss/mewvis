@@ -21,7 +21,6 @@ export type CollaborationEvent =
     type: CollaborationEventType.WorkflowStarted;
     workflowRunId: string;
     workflowId: string;
-    runtimeId: string;
   }
   | {
     type: CollaborationEventType.StepStarted;

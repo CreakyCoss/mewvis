@@ -32,11 +32,6 @@ export type AgentClientCollaborationAgentRole = {
 
 export type AgentClientCollaborationWorkflowExecutionMode = "serial" | "parallel";
 
-export type AgentClientCollaborationRuntimeId =
-  | "native"
-  | "langgraph"
-  | (string & {});
-
 export type AgentClientCollaborationStepCondition = {
   ref: string;
   equals?: unknown;
@@ -142,7 +137,6 @@ export type AgentClientCollaborationWorkflowDefinition = {
   id: string;
   label?: string | null;
   version?: string | null;
-  runtime?: AgentClientCollaborationRuntimeId | null;
   executionMode?: AgentClientCollaborationWorkflowExecutionMode | null;
   maxSteps?: number | null;
   steps: AgentClientCollaborationWorkflowStep[];
@@ -196,7 +190,6 @@ export type AgentClientCollaborationModeInput = {
   participants: AgentClientCollaborationModeParticipant[];
   context?: unknown;
   options?: Record<string, unknown> | null;
-  runtime?: AgentClientCollaborationRuntimeId | null;
   allowedTools?: string[];
   enabledSkills?: string[];
 };

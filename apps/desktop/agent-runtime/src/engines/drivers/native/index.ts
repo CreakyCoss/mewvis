@@ -33,6 +33,8 @@ import {
   type RunCollaborationInput,
   type RunCollaborationModeInput,
   type RuntimeModelsResult,
+  type RuntimeSessionDebugQuery,
+  type RuntimeSessionDebugResult,
   type RuntimeSessionQuery,
   type RuntimeSessionResult,
   type RuntimeSessionsQuery,
@@ -122,6 +124,16 @@ const withoutRuntimeSessionTarget = <
     ...rest
   } = input;
   return rest;
+};
+
+const hasOwn = (value: unknown, key: string) =>
+  Boolean(value) && typeof value === "object" &&
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const assertNoRuntimeSessionDebugOptions = (input: unknown) => {
+  if (hasOwn(input, "includeLedger") || hasOwn(input, "includeTrace")) {
+    throw new Error("readRuntimeSession 不再接受 includeLedger/includeTrace；请使用稳定的 session summary/timeline 查询");
+  }
 };
 
 const agentMaintenanceMutationResult = (
@@ -430,7 +442,16 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   }
 
   async readRuntimeSession(input: RuntimeSessionQuery): Promise<RuntimeSessionResult> {
+    assertNoRuntimeSessionDebugOptions(input);
     return this.runtimeSessionManagerFor(input).readRuntimeSession(
+      withoutRuntimeSessionTarget(input),
+    );
+  }
+
+  async readRuntimeSessionDebug(
+    input: RuntimeSessionDebugQuery,
+  ): Promise<RuntimeSessionDebugResult> {
+    return this.runtimeSessionManagerFor(input).readRuntimeSessionDebug(
       withoutRuntimeSessionTarget(input),
     );
   }

@@ -28,13 +28,23 @@ pub struct ListAgentRuntimeSessionsInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct GetAgentRuntimeSessionInput {
+    workspace_path: String,
+    session_root_dir: String,
+    include_timeline: Option<bool>,
+    timeline_limit: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
+pub struct GetAgentRuntimeSessionDebugInput {
     workspace_path: String,
     session_root_dir: String,
     include_ledger: Option<bool>,
     include_trace: Option<bool>,
-    include_timeline: Option<bool>,
-    timeline_limit: Option<u64>,
+    trace_limit: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -196,12 +206,32 @@ pub async fn get_agent_runtime_session(
             "type": "read_runtime_session",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
-            "includeLedger": input.include_ledger,
-            "includeTrace": input.include_trace,
             "includeTimeline": input.include_timeline,
             "timelineLimit": input.timeline_limit,
         }),
         &["runtime_session_result"],
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn get_agent_runtime_session_debug(
+    app: AppHandle,
+    input: GetAgentRuntimeSessionDebugInput,
+) -> Result<Value, String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    call_session_runtime(
+        app,
+        json!({
+            "type": "read_runtime_session_debug",
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "includeLedger": input.include_ledger,
+            "includeTrace": input.include_trace,
+            "traceLimit": input.trace_limit,
+        }),
+        &["runtime_session_debug_result"],
     )
     .await
 }

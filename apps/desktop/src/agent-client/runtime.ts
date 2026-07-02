@@ -15,7 +15,9 @@ import type {
   AgentClientCollaborationModeInput,
   AgentClientGetCollaborationTimelineInput,
   AgentClientGetRuntimeSessionInput,
+  AgentClientGetRuntimeSessionDebugInput,
   AgentClientListRuntimeSessionsInput,
+  AgentClientRuntimeSessionDebugSnapshot,
   AgentClientRuntimeSessionSnapshot,
   AgentClientRuntimeSessionsResult,
   AgentClientSession,
@@ -38,6 +40,9 @@ export interface AgentClient {
   getRuntimeSession(
     input: AgentClientGetRuntimeSessionInput,
   ): Promise<AgentClientRuntimeSessionSnapshot>;
+  getRuntimeSessionDebug(
+    input: AgentClientGetRuntimeSessionDebugInput,
+  ): Promise<AgentClientRuntimeSessionDebugSnapshot>;
   getCollaborationTimeline(
     input: AgentClientGetCollaborationTimelineInput,
   ): Promise<AgentClientCollaborationTimelineResult>;
@@ -55,6 +60,7 @@ const TAURI_AGENT_CLIENT_COMMANDS = {
   runCollaborationMode: "run_agent_runtime_collaboration_mode",
   listRuntimeSessions: "list_agent_runtime_sessions",
   getRuntimeSession: "get_agent_runtime_session",
+  getRuntimeSessionDebug: "get_agent_runtime_session_debug",
   getCollaborationTimeline: "get_agent_runtime_collaboration_timeline",
   answerQuestion: "answer_agent_runtime_question",
   abortTask: "abort_agent_runtime_agent",
@@ -231,6 +237,15 @@ class TauriAgentClient implements AgentClient {
     );
   }
 
+  async getRuntimeSessionDebug(
+    input: AgentClientGetRuntimeSessionDebugInput,
+  ): Promise<AgentClientRuntimeSessionDebugSnapshot> {
+    return invoke<AgentClientRuntimeSessionDebugSnapshot>(
+      TAURI_AGENT_CLIENT_COMMANDS.getRuntimeSessionDebug,
+      { input },
+    );
+  }
+
   async getCollaborationTimeline(
     input: AgentClientGetCollaborationTimelineInput,
   ): Promise<AgentClientCollaborationTimelineResult> {
@@ -317,6 +332,24 @@ class WebPreviewAgentClient implements AgentClient {
         workflowIds: [],
         modeIds: [],
       },
+    };
+  }
+
+  async getRuntimeSessionDebug(
+    input: AgentClientGetRuntimeSessionDebugInput,
+  ): Promise<AgentClientRuntimeSessionDebugSnapshot> {
+    return {
+      session: {
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
+        entryCount: 0,
+        traceCount: 0,
+        workflowRunIds: [],
+        workflowIds: [],
+        modeIds: [],
+      },
+      ledger: null,
+      trace: [],
     };
   }
 

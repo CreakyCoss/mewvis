@@ -29,14 +29,20 @@ export type RuntimeSessionTimelineItem = {
   agentTaskId?: string | null;
   status?: "started" | "done" | "skipped" | "error" | null;
   detail?: string | null;
-  payload?: unknown;
 };
 
 export type RuntimeSessionSnapshot = {
   session: RuntimeSessionSummary;
-  ledger?: unknown | null;
-  trace?: unknown[];
   timeline?: RuntimeSessionTimelineItem[];
+};
+
+export type RuntimeSessionDebugSnapshot = {
+  session: RuntimeSessionSummary;
+  ledger?: {
+    header: unknown;
+    entries: unknown[];
+  } | null;
+  trace?: unknown[];
 };
 
 export type RuntimeDisplaySummary = {

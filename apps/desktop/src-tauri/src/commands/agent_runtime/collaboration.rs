@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct RunAgentRuntimeCollaborationInput {
     workspace_path: String,
     session_root_dir: Option<String>,
@@ -26,6 +27,7 @@ pub struct RunAgentRuntimeCollaborationInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct RunAgentRuntimeCollaborationModeInput {
     workspace_path: String,
     session_root_dir: Option<String>,
@@ -33,7 +35,6 @@ pub struct RunAgentRuntimeCollaborationModeInput {
     participants: Vec<Value>,
     context: Option<Value>,
     options: Option<Value>,
-    runtime: Option<String>,
     allowed_tools: Option<Vec<String>>,
     enabled_skills: Option<Vec<String>>,
 }
@@ -165,7 +166,6 @@ pub fn run_agent_runtime_collaboration_mode(
             "participants": input.participants,
             "context": input.context,
             "options": input.options,
-            "runtime": input.runtime,
             "resources": {
                 "tools": {
                     "allowed": allowed_tools,
@@ -228,6 +228,15 @@ fn validate_collaboration_input(input: &RunAgentRuntimeCollaborationInput) -> Re
 
     if input.workflow.is_null() {
         return Err("协作 workflow 不能为空".to_string());
+    }
+
+    if input
+        .workflow
+        .as_object()
+        .and_then(|workflow| workflow.get("runtime"))
+        .is_some()
+    {
+        return Err("协作 workflow 不再接受 runtime 字段；runtime 由 native profile 决定".to_string());
     }
 
     if input.agents.is_empty() {

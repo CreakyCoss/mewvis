@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import type {
+  RuntimeSessionDebugSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../../../../protocol/session.js";
@@ -167,6 +168,7 @@ const collaborationTimelineItem = (
   const event = parts.event;
   const type = stringValue(event.type) ?? "collaboration_event";
   const step = isRecord(event.step) ? event.step : null;
+  const nestedEvent = isRecord(event.event) ? event.event : null;
 
   return {
     id: `${parts.workflowRunId ?? "workflow"}:${index}`,
@@ -184,9 +186,9 @@ const collaborationTimelineItem = (
     agentTaskId: stringValue(event.agentTaskId) ?? stringValue(step?.agentTaskId),
     status: timelineStatusFor(type),
     detail: stringValue(event.message) ??
+      stringValue(nestedEvent?.type) ??
       stringValue(step?.route) ??
       stringValue(step?.outputKey),
-    payload: event,
   };
 };
 
@@ -205,7 +207,6 @@ const runtimeTimelineItem = (
     taskId: stringValue(record.taskId) ?? stringValue(event?.taskId),
     status: timelineStatusFor(type),
     detail: stringValue(record.message) ?? stringValue(event?.toolName),
-    payload: event ?? record,
   };
 };
 
@@ -236,24 +237,47 @@ export const buildRuntimeSessionTimeline = (
 export const getRuntimeSessionSnapshot = async (
   target: RuntimeSessionQueryTarget,
   options: {
-    includeLedger?: boolean | null;
-    includeTrace?: boolean | null;
     includeTimeline?: boolean | null;
     timelineLimit?: number | null;
   } = {},
 ): Promise<RuntimeSessionSnapshot> => {
-  const { summary, ledger, trace } = await summarizeSession(target);
+  const { summary, trace } = await summarizeSession(target);
   return {
     session: summary,
-    raw: options.includeLedger
+    timeline: options.includeTimeline
+      ? buildRuntimeSessionTimeline(trace, { limit: options.timelineLimit })
+      : undefined,
+  };
+};
+
+export const getRuntimeSessionDebugSnapshot = async (
+  target: RuntimeSessionQueryTarget,
+  options: {
+    includeLedger?: boolean | null;
+    includeTrace?: boolean | null;
+    traceLimit?: number | null;
+  } = {},
+): Promise<RuntimeSessionDebugSnapshot> => {
+  const { summary, ledger, trace } = await summarizeSession(target);
+  const hasExplicitSelection =
+    typeof options.includeLedger === "boolean" ||
+    typeof options.includeTrace === "boolean";
+  const includeLedger = hasExplicitSelection ? options.includeLedger === true : true;
+  const includeTrace = hasExplicitSelection ? options.includeTrace === true : true;
+  const traceLimit = typeof options.traceLimit === "number" && options.traceLimit > 0
+    ? Math.floor(options.traceLimit)
+    : null;
+
+  return {
+    session: summary,
+    ledger: includeLedger
       ? ledger && {
           header: ledger.header,
           entries: ledger.getEntries(),
         }
       : undefined,
-    trace: options.includeTrace ? trace : undefined,
-    timeline: options.includeTimeline
-      ? buildRuntimeSessionTimeline(trace, { limit: options.timelineLimit })
+    trace: includeTrace
+      ? traceLimit ? trace.slice(-traceLimit) : trace
       : undefined,
   };
 };

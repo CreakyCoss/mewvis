@@ -95,17 +95,6 @@ const eventTypeLabels: Record<string, string> = {
   event: "运行事件",
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-const jsonPreview = (value: unknown) => {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
-
 const compactId = (value?: string | null) => {
   if (!value) {
     return "";
@@ -123,18 +112,6 @@ const formatTime = (timestamp?: string | null) => timestamp
   : "";
 
 const eventTypeLabel = (type: string) => eventTypeLabels[type] ?? type;
-
-const nestedAgentEventType = (item: AgentClientRuntimeSessionTimelineItem) => {
-  if (!isRecord(item.payload)) {
-    return "";
-  }
-  const nested = item.payload.event;
-  if (!isRecord(nested)) {
-    return "";
-  }
-  const type = nested.type;
-  return typeof type === "string" ? type : "";
-};
 
 const itemStatus = (item: AgentClientRuntimeSessionTimelineItem) =>
   item.status ?? "idle";
@@ -203,8 +180,7 @@ const timelineItemTitle = (
     return item.modeId ?? item.workflowId ?? eventTypeLabel(item.type);
   }
   if (item.type === "agent_event") {
-    const nestedType = nestedAgentEventType(item);
-    return `${roleLabelFor(item, roleLabelById)} · ${eventTypeLabel(nestedType || item.type)}`;
+    return `${roleLabelFor(item, roleLabelById)} · ${eventTypeLabel(item.detail || item.type)}`;
   }
   return `${roleLabelFor(item, roleLabelById)} · ${eventTypeLabel(item.type)}`;
 };
@@ -227,7 +203,6 @@ const RuntimeTimelineEvent = ({
   const statusInfo = statusMeta[status];
   const Icon = itemIcon(item);
   const subtitle = timelineItemSubtitle(item);
-  const payload = item.payload === undefined ? "" : jsonPreview(item.payload);
   const metaItems = [
     formatTime(item.timestamp),
     sourceLabels[item.source],
@@ -302,11 +277,6 @@ const RuntimeTimelineEvent = ({
             </div>
           ))}
         </div>
-        {payload && (
-          <pre className="max-h-48 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-sm bg-background/65 px-2 py-1.5 font-mono text-[10px] leading-4 text-foreground/80">
-            {payload}
-          </pre>
-        )}
       </div>
     </details>
   );

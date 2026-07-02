@@ -8,7 +8,6 @@ import type {
   EmitCollaborationEvent,
 } from "../handlers/types.js";
 import type {
-  CollaborationRuntimeId,
   CollaborationRunResult,
   CollaborationRunInput,
 } from "../../../../protocol/index.js";
@@ -16,6 +15,8 @@ import type {
 export type {
   EmitCollaborationEvent,
 } from "../handlers/types.js";
+
+export type CollaborationRuntimeId = "native" | "langgraph" | (string & {});
 
 export type CollaborationRunContext = {
   emit?: EmitCollaborationEvent;

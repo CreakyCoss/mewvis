@@ -107,7 +107,7 @@ const shouldPersistTraceEvent = (event: AgentClientCollaborationEvent) =>
 
 const collaborationEventDetail = (event: AgentClientCollaborationEvent) => {
   if (event.type === "workflow_started") {
-    return `${event.workflowId} · ${event.runtimeId}`;
+    return event.workflowId;
   }
   if (event.type === "step_started") {
     return `${event.stepId} · ${event.agentRoleId ?? event.stepType}`;
@@ -147,10 +147,8 @@ const traceEventFromCollaborationEvent = (
     return {
       ...base,
       workflowId: event.workflowId,
-      runtimeId: event.runtimeId,
       payload: {
         workflowId: event.workflowId,
-        runtimeId: event.runtimeId,
       },
     };
   }
@@ -208,7 +206,6 @@ const traceEventFromCollaborationEvent = (
         event.result.steps,
         event.result.skippedSteps,
         event.result.output,
-        event.result.runtimeId,
       ),
     };
   }
@@ -219,7 +216,6 @@ const traceEventFromCollaborationEvent = (
       event.steps,
       event.skippedSteps,
       event.output,
-      event.runtimeId,
     ),
   };
 };
@@ -228,9 +224,7 @@ const traceResultFromCollaborationResult = (
   steps: Extract<AgentClientCollaborationEvent, { type: "collaboration_result" }>["steps"],
   skippedSteps: Extract<AgentClientCollaborationEvent, { type: "collaboration_result" }>["skippedSteps"],
   output: unknown,
-  runtimeId?: string,
 ): TavernWorkflowTraceResult => ({
-  runtimeId,
   steps: steps.map((step) => ({
     stepId: step.stepId,
     stepType: step.stepType,
@@ -338,7 +332,6 @@ const applyEventToTraceRun = (
         event.result.steps,
         event.result.skippedSteps,
         event.result.output,
-        event.result.runtimeId,
       ),
     };
   }
@@ -351,7 +344,6 @@ const applyEventToTraceRun = (
         event.steps,
         event.skippedSteps,
         event.output,
-        event.runtimeId,
       ),
     };
   }
@@ -385,7 +377,6 @@ const persistCollaborationTraceEvent = (
       id: event.workflowRunId,
       workflowRunId: event.workflowRunId,
       workflowId,
-      runtimeId: event.type === "workflow_started" ? event.runtimeId : undefined,
       taskId: "taskId" in event ? event.taskId : undefined,
       anchorMessageId: ctx.executionTraceAnchorMessageId || undefined,
       scopeLabel: options.scopeLabel,
@@ -399,8 +390,6 @@ const persistCollaborationTraceEvent = (
     const nextRun = applyEventToTraceRun({
       ...baseRun,
       workflowId,
-      runtimeId: baseRun.runtimeId ??
-        (event.type === "workflow_started" ? event.runtimeId : undefined),
       taskId: baseRun.taskId ?? ("taskId" in event ? event.taskId : undefined),
       scopeLabel: baseRun.scopeLabel ?? options.scopeLabel,
       updatedAt: now,
@@ -484,7 +473,7 @@ export const applyTavernCollaborationTraceEvent = (
     upsertTraceStep(ctx, {
       id: workflowTraceStepId(event.workflowRunId),
       label: getWorkflowLabel(event.workflowId, options),
-      detail: `${event.runtimeId} · run ${shortId(event.workflowRunId)}`,
+      detail: `run ${shortId(event.workflowRunId)}`,
       status: "running",
     });
     return;

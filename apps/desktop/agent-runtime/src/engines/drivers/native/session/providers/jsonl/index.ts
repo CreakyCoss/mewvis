@@ -15,6 +15,7 @@ import {
 import { RuntimeLedgerStorage } from "./store.js";
 import {
   getCollaborationTimeline,
+  getRuntimeSessionDebugSnapshot,
   getRuntimeSessionSnapshot,
   listRuntimeSessions,
 } from "./query.js";
@@ -185,6 +186,13 @@ class JsonlRuntimeSessionProvider implements RuntimeSessionProvider {
     options,
   ) => {
     return getRuntimeSessionSnapshot(target, options);
+  };
+
+  getRuntimeSessionDebugSnapshot: RuntimeSessionProvider["getRuntimeSessionDebugSnapshot"] = (
+    target,
+    options,
+  ) => {
+    return getRuntimeSessionDebugSnapshot(target, options);
   };
 
   getCollaborationTimeline: RuntimeSessionProvider["getCollaborationTimeline"] = (

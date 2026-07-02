@@ -25,7 +25,8 @@ pub use session::{
     create_agent_runtime_session, delete_agent_runtime_session,
     delete_agent_runtime_session_message, dispose_agent_runtime_session_workers,
     edit_agent_runtime_session_message, get_agent_runtime_collaboration_timeline,
-    get_agent_runtime_session, list_agent_runtime_sessions, read_agent_runtime_session,
+    get_agent_runtime_session, get_agent_runtime_session_debug,
+    list_agent_runtime_sessions, read_agent_runtime_session,
     rebuild_agent_runtime_agent_session, rebuild_agent_runtime_session,
     summarize_agent_runtime_session,
 };

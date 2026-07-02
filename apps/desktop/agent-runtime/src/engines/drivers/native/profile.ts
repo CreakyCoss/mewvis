@@ -1,9 +1,9 @@
-import type { CollaborationRuntimeId } from "../../protocol/index.js";
 import { mockRuntimeAgent } from "./agent/runtimes/mock/index.js";
 import { runtimeAgentManifest } from "./agent/runtimes/registry.js";
 import {
   collaborationRuntimeManifest,
 } from "./collaboration/runtimes/registry.js";
+import type { CollaborationRuntimeId } from "./collaboration/runtimes/types.js";
 import { runtimeSessionProviderManifest } from "./session/providers/registry.js";
 import type { RuntimeSessionProviderId } from "./session/providers/types.js";
 

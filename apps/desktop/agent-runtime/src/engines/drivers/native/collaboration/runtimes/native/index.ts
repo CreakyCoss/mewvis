@@ -25,7 +25,6 @@ export const createNativeCollaborationRuntime = (): CollaborationRuntime => ({
   async run({
     context,
     emit,
-    runtimeId,
     input,
     handlerRegistry,
     runAgent,
@@ -56,7 +55,6 @@ export const createNativeCollaborationRuntime = (): CollaborationRuntime => ({
     }
 
     return collectCollaborationRunResult({
-      runtimeId,
       state,
       steps,
       workflowRunId,

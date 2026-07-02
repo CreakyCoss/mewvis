@@ -16,6 +16,7 @@ import type {
   RuntimeSessionContextView,
 } from "../model/context.js";
 import type {
+  RuntimeSessionDebugSnapshot,
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../../../protocol/session.js";
@@ -49,8 +50,6 @@ export type RuntimeSessionQueryTarget = {
 
 export type RuntimeSessionSnapshot = {
   session: RuntimeSessionSummary;
-  raw?: unknown;
-  trace?: RuntimeSessionTraceRecord[];
   timeline?: RuntimeSessionTimelineItem[];
 };
 
@@ -155,12 +154,18 @@ export type RuntimeSessionProvider = {
   getRuntimeSessionSnapshot(
     target: RuntimeSessionQueryTarget,
     options?: {
-      includeLedger?: boolean | null;
-      includeTrace?: boolean | null;
       includeTimeline?: boolean | null;
       timelineLimit?: number | null;
     },
   ): Promise<RuntimeSessionSnapshot>;
+  getRuntimeSessionDebugSnapshot(
+    target: RuntimeSessionQueryTarget,
+    options?: {
+      includeLedger?: boolean | null;
+      includeTrace?: boolean | null;
+      traceLimit?: number | null;
+    },
+  ): Promise<RuntimeSessionDebugSnapshot>;
   getCollaborationTimeline(
     target: RuntimeSessionQueryTarget,
     options?: {

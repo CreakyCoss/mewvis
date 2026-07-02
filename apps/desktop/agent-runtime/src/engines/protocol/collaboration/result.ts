@@ -22,7 +22,6 @@ export type CollaborationSkippedStepResult = {
 
 export type CollaborationRunResult = {
   workflowRunId: string;
-  runtimeId?: string;
   steps: CollaborationStepResult[];
   skippedSteps?: CollaborationSkippedStepResult[];
   output?: unknown;
