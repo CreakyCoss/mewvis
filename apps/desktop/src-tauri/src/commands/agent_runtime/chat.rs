@@ -1,6 +1,5 @@
 use super::{
     rpc::call_agent_runtime_rpc,
-    session_paths::resolve_optional_session_root_dir,
     types::{AgentRuntimeChatMessageInput, AgentRuntimeModelInput},
 };
 use serde::{Deserialize, Serialize};
@@ -12,17 +11,11 @@ const AGENT_RUNTIME_CHAT_EVENT: &str = "agent_runtime_chat_event";
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunAgentRuntimeChatInput {
-    workspace_path: Option<String>,
-    session_root_dir: Option<String>,
     stream_id: Option<String>,
     stream: Option<bool>,
     runtime_model: Option<AgentRuntimeModelInput>,
     system_prompt: String,
-    user_message: Option<String>,
-    request_context: Option<String>,
-    runtime_instruction: Option<String>,
-    bootstrap_instruction: Option<String>,
-    messages: Option<Vec<AgentRuntimeChatMessageInput>>,
+    messages: Vec<AgentRuntimeChatMessageInput>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,7 +23,6 @@ pub struct RunAgentRuntimeChatInput {
 pub struct RunAgentRuntimeChatOutput {
     text: String,
     thinking: Option<String>,
-    runtime_session: Option<Value>,
 }
 
 #[tauri::command]
@@ -56,32 +48,13 @@ fn chat_with_agent_runtime_blocking(
     input: RunAgentRuntimeChatInput,
 ) -> Result<RunAgentRuntimeChatOutput, String> {
     let stream_id = input.stream_id.clone();
-    let session_root_dir = resolve_optional_session_root_dir(
-        input.workspace_path.as_deref(),
-        input.session_root_dir.as_deref(),
-    )?;
-    let session = input.workspace_path.as_ref().map(|workspace_path| {
-        json!({
-            "workspacePath": workspace_path,
-            "sessionRootDir": session_root_dir,
-        })
-    });
     let command = json!({
         "type": "chat",
-        "session": session,
-        "input": {
-            "systemPrompt": input.system_prompt,
-            "userMessage": input.user_message,
-            "requestContext": input.request_context,
-            "runtimeInstruction": input.runtime_instruction,
-            "bootstrapInstruction": input.bootstrap_instruction,
-            "messages": input.messages,
-        },
-        "runtime": {
-            "streamId": stream_id,
-            "stream": input.stream.unwrap_or(true),
-            "model": input.runtime_model,
-        },
+        "streamId": stream_id,
+        "stream": input.stream.unwrap_or(true),
+        "runtimeModel": input.runtime_model,
+        "systemPrompt": input.system_prompt,
+        "messages": input.messages,
     });
 
     let value = call_agent_runtime_rpc(
@@ -122,17 +95,11 @@ fn emit_agent_runtime_chat_event(app: &AppHandle, stream_id: Option<&str>, value
 }
 
 fn validate_chat_input(input: &RunAgentRuntimeChatInput) -> Result<(), String> {
-    let has_user_message = input
-        .user_message
-        .as_deref()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false);
-    let has_messages = input
+    if !input
         .messages
-        .as_ref()
-        .map(|messages| !messages.is_empty())
-        .unwrap_or(false);
-    if !has_user_message && !has_messages {
+        .iter()
+        .any(|message| !message.content.trim().is_empty())
+    {
         return Err("消息不能为空".to_string());
     }
 

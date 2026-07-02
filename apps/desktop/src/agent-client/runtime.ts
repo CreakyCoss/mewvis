@@ -34,7 +34,6 @@ export interface AgentClientCapabilities {
 export interface AgentClientAgent {
   chat(input: AgentClientChatInput): Promise<AgentClientChatResult>;
   run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
-  answerQuestion(input: AnswerQuestionInput): Promise<void>;
 }
 
 export interface AgentClientSessionDebug {
@@ -58,6 +57,7 @@ export interface AgentClientEvents {
 }
 
 export interface AgentClientTasks {
+  answerQuestion(input: AnswerQuestionInput): Promise<void>;
   abort(taskId: string): Promise<void>;
 }
 

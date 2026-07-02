@@ -245,23 +245,17 @@ const chatCommand = ({
 }) => ({
   type: "chat",
   requestId,
-  session: {
-    workspacePath,
-    sessionRootDir,
-  },
-  agent: {
-    agentId: "pi",
-  },
-  input: {
-    systemPrompt,
-    userMessage,
-    requestContext,
-    runtimeInstruction,
-  },
-  runtime: {
-    stream: false,
-    model: runtimeModel,
-  },
+  stream: false,
+  runtimeModel,
+  systemPrompt,
+  messages: [{
+    role: "user",
+    content: [
+      runtimeInstruction,
+      userMessage,
+      requestContext,
+    ].filter(Boolean).join("\n\n"),
+  }],
 });
 
 const sendAgentMessage = ({
@@ -276,31 +270,19 @@ const sendAgentMessage = ({
   resources = runtimeResources(),
 }) => {
   send({
-    type: "send_message",
+    type: "run_agent",
     requestId,
-    session: {
-      workspacePath,
-      sessionRootDir,
-    },
-    agent: {
-      agentId: "pi",
-      agentRoleId,
-    },
-    input: {
-      systemPrompt,
-      userMessage,
-      requestContext,
-      runtimeInstruction,
-      bootstrapInstruction,
-    },
-    runtime: {
-      mode: "agent",
-      taskId,
-      stream: true,
-      streamId: taskId,
-      model: runtimeModel,
-      resources,
-    },
+    taskId,
+    workspacePath,
+    sessionRootDir,
+    agentRoleId,
+    systemPrompt,
+    userMessage,
+    requestContext,
+    runtimeInstruction,
+    bootstrapInstruction,
+    runtimeModel,
+    resources,
   });
 };
 
@@ -378,7 +360,7 @@ try {
     runtimeInstruction: "严格保留 marker，输出 JSON。",
   }), "chat_result", CHAT_TIMEOUT_MS);
   expectMarker(chatResult.text, chatMarker, "chat_result");
-  assert(chatResult.runtimeSession?.userMessageRecordId, "chat_result 应返回 user messageRecordId", chatResult);
+  assert(!chatResult.runtimeSession, "stateless chat_result 不应返回 runtime session 引用", chatResult);
 
   const agentARoleId = "live-agent-a";
   const agentA1Marker = `${runMarker}_AGENT_A1`;

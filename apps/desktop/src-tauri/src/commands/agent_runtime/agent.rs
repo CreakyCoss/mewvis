@@ -90,35 +90,26 @@ pub fn run_agent_runtime_agent(
     });
     let enabled_skills = input.enabled_skills.unwrap_or_default();
     let command = json!({
-        "type": "send_message",
+        "type": "run_agent",
         "requestId": task_id.clone(),
-        "session": {
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-        },
-        "agent": {
-            "agentRoleId": input.agent_role_id,
-        },
-        "input": {
-            "userMessage": input.user_message,
-            "systemPrompt": input.system_prompt,
-            "requestContext": input.request_context,
-            "runtimeInstruction": input.runtime_instruction,
-            "bootstrapInstruction": input.bootstrap_instruction,
-        },
-        "runtime": {
-            "mode": "agent",
-            "taskId": task_id.clone(),
-            "model": input.runtime_model,
-            "resources": {
-                "tools": {
-                    "allowed": allowed_tools,
-                },
-                "skills": {
-                    "bundledPath": bundled_skills_path,
-                    "paths": skill_paths,
-                    "enabled": enabled_skills,
-                },
+        "taskId": task_id.clone(),
+        "workspacePath": input.workspace_path,
+        "sessionRootDir": session_root_dir,
+        "agentRoleId": input.agent_role_id,
+        "userMessage": input.user_message,
+        "systemPrompt": input.system_prompt,
+        "requestContext": input.request_context,
+        "runtimeInstruction": input.runtime_instruction,
+        "bootstrapInstruction": input.bootstrap_instruction,
+        "runtimeModel": input.runtime_model,
+        "resources": {
+            "tools": {
+                "allowed": allowed_tools,
+            },
+            "skills": {
+                "bundledPath": bundled_skills_path,
+                "paths": skill_paths,
+                "enabled": enabled_skills,
             },
         }
     });

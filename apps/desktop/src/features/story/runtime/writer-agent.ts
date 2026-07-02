@@ -64,14 +64,23 @@ const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
 
 export const runStoryWriterAgent = async (input: StoryWriterAgentInput) => {
   const storyWriterAgentClient = createAgentClient();
+  const taskInstruction =
+    input.mode === "polish" ? "润色当前稿件，只输出润色后的正文。" : "扩写当前稿件，只输出扩写后的正文。";
   const result = await storyWriterAgentClient.agent.chat({
-    workspacePath: input.workspacePath,
     runtimeModel: input.runtimeModel,
     systemPrompt: buildStoryWriterSystemPrompt(),
-    requestContext: buildStoryWriterRequestContext(input),
-    runtimeInstruction:
-      input.mode === "polish" ? "润色当前稿件，只输出润色后的正文。" : "扩写当前稿件，只输出扩写后的正文。",
-    userMessage: `处理故事稿件：${input.title || "未命名稿件"}`,
+    messages: [
+      {
+        role: "user",
+        content: [
+          taskInstruction,
+          `处理故事稿件：${input.title || "未命名稿件"}`,
+          "<request_context>",
+          buildStoryWriterRequestContext(input),
+          "</request_context>",
+        ].join("\n\n"),
+      },
+    ],
     stream: false,
   });
 

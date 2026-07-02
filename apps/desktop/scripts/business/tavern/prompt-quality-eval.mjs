@@ -1316,30 +1316,18 @@ const runAgent = async ({
   });
   log(`${label} start model=${runtimeModel.modelId}`);
   send({
-    type: "send_message",
+    type: "run_agent",
     requestId,
-    session: {
-      workspacePath,
-      sessionRootDir,
-    },
-    agent: {
-      agentId: "pi",
-      agentRoleId,
-    },
-    input: {
-      systemPrompt,
-      userMessage,
-      requestContext,
-      runtimeInstruction,
-    },
-    runtime: {
-      mode: "agent",
-      taskId,
-      stream: true,
-      streamId: taskId,
-      model: runtimeModel,
-      resources: bridgeResources(),
-    },
+    taskId,
+    workspacePath,
+    sessionRootDir,
+    agentRoleId,
+    systemPrompt,
+    userMessage,
+    requestContext,
+    runtimeInstruction,
+    runtimeModel,
+    resources: bridgeResources(),
   });
 
   const terminal = await waitFor(

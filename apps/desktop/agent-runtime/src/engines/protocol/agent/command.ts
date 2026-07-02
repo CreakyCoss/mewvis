@@ -3,7 +3,7 @@ import type { ChatMessageInput } from "./definition.js";
 import type { AgentRuntimeResources } from "./resources.js";
 
 export enum AgentTaskCommandType {
-  SendMessage = "send_message",
+  RunAgent = "run_agent",
   AnswerQuestion = "answer_question",
   Chat = "chat",
   ListAgentTools = "list_agent_tools",
@@ -37,39 +37,24 @@ type RuntimeSessionTarget = {
   sessionRootDir?: string | null;
 };
 
-type AgentTarget = {
-  agentRoleId?: string | null;
-};
-
-type AgentRunMode = "chat" | "agent";
-
 type AgentRuntimeOptions = {
-  mode?: AgentRunMode | null;
-  taskId?: string | null;
-  streamId?: string | null;
-  stream?: boolean;
   model?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
 };
 
-type AgentMessageInput = {
-  userMessage?: string | null;
+export type RunAgentCommand = RuntimeSessionTarget & {
+  type: AgentTaskCommandType.RunAgent;
+  requestId?: string | null;
+  taskId: string;
+  agentRoleId?: string | null;
+  userMessage: string;
+  recordUserMessage?: boolean | null;
   systemPrompt?: string | null;
   requestContext?: string | null;
   runtimeInstruction?: string | null;
   bootstrapInstruction?: string | null;
-  messages?: ChatMessageInput[];
-};
-
-export type SendMessageCommand = {
-  type: AgentTaskCommandType.SendMessage;
-  requestId?: string | null;
-  session: RuntimeSessionTarget;
-  agent?: AgentTarget | null;
-  input: AgentMessageInput & {
-    userMessage: string;
-  };
-  runtime?: AgentRuntimeOptions | null;
+  runtimeModel?: RuntimeModelInput | null;
+  resources?: AgentRuntimeResources | null;
 };
 
 export type AnswerQuestionCommand = {
@@ -93,9 +78,11 @@ export type ListRuntimeModelsCommand = {
 export type ChatCommand = {
   type: AgentTaskCommandType.Chat;
   requestId?: string | null;
-  session?: RuntimeSessionTarget | null;
-  input: AgentMessageInput;
-  runtime?: Pick<AgentRuntimeOptions, "streamId" | "stream" | "model"> | null;
+  streamId?: string | null;
+  stream?: boolean;
+  runtimeModel?: RuntimeModelInput | null;
+  systemPrompt?: string | null;
+  messages: ChatMessageInput[];
 };
 
 type SessionCommandBase = {
@@ -197,7 +184,7 @@ export type ShutdownCommand = {
 };
 
 export type AgentTaskCommand =
-  | SendMessageCommand
+  | RunAgentCommand
   | AnswerQuestionCommand
   | ChatCommand
   | ListAgentToolsCommand

@@ -109,6 +109,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       engine: this,
       emitEvent: this.emitEvent,
       emitResult: this.emitResult,
+      answerQuestion: (input) => this.agentSurface.answerQuestion(input),
       runAgentCommand: (command) => this.agentSurface.runCommand(command),
     });
   }

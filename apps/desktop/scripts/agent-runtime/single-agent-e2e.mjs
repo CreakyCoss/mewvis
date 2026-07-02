@@ -136,16 +136,12 @@ const runtimeResources = (allowed = ["read"]) => ({
   },
 });
 
-const sendMessageCommand = ({
+const runAgentCommand = ({
   requestId,
-  mode,
   taskId,
-  agentId,
   workspacePath,
   sessionRootDir,
   agentRoleId,
-  stream,
-  streamId,
   systemPrompt,
   userMessage,
   requestContext,
@@ -154,38 +150,23 @@ const sendMessageCommand = ({
   runtimeModel,
   resources,
 }) => ({
-  type: "send_message",
+  type: "run_agent",
   requestId,
-  session: {
-    workspacePath,
-    sessionRootDir,
-  },
-  agent: {
-    agentId,
-    agentRoleId,
-  },
-  input: {
-    systemPrompt,
-    userMessage,
-    requestContext,
-    runtimeInstruction,
-    bootstrapInstruction,
-  },
-  runtime: {
-    mode,
-    taskId,
-    stream,
-    streamId,
-    model: runtimeModel,
-    resources,
-  },
+  taskId: taskId ?? requestId,
+  workspacePath,
+  sessionRootDir,
+  agentRoleId,
+  userMessage,
+  systemPrompt,
+  requestContext,
+  runtimeInstruction,
+  bootstrapInstruction,
+  runtimeModel,
+  resources,
 });
 
 const chatCommand = ({
   requestId,
-  agentId,
-  workspacePath,
-  sessionRootDir,
   stream,
   streamId,
   systemPrompt,
@@ -197,27 +178,18 @@ const chatCommand = ({
 }) => ({
   type: "chat",
   requestId,
-  session: workspacePath
-    ? {
-      workspacePath,
-      sessionRootDir,
-    }
-    : null,
-  agent: {
-    agentId,
-  },
-  input: {
-    systemPrompt,
-    userMessage,
-    requestContext,
-    runtimeInstruction,
-    messages,
-  },
-  runtime: {
-    stream,
-    streamId,
-    model: runtimeModel,
-  },
+  stream,
+  streamId,
+  runtimeModel,
+  systemPrompt,
+  messages: messages ?? [{
+    role: "user",
+    content: [
+      runtimeInstruction,
+      userMessage,
+      requestContext,
+    ].filter(Boolean).join("\n\n"),
+  }],
 });
 
 const cleanup = async () => {
@@ -242,7 +214,7 @@ try {
     list,
   );
 
-  const aliasSystemPrompt = "send_message alias 初始系统提示词。";
+  const aliasSystemPrompt = "run_agent alias 初始系统提示词。";
   const aliasCreated = await request({
     type: "create_session",
     requestId: "alias-create-session",
@@ -260,26 +232,22 @@ try {
     aliasCreated,
   );
 
-  const aliasChatResult = await request(sendMessageCommand({
-    requestId: "alias-send-chat",
-    mode: "chat",
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir: aliasSessionRootDir,
+  const aliasChatResult = await request(chatCommand({
+    requestId: "alias-chat-stateless",
     stream: false,
-    userMessage: "send_message chat 用户消息",
-    requestContext: "send_message chat 本次引用资料。",
-    runtimeInstruction: "send_message chat 本轮临时说明。",
+    systemPrompt: aliasSystemPrompt,
+    userMessage: "stateless chat 用户消息",
+    requestContext: "stateless chat 本次引用资料。",
+    runtimeInstruction: "stateless chat 本轮临时说明。",
     runtimeModel: null,
   }), "chat_result");
   assert(
     aliasChatResult.text.includes(`系统提示词：${aliasSystemPrompt}`) &&
-      aliasChatResult.text.includes("收到的最后一条用户消息：send_message chat 用户消息") &&
-      aliasChatResult.text.includes("请求上下文：send_message chat 本次引用资料。"),
-    "send_message chat 应使用 create_session 缓存的 systemPrompt，并传递 userMessage/requestContext",
+      aliasChatResult.text.includes("收到的最后一条用户消息：stateless chat 用户消息"),
+    "chat 应使用调用方显式传入的 systemPrompt/messages",
     aliasChatResult,
   );
-  assert(aliasChatResult.runtimeSession?.userMessageRecordId, "send_message chat 应返回 runtime user messageRecordId", aliasChatResult);
+  assert(!aliasChatResult.runtimeSession, "chat_result 不应携带 runtime session 引用", aliasChatResult);
 
   const aliasAfterChat = await request({
     type: "read_session",
@@ -288,17 +256,14 @@ try {
     sessionRootDir: aliasSessionRootDir,
   }, "session_result");
   assert(
-    aliasAfterChat.messages.map((message) => message.role).join("|") === "system|user|assistant" &&
-      aliasAfterChat.messages.at(-2)?.content === "send_message chat 用户消息" &&
-      aliasAfterChat.requestContexts?.at(-1)?.content === "send_message chat 本次引用资料。" &&
-      aliasAfterChat.runtimeInstructions?.at(-1)?.content === "send_message chat 本轮临时说明。",
-    "send_message chat 应按 ledger 标准记录消息和 data-only entries",
+    aliasAfterChat.messages.map((message) => message.role).join("|") === "system",
+    "stateless chat 不应写入 alias runtime session",
     aliasAfterChat,
   );
 
   const aliasAgentTaskId = "alias-send-agent-task";
   const aliasAgentRoleId = "alias-agent-role";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     requestId: aliasAgentTaskId,
     mode: "agent",
     taskId: aliasAgentTaskId,
@@ -306,8 +271,8 @@ try {
     workspacePath,
     sessionRootDir: aliasSessionRootDir,
     agentRoleId: aliasAgentRoleId,
-    userMessage: "send_message agent 用户消息",
-    runtimeInstruction: "send_message agent 临时执行说明。",
+    userMessage: "run_agent 用户消息",
+    runtimeInstruction: "run_agent 临时执行说明。",
     runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
     resources: {
       tools: {
@@ -323,23 +288,23 @@ try {
   }));
   const aliasAgentDone = await waitFor(
     (item) => item.type === "done" && item.taskId === aliasAgentTaskId,
-    "alias send_message agent done",
+    "alias run_agent done",
   );
   const aliasAgentTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === aliasAgentTaskId,
-    "alias send_message agent task_result",
+    "alias run_agent task_result",
   );
-  assert(aliasAgentTaskResult.success === true, "send_message agent 应成功", aliasAgentTaskResult);
+  assert(aliasAgentTaskResult.success === true, "run_agent 应成功", aliasAgentTaskResult);
   assert(
     lineStartingWith(aliasAgentDone.text, "系统提示词：") === `系统提示词：${aliasSystemPrompt}` &&
-      aliasAgentDone.text.includes("用户消息：send_message agent 用户消息"),
-    "send_message agent 应使用 create_session 缓存的 systemPrompt，并传递 userMessage",
+      aliasAgentDone.text.includes("用户消息：run_agent 用户消息"),
+    "run_agent 应使用 create_session 缓存的 systemPrompt，并传递 userMessage",
     aliasAgentDone.text,
   );
   const aliasAgentSessionDir = join(aliasSessionRootDir, "agents", "mock", aliasAgentRoleId);
   assert(
     existsSync(aliasAgentSessionDir),
-    "send_message agent 应按 runtimeId/agentRoleId 创建稳定 agent session 目录",
+    "run_agent 应按 runtimeId/agentRoleId 创建稳定 agent session 目录",
     aliasAgentSessionDir,
   );
   const aliasAfterAgent = await request({
@@ -349,10 +314,10 @@ try {
     sessionRootDir: aliasSessionRootDir,
   }, "session_result");
   assert(
-    aliasAfterAgent.messages.at(-2)?.content === "send_message agent 用户消息" &&
+    aliasAfterAgent.messages.at(-2)?.content === "run_agent 用户消息" &&
       aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId === aliasAgentRoleId &&
       aliasAfterAgent.messages.at(-1)?.role === "assistant",
-    "send_message agent 应写回标准 runtime user/assistant 消息",
+    "run_agent 应写回标准 runtime user/assistant 消息",
     aliasAfterAgent.messages,
   );
   const aliasLedger = readLedgerFile(aliasLedgerPath);
@@ -376,7 +341,7 @@ try {
   );
 
   const taskId = "mock-task-1";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: taskId,
     taskId,
@@ -394,7 +359,7 @@ try {
     (item) => item.type === "task_result" && item.requestId === taskId,
     "mock task_result",
   );
-  assert(taskResult.success === true, "mock send_message agent 应成功", taskResult);
+  assert(taskResult.success === true, "mock run_agent 应成功", taskResult);
   assert(
     done.runtimeSession?.userMessageRecordId && done.runtimeSession?.assistantMessageRecordId,
     "done 事件应携带 runtime messageRecordIds",
@@ -402,7 +367,7 @@ try {
   );
   assert(
     existsSync(expectedAgentSessionDir),
-    "send_message agent 应在 runtime session 下创建稳定 agent session 目录",
+    "run_agent 应在 runtime session 下创建稳定 agent session 目录",
     expectedAgentSessionDir,
   );
   assert(
@@ -435,7 +400,7 @@ try {
   );
   assert(
     taskUserMessage?.content === initialUserMessage,
-    "账本中的 user 消息应来自 send_message agent 的 userMessage",
+    "账本中的 user 消息应来自 run_agent 的 userMessage",
     { expected: initialUserMessage, actual: taskUserMessage },
   );
   assert(
@@ -502,7 +467,7 @@ try {
     "空 sessionRootDir 的一次性 agent 运行前不应已有持久 agent session 目录",
     unexpectedOneShotAgentSessionDir,
   );
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: oneShotTaskId,
     taskId: oneShotTaskId,
@@ -875,7 +840,7 @@ try {
   const directTaskId = "mock-task-direct-system-prompt";
   const directRequestContext = "本次引用资料：request-context-e2e-only，不应记录为 ledger 的用户消息。";
   const directBootstrapInstruction = "底层 session 初始化时只使用当前 agent 可见历史。";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: directTaskId,
     taskId: directTaskId,
@@ -884,7 +849,7 @@ try {
     sessionRootDir,
     agentRoleId: directAgentRoleId,
     systemPrompt: "E2E Agent 系统提示词。",
-    userMessage: "send_message agent 直接用户消息",
+    userMessage: "run_agent 直接用户消息",
     requestContext: directRequestContext,
     bootstrapInstruction: directBootstrapInstruction,
     runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
@@ -892,38 +857,38 @@ try {
   }));
   const directDone = await waitFor(
     (item) => item.type === "done" && item.taskId === directTaskId,
-    "direct send_message agent done",
+    "direct run_agent done",
   );
   const directTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === directTaskId,
-    "direct send_message agent task_result",
+    "direct run_agent task_result",
   );
-  assert(directTaskResult.success === true, "direct send_message agent 应成功", directTaskResult);
+  assert(directTaskResult.success === true, "direct run_agent 应成功", directTaskResult);
   assert(
     directDone.text.includes("系统提示词：E2E Agent 系统提示词。") &&
-      directDone.text.includes("用户消息：send_message agent 直接用户消息"),
-    "direct send_message agent 应由 runtime 将 systemPrompt/userMessage 分别传给底层 runtime",
+      directDone.text.includes("用户消息：run_agent 直接用户消息"),
+    "direct run_agent 应由 runtime 将 systemPrompt/userMessage 分别传给底层 runtime",
     directDone.text,
   );
   assert(
     directDone.text.includes(`请求上下文：${directRequestContext}`),
-    "direct send_message agent 应把 requestContext 作为一次性资料传给底层 runtime",
+    "direct run_agent 应把 requestContext 作为一次性资料传给底层 runtime",
     directDone.text,
   );
   assert(
     directDone.text.includes(`Bootstrap指令：${directBootstrapInstruction}`),
-    "direct send_message agent 应把 bootstrapInstruction 传给底层 runtime",
+    "direct run_agent 应把 bootstrapInstruction 传给底层 runtime",
     directDone.text,
   );
   assert(
     !directDone.text.includes("重建后的助手消息") && !directDone.text.includes("重建后的用户消息"),
-    "direct send_message agent 不应注入其他 agent 或 shared 分支的历史",
+    "direct run_agent 不应注入其他 agent 或 shared 分支的历史",
     directDone.text,
   );
   const directAgentSessionDir = join(sessionDirPath, "agents", "mock", directAgentRoleId);
   assert(
     existsSync(directAgentSessionDir),
-    "direct send_message agent 应按 runtimeId/agentRoleId 创建底层 agent session 目录",
+    "direct run_agent 应按 runtimeId/agentRoleId 创建底层 agent session 目录",
     directAgentSessionDir,
   );
   const afterDirectTask = await request({
@@ -933,15 +898,15 @@ try {
     sessionRootDir,
   }, "session_result");
   assert(
-    afterDirectTask.messages.at(-2)?.content === "send_message agent 直接用户消息" &&
+    afterDirectTask.messages.at(-2)?.content === "run_agent 直接用户消息" &&
       afterDirectTask.messages.at(-2)?.metadata?.runtimeId === "mock" &&
       afterDirectTask.messages.at(-2)?.metadata?.agentRoleId === directAgentRoleId &&
       afterDirectTask.messages.at(-1)?.role === "assistant",
-    "direct send_message agent 应按 runtime 标准消息账本记录 user/assistant",
+    "direct run_agent 应按 runtime 标准消息账本记录 user/assistant",
     afterDirectTask.messages,
   );
   assert(
-    afterDirectTask.messages.at(-2)?.content === "send_message agent 直接用户消息" &&
+    afterDirectTask.messages.at(-2)?.content === "run_agent 直接用户消息" &&
       !afterDirectTask.messages
         .filter((message) => message.role !== "assistant")
         .some((message) => message.content.includes(directRequestContext)),
@@ -967,7 +932,7 @@ try {
   const tavernSecret = "TAVERN_B_PRIVATE_INNER_THOUGHT_E2E_92817";
   const tavernBRoleId = "tavern-role-b";
   const tavernBTaskId = "mock-task-tavern-b-private";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: tavernBTaskId,
     taskId: tavernBTaskId,
@@ -993,7 +958,7 @@ try {
   const tavernARoleId = "tavern-role-a";
   const tavernATaskId = "mock-task-tavern-a-after-b";
   const tavernARequestContext = "A 可见信息：B 公开说，今晚守城。";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: tavernATaskId,
     taskId: tavernATaskId,
@@ -1048,7 +1013,7 @@ try {
   );
   const tavernARebuildTaskId = "mock-task-tavern-a-rebuild";
   const tavernARebuildRequestContext = "A 可见信息：B 公开说，火把已经熄灭。";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: tavernARebuildTaskId,
     taskId: tavernARebuildTaskId,
@@ -1097,7 +1062,7 @@ try {
   );
 
   const cachedSystemTaskId = "mock-task-cached-system-prompt";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: cachedSystemTaskId,
     taskId: cachedSystemTaskId,
@@ -1111,13 +1076,13 @@ try {
   }));
   const cachedSystemDone = await waitFor(
     (item) => item.type === "done" && item.taskId === cachedSystemTaskId,
-    "cached system send_message agent done",
+    "cached system run_agent done",
   );
   const cachedSystemTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === cachedSystemTaskId,
-    "cached system send_message agent task_result",
+    "cached system run_agent task_result",
   );
-  assert(cachedSystemTaskResult.success === true, "cached system send_message agent 应成功", cachedSystemTaskResult);
+  assert(cachedSystemTaskResult.success === true, "cached system run_agent 应成功", cachedSystemTaskResult);
   assert(
     lineStartingWith(cachedSystemDone.text, "系统提示词：") === "系统提示词：E2E Agent 系统提示词。",
     "不传 systemPrompt 时底层 runtime 应使用 runtime ledger 中最近缓存的 systemPrompt",
@@ -1137,7 +1102,7 @@ try {
   );
 
   const enhancedSystemTaskId = "mock-task-enhanced-system-prompt";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: enhancedSystemTaskId,
     taskId: enhancedSystemTaskId,
@@ -1152,7 +1117,7 @@ try {
   }));
   const enhancedSystemTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === enhancedSystemTaskId,
-    "enhanced system send_message agent task_result",
+    "enhanced system run_agent task_result",
   );
   assert(
     enhancedSystemTaskResult.success === false &&
@@ -1162,7 +1127,7 @@ try {
   );
 
   const runtimeInstructionTaskId = "mock-task-runtime-instruction";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: runtimeInstructionTaskId,
     taskId: runtimeInstructionTaskId,
@@ -1177,24 +1142,27 @@ try {
   }));
   const runtimeInstructionDone = await waitFor(
     (item) => item.type === "done" && item.taskId === runtimeInstructionTaskId,
-    "runtime instruction send_message agent done",
+    "runtime instruction run_agent done",
   );
   const runtimeInstructionTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === runtimeInstructionTaskId,
-    "runtime instruction send_message agent task_result",
+    "runtime instruction run_agent task_result",
   );
-  assert(runtimeInstructionTaskResult.success === true, "runtimeInstruction send_message agent 应成功", runtimeInstructionTaskResult);
+  assert(runtimeInstructionTaskResult.success === true, "runtimeInstruction run_agent 应成功", runtimeInstructionTaskResult);
   assert(
     lineStartingWith(runtimeInstructionDone.text, "系统提示词：") === "系统提示词：E2E Agent 系统提示词。",
     "runtimeInstruction 不应修改底层 runtime 的 systemPrompt",
     runtimeInstructionDone.text,
   );
 
-  const chatResult = await request(chatCommand({
-    requestId: "chat-user-message",
-    agentId: "mock",
+  const beforeStatelessChat = await request({
+    type: "read_session",
+    requestId: "read-before-stateless-chat",
     workspacePath,
     sessionRootDir,
+  }, "session_result");
+  const chatResult = await request(chatCommand({
+    requestId: "chat-user-message",
     stream: false,
     systemPrompt: "E2E Agent 系统提示词。",
     userMessage: "chat 命令的新用户消息",
@@ -1204,15 +1172,15 @@ try {
   }), "chat_result");
   assert(
     chatResult.text.includes("chat 命令的新用户消息"),
-    "chat runtime 应收到 runtime 注入后的最新 userMessage",
+    "chat runtime 应收到调用方传入的最新 user message",
     chatResult,
   );
   assert(
-    chatResult.text.includes("请求上下文：chat 本次引用资料：request-context-chat-only。"),
-    "chat runtime 应收到 requestContext，但最新用户消息仍应是 userMessage",
+    chatResult.text.includes("消息数量：1"),
+    "chat runtime 应只依赖调用方传入的 messages",
     chatResult,
   );
-  assert(chatResult.runtimeSession?.userMessageRecordId, "chat_result 应携带 runtime user messageRecordId", chatResult);
+  assert(!chatResult.runtimeSession, "chat_result 不应携带 runtime user messageRecordId", chatResult);
   const afterChat = await request({
     type: "read_session",
     requestId: "read-after-chat-user-message",
@@ -1220,20 +1188,13 @@ try {
     sessionRootDir,
   }, "session_result");
   assert(
-    afterChat.messages.at(-2)?.content === "chat 命令的新用户消息" &&
-      afterChat.messages.at(-2)?.metadata?.source === "runtime" &&
-      afterChat.messages.at(-1)?.role === "assistant",
-    "chat userMessage 应由 runtime 写入账本，并追加 assistant 回复",
-    afterChat.messages,
-  );
-  assert(chatResult.runtimeSession?.assistantMessageRecordId, "chat_result 应携带 runtime assistant messageRecordId", chatResult);
-  assert(
-    afterChat.requestContexts?.at(-1)?.content === "chat 本次引用资料：request-context-chat-only。" &&
-      afterChat.runtimeInstructions?.at(-1)?.content === "chat 本轮临时说明：只验证链路。",
-    "chat requestContext/runtimeInstruction 应作为独立 ledger entries 记录",
+    afterChat.messages.length === beforeStatelessChat.messages.length &&
+      afterChat.requestContexts?.length === beforeStatelessChat.requestContexts?.length &&
+      afterChat.runtimeInstructions?.length === beforeStatelessChat.runtimeInstructions?.length,
+    "stateless chat 不应写入 runtime session ledger",
     {
-      requestContexts: afterChat.requestContexts,
-      runtimeInstructions: afterChat.runtimeInstructions,
+      before: beforeStatelessChat,
+      after: afterChat,
     },
   );
 
@@ -1249,7 +1210,7 @@ try {
   assert(serialRoot.messageRecordId, "serial handoff 应先有应用侧写入的 root user", serialRoot);
 
   const firstSerialTaskId = "mock-task-serial-first";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: firstSerialTaskId,
     taskId: firstSerialTaskId,
@@ -1264,13 +1225,13 @@ try {
   }));
   const firstSerialDone = await waitFor(
     (item) => item.type === "done" && item.taskId === firstSerialTaskId,
-    "first serial send_message agent done",
+    "first serial run_agent done",
   );
   const firstSerialTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === firstSerialTaskId,
-    "first serial send_message agent task_result",
+    "first serial run_agent task_result",
   );
-  assert(firstSerialTaskResult.success === true, "first serial send_message agent 应成功", firstSerialTaskResult);
+  assert(firstSerialTaskResult.success === true, "first serial run_agent 应成功", firstSerialTaskResult);
 
   const firstSerialLedger = readLedger();
   const firstSerialInstructionEntry = firstSerialLedger.entry(firstSerialDone.runtimeSession.runtimeInstructionRecordId);
@@ -1291,7 +1252,7 @@ try {
   );
 
   const serialTaskId = "mock-task-serial-second";
-  send(sendMessageCommand({
+  send(runAgentCommand({
     mode: "agent",
     requestId: serialTaskId,
     taskId: serialTaskId,
@@ -1306,13 +1267,13 @@ try {
   }));
   const serialDone = await waitFor(
     (item) => item.type === "done" && item.taskId === serialTaskId,
-    "serial send_message agent done",
+    "serial run_agent done",
   );
   const serialTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === serialTaskId,
-    "serial send_message agent task_result",
+    "serial run_agent task_result",
   );
-  assert(serialTaskResult.success === true, "serial send_message agent 应成功", serialTaskResult);
+  assert(serialTaskResult.success === true, "serial run_agent 应成功", serialTaskResult);
   assert(
     !("sessionLink" in (serialDone.runtimeSession ?? {})) &&
       serialDone.runtimeSession?.userMessageRecordId === null,
@@ -1429,9 +1390,8 @@ try {
       !tavernADone.text.includes(tavernSecret) && !tavernARebuildDone.text.includes(tavernSecret),
     immutableSystemRejected: enhancedSystemTaskResult.success === false,
     runtimeInstructionSystemPrompt: lineStartingWith(runtimeInstructionDone.text, "系统提示词："),
-    chatUserMessage: afterChat.messages.at(-2)?.content,
-    chatRequestContextDelivered: chatResult.text.includes("请求上下文：chat 本次引用资料：request-context-chat-only。"),
-    chatRuntimeInstructionEntry: afterChat.runtimeInstructions?.at(-1)?.content,
+    chatUserMessageDelivered: chatResult.text.includes("chat 命令的新用户消息"),
+    chatDidNotWriteLedger: afterChat.messages.length === beforeStatelessChat.messages.length,
     serialParentEntryId: serialAssistantEntry.message.metadata?.parentEntryId,
     serialRootUserEntryId: serialAssistantEntry.message.metadata?.rootUserEntryId,
     serialRuntimeInstructionRecordId: serialDone.runtimeSession?.runtimeInstructionRecordId,

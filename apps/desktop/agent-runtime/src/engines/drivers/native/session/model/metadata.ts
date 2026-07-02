@@ -11,10 +11,8 @@ import {
   commandTurnId,
 } from "./runtime-link.js";
 import type {
-  RuntimeAgentSessionCommand,
   RuntimeSessionCommand,
 } from "./runtime-command.js";
-import { isRuntimeAgentSessionCommand } from "./runtime-command.js";
 
 type AgentSessionRef = {
   runtimeId: string | null;
@@ -173,9 +171,6 @@ export const runtimeLedgerOperationMetadata = (input: {
 
 type RuntimeCommand = RuntimeSessionCommand;
 
-const isAgentRunCommand = (command: RuntimeCommand): command is RuntimeAgentSessionCommand =>
-  isRuntimeAgentSessionCommand(command);
-
 const sanitizeSegment = (value: string | null | undefined): string | null => {
   const segment = (value ?? "")
     .trim()
@@ -186,27 +181,16 @@ const sanitizeSegment = (value: string | null | undefined): string | null => {
 };
 
 const runtimeCommandRef = (command: RuntimeCommand) => {
-  if (isAgentRunCommand(command)) {
-    const runtimeId = sanitizeSegment(command.runtimeId ?? null);
-    const agentRoleId = sanitizeSegment(command.agentRoleId ?? null);
-    const agentSessionId = runtimeId && agentRoleId ? `${runtimeId}/${agentRoleId}` : null;
-    return {
-      runtimeId,
-      agentRoleId,
-      agentSessionId,
-      runId: command.taskId,
-      taskId: command.taskId,
-      streamId: null,
-    };
-  }
-
+  const runtimeId = sanitizeSegment(command.runtimeId ?? null);
+  const agentRoleId = sanitizeSegment(command.agentRoleId ?? null);
+  const agentSessionId = runtimeId && agentRoleId ? `${runtimeId}/${agentRoleId}` : null;
   return {
-    runtimeId: command.runtimeId ?? null,
-    agentRoleId: null,
-    agentSessionId: null,
-    runId: command.streamId ?? command.requestId ?? null,
-    taskId: null,
-    streamId: command.streamId ?? null,
+    runtimeId,
+    agentRoleId,
+    agentSessionId,
+    runId: command.taskId,
+    taskId: command.taskId,
+    streamId: null,
   };
 };
 
@@ -226,7 +210,7 @@ export const runtimeMessageMetadata = (input: {
     source: "runtime",
     baseLeafId: input.baseLeafId,
     metadata: {
-      runtime: "runtimeMode" in input.command ? "agent" : "chat",
+      runtime: "agent",
     },
     turnId: commandTurnId(input.command),
     parentEntryId: input.parentEntryId ?? commandParentEntryId(input.command),
@@ -253,7 +237,7 @@ export const runtimeEntryMetadata = (input: {
     actorType: "runtime",
     baseLeafId: input.baseLeafId,
     metadata: {
-      runtime: "runtimeMode" in input.command ? "agent" : "chat",
+      runtime: "agent",
       runtimeEntryType: input.entryType,
     },
     turnId: commandTurnId(input.command),

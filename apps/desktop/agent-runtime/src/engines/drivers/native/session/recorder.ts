@@ -17,14 +17,9 @@ import type {
 
 type EmitAgentEvent = (event: AgentEvent) => void;
 
-const isChatRunCommand = (
-  command: RuntimeSessionCommand,
-) =>
-  "type" in command && command.type === "chat";
-
 const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
   const candidate = command as SessionBackedRuntimeCommand;
-  return (isChatRunCommand(command) || isRuntimeAgentSessionCommand(command)) &&
+  return isRuntimeAgentSessionCommand(command) &&
     Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim());
 };
 

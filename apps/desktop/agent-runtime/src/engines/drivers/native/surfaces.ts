@@ -30,7 +30,6 @@ import {
   type RebuildAgentSessionInput,
   type RebuildSessionInput,
   type ReadSessionInput,
-  type RunChatInput,
   type RunCollaborationInput,
   type RunCollaborationModeInput,
   type RuntimeModelsResult,
@@ -40,17 +39,12 @@ import {
   type RuntimeSessionResult,
   type RuntimeSessionsQuery,
   type RuntimeSessionsResult,
-  type SendMessageInput,
   type SessionMutationResult,
   type SessionResult,
   type SummarizeAgentSessionInput,
   type SummarizeSessionInput,
   type TaskResult,
 } from "../../protocol/index.js";
-import {
-  chatRunCommandFromChat,
-  runtimeCommandFromSendMessage,
-} from "./agent/commands/adapter.js";
 import {
   clearAgentSessionArtifacts,
   createAgentSessionPlan,
@@ -170,6 +164,7 @@ export class NativeAgentRuntimeAgentSurface implements AgentRuntimeAgent {
     const command: ChatRunCommand = {
       ...input,
       type: "chat",
+      requestId: null,
     };
     const result = await this.deps.agentEngine.chat(command, {
       emit: this.deps.emitAgentEvent,
@@ -179,26 +174,6 @@ export class NativeAgentRuntimeAgentSurface implements AgentRuntimeAgent {
       requestId: command.requestId ?? null,
       ...result,
     };
-  }
-
-  async runChat(input: RunChatInput): Promise<ChatResult> {
-    return this.chat(chatRunCommandFromChat({
-      ...input,
-      requestId: null,
-      type: AgentTaskCommandType.Chat as const,
-    }));
-  }
-
-  async sendMessage(input: SendMessageInput): Promise<ChatResult | TaskResult> {
-    const command = {
-      ...input,
-      requestId: null,
-      type: AgentTaskCommandType.SendMessage as const,
-    };
-    const runtimeCommand = runtimeCommandFromSendMessage(command);
-    return runtimeCommand.mode === "agent"
-      ? this.runCommand(runtimeCommand.command)
-      : this.chat(runtimeCommand.command);
   }
 
   async run(input: AgentRunInput): Promise<TaskResult> {

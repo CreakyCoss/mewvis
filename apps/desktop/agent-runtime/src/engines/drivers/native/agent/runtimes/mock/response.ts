@@ -37,15 +37,12 @@ export const createMockChatText = (command: ChatRunCommand) => {
   const systemPromptSummary = command.systemPrompt?.trim()
     ? compact(command.systemPrompt)
     : "无";
-  const requestContextSummary = command.requestContext?.trim()
-    ? compact(command.requestContext)
-    : "无";
 
   return [
     "这是 Mock agent 的模拟回复。",
     "",
     `系统提示词：${systemPromptSummary}`,
-    `请求上下文：${requestContextSummary}`,
+    `消息数量：${command.messages.length}`,
     `收到的最后一条用户消息：${summary}`,
     "",
     "当前没有调用真实模型，也不会读写工作区。这个回复用于验证前端、Tauri、agent-runtime 的链路是否通畅。",

@@ -5,16 +5,13 @@ import type {
   PongResult,
   ShutdownAckResult,
 
-  AnswerQuestionInput,
   AskUserInput,
   AgentRunInput,
   AgentToolsQuery,
   AgentToolsResult,
   ChatInput,
   ChatResult,
-  RunChatInput,
   RuntimeModelsResult,
-  SendMessageInput,
   TaskResult,
 
   AppendSessionMessagesInput,
@@ -77,12 +74,9 @@ export interface AgentRuntimeCapabilities {
 }
 
 export interface AgentRuntimeAgent {
-  // 对话与任务执行入口统一收在 agent 下，避免拆成 chat/message 等过细顶层接口。
+  // chat 是无 session 的轻量模型调用；需要上下文、工具或长期 agent session 时使用 run。
   chat(input: ChatInput): Promise<ChatResult>;
-  runChat(input: RunChatInput): Promise<ChatResult>;
-  sendMessage(input: SendMessageInput): Promise<ChatResult | TaskResult>;
   run(input: AgentRunInput): Promise<TaskResult>;
-  answerQuestion(input: AnswerQuestionInput): Promise<void>;
 }
 
 export interface AgentRuntimeSessionAdmin {

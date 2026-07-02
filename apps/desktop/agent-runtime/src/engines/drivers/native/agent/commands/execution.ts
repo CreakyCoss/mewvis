@@ -12,9 +12,7 @@ import type {
   ChatRunCommand,
 } from "../runtimes/types.js";
 import { prepareRuntimeAgentRun } from "./prepare-run.js";
-import { createPromptLimits, toRuntimeMessages } from "../../session/model/prompt-budget.js";
 import { RuntimeSessionRecorder } from "../../session/recorder.js";
-import { createRuntimeSessionManager } from "../../session/index.js";
 import { messageFromError } from "../../error.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
@@ -117,12 +115,7 @@ export const executeChatCommand = async (
     "chat",
     runtimeIdOverride(command.runtimeId, options.chatRuntimeId),
   );
-  const runtimeCommand = await prepareChatRunCommand(command, options);
-  const recorder = await RuntimeSessionRecorder.create(
-    runtimeCommand,
-    options.sessionProviderId,
-  );
-  await recorder?.recordInitialUserMessage();
+  const runtimeCommand = prepareChatRunCommand(command);
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= CHAT_MAX_ATTEMPTS; attempt += 1) {
@@ -141,7 +134,7 @@ export const executeChatCommand = async (
         }
 
         attemptState.emitted ||= isVisibleChatOutputEvent(runtimeCommand, event);
-        (recorder ? recorder.wrapEmit(context.emit) : context.emit)(event);
+        context.emit(event);
       },
     };
 
@@ -152,18 +145,6 @@ export const executeChatCommand = async (
         `Chat runtime 执行超时（${formatDuration(CHAT_TIMEOUT_MS)}）`,
         () => abortController.abort(),
       );
-      if (recorder) {
-        await recorder.finalizeAssistantMessage({
-          text: result.text,
-          thinking: result.thinking ?? null,
-          runStatus: "done",
-        });
-        await recorder.flush();
-        return {
-          ...result,
-          runtimeSession: recorder.getSessionRecord(),
-        };
-      }
       return result;
     } catch (error: unknown) {
       attemptState.active = false;
@@ -186,71 +167,14 @@ export const executeChatCommand = async (
   throw lastError;
 };
 
-const latestUserMessageContent = (command: ChatRunCommand) => {
-  const direct = command.userMessage?.trim();
-  if (direct) {
-    return direct;
-  }
-
-  for (const message of (command.messages ?? []).slice().reverse()) {
-    if (message.role === "user" && message.content.trim()) {
-      return message.content.trim();
-    }
-  }
-
-  return "";
-};
-
-const prepareChatRunCommand = async (
+const prepareChatRunCommand = (
   command: ChatRunCommand,
-  options: AgentEngineOptions = {},
-): Promise<ChatRunCommand> => {
-  const userMessage = latestUserMessageContent(command);
-
-  if (command.userMessage?.trim() && command.workspacePath?.trim() && command.sessionRootDir?.trim()) {
-    const preparedTurn = await createRuntimeSessionManager({
-      workspacePath: command.workspacePath,
-      sessionRootDir: command.sessionRootDir,
-      providerId: options.sessionProviderId,
-    }).prepareTurn(
-      {
-        ...command,
-        messages: command.messages ?? [],
-      },
-      {
-        includeSummary: true,
-        preserveRecordUserMessageFalse: true,
-      },
-    );
-    if (!preparedTurn) {
-      throw new Error("chat 命令启用 runtime session 时必须提供 workspacePath 和 sessionRootDir");
-    }
-    return {
-      ...preparedTurn.command,
-      systemPrompt: preparedTurn.systemPrompt,
-      messages: toRuntimeMessages(
-        preparedTurn.updatedSessionContext.messages,
-        userMessage,
-        createPromptLimits(command.runtimeModel),
-        command.requestContext,
-        command.runtimeInstruction,
-      ),
-    };
+): ChatRunCommand => {
+  if (!command.messages.length) {
+    throw new Error("chat 命令必须提供 messages");
   }
 
-  const messages = command.messages?.length
-    ? command.messages
-    : userMessage
-      ? [{ role: "user", content: userMessage }]
-      : [];
-  if (messages.length === 0) {
-    throw new Error("chat 命令必须提供 userMessage 或 messages");
-  }
-
-  return {
-    ...command,
-    messages,
-  };
+  return command;
 };
 
 class ExecutionTimeoutError extends Error {

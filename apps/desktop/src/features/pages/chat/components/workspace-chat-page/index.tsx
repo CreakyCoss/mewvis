@@ -851,7 +851,7 @@ export const WorkspaceChatPage = ({
 
     try {
       const answeredQuestionId = pendingAgentQuestion.questionId;
-      await agentClient.agent.answerQuestion({
+      await agentClient.tasks.answerQuestion({
         taskId: pendingAgentQuestion.taskId,
         questionId: answeredQuestionId,
         answer,

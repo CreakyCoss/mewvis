@@ -248,15 +248,9 @@ export const summarizePiAgentSession = async (
         type: "chat",
         requestId: command.requestId ?? null,
         runtimeId: command.runtimeId ?? null,
-        workspacePath: null,
-        sessionRootDir: null,
         stream: false,
         runtimeModel: command.runtimeModel ?? null,
         systemPrompt: summarySystemPrompt,
-        userMessage: null,
-        requestContext: null,
-        runtimeInstruction: null,
-        bootstrapInstruction: null,
         messages: [
           {
             role: "user",

@@ -272,15 +272,9 @@ export const generateDisplaySummary = async (input: {
         type: "chat",
         requestId: null,
         runtimeId,
-        workspacePath: null,
-        sessionRootDir: null,
         stream: false,
         runtimeModel: input.runtimeModel ?? null,
         systemPrompt: SUMMARY_SYSTEM_PROMPT,
-        userMessage: null,
-        requestContext: null,
-        runtimeInstruction: null,
-        bootstrapInstruction: null,
         messages: [{
           role: "user",
           content: buildSummaryUserPrompt({
@@ -308,15 +302,9 @@ export const generateDisplaySummary = async (input: {
         type: "chat",
         requestId: null,
         runtimeId,
-        workspacePath: null,
-        sessionRootDir: null,
         stream: false,
         runtimeModel: input.runtimeModel ?? null,
         systemPrompt: SUMMARY_SYSTEM_PROMPT,
-        userMessage: null,
-        requestContext: null,
-        runtimeInstruction: null,
-        bootstrapInstruction: null,
         messages: [{
           role: "user",
           content: buildSummaryUserPrompt({

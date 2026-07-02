@@ -1,6 +1,4 @@
 import type { RuntimeModelCatalog } from "../model.js";
-import type { RuntimeSessionRecordRef } from "./event.js";
-
 export enum AgentResultType {
   AgentTools = "agent_tools",
   ChatResult = "chat_result",
@@ -15,7 +13,6 @@ export enum AgentResultType {
 type ChatRunResult = {
   text: string;
   thinking?: string | null;
-  runtimeSession?: RuntimeSessionRecordRef | null;
 };
 
 export type ChatResult = ChatRunResult & {

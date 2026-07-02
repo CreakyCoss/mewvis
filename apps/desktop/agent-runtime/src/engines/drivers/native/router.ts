@@ -5,12 +5,13 @@ import {
   AgentRuntimeResultType,
   AgentSessionCommandType,
   AgentTaskCommandType,
+  type AnswerQuestionInput,
   type AgentRuntimeCommand,
   type AgentRuntimeResult,
   type ChatCommand,
+  type RunAgentCommand,
   type RunCollaborationCommand,
   type RunCollaborationModeCommand,
-  type SendMessageCommand,
   type TaskResult,
 } from "../../protocol/index.js";
 import type {
@@ -19,12 +20,10 @@ import type {
   EmitAgentRuntimeResult,
 } from "../../runtime.js";
 import {
-  chatRunCommandFromChat,
-  runtimeCommandFromSendMessage,
+  agentRunCommandFromRunAgent,
 } from "./agent/commands/adapter.js";
 import type {
   AgentRunCommand,
-  ChatRunCommand,
 } from "./agent/runtimes/types.js";
 import { createTaskResult } from "./agent/commands/responses.js";
 import { messageFromError } from "./error.js";
@@ -48,6 +47,7 @@ type NativeRuntimeCommandRouterDeps = {
   engine: AgentRuntimeEngine;
   emitEvent: EmitAgentRuntimeEvent;
   emitResult: EmitAgentRuntimeResult;
+  answerQuestion(input: AnswerQuestionInput): Promise<void>;
   runAgentCommand(command: AgentRunCommand): Promise<TaskResult>;
 };
 
@@ -87,20 +87,19 @@ export const createNativeRuntimeCommandRouter = (
     }
   };
 
-  const runChatCommand = async (
-    command: ChatCommand | SendMessageCommand,
-    chatCommand: ChatRunCommand,
+  const handleChatCommand = async (
+    command: ChatCommand,
   ) => {
     if (activeAgentRun) {
-      emitCommandError(command, runningTaskChatMessage, chatCommand.streamId);
+      emitCommandError(command, runningTaskChatMessage, command.streamId);
       return;
     }
 
-    await emitCommandActionResult(command, () => deps.engine.agent.chat(chatCommand));
+    await emitCommandActionResult(command, () => deps.engine.agent.chat(commandInputFrom(command)));
   };
 
   const runAgentCommandWhenIdle = (
-    command: SendMessageCommand,
+    command: RunAgentCommand,
     agentCommand: AgentRunCommand,
   ) => {
     if (activeAgentRun) {
@@ -119,16 +118,6 @@ export const createNativeRuntimeCommandRouter = (
       .finally(() => {
         activeAgentRun = null;
       });
-  };
-
-  const runSendMessageCommand = async (command: SendMessageCommand) => {
-    const runtimeCommand = runtimeCommandFromSendMessage(command);
-    if (runtimeCommand.mode === "chat") {
-      await runChatCommand(command, runtimeCommand.command);
-      return;
-    }
-
-    runAgentCommandWhenIdle(command, runtimeCommand.command);
   };
 
   const taskIdFor = (command: RunCollaborationCommand | RunCollaborationModeCommand) =>
@@ -219,15 +208,15 @@ export const createNativeRuntimeCommandRouter = (
         return true;
 
       case AgentTaskCommandType.AnswerQuestion:
-        await deps.engine.agent.answerQuestion(commandInputFrom(command));
+        await deps.answerQuestion(commandInputFrom(command));
         return true;
 
-      case AgentTaskCommandType.SendMessage:
-        await runSendMessageCommand(command);
+      case AgentTaskCommandType.RunAgent:
+        runAgentCommandWhenIdle(command, agentRunCommandFromRunAgent(command));
         return true;
 
       case AgentTaskCommandType.Chat:
-        await runChatCommand(command, chatRunCommandFromChat(command));
+        await handleChatCommand(command);
         return true;
 
       case AgentSessionCommandType.CreateSession:

@@ -3,9 +3,7 @@ import {
   type AgentEvent,
 } from "../../../../../protocol/index.js";
 import type {
-  RuntimeChatMessageInput,
   RuntimeAgentSessionCommand,
-  RuntimeChatSessionCommand,
   RuntimeSessionCommand,
   SessionBackedRuntimeCommand,
 } from "../../model/runtime-command.js";
@@ -43,32 +41,6 @@ type TraceRecord = {
   message?: string;
 };
 
-const isChatRunCommand = (
-  command: RuntimeSessionCommand,
-): command is RuntimeChatSessionCommand =>
-  "type" in command && command.type === "chat";
-
-const contentFromChatMessage = (message: RuntimeChatMessageInput | undefined) =>
-  message?.content?.trim() ?? "";
-
-const latestUserMessage = (command: RuntimeChatSessionCommand) => {
-  if (command.userMessage?.trim()) {
-    return {
-      role: "user",
-      content: command.userMessage,
-    };
-  }
-
-  const messages = command.messages ?? [];
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message?.role === "user") {
-      return message;
-    }
-  }
-  return messages[messages.length - 1];
-};
-
 const initialUserMessageFor = (
   command: RuntimeSessionCommand,
   baseLeafId: string | null,
@@ -78,24 +50,6 @@ const initialUserMessageFor = (
   },
 ): RuntimeMessage | null => {
   const timestamp = Date.now();
-  if (isChatRunCommand(command)) {
-    const content = contentFromChatMessage(latestUserMessage(command));
-    return content
-      ? {
-        role: "user",
-        content,
-        timestamp,
-        metadata: runtimeMessageMetadata({
-          command,
-          role: "user",
-          baseLeafId,
-          parentEntryId: input?.parentEntryId ?? null,
-          rootUserEntryId: input?.rootUserEntryId ?? null,
-        }),
-      }
-      : null;
-  }
-
   if (isRuntimeAgentSessionCommand(command)) {
     const content = command.userMessage.trim();
     return content
@@ -118,7 +72,7 @@ const initialUserMessageFor = (
 };
 
 const taskIdFor = (command: RuntimeSessionCommand) =>
-  "runtimeMode" in command ? command.taskId : command.streamId ?? null;
+  command.taskId;
 
 export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
   private text = "";

@@ -39,7 +39,7 @@ import type {
 const TAURI_AGENT_CLIENT_COMMANDS = {
   listAgentTools: "list_agent_runtime_tools",
   runAgent: "run_agent_runtime_agent",
-  runChat: "run_agent_runtime_chat",
+  chat: "run_agent_runtime_chat",
   runCollaboration: "run_agent_runtime_collaboration",
   runCollaborationMode: "run_agent_runtime_collaboration_mode",
   listRuntimeSessions: "list_agent_runtime_sessions",
@@ -90,18 +90,12 @@ class TauriAgentClientAgent implements AgentClientAgent {
           })
         : undefined;
 
-    return invoke<AgentClientChatResult>(TAURI_AGENT_CLIENT_COMMANDS.runChat, {
+    return invoke<AgentClientChatResult>(TAURI_AGENT_CLIENT_COMMANDS.chat, {
       input: {
-        workspacePath: input.workspacePath,
-        sessionRootDir: input.sessionRootDir,
         streamId,
         stream: shouldStream,
         runtimeModel: input.runtimeModel,
         systemPrompt: input.systemPrompt ?? "",
-        userMessage: input.userMessage,
-        requestContext: input.requestContext,
-        runtimeInstruction: input.runtimeInstruction,
-        bootstrapInstruction: input.bootstrapInstruction,
         messages: input.messages,
       },
     }).finally(() => {
@@ -129,10 +123,6 @@ class TauriAgentClientAgent implements AgentClientAgent {
     return {
       taskId: result.taskId,
     };
-  }
-
-  async answerQuestion(input: AnswerQuestionInput): Promise<void> {
-    await invoke(TAURI_AGENT_CLIENT_COMMANDS.answerQuestion, { input });
   }
 }
 
@@ -210,6 +200,10 @@ class TauriAgentClientEvents implements AgentClientEvents {
 }
 
 class TauriAgentClientTasks implements AgentClientTasks {
+  async answerQuestion(input: AnswerQuestionInput): Promise<void> {
+    await invoke(TAURI_AGENT_CLIENT_COMMANDS.answerQuestion, { input });
+  }
+
   async abort(taskId: string): Promise<void> {
     await invoke(TAURI_AGENT_CLIENT_COMMANDS.abortTask, { taskId });
   }

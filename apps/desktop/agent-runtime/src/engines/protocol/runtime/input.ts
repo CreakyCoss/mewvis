@@ -10,57 +10,20 @@ import type { RuntimeModelInput } from "../model.js";
 
 export type AgentToolsQuery = Record<string, never>;
 
-type SessionTargetShape = {
-  workspacePath: string;
-  sessionRootDir?: string | null;
-};
-
 type RequiredSessionTargetShape = {
   workspacePath: string;
   sessionRootDir: string;
 };
 
-type AgentTargetShape = {
-  agentRoleId?: string | null;
-};
-
 type RuntimeOptionsShape = {
-  mode?: "chat" | "agent" | null;
-  taskId?: string | null;
-  streamId?: string | null;
-  stream?: boolean;
   model?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
-};
-
-type AgentMessageShape = {
-  userMessage?: string | null;
-  systemPrompt?: string | null;
-  requestContext?: string | null;
-  runtimeInstruction?: string | null;
-  bootstrapInstruction?: string | null;
-  messages?: ChatMessageInput[];
-};
-
-export type SendMessageInput = {
-  session: SessionTargetShape;
-  agent?: AgentTargetShape | null;
-  input: AgentMessageShape & {
-    userMessage: string;
-  };
-  runtime?: RuntimeOptionsShape | null;
 };
 
 export type AnswerQuestionInput = {
   taskId: string;
   questionId: string;
   answer: string;
-};
-
-export type RunChatInput = {
-  session?: SessionTargetShape | null;
-  input: AgentMessageShape;
-  runtime?: Pick<RuntimeOptionsShape, "streamId" | "stream" | "model"> | null;
 };
 
 type SessionLinkShape = {
@@ -70,18 +33,10 @@ type SessionLinkShape = {
 };
 
 export type ChatInput = {
-  workspacePath?: string | null;
-  sessionRootDir?: string | null;
   streamId?: string | null;
   stream?: boolean;
   runtimeModel?: RuntimeModelInput | null;
   systemPrompt?: string | null;
-  userMessage?: string | null;
-  requestContext?: string | null;
-  runtimeInstruction?: string | null;
-  bootstrapInstruction?: string | null;
-  recordUserMessage?: boolean | null;
-  sessionLink?: SessionLinkShape | null;
   messages: ChatMessageInput[];
 };
 

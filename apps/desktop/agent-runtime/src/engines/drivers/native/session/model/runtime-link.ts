@@ -1,21 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type {
-  RuntimeAgentSessionCommand,
   RuntimeSessionCommand,
   RuntimeSessionLink,
 } from "./runtime-command.js";
-import { isRuntimeAgentSessionCommand } from "./runtime-command.js";
 import type { RuntimeLedgerEntry } from "./ledger.js";
 
 type RuntimeSessionLinkCommand = RuntimeSessionCommand & {
   sessionLink?: RuntimeSessionLink | null;
   recordUserMessage?: boolean | null;
 };
-
-const isAgentRunCommand = (
-  command: RuntimeSessionLinkCommand,
-): command is RuntimeAgentSessionCommand & { sessionLink?: RuntimeSessionLink | null } =>
-  isRuntimeAgentSessionCommand(command);
 
 export const sessionLinkFor = (
   command: RuntimeSessionLinkCommand,
@@ -30,12 +23,8 @@ export const commandParentEntryId = (command: RuntimeSessionLinkCommand) =>
 export const commandRootUserEntryId = (command: RuntimeSessionLinkCommand) =>
   sessionLinkFor(command).rootUserEntryId ?? null;
 
-const commandIdTurnId = (command: RuntimeSessionLinkCommand) => {
-  if (isAgentRunCommand(command)) {
-    return command.taskId;
-  }
-  return command.streamId ?? command.requestId ?? null;
-};
+const commandIdTurnId = (command: RuntimeSessionLinkCommand) =>
+  command.taskId ?? command.requestId ?? null;
 
 export const latestTurnIdInEntries = (entries: RuntimeLedgerEntry[]) => {
   for (const entry of entries.slice().reverse()) {

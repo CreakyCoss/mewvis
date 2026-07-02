@@ -37,19 +37,12 @@ export type AgentClientCollaborationModeInput = Omit<CollaborationModeRunInput, 
 
 export type AgentClientChatInput = Pick<
   ChatInput,
-  | "workspacePath"
-  | "sessionRootDir"
   | "streamId"
   | "stream"
   | "runtimeModel"
   | "systemPrompt"
-  | "userMessage"
-  | "requestContext"
-  | "runtimeInstruction"
-  | "bootstrapInstruction"
+  | "messages"
 > &
-  AgentClientChatOutputHandlers & {
-    messages?: ChatInput["messages"];
-  };
+  AgentClientChatOutputHandlers;
 
 export type AgentClientChatResult = Omit<ChatResult, "type" | "requestId">;

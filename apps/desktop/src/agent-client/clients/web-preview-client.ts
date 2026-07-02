@@ -52,10 +52,6 @@ class WebPreviewAgentClientAgent implements AgentClientAgent {
   async run(): Promise<AgentClientAgentTask> {
     return { taskId: crypto.randomUUID() };
   }
-
-  async answerQuestion(): Promise<void> {
-    return undefined;
-  }
 }
 
 class WebPreviewAgentClientSessionDebug implements AgentClientSessionDebug {
@@ -109,6 +105,10 @@ class WebPreviewAgentClientEvents implements AgentClientEvents {
 }
 
 class WebPreviewAgentClientTasks implements AgentClientTasks {
+  async answerQuestion(): Promise<void> {
+    return undefined;
+  }
+
   async abort(): Promise<void> {
     return undefined;
   }

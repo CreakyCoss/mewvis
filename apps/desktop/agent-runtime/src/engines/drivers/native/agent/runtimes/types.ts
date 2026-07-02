@@ -74,18 +74,10 @@ export type ChatRunCommand = {
   type: "chat";
   requestId?: string | null;
   runtimeId?: string | null;
-  workspacePath?: string | null;
-  sessionRootDir?: string | null;
   streamId?: string | null;
   stream?: boolean;
   runtimeModel?: RuntimeModelInput | null;
   systemPrompt?: string | null;
-  userMessage?: string | null;
-  requestContext?: string | null;
-  runtimeInstruction?: string | null;
-  bootstrapInstruction?: string | null;
-  recordUserMessage?: boolean | null;
-  sessionLink?: RuntimeSessionLink | null;
   messages: ChatMessageInput[];
 };
 
