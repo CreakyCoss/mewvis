@@ -1,6 +1,4 @@
-import type {
-  AgentClientCollaborationEvent,
-} from "@/agent-client/contracts";
+import type { AgentClientCollaborationEvent } from "@/agent-client/types";
 import type { TavernPageContextValue } from "../../../context";
 import type { ExecutionStep } from "../../execution-trace";
 import type {
@@ -18,11 +16,9 @@ type CollaborationTraceOptions = {
 const TRACE_RUN_LIMIT = 20;
 const TRACE_EVENT_LIMIT = 200;
 
-const workflowTraceStepId = (workflowRunId: string) =>
-  `workflow:${workflowRunId}`;
+const workflowTraceStepId = (workflowRunId: string) => `workflow:${workflowRunId}`;
 
-const agentTraceStepId = (workflowRunId: string, stepId: string) =>
-  `workflow:${workflowRunId}:step:${stepId}`;
+const agentTraceStepId = (workflowRunId: string, stepId: string) => `workflow:${workflowRunId}:step:${stepId}`;
 
 const shortId = (value: string | null | undefined) => value?.slice(0, 8) ?? "runtime";
 
@@ -51,7 +47,7 @@ const getRoleLabel = (
   agentRoleId: string | null | undefined,
   options: CollaborationTraceOptions,
   fallback = "协作步骤",
-) => agentRoleId ? options.agentRoleLabelById?.[agentRoleId] ?? agentRoleId : fallback;
+) => (agentRoleId ? (options.agentRoleLabelById?.[agentRoleId] ?? agentRoleId) : fallback);
 
 const getStepLabel = (
   stepId: string,
@@ -60,10 +56,7 @@ const getStepLabel = (
   options: CollaborationTraceOptions,
 ) => getRoleLabel(agentRoleId, options, stepType ? `${stepType} · ${stepId}` : stepId);
 
-const getWorkflowLabel = (
-  workflowId: string,
-  options: CollaborationTraceOptions,
-) => {
+const getWorkflowLabel = (workflowId: string, options: CollaborationTraceOptions) => {
   const scopeLabel = options.scopeLabel?.trim();
   return scopeLabel ? `${scopeLabel} 协作` : `协作 ${workflowId}`;
 };
@@ -72,18 +65,11 @@ const previewValue = (value: unknown, depth = 0): unknown => {
   if (typeof value === "string") {
     return value.slice(0, 500);
   }
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
+  if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean") {
     return value;
   }
   if (Array.isArray(value)) {
-    return depth >= 2 ? `[${value.length} items]` : value.slice(0, 20).map((item) =>
-      previewValue(item, depth + 1)
-    );
+    return depth >= 2 ? `[${value.length} items]` : value.slice(0, 20).map((item) => previewValue(item, depth + 1));
   }
   if (typeof value === "object") {
     if (depth >= 2) {
@@ -99,11 +85,7 @@ const previewValue = (value: unknown, depth = 0): unknown => {
 };
 
 const shouldPersistTraceEvent = (event: AgentClientCollaborationEvent) =>
-  event.type !== "agent_event" ||
-  (
-    event.event.type !== "text_delta" &&
-    event.event.type !== "thinking_delta"
-  );
+  event.type !== "agent_event" || (event.event.type !== "text_delta" && event.event.type !== "thinking_delta");
 
 const collaborationEventDetail = (event: AgentClientCollaborationEvent) => {
   if (event.type === "workflow_started") {
@@ -153,22 +135,20 @@ const traceEventFromCollaborationEvent = (
     };
   }
 
-  if (
-    event.type === "step_started" ||
-    event.type === "agent_event"
-  ) {
+  if (event.type === "step_started" || event.type === "agent_event") {
     return {
       ...base,
       stepId: event.stepId,
       stepType: event.type === "step_started" ? event.stepType : "agent",
       agentRoleId: event.agentRoleId,
       agentTaskId: event.agentTaskId,
-      payload: event.type === "agent_event"
-        ? {
-          nestedType: event.event.type,
-          nested: previewValue(event.event),
-        }
-        : undefined,
+      payload:
+        event.type === "agent_event"
+          ? {
+              nestedType: event.event.type,
+              nested: previewValue(event.event),
+            }
+          : undefined,
     };
   }
 
@@ -202,21 +182,13 @@ const traceEventFromCollaborationEvent = (
   if (event.type === "workflow_done") {
     return {
       ...base,
-      payload: traceResultFromCollaborationResult(
-        event.result.steps,
-        event.result.skippedSteps,
-        event.result.output,
-      ),
+      payload: traceResultFromCollaborationResult(event.result.steps, event.result.skippedSteps, event.result.output),
     };
   }
 
   return {
     ...base,
-    payload: traceResultFromCollaborationResult(
-      event.steps,
-      event.skippedSteps,
-      event.output,
-    ),
+    payload: traceResultFromCollaborationResult(event.steps, event.skippedSteps, event.output),
   };
 };
 
@@ -241,14 +213,11 @@ const traceResultFromCollaborationResult = (
   output: previewValue(output),
 });
 
-const upsertTraceRunStep = (
-  steps: TavernWorkflowTraceStep[],
-  step: TavernWorkflowTraceStep,
-) => {
+const upsertTraceRunStep = (steps: TavernWorkflowTraceStep[], step: TavernWorkflowTraceStep) => {
   if (!steps.some((item) => item.id === step.id)) {
     return [...steps, step];
   }
-  return steps.map((item) => item.id === step.id ? { ...item, ...step } : item);
+  return steps.map((item) => (item.id === step.id ? { ...item, ...step } : item));
 };
 
 const applyEventToTraceRun = (
@@ -272,24 +241,26 @@ const applyEventToTraceRun = (
   }
 
   if (event.type === "agent_event") {
-    if (
-      event.event.type !== "done" &&
-      event.event.type !== "tool_start" &&
-      event.event.type !== "tool_end"
-    ) {
+    const detail =
+      event.event.type === "done"
+        ? toDetailText(event.event.text, "Agent 已完成。")
+        : event.event.type === "tool_start" || event.event.type === "tool_end"
+          ? `${event.event.type} ${toDetailText(event.event.toolName, "")}`.trim()
+          : "";
+
+    if (!detail) {
       return run;
     }
 
     return {
       ...run,
-      steps: run.steps.map((step) => step.id === event.stepId
-        ? {
-            ...step,
-            detail: event.event.type === "done"
-              ? toDetailText(event.event.text, "Agent 已完成。")
-              : `${event.event.type} ${toDetailText(event.event.toolName, "")}`.trim(),
-          }
-        : step
+      steps: run.steps.map((step) =>
+        step.id === event.stepId
+          ? {
+              ...step,
+              detail,
+            }
+          : step,
       ),
     };
   }
@@ -299,7 +270,8 @@ const applyEventToTraceRun = (
       ...run,
       steps: upsertTraceRunStep(run.steps, {
         id: event.step.stepId,
-        label: run.steps.find((step) => step.id === event.step.stepId)?.label ??
+        label:
+          run.steps.find((step) => step.id === event.step.stepId)?.label ??
           getStepLabel(event.step.stepId, event.step.stepType, event.step.agentRoleId, options),
         status: "done",
         detail: `${event.step.outputKey} · ${event.step.text.slice(0, 120)}`,
@@ -328,11 +300,7 @@ const applyEventToTraceRun = (
     return {
       ...run,
       status: "done",
-      result: traceResultFromCollaborationResult(
-        event.result.steps,
-        event.result.skippedSteps,
-        event.result.output,
-      ),
+      result: traceResultFromCollaborationResult(event.result.steps, event.result.skippedSteps, event.result.output),
     };
   }
 
@@ -340,11 +308,7 @@ const applyEventToTraceRun = (
     return {
       ...run,
       status: "done",
-      result: traceResultFromCollaborationResult(
-        event.steps,
-        event.skippedSteps,
-        event.output,
-      ),
+      result: traceResultFromCollaborationResult(event.steps, event.skippedSteps, event.output),
     };
   }
 
@@ -370,9 +334,7 @@ const persistCollaborationTraceEvent = (
     const traces = current.workflowTracesByInstance[sceneInstanceId] ?? [];
     const existingIndex = traces.findIndex((trace) => trace.workflowRunId === event.workflowRunId);
     const existingRun = existingIndex >= 0 ? traces[existingIndex] : null;
-    const workflowId = event.type === "workflow_started"
-      ? event.workflowId
-      : existingRun?.workflowId ?? "unknown";
+    const workflowId = event.type === "workflow_started" ? event.workflowId : (existingRun?.workflowId ?? "unknown");
     const baseRun: TavernWorkflowTraceRun = existingRun ?? {
       id: event.workflowRunId,
       workflowRunId: event.workflowRunId,
@@ -387,36 +349,34 @@ const persistCollaborationTraceEvent = (
       events: [],
     };
     const traceEvent = traceEventFromCollaborationEvent(event, baseRun.events.length + 1);
-    const nextRun = applyEventToTraceRun({
-      ...baseRun,
-      workflowId,
-      taskId: baseRun.taskId ?? ("taskId" in event ? event.taskId : undefined),
-      scopeLabel: baseRun.scopeLabel ?? options.scopeLabel,
-      updatedAt: now,
-      events: traceEvent
-        ? [...baseRun.events, traceEvent].slice(-TRACE_EVENT_LIMIT)
-        : baseRun.events,
-    }, event, options);
-    const nextTraces = existingIndex >= 0
-      ? traces.map((trace, index) => index === existingIndex ? nextRun : trace)
-      : [...traces, nextRun];
+    const nextRun = applyEventToTraceRun(
+      {
+        ...baseRun,
+        workflowId,
+        taskId: baseRun.taskId ?? ("taskId" in event ? event.taskId : undefined),
+        scopeLabel: baseRun.scopeLabel ?? options.scopeLabel,
+        updatedAt: now,
+        events: traceEvent ? [...baseRun.events, traceEvent].slice(-TRACE_EVENT_LIMIT) : baseRun.events,
+      },
+      event,
+      options,
+    );
+    const nextTraces =
+      existingIndex >= 0
+        ? traces.map((trace, index) => (index === existingIndex ? nextRun : trace))
+        : [...traces, nextRun];
 
     return {
       ...current,
       workflowTracesByInstance: {
         ...current.workflowTracesByInstance,
-        [sceneInstanceId]: nextTraces
-          .sort((left, right) => left.startedAt - right.startedAt)
-          .slice(-TRACE_RUN_LIMIT),
+        [sceneInstanceId]: nextTraces.sort((left, right) => left.startedAt - right.startedAt).slice(-TRACE_RUN_LIMIT),
       },
     };
   });
 };
 
-const upsertTraceStep = (
-  ctx: TavernPageContextValue,
-  step: ExecutionStep,
-) => {
+const upsertTraceStep = (ctx: TavernPageContextValue, step: ExecutionStep) => {
   ctx.upsertExecutionStep(step);
 };
 

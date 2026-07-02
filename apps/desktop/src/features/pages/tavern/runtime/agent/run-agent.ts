@@ -5,14 +5,8 @@ import {
   snapshotAgentClientOutput,
 } from "@/agent-client/output";
 import { createAgentClient } from "@/agent-client/runtime";
-import type {
-  AgentClientAgentEvent,
-  AgentClientSession,
-} from "@/agent-client/contracts";
+import type { AgentClientAgentEvent, RuntimeSessionRecordRef, RuntimeModelInput } from "@/agent-client/types";
 import { readLedger } from "@/features/ai/components/conversation-ledger/api";
-import type {
-  RuntimeModelInput,
-} from "@/agent-client/protocol";
 
 const tavernAgentClient = createAgentClient();
 
@@ -35,21 +29,18 @@ export type RunTavernRuntimeAgentInput = {
 export type TavernRuntimeAgentOutput = {
   text: string;
   thinking?: string | null;
-  agentSession?: AgentClientSession | null;
+  agentSession?: RuntimeSessionRecordRef | null;
   taskId: string;
 };
 
-const isOutputEvent = (
-  event: AgentClientAgentEvent,
-) => event.type === "text_delta" ||
+const isOutputEvent = (event: AgentClientAgentEvent) =>
+  event.type === "text_delta" ||
   event.type === "thinking_delta" ||
   event.type === "thinking_end" ||
   event.type === "replace_text" ||
   event.type === "done";
 
-const resolveTavernRunSystemPrompt = async (
-  input: RunTavernRuntimeAgentInput,
-) => {
+const resolveTavernRunSystemPrompt = async (input: RunTavernRuntimeAgentInput) => {
   const currentSystemPrompt = input.systemPrompt?.trim();
   const sessionRootDir = input.sessionRootDir?.trim();
   if (!currentSystemPrompt || !sessionRootDir) {
@@ -61,8 +52,8 @@ const resolveTavernRunSystemPrompt = async (
       workspacePath: input.workspacePath,
       sessionRootDir,
     });
-    const hasCachedSystemPrompt = ledger?.messages.some((message) =>
-      message.role === "system" && message.content.trim()
+    const hasCachedSystemPrompt = ledger?.messages.some(
+      (message) => message.role === "system" && message.content.trim(),
     );
     return hasCachedSystemPrompt ? null : input.systemPrompt;
   } catch {
@@ -70,9 +61,7 @@ const resolveTavernRunSystemPrompt = async (
   }
 };
 
-export async function runTavernRuntimeAgent(
-  input: RunTavernRuntimeAgentInput,
-): Promise<TavernRuntimeAgentOutput> {
+export async function runTavernRuntimeAgent(input: RunTavernRuntimeAgentInput): Promise<TavernRuntimeAgentOutput> {
   const output = createAgentClientOutputState();
   let taskId = "";
   let unlisten: (() => void) | undefined;
@@ -96,7 +85,7 @@ export async function runTavernRuntimeAgent(
 
     try {
       const systemPrompt = await resolveTavernRunSystemPrompt(input);
-      unlisten = await tavernAgentClient.subscribe((event) => {
+      unlisten = await tavernAgentClient.events.subscribe((event) => {
         if (!taskId || ("taskId" in event && event.taskId !== taskId)) {
           return;
         }
@@ -108,13 +97,11 @@ export async function runTavernRuntimeAgent(
 
         if (
           event.type === "state" &&
-          (
-            event.taskState === "failed" ||
+          (event.taskState === "failed" ||
             event.taskState === "error" ||
             event.taskState === "cancelled" ||
             event.workerState === "failed" ||
-            event.workerState === "error"
-          )
+            event.workerState === "error")
         ) {
           rejectOnce(new Error(`Agent 任务失败：${event.taskState}/${event.workerState}`));
           return;
@@ -135,14 +122,13 @@ export async function runTavernRuntimeAgent(
         if (event.type === "done") {
           resolveOnce({
             ...snapshotAgentClientOutput(output),
-            agentSession: event.agentSession ?? null,
+            agentSession: event.runtimeSession ?? null,
             taskId,
           });
         }
       });
 
-      const task = await tavernAgentClient.run({
-        type: "agent",
+      const task = await tavernAgentClient.agent.run({
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
         agentRoleId: input.agentRoleId,

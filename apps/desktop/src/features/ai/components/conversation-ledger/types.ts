@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 
 export type LedgerMessage = {
   messageRecordId: string;

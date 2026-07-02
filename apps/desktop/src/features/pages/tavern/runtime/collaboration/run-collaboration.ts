@@ -1,31 +1,23 @@
-import {
-  createAgentClient,
-} from "@/agent-client/runtime";
+import { createAgentClient } from "@/agent-client/runtime";
 import type {
   AgentClientAgentEvent,
   AgentClientCollaborationEvent,
   AgentClientCollaborationResult,
-} from "@/agent-client/contracts";
-import type {
-  TavernCollaborationInput,
-} from "./types";
+} from "@/agent-client/types";
+import type { TavernCollaborationInput } from "./types";
 
 const tavernCollaborationClient = createAgentClient();
 
 export type RunTavernCollaborationInput = TavernCollaborationInput & {
   onEvent?: (event: AgentClientCollaborationEvent) => void;
-  onAgentEvent?: (
-    event: Extract<AgentClientCollaborationEvent, { type: "agent_event" }>,
-  ) => void;
+  onAgentEvent?: (event: Extract<AgentClientCollaborationEvent, { type: "agent_event" }>) => void;
 };
 
 export type TavernCollaborationOutput = AgentClientCollaborationResult & {
   taskId: string;
 };
 
-const isCollaborationEvent = (
-  event: AgentClientAgentEvent,
-): event is AgentClientCollaborationEvent =>
+const isCollaborationEvent = (event: AgentClientAgentEvent): event is AgentClientCollaborationEvent =>
   event.type === "workflow_started" ||
   event.type === "step_started" ||
   event.type === "agent_event" ||
@@ -36,16 +28,12 @@ const isCollaborationEvent = (
 
 const isFailureState = (event: AgentClientAgentEvent) =>
   event.type === "error" ||
-  (
-    event.type === "state" &&
-    (
-      event.taskState === "failed" ||
+  (event.type === "state" &&
+    (event.taskState === "failed" ||
       event.taskState === "error" ||
       event.taskState === "cancelled" ||
       event.workerState === "failed" ||
-      event.workerState === "error"
-    )
-  ) ||
+      event.workerState === "error")) ||
   (event.type === "exit" && !event.success);
 
 const errorMessageFromEvent = (event: AgentClientAgentEvent) => {
@@ -87,7 +75,7 @@ export const runTavernCollaboration = async ({
     };
 
     try {
-      unlisten = await tavernCollaborationClient.subscribe((event) => {
+      unlisten = await tavernCollaborationClient.events.subscribe((event) => {
         if (!taskId || ("taskId" in event && event.taskId !== taskId)) {
           return;
         }
@@ -124,9 +112,10 @@ export const runTavernCollaboration = async ({
         }
       });
 
-      const task = input.type === "collaborationMode"
-        ? await tavernCollaborationClient.run(input)
-        : await tavernCollaborationClient.run(input);
+      const task =
+        "mode" in input
+          ? await tavernCollaborationClient.collaboration.runMode(input)
+          : await tavernCollaborationClient.collaboration.run(input);
       taskId = task.taskId;
     } catch (error) {
       rejectOnce(error);

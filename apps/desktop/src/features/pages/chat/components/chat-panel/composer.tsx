@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   type AgentToolSummary,
-} from "@/agent-client/protocol";
+} from "@/agent-client/types";
 import {
   getActiveReferenceToken,
   quoteReferencePath,

@@ -1,4 +1,4 @@
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 
 export type SceneNovelizerPlatformStyleId = "fanqie" | "qidian";
 

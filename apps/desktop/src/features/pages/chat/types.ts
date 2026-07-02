@@ -1,10 +1,5 @@
-import type {
-  AgentClientAgentEvent,
-  AgentClientAgentQuestionInput,
-} from "@/agent-client/contracts";
-import type {
-  FileReferenceMatch as ContextFileReferenceMatch,
-} from "@/features/ai/components/context-tools";
+import type { AgentClientAgentEvent, AskUserInput } from "@/agent-client/types";
+import type { FileReferenceMatch as ContextFileReferenceMatch } from "@/features/ai/components/context-tools";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 
 export type FileReferenceMatch = ContextFileReferenceMatch<WorkspaceFileEntry>;
@@ -14,7 +9,7 @@ export type PendingAgentQuestion = {
   questionId: string;
   question: string;
   context?: string | null;
-  input?: AgentClientAgentQuestionInput;
+  input?: AskUserInput;
 };
 
 export type ComposerSubmitInput = {
@@ -26,24 +21,24 @@ export type ComposerSubmitInput = {
 
 export type AgentMessageBlock =
   | {
-    id: string;
-    type: "thinking";
-    content: string;
-    isCollapsed?: boolean;
-  }
+      id: string;
+      type: "thinking";
+      content: string;
+      isCollapsed?: boolean;
+    }
   | {
-    id: string;
-    type: "text";
-    content: string;
-  }
+      id: string;
+      type: "text";
+      content: string;
+    }
   | {
-    id: string;
-    type: "tool";
-    toolName: string;
-    status: "running" | "done" | "error";
-    events: AgentClientAgentEvent[];
-    isCollapsed?: boolean;
-  };
+      id: string;
+      type: "tool";
+      toolName: string;
+      status: "running" | "done" | "error";
+      events: AgentClientAgentEvent[];
+      isCollapsed?: boolean;
+    };
 
 export type ChatMessage = {
   id: string;

@@ -1,15 +1,4 @@
-import type { AgentClientSession } from "./session";
-
-export type AgentClientAgentQuestionInput = {
-  type: "text" | "select";
-  label?: string;
-  options?: Array<{
-    value: string;
-    label: string;
-    description?: string;
-  }>;
-  selected?: string;
-};
+import type { AskUserInput, CollaborationRunResult, RuntimeSessionRecordRef } from "@agent-runtime/engines/protocol";
 
 export type AgentClientTextDeltaEvent = {
   type: "text_delta";
@@ -21,9 +10,7 @@ export type AgentClientThinkingDeltaEvent = {
   delta: string;
 };
 
-export type AgentClientDeltaEvent =
-  | AgentClientTextDeltaEvent
-  | AgentClientThinkingDeltaEvent;
+export type AgentClientDeltaEvent = AgentClientTextDeltaEvent | AgentClientThinkingDeltaEvent;
 
 export type AgentClientReplaceTextEvent = {
   type: "replace_text";
@@ -38,123 +25,112 @@ export type AgentClientThinkingEndEvent = {
 export type AgentClientDoneEvent = {
   type: "done";
   text: string;
-  agentSession?: AgentClientSession | null;
+  runtimeSession?: RuntimeSessionRecordRef | null;
 };
 
 export type AgentClientOutputEvent =
-  | AgentClientDeltaEvent
-  | AgentClientReplaceTextEvent
-  | AgentClientThinkingEndEvent
-  | AgentClientDoneEvent;
+  AgentClientDeltaEvent | AgentClientReplaceTextEvent | AgentClientThinkingEndEvent | AgentClientDoneEvent;
 
-export type AgentClientCollaborationStepResult = {
-  stepId: string;
-  stepType: "agent" | "dispatch" | "transform" | "condition" | "router";
-  outputKey: string;
-  output: unknown;
-  text: string;
-  agentRoleId?: string;
-  agentTaskId?: string;
-  route?: string | null;
-};
+export type AgentClientCollaborationStepResult = CollaborationRunResult["steps"][number];
 
-export type AgentClientCollaborationSkippedStepResult = {
-  stepId: string;
-  reason: string;
-  condition?: unknown;
-};
+export type AgentClientCollaborationSkippedStepResult = NonNullable<CollaborationRunResult["skippedSteps"]>[number];
 
-export type AgentClientCollaborationResult = {
-  workflowRunId: string;
+export type AgentClientCollaborationResult = CollaborationRunResult & {
   mode?: string | null;
-  steps: AgentClientCollaborationStepResult[];
-  skippedSteps?: AgentClientCollaborationSkippedStepResult[];
-  output?: unknown;
 };
 
 export type AgentClientCollaborationEvent =
   | {
-    type: "workflow_started";
-    taskId: string;
-    workflowRunId: string;
-    workflowId: string;
-  }
+      type: "workflow_started";
+      taskId: string;
+      workflowRunId: string;
+      workflowId: string;
+    }
   | {
-    type: "step_started";
-    taskId: string;
-    workflowRunId: string;
-    stepId: string;
-    stepType: "agent" | "dispatch" | "transform" | "condition" | "router";
-    agentRoleId?: string;
-    agentTaskId?: string;
-  }
+      type: "step_started";
+      taskId: string;
+      workflowRunId: string;
+      stepId: string;
+      stepType: AgentClientCollaborationStepResult["stepType"];
+      agentRoleId?: string;
+      agentTaskId?: string;
+    }
   | {
-    type: "agent_event";
-    taskId: string;
-    workflowRunId: string;
-    stepId: string;
-    agentRoleId: string;
-    agentTaskId: string;
-    event: { type: string; [key: string]: unknown };
-  }
+      type: "agent_event";
+      taskId: string;
+      workflowRunId: string;
+      stepId: string;
+      agentRoleId: string;
+      agentTaskId: string;
+      event: AgentClientRuntimeAgentEvent;
+    }
   | {
-    type: "step_done";
-    taskId: string;
-    workflowRunId: string;
-    step: AgentClientCollaborationStepResult;
-  }
+      type: "step_done";
+      taskId: string;
+      workflowRunId: string;
+      step: AgentClientCollaborationStepResult;
+    }
   | {
-    type: "step_skipped";
-    taskId: string;
-    workflowRunId: string;
-    step: AgentClientCollaborationSkippedStepResult;
-  }
+      type: "step_skipped";
+      taskId: string;
+      workflowRunId: string;
+      step: AgentClientCollaborationSkippedStepResult;
+    }
   | {
-    type: "workflow_done";
-    taskId: string;
-    workflowRunId: string;
-    result: AgentClientCollaborationResult;
-  }
+      type: "workflow_done";
+      taskId: string;
+      workflowRunId: string;
+      result: AgentClientCollaborationResult;
+    }
   | {
-    type: "collaboration_result";
-    taskId: string;
-    requestId?: string | null;
-    workflowRunId: string;
-    mode?: string | null;
-    steps: AgentClientCollaborationStepResult[];
-    skippedSteps?: AgentClientCollaborationSkippedStepResult[];
-    output?: unknown;
-  };
+      type: "collaboration_result";
+      taskId: string;
+      requestId?: string | null;
+      workflowRunId: string;
+      mode?: string | null;
+      steps: AgentClientCollaborationStepResult[];
+      skippedSteps?: AgentClientCollaborationSkippedStepResult[];
+      output?: unknown;
+    };
 
-export type AgentClientAgentEvent =
+export type AgentClientTransportEvent =
   | {
-    type: "state";
-    taskId: string;
-    taskState: string;
-    workerState: string;
-    workerId?: string;
-    sessionKey?: string;
-    queueDepth?: number;
-  }
+      type: "state";
+      taskId: string;
+      taskState: string;
+      workerState: string;
+      workerId?: string;
+      sessionKey?: string;
+      queueDepth?: number;
+    }
+  | { type: "stderr"; taskId: string; message: string }
+  | { type: "exit"; taskId: string; success: boolean; code: number | null };
+
+export type AgentClientRuntimeAgentEvent =
   | { type: "started"; taskId: string }
   | {
-    type: "question";
-    taskId: string;
-    questionId: string;
-    question: string;
-    context?: string | null;
-    input?: AgentClientAgentQuestionInput;
-  }
+      type: "question";
+      taskId: string;
+      questionId: string;
+      question: string;
+      context?: string | null;
+      input?: AskUserInput;
+    }
   | { type: "question_answered"; taskId: string; questionId: string; answer: string }
   | (AgentClientOutputEvent & { taskId: string })
   | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
   | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
   | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
-  | AgentClientCollaborationEvent
-  | { type: "stderr"; taskId: string; message: string }
-  | { type: "exit"; taskId: string; success: boolean; code: number | null }
   | { type: "error"; taskId?: string; message: string; raw?: string };
+
+export type AgentClientAgentEvent =
+  AgentClientRuntimeAgentEvent | AgentClientCollaborationEvent | AgentClientTransportEvent;
 
 export type AgentClientChatEvent = AgentClientDeltaEvent & {
   streamId: string;
+};
+
+export type AgentClientChatOutputHandlers = {
+  onTextDelta?: (delta: string) => void;
+  onThinkingDelta?: (delta: string) => void;
 };

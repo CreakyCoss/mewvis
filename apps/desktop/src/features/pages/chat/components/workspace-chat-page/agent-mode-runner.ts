@@ -1,5 +1,5 @@
 import type { MutableRefObject } from "react";
-import type { AgentClient } from "@/agent-client/runtime";
+import type { AgentClient } from "@/agent-client/types";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -8,14 +8,9 @@ import type { ChatMessage } from "../../types";
 import type { WorkspacePromptSkillContext } from "./prompt-context";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 
-type UpdateMessage = (
-  messageId: string,
-  updater: (message: ChatMessage) => ChatMessage,
-) => void;
+type UpdateMessage = (messageId: string, updater: (message: ChatMessage) => ChatMessage) => void;
 
-type PrepareActiveAgentRun = (input: {
-  messageId: string;
-}) => void;
+type PrepareActiveAgentRun = (input: { messageId: string }) => void;
 
 type RunAgentTurnInput = {
   nextSessionId: string | null;
@@ -47,12 +42,7 @@ type RunAgentTurnDeps = {
 };
 
 export const runAgentTurn = async (
-  {
-    nextSessionId,
-    assistantMessageId,
-    nextMessages,
-    agentPromptPayload,
-  }: RunAgentTurnInput,
+  { nextSessionId, assistantMessageId, nextMessages, agentPromptPayload }: RunAgentTurnInput,
   {
     workspace,
     activeSkills,
@@ -68,9 +58,7 @@ export const runAgentTurn = async (
     currentSessionTitle,
   }: RunAgentTurnDeps,
 ) => {
-  const runtimeModelInput = effectiveRuntimeModel
-    ? requireRuntimeModelInput(effectiveRuntimeModel)
-    : null;
+  const runtimeModelInput = effectiveRuntimeModel ? requireRuntimeModelInput(effectiveRuntimeModel) : null;
   if (!nextSessionId) {
     setChatError("无法创建 Agent 长期上下文，请重试");
     return;
@@ -81,8 +69,7 @@ export const runAgentTurn = async (
     messageId: assistantMessageId,
   });
   const allowedToolsForRun = [...new Set(allowedAgentTools)];
-  const task = await agentClient.run({
-    type: "agent",
+  const task = await agentClient.agent.run({
     workspacePath: workspace.path,
     sessionRootDir: createAgentSessionRootDir(nextSessionId),
     agentRoleId,

@@ -2,63 +2,32 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Folder, PanelRight } from "lucide-react";
 import { toast } from "sonner";
-import type {
-  AgentToolSummary,
-} from "@/agent-client/protocol";
+import type { AgentToolSummary } from "@/agent-client/types";
 import { createAgentClient } from "@/agent-client/runtime";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
 import type { WorkspaceFile, WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import {
-  ALL_SKILLS_GROUP_ID,
-  NO_SKILLS_GROUP_ID,
-} from "@/features/pages/skills/constants";
+import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills/constants";
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
 import { submitStoryManuscript } from "@/features/story/storage";
 import { saveChatSession } from "../../api";
-import type {
-  ChatMessage,
-  ComposerSubmitInput,
-  PendingAgentQuestion,
-} from "../../types";
+import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";
-import {
-  keepHistoryThroughMessage,
-  moveHistoryItem,
-  removeHistoryMessageSegment,
-} from "./history";
-import {
-  type ChatTurnDraft,
-  createChatTurnDraft,
-  validateComposerSubmit,
-} from "./chat-turn";
-import {
-  createChatSessionId,
-  createMessageId,
-  DEFAULT_SESSION_TITLE,
-  deriveSessionTitle,
-} from "../../utils/sessions";
+import { keepHistoryThroughMessage, moveHistoryItem, removeHistoryMessageSegment } from "./history";
+import { type ChatTurnDraft, createChatTurnDraft, validateComposerSubmit } from "./chat-turn";
+import { createChatSessionId, createMessageId, DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
 import { ChatLayout } from "../../layout";
-import {
-  runAgentTurn,
-} from "./agent-mode-runner";
+import { runAgentTurn } from "./agent-mode-runner";
 import { prepareAgentTurnRuntime } from "./agent-turn-runtime";
 import { ChatPanel } from "../chat-panel";
 import { useChatPanelStoreBridge } from "../chat-panel/store";
 import { useAgentClientEvents } from "./use-agent-client-events";
 import { useModelSettings } from "./use-model-settings";
-import {
-  type RunningAgentTaskContext,
-  useRunningAgentTasks,
-} from "./use-running-agent-tasks";
+import { type RunningAgentTaskContext, useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
-import {
-  loadStoryChatSeed,
-  type StoryChatSeed,
-  type StoryChatSeedRequest,
-} from "./story-seed";
+import { loadStoryChatSeed, type StoryChatSeed, type StoryChatSeedRequest } from "./story-seed";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -80,8 +49,8 @@ const contextPanelToggleButtonClass =
 const workspaceAgentInteractionInstructions = [
   "交互规则：",
   "- 当继续执行前缺少必要信息、需要用户选择方向、需要确认方案，或存在多个合理选项时，必须调用 ask_user 工具询问用户，不要只在正文里提问。",
-  "- 如果问题是开放式回答，调用 ask_user 时使用 input.type = \"text\"。",
-  "- 如果问题有明确候选项，调用 ask_user 时使用 input.type = \"select\"，并提供至少两个 options；可以加入 { value: \"other\", label: \"请输入\" } 让用户自定义。",
+  '- 如果问题是开放式回答，调用 ask_user 时使用 input.type = "text"。',
+  '- 如果问题有明确候选项，调用 ask_user 时使用 input.type = "select"，并提供至少两个 options；可以加入 { value: "other", label: "请输入" } 让用户自定义。',
   "- 调用 ask_user 后，等待用户回答，再基于回答继续原任务。",
 ].join("\n");
 
@@ -96,19 +65,12 @@ type WorkspaceChatPageProps = {
   storySeedRequest?: StoryChatSeedRequest | null;
 };
 
-const resolveStringStateAction = (
-  action: SetStateAction<string>,
-  previous: string,
-) => typeof action === "function" ? action(previous) : action;
+const resolveStringStateAction = (action: SetStateAction<string>, previous: string) =>
+  typeof action === "function" ? action(previous) : action;
 
-const specialSkillGroupIds = new Set([
-  ALL_SKILLS_GROUP_ID,
-  NO_SKILLS_GROUP_ID,
-]);
+const specialSkillGroupIds = new Set([ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID]);
 
-const defaultSkillGroupSelection = (defaultSkillGroupId: string) => [
-  defaultSkillGroupId || ALL_SKILLS_GROUP_ID,
-];
+const defaultSkillGroupSelection = (defaultSkillGroupId: string) => [defaultSkillGroupId || ALL_SKILLS_GROUP_ID];
 
 const uniqueSkillGroupIds = (ids: string[]) => [...new Set(ids.filter(Boolean))];
 
@@ -123,19 +85,12 @@ const normalizeSkillGroupSelection = (ids: string[]) => {
   return uniqueIds.length > 0 ? uniqueIds : [NO_SKILLS_GROUP_ID];
 };
 
-const toggleSkillGroupSelection = (
-  current: string[],
-  skillGroupId: string,
-  checked: boolean,
-) => {
+const toggleSkillGroupSelection = (current: string[], skillGroupId: string, checked: boolean) => {
   if (checked) {
     if (specialSkillGroupIds.has(skillGroupId)) {
       return [skillGroupId];
     }
-    return normalizeSkillGroupSelection([
-      ...current.filter((id) => !specialSkillGroupIds.has(id)),
-      skillGroupId,
-    ]);
+    return normalizeSkillGroupSelection([...current.filter((id) => !specialSkillGroupIds.has(id)), skillGroupId]);
   }
 
   const next = current.filter((id) => id !== skillGroupId);
@@ -144,26 +99,20 @@ const toggleSkillGroupSelection = (
 
 const getMessageTextForStorySubmission = (message: ChatMessage) => {
   const blockText = message.agentBlocks
-    ?.flatMap((block) => block.type === "text" ? [block.content] : [])
+    ?.flatMap((block) => (block.type === "text" ? [block.content] : []))
     .join("\n\n")
     .trim();
 
   return message.text.trim() || blockText || "";
 };
 
-const createStorySubmissionTitle = (
-  message: ChatMessage,
-  fallbackTitle: string,
-) => {
+const createStorySubmissionTitle = (message: ChatMessage, fallbackTitle: string) => {
   const text = getMessageTextForStorySubmission(message).replace(/\s+/g, " ").trim();
   const prefix = message.role === "user" ? "用户稿件" : "助手稿件";
   return text ? `${prefix}：${text.slice(0, 28)}` : fallbackTitle;
 };
 
-type CommitChatTurnDraftInput = Pick<
-  ChatTurnDraft,
-  "userUiMessage"
-> & {
+type CommitChatTurnDraftInput = Pick<ChatTurnDraft, "userUiMessage"> & {
   assistantUiMessage?: ChatMessage | null;
   nextSessionId: string | null;
 };
@@ -206,13 +155,10 @@ export const WorkspaceChatPage = ({
   const [chatError, setChatError] = useState("");
   const [agentTools, setAgentTools] = useState<AgentToolSummary[]>([]);
   const [allowedAgentTools, setAllowedAgentTools] = useState<string[]>([]);
-  const [selectedSkillGroupIds, setSelectedSkillGroupIds] = useState<string[]>([
-    ALL_SKILLS_GROUP_ID,
-  ]);
+  const [selectedSkillGroupIds, setSelectedSkillGroupIds] = useState<string[]>([ALL_SKILLS_GROUP_ID]);
   const skillGroupSelectionTouchedRef = useRef(false);
   const skillGroupWorkspaceRef = useRef(workspace.id);
-  const [contextPanelTool, setContextPanelTool] =
-    useState<ContextPanelTool>("files");
+  const [contextPanelTool, setContextPanelTool] = useState<ContextPanelTool>("files");
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [activeAgentTaskId, setActiveAgentTaskId] = useState("");
@@ -249,45 +195,39 @@ export const WorkspaceChatPage = ({
   } = useModelSettings({
     agentClient,
   });
-  const {
-    skills,
-    skillGroups,
-    skillsError,
-    defaultSkillGroupId,
-  } = useWorkspaceSkills({
+  const { skills, skillGroups, skillsError, defaultSkillGroupId } = useWorkspaceSkills({
     workspaceId: workspace.id,
   });
   useEffect(() => {
     let cancelled = false;
-    agentClient.listAgentTools().then((result) => {
-      if (cancelled) return;
+    agentClient.capabilities
+      .listAgentTools()
+      .then((result) => {
+        if (cancelled) return;
 
-      const availableToolNames = new Set(result.tools.map((tool) => tool.name));
-      setAgentTools([...result.tools]);
-      setAllowedAgentTools((current) => {
-        const next = current.filter((toolName) => availableToolNames.has(toolName));
-        if (next.length > 0) {
-          return [...new Set(next)];
+        const availableToolNames = new Set(result.tools.map((tool) => tool.name));
+        setAgentTools([...result.tools]);
+        setAllowedAgentTools((current) => {
+          const next = current.filter((toolName) => availableToolNames.has(toolName));
+          if (next.length > 0) {
+            return [...new Set(next)];
+          }
+          return result.defaultToolNames.filter((toolName) => availableToolNames.has(toolName));
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load agent runtime tools", error);
+          setAgentTools([]);
+          setAllowedAgentTools([]);
         }
-        return result.defaultToolNames.filter((toolName) =>
-          availableToolNames.has(toolName));
       });
-    }).catch((error) => {
-      if (!cancelled) {
-        console.error("Failed to load agent runtime tools", error);
-        setAgentTools([]);
-        setAllowedAgentTools([]);
-      }
-    });
 
     return () => {
       cancelled = true;
     };
   }, [agentClient]);
-  const availableSkillGroupIds = useMemo(
-    () => new Set(skillGroups.map((group) => group.id)),
-    [skillGroups],
-  );
+  const availableSkillGroupIds = useMemo(() => new Set(skillGroups.map((group) => group.id)), [skillGroups]);
   const resolvedDefaultSkillGroupIds = useMemo(() => {
     const defaultSelection = defaultSkillGroupSelection(defaultSkillGroupId);
     const [defaultId] = defaultSelection;
@@ -296,9 +236,10 @@ export const WorkspaceChatPage = ({
       : [ALL_SKILLS_GROUP_ID];
   }, [availableSkillGroupIds, defaultSkillGroupId]);
   const selectedSkillGroups = useMemo(
-    () => selectedSkillGroupIds
-      .map((id) => skillGroups.find((group) => group.id === id) ?? null)
-      .filter((group) => group !== null),
+    () =>
+      selectedSkillGroupIds
+        .map((id) => skillGroups.find((group) => group.id === id) ?? null)
+        .filter((group) => group !== null),
     [selectedSkillGroupIds, skillGroups],
   );
   const selectedSkillGroupLabel = useMemo(() => {
@@ -345,17 +286,18 @@ export const WorkspaceChatPage = ({
     };
   }, [storySeedRequest?.nodeId, storySeedRequest?.storyId, workspace]);
   const storyRuntimeContextSections = useMemo(
-    () => storyChatSeed ? [storyChatSeed.runtimeInstruction] : [],
+    () => (storyChatSeed ? [storyChatSeed.runtimeInstruction] : []),
     [storyChatSeed],
   );
   const newSessionSeed = useMemo(
-    () => storyChatSeed
-      ? {
-          id: null,
-          title: storyChatSeed.title,
-          messages: storyChatSeed.messages,
-        }
-      : null,
+    () =>
+      storyChatSeed
+        ? {
+            id: null,
+            title: storyChatSeed.title,
+            messages: storyChatSeed.messages,
+          }
+        : null,
     [storyChatSeed],
   );
   const activeSkills = useMemo(() => {
@@ -367,9 +309,7 @@ export const WorkspaceChatPage = ({
     }
     const skillKeys = new Set(
       selectedSkillGroups.flatMap((group) =>
-        group.skills
-          .filter((skill) => skill.disabled !== true)
-          .map((skill) => skill.key),
+        group.skills.filter((skill) => skill.disabled !== true).map((skill) => skill.key),
       ),
     );
     return skills.filter((skill) => skillKeys.has(skill.key));
@@ -384,8 +324,8 @@ export const WorkspaceChatPage = ({
     }
   }, [resolvedDefaultSkillGroupIds, workspace.id]);
   useEffect(() => {
-    const validSkillGroupIds = selectedSkillGroupIds.filter((id) =>
-      specialSkillGroupIds.has(id) || availableSkillGroupIds.has(id)
+    const validSkillGroupIds = selectedSkillGroupIds.filter(
+      (id) => specialSkillGroupIds.has(id) || availableSkillGroupIds.has(id),
     );
     if (validSkillGroupIds.length === selectedSkillGroupIds.length) {
       return;
@@ -398,11 +338,7 @@ export const WorkspaceChatPage = ({
     }
 
     setSelectedSkillGroupIds(normalizeSkillGroupSelection(validSkillGroupIds));
-  }, [
-    availableSkillGroupIds,
-    resolvedDefaultSkillGroupIds,
-    selectedSkillGroupIds,
-  ]);
+  }, [availableSkillGroupIds, resolvedDefaultSkillGroupIds, selectedSkillGroupIds]);
   const refreshWorkspaceFiles = useCallback(async () => {
     try {
       const nextFiles = await listWorkspaceFiles(workspace.path);
@@ -423,74 +359,73 @@ export const WorkspaceChatPage = ({
     fileManageRef.current?.refresh();
   }, [refreshWorkspaceFiles]);
 
-  const {
-    runningAgentTasksRef,
-    visibleActiveAgentTaskId,
-    addRunningAgentTask,
-    removeRunningAgentTask,
-  } = useRunningAgentTasks({
-    workspacePath: workspace.path,
-    currentSessionId,
-    activeAgentTaskId,
-  });
+  const { runningAgentTasksRef, visibleActiveAgentTaskId, addRunningAgentTask, removeRunningAgentTask } =
+    useRunningAgentTasks({
+      workspacePath: workspace.path,
+      currentSessionId,
+      activeAgentTaskId,
+    });
 
   const closeContextPanels = useCallback(() => {
     setIsContextPanelOpen(false);
   }, []);
 
-  const updateMessage = useCallback((
-    messageId: string,
-    updater: (message: ChatMessage) => ChatMessage,
-  ) => {
+  const updateMessage = useCallback((messageId: string, updater: (message: ChatMessage) => ChatMessage) => {
     setMessages((current) => {
-      const next = current.map((message) => message.id === messageId ? updater(message) : message);
+      const next = current.map((message) => (message.id === messageId ? updater(message) : message));
       messagesRef.current = next;
       return next;
     });
   }, []);
 
-  const applyAgentQuestionDraft = useCallback((
-    question: PendingAgentQuestion | null,
-    answer = "",
-    customAnswer = "",
-  ) => {
-    pendingAgentQuestionRef.current = question;
-    agentQuestionAnswerRef.current = answer;
-    customAgentQuestionAnswerRef.current = customAnswer;
-    setPendingAgentQuestion(question);
-    setAgentQuestionAnswer(answer);
-    setCustomAgentQuestionAnswer(customAnswer);
-  }, []);
+  const applyAgentQuestionDraft = useCallback(
+    (question: PendingAgentQuestion | null, answer = "", customAnswer = "") => {
+      pendingAgentQuestionRef.current = question;
+      agentQuestionAnswerRef.current = answer;
+      customAgentQuestionAnswerRef.current = customAnswer;
+      setPendingAgentQuestion(question);
+      setAgentQuestionAnswer(answer);
+      setCustomAgentQuestionAnswer(customAnswer);
+    },
+    [],
+  );
 
-  const updateCurrentAgentQuestionTaskDraft = useCallback((
-    patch: Partial<Pick<RunningAgentTaskContext, "questionAnswer" | "customQuestionAnswer">>,
-  ) => {
-    const question = pendingAgentQuestionRef.current;
-    if (!question) {
-      return;
-    }
+  const updateCurrentAgentQuestionTaskDraft = useCallback(
+    (patch: Partial<Pick<RunningAgentTaskContext, "questionAnswer" | "customQuestionAnswer">>) => {
+      const question = pendingAgentQuestionRef.current;
+      if (!question) {
+        return;
+      }
 
-    const task = runningAgentTasksRef.current.get(question.taskId);
-    if (task?.pendingQuestion?.questionId !== question.questionId) {
-      return;
-    }
+      const task = runningAgentTasksRef.current.get(question.taskId);
+      if (task?.pendingQuestion?.questionId !== question.questionId) {
+        return;
+      }
 
-    Object.assign(task, patch);
-  }, []);
+      Object.assign(task, patch);
+    },
+    [],
+  );
 
-  const setAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>((action) => {
-    const nextAnswer = resolveStringStateAction(action, agentQuestionAnswerRef.current);
-    agentQuestionAnswerRef.current = nextAnswer;
-    setAgentQuestionAnswer(nextAnswer);
-    updateCurrentAgentQuestionTaskDraft({ questionAnswer: nextAnswer });
-  }, [updateCurrentAgentQuestionTaskDraft]);
+  const setAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>(
+    (action) => {
+      const nextAnswer = resolveStringStateAction(action, agentQuestionAnswerRef.current);
+      agentQuestionAnswerRef.current = nextAnswer;
+      setAgentQuestionAnswer(nextAnswer);
+      updateCurrentAgentQuestionTaskDraft({ questionAnswer: nextAnswer });
+    },
+    [updateCurrentAgentQuestionTaskDraft],
+  );
 
-  const setCustomAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>((action) => {
-    const nextAnswer = resolveStringStateAction(action, customAgentQuestionAnswerRef.current);
-    customAgentQuestionAnswerRef.current = nextAnswer;
-    setCustomAgentQuestionAnswer(nextAnswer);
-    updateCurrentAgentQuestionTaskDraft({ customQuestionAnswer: nextAnswer });
-  }, [updateCurrentAgentQuestionTaskDraft]);
+  const setCustomAgentQuestionAnswerDraft = useCallback<Dispatch<SetStateAction<string>>>(
+    (action) => {
+      const nextAnswer = resolveStringStateAction(action, customAgentQuestionAnswerRef.current);
+      customAgentQuestionAnswerRef.current = nextAnswer;
+      setCustomAgentQuestionAnswer(nextAnswer);
+      updateCurrentAgentQuestionTaskDraft({ customQuestionAnswer: nextAnswer });
+    },
+    [updateCurrentAgentQuestionTaskDraft],
+  );
 
   const clearAgentQuestionDraft = useCallback(() => {
     applyAgentQuestionDraft(null);
@@ -501,77 +436,70 @@ export const WorkspaceChatPage = ({
     setActiveAgentTaskId(taskId);
   }, []);
 
-  const resetActiveAgentTaskState = useCallback((
-    options: {
-      clearQuestion?: boolean;
-      clearTerminalState?: boolean;
-    } = {},
-  ) => {
-    const {
-      clearQuestion = true,
-      clearTerminalState = false,
-    } = options;
+  const resetActiveAgentTaskState = useCallback(
+    (
+      options: {
+        clearQuestion?: boolean;
+        clearTerminalState?: boolean;
+      } = {},
+    ) => {
+      const { clearQuestion = true, clearTerminalState = false } = options;
 
-    activeAgentTaskIdRef.current = "";
-    activeAgentMessageIdRef.current = "";
-    if (clearTerminalState) {
-      lastAgentErrorRef.current = "";
-      lastAgentStderrRef.current = "";
-    }
-    if (clearQuestion) {
-      clearAgentQuestionDraft();
-    }
-    setActiveAgentTaskId("");
-  }, [clearAgentQuestionDraft]);
+      activeAgentTaskIdRef.current = "";
+      activeAgentMessageIdRef.current = "";
+      if (clearTerminalState) {
+        lastAgentErrorRef.current = "";
+        lastAgentStderrRef.current = "";
+      }
+      if (clearQuestion) {
+        clearAgentQuestionDraft();
+      }
+      setActiveAgentTaskId("");
+    },
+    [clearAgentQuestionDraft],
+  );
 
-  const applyActiveAgentTaskState = useCallback((
-    task: RunningAgentTaskContext,
-    options: { restoreTerminalState?: boolean } = {},
-  ) => {
-    const { restoreTerminalState = true } = options;
+  const applyActiveAgentTaskState = useCallback(
+    (task: RunningAgentTaskContext, options: { restoreTerminalState?: boolean } = {}) => {
+      const { restoreTerminalState = true } = options;
 
-    activeAgentTaskIdRef.current = task.taskId;
-    activeAgentMessageIdRef.current = task.messageId;
-    if (restoreTerminalState) {
-      lastAgentErrorRef.current = task.lastError;
-      lastAgentStderrRef.current = task.lastStderr;
-    }
-    applyAgentQuestionDraft(
-      task.pendingQuestion,
-      task.questionAnswer,
-      task.customQuestionAnswer,
-    );
-    setActiveAgentTaskId(task.taskId);
-  }, [applyAgentQuestionDraft]);
+      activeAgentTaskIdRef.current = task.taskId;
+      activeAgentMessageIdRef.current = task.messageId;
+      if (restoreTerminalState) {
+        lastAgentErrorRef.current = task.lastError;
+        lastAgentStderrRef.current = task.lastStderr;
+      }
+      applyAgentQuestionDraft(task.pendingQuestion, task.questionAnswer, task.customQuestionAnswer);
+      setActiveAgentTaskId(task.taskId);
+    },
+    [applyAgentQuestionDraft],
+  );
 
-  const prepareActiveAgentRun = useCallback(({
-    messageId,
-  }: {
-    messageId: string;
-  }) => {
+  const prepareActiveAgentRun = useCallback(({ messageId }: { messageId: string }) => {
     activeAgentMessageIdRef.current = messageId;
     lastAgentErrorRef.current = "";
     lastAgentStderrRef.current = "";
   }, []);
-  const restoreRunningAgentTaskView = useCallback((task: RunningAgentTaskContext) => {
-    if (!task.messages.some((message) => message.id === task.messageId)) {
-      return false;
-    }
+  const restoreRunningAgentTaskView = useCallback(
+    (task: RunningAgentTaskContext) => {
+      if (!task.messages.some((message) => message.id === task.messageId)) {
+        return false;
+      }
 
-    messagesRef.current = task.messages;
-    setMessages(task.messages);
-    const nextTitle = task.title || deriveSessionTitle(task.messages);
-    currentSessionTitleRef.current = nextTitle;
-    setCurrentSessionTitle(nextTitle);
-    applyActiveAgentTaskState(task);
-    return true;
-  }, [applyActiveAgentTaskState]);
+      messagesRef.current = task.messages;
+      setMessages(task.messages);
+      const nextTitle = task.title || deriveSessionTitle(task.messages);
+      currentSessionTitleRef.current = nextTitle;
+      setCurrentSessionTitle(nextTitle);
+      applyActiveAgentTaskState(task);
+      return true;
+    },
+    [applyActiveAgentTaskState],
+  );
 
   const detachActiveAgentTask = useCallback(() => {
     const currentTaskId = activeAgentTaskIdRef.current;
-    const currentTask = currentTaskId
-      ? runningAgentTasksRef.current.get(currentTaskId)
-      : null;
+    const currentTask = currentTaskId ? runningAgentTasksRef.current.get(currentTaskId) : null;
     if (
       currentTask &&
       currentTask.workspacePath === workspace.path &&
@@ -581,9 +509,7 @@ export const WorkspaceChatPage = ({
       currentTask.title = currentSessionTitleRef.current;
       currentTask.messages = messagesRef.current;
       currentTask.pendingQuestion =
-        pendingAgentQuestionRef.current?.taskId === currentTaskId
-          ? pendingAgentQuestionRef.current
-          : null;
+        pendingAgentQuestionRef.current?.taskId === currentTaskId ? pendingAgentQuestionRef.current : null;
       currentTask.questionAnswer = agentQuestionAnswerRef.current;
       currentTask.customQuestionAnswer = customAgentQuestionAnswerRef.current;
     }
@@ -591,32 +517,35 @@ export const WorkspaceChatPage = ({
     resetActiveAgentTaskState({ clearTerminalState: true });
   }, [resetActiveAgentTaskState, workspace.path]);
 
-  const getChatScrollViewport = useCallback(() =>
-    chatScrollAreaRef.current?.querySelector<HTMLElement>(
-      "[data-slot='scroll-area-viewport']",
-    ) ?? null, []);
+  const getChatScrollViewport = useCallback(
+    () => chatScrollAreaRef.current?.querySelector<HTMLElement>("[data-slot='scroll-area-viewport']") ?? null,
+    [],
+  );
 
-  const scrollChatToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    const scroll = () => {
-      const viewport = getChatScrollViewport();
-      if (!viewport) {
-        return;
-      }
+  const scrollChatToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const scroll = () => {
+        const viewport = getChatScrollViewport();
+        if (!viewport) {
+          return;
+        }
 
-      viewport.scrollTo({
-        top: viewport.scrollHeight,
-        behavior,
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior,
+        });
+        if (behavior === "auto") {
+          viewport.scrollTop = viewport.scrollHeight;
+        }
+      };
+
+      window.requestAnimationFrame(() => {
+        scroll();
+        window.requestAnimationFrame(scroll);
       });
-      if (behavior === "auto") {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
-    };
-
-    window.requestAnimationFrame(() => {
-      scroll();
-      window.requestAnimationFrame(scroll);
-    });
-  }, [getChatScrollViewport]);
+    },
+    [getChatScrollViewport],
+  );
 
   const scrollActiveThinkingToBottom = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -660,12 +589,7 @@ export const WorkspaceChatPage = ({
         window.cancelAnimationFrame(frameId);
       }
     };
-  }, [
-    getChatScrollViewport,
-    messages.length,
-    pendingAgentQuestion,
-    scrollActiveThinkingToBottom,
-  ]);
+  }, [getChatScrollViewport, messages.length, pendingAgentQuestion, scrollActiveThinkingToBottom]);
 
   const toggleAllowedAgentTool = useCallback((toolId: string, enabled: boolean) => {
     setAllowedAgentTools((current) => {
@@ -677,10 +601,7 @@ export const WorkspaceChatPage = ({
     });
   }, []);
 
-  const {
-    sessionsError,
-    setSessionsError,
-  } = useWorkspaceChatSessions({
+  const { sessionsError, setSessionsError } = useWorkspaceChatSessions({
     workspace,
     route: {
       sessionId: routeSessionId,
@@ -711,26 +632,19 @@ export const WorkspaceChatPage = ({
       detachActiveAgentTask,
       applyActiveAgentTaskState,
     },
-    });
+  });
   const resetConversationSkillGroup = useCallback(() => {
     skillGroupSelectionTouchedRef.current = false;
     setSelectedSkillGroupIds(resolvedDefaultSkillGroupIds);
   }, [resolvedDefaultSkillGroupIds]);
   const toggleConversationSkillGroup = useCallback((skillGroupId: string, checked: boolean) => {
     skillGroupSelectionTouchedRef.current = true;
-    setSelectedSkillGroupIds((current) =>
-      toggleSkillGroupSelection(current, skillGroupId, checked)
-    );
+    setSelectedSkillGroupIds((current) => toggleSkillGroupSelection(current, skillGroupId, checked));
   }, []);
 
   useEffect(() => {
     resetConversationSkillGroup();
-  }, [
-    isRouteNewSession,
-    resetConversationSkillGroup,
-    routeSessionId,
-    workspace.id,
-  ]);
+  }, [isRouteNewSession, resetConversationSkillGroup, routeSessionId, workspace.id]);
 
   useEffect(() => {
     activeAgentTaskIdRef.current = activeAgentTaskId;
@@ -784,8 +698,7 @@ export const WorkspaceChatPage = ({
     const hasNewMessage =
       nextScrollSnapshot.messageCount !== previousScrollSnapshot.messageCount ||
       nextScrollSnapshot.lastMessageId !== previousScrollSnapshot.lastMessageId;
-    const hasNewPendingQuestion =
-      nextScrollSnapshot.pendingQuestionId !== previousScrollSnapshot.pendingQuestionId;
+    const hasNewPendingQuestion = nextScrollSnapshot.pendingQuestionId !== previousScrollSnapshot.pendingQuestionId;
     const shouldAnimateScroll = hasNewMessage || hasNewPendingQuestion;
 
     chatScrollSnapshotRef.current = nextScrollSnapshot;
@@ -793,40 +706,44 @@ export const WorkspaceChatPage = ({
     scrollChatToBottom(shouldAnimateScroll && messages.length > 2 ? "smooth" : "auto");
   }, [messages, pendingAgentQuestion, scrollActiveThinkingToBottom, scrollChatToBottom]);
 
-  const persistRunningAgentTask = useCallback(async (task: RunningAgentTaskContext) => {
-    const title = deriveSessionTitle(task.messages);
-    const isUnread =
-      task.workspacePath !== workspace.path ||
-      task.sessionId !== currentSessionIdRef.current;
-    task.title = title;
-    const session = await saveChatSession({
-      workspacePath: task.workspacePath,
-      sessionId: task.sessionId,
-      title,
-      messages: task.messages,
-      isUnread,
-    });
-    const taskWorkspace = workspaceOptions.find((item) => item.path === task.workspacePath);
-    if (taskWorkspace) {
-      upsertSession(taskWorkspace.id, session);
-    }
-  }, [upsertSession, workspace.path, workspaceOptions]);
-
-  const clearPendingAgentQuestion = useCallback((questionId: string) => {
-    const currentQuestion = pendingAgentQuestionRef.current;
-    if (currentQuestion?.questionId === questionId) {
-      clearAgentQuestionDraft();
-    }
-
-    runningAgentTasksRef.current.forEach((task) => {
-      if (task.pendingQuestion?.questionId !== questionId) {
-        return;
+  const persistRunningAgentTask = useCallback(
+    async (task: RunningAgentTaskContext) => {
+      const title = deriveSessionTitle(task.messages);
+      const isUnread = task.workspacePath !== workspace.path || task.sessionId !== currentSessionIdRef.current;
+      task.title = title;
+      const session = await saveChatSession({
+        workspacePath: task.workspacePath,
+        sessionId: task.sessionId,
+        title,
+        messages: task.messages,
+        isUnread,
+      });
+      const taskWorkspace = workspaceOptions.find((item) => item.path === task.workspacePath);
+      if (taskWorkspace) {
+        upsertSession(taskWorkspace.id, session);
       }
-      task.pendingQuestion = null;
-      task.questionAnswer = "";
-      task.customQuestionAnswer = "";
-    });
-  }, [clearAgentQuestionDraft]);
+    },
+    [upsertSession, workspace.path, workspaceOptions],
+  );
+
+  const clearPendingAgentQuestion = useCallback(
+    (questionId: string) => {
+      const currentQuestion = pendingAgentQuestionRef.current;
+      if (currentQuestion?.questionId === questionId) {
+        clearAgentQuestionDraft();
+      }
+
+      runningAgentTasksRef.current.forEach((task) => {
+        if (task.pendingQuestion?.questionId !== questionId) {
+          return;
+        }
+        task.pendingQuestion = null;
+        task.questionAnswer = "";
+        task.customQuestionAnswer = "";
+      });
+    },
+    [clearAgentQuestionDraft],
+  );
 
   useAgentClientEvents({
     agentClient,
@@ -850,72 +767,75 @@ export const WorkspaceChatPage = ({
     loadFiles: refreshFileSurfaces,
   });
 
-  const applyHistoryChange = useCallback((
-    nextMessages: ChatMessage[],
-  ) => {
-    if (visibleActiveAgentTaskId) {
-      setSessionsError("Agent 正在处理，结束后再修改历史记录");
-      return false;
-    }
+  const applyHistoryChange = useCallback(
+    (nextMessages: ChatMessage[]) => {
+      if (visibleActiveAgentTaskId) {
+        setSessionsError("Agent 正在处理，结束后再修改历史记录");
+        return false;
+      }
 
-    setSessionsError("");
-    messagesRef.current = nextMessages;
-    setMessages(nextMessages);
-    return true;
-  }, [
-    visibleActiveAgentTaskId,
-  ]);
+      setSessionsError("");
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      return true;
+    },
+    [visibleActiveAgentTaskId],
+  );
 
-  const editHistoryMessage = useCallback((messageId: string, nextText: string) => {
-    const content = nextText.trim();
-    if (!content) {
-      setSessionsError("消息内容不能为空，可以使用删除操作移除这条消息");
-      return;
-    }
+  const editHistoryMessage = useCallback(
+    (messageId: string, nextText: string) => {
+      const content = nextText.trim();
+      if (!content) {
+        setSessionsError("消息内容不能为空，可以使用删除操作移除这条消息");
+        return;
+      }
 
-    const currentMessages = messagesRef.current;
-    const editedMessage = currentMessages.find((message) => message.id === messageId);
-    const editedMessages = currentMessages.map((message) =>
-      message.id === messageId
-        ? {
-          ...message,
-          text: content,
-          thinking: undefined,
-          agentBlocks: undefined,
-          status: message.status === "error" ? "done" : message.status,
-        }
-        : message,
-    );
-    const nextMessages = editedMessage
-      ? keepHistoryThroughMessage(editedMessages, messageId)
-      : editedMessages;
+      const currentMessages = messagesRef.current;
+      const editedMessage = currentMessages.find((message) => message.id === messageId);
+      const editedMessages = currentMessages.map((message) =>
+        message.id === messageId
+          ? {
+              ...message,
+              text: content,
+              thinking: undefined,
+              agentBlocks: undefined,
+              status: message.status === "error" ? "done" : message.status,
+            }
+          : message,
+      );
+      const nextMessages = editedMessage ? keepHistoryThroughMessage(editedMessages, messageId) : editedMessages;
 
-    if (!applyHistoryChange(nextMessages)) {
-      return;
-    }
-  }, [applyHistoryChange]);
+      if (!applyHistoryChange(nextMessages)) {
+        return;
+      }
+    },
+    [applyHistoryChange],
+  );
 
-  const deleteHistoryMessage = useCallback((messageId: string) => {
-    const currentMessages = messagesRef.current;
-    const deletedIndex = currentMessages.findIndex((message) => message.id === messageId);
-    const deletedMessage = deletedIndex >= 0 ? currentMessages[deletedIndex] : null;
-    if (!deletedMessage) {
-      return;
-    }
-    const nextMessages = removeHistoryMessageSegment(currentMessages, messageId);
+  const deleteHistoryMessage = useCallback(
+    (messageId: string) => {
+      const currentMessages = messagesRef.current;
+      const deletedIndex = currentMessages.findIndex((message) => message.id === messageId);
+      const deletedMessage = deletedIndex >= 0 ? currentMessages[deletedIndex] : null;
+      if (!deletedMessage) {
+        return;
+      }
+      const nextMessages = removeHistoryMessageSegment(currentMessages, messageId);
 
-    applyHistoryChange(nextMessages);
-  }, [applyHistoryChange]);
+      applyHistoryChange(nextMessages);
+    },
+    [applyHistoryChange],
+  );
 
-  const moveHistoryMessage = useCallback((
-    messageId: string,
-    direction: "up" | "down",
-  ) => {
-    const nextMessages = moveHistoryItem(messagesRef.current, messageId, direction);
-    if (!applyHistoryChange(nextMessages)) {
-      return;
-    }
-  }, [applyHistoryChange]);
+  const moveHistoryMessage = useCallback(
+    (messageId: string, direction: "up" | "down") => {
+      const nextMessages = moveHistoryItem(messagesRef.current, messageId, direction);
+      if (!applyHistoryChange(nextMessages)) {
+        return;
+      }
+    },
+    [applyHistoryChange],
+  );
   const submitAgentQuestionAnswer = async (answerValue: string) => {
     const answer = answerValue.trim();
     if (!pendingAgentQuestion || !answer || isAnsweringAgentQuestion) {
@@ -931,11 +851,11 @@ export const WorkspaceChatPage = ({
 
     try {
       const answeredQuestionId = pendingAgentQuestion.questionId;
-      await agentClient.answerQuestion(
-        pendingAgentQuestion.taskId,
-        answeredQuestionId,
+      await agentClient.agent.answerQuestion({
+        taskId: pendingAgentQuestion.taskId,
+        questionId: answeredQuestionId,
         answer,
-      );
+      });
       clearPendingAgentQuestion(answeredQuestionId);
       setAgentQuestionAnswerDraft("");
       setCustomAgentQuestionAnswerDraft("");
@@ -947,11 +867,7 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const commitChatTurnDraft = ({
-    nextSessionId,
-    userUiMessage,
-    assistantUiMessage,
-  }: CommitChatTurnDraftInput) => {
+  const commitChatTurnDraft = ({ nextSessionId, userUiMessage, assistantUiMessage }: CommitChatTurnDraftInput) => {
     if (nextSessionId && nextSessionId !== currentSessionId) {
       currentSessionIdRef.current = nextSessionId;
       setCurrentSessionId(nextSessionId);
@@ -1008,10 +924,7 @@ export const WorkspaceChatPage = ({
     const now = Date.now();
     const userMessageId = createMessageId();
     const assistantMessageId = createMessageId();
-    const {
-      userUiMessage,
-      assistantUiMessage,
-    } = createChatTurnDraft({
+    const { userUiMessage, assistantUiMessage } = createChatTurnDraft({
       now,
       text,
       referencedFiles: draftReferencedFiles,
@@ -1049,28 +962,31 @@ export const WorkspaceChatPage = ({
         return;
       }
 
-      await runAgentTurn({
-        nextSessionId,
-        assistantMessageId,
-        nextMessages,
-        agentPromptPayload: preparedAgentTurn.agentPromptPayload,
-      }, {
-        workspace,
-        activeSkills,
-        updateMessage,
-        agentClient,
-        setChatError,
-        prepareActiveAgentRun,
-        addRunningAgentTask: (task) => {
-          didStartAgentTask = true;
-          addRunningAgentTask(task);
+      await runAgentTurn(
+        {
+          nextSessionId,
+          assistantMessageId,
+          nextMessages,
+          agentPromptPayload: preparedAgentTurn.agentPromptPayload,
         },
-        activateAgentTaskId,
-        handledAgentDoneTaskIdsRef,
-        effectiveRuntimeModel,
-        allowedAgentTools,
-        currentSessionTitle,
-      });
+        {
+          workspace,
+          activeSkills,
+          updateMessage,
+          agentClient,
+          setChatError,
+          prepareActiveAgentRun,
+          addRunningAgentTask: (task) => {
+            didStartAgentTask = true;
+            addRunningAgentTask(task);
+          },
+          activateAgentTaskId,
+          handledAgentDoneTaskIdsRef,
+          effectiveRuntimeModel,
+          allowedAgentTools,
+          currentSessionTitle,
+        },
+      );
     } catch (caught) {
       const message = String(caught);
       setChatError(message);
@@ -1090,52 +1006,53 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const submitMessageToStory = useCallback(async (message: ChatMessage) => {
-    if (!storyChatSeed) {
-      return;
-    }
+  const submitMessageToStory = useCallback(
+    async (message: ChatMessage) => {
+      if (!storyChatSeed) {
+        return;
+      }
 
-    if (storyChatSeed.messages.some((seedMessage) => seedMessage.id === message.id)) {
-      setChatError("引导消息不需要收稿。");
-      return;
-    }
+      if (storyChatSeed.messages.some((seedMessage) => seedMessage.id === message.id)) {
+        setChatError("引导消息不需要收稿。");
+        return;
+      }
 
-    const content = getMessageTextForStorySubmission(message);
-    if (!content) {
-      setChatError("没有可收稿的消息内容。");
-      return;
-    }
+      const content = getMessageTextForStorySubmission(message);
+      if (!content) {
+        setChatError("没有可收稿的消息内容。");
+        return;
+      }
 
-    setStorySubmittingMessageIds((current) =>
-      current.includes(message.id) ? current : [...current, message.id]
-    );
-    try {
-      await submitStoryManuscript(workspace.path, workspace.id, {
-        storyId: storyChatSeed.storyId,
-        nodeId: storyChatSeed.nodeId,
-        source: "chat",
-        sourceRunId: currentSessionId ?? undefined,
-        sourceMessageIds: [message.id],
-        title: createStorySubmissionTitle(message, storyChatSeed.title),
-        content,
-        summary: content.replace(/\s+/g, " ").trim().slice(0, 160),
-        metadata: {
-          channel: "workspace-chat",
-          role: message.role,
-          sessionId: currentSessionId,
-        },
-      });
-      setChatError("");
-      toast.success("已发送到故事收稿箱。");
-    } catch (error) {
-      console.error("Failed to submit chat message to story", error);
-      const messageText = error instanceof Error ? error.message : "收稿失败。";
-      setChatError(`收稿失败：${messageText}`);
-      toast.error("收稿失败。");
-    } finally {
-      setStorySubmittingMessageIds((current) => current.filter((id) => id !== message.id));
-    }
-  }, [currentSessionId, storyChatSeed, workspace.id, workspace.path]);
+      setStorySubmittingMessageIds((current) => (current.includes(message.id) ? current : [...current, message.id]));
+      try {
+        await submitStoryManuscript(workspace.path, workspace.id, {
+          storyId: storyChatSeed.storyId,
+          nodeId: storyChatSeed.nodeId,
+          source: "chat",
+          sourceRunId: currentSessionId ?? undefined,
+          sourceMessageIds: [message.id],
+          title: createStorySubmissionTitle(message, storyChatSeed.title),
+          content,
+          summary: content.replace(/\s+/g, " ").trim().slice(0, 160),
+          metadata: {
+            channel: "workspace-chat",
+            role: message.role,
+            sessionId: currentSessionId,
+          },
+        });
+        setChatError("");
+        toast.success("已发送到故事收稿箱。");
+      } catch (error) {
+        console.error("Failed to submit chat message to story", error);
+        const messageText = error instanceof Error ? error.message : "收稿失败。";
+        setChatError(`收稿失败：${messageText}`);
+        toast.error("收稿失败。");
+      } finally {
+        setStorySubmittingMessageIds((current) => current.filter((id) => id !== message.id));
+      }
+    },
+    [currentSessionId, storyChatSeed, workspace.id, workspace.path],
+  );
 
   useChatPanelStoreBridge({
     chatScrollAreaRef,
@@ -1181,7 +1098,7 @@ export const WorkspaceChatPage = ({
     toggleAllowedAgentTool,
     toggleSelectedSkillGroup: toggleConversationSkillGroup,
     sendMessage,
-    onAbortTask: () => void agentClient.abortTask(visibleActiveAgentTaskId),
+    onAbortTask: () => void agentClient.tasks.abort(visibleActiveAgentTaskId),
   });
 
   const chatPanel = <ChatPanel />;
@@ -1197,18 +1114,11 @@ export const WorkspaceChatPage = ({
   );
   const ledgerPanel = (
     <aside className="flex min-w-0 w-[clamp(240px,20vw,340px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
-      <ConversationLedger
-        workspacePath={workspace.path}
-        chatId={currentSessionId}
-      />
+      <ConversationLedger workspacePath={workspace.path} chatId={currentSessionId} />
     </aside>
   );
 
-  const contextPanel = isContextPanelOpen
-    ? contextPanelTool === "ledger"
-      ? ledgerPanel
-      : fileManagePanel
-    : null;
+  const contextPanel = isContextPanelOpen ? (contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel) : null;
   const contextRail = (
     <nav
       className="flex w-10 shrink-0 flex-col items-center gap-1.5 border-l border-border/60 bg-muted/35 px-1 py-2.5"
@@ -1251,11 +1161,5 @@ export const WorkspaceChatPage = ({
     </nav>
   );
 
-  return (
-    <ChatLayout
-      content={chatPanel}
-      contextPanel={contextPanel}
-      contextRail={contextRail}
-    />
-  );
+  return <ChatLayout content={chatPanel} contextPanel={contextPanel} contextRail={contextRail} />;
 };

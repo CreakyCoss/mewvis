@@ -1,5 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { AgentClientCollaborationEvent } from "@/agent-client/contracts";
+import type { AgentClientCollaborationEvent } from "@/agent-client/types";
 import type { StoryContextPackage } from "@/features/story";
 import type { TavernPageContextValue } from "../../../context";
 import {

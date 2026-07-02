@@ -21,6 +21,7 @@ pub struct RunAgentRuntimeChatInput {
     user_message: Option<String>,
     request_context: Option<String>,
     runtime_instruction: Option<String>,
+    bootstrap_instruction: Option<String>,
     messages: Option<Vec<AgentRuntimeChatMessageInput>>,
 }
 
@@ -73,6 +74,7 @@ fn chat_with_agent_runtime_blocking(
             "userMessage": input.user_message,
             "requestContext": input.request_context,
             "runtimeInstruction": input.runtime_instruction,
+            "bootstrapInstruction": input.bootstrap_instruction,
             "messages": input.messages,
         },
         "runtime": {

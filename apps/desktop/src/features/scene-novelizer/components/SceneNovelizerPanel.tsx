@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { BookOpenText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {

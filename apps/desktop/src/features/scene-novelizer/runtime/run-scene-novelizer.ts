@@ -3,17 +3,10 @@ import type {
   AgentClientAgentEvent,
   AgentClientCollaborationEvent,
   AgentClientCollaborationResult,
-} from "@/agent-client/contracts";
-import type {
-  SceneNovelDraft,
-  SceneNovelizerRunInput,
-} from "../types";
-import {
-  cleanSceneNovelDraftText,
-} from "../quality/contamination";
-import {
-  evaluateSceneNovelDraft,
-} from "../quality/metrics";
+} from "@/agent-client/types";
+import type { SceneNovelDraft, SceneNovelizerRunInput } from "../types";
+import { cleanSceneNovelDraftText } from "../quality/contamination";
+import { evaluateSceneNovelDraft } from "../quality/metrics";
 import {
   buildSceneNovelizerRequestContext,
   buildSceneNovelizerRuntimeInstruction,
@@ -45,9 +38,7 @@ type SceneNovelizerCollaborationOutput = AgentClientCollaborationResult & {
   taskId: string;
 };
 
-const isCollaborationEvent = (
-  event: AgentClientAgentEvent,
-): event is AgentClientCollaborationEvent =>
+const isCollaborationEvent = (event: AgentClientAgentEvent): event is AgentClientCollaborationEvent =>
   event.type === "workflow_started" ||
   event.type === "step_started" ||
   event.type === "agent_event" ||
@@ -58,16 +49,12 @@ const isCollaborationEvent = (
 
 const isFailureState = (event: AgentClientAgentEvent) =>
   event.type === "error" ||
-  (
-    event.type === "state" &&
-    (
-      event.taskState === "failed" ||
+  (event.type === "state" &&
+    (event.taskState === "failed" ||
       event.taskState === "error" ||
       event.taskState === "cancelled" ||
       event.workerState === "failed" ||
-      event.workerState === "error"
-    )
-  ) ||
+      event.workerState === "error")) ||
   (event.type === "exit" && !event.success);
 
 const errorMessageFromEvent = (event: AgentClientAgentEvent) => {
@@ -94,13 +81,14 @@ const sanitizeSessionSegment = (value: string, fallback: string) => {
 const sceneNovelizerSessionRootDir = (sourceId: string) =>
   `scene-novelizer/${sanitizeSessionSegment(sourceId, "source")}/review-rewrite`;
 
-const buildReviewInstruction = (source: SceneNovelizerRunInput["source"]) => [
-  "审阅 producer 生成的场景小说稿，只输出严格 JSON。",
-  "approved 表示可以收稿；revise 表示需要重写；blocked 表示素材不足或存在不可修复冲突。",
-  "评分低于 76 时优先 revise，并给出可执行的 revisionInstruction。",
-  `目标长度约 ${source.constraints.targetChars} 字；段落上限 ${source.constraints.paragraphMaxChars} 字。`,
-  "重点检查：素材事实、用户行动保留、关键真相不新增、段落节奏、对白衔接、钩子和平台风格。",
-].join("\n");
+const buildReviewInstruction = (source: SceneNovelizerRunInput["source"]) =>
+  [
+    "审阅 producer 生成的场景小说稿，只输出严格 JSON。",
+    "approved 表示可以收稿；revise 表示需要重写；blocked 表示素材不足或存在不可修复冲突。",
+    "评分低于 76 时优先 revise，并给出可执行的 revisionInstruction。",
+    `目标长度约 ${source.constraints.targetChars} 字；段落上限 ${source.constraints.paragraphMaxChars} 字。`,
+    "重点检查：素材事实、用户行动保留、关键真相不新增、段落节奏、对白衔接、钩子和平台风格。",
+  ].join("\n");
 
 const runSceneNovelizerCollaboration = async ({
   workspacePath,
@@ -132,7 +120,7 @@ const runSceneNovelizerCollaboration = async ({
     };
 
     try {
-      unlisten = await sceneNovelizerAgentClient.subscribe((event) => {
+      unlisten = await sceneNovelizerAgentClient.events.subscribe((event) => {
         if (!taskId || ("taskId" in event && event.taskId !== taskId)) {
           return;
         }
@@ -168,8 +156,7 @@ const runSceneNovelizerCollaboration = async ({
         }
       });
 
-      const task = await sceneNovelizerAgentClient.run({
-        type: "collaborationMode",
+      const task = await sceneNovelizerAgentClient.collaboration.runMode({
         mode: "producer.review-rewrite-loop",
         workspacePath,
         sessionRootDir: sceneNovelizerSessionRootDir(source.id),
@@ -193,11 +180,7 @@ const runSceneNovelizerCollaboration = async ({
             systemPrompt: "你是场景小说稿审阅 agent，只审阅 producer 的正文并输出严格 JSON。",
             instruction: buildReviewInstruction(source),
             requestContext: buildSceneNovelizerRequestContext(source),
-            userMessage: [
-              "请审阅以下场景小说稿，并只输出严格 JSON：",
-              "",
-              "{{ outputs.draft }}",
-            ].join("\n"),
+            userMessage: ["请审阅以下场景小说稿，并只输出严格 JSON：", "", "{{ outputs.draft }}"].join("\n"),
             capabilities: ["review", "score"],
           },
         ],
@@ -227,14 +210,12 @@ const runSceneNovelizerCollaboration = async ({
   }
 };
 
-const readOutputText = (
-  output: unknown,
-  key: string,
-) => output && typeof output === "object" && !Array.isArray(output)
-  ? typeof (output as Record<string, unknown>)[key] === "string"
-    ? (output as Record<string, string>)[key]
-    : null
-  : null;
+const readOutputText = (output: unknown, key: string) =>
+  output && typeof output === "object" && !Array.isArray(output)
+    ? typeof (output as Record<string, unknown>)[key] === "string"
+      ? (output as Record<string, string>)[key]
+      : null
+    : null;
 
 export const runSceneNovelizer = async ({
   workspacePath,
@@ -250,16 +231,10 @@ export const runSceneNovelizer = async ({
     autoRewrite,
     onTextDelta,
   });
-  const latestDraftStep = [...result.steps].reverse().find((step) =>
-    step.outputKey === "draft"
-  );
-  const draftText = readOutputText(result.output, "draft") ??
-    latestDraftStep?.text ??
-    "";
+  const latestDraftStep = [...result.steps].reverse().find((step) => step.outputKey === "draft");
+  const draftText = readOutputText(result.output, "draft") ?? latestDraftStep?.text ?? "";
   const text = cleanSceneNovelDraftText(draftText);
-  const producerRuns = result.steps.filter((step) =>
-    step.agentRoleId === SCENE_NOVELIZER_AGENT_ROLE_ID
-  ).length;
+  const producerRuns = result.steps.filter((step) => step.agentRoleId === SCENE_NOVELIZER_AGENT_ROLE_ID).length;
 
   return createDraft({
     sourceId: source.id,

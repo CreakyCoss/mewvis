@@ -2,7 +2,7 @@ import { useState, type Dispatch, type RefObject, type SetStateAction } from "re
 import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
 import type {
   AgentToolSummary,
-} from "@/agent-client/protocol";
+} from "@/agent-client/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

@@ -1,6 +1,6 @@
 import type {
   RuntimeModelInput,
-} from "@/agent-client/protocol";
+} from "@/agent-client/types";
 import {
   runTavernRuntimeAgent,
   type TavernRuntimeAgentOutput,

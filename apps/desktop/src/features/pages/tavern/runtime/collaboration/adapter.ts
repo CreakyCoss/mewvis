@@ -1,21 +1,8 @@
-import {
-  buildTavernBridgeSystemPrompt,
-} from "../conversation";
-import {
-  buildTavernDirectorPromptContext,
-  buildTavernDirectorRuntimeInstruction,
-} from "../director/prompt";
-import {
-  buildTavernReplyAgentRequest,
-} from "../reply/request";
-import {
-  tavernBridgeSessionRootDir,
-  tavernCharacterAgentRoleId,
-  tavernDirectorAgentRoleId,
-} from "../../core";
-import type {
-  TavernCharacter,
-} from "../../types";
+import { buildTavernBridgeSystemPrompt } from "../conversation";
+import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
+import { buildTavernReplyAgentRequest } from "../reply/request";
+import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "../../core";
+import type { TavernCharacter } from "../../types";
 import type {
   TavernDirectorLoopCollaborationInput,
   TavernSpeakerCollaborationInput,
@@ -24,8 +11,7 @@ import type {
 
 const TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS = 2;
 
-const tavernSpeakerWorkflowMaxSteps = (speakerCount: number) =>
-  Math.max(8, speakerCount * 4);
+const tavernSpeakerWorkflowMaxSteps = (speakerCount: number) => Math.max(8, speakerCount * 4);
 
 export const buildTavernDirectorLoopCollaborationInput = ({
   workspacePath,
@@ -80,7 +66,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
   }));
 
   return {
-    type: "collaborationMode",
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     mode: "supervisor.dispatch-loop",
@@ -176,7 +161,6 @@ export const buildTavernSpeakerCollaborationInput = ({
   }));
 
   return {
-    type: "collaboration",
     workspacePath,
     sessionRootDir: tavernBridgeSessionRootDir(room),
     agents: requests.map(({ speaker, request }) => ({
@@ -212,19 +196,15 @@ export const buildTavernSpeakerCollaborationInput = ({
   };
 };
 
-const tavernSpeakerReplyOutputKey = (
-  speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">,
-) => `reply:${speaker.id}`;
+const tavernSpeakerReplyOutputKey = (speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">) =>
+  `reply:${speaker.id}`;
 
 const tavernSpeakerWorkflowStepId = (
   speaker: Pick<TavernSpeakerCollaborationInput["speakers"][number], "id">,
   index: number,
 ) => `speaker-${speaker.id}-${index + 1}`;
 
-const normalizePositiveInteger = (
-  value: number | null | undefined,
-  fallback: number,
-) => {
+const normalizePositiveInteger = (value: number | null | undefined, fallback: number) => {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return fallback;
   }
@@ -241,31 +221,34 @@ const buildSupervisorDispatchRuntimeInstruction = ({
     characterName: string;
     participantId: string;
   }>;
-}) => [
-  runtimeInstruction,
-  "",
-  "<supervisor_dispatch_loop_contract>",
-  "你当前运行在通用 supervisor.dispatch-loop 模式中；最终输出契约以本段为准。",
-  "必须给所有候选角色评分，且每轮最多选择一个角色回复。",
-  "candidates[].targetId 和 selectedTargetId 必须使用下面的 participantId，而不是 characterId。",
-  JSON.stringify(workerTargets, null, 2),
-  "输出严格 JSON：",
-  "{",
-  "  \"status\": \"continue\" | \"complete\" | \"blocked\",",
-  "  \"candidates\": [{ \"targetId\": string, \"score\": number, \"reason\": string, \"instruction\": string }],",
-  "  \"selectedTargetId\": string,",
-  "  \"selectedInstruction\": string,",
-  "  \"reason\": string,",
-  "  \"artifacts\": [",
-  "    { \"type\": \"narrator\" | \"randomEvent\" | \"illustrationHint\" | \"ambientAction\", \"content\": string, \"targetId\": string }",
-  ,
-  "  ]",
-  ,
-  "}",
-  ,
-  "如果只需要旁白或环境动作而不需要角色回复，status 使用 complete，并把内容放入 artifacts。",
-  "</supervisor_dispatch_loop_contract>",
-].filter(Boolean).join("\n");
+}) =>
+  [
+    runtimeInstruction,
+    "",
+    "<supervisor_dispatch_loop_contract>",
+    "你当前运行在通用 supervisor.dispatch-loop 模式中；最终输出契约以本段为准。",
+    "必须给所有候选角色评分，且每轮最多选择一个角色回复。",
+    "candidates[].targetId 和 selectedTargetId 必须使用下面的 participantId，而不是 characterId。",
+    JSON.stringify(workerTargets, null, 2),
+    "输出严格 JSON：",
+    "{",
+    '  "status": "continue" | "complete" | "blocked",',
+    '  "candidates": [{ "targetId": string, "score": number, "reason": string, "instruction": string }],',
+    '  "selectedTargetId": string,',
+    '  "selectedInstruction": string,',
+    '  "reason": string,',
+    '  "artifacts": [',
+    '    { "type": "narrator" | "randomEvent" | "illustrationHint" | "ambientAction", "content": string, "targetId": string }',
+    ,
+    "  ]",
+    ,
+    "}",
+    ,
+    "如果只需要旁白或环境动作而不需要角色回复，status 使用 complete，并把内容放入 artifacts。",
+    "</supervisor_dispatch_loop_contract>",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
 const buildDirectorLoopRuntimeInstruction = ({
   runtimeInstruction,
@@ -285,7 +268,9 @@ const buildDirectorLoopRuntimeInstruction = ({
     "以下是同一协作 workflow 上一轮角色公开回复；如果为空，说明这是本次协作的首轮导演调度。根据这些回复判断是否继续调度。",
     buildSpeakerOutputsTemplate(speakers),
     "</collaboration_latest_speaker_replies>",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 const buildLoopSpeakerRuntimeInstruction = ({
@@ -306,15 +291,17 @@ const buildLoopSpeakerRuntimeInstruction = ({
     "以下是本次协作 workflow 已有的最近角色回复；承接已经发生的公开内容，不要重复输出。",
     buildSpeakerOutputsTemplate(speakers),
     "</collaboration_loop_context>",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
-const buildSpeakerOutputsTemplate = (
-  speakers: TavernCharacter[],
-) => speakers.map((speaker) => [
-  `【${speaker.name} / ${speaker.id}】`,
-  `{{ outputs.${tavernSpeakerReplyOutputKey(speaker)} }}`,
-].join("\n")).join("\n\n");
+const buildSpeakerOutputsTemplate = (speakers: TavernCharacter[]) =>
+  speakers
+    .map((speaker) =>
+      [`【${speaker.name} / ${speaker.id}】`, `{{ outputs.${tavernSpeakerReplyOutputKey(speaker)} }}`].join("\n"),
+    )
+    .join("\n\n");
 
 const buildSpeakerWorkflowRuntimeInstruction = ({
   runtimeInstruction,
@@ -327,10 +314,11 @@ const buildSpeakerWorkflowRuntimeInstruction = ({
     return runtimeInstruction;
   }
 
-  const priorReplyTemplate = priorSpeakers.map((speaker) => [
-    `【${speaker.name} / ${speaker.id}】`,
-    `{{ outputs.${tavernSpeakerReplyOutputKey(speaker)} }}`,
-  ].join("\n")).join("\n\n");
+  const priorReplyTemplate = priorSpeakers
+    .map((speaker) =>
+      [`【${speaker.name} / ${speaker.id}】`, `{{ outputs.${tavernSpeakerReplyOutputKey(speaker)} }}`].join("\n"),
+    )
+    .join("\n\n");
 
   return [
     runtimeInstruction,
@@ -339,5 +327,7 @@ const buildSpeakerWorkflowRuntimeInstruction = ({
     "以下内容由同一协作 workflow 的前序角色刚刚生成，视为本轮现场已经公开发生的回复；承接它们，不要重复它们。",
     priorReplyTemplate,
     "</collaboration_previous_speaker_replies>",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };

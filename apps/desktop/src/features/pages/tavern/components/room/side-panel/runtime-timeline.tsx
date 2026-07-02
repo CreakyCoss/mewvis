@@ -14,16 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createAgentClient } from "@/agent-client/runtime";
-import type {
-  AgentClientRuntimeSessionSnapshot,
-  AgentClientRuntimeSessionTimelineItem,
-} from "@/agent-client/contracts";
+import type { AgentClientRuntimeSessionSnapshot, RuntimeSessionTimelineItem } from "@/agent-client/types";
 import { cn } from "@/lib/utils";
-import {
-  tavernBridgeSessionRootDir,
-  tavernCharacterAgentRoleId,
-  tavernDirectorAgentRoleId,
-} from "../../../core";
+import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "../../../core";
 import { useTavernPageContext } from "../../context";
 import { EmptyPanelCard, PanelSectionTitle } from "./shared";
 
@@ -71,7 +64,7 @@ const statusMeta = {
   },
 } as const;
 
-const sourceLabels: Record<AgentClientRuntimeSessionTimelineItem["source"], string> = {
+const sourceLabels: Record<RuntimeSessionTimelineItem["source"], string> = {
   agent: "Agent",
   collaboration: "协作",
   runtime: "Runtime",
@@ -102,21 +95,21 @@ const compactId = (value?: string | null) => {
   return value.length <= 18 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`;
 };
 
-const formatTime = (timestamp?: string | null) => timestamp
-  ? new Date(timestamp).toLocaleTimeString("zh-CN", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-  : "";
+const formatTime = (timestamp?: string | null) =>
+  timestamp
+    ? new Date(timestamp).toLocaleTimeString("zh-CN", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "";
 
 const eventTypeLabel = (type: string) => eventTypeLabels[type] ?? type;
 
-const itemStatus = (item: AgentClientRuntimeSessionTimelineItem) =>
-  item.status ?? "idle";
+const itemStatus = (item: RuntimeSessionTimelineItem) => item.status ?? "idle";
 
-const itemIcon = (item: AgentClientRuntimeSessionTimelineItem) => {
+const itemIcon = (item: RuntimeSessionTimelineItem) => {
   if (item.source === "agent") {
     return Bot;
   }
@@ -129,10 +122,7 @@ const itemIcon = (item: AgentClientRuntimeSessionTimelineItem) => {
   return statusMeta[itemStatus(item)].icon;
 };
 
-const filterTimeline = (
-  timeline: AgentClientRuntimeSessionTimelineItem[],
-  filter: TimelineFilter,
-) => {
+const filterTimeline = (timeline: RuntimeSessionTimelineItem[], filter: TimelineFilter) => {
   if (filter === "all") {
     return timeline;
   }
@@ -142,29 +132,19 @@ const filterTimeline = (
   return timeline.filter((item) => item.source === filter);
 };
 
-const activeSceneInstanceIdFor = (
-  room: ReturnType<typeof useTavernPageContext>["activeRoom"],
-) => room?.activeSceneInstanceId ??
-  room?.activeSceneId ??
-  room?.sceneInstances[0]?.id ??
-  room?.id ??
-  "";
+const activeSceneInstanceIdFor = (room: ReturnType<typeof useTavernPageContext>["activeRoom"]) =>
+  room?.activeSceneInstanceId ?? room?.activeSceneId ?? room?.sceneInstances[0]?.id ?? room?.id ?? "";
 
 const buildRoleLabelMap = (
   room: NonNullable<ReturnType<typeof useTavernPageContext>["activeRoom"]>,
   characters: ReturnType<typeof useTavernPageContext>["roomCharacters"],
-) => new Map<string, string>([
-  [tavernDirectorAgentRoleId(room), "导演"],
-  ...characters.map((character) => [
-    tavernCharacterAgentRoleId(room, character),
-    character.name,
-  ] as const),
-]);
+) =>
+  new Map<string, string>([
+    [tavernDirectorAgentRoleId(room), "导演"],
+    ...characters.map((character) => [tavernCharacterAgentRoleId(room, character), character.name] as const),
+  ]);
 
-const roleLabelFor = (
-  item: AgentClientRuntimeSessionTimelineItem,
-  roleLabelById: Map<string, string>,
-) => {
+const roleLabelFor = (item: RuntimeSessionTimelineItem, roleLabelById: Map<string, string>) => {
   const roleId = item.agentRoleId?.trim();
   if (!roleId) {
     return item.stepId || item.workflowId || item.type;
@@ -172,10 +152,7 @@ const roleLabelFor = (
   return roleLabelById.get(roleId) ?? compactId(roleId);
 };
 
-const timelineItemTitle = (
-  item: AgentClientRuntimeSessionTimelineItem,
-  roleLabelById: Map<string, string>,
-) => {
+const timelineItemTitle = (item: RuntimeSessionTimelineItem, roleLabelById: Map<string, string>) => {
   if (item.type === "workflow_started" || item.type === "workflow_done") {
     return item.modeId ?? item.workflowId ?? eventTypeLabel(item.type);
   }
@@ -185,18 +162,14 @@ const timelineItemTitle = (
   return `${roleLabelFor(item, roleLabelById)} · ${eventTypeLabel(item.type)}`;
 };
 
-const timelineItemSubtitle = (item: AgentClientRuntimeSessionTimelineItem) =>
-  [
-    item.stepId,
-    item.stepType,
-    item.detail,
-  ].filter(Boolean).join(" · ");
+const timelineItemSubtitle = (item: RuntimeSessionTimelineItem) =>
+  [item.stepId, item.stepType, item.detail].filter(Boolean).join(" · ");
 
 const RuntimeTimelineEvent = ({
   item,
   roleLabelById,
 }: {
-  item: AgentClientRuntimeSessionTimelineItem;
+  item: RuntimeSessionTimelineItem;
   roleLabelById: Map<string, string>;
 }) => {
   const status = itemStatus(item);
@@ -217,11 +190,12 @@ const RuntimeTimelineEvent = ({
     >
       <summary className="flex cursor-pointer list-none items-start gap-2 px-2.5 py-2 text-left transition-colors hover:bg-current/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-current/[0.08]">
-          <Icon className={cn(
-            "size-3",
-            status === "started" && item.type !== "workflow_started" && "animate-pulse",
-            statusInfo.textClassName,
-          )}
+          <Icon
+            className={cn(
+              "size-3",
+              status === "started" && item.type !== "workflow_started" && "animate-pulse",
+              statusInfo.textClassName,
+            )}
           />
         </span>
         <span className="min-w-0 flex-1">
@@ -229,21 +203,16 @@ const RuntimeTimelineEvent = ({
             <span className="min-w-0 flex-1 truncate text-xs font-semibold">
               {timelineItemTitle(item, roleLabelById)}
             </span>
-            <span className={cn(
-              "shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
-              status === "error"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-current/[0.08] text-current/65",
-            )}
+            <span
+              className={cn(
+                "shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
+                status === "error" ? "bg-destructive/10 text-destructive" : "bg-current/[0.08] text-current/65",
+              )}
             >
               {statusInfo.label}
             </span>
           </span>
-          {subtitle && (
-            <span className="mt-1 block truncate text-[11px] leading-4 text-current/65">
-              {subtitle}
-            </span>
-          )}
+          {subtitle && <span className="mt-1 block truncate text-[11px] leading-4 text-current/65">{subtitle}</span>}
           {metaItems.length > 0 && (
             <span className="mt-1.5 flex min-w-0 flex-wrap gap-1">
               {metaItems.map((meta) => (
@@ -267,11 +236,7 @@ const RuntimeTimelineEvent = ({
             ["step", item.stepId],
             ["role", item.agentRoleId],
           ].map(([label, value]) => (
-            <div
-              key={label}
-              className="min-w-0 rounded-sm bg-current/[0.08] px-1.5 py-1"
-              title={value ?? ""}
-            >
+            <div key={label} className="min-w-0 rounded-sm bg-current/[0.08] px-1.5 py-1" title={value ?? ""}>
               <span className="mr-1 opacity-65">{label}</span>
               <span className="font-medium">{compactId(value)}</span>
             </div>
@@ -283,65 +248,57 @@ const RuntimeTimelineEvent = ({
 };
 
 export const RuntimeTimelineSection = () => {
-  const {
-    activeRoom,
-    roomCharacters,
-    state,
-    workspace,
-    isSending,
-  } = useTavernPageContext();
+  const { activeRoom, roomCharacters, state, workspace, isSending } = useTavernPageContext();
   const [snapshot, setSnapshot] = useState<AgentClientRuntimeSessionSnapshot | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<TimelineFilter>("all");
   const wasSendingRef = useRef(isSending);
-  const sessionRootDir = useMemo(
-    () => activeRoom ? tavernBridgeSessionRootDir(activeRoom) : "",
-    [activeRoom],
-  );
+  const sessionRootDir = useMemo(() => (activeRoom ? tavernBridgeSessionRootDir(activeRoom) : ""), [activeRoom]);
   const roleLabelById = useMemo(
-    () => activeRoom ? buildRoleLabelMap(activeRoom, roomCharacters) : new Map<string, string>(),
+    () => (activeRoom ? buildRoleLabelMap(activeRoom, roomCharacters) : new Map<string, string>()),
     [activeRoom, roomCharacters],
   );
   const localTraceCount = useMemo(() => {
     const sceneInstanceId = activeSceneInstanceIdFor(activeRoom);
-    return sceneInstanceId ? state.workflowTracesByInstance[sceneInstanceId]?.length ?? 0 : 0;
+    return sceneInstanceId ? (state.workflowTracesByInstance[sceneInstanceId]?.length ?? 0) : 0;
   }, [activeRoom, state.workflowTracesByInstance]);
   const timeline = snapshot?.timeline ?? [];
   const filteredTimeline = filterTimeline(timeline, filter);
   const latestWorkflowRunId = snapshot?.session.latestWorkflowRunId ?? "";
   const workflowCount = snapshot?.session.workflowRunIds.length ?? 0;
-  const modeLabels = snapshot?.session.modeIds.length
-    ? snapshot.session.modeIds
-    : [];
+  const modeLabels = snapshot?.session.modeIds.length ? snapshot.session.modeIds : [];
 
-  const refresh = useCallback(async (options: { silent?: boolean } = {}) => {
-    if (!activeRoom || !workspace.path || !sessionRootDir) {
-      setSnapshot(null);
-      setError("");
-      return;
-    }
-
-    if (!options.silent) {
-      setIsLoading(true);
-    }
-    try {
-      const result = await runtimeTimelineClient.getRuntimeSession({
-        workspacePath: workspace.path,
-        sessionRootDir,
-        includeTimeline: true,
-        timelineLimit: TIMELINE_LIMIT,
-      });
-      setSnapshot(result);
-      setError("");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      if (!options.silent) {
-        setIsLoading(false);
+  const refresh = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!activeRoom || !workspace.path || !sessionRootDir) {
+        setSnapshot(null);
+        setError("");
+        return;
       }
-    }
-  }, [activeRoom, sessionRootDir, workspace.path]);
+
+      if (!options.silent) {
+        setIsLoading(true);
+      }
+      try {
+        const result = await runtimeTimelineClient.session.read({
+          workspacePath: workspace.path,
+          sessionRootDir,
+          includeTimeline: true,
+          timelineLimit: TIMELINE_LIMIT,
+        });
+        setSnapshot(result);
+        setError("");
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : String(caught));
+      } finally {
+        if (!options.silent) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeRoom, sessionRootDir, workspace.path],
+  );
 
   useEffect(() => {
     void refresh();
@@ -371,7 +328,7 @@ export const RuntimeTimelineSection = () => {
     <section className="space-y-2 text-current">
       <PanelSectionTitle
         icon={Activity}
-        actions={(
+        actions={
           <>
             {isSending && (
               <span className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
@@ -389,14 +346,10 @@ export const RuntimeTimelineSection = () => {
               disabled={isLoading}
               onClick={() => void refresh()}
             >
-              {isLoading ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3.5" />
-              )}
+              {isLoading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
             </Button>
           </>
-        )}
+        }
       >
         运行链路
       </PanelSectionTitle>
@@ -477,17 +430,11 @@ export const RuntimeTimelineSection = () => {
           </span>
         </EmptyPanelCard>
       ) : filteredTimeline.length === 0 ? (
-        <EmptyPanelCard>
-          {timeline.length === 0 ? "暂无运行链路" : "当前筛选没有事件"}
-        </EmptyPanelCard>
+        <EmptyPanelCard>{timeline.length === 0 ? "暂无运行链路" : "当前筛选没有事件"}</EmptyPanelCard>
       ) : (
         <div className="space-y-1.5">
           {filteredTimeline.map((item) => (
-            <RuntimeTimelineEvent
-              key={item.id}
-              item={item}
-              roleLabelById={roleLabelById}
-            />
+            <RuntimeTimelineEvent key={item.id} item={item} roleLabelById={roleLabelById} />
           ))}
         </div>
       )}

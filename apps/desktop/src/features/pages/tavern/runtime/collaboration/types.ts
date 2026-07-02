@@ -1,21 +1,12 @@
 import type {
   AgentClientCollaborationInput,
   AgentClientCollaborationModeInput,
-} from "@/agent-client/contracts";
-import type {
   RuntimeModelInput,
-} from "@/agent-client/protocol";
+} from "@/agent-client/types";
 import type { StoryContextPackage } from "@/features/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernReferencedFile,
-  TavernRoom,
-} from "../../types";
+import type { TavernCharacter, TavernMessage, TavernReferencedFile, TavernRoom } from "../../types";
 
-export type TavernCollaborationInput =
-  | AgentClientCollaborationInput
-  | AgentClientCollaborationModeInput;
+export type TavernCollaborationInput = AgentClientCollaborationInput | AgentClientCollaborationModeInput;
 
 type TavernDirectorBaseCollaborationInput = {
   workspacePath: string;

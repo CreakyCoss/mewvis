@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import type {
   CreateLedgerInput,
   LedgerMessageInput,

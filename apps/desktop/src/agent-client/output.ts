@@ -1,4 +1,4 @@
-import type { AgentClientOutputEvent } from "./contracts";
+import type { AgentClientOutputEvent } from "./contracts/events";
 
 export type AgentClientOutputHandlers = {
   onTextDelta?: (delta: string) => void;
@@ -20,20 +20,14 @@ export const createAgentClientOutputState = (): AgentClientOutputState => ({
   thinking: "",
 });
 
-export const isAgentClientOutputEvent = (
-  event: { type: string },
-): event is AgentClientOutputEvent => (
+export const isAgentClientOutputEvent = (event: { type: string }): event is AgentClientOutputEvent =>
   event.type === "text_delta" ||
   event.type === "thinking_delta" ||
   event.type === "replace_text" ||
   event.type === "thinking_end" ||
-  event.type === "done"
-);
+  event.type === "done";
 
-export const applyAgentClientOutputEvent = (
-  state: AgentClientOutputState,
-  event: AgentClientOutputEvent,
-) => {
+export const applyAgentClientOutputEvent = (state: AgentClientOutputState, event: AgentClientOutputEvent) => {
   if (event.type === "text_delta") {
     state.text += event.delta;
     return;
@@ -59,10 +53,7 @@ export const applyAgentClientOutputEvent = (
   }
 };
 
-export const dispatchAgentClientOutputEvent = (
-  event: AgentClientOutputEvent,
-  handlers: AgentClientOutputHandlers,
-) => {
+export const dispatchAgentClientOutputEvent = (event: AgentClientOutputEvent, handlers: AgentClientOutputHandlers) => {
   if (event.type === "text_delta") {
     handlers.onTextDelta?.(event.delta);
     return;
@@ -73,9 +64,7 @@ export const dispatchAgentClientOutputEvent = (
   }
 };
 
-export const snapshotAgentClientOutput = (
-  state: AgentClientOutputState,
-): AgentClientOutputSnapshot => ({
+export const snapshotAgentClientOutput = (state: AgentClientOutputState): AgentClientOutputSnapshot => ({
   text: state.text.trim(),
   thinking: state.thinking.trim() || undefined,
 });

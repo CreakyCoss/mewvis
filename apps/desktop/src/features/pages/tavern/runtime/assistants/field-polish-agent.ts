@@ -1,4 +1,4 @@
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernPromptStyleId } from "../../types";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,

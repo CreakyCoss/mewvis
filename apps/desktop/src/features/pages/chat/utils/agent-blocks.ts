@@ -1,4 +1,4 @@
-import type { AgentClientAgentEvent } from "@/agent-client/contracts";
+import type { AgentClientAgentEvent } from "@/agent-client/types";
 import type { AgentMessageBlock, ChatMessage } from "../types";
 
 export const AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS = 2500;

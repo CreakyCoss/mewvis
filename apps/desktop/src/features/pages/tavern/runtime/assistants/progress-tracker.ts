@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
-import type { RuntimeModelInput } from "@/agent-client/protocol";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import type { StoryContextPackage } from "@/features/story";
 import {
   tavernBridgeSessionRootDir,
