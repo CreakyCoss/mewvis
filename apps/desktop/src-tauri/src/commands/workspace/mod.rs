@@ -4,7 +4,7 @@ mod files;
 mod knowledge;
 mod overview;
 mod skills;
-mod story_sessions;
+mod stories;
 mod tavern_sessions;
 mod version_control;
 
@@ -24,8 +24,10 @@ pub use skills::{
     get_workspace_skills, install_skill_from_marketplace, remove_app_skill, save_workspace_skills,
     search_skill_marketplace,
 };
-pub use story_sessions::{load_story_state, save_story_state};
-pub use tavern_sessions::{load_tavern_state, save_tavern_state};
+pub use stories::{
+    create_story_record, delete_story_record, list_story_records, update_story_record,
+};
+pub use tavern_sessions::{clear_tavern_state, load_tavern_state, save_tavern_state};
 pub use version_control::{
     create_workspace_version, create_workspace_version_branch,
     discard_workspace_version_file_changes, get_workspace_version_commit_file_diff,

@@ -36,6 +36,16 @@ pub struct WorkspaceOverview {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StoryRecord {
+    pub id: String,
+    pub name: String,
+    pub workspace_path: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LlmProvider {
     pub id: String,
     pub name: String,

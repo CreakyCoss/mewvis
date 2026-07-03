@@ -376,8 +376,7 @@ export const QuickSummary = ({
     const sourceMessages = getQuickSummarySourceMessages(roomMessages);
     setIsSubmittingNovelToStory(true);
     void submitTavernStoryManuscript({
-      workspacePath: workspace.path,
-      workspaceId: workspace.id,
+      storyId,
       input: {
         storyId,
         nodeId,

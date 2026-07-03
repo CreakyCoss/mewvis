@@ -163,10 +163,7 @@ export const submitRoomTurn = async ({
   }
 
   let text = draftText;
-  const storyState = await loadTavernStoryState({
-    workspacePath: ctx.workspace.path,
-    workspaceId: ctx.workspace.id,
-  }).catch(() => null);
+  const storyState = await loadTavernStoryState(activeRoom.storyBinding?.storyId).catch(() => null);
   const preliminaryStoryContext = resolveTavernRuntimeStoryContextPackage({
     room: activeRoom,
     characters: roomCharacters,

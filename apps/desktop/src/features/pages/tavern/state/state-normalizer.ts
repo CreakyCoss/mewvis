@@ -286,6 +286,9 @@ const normalizeWorkflowTraceRun = (
 export const normalizeTavernState = (
   workspaceId: string,
   value: unknown,
+  options: {
+    includeDefaultRooms?: boolean;
+  } = {},
 ): TavernState | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -432,7 +435,9 @@ export const normalizeTavernState = (
     return projectTavernSceneOntoRoom(normalizedRoom);
   });
   if (rooms.length === 0) {
-    return createDefaultTavernState(workspaceId);
+    return options.includeDefaultRooms === false
+      ? null
+      : createDefaultTavernState(workspaceId);
   }
   const normalizedRooms = rooms;
   const messagesByInstance = Object.fromEntries(
@@ -476,11 +481,15 @@ export const normalizeTavernState = (
     ? candidate.activeRoomId ?? rooms[0].id
     : normalizedRooms[0].id;
 
-  return ensureDefaultTavernSystemPresetRooms(workspaceId, {
+  const normalizedState: TavernState = {
     version: 4,
     activeRoomId,
     rooms: normalizedRooms,
     messagesByInstance,
     workflowTracesByInstance,
-  });
+  };
+
+  return options.includeDefaultRooms === false
+    ? normalizedState
+    : ensureDefaultTavernSystemPresetRooms(workspaceId, normalizedState);
 };

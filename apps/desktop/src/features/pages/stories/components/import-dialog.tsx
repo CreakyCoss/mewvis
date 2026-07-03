@@ -45,30 +45,36 @@ export const StoryImportDialog = ({
   onMergeIntoActiveStory,
 }: StoryImportDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[min(90vh,52rem)] overflow-hidden sm:max-w-5xl">
-      <DialogHeader>
+    <DialogContent className="!flex h-[min(90vh,52rem)] max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-5xl">
+      <DialogHeader className="shrink-0">
         <DialogTitle>导入故事</DialogTitle>
         <DialogDescription>
           JSON、纯文本、角色卡和世界书会先转换为标准故事草稿，确认后再写入故事资产。
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <StoryImportSourcePanel
-          importRaw={importRaw}
-          importSourceKind={importSourceKind}
-          onConvert={onConvert}
-          setImportDraft={setImportDraft}
-          setImportRaw={setImportRaw}
-          setImportSourceKind={setImportSourceKind}
-        />
-        <StoryImportDraftReview
-          importDraft={importDraft}
-          setImportDraft={setImportDraft}
-        />
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1 lg:overflow-hidden">
+        <div className="grid min-h-0 gap-4 lg:h-full lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="min-h-0 lg:overflow-y-auto lg:pr-1">
+            <StoryImportSourcePanel
+              importRaw={importRaw}
+              importSourceKind={importSourceKind}
+              onConvert={onConvert}
+              setImportDraft={setImportDraft}
+              setImportRaw={setImportRaw}
+              setImportSourceKind={setImportSourceKind}
+            />
+          </div>
+          <div className="min-h-0 lg:flex">
+            <StoryImportDraftReview
+              importDraft={importDraft}
+              setImportDraft={setImportDraft}
+            />
+          </div>
+        </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="shrink-0">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           取消
         </Button>

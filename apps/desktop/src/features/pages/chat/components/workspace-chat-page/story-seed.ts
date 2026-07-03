@@ -4,7 +4,7 @@ import {
   type StoryContextPackage,
   type StoryDataPackage,
 } from "@/features/story";
-import { loadStoryState } from "@/features/story/storage";
+import { loadStoryById } from "@/features/story/storage";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { ChatMessage } from "../../types";
 import { createMessageId } from "../../utils/sessions";
@@ -121,14 +121,14 @@ const createSeedMessages = ({
 };
 
 export const loadStoryChatSeed = async (
-  workspace: Workspace,
+  _workspace: Workspace,
   request: StoryChatSeedRequest,
 ): Promise<StoryChatSeed | null> => {
-  const storyState = await loadStoryState(workspace.path, workspace.id);
-  const story = storyState.stories.find((item) => item.id === request.storyId);
-  if (!story) {
+  const loaded = await loadStoryById(request.storyId);
+  if (!loaded) {
     return null;
   }
+  const story = loaded.story;
 
   const requestedNodeId = compact(request.nodeId);
   const activeNodeId = story.graph.nodes.some((node) => node.id === requestedNodeId)

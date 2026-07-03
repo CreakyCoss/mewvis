@@ -1025,7 +1025,7 @@ export const WorkspaceChatPage = ({
 
       setStorySubmittingMessageIds((current) => (current.includes(message.id) ? current : [...current, message.id]));
       try {
-        await submitStoryManuscript(workspace.path, workspace.id, {
+        await submitStoryManuscript(storyChatSeed.storyId, {
           storyId: storyChatSeed.storyId,
           nodeId: storyChatSeed.nodeId,
           source: "chat",
@@ -1051,7 +1051,7 @@ export const WorkspaceChatPage = ({
         setStorySubmittingMessageIds((current) => current.filter((id) => id !== message.id));
       }
     },
-    [currentSessionId, storyChatSeed, workspace.id, workspace.path],
+    [currentSessionId, storyChatSeed],
   );
 
   useChatPanelStoreBridge({

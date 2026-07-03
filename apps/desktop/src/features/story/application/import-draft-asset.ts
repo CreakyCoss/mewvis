@@ -140,7 +140,6 @@ export const createStoryAssetFromImportDraft = ({
       edges: [],
     },
     manuscriptInbox: createEmptyStoryManuscriptInbox(),
-    sourceRefs: [],
     createdAt: timestamp,
     updatedAt: timestamp,
   };

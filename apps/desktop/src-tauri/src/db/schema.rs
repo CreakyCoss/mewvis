@@ -60,6 +60,19 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
         "#,
     },
     DatabaseTableSchema {
+        name: "stories",
+        columns: &["id", "name", "workspace_path", "created_at", "updated_at"],
+        create_sql: r#"
+            CREATE TABLE IF NOT EXISTS stories (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                workspace_path TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
+    DatabaseTableSchema {
         name: "llm_providers",
         columns: &[
             "id",

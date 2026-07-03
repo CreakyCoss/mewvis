@@ -1,8 +1,8 @@
 use rusqlite::Connection;
 
 use super::version::{
-    database_user_version, set_database_user_version, CONFIG_INITIAL_SCHEMA_VERSION,
-    CONFIG_SCHEMA_VERSION,
+    CONFIG_INITIAL_SCHEMA_VERSION, CONFIG_SCHEMA_VERSION, database_user_version,
+    set_database_user_version,
 };
 use crate::db::{schema::validate_config_schema, sqlite::table_columns};
 
@@ -94,7 +94,27 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_agent_runtime_settings",
         run: add_agent_runtime_settings,
     },
+    ConfigMigrationStep {
+        target_version: 20,
+        name: "add_story_registry",
+        run: add_story_registry,
+    },
 ];
+
+fn add_story_registry(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS stories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            workspace_path TEXT NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        "#,
+    )
+    .map_err(|error| format!("无法创建故事索引表：{error}"))
+}
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(

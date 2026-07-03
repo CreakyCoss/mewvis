@@ -16,12 +16,6 @@ import {
   type StoryContextStage,
 } from "./context-package";
 
-export type StorySourceRef = {
-  channel: string;
-  id: string;
-  label?: string;
-};
-
 export type StoryAsset = {
   id: string;
   workspaceId: string;
@@ -40,7 +34,6 @@ export type StoryAsset = {
     edges: StoryContextEdge[];
   };
   manuscriptInbox: StoryManuscriptInbox;
-  sourceRefs: StorySourceRef[];
   createdAt: number;
   updatedAt: number;
 };
@@ -58,15 +51,16 @@ export const createEmptyStoryState = (): StoryState => ({
 });
 
 export const createStandaloneStoryAsset = ({
+  id = `story-${crypto.randomUUID()}`,
   workspaceId,
   title = "未命名故事",
   timestamp = Date.now(),
 }: {
+  id?: string;
   workspaceId: string;
   title?: string;
   timestamp?: number;
 }): StoryAsset => {
-  const id = `story-${crypto.randomUUID()}`;
   const sceneId = `${id}-scene-main`;
   const stageId = `${id}-stage-main`;
   const nodeId = `${id}-node-main`;
@@ -110,7 +104,6 @@ export const createStandaloneStoryAsset = ({
       edges: [],
     },
     manuscriptInbox: createEmptyStoryManuscriptInbox(),
-    sourceRefs: [],
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -120,24 +113,13 @@ export const createStoryAssetFromContextPackage = ({
   workspaceId,
   context,
   existing,
-  sourceRef,
   timestamp = Date.now(),
 }: {
   workspaceId: string;
   context: StoryContextPackage;
   existing?: StoryAsset;
-  sourceRef?: StoryAsset["sourceRefs"][number];
   timestamp?: number;
 }): StoryAsset => {
-  const sourceRefs = sourceRef
-    ? [
-        ...(existing?.sourceRefs.filter((ref) =>
-          !(ref.channel === sourceRef.channel && ref.id === sourceRef.id)
-        ) ?? []),
-        sourceRef,
-      ]
-    : existing?.sourceRefs ?? [];
-
   return {
     id: context.story.id,
     workspaceId,
@@ -156,7 +138,6 @@ export const createStoryAssetFromContextPackage = ({
       edges: context.graph.edges,
     },
     manuscriptInbox: existing?.manuscriptInbox ?? createEmptyStoryManuscriptInbox(),
-    sourceRefs,
     createdAt: existing?.createdAt ?? timestamp,
     updatedAt: timestamp,
   };

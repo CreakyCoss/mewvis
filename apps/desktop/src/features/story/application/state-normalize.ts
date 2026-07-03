@@ -118,24 +118,6 @@ const normalizeStoryAsset = (
     manuscriptInbox: isRecord(value.manuscriptInbox) && value.manuscriptInbox.version === 1
       ? value.manuscriptInbox as StoryManuscriptInbox
       : createEmptyStoryManuscriptInbox(),
-    sourceRefs: Array.isArray(value.sourceRefs)
-      ? value.sourceRefs.flatMap((ref) => {
-          if (!isRecord(ref)) {
-            return [];
-          }
-          const channel = trimText(ref.channel);
-          const refId = trimText(ref.id);
-          if (!channel || !refId) {
-            return [];
-          }
-          const label = trimText(ref.label);
-          return [{
-            channel,
-            id: refId,
-            label: label || undefined,
-          }];
-        })
-      : [],
     createdAt: typeof value.createdAt === "number" ? value.createdAt : Date.now(),
     updatedAt: typeof value.updatedAt === "number" ? value.updatedAt : Date.now(),
   };

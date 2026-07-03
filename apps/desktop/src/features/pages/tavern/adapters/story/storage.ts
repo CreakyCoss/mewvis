@@ -3,25 +3,33 @@ import type {
   StoryState,
 } from "@/features/story";
 import {
-  loadStoryState,
+  loadStoryById,
   submitStoryManuscript,
 } from "@/features/story/storage";
 
-type TavernStoryWorkspaceInput = {
-  workspacePath: string;
-  workspaceId: string;
+export const loadTavernStoryState = async (
+  storyId: string | undefined,
+): Promise<StoryState | null> => {
+  if (!storyId) {
+    return null;
+  }
+
+  const loaded = await loadStoryById(storyId);
+  if (!loaded) {
+    return null;
+  }
+
+  return {
+    version: 1,
+    activeStoryId: loaded.story.id,
+    stories: [loaded.story],
+  };
 };
 
-export const loadTavernStoryState = async ({
-  workspacePath,
-  workspaceId,
-}: TavernStoryWorkspaceInput): Promise<StoryState> =>
-  loadStoryState(workspacePath, workspaceId);
-
 export const submitTavernStoryManuscript = async ({
-  workspacePath,
-  workspaceId,
+  storyId,
   input,
-}: TavernStoryWorkspaceInput & {
+}: {
+  storyId: string;
   input: StoryManuscriptSubmissionInput;
-}) => submitStoryManuscript(workspacePath, workspaceId, input);
+}) => submitStoryManuscript(storyId, input);

@@ -1,19 +1,22 @@
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { Button } from "@/components/ui/button";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { TavernPage as TavernSurface } from "@/features/pages/tavern/components/tavern-page";
 import {
   TAVERN_ROOM_SEARCH_PARAM,
   TAVERN_SCENE_INSTANCE_SEARCH_PARAM,
+  TAVERN_STORY_SEARCH_PARAM,
+  TAVERN_STORY_NODE_SEARCH_PARAM,
+  TAVERN_ID_SEARCH_PARAM,
+  TAVERN_RUNTIME_PATH_SEARCH_PARAM,
   isTavernFullscreenSearch,
   TAVERN_FULLSCREEN_SEARCH_PARAM,
 } from "@/features/pages/tavern/navigation";
-import {
-  listWorkspaceFiles,
-  type WorkspaceFileEntry,
-} from "@/features/pages/workspace/files-api";
+import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
+import { buildStoryOpenSearch } from "@/features/pages/stories/navigation";
 import { useLlmSettingsStore } from "../settings/llm/store";
 
 const LoadingState = () => (
@@ -25,6 +28,25 @@ const LoadingState = () => (
   </section>
 );
 
+const StoryRuntimeMissingState = ({
+  onGoHome,
+}: {
+  onGoHome: () => void;
+}) => (
+  <section className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-center">
+    <div className="flex max-w-sm flex-col items-center gap-3">
+      <AlertCircle className="size-9 text-muted-foreground" />
+      <div className="text-base font-medium">无法加载故事酒馆</div>
+      <p className="text-sm leading-6 text-muted-foreground">
+        缺少故事酒馆运行目录，请从故事页重新选择酒馆进入。
+      </p>
+      <Button type="button" variant="outline" onClick={onGoHome}>
+        返回首页
+      </Button>
+    </div>
+  </section>
+);
+
 export const TavernPage = () => {
   const { workspaceId } = useParams();
   const location = useLocation();
@@ -32,16 +54,31 @@ export const TavernPage = () => {
   const { overview, activeWorkspace, defaultWorkspace } = useWorkspaceOverview();
   const workspaces = overview?.workspaces ?? [];
   const workspace =
-    workspaces.find((item) => item.id === workspaceId) ??
-    activeWorkspace ??
-    defaultWorkspace ??
-    workspaces[0] ??
-    null;
+    workspaces.find((item) => item.id === workspaceId) ?? activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
   const isHomeFullscreen = isTavernFullscreenSearch(location.search);
   const searchParams = new URLSearchParams(location.search);
   const initialRoomId = searchParams.get(TAVERN_ROOM_SEARCH_PARAM) ?? "";
   const initialSceneInstanceId = searchParams.get(TAVERN_SCENE_INSTANCE_SEARCH_PARAM) ?? "";
-  const exitHomeFullscreen = useCallback(() => {
+  const storyId = searchParams.get(TAVERN_STORY_SEARCH_PARAM)?.trim() ?? "";
+  const storyNodeId = searchParams.get(TAVERN_STORY_NODE_SEARCH_PARAM)?.trim() ?? "";
+  const tavernId = searchParams.get(TAVERN_ID_SEARCH_PARAM)?.trim() ?? "";
+  const tavernRuntimePath = searchParams.get(TAVERN_RUNTIME_PATH_SEARCH_PARAM)?.trim() ?? "";
+  const isStoryRuntimeRequest = Boolean(storyId || tavernId || tavernRuntimePath);
+  const exitTavernSurface = useCallback(() => {
+    if (isStoryRuntimeRequest) {
+      navigate(
+        {
+          pathname: "/stories",
+          search: buildStoryOpenSearch({
+            storyId: storyId || undefined,
+            fullscreen: Boolean(storyId),
+          }),
+        },
+        { replace: true },
+      );
+      return;
+    }
+
     const params = new URLSearchParams(location.search);
     params.delete(TAVERN_FULLSCREEN_SEARCH_PARAM);
 
@@ -54,29 +91,88 @@ export const TavernPage = () => {
       },
       { replace: true },
     );
-  }, [location.hash, location.pathname, location.search, navigate]);
+  }, [isStoryRuntimeRequest, location.hash, location.pathname, location.search, navigate, storyId]);
 
-  if (!workspace && !overview) {
+  const storyRuntimeWorkspace = isStoryRuntimeRequest
+    ? storyRuntimeWorkspaceFromPath({
+        workspaceId,
+        storyId,
+        runtimePath: tavernRuntimePath,
+      })
+    : null;
+  const tavernWorkspace = isStoryRuntimeRequest ? storyRuntimeWorkspace : workspace;
+
+  if (!isStoryRuntimeRequest && !tavernWorkspace && !overview) {
     return <LoadingState />;
   }
 
-  if (!workspace) {
+  if (isStoryRuntimeRequest && !storyRuntimeWorkspace) {
+    return <StoryRuntimeMissingState onGoHome={() => navigate("/", { replace: true })} />;
+  }
+
+  if (!tavernWorkspace) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <TavernContainer
-      workspace={workspace}
+      workspace={tavernWorkspace}
+      runtimeScope={{
+        storyId: storyId || undefined,
+        storyNodeId: storyNodeId || undefined,
+        tavernId: tavernId || undefined,
+        runtimePath: tavernRuntimePath || undefined,
+      }}
       isHomeFullscreen={isHomeFullscreen}
-      initialRoomId={initialRoomId}
+      initialRoomId={initialRoomId || tavernId}
       initialSceneInstanceId={initialSceneInstanceId}
-      onExitHomeFullscreen={exitHomeFullscreen}
+      onExitHomeFullscreen={exitTavernSurface}
     />
   );
 };
 
+const storyRuntimeWorkspaceFromPath = ({
+  workspaceId,
+  storyId,
+  runtimePath,
+}: {
+  workspaceId?: string;
+  storyId: string;
+  runtimePath: string;
+}): Workspace | null => {
+  const trimmedPath = runtimePath.trim();
+  if (!trimmedPath) {
+    return null;
+  }
+
+  const markerMatch = /[\\/]\.tavern[\\/]/.exec(trimmedPath);
+  const rootPath = markerMatch ? trimmedPath.slice(0, markerMatch.index) : "";
+  if (!rootPath) {
+    return null;
+  }
+
+  return {
+    id: workspaceId || storyId,
+    name: "故事酒馆运行时",
+    description: null,
+    path: rootPath,
+    isDefault: false,
+    isPinned: false,
+    order: 0,
+    groupId: null,
+    createdAt: 0,
+    updatedAt: 0,
+  };
+};
+
 type TavernContainerProps = {
   workspace: Workspace;
+  runtimeScope?: {
+    storyId?: string;
+    storyNodeId?: string;
+    tavernId?: string;
+    runtimePath?: string;
+  };
   isHomeFullscreen: boolean;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
@@ -85,6 +181,7 @@ type TavernContainerProps = {
 
 const TavernContainer = ({
   workspace,
+  runtimeScope,
   isHomeFullscreen,
   initialRoomId,
   initialSceneInstanceId,
@@ -121,6 +218,7 @@ const TavernContainer = ({
   return (
     <TavernSurface
       workspace={workspace}
+      runtimeScope={runtimeScope}
       files={files}
       runtimeModel={runtimeModels[0] ?? null}
       isHomeFullscreen={isHomeFullscreen}

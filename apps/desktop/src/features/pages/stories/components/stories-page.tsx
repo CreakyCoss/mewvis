@@ -12,7 +12,9 @@ import {
 import { StoryImportDialog } from "./import-dialog";
 import { useStoryPresentationActions } from "./presentation-actions";
 import { StoryContent } from "./story-content";
+import { StoryCreateDialog, type StoryCreateForm } from "./story-create-dialog";
 import { StoryHeader } from "./story-header";
+import { StoryTavernSelectDialog } from "./story-tavern-select-dialog";
 import { useStoryImport } from "./use-story-import";
 import { useStoryManuscripts } from "./use-story-manuscripts";
 import { useStoryState } from "./use-story-state";
@@ -20,11 +22,7 @@ import type { StoryDraft } from "./story-form-utils";
 import type { StoryConfigTab } from "./story-tabs";
 
 export const StoriesPage = () => {
-  const {
-    runtimeAgentRequiresModel,
-    selectedRuntimeModel,
-    settingsError,
-  } = useRuntimeAgentSettings();
+  const { runtimeAgentRequiresModel, selectedRuntimeModel, settingsError } = useRuntimeAgentSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -33,9 +31,17 @@ export const StoriesPage = () => {
   const { activeWorkspace, defaultWorkspace, overview } = useWorkspaceOverview();
   const workspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [tavernSelectNodeId, setTavernSelectNodeId] = useState<string | null | undefined>(undefined);
+  const [createForm, setCreateForm] = useState<StoryCreateForm>({
+    name: "",
+    workspacePath: "",
+  });
   const {
     activeStory,
+    activeStoryWorkspace,
     createStory,
+    deleteStory,
     isLoading,
     isSaving,
     persistStory,
@@ -43,21 +49,27 @@ export const StoriesPage = () => {
     selectStory,
     storyState,
   } = useStoryState({
-    workspace,
     requestedStoryId,
   });
-  const isEditorOpen = isHomeFullscreen &&
-    Boolean(requestedStoryId) &&
-    activeStory?.id === requestedStoryId;
-  const {
-    openingStoryId,
-    openStoryPresentation,
-  } = useStoryPresentationActions({
+  const isEditorOpen = isHomeFullscreen && Boolean(requestedStoryId) && activeStory?.id === requestedStoryId;
+  const { openingStoryId, openStoryPresentation: openRegisteredStoryPresentation } = useStoryPresentationActions({
     workspace,
     activeStory,
+    activeStoryWorkspace,
     storyState,
     persistStoryState,
   });
+  const openStoryPresentation = useCallback(
+    (channel: Parameters<typeof openRegisteredStoryPresentation>[0], nodeId?: string | null) => {
+      if (channel === "tavern") {
+        setTavernSelectNodeId(nodeId ?? null);
+        return;
+      }
+
+      return openRegisteredStoryPresentation(channel, nodeId);
+    },
+    [openRegisteredStoryPresentation],
+  );
   const {
     convertImportDraft,
     importAsNewStory,
@@ -73,10 +85,9 @@ export const StoriesPage = () => {
     setIsImportOpen,
   } = useStoryImport({
     activeStory,
+    createStory,
     persistStory,
-    persistStoryState,
     setActiveTab,
-    storyState,
     workspace,
   });
   const {
@@ -92,7 +103,7 @@ export const StoriesPage = () => {
     runtimeAgentRequiresModel,
     selectedRuntimeModel,
     settingsError,
-    workspace,
+    workspace: activeStoryWorkspace,
   });
 
   const saveOverviewDraft = (draft: StoryDraft) => {
@@ -109,16 +120,19 @@ export const StoriesPage = () => {
     });
   };
 
-  const replaceStorySearch = useCallback((search: string) => {
-    navigate(
-      {
-        pathname: location.pathname,
-        search,
-        hash: location.hash,
-      },
-      { replace: true },
-    );
-  }, [location.hash, location.pathname, navigate]);
+  const replaceStorySearch = useCallback(
+    (search: string) => {
+      navigate(
+        {
+          pathname: location.pathname,
+          search,
+          hash: location.hash,
+        },
+        { replace: true },
+      );
+    },
+    [location.hash, location.pathname, navigate],
+  );
 
   const exitHomeFullscreen = useCallback(() => {
     const params = new URLSearchParams(location.search);
@@ -137,19 +151,45 @@ export const StoriesPage = () => {
     replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
   }, [location.search, replaceStorySearch]);
 
-  const openStoryEditor = useCallback((story: NonNullable<typeof activeStory>) => {
-    selectStory(story);
-    setActiveTab("overview");
-    replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
-  }, [replaceStorySearch, selectStory]);
+  const openStoryEditor = useCallback(
+    (story: NonNullable<typeof activeStory>) => {
+      selectStory(story);
+      setActiveTab("overview");
+      replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
+    },
+    [replaceStorySearch, selectStory],
+  );
 
-  const handleCreateStory = () => {
-    const story = createStory();
+  const openCreateStoryDialog = () => {
+    setCreateForm({
+      name: "",
+      workspacePath: "",
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleCreateStory = async () => {
+    const story = await createStory(createForm);
     if (!story) {
       return;
     }
+    setIsCreateDialogOpen(false);
     setActiveTab("overview");
     replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
+  };
+
+  const handleDeleteStory = (story: NonNullable<typeof activeStory>) => {
+    const confirmed = window.confirm(
+      `删除故事「${story.title}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/ 运行时数据。`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    void deleteStory(story);
+    if (requestedStoryId === story.id) {
+      backToStoryHome();
+    }
   };
 
   const handleSelectStory = (story: NonNullable<typeof activeStory>) => {
@@ -163,25 +203,26 @@ export const StoriesPage = () => {
         {isEditorOpen ? (
           <StoryHeader
             activeStory={activeStory}
-            canCreateStory={Boolean(workspace)}
+            canCreateStory
             isSaving={isSaving}
             onBackToList={backToStoryHome}
-            onCreateStory={handleCreateStory}
+            onCreateStory={openCreateStoryDialog}
             onOpenImportDialog={openImportDialog}
             onOpenStoryPresentation={openStoryPresentation}
             openingStoryId={openingStoryId}
             pendingDraftCount={pendingDraftCount}
-            workspaceName={workspace?.name}
+            workspaceName={activeStoryWorkspace?.name}
           />
         ) : null}
 
         <StoryContent
           activeTab={activeTab}
-          canCreateStory={Boolean(workspace)}
+          canCreateStory
           isLoading={isLoading}
           onAcceptManuscript={acceptManuscript}
           onCreateManuscriptDraft={createManuscriptDraft}
-          onCreateStory={handleCreateStory}
+          onCreateStory={openCreateStoryDialog}
+          onDeleteStory={handleDeleteStory}
           onOpenImportDialog={openImportDialog}
           onOpenStoryPresentation={openStoryPresentation}
           onPolishManuscriptDraft={polishManuscriptDraft}
@@ -212,6 +253,28 @@ export const StoriesPage = () => {
         onConvert={convertImportDraft}
         onImportNewStory={importAsNewStory}
         onMergeIntoActiveStory={mergeImportIntoActiveStory}
+      />
+
+      <StoryTavernSelectDialog
+        open={tavernSelectNodeId !== undefined}
+        activeStory={activeStory}
+        nodeId={tavernSelectNodeId ?? undefined}
+        storyWorkspace={activeStoryWorkspace}
+        tavernWorkspace={workspace}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setTavernSelectNodeId(undefined);
+          }
+        }}
+      />
+
+      <StoryCreateDialog
+        open={isCreateDialogOpen}
+        form={createForm}
+        isSaving={isSaving}
+        onOpenChange={setIsCreateDialogOpen}
+        onFormChange={setCreateForm}
+        onSubmit={handleCreateStory}
       />
     </section>
   );

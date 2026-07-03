@@ -67,6 +67,7 @@ import type {
   TavernReferencedFile,
   TavernReplyOption,
   TavernRoom,
+  TavernState,
 } from "../types";
 import { runTavernUserReplySuggestions } from "../runtime/assistants";
 import { runTavernDirectorRoleAssignment } from "../runtime/director";
@@ -100,6 +101,14 @@ const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请�
 const TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS = 90_000;
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
+
+const createEmptyTavernState = (): TavernState => ({
+  version: 4,
+  activeRoomId: "",
+  rooms: [],
+  messagesByInstance: {},
+  workflowTracesByInstance: {},
+});
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
@@ -224,6 +233,7 @@ export const TavernPage = ({
   workspace,
   files,
   runtimeModel,
+  runtimeScope,
   isHomeFullscreen = false,
   initialRoomId,
   initialSceneInstanceId,
@@ -235,6 +245,7 @@ export const TavernPage = ({
   >
     <TavernPageContent
       files={files}
+      runtimeScope={runtimeScope}
       isHomeFullscreen={isHomeFullscreen}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}
@@ -245,11 +256,12 @@ export const TavernPage = ({
 
 type TavernPageContentProps = Pick<
   TavernPageProps,
-  "files" | "isHomeFullscreen" | "initialRoomId" | "initialSceneInstanceId" | "onExitHomeFullscreen"
+  "files" | "runtimeScope" | "isHomeFullscreen" | "initialRoomId" | "initialSceneInstanceId" | "onExitHomeFullscreen"
 >;
 
 const TavernPageContent = ({
   files,
+  runtimeScope = {},
   isHomeFullscreen = false,
   initialRoomId,
   initialSceneInstanceId,
@@ -290,8 +302,20 @@ const TavernPageContent = ({
     visualPreset,
     workspace,
   } = ctx;
+  const runtimeScopeKey = `${runtimeScope.storyId ?? ""}:${runtimeScope.storyNodeId ?? ""}:${runtimeScope.tavernId ?? ""}:${runtimeScope.runtimePath ?? ""}`;
+  const tavernRuntimeScope = useMemo(() => ({
+    storyId: runtimeScope.storyId,
+    storyNodeId: runtimeScope.storyNodeId,
+    tavernId: runtimeScope.tavernId,
+    runtimePath: runtimeScope.runtimePath,
+  }), [runtimeScope.runtimePath, runtimeScope.storyId, runtimeScope.storyNodeId, runtimeScope.tavernId]);
+  const isStoryRuntimeScope = Boolean(
+    tavernRuntimeScope.storyId &&
+    tavernRuntimeScope.tavernId &&
+    tavernRuntimeScope.runtimePath,
+  );
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
-  const [viewMode, setViewMode] = useState<"home" | "room">("home");
+  const [viewMode, setViewMode] = useState<"home" | "room">(() => isStoryRuntimeScope ? "room" : "home");
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
   const [branchMemoryPreview, setBranchMemoryPreview] = useState<ReturnType<typeof loadTavernBranchUpstreamMemory> | null>(null);
@@ -310,6 +334,7 @@ const TavernPageContent = ({
   const tavernRoomsRef = useRef<TavernRoom[]>(state.rooms);
   const tavernPage = useRef<PageNavigationHandle | null>(null);
   const initialOpenKeyRef = useRef("");
+  const runtimeScopeKeyRef = useRef(runtimeScopeKey);
 
   useEffect(() => {
     tavernRoomsRef.current = state.rooms;
@@ -346,17 +371,21 @@ const TavernPageContent = ({
   }, [workspace.id, workspace.path]);
 
   useEffect(() => {
-    if (workspaceIdRef.current === workspace.id) {
+    const didWorkspaceChange = workspaceIdRef.current !== workspace.id;
+    const didRuntimeScopeChange = runtimeScopeKeyRef.current !== runtimeScopeKey;
+    if (!didWorkspaceChange && !didRuntimeScopeChange) {
       return;
     }
 
     workspaceIdRef.current = workspace.id;
-    setState(createDefaultTavernState(workspace.id));
+    runtimeScopeKeyRef.current = runtimeScopeKey;
+    initialOpenKeyRef.current = "";
+    setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
     setIsTavernStateHydrated(false);
     setDraft("");
     setDraftCursor(0);
     setError("");
-    setViewMode("home");
+    setViewMode(isStoryRuntimeScope ? "room" : "home");
     setIsSidePanelOpen(false);
     setIsManagedModeEnabled(false);
     setIsManagedAutoRunStarted(false);
@@ -376,13 +405,13 @@ const TavernPageContent = ({
     sceneDriveAutoRunCountRef.current = 0;
     roleAssignmentRoomIdsRef.current.clear();
     roleAssignmentRunIdRef.current += 1;
-  }, [workspace.id]);
+  }, [isStoryRuntimeScope, runtimeScopeKey, workspace.id]);
 
   useEffect(() => {
     let isCancelled = false;
     setIsTavernStateHydrated(false);
 
-    loadTavernState(workspace.path, workspace.id)
+    loadTavernState(workspace.path, workspace.id, tavernRuntimeScope)
       .then((nextState) => {
         if (isCancelled) {
           return;
@@ -397,15 +426,17 @@ const TavernPageContent = ({
         }
 
         console.error("Failed to load tavern state", loadError);
-        toast.error("无法加载酒馆记录，已使用默认酒馆。");
-        setState(createDefaultTavernState(workspace.id));
+        toast.error(isStoryRuntimeScope
+          ? "无法加载故事酒馆记录，请从故事页重新进入或重建。"
+          : "无法加载酒馆记录，已使用默认酒馆。");
+        setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
         setIsTavernStateHydrated(true);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [workspace.id, workspace.path]);
+  }, [isStoryRuntimeScope, runtimeScopeKey, tavernRuntimeScope, workspace.id, workspace.path]);
 
   useEffect(() => {
     return () => {
@@ -425,19 +456,19 @@ const TavernPageContent = ({
       isTavernStateHydrated &&
       state.rooms.some((room) => room.workspaceId === workspace.id)
     ) {
-      void saveTavernState(workspace.path, workspace.id, state).catch((saveError) => {
+      void saveTavernState(workspace.path, workspace.id, state, tavernRuntimeScope).catch((saveError) => {
         console.error("Failed to save tavern state", saveError);
       });
     }
-  }, [isTavernStateHydrated, state, workspace.id, workspace.path]);
+  }, [isTavernStateHydrated, runtimeScopeKey, state, tavernRuntimeScope, workspace.id, workspace.path]);
 
   useEffect(() => {
-    if (!isTavernStateHydrated || state.rooms.length > 0) {
+    if (!isTavernStateHydrated || isStoryRuntimeScope || state.rooms.length > 0) {
       return;
     }
 
     setState(createDefaultTavernState(workspace.id));
-  }, [isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
+  }, [isStoryRuntimeScope, isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
 
   const renderableRoomMessages = useMemo(() => (
     activeRoom
@@ -1244,7 +1275,15 @@ const TavernPageContent = ({
     viewMode,
   ]);
 
-  if (viewMode === "home") {
+  if (!isTavernStateHydrated) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6 text-sm text-muted-foreground">
+        正在加载酒馆
+      </div>
+    );
+  }
+
+  if (viewMode === "home" && !isStoryRuntimeScope) {
     const managementPage = (
       <ManagementProvider
         workspace={workspace}
@@ -1408,6 +1447,10 @@ const TavernPageContent = ({
               }
               clearSceneDriveAutoTimer();
               sceneDriveAutoRunCountRef.current = 0;
+              if (isStoryRuntimeScope) {
+                onExitHomeFullscreen?.();
+                return;
+              }
               setViewMode("home");
             }}
             onOpenQuickSummary={() => {
@@ -1417,6 +1460,7 @@ const TavernPageContent = ({
               void clearActiveSceneMessages();
             }}
             onLoadBranchMemory={loadActiveBranchMemory}
+            onRebuildRuntime={undefined}
             onSelectSceneInstance={(sceneInstanceId) =>
               selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
             onSceneDriveTurn={() => {

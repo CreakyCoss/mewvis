@@ -1,43 +1,79 @@
 import { toast } from "sonner";
-import {
-  getStoryNodeDataPackage,
-  upsertStoryAsset,
-  type StoryAsset,
-} from "@/features/story";
-import {
-  openTavernPresentationInput,
-} from "@/features/pages/tavern/presentation/open";
-import {
-  resolveStoryNodeId,
-  type StoryPresentationAdapter,
-} from "./shared";
-import {
-  createTavernPresentationInputFromStoryDataPackage,
-} from "./tavern-input";
+import { getStoryNodeDataPackage } from "@/features/story";
+import { openTavernPresentationInput } from "@/features/pages/tavern/presentation/open";
+import type { TavernRoom } from "@/features/pages/tavern/types";
+import { resolveStoryNodeId, type StoryPresentationAdapter } from "./shared";
+import { createTavernPresentationInputFromStoryDataPackage } from "./tavern-input";
 
-const resolvePreferredTavernRoomIds = (
-  story: StoryAsset,
-) => [
-  ...story.sourceRefs
-    .filter((ref) => ref.channel === "tavern")
-    .map((ref) => ref.id),
-  story.id,
-];
+const trimPathEnd = (value: string) => value.trim().replace(/[\\/]+$/, "");
 
-const upsertTavernStoryPresentationSourceRef = (
-  story: StoryAsset,
-  room: {
-    id: string;
-    title: string;
-  },
-): StoryAsset => ({
-  ...story,
-  sourceRefs: story.sourceRefs.some((ref) =>
-    ref.channel === "tavern" && ref.id === room.id
-  )
-    ? story.sourceRefs
-    : [...story.sourceRefs, { channel: "tavern", id: room.id, label: room.title }],
-});
+const tavernPathSegment = (value: string, fallback: string) =>
+  value
+    .trim()
+    .replace(/[\\/]/g, "-")
+    .replace(/\.\./g, "")
+    .replace(/^\.+/, "")
+    .trim() || fallback;
+
+export const buildStoryTavernRuntimePath = ({
+  storyWorkspacePath,
+  storyId,
+  tavernId,
+}: {
+  storyWorkspacePath: string;
+  storyId: string;
+  tavernId: string;
+}) => [
+  trimPathEnd(storyWorkspacePath),
+  ".tavern",
+  tavernPathSegment(storyId, "story"),
+  tavernPathSegment(tavernId, "tavern"),
+].join("/");
+
+export const openStoryTavernPresentation = async ({
+  storyWorkspace,
+  activeStory,
+  tavernRoom,
+  navigate,
+  nodeId,
+  setOpeningStoryId,
+}: {
+  storyWorkspace: NonNullable<Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["storyWorkspace"]>;
+  activeStory: Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["activeStory"];
+  tavernRoom: TavernRoom;
+  navigate: Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["navigate"];
+  nodeId?: string | null;
+  setOpeningStoryId: Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["setOpeningStoryId"];
+}) => {
+  const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
+  const dataPackage = getStoryNodeDataPackage(activeStory, {
+    nodeId: targetNodeId,
+  });
+  const presentationInput = createTavernPresentationInputFromStoryDataPackage(dataPackage);
+  setOpeningStoryId(activeStory.id);
+
+  try {
+    const { target } = await openTavernPresentationInput({
+      workspace: storyWorkspace,
+      storyId: activeStory.id,
+      storyNodeId: targetNodeId,
+      tavernId: tavernRoom.id,
+      runtimePath: buildStoryTavernRuntimePath({
+        storyWorkspacePath: storyWorkspace.path,
+        storyId: activeStory.id,
+        tavernId: tavernRoom.id,
+      }),
+      carrierRoom: tavernRoom,
+      presentationInput,
+    });
+    navigate(target);
+  } catch (error) {
+    console.error("Failed to open story in tavern", error);
+    toast.error("无法打开酒馆呈现。");
+  } finally {
+    setOpeningStoryId("");
+  }
+};
 
 export const tavernStoryPresentation = {
   definition: {
@@ -46,39 +82,23 @@ export const tavernStoryPresentation = {
     loadingLabel: "打开中",
     icon: "tavern",
   },
-  open: async ({
-    workspace,
-    activeStory,
-    storyState,
-    persistStoryState,
-    navigate,
-    nodeId,
-    setOpeningStoryId,
-  }) => {
-    const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
-    const dataPackage = getStoryNodeDataPackage(activeStory, {
-      nodeId: targetNodeId,
-    });
-    const presentationInput = createTavernPresentationInputFromStoryDataPackage(dataPackage);
-    setOpeningStoryId(activeStory.id);
-
-    try {
-      const { room, target } = await openTavernPresentationInput({
-        workspace,
-        presentationInput,
-        preferredRoomIds: resolvePreferredTavernRoomIds(activeStory),
-        targetNodeId,
-      });
-      await persistStoryState(upsertStoryAsset(
-        storyState,
-        upsertTavernStoryPresentationSourceRef(activeStory, room),
-      ));
-      navigate(target);
-    } catch (error) {
-      console.error("Failed to open story in tavern", error);
-      toast.error("无法打开酒馆呈现。");
-    } finally {
-      setOpeningStoryId("");
+  open: async ({ storyWorkspace, activeStory, tavernRoom, navigate, nodeId, setOpeningStoryId }) => {
+    if (!storyWorkspace) {
+      toast.error("找不到故事工作区，无法打开酒馆。");
+      return;
     }
+    if (!tavernRoom) {
+      toast.error("请选择一个酒馆后进入。");
+      return;
+    }
+
+    await openStoryTavernPresentation({
+      storyWorkspace,
+      activeStory,
+      tavernRoom,
+      navigate,
+      nodeId,
+      setOpeningStoryId,
+    });
   },
 } satisfies StoryPresentationAdapter<"tavern">;

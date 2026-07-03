@@ -7,6 +7,7 @@ import {
   Pencil,
   Plus,
   Target,
+  Trash2,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -40,6 +41,7 @@ type StoryContentProps = {
     input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">,
   ) => void;
   onCreateStory: () => void;
+  onDeleteStory: (story: StoryAsset) => void;
   onOpenImportDialog: () => void;
   onOpenStoryPresentation: (
     channel: StoryPresentationChannel,
@@ -74,6 +76,7 @@ export const StoryContent = ({
   onAcceptManuscript,
   onCreateManuscriptDraft,
   onCreateStory,
+  onDeleteStory,
   onOpenImportDialog,
   onOpenStoryPresentation,
   onPolishManuscriptDraft,
@@ -150,13 +153,28 @@ export const StoryContent = ({
   if (!story) {
     return (
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 px-6 text-center">
-          <BookOpen className="size-10 text-muted-foreground" />
-          <div className="text-base font-medium">暂无故事资产</div>
-          <Button type="button" className="gap-2" onClick={onCreateStory} disabled={!canCreateStory}>
-            <Plus className="size-4" />
-            新建故事
-          </Button>
+        <div className="flex min-h-[320px] flex-col px-6 py-5">
+          {onExitHomeFullscreen ? (
+            <div className="flex shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 gap-2 px-2.5"
+                onClick={onExitHomeFullscreen}
+              >
+                <ArrowLeft className="size-4" />
+                返回
+              </Button>
+            </div>
+          ) : null}
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <BookOpen className="size-10 text-muted-foreground" />
+            <div className="text-base font-medium">暂无故事资产</div>
+            <Button type="button" className="gap-2" onClick={onCreateStory} disabled={!canCreateStory}>
+              <Plus className="size-4" />
+              新建故事
+            </Button>
+          </div>
         </div>
       </ScrollArea>
     );
@@ -236,6 +254,7 @@ export const StoryContent = ({
                 onEdit={() => {
                   onStartEditing(item);
                 }}
+                onDelete={() => onDeleteStory(item)}
               />
             ))}
           </section>
@@ -318,11 +337,13 @@ const StoryAssetCard = ({
   isActive,
   onSelect,
   onEdit,
+  onDelete,
 }: {
   story: StoryAsset;
   isActive: boolean;
   onSelect: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) => {
   const activeNode = story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
     story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
@@ -428,7 +449,7 @@ const StoryAssetCard = ({
       </button>
 
       <div className="border-t bg-background/80 p-2.5">
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
           <Button
             type="button"
             size="sm"
@@ -448,6 +469,17 @@ const StoryAssetCard = ({
           >
             <Pencil className="size-4 shrink-0" />
             <span className="truncate">编辑</span>
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
+            title="删除故事及工作区"
+            aria-label="删除故事及工作区"
+            onClick={onDelete}
+          >
+            <Trash2 className="size-4" />
           </Button>
         </div>
       </div>

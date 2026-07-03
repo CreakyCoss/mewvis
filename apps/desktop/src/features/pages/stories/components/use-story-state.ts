@@ -1,67 +1,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { createEmptyStoryState, upsertStoryAsset, type StoryAsset, type StoryState } from "@/features/story";
 import {
-  createEmptyStoryState,
-  createStandaloneStoryAsset,
-  upsertStoryAsset,
-  type StoryAsset,
-  type StoryState,
-} from "@/features/story";
-import { loadStoryState, saveStoryState } from "@/features/story/storage";
-import type { Workspace } from "@/features/pages/workspace/types";
+  createStory as createStoryInWorkspace,
+  deleteStoryRecord,
+  loadStoryLibrary,
+  saveStoryAsset,
+  updateStoryRecordName,
+  type CreateStoryInput,
+  type StoryRecord,
+  type StoryWorkspace,
+} from "@/features/story/storage";
 
 type UseStoryStateInput = {
-  workspace: Workspace | null;
   requestedStoryId: string;
 };
 
-export const useStoryState = ({
-  workspace,
-  requestedStoryId,
-}: UseStoryStateInput) => {
+export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
   const [storyState, setStoryState] = useState<StoryState>(() => createEmptyStoryState());
+  const [storyRecords, setStoryRecords] = useState<StoryRecord[]>([]);
+  const [storyWorkspacesById, setStoryWorkspacesById] = useState<Record<string, StoryWorkspace>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const activeStory = useMemo(
-    () => storyState.stories.find((story) => story.id === storyState.activeStoryId) ??
-      storyState.stories[0] ??
-      null,
+    () => storyState.stories.find((story) => story.id === storyState.activeStoryId) ?? storyState.stories[0] ?? null,
     [storyState.activeStoryId, storyState.stories],
   );
+  const activeStoryWorkspace = activeStory ? (storyWorkspacesById[activeStory.id] ?? null) : null;
 
   useEffect(() => {
-    if (!workspace) {
-      setStoryState(createEmptyStoryState());
-      setIsLoading(false);
-      return;
-    }
-
     let cancelled = false;
     setIsLoading(true);
-    loadStoryState(workspace.path, workspace.id)
-      .then((nextState) => {
+    loadStoryLibrary(requestedStoryId)
+      .then(({ records, state, workspacesByStoryId }) => {
         if (cancelled) {
           return;
         }
-        const requestedStory = requestedStoryId
-          ? nextState.stories.find((story) => story.id === requestedStoryId) ?? null
-          : null;
-        const selectedStory = requestedStory ??
-          nextState.stories.find((story) => story.id === nextState.activeStoryId) ??
-          nextState.stories[0] ??
-          null;
-        setStoryState({
-          ...nextState,
-          activeStoryId: selectedStory?.id ?? nextState.activeStoryId,
-        });
+        setStoryRecords(records);
+        setStoryWorkspacesById(workspacesByStoryId);
+        setStoryState(state);
       })
       .catch((error) => {
         if (cancelled) {
           return;
         }
-        console.error("Failed to load story state", error);
+        console.error("Failed to load story library", error);
         toast.error("无法加载故事资产。");
+        setStoryRecords([]);
+        setStoryWorkspacesById({});
         setStoryState(createEmptyStoryState());
       })
       .finally(() => {
@@ -73,7 +60,7 @@ export const useStoryState = ({
     return () => {
       cancelled = true;
     };
-  }, [requestedStoryId, workspace]);
+  }, [requestedStoryId]);
 
   useEffect(() => {
     if (!requestedStoryId || storyState.activeStoryId === requestedStoryId) {
@@ -88,28 +75,79 @@ export const useStoryState = ({
     }
   }, [requestedStoryId, storyState.activeStoryId, storyState.stories]);
 
-  const persistStoryState = async (nextState: StoryState) => {
+  const persistStory = async (story: StoryAsset) => {
+    const workspace = storyWorkspacesById[story.id];
     if (!workspace) {
+      toast.error("找不到故事工作区，无法保存。");
       return;
     }
 
     setIsSaving(true);
     try {
-      const saved = await saveStoryState(workspace.path, workspace.id, nextState);
-      setStoryState(saved);
+      const nextStory = {
+        ...story,
+        workspaceId: story.id,
+        updatedAt: Date.now(),
+      };
+      const savedStory = await saveStoryAsset(workspace, nextStory);
+      if (workspace.name !== savedStory.title) {
+        const updatedRecord = await updateStoryRecordName(savedStory.id, savedStory.title);
+        setStoryRecords((current) =>
+          current.map((record) => (record.id === updatedRecord.id ? updatedRecord : record)),
+        );
+        setStoryWorkspacesById((current) => ({
+          ...current,
+          [updatedRecord.id]: {
+            id: updatedRecord.id,
+            name: updatedRecord.name,
+            path: updatedRecord.workspacePath,
+          },
+        }));
+      }
+      setStoryState((current) => ({
+        ...upsertStoryAsset(current, savedStory),
+        activeStoryId: savedStory.id,
+      }));
     } catch (error) {
-      console.error("Failed to save story state", error);
+      console.error("Failed to save story", error);
       toast.error("故事保存失败。");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const persistStory = (story: StoryAsset) => {
-    void persistStoryState(upsertStoryAsset(storyState, {
-      ...story,
-      updatedAt: Date.now(),
-    }));
+  const persistStoryState = async (nextState: StoryState) => {
+    setIsSaving(true);
+    try {
+      const savedStories: StoryAsset[] = [];
+      for (const story of nextState.stories) {
+        const workspace = storyWorkspacesById[story.id];
+        if (!workspace) {
+          savedStories.push(story);
+          continue;
+        }
+        savedStories.push(
+          await saveStoryAsset(workspace, {
+            ...story,
+            workspaceId: story.id,
+            updatedAt: Date.now(),
+          }),
+        );
+      }
+
+      setStoryState({
+        version: 1,
+        activeStoryId: savedStories.some((story) => story.id === nextState.activeStoryId)
+          ? nextState.activeStoryId
+          : (savedStories[0]?.id ?? ""),
+        stories: savedStories,
+      });
+    } catch (error) {
+      console.error("Failed to save story state", error);
+      toast.error("故事保存失败。");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const selectStory = (story: StoryAsset) => {
@@ -119,33 +157,75 @@ export const useStoryState = ({
     }));
   };
 
-  const createStory = () => {
-    if (!workspace) {
-      return null;
-    }
-
-    const story = createStandaloneStoryAsset({
-      workspaceId: workspace.id,
-      title: `新故事 ${storyState.stories.length + 1}`,
-    });
-    void persistStoryState({
-      ...upsertStoryAsset({
-        ...storyState,
+  const createStory = async (input: CreateStoryInput) => {
+    setIsSaving(true);
+    try {
+      const { record, workspace, story } = await createStoryInWorkspace(input);
+      setStoryRecords((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+      setStoryWorkspacesById((current) => ({
+        ...current,
+        [story.id]: workspace,
+      }));
+      setStoryState((current) => ({
+        ...upsertStoryAsset(
+          {
+            ...current,
+            activeStoryId: story.id,
+          },
+          story,
+        ),
         activeStoryId: story.id,
-      }, story),
-      activeStoryId: story.id,
-    });
-    return story;
+      }));
+      toast.success("故事已创建。");
+      return story;
+    } catch (error) {
+      console.error("Failed to create story", error);
+      toast.error(error instanceof Error ? error.message : "故事创建失败。");
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteStory = async (story: StoryAsset) => {
+    setIsSaving(true);
+    try {
+      await deleteStoryRecord(story.id);
+      setStoryRecords((current) => current.filter((record) => record.id !== story.id));
+      setStoryWorkspacesById((current) => {
+        const next = { ...current };
+        delete next[story.id];
+        return next;
+      });
+      setStoryState((current) => {
+        const stories = current.stories.filter((item) => item.id !== story.id);
+        return {
+          version: 1,
+          activeStoryId: current.activeStoryId === story.id ? (stories[0]?.id ?? "") : current.activeStoryId,
+          stories,
+        };
+      });
+      toast.success("故事及工作区已删除。");
+    } catch (error) {
+      console.error("Failed to delete story", error);
+      toast.error(error instanceof Error ? error.message : "故事删除失败。");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return {
     activeStory,
+    activeStoryWorkspace,
     createStory,
+    deleteStory,
     isLoading,
     isSaving,
     persistStory,
     persistStoryState,
     selectStory,
+    storyRecords,
     storyState,
+    storyWorkspacesById,
   };
 };

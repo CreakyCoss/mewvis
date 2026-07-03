@@ -1,9 +1,5 @@
 import { toast } from "sonner";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
-import type { Workspace } from "@/features/pages/workspace/types";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import {
   acceptStoryManuscriptDraft,
   rejectStoryManuscriptDraft,
@@ -22,7 +18,7 @@ type UseStoryManuscriptsInput = {
   runtimeAgentRequiresModel: boolean;
   selectedRuntimeModel: RuntimeModelOption | null;
   settingsError: string;
-  workspace: Workspace | null;
+  workspace: { path: string } | null;
 };
 
 export const useStoryManuscripts = ({
@@ -53,10 +49,7 @@ export const useStoryManuscripts = ({
     }
   };
 
-  const saveManuscriptDraft = (
-    draftId: string,
-    patch: StoryManuscriptDraftUpdateInput,
-  ) => {
+  const saveManuscriptDraft = (draftId: string, patch: StoryManuscriptDraftUpdateInput) => {
     if (!activeStory) {
       return;
     }
@@ -73,9 +66,7 @@ export const useStoryManuscripts = ({
     }
   };
 
-  const createManuscriptDraft = (
-    input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">,
-  ) => {
+  const createManuscriptDraft = (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => {
     if (!activeStory) {
       return;
     }

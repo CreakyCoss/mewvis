@@ -1,12 +1,14 @@
 use crate::services::workspace_paths::{
-    ensure_under_root, sanitize_session_id, workspace_app_data_dir, workspace_root,
+    display_workspace_relative, ensure_under_root, sanitize_session_id, workspace_app_data_dir,
+    workspace_root,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::{
     collections::HashSet,
+    ffi::OsString,
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 const TAVERN_DIR_NAME: &str = "tavern";
@@ -21,13 +23,28 @@ const TAVERN_STATE_VERSION: u8 = 4;
 #[serde(rename_all = "camelCase")]
 pub struct LoadTavernStateInput {
     pub workspace_path: String,
+    pub story_id: Option<String>,
+    pub tavern_id: Option<String>,
+    pub runtime_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveTavernStateInput {
     pub workspace_path: String,
+    pub story_id: Option<String>,
+    pub tavern_id: Option<String>,
+    pub runtime_path: Option<String>,
     pub state: Value,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearTavernStateInput {
+    pub workspace_path: String,
+    pub story_id: Option<String>,
+    pub tavern_id: Option<String>,
+    pub runtime_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,7 +73,12 @@ struct TavernSessionMeta {
 }
 
 pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, String> {
-    let dir = tavern_dir(&input.workspace_path)?;
+    let dir = tavern_dir(
+        &input.workspace_path,
+        input.runtime_path.as_deref(),
+        input.story_id.as_deref(),
+        input.tavern_id.as_deref(),
+    )?;
     if !dir.exists() {
         return Ok(None);
     }
@@ -75,7 +97,7 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
     let mut messages_by_instance = Map::new();
 
     for room_id in index.room_ids {
-        let room_dir = tavern_session_dir(&input.workspace_path, &room_id)?;
+        let room_dir = tavern_session_dir(&dir, &room_id)?;
         if !room_dir.exists() {
             continue;
         }
@@ -125,8 +147,14 @@ pub fn load_tavern_state(input: LoadTavernStateInput) -> Result<Option<Value>, S
 }
 
 pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
-    let dir = tavern_dir(&input.workspace_path)?;
+    let dir = tavern_dir(
+        &input.workspace_path,
+        input.runtime_path.as_deref(),
+        input.story_id.as_deref(),
+        input.tavern_id.as_deref(),
+    )?;
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建酒馆目录：{error}"))?;
+    let dir_display = tavern_dir_display(&input.workspace_path, &dir)?;
 
     let rooms = input
         .state
@@ -155,7 +183,7 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         room_ids.push(room_id.clone());
         room_id_set.insert(room_id.clone());
 
-        let room_dir = tavern_session_dir(&input.workspace_path, &room_id)?;
+        let room_dir = tavern_session_dir(&dir, &room_id)?;
         fs::create_dir_all(&room_dir).map_err(|error| format!("无法创建酒馆会话目录：{error}"))?;
 
         let messages = active_scene_messages(room, messages_by_instance);
@@ -165,7 +193,7 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
         write_json_file(&room_dir.join(CONVERSATION_FILE_NAME), &conversation)?;
         write_json_file(
             &room_dir.join(META_FILE_NAME),
-            &tavern_session_meta(&room_id, room, &messages),
+            &tavern_session_meta(&room_id, room, &messages, &dir_display),
         )?;
     }
 
@@ -183,11 +211,32 @@ pub fn save_tavern_state(input: SaveTavernStateInput) -> Result<Value, String> {
     Ok(input.state)
 }
 
-fn tavern_session_meta(room_id: &str, room: &Value, messages: &Value) -> TavernSessionMeta {
+pub fn clear_tavern_state(input: ClearTavernStateInput) -> Result<(), String> {
+    let dir = tavern_dir(
+        &input.workspace_path,
+        input.runtime_path.as_deref(),
+        input.story_id.as_deref(),
+        input.tavern_id.as_deref(),
+    )?;
+    if !dir.exists() {
+        return Ok(());
+    }
+
+    let root = workspace_root(&input.workspace_path)?;
+    ensure_under_root(&root, &dir)?;
+    fs::remove_dir_all(dir).map_err(|error| format!("无法清空酒馆运行时：{error}"))
+}
+
+fn tavern_session_meta(
+    room_id: &str,
+    room: &Value,
+    messages: &Value,
+    dir_display: &str,
+) -> TavernSessionMeta {
     TavernSessionMeta {
         id: room_id.to_string(),
         title: value_string(room, "title").unwrap_or_else(|| "未命名酒馆".to_string()),
-        path: format!("{}/{}/{}", tavern_dir_display(), room_id, META_FILE_NAME),
+        path: format!("{}/{}/{}", dir_display, room_id, META_FILE_NAME),
         workspace_id: value_string(room, "workspaceId"),
         active_scene_id: value_string(room, "activeSceneId"),
         active_scene_instance_id: value_string(room, "activeSceneInstanceId"),
@@ -229,24 +278,80 @@ fn active_scene_messages(room: &Value, messages_by_instance: &Map<String, Value>
         .unwrap_or_else(|| Value::Array(Vec::new()))
 }
 
-fn tavern_dir(workspace_path: &str) -> Result<PathBuf, String> {
-    Ok(workspace_app_data_dir(&workspace_root(workspace_path)?).join(TAVERN_DIR_NAME))
+fn tavern_dir(
+    workspace_path: &str,
+    runtime_path: Option<&str>,
+    story_id: Option<&str>,
+    tavern_id: Option<&str>,
+) -> Result<PathBuf, String> {
+    let root = workspace_root(workspace_path)?;
+    if let Some(runtime_path) = runtime_path
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let dir = PathBuf::from(runtime_path);
+        let dir = if dir.is_absolute() {
+            dir
+        } else {
+            root.join(dir)
+        };
+        let dir = normalize_runtime_path(&dir)?;
+        ensure_safe_runtime_path(&root, &dir)?;
+        return Ok(dir);
+    }
+
+    match (story_id, tavern_id) {
+        (Some(_), Some(_)) => Err("故事酒馆运行目录必须由调用方传入".to_string()),
+        _ => Ok(workspace_app_data_dir(&root).join(TAVERN_DIR_NAME)),
+    }
 }
 
-fn tavern_session_dir(workspace_path: &str, session_id: &str) -> Result<PathBuf, String> {
+fn tavern_session_dir(dir: &Path, session_id: &str) -> Result<PathBuf, String> {
     let id = sanitize_session_id(session_id)?;
-    let dir = tavern_dir(workspace_path)?;
     let path = dir.join(id);
-    ensure_under_root(&dir, &path)?;
+    ensure_under_root(dir, &path)?;
     Ok(path)
 }
 
-fn tavern_dir_display() -> String {
-    format!(
-        "{}/{}",
-        crate::product_config::app_data_dir_name(),
-        TAVERN_DIR_NAME
-    )
+fn ensure_safe_runtime_path(root: &Path, dir: &Path) -> Result<(), String> {
+    if dir
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err("酒馆运行目录不能包含上级路径".to_string());
+    }
+    ensure_under_root(root, dir)
+}
+
+fn normalize_runtime_path(path: &Path) -> Result<PathBuf, String> {
+    if path.exists() {
+        return path
+            .canonicalize()
+            .map_err(|error| format!("无法定位酒馆运行目录：{error}"));
+    }
+
+    let mut existing = path;
+    let mut missing = Vec::<OsString>::new();
+    while !existing.exists() {
+        if let Some(name) = existing.file_name() {
+            missing.push(name.to_os_string());
+        }
+        existing = existing
+            .parent()
+            .ok_or_else(|| "无法定位酒馆运行目录的上级目录".to_string())?;
+    }
+
+    let mut normalized = existing
+        .canonicalize()
+        .map_err(|error| format!("无法定位酒馆运行目录的上级目录：{error}"))?;
+    for component in missing.into_iter().rev() {
+        normalized.push(component);
+    }
+    Ok(normalized)
+}
+
+fn tavern_dir_display(workspace_path: &str, dir: &Path) -> Result<String, String> {
+    display_workspace_relative(workspace_path, dir)
 }
 
 fn read_json_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
@@ -405,6 +510,9 @@ mod tests {
 
         save_tavern_state(SaveTavernStateInput {
             workspace_path: workspace.path_string(),
+            story_id: None,
+            tavern_id: None,
+            runtime_path: None,
             state,
         })
         .expect("save tavern state");
@@ -417,6 +525,9 @@ mod tests {
 
         let loaded = load_tavern_state(LoadTavernStateInput {
             workspace_path: workspace.path_string(),
+            story_id: None,
+            tavern_id: None,
+            runtime_path: None,
         })
         .expect("load tavern state")
         .expect("state exists");
@@ -459,6 +570,9 @@ mod tests {
 
         let loaded = load_tavern_state(LoadTavernStateInput {
             workspace_path: workspace.path_string(),
+            story_id: None,
+            tavern_id: None,
+            runtime_path: None,
         })
         .expect("load tavern state");
 
@@ -474,11 +588,61 @@ mod tests {
 
         save_tavern_state(SaveTavernStateInput {
             workspace_path: workspace.path_string(),
+            story_id: None,
+            tavern_id: None,
+            runtime_path: None,
             state: test_tavern_state("workspace-a", room_id),
         })
         .expect("save tavern state");
 
         assert!(workspace.tavern_session_dir(room_id).exists());
         assert!(!stale_dir.exists());
+    }
+
+    #[test]
+    fn story_tavern_state_uses_story_workspace_runtime_dir() {
+        let workspace = TestWorkspace::new("story-tavern-runtime");
+        let room_id = "main";
+        let runtime_dir = workspace
+            .path
+            .join(".tavern")
+            .join("story-one")
+            .join("main");
+        let runtime_path = runtime_dir.to_string_lossy().to_string();
+
+        save_tavern_state(SaveTavernStateInput {
+            workspace_path: workspace.path_string(),
+            story_id: Some("story-one".to_string()),
+            tavern_id: Some("main".to_string()),
+            runtime_path: Some(runtime_path.clone()),
+            state: test_tavern_state("story-one", room_id),
+        })
+        .expect("save story tavern state");
+
+        assert!(runtime_dir.join(INDEX_FILE_NAME).exists());
+        assert!(runtime_dir.join(room_id).join(ROOM_FILE_NAME).exists());
+
+        let loaded = load_tavern_state(LoadTavernStateInput {
+            workspace_path: workspace.path_string(),
+            story_id: Some("story-one".to_string()),
+            tavern_id: Some("main".to_string()),
+            runtime_path: Some(runtime_path.clone()),
+        })
+        .expect("load story tavern state")
+        .expect("state exists");
+
+        assert_eq!(
+            loaded.get("activeRoomId").and_then(Value::as_str),
+            Some(room_id)
+        );
+
+        clear_tavern_state(ClearTavernStateInput {
+            workspace_path: workspace.path_string(),
+            story_id: Some("story-one".to_string()),
+            tavern_id: Some("main".to_string()),
+            runtime_path: Some(runtime_path),
+        })
+        .expect("clear story tavern state");
+        assert!(!runtime_dir.exists());
     }
 }

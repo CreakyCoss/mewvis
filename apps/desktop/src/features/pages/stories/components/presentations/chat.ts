@@ -1,7 +1,4 @@
-import {
-  resolveStoryNodeId,
-  type StoryPresentationAdapter,
-} from "./shared";
+import { resolveStoryNodeId, type StoryPresentationAdapter } from "./shared";
 
 export const chatStoryPresentation = {
   definition: {
@@ -9,17 +6,18 @@ export const chatStoryPresentation = {
     label: "聊天",
     icon: "chat",
   },
-  open: ({
-    workspace,
-    activeStory,
-    navigate,
-    nodeId,
-  }) => {
+  open: ({ workspace, activeStory, navigate, nodeId }) => {
+    if (!workspace) {
+      return;
+    }
+
     const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
     const search = [
       `storyId=${encodeURIComponent(activeStory.id)}`,
       targetNodeId ? `storyNodeId=${encodeURIComponent(targetNodeId)}` : "",
-    ].filter(Boolean).join("&");
+    ]
+      .filter(Boolean)
+      .join("&");
 
     navigate({
       pathname: `/chat/${workspace.id}/new`,

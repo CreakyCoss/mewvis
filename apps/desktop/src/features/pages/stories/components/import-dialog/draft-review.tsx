@@ -16,7 +16,7 @@ export const StoryImportDraftReview = ({
   importDraft,
   setImportDraft,
 }: StoryImportDraftReviewProps) => (
-  <ScrollArea className="min-h-0 rounded-md border bg-background">
+  <ScrollArea className="min-h-0 w-full rounded-md border bg-background lg:flex-1">
     <div className="space-y-4 p-4">
       {!importDraft ? (
         <EmptyBlock text="转换后会在这里预览标准草稿" />

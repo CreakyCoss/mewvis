@@ -7,6 +7,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Pause,
+  RotateCcw,
   Sparkles,
   Wine,
 } from "lucide-react";
@@ -25,6 +26,7 @@ type HeaderProps = {
   onBack?: () => void;
   onClearCurrentSceneMessages: () => void;
   onLoadBranchMemory: () => void;
+  onRebuildRuntime?: () => void;
   onSelectSceneInstance: (sceneInstanceId: string) => void;
   onOpenQuickSummary: () => void;
   onSceneDriveTurn: () => void;
@@ -43,6 +45,7 @@ export const Header = ({
   onBack,
   onClearCurrentSceneMessages,
   onLoadBranchMemory,
+  onRebuildRuntime,
   onSelectSceneInstance,
   onOpenQuickSummary,
   onSceneDriveTurn,
@@ -50,12 +53,7 @@ export const Header = ({
   onToggleManagedMode,
   onToggleSidePanel,
 }: HeaderProps) => {
-  const {
-    activeRoom,
-    visualPreset,
-    isQuickSummaryBusy,
-    isSending,
-  } = useTavernPageContext();
+  const { activeRoom, visualPreset, isQuickSummaryBusy, isSending } = useTavernPageContext();
   if (!activeRoom) {
     return null;
   }
@@ -66,12 +64,7 @@ export const Header = ({
   }));
 
   return (
-    <header
-      className={cn(
-        "relative border-b px-3 pt-10 pb-2 sm:px-4",
-        visualPreset.tavern.header,
-      )}
-    >
+    <header className={cn("relative border-b px-3 pt-10 pb-2 sm:px-4", visualPreset.tavern.header)}>
       <WindowDragRegion className="absolute inset-x-0 top-0 h-10" />
       <div className="flex min-h-[46px] items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -98,13 +91,9 @@ export const Header = ({
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h2 className="truncate text-base font-semibold leading-5">
-                {activeRoom.title}
-              </h2>
+              <h2 className="truncate text-base font-semibold leading-5">{activeRoom.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">
-              {compactScene(activeRoom.scene)}
-            </p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene)}</p>
           </div>
         </div>
         <div className="hidden min-w-[220px] max-w-[280px] md:flex">
@@ -126,9 +115,7 @@ export const Header = ({
           onClick={onSceneDriveTurn}
         >
           <Sparkles className="size-4" />
-          <span className="hidden text-xs font-medium sm:inline">
-            自推
-          </span>
+          <span className="hidden text-xs font-medium sm:inline">自推</span>
         </Button>
         <Button
           type="button"
@@ -144,14 +131,8 @@ export const Header = ({
           disabled={isSending && !isSceneDriveAutoRunning}
           onClick={onToggleSceneDriveAuto}
         >
-          {isSceneDriveAutoRunning ? (
-            <Pause className="size-4" />
-          ) : (
-            <Sparkles className="size-4" />
-          )}
-          <span className="hidden text-xs font-medium sm:inline">
-            {isSceneDriveAutoRunning ? "停止" : "自动"}
-          </span>
+          {isSceneDriveAutoRunning ? <Pause className="size-4" /> : <Sparkles className="size-4" />}
+          <span className="hidden text-xs font-medium sm:inline">{isSceneDriveAutoRunning ? "停止" : "自动"}</span>
         </Button>
         <Button
           type="button"
@@ -167,9 +148,7 @@ export const Header = ({
           onClick={onToggleManagedMode}
         >
           <Bot className="size-4" />
-          <span className="hidden text-xs font-medium sm:inline">
-            {isManagedModeEnabled ? "托管中" : "托管"}
-          </span>
+          <span className="hidden text-xs font-medium sm:inline">{isManagedModeEnabled ? "托管中" : "托管"}</span>
         </Button>
         <Button
           type="button"
@@ -197,6 +176,21 @@ export const Header = ({
           <Eraser className="size-4" />
           <span className="hidden text-xs font-medium sm:inline">清空</span>
         </Button>
+        {onRebuildRuntime ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={tavernHeaderActionButtonClassName}
+            title="按最新故事内容重建酒馆运行时"
+            aria-label="按最新故事内容重建酒馆运行时"
+            disabled={activeRoom.locked || isSending || isSceneDriveAutoRunning}
+            onClick={onRebuildRuntime}
+          >
+            <RotateCcw className="size-4" />
+            <span className="hidden text-xs font-medium sm:inline">重建</span>
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"
@@ -214,23 +208,14 @@ export const Header = ({
           type="button"
           size="sm"
           variant="ghost"
-          className={cn(
-            "hidden lg:inline-flex",
-            tavernHeaderActionButtonClassName,
-          )}
+          className={cn("hidden lg:inline-flex", tavernHeaderActionButtonClassName)}
           title={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
           aria-label={isSidePanelOpen ? "隐藏侧边栏" : "显示侧边栏"}
           aria-pressed={isSidePanelOpen}
           onClick={onToggleSidePanel}
         >
-          {isSidePanelOpen ? (
-            <PanelRightClose className="size-4" />
-          ) : (
-            <PanelRightOpen className="size-4" />
-          )}
-          <span className="text-xs font-medium">
-            {isSidePanelOpen ? "收起" : "概览"}
-          </span>
+          {isSidePanelOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+          <span className="text-xs font-medium">{isSidePanelOpen ? "收起" : "概览"}</span>
         </Button>
       </div>
     </header>

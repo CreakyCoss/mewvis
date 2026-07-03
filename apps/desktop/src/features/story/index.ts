@@ -27,9 +27,6 @@ export {
   type StoryDataPackageScope,
 } from "./application/data-package";
 export {
-  createDefaultStoryState,
-} from "./application/default-stories";
-export {
   createStoryImportDraftFromJsonValue,
   createStoryImportDraftFromText,
 } from "./application/import-bridge";
@@ -68,7 +65,6 @@ export {
   submitStoryManuscriptToState,
   upsertStoryAsset,
   type StoryAsset,
-  type StorySourceRef,
   type StoryState,
 } from "./application/state";
 export {

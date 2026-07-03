@@ -6,6 +6,7 @@ import type {
 import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
+import type { TavernRuntimeScope } from "../state/storage";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
@@ -34,6 +35,7 @@ import type { ExecutionStep } from "./room/execution-trace";
 
 export type TavernPageProps = {
   workspace: Workspace;
+  runtimeScope?: TavernRuntimeScope;
   files: WorkspaceFileEntry[];
   runtimeModel: RuntimeModelOption | null;
   isHomeFullscreen?: boolean;
