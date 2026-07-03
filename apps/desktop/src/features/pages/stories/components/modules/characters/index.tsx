@@ -2,7 +2,7 @@ import { Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import {
   EmptyBlock,
   StorySection,
@@ -16,7 +16,7 @@ import type { StoryModuleSave } from "../types";
 import { StoryCharactersEdit, type StoryCharactersEditHandle } from "./edit";
 
 type StoryCharactersModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 

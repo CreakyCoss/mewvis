@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import { editorHeaderActionButtonClassName } from "./story-primitives";
 import {
   storyPresentationDefinitions,
@@ -24,7 +24,7 @@ const storyPresentationIconMap = {
 } satisfies Record<StoryPresentationIcon, typeof BookOpen>;
 
 type StoryHeaderProps = {
-  activeStory: StoryAsset | null;
+  activeStory: StoryJson | null;
   canCreateStory: boolean;
   isSaving: boolean;
   onBackToList: () => void;
@@ -81,7 +81,7 @@ export const StoryHeader = ({
               </span>
               <div className="min-w-0">
                 <h2 className="truncate text-xl font-semibold leading-7">
-                  {activeStory?.title ?? "故事资产"}
+                  {activeStory?.title ?? "故事"}
                 </h2>
                 <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                   {workspaceName ?? "未选择工作区"} · 编辑故事内容、结构、场景和可被呈现端读取的标准数据。

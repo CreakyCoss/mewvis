@@ -1,27 +1,117 @@
 import {
-  buildStoryContextPackageFromAsset,
-  buildStoryContextPackage,
-  type StoryAsset,
-  type StoryContextCharacter,
-  type StoryContextLorebookEntry,
-  type StoryContextPackage,
-  type StoryContextScene,
-  type StoryState,
-} from "@/features/story";
-import {
   formatTavernCharacterRelationships,
 } from "../../core";
 import type {
   TavernCharacter,
+  TavernCharacterMemoryLayers,
   TavernLorebookEntry,
   TavernRoom,
   TavernScene,
+  TavernSceneMemoryLayers,
+  TavernSceneStatus,
+  TavernStoryEdge,
+  TavernStoryGraph,
+  TavernStoryNode,
+  TavernStoryStage,
 } from "../../types";
 import {
   getTavernRuntimeStoryProjection,
   type TavernRuntimeStoryProjection,
   type TavernRuntimeStorySceneProjection,
 } from "./projection";
+
+export type TavernStoryContextLorebookEntry =
+  Pick<TavernLorebookEntry, "id" | "title" | "content" | "keywords" | "enabled" | "alwaysOn">;
+
+export type TavernStoryContextScene = {
+  id: string;
+  title: string;
+  scene: string;
+  goal: string;
+  plot: string;
+  direction: string;
+  transition: string;
+  memory: string;
+  status?: TavernSceneStatus;
+};
+
+export type TavernStoryContextMemoryLayers =
+  Pick<TavernSceneMemoryLayers, "required" | "upstream" | "public" | "private" | "directorSecret">;
+
+export type TavernStoryContextCharacterMemory =
+  Pick<TavernCharacterMemoryLayers, "required" | "public" | "known" | "privateSelf" | "directorSecret">;
+
+export type TavernStoryContextCharacter = Pick<
+  TavernCharacter,
+  | "id"
+  | "name"
+  | "avatar"
+  | "description"
+  | "speakingStyle"
+  | "writingStyle"
+  | "replyStylePrompt"
+  | "goals"
+> & {
+  relationshipSummary?: string;
+  publicRelationshipSummary?: string;
+  memory?: TavernStoryContextCharacterMemory;
+};
+
+export type TavernStoryContextPackageInput = {
+  story: {
+    id: string;
+    title: string;
+    outline: string;
+    goal: string;
+    userPersonaName?: string;
+  };
+  graph: TavernStoryGraph;
+  scenes: TavernStoryContextScene[];
+  activeScene?: TavernStoryContextScene;
+  lorebookEntries: TavernStoryContextLorebookEntry[];
+  characters: TavernStoryContextCharacter[];
+  memory?: {
+    manual?: string;
+    sceneLayers?: Partial<TavernStoryContextMemoryLayers>;
+  };
+  branch?: {
+    pathNodeIds?: string[];
+    pathEdgeIds?: string[];
+  };
+};
+
+export type TavernStoryContextPackage = {
+  version: 1;
+  story: TavernStoryContextPackageInput["story"];
+  graph: TavernStoryGraph & {
+    activeNode?: TavernStoryNode;
+    activeStage?: TavernStoryStage;
+    activeScene?: TavernStoryContextScene;
+  };
+  scenes: TavernStoryContextScene[];
+  world: {
+    lorebookEntries: TavernStoryContextLorebookEntry[];
+  };
+  characters: TavernStoryContextCharacter[];
+  memory: {
+    manual: string;
+    sceneLayers: TavernStoryContextMemoryLayers;
+  };
+  branch: {
+    pathNodeIds: string[];
+    pathEdgeIds: string[];
+  };
+};
+
+export type TavernStoryGraphContextSlice = {
+  activeNode?: TavernStoryNode;
+  activeStage?: TavernStoryStage;
+  activeScene?: TavernStoryContextScene;
+  incomingEdges: TavernStoryEdge[];
+  outgoingEdges: TavernStoryEdge[];
+};
+
+const trimText = (value: string | undefined) => value?.trim() ?? "";
 
 const mergePromptTexts = (...values: Array<string | undefined>) => {
   const seen = new Set<string>();
@@ -37,12 +127,22 @@ const mergePromptTexts = (...values: Array<string | undefined>) => {
     .join("\n\n");
 };
 
+const createEmptySceneLayers = (
+  input: Partial<TavernStoryContextMemoryLayers> = {},
+): TavernStoryContextMemoryLayers => ({
+  required: trimText(input.required),
+  upstream: trimText(input.upstream),
+  public: trimText(input.public),
+  private: trimText(input.private),
+  directorSecret: trimText(input.directorSecret),
+});
+
 const sceneTitle = (scene: Pick<TavernScene, "title" | "scene">, fallback: string) =>
   scene.title?.trim() || scene.scene.trim().split("\n")[0]?.slice(0, 40) || fallback;
 
 const mapTavernLorebookEntry = (
   entry: TavernLorebookEntry,
-): StoryContextLorebookEntry => ({
+): TavernStoryContextLorebookEntry => ({
   id: entry.id,
   title: entry.title,
   content: entry.content,
@@ -54,7 +154,7 @@ const mapTavernLorebookEntry = (
 const mapTavernScene = (
   scene: TavernScene,
   fallbackTitle: string,
-): StoryContextScene => ({
+): TavernStoryContextScene => ({
   id: scene.id,
   title: sceneTitle(scene, fallbackTitle),
   scene: scene.scene,
@@ -68,7 +168,7 @@ const mapTavernScene = (
 
 const mapTavernRuntimeSceneProjection = (
   scene: TavernRuntimeStorySceneProjection,
-): StoryContextScene => ({
+): TavernStoryContextScene => ({
   id: scene.id,
   title: scene.title,
   scene: scene.scene,
@@ -90,8 +190,9 @@ const mapTavernCharacter = ({
   room: TavernRoom;
   characters: TavernCharacter[];
   projection: TavernRuntimeStoryProjection;
-}): StoryContextCharacter => {
+}): TavernStoryContextCharacter => {
   const layers = projection.activeSceneInstance?.characterMemoryLayers?.[character.id];
+  const baseMemory = room.characterMemories[character.id];
   return {
     id: character.id,
     name: character.name,
@@ -118,149 +219,60 @@ const mapTavernCharacter = ({
       includePrivate: false,
     }),
     memory: {
-      required: layers?.required?.trim() ?? "",
-      public: layers?.public?.trim() ?? "",
-      known: layers?.known?.trim() ?? "",
-      privateSelf: layers?.privateSelf?.trim() ?? "",
-      directorSecret: layers?.directorSecret?.trim() ?? "",
+      required: trimText(layers?.required),
+      public: mergePromptTexts(baseMemory, layers?.public),
+      known: trimText(layers?.known),
+      privateSelf: trimText(layers?.privateSelf),
+      directorSecret: trimText(layers?.directorSecret),
     },
   };
 };
 
-const mapBoundStoryCharacter = ({
-  storyCharacter,
-  tavernCharacter,
-  room,
-  characters,
-  story,
-  projection,
-}: {
-  storyCharacter: StoryContextCharacter;
-  tavernCharacter?: TavernCharacter;
-  room: TavernRoom;
-  characters: TavernCharacter[];
-  story: StoryAsset;
-  projection: TavernRuntimeStoryProjection;
-}): StoryContextCharacter => {
-  const layers = projection.activeSceneInstance?.characterMemoryLayers?.[storyCharacter.id];
-  const relationshipSummary = tavernCharacter
-    ? formatTavernCharacterRelationships({
-        character: tavernCharacter,
-        characters,
-        userPersonaName: story.userPersonaName,
-        relationshipOverrides: room.relationshipOverrides,
-        statusSnapshot: room.statusSnapshot,
-        includePrivate: true,
-      })
-    : storyCharacter.relationshipSummary;
-  const publicRelationshipSummary = tavernCharacter
-    ? formatTavernCharacterRelationships({
-        character: tavernCharacter,
-        characters,
-        userPersonaName: story.userPersonaName,
-        relationshipOverrides: room.relationshipOverrides,
-        statusSnapshot: room.statusSnapshot,
-        includePrivate: false,
-      })
-    : storyCharacter.publicRelationshipSummary;
+const buildTavernStoryContextPackageFromInput = (
+  input: TavernStoryContextPackageInput,
+): TavernStoryContextPackage => {
+  const activeNode = input.graph.nodes.find((node) => node.id === input.graph.activeNodeId) ??
+    input.graph.nodes.find((node) => node.id === input.graph.entryNodeId) ??
+    input.graph.nodes[0];
+  const activeStage = activeNode
+    ? input.graph.stages.find((stage) => stage.id === activeNode.stageId)
+    : undefined;
+  const activeScene = (
+    activeNode?.sceneId
+      ? input.scenes.find((scene) => scene.id === activeNode.sceneId)
+      : undefined
+  ) ?? input.activeScene;
 
   return {
-    ...storyCharacter,
-    relationshipSummary,
-    publicRelationshipSummary,
-    memory: {
-      required: mergePromptTexts(storyCharacter.memory?.required, layers?.required),
-      public: mergePromptTexts(storyCharacter.memory?.public, layers?.public),
-      known: mergePromptTexts(storyCharacter.memory?.known, layers?.known),
-      privateSelf: mergePromptTexts(storyCharacter.memory?.privateSelf, layers?.privateSelf),
-      directorSecret: mergePromptTexts(
-        storyCharacter.memory?.directorSecret,
-        layers?.directorSecret,
-      ),
+    version: 1,
+    story: {
+      id: input.story.id,
+      title: trimText(input.story.title),
+      outline: trimText(input.story.outline),
+      goal: trimText(input.story.goal),
+      userPersonaName: trimText(input.story.userPersonaName),
     },
-  };
-};
-
-const buildTavernBoundStoryContextPackage = ({
-  room,
-  characters,
-  story,
-}: {
-  room: TavernRoom;
-  characters: TavernCharacter[];
-  story: StoryAsset;
-}): StoryContextPackage => {
-  const projection = getTavernRuntimeStoryProjection(room, characters);
-  const activeNodeId = projection.activeSceneInstance?.nodeId && story.graph.nodes.some((node) =>
-    node.id === projection.activeSceneInstance?.nodeId
-  )
-    ? projection.activeSceneInstance.nodeId
-    : story.graph.activeNodeId;
-  const activeNode = story.graph.nodes.find((node) => node.id === activeNodeId) ??
-    story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
-    story.graph.nodes[0];
-  const storyActiveScene = activeNode?.sceneId
-    ? story.scenes.find((scene) => scene.id === activeNode.sceneId)
-    : undefined;
-  const activeScene = storyActiveScene
-    ? {
-        ...storyActiveScene,
-        status: projection.activeSceneInstance?.sceneStatus ?? storyActiveScene.status,
-      }
-    : undefined;
-  const storyCharacterIds = new Set(story.characters.map((character) => character.id));
-  const tavernCharacterById = new Map(projection.characters.map((character) => [character.id, character]));
-  const storyCharacters = story.characters.map((storyCharacter) =>
-    mapBoundStoryCharacter({
-      storyCharacter,
-      tavernCharacter: tavernCharacterById.get(storyCharacter.id),
-      room,
-      characters: projection.characters,
-      story,
-      projection,
-    })
-  );
-  const extraTavernCharacters = projection.characters
-    .filter((character) => !storyCharacterIds.has(character.id))
-    .map((character) => mapTavernCharacter({
-      character,
-      room,
-      characters: projection.characters,
-      projection,
-    }));
-
-  return buildStoryContextPackageFromAsset(story, {
-    activeNodeId,
-    activeScene,
-    characters: [...storyCharacters, ...extraTavernCharacters],
+    graph: {
+      ...input.graph,
+      activeNodeId: activeNode?.id ?? input.graph.activeNodeId,
+      activeNode,
+      activeStage,
+      activeScene,
+    },
+    scenes: input.scenes,
+    world: {
+      lorebookEntries: input.lorebookEntries,
+    },
+    characters: input.characters,
     memory: {
-      manual: activeScene?.memory ?? "",
-      sceneLayers: projection.activeSceneInstance?.memoryLayers,
+      manual: trimText(input.memory?.manual),
+      sceneLayers: createEmptySceneLayers(input.memory?.sceneLayers),
     },
     branch: {
-      pathNodeIds: projection.branch.pathNodeIds,
-      pathEdgeIds: projection.branch.pathEdgeIds,
+      pathNodeIds: input.branch?.pathNodeIds ?? [],
+      pathEdgeIds: input.branch?.pathEdgeIds ?? [],
     },
-  });
-};
-
-export const resolveTavernRuntimeStoryContextPackage = ({
-  room,
-  characters,
-  storyState,
-}: {
-  room: TavernRoom;
-  characters: TavernCharacter[];
-  storyState?: StoryState | null;
-}): StoryContextPackage => {
-  const storyId = room.storyBinding?.storyId;
-  const story = storyId
-    ? storyState?.stories.find((item) => item.id === storyId)
-    : undefined;
-
-  return story
-    ? buildTavernBoundStoryContextPackage({ room, characters, story })
-    : buildTavernStoryContextPackage({ room, characters });
+  };
 };
 
 export const buildTavernStoryContextPackage = ({
@@ -269,7 +281,7 @@ export const buildTavernStoryContextPackage = ({
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
-}): StoryContextPackage => {
+}): TavernStoryContextPackage => {
   const projection = getTavernRuntimeStoryProjection(room, characters);
   const activeScene = mapTavernRuntimeSceneProjection(projection.activeScene);
   const scenes = [
@@ -283,36 +295,9 @@ export const buildTavernStoryContextPackage = ({
     ),
   ];
 
-  return buildStoryContextPackage({
+  return buildTavernStoryContextPackageFromInput({
     story: projection.story,
-    graph: {
-      entryNodeId: projection.graph.entryNodeId,
-      activeNodeId: projection.graph.activeNodeId,
-      stages: projection.graph.stages.map((stage) => ({
-        id: stage.id,
-        title: stage.title,
-        summary: stage.summary,
-        order: stage.order,
-      })),
-      nodes: projection.graph.nodes.map((node) => ({
-        id: node.id,
-        stageId: node.stageId,
-        sceneId: node.sceneId,
-        title: node.title,
-        type: node.type,
-        pathRole: node.pathRole,
-        status: node.status,
-      })),
-      edges: projection.graph.edges.map((edge) => ({
-        id: edge.id,
-        fromNodeId: edge.fromNodeId,
-        toNodeId: edge.toNodeId,
-        label: edge.label,
-        reason: edge.reason,
-        isDefault: edge.isDefault,
-        priority: edge.priority,
-      })),
-    },
+    graph: projection.graph,
     scenes,
     activeScene,
     lorebookEntries: projection.lorebookEntries.map(mapTavernLorebookEntry),
@@ -331,4 +316,75 @@ export const buildTavernStoryContextPackage = ({
       pathEdgeIds: projection.branch.pathEdgeIds,
     },
   });
+};
+
+export const getTavernStoryGraphContextSlice = (
+  context: TavernStoryContextPackage,
+  {
+    maxEdges,
+  }: {
+    maxEdges?: number;
+  } = {},
+): TavernStoryGraphContextSlice => {
+  const activeNode = context.graph.activeNode;
+  if (!activeNode) {
+    return {
+      incomingEdges: [],
+      outgoingEdges: [],
+    };
+  }
+
+  const incomingEdges = context.graph.edges
+    .filter((edge) => edge.toNodeId === activeNode.id)
+    .slice(0, maxEdges ?? context.graph.edges.length);
+  const outgoingEdges = context.graph.edges
+    .filter((edge) => edge.fromNodeId === activeNode.id)
+    .slice(0, maxEdges ?? context.graph.edges.length);
+
+  return {
+    activeNode,
+    activeStage: context.graph.activeStage,
+    activeScene: context.graph.activeScene,
+    incomingEdges,
+    outgoingEdges,
+  };
+};
+
+const normalizeSearchText = (text: string) => text.toLowerCase();
+
+export const selectTavernStoryLorebookEntries = ({
+  context,
+  currentText,
+  activeCharacterId,
+}: {
+  context: TavernStoryContextPackage;
+  currentText: string;
+  activeCharacterId?: string;
+}) => {
+  const activeCharacter = activeCharacterId
+    ? context.characters.find((character) => character.id === activeCharacterId)
+    : undefined;
+  const activeScene = context.graph.activeScene;
+  const matchText = normalizeSearchText([
+    currentText,
+    context.story.title,
+    context.story.outline,
+    context.story.goal,
+    activeScene?.scene ?? "",
+    activeScene?.goal ?? "",
+    activeScene?.plot ?? "",
+    activeCharacter?.name ?? "",
+    context.characters.map((character) => [
+      character.name,
+      character.description,
+      character.goals ?? "",
+      character.publicRelationshipSummary ?? character.relationshipSummary ?? "",
+    ].join("\n")).join("\n\n"),
+  ].join("\n\n"));
+
+  return context.world.lorebookEntries
+    .filter((entry) => entry.enabled)
+    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) =>
+      matchText.includes(keyword.toLowerCase())
+    ));
 };

@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import {
+  normalizeTavernAvatarId,
   resolveAgentAvatar,
   tavernAvatarGroups,
 } from "@/assets/agent-avatars";
@@ -28,10 +29,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  normalizeStoryCharacterAvatar,
-  resolveStoryCharacterAvatar,
-  type StoryAsset,
-  type StoryContextCharacter,
+  type StoryJson,
+  type StoryCharacterJson,
 } from "@/features/story";
 import { cn } from "@/lib/utils";
 import {
@@ -54,12 +53,12 @@ import {
 import type { StoryModuleSave } from "../types";
 
 export type StoryCharactersEditHandle = (
-  character?: StoryContextCharacter | null,
+  character?: StoryCharacterJson | null,
 ) => void;
 
 type StoryCharactersEditProps = {
   bind: Ref<StoryCharactersEditHandle>;
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 
@@ -74,11 +73,11 @@ type CharacterDraft = {
   goals: string;
   publicRelationshipSummary: string;
   relationshipSummary: string;
-  memory: NonNullable<StoryContextCharacter["memory"]>;
+  memory: NonNullable<StoryCharacterJson["memory"]>;
 };
 
 const createDraft = (
-  character: StoryContextCharacter | null,
+  character: StoryCharacterJson | null,
   index: number,
 ): CharacterDraft => {
   const created = character ?? createStoryCharacter(index);
@@ -86,11 +85,7 @@ const createDraft = (
   return {
     id: character?.id ?? null,
     name: created.name,
-    avatar: resolveStoryCharacterAvatar({
-      avatar: created.avatar,
-      characterId: created.id,
-      index,
-    }),
+    avatar: normalizeTavernAvatarId(created.avatar),
     description: created.description,
     speakingStyle: created.speakingStyle,
     writingStyle: created.writingStyle ?? "",
@@ -114,7 +109,7 @@ export const StoryCharactersEdit = ({
   const [error, setError] = useState("");
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
-  const open = (character: StoryContextCharacter | null = null) => {
+  const open = (character: StoryCharacterJson | null = null) => {
     setDraft(createDraft(character, story.characters.length));
     setError("");
     setIsAvatarPickerOpen(false);
@@ -142,10 +137,10 @@ export const StoryCharactersEdit = ({
     }
 
     const now = Date.now();
-    const nextCharacter: StoryContextCharacter = {
+    const nextCharacter: StoryCharacterJson = {
       id: draft.id ?? `story-character-${crypto.randomUUID()}`,
       name,
-      avatar: normalizeStoryCharacterAvatar(draft.avatar, story.characters.length),
+      avatar: normalizeTavernAvatarId(draft.avatar),
       description,
       speakingStyle,
       writingStyle: draft.writingStyle.trim() || undefined,
@@ -176,7 +171,7 @@ export const StoryCharactersEdit = ({
   };
 
   const updateMemory = (
-    field: keyof NonNullable<StoryContextCharacter["memory"]>,
+    field: keyof NonNullable<StoryCharacterJson["memory"]>,
     value: string,
   ) => {
     setDraft((current) =>

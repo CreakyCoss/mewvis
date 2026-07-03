@@ -1,47 +1,17 @@
 import {
   createEmptyStoryManuscriptInbox,
   submitStoryManuscriptDraft,
-  type StoryManuscriptInbox,
   type StoryManuscriptSubmissionInput,
 } from "./manuscript-inbox";
-import {
-  buildStoryContextPackage,
-  type StoryContextPackage,
-  type StoryContextCharacter,
-  type StoryContextEdge,
-  type StoryContextLorebookEntry,
-  type StoryContextMemoryLayers,
-  type StoryContextNode,
-  type StoryContextScene,
-  type StoryContextStage,
-} from "./context-package";
-
-export type StoryAsset = {
-  id: string;
-  workspaceId: string;
-  title: string;
-  outline: string;
-  goal: string;
-  userPersonaName: string;
-  characters: StoryContextCharacter[];
-  lorebookEntries: StoryContextLorebookEntry[];
-  scenes: StoryContextScene[];
-  graph: {
-    entryNodeId: string;
-    activeNodeId: string;
-    stages: StoryContextStage[];
-    nodes: StoryContextNode[];
-    edges: StoryContextEdge[];
-  };
-  manuscriptInbox: StoryManuscriptInbox;
-  createdAt: number;
-  updatedAt: number;
-};
+import type {
+  StoryJson as CanonicalStoryJson,
+} from "../schema";
+export type { StoryJson } from "../schema";
 
 export type StoryState = {
   version: 1;
   activeStoryId: string;
-  stories: StoryAsset[];
+  stories: CanonicalStoryJson[];
 };
 
 export const createEmptyStoryState = (): StoryState => ({
@@ -50,7 +20,7 @@ export const createEmptyStoryState = (): StoryState => ({
   stories: [],
 });
 
-export const createStandaloneStoryAsset = ({
+export const createStandaloneStoryJson = ({
   id = `story-${crypto.randomUUID()}`,
   workspaceId,
   title = "未命名故事",
@@ -60,12 +30,13 @@ export const createStandaloneStoryAsset = ({
   workspaceId: string;
   title?: string;
   timestamp?: number;
-}): StoryAsset => {
+}): CanonicalStoryJson => {
   const sceneId = `${id}-scene-main`;
   const stageId = `${id}-stage-main`;
   const nodeId = `${id}-node-main`;
 
   return {
+    version: 1,
     id,
     workspaceId,
     title: title.trim() || "未命名故事",
@@ -109,81 +80,9 @@ export const createStandaloneStoryAsset = ({
   };
 };
 
-export const createStoryAssetFromContextPackage = ({
-  workspaceId,
-  context,
-  existing,
-  timestamp = Date.now(),
-}: {
-  workspaceId: string;
-  context: StoryContextPackage;
-  existing?: StoryAsset;
-  timestamp?: number;
-}): StoryAsset => {
-  return {
-    id: context.story.id,
-    workspaceId,
-    title: context.story.title,
-    outline: context.story.outline,
-    goal: context.story.goal,
-    userPersonaName: context.story.userPersonaName ?? "我",
-    characters: context.characters,
-    lorebookEntries: context.world.lorebookEntries,
-    scenes: context.scenes,
-    graph: {
-      entryNodeId: context.graph.entryNodeId,
-      activeNodeId: context.graph.activeNodeId,
-      stages: context.graph.stages,
-      nodes: context.graph.nodes,
-      edges: context.graph.edges,
-    },
-    manuscriptInbox: existing?.manuscriptInbox ?? createEmptyStoryManuscriptInbox(),
-    createdAt: existing?.createdAt ?? timestamp,
-    updatedAt: timestamp,
-  };
-};
-
-export const buildStoryContextPackageFromAsset = (
-  story: StoryAsset,
-  overrides: {
-    activeNodeId?: string;
-    activeScene?: StoryContextScene;
-    characters?: StoryContextCharacter[];
-    memory?: {
-      manual?: string;
-      sceneLayers?: Partial<StoryContextMemoryLayers>;
-    };
-    branch?: {
-      pathNodeIds?: string[];
-      pathEdgeIds?: string[];
-    };
-  } = {},
-): StoryContextPackage => buildStoryContextPackage({
-  story: {
-    id: story.id,
-    title: story.title,
-    outline: story.outline,
-    goal: story.goal,
-    userPersonaName: story.userPersonaName,
-  },
-  graph: {
-    entryNodeId: story.graph.entryNodeId,
-    activeNodeId: overrides.activeNodeId ?? story.graph.activeNodeId,
-    stages: story.graph.stages,
-    nodes: story.graph.nodes,
-    edges: story.graph.edges,
-  },
-  scenes: story.scenes,
-  activeScene: overrides.activeScene,
-  lorebookEntries: story.lorebookEntries,
-  characters: overrides.characters ?? story.characters,
-  memory: overrides.memory,
-  branch: overrides.branch,
-});
-
-export const upsertStoryAsset = (
+export const upsertStoryJson = (
   state: StoryState,
-  story: StoryAsset,
+  story: CanonicalStoryJson,
 ): StoryState => {
   const exists = state.stories.some((item) => item.id === story.id);
   const stories = exists
@@ -220,7 +119,7 @@ export const submitStoryManuscriptToState = (
     ...input,
     createdAt: input.createdAt ?? timestamp,
   });
-  const nextStory: StoryAsset = {
+  const nextStory: CanonicalStoryJson = {
     ...story,
     manuscriptInbox: inbox,
     updatedAt: timestamp,
@@ -229,6 +128,6 @@ export const submitStoryManuscriptToState = (
   return {
     draft,
     story: nextStory,
-    state: upsertStoryAsset(state, nextStory),
+    state: upsertStoryJson(state, nextStory),
   };
 };

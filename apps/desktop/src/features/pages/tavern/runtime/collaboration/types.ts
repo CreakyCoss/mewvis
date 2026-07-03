@@ -3,7 +3,7 @@ import type {
   AgentClientCollaborationModeInput,
   RuntimeModelInput,
 } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type { TavernCharacter, TavernMessage, TavernReferencedFile, TavernRoom } from "../../types";
 
 export type TavernCollaborationInput = AgentClientCollaborationInput | AgentClientCollaborationModeInput;
@@ -23,7 +23,7 @@ type TavernDirectorBaseCollaborationInput = {
   selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
   randomEventOpportunity?: boolean;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 export type TavernSpeakerCollaborationInput = {
@@ -35,7 +35,7 @@ export type TavernSpeakerCollaborationInput = {
   messages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
   turnInstructionByCharacterId?: Record<string, string | undefined>;
   allowNonverbalReplyCharacterIds?: string[];
 };

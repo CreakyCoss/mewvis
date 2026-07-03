@@ -1,16 +1,13 @@
-import {
-  buildStoryContextPackageFromAsset,
-  type StoryAsset,
-} from "./state";
+import type { StoryJson } from "../schema";
 import type {
   StoryAcceptedManuscript,
 } from "./manuscript-inbox";
 
-export type StoryDataPackageScope = "node" | "branch";
+export type StoryRuntimeDataScope = "node" | "branch";
 
-export type StoryDataPackage = {
+export type StoryRuntimeData = {
   version: 1;
-  scope: StoryDataPackageScope;
+  scope: StoryRuntimeDataScope;
   storyId: string;
   nodeId: string;
   timestamps: {
@@ -24,29 +21,29 @@ export type StoryDataPackage = {
     userPersonaName: string;
   };
   current: {
-    node: StoryAsset["graph"]["nodes"][number] | null;
-    stage: StoryAsset["graph"]["stages"][number] | null;
-    scene: StoryAsset["scenes"][number] | null;
+    node: StoryJson["graph"]["nodes"][number] | null;
+    stage: StoryJson["graph"]["stages"][number] | null;
+    scene: StoryJson["scenes"][number] | null;
     progress: string;
   };
   branch: {
     pathNodeIds: string[];
     pathEdgeIds: string[];
-    incomingEdges: StoryAsset["graph"]["edges"];
-    outgoingEdges: StoryAsset["graph"]["edges"];
+    incomingEdges: StoryJson["graph"]["edges"];
+    outgoingEdges: StoryJson["graph"]["edges"];
   };
   graph: {
     entryNodeId: string;
     activeNodeId: string;
-    stages: StoryAsset["graph"]["stages"];
-    nodes: StoryAsset["graph"]["nodes"];
-    edges: StoryAsset["graph"]["edges"];
+    stages: StoryJson["graph"]["stages"];
+    nodes: StoryJson["graph"]["nodes"];
+    edges: StoryJson["graph"]["edges"];
   };
-  scenes: StoryAsset["scenes"];
+  scenes: StoryJson["scenes"];
   world: {
-    lorebookEntries: StoryAsset["lorebookEntries"];
+    lorebookEntries: StoryJson["lorebookEntries"];
   };
-  characters: StoryAsset["characters"];
+  characters: StoryJson["characters"];
   memory: {
     acceptedManuscripts: StoryAcceptedManuscript[];
     characterPublicMemories: Array<{
@@ -57,11 +54,43 @@ export type StoryDataPackage = {
   };
 };
 
+export const extractStoryNodeRuntimeData = (
+  story: StoryJson,
+  {
+    nodeId,
+  }: {
+    nodeId?: string | null;
+  } = {},
+) => createStoryRuntimeData({
+  story,
+  scope: "node",
+  activeNodeId: nodeId,
+});
+
+export const extractStoryBranchRuntimeData = (
+  story: StoryJson,
+  {
+    activeNodeId,
+    pathNodeIds = [],
+    pathEdgeIds = [],
+  }: {
+    activeNodeId?: string | null;
+    pathNodeIds?: string[];
+    pathEdgeIds?: string[];
+  } = {},
+) => createStoryRuntimeData({
+  story,
+  scope: "branch",
+  activeNodeId: activeNodeId ?? pathNodeIds.at(-1),
+  pathNodeIds,
+  pathEdgeIds,
+});
+
 const compact = (value: string | undefined | null) => value?.trim() ?? "";
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
 
-const getNode = (story: StoryAsset, nodeId: string) =>
+const getNode = (story: StoryJson, nodeId: string) =>
   story.graph.nodes.find((node) => node.id === nodeId) ??
   story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
   story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
@@ -69,25 +98,25 @@ const getNode = (story: StoryAsset, nodeId: string) =>
   null;
 
 const getSceneForNode = (
-  story: StoryAsset,
-  node: StoryAsset["graph"]["nodes"][number] | null,
+  story: StoryJson,
+  node: StoryJson["graph"]["nodes"][number] | null,
 ) => node?.sceneId
   ? story.scenes.find((scene) => scene.id === node.sceneId) ?? null
   : null;
 
-const createDataPackage = ({
+const createStoryRuntimeData = ({
   story,
   scope,
   activeNodeId,
   pathNodeIds = [],
   pathEdgeIds = [],
 }: {
-  story: StoryAsset;
-  scope: StoryDataPackageScope;
+  story: StoryJson;
+  scope: StoryRuntimeDataScope;
   activeNodeId?: string | null;
   pathNodeIds?: string[];
   pathEdgeIds?: string[];
-}): StoryDataPackage => {
+}): StoryRuntimeData => {
   const node = getNode(story, compact(activeNodeId));
   const nodeId = node?.id ?? "";
   const stage = node
@@ -160,46 +189,4 @@ const createDataPackage = ({
       }),
     },
   };
-};
-
-export const getStoryNodeDataPackage = (
-  story: StoryAsset,
-  {
-    nodeId,
-  }: {
-    nodeId?: string | null;
-  } = {},
-) => createDataPackage({
-  story,
-  scope: "node",
-  activeNodeId: nodeId,
-});
-
-export const getStoryBranchDataPackage = (
-  story: StoryAsset,
-  {
-    activeNodeId,
-    pathNodeIds = [],
-    pathEdgeIds = [],
-  }: {
-    activeNodeId?: string | null;
-    pathNodeIds?: string[];
-    pathEdgeIds?: string[];
-  } = {},
-) => {
-  const context = buildStoryContextPackageFromAsset(story, {
-    activeNodeId: activeNodeId ?? pathNodeIds.at(-1),
-    branch: {
-      pathNodeIds,
-      pathEdgeIds,
-    },
-  });
-
-  return createDataPackage({
-    story,
-    scope: "branch",
-    activeNodeId: context.graph.activeNode?.id ?? activeNodeId,
-    pathNodeIds: context.branch.pathNodeIds,
-    pathEdgeIds: context.branch.pathEdgeIds,
-  });
 };

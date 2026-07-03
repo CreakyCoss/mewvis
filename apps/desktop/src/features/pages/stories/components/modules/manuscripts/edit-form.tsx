@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import { EditorField, selectClassName } from "../../story-primitives";
 import type {
   ManuscriptEditDraft,
@@ -11,7 +11,7 @@ type StoryManuscriptEditFormProps = {
   draft: ManuscriptEditDraft;
   mode: ManuscriptEditMode;
   onChange: (draft: ManuscriptEditDraft) => void;
-  story: StoryAsset;
+  story: StoryJson;
 };
 
 export const StoryManuscriptEditForm = ({

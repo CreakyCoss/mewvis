@@ -1,18 +1,21 @@
 import type {
-  StoryAsset,
-  StoryContextCharacter,
-  StoryContextEdge,
-  StoryContextLorebookEntry,
-  StoryContextNode,
-  StoryContextScene,
-  StoryContextStage,
+  StoryJson,
+  StoryCharacterJson,
+  StoryEdgeJson,
+  StoryLorebookEntryJson,
+  StoryNodeJson,
+  StorySceneJson,
+  StoryStageJson,
   StoryImportSourceKind,
   StoryManuscriptDraft,
 } from "@/features/story";
-import { getDefaultStoryCharacterAvatar } from "@/features/story";
+import {
+  defaultTavernAvatar,
+  tavernAvatarOptions,
+} from "@/assets/agent-avatars";
 
 export type StoryDraft = Pick<
-  StoryAsset,
+  StoryJson,
   "title" | "outline" | "goal" | "userPersonaName"
 >;
 
@@ -24,12 +27,16 @@ export const splitKeywords = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-export const getPendingDraftCount = (story: StoryAsset) =>
+export const getPendingDraftCount = (story: StoryJson) =>
   story.manuscriptInbox.drafts.filter((draft) => draft.status === "pending").length;
 
 const createStoryLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-export const emptyCharacterMemory = (): NonNullable<StoryContextCharacter["memory"]> => ({
+const getDefaultTavernAvatarId = (index = 0) =>
+  tavernAvatarOptions[Math.abs(index) % tavernAvatarOptions.length]?.id
+  ?? defaultTavernAvatar.id;
+
+export const emptyCharacterMemory = (): NonNullable<StoryCharacterJson["memory"]> => ({
   required: "",
   public: "",
   known: "",
@@ -37,10 +44,10 @@ export const emptyCharacterMemory = (): NonNullable<StoryContextCharacter["memor
   directorSecret: "",
 });
 
-export const createStoryCharacter = (index: number): StoryContextCharacter => ({
+export const createStoryCharacter = (index: number): StoryCharacterJson => ({
   id: createStoryLocalId("story-character"),
   name: `角色 ${index + 1}`,
-  avatar: getDefaultStoryCharacterAvatar(index),
+  avatar: getDefaultTavernAvatarId(index),
   description: "",
   speakingStyle: "自然回应，保持人设一致。",
   writingStyle: "",
@@ -51,7 +58,7 @@ export const createStoryCharacter = (index: number): StoryContextCharacter => ({
   memory: emptyCharacterMemory(),
 });
 
-export const createStoryScene = (index: number): StoryContextScene => ({
+export const createStoryScene = (index: number): StorySceneJson => ({
   id: createStoryLocalId("story-scene"),
   title: `场景 ${index + 1}`,
   scene: "",
@@ -70,7 +77,7 @@ export const createStoryScene = (index: number): StoryContextScene => ({
   },
 });
 
-export const createStoryLorebookEntry = (index: number): StoryContextLorebookEntry => ({
+export const createStoryLorebookEntry = (index: number): StoryLorebookEntryJson => ({
   id: createStoryLocalId("story-lore"),
   title: `世界书 ${index + 1}`,
   content: "",
@@ -79,14 +86,14 @@ export const createStoryLorebookEntry = (index: number): StoryContextLorebookEnt
   alwaysOn: false,
 });
 
-export const createStoryStage = (index: number): StoryContextStage => ({
+export const createStoryStage = (index: number): StoryStageJson => ({
   id: createStoryLocalId("story-stage"),
   title: `阶段 ${index + 1}`,
   summary: "",
   order: index,
 });
 
-export const createStoryNode = (story: StoryAsset): StoryContextNode => {
+export const createStoryNode = (story: StoryJson): StoryNodeJson => {
   const stage = story.graph.stages[0] ?? createStoryStage(0);
   const scene = story.scenes[0];
   return {
@@ -100,7 +107,7 @@ export const createStoryNode = (story: StoryAsset): StoryContextNode => {
   };
 };
 
-export const createStoryEdge = (story: StoryAsset): StoryContextEdge | null => {
+export const createStoryEdge = (story: StoryJson): StoryEdgeJson | null => {
   const [fromNode, toNode] = story.graph.nodes;
   if (!fromNode || !toNode) {
     return null;

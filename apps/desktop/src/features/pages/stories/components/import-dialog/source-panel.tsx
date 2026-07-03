@@ -1,12 +1,12 @@
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  createStoryImportDraftFromText,
-  type StoryImportDraft,
+  parseStoryJsonFromText,
   type StoryImportSourceKind,
+  type StoryJson,
 } from "@/features/story";
 import { storyImportSourceLabels } from "../story-form-utils";
 import { EditorField, selectClassName } from "../story-primitives";
@@ -14,19 +14,21 @@ import { EditorField, selectClassName } from "../story-primitives";
 type StoryImportSourcePanelProps = {
   importRaw: string;
   importSourceKind: StoryImportSourceKind;
+  isConverting: boolean;
   onConvert: () => void;
-  setImportDraft: (draft: StoryImportDraft | null) => void;
   setImportRaw: (raw: string) => void;
   setImportSourceKind: (kind: StoryImportSourceKind) => void;
+  setImportStory: (story: StoryJson | null) => void;
 };
 
 export const StoryImportSourcePanel = ({
   importRaw,
   importSourceKind,
+  isConverting,
   onConvert,
-  setImportDraft,
   setImportRaw,
   setImportSourceKind,
+  setImportStory,
 }: StoryImportSourcePanelProps) => (
   <div className="min-h-0 space-y-3">
     <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
@@ -36,9 +38,10 @@ export const StoryImportSourcePanel = ({
           value={importSourceKind}
           onChange={(event) => setImportSourceKind(event.target.value as StoryImportSourceKind)}
         >
-          {(["unknown", "json", "plainText", "aiGenerated"] satisfies StoryImportSourceKind[]).map((kind) => (
-            <option key={kind} value={kind}>{storyImportSourceLabels[kind]}</option>
-          ))}
+          {(["unknown", "json", "plainText", "aiGenerated", "characterCard", "worldBook"] satisfies StoryImportSourceKind[])
+            .map((kind) => (
+              <option key={kind} value={kind}>{storyImportSourceLabels[kind]}</option>
+            ))}
         </select>
       </EditorField>
       <EditorField label="文件">
@@ -53,13 +56,7 @@ export const StoryImportSourcePanel = ({
             file.text()
               .then((content) => {
                 setImportRaw(content);
-                try {
-                  setImportDraft(createStoryImportDraftFromText(content, {
-                    sourceKind: importSourceKind,
-                  }));
-                } catch {
-                  setImportDraft(null);
-                }
+                setImportStory(parseStoryJsonFromText(content));
               })
               .catch((error) => {
                 console.error("Failed to read story import file", error);
@@ -76,12 +73,20 @@ export const StoryImportSourcePanel = ({
       <Textarea
         className="min-h-72 resize-y font-mono text-xs"
         value={importRaw}
-        onChange={(event) => setImportRaw(event.target.value)}
+        onChange={(event) => {
+          setImportRaw(event.target.value);
+          setImportStory(parseStoryJsonFromText(event.target.value));
+        }}
       />
     </EditorField>
-    <Button type="button" className="w-full gap-2" onClick={onConvert}>
-      <FileUp className="size-4" />
-      转换为标准草稿
+    <Button
+      type="button"
+      className="w-full gap-2"
+      onClick={onConvert}
+      disabled={isConverting || !importRaw.trim()}
+    >
+      {isConverting ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
+      {isConverting ? "转换中" : "转换为 story.json"}
     </Button>
   </div>
 );

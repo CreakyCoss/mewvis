@@ -4,7 +4,7 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../../types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   buildTavernBridgeSystemPrompt,
   buildTavernCharacterPromptParts,
@@ -30,7 +30,7 @@ export type TavernReplyAgentRequestInput = {
   currentUserText: string;
   turnInstruction?: string;
   allowNonverbalReply?: boolean;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 const escapePromptXmlText = (text: string) =>

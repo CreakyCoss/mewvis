@@ -2,7 +2,7 @@ import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   tavernBridgeSessionRootDir,
   tavernProgressTrackerAgentRoleId,
@@ -35,7 +35,7 @@ export type RunTavernProgressTrackingInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   turnId: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 export const runTavernProgressTracking = async ({

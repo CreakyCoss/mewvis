@@ -1,18 +1,18 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
-  createStandaloneStoryAsset,
+  createStandaloneStoryJson,
   submitStoryManuscriptToState,
-  type StoryAsset,
+  type StoryJson,
   type StoryState,
 } from "./application/state";
-import { normalizeStoryState } from "./application/state-normalize";
+import { normalizeStoryState } from "./normalize";
 import type { StoryManuscriptSubmissionInput } from "./application/manuscript-inbox";
 
 const STORY_REGISTRY_STORAGE_KEY = "novel-claw:story:records";
-const STORY_ASSET_STORAGE_PREFIX = "novel-claw:story:asset";
+const STORY_JSON_STORAGE_PREFIX = "novel-claw:story:json";
 const STORY_SOURCE_DIR = "story";
 const STORY_MANIFEST_FILE = `${STORY_SOURCE_DIR}/manifest.json`;
-const STORY_ASSET_FILE = `${STORY_SOURCE_DIR}/story.json`;
+const STORY_JSON_FILE = `${STORY_SOURCE_DIR}/story.json`;
 
 export type StoryRecord = {
   id: string;
@@ -48,7 +48,7 @@ const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
   path: record.workspacePath,
 });
 
-const storyAssetStorageKey = (storyId: string) => `${STORY_ASSET_STORAGE_PREFIX}:${storyId}`;
+const storyJsonStorageKey = (storyId: string) => `${STORY_JSON_STORAGE_PREFIX}:${storyId}`;
 
 const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
   if (!value || typeof value !== "object") {
@@ -72,7 +72,7 @@ const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
   };
 };
 
-const normalizeStoryAssetForRecord = (record: StoryRecord, value: unknown): StoryAsset | null => {
+const normalizeStoryJsonForRecord = (record: StoryRecord, value: unknown): StoryJson | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -92,7 +92,7 @@ const normalizeStoryAssetForRecord = (record: StoryRecord, value: unknown): Stor
   return state?.stories[0] ?? null;
 };
 
-const createStoryManifest = (story: StoryAsset): StoryManifest => ({
+const createStoryManifest = (story: StoryJson): StoryManifest => ({
   version: 1,
   id: story.id,
   name: story.title,
@@ -215,7 +215,7 @@ export const deleteStoryRecord = async (storyId: string) => {
   if (!isTauri()) {
     const records = loadStoryRecordsFromLocalStorage().filter((record) => record.id !== storyId);
     saveStoryRecordsToLocalStorage(records);
-    window.localStorage.removeItem(storyAssetStorageKey(storyId));
+    window.localStorage.removeItem(storyJsonStorageKey(storyId));
     return;
   }
 
@@ -224,21 +224,21 @@ export const deleteStoryRecord = async (storyId: string) => {
   });
 };
 
-export const loadStoryAsset = async (record: StoryRecord): Promise<StoryAsset> => {
+export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => {
   if (!isTauri()) {
     try {
-      const raw = window.localStorage.getItem(storyAssetStorageKey(record.id));
+      const raw = window.localStorage.getItem(storyJsonStorageKey(record.id));
       const parsed = raw ? JSON.parse(raw) : null;
       return (
-        normalizeStoryAssetForRecord(record, parsed) ??
-        createStandaloneStoryAsset({
+        normalizeStoryJsonForRecord(record, parsed) ??
+        createStandaloneStoryJson({
           id: record.id,
           workspaceId: record.id,
           title: record.name,
         })
       );
     } catch {
-      return createStandaloneStoryAsset({
+      return createStandaloneStoryJson({
         id: record.id,
         workspaceId: record.id,
         title: record.name,
@@ -246,10 +246,10 @@ export const loadStoryAsset = async (record: StoryRecord): Promise<StoryAsset> =
     }
   }
 
-  const parsed = await readJsonWorkspaceFile(record.workspacePath, STORY_ASSET_FILE);
+  const parsed = await readJsonWorkspaceFile(record.workspacePath, STORY_JSON_FILE);
   return (
-    normalizeStoryAssetForRecord(record, parsed) ??
-    createStandaloneStoryAsset({
+    normalizeStoryJsonForRecord(record, parsed) ??
+    createStandaloneStoryJson({
       id: record.id,
       workspaceId: record.id,
       title: record.name,
@@ -257,9 +257,9 @@ export const loadStoryAsset = async (record: StoryRecord): Promise<StoryAsset> =
   );
 };
 
-export const saveStoryAsset = async (workspace: StoryWorkspace, story: StoryAsset): Promise<StoryAsset> => {
+export const saveStoryJson = async (workspace: StoryWorkspace, story: StoryJson): Promise<StoryJson> => {
   const normalized =
-    normalizeStoryAssetForRecord(
+    normalizeStoryJsonForRecord(
       {
         id: workspace.id,
         name: story.title,
@@ -275,12 +275,12 @@ export const saveStoryAsset = async (workspace: StoryWorkspace, story: StoryAsse
     ) ?? story;
 
   if (!isTauri()) {
-    window.localStorage.setItem(storyAssetStorageKey(workspace.id), JSON.stringify(normalized));
+    window.localStorage.setItem(storyJsonStorageKey(workspace.id), JSON.stringify(normalized));
     return normalized;
   }
 
   await writeJsonWorkspaceFile(workspace.path, STORY_MANIFEST_FILE, createStoryManifest(normalized));
-  await writeJsonWorkspaceFile(workspace.path, STORY_ASSET_FILE, normalized);
+  await writeJsonWorkspaceFile(workspace.path, STORY_JSON_FILE, normalized);
   return normalized;
 };
 
@@ -289,16 +289,16 @@ export const createStory = async (
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
-  story: StoryAsset;
+  story: StoryJson;
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
-  const story = createStandaloneStoryAsset({
+  const story = createStandaloneStoryJson({
     id: record.id,
     workspaceId: record.id,
     title: record.name,
   });
-  const savedStory = await saveStoryAsset(workspace, story);
+  const savedStory = await saveStoryJson(workspace, story);
 
   return {
     record,
@@ -315,7 +315,7 @@ export const loadStoryLibrary = async (
   state: StoryState;
 }> => {
   const records = await listStoryRecords();
-  const stories = await Promise.all(records.map(loadStoryAsset));
+  const stories = await Promise.all(records.map(loadStoryJson));
   const activeStoryId =
     requestedStoryId && stories.some((story) => story.id === requestedStoryId)
       ? requestedStoryId
@@ -337,7 +337,7 @@ export const loadStoryById = async (
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
-  story: StoryAsset;
+  story: StoryJson;
 } | null> => {
   const record = (await listStoryRecords()).find((item) => item.id === storyId);
   if (!record) {
@@ -347,7 +347,7 @@ export const loadStoryById = async (
   return {
     record,
     workspace: storyWorkspaceFromRecord(record),
-    story: await loadStoryAsset(record),
+    story: await loadStoryJson(record),
   };
 };
 
@@ -366,7 +366,7 @@ export const submitStoryManuscript = async (
     stories: [loaded.story],
   };
   const submission = submitStoryManuscriptToState(currentState, input);
-  const story = await saveStoryAsset(loaded.workspace, submission.story);
+  const story = await saveStoryJson(loaded.workspace, submission.story);
   if (!story) {
     throw new Error("稿件已提交，但无法读取保存后的故事。");
   }

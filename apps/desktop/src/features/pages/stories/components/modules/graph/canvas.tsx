@@ -17,11 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type {
-  StoryAsset,
-  StoryContextEdge,
-  StoryContextNode,
-  StoryContextScene,
-  StoryContextStage,
+  StoryJson,
+  StoryEdgeJson,
+  StoryNodeJson,
+  StorySceneJson,
+  StoryStageJson,
 } from "@/features/story";
 import { cn } from "@/lib/utils";
 import {
@@ -41,18 +41,18 @@ import type { StoryModuleSave } from "../types";
 import { StoryGraphNodeEditDialog } from "./edit";
 
 type StoryGraphModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
   onOpenNodeTavern?: (nodeId: string) => void;
   onOpenNodeChat?: (nodeId: string) => void;
   onOpenScenes?: () => void;
 };
 
-type StoryGraph = StoryAsset["graph"];
+type StoryGraph = StoryJson["graph"];
 
 type StoryGraphLayoutNode = {
   depth: number;
-  node: StoryContextNode;
+  node: StoryNodeJson;
   width: number;
   x: number;
   y: number;
@@ -98,7 +98,7 @@ const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const now = () => Date.now();
 
-const getNodeTone = (node: StoryContextNode) => {
+const getNodeTone = (node: StoryNodeJson) => {
   if (node.type === "failure") {
     return "border-red-400/35 bg-red-500/[0.07]";
   }
@@ -111,10 +111,10 @@ const getNodeTone = (node: StoryContextNode) => {
   return "border-primary/35 bg-primary/[0.06]";
 };
 
-const isNormalNode = (node: StoryContextNode | null | undefined) =>
+const isNormalNode = (node: StoryNodeJson | null | undefined) =>
   !node || node.type === "normal" || node.type.trim() === "";
 
-const getStoryNodeTypeLabel = (node: StoryContextNode) => {
+const getStoryNodeTypeLabel = (node: StoryNodeJson) => {
   if (node.type === "failure") {
     return "失败";
   }
@@ -124,20 +124,20 @@ const getStoryNodeTypeLabel = (node: StoryContextNode) => {
   return "普通";
 };
 
-const getStoryPathRoleLabel = (node: StoryContextNode) => {
+const getStoryPathRoleLabel = (node: StoryNodeJson) => {
   if (node.pathRole === "main") {
     return "主线";
   }
   return "支线";
 };
 
-const getStoryPathRoleBadgeClassName = (node: StoryContextNode) => (
+const getStoryPathRoleBadgeClassName = (node: StoryNodeJson) => (
   node.pathRole === "main"
     ? "border-primary/25 bg-primary/10 text-primary"
     : "border-sky-400/25 bg-sky-500/10 text-sky-700 dark:text-sky-300"
 );
 
-const getStoryNodeTypeBadgeClassName = (node: StoryContextNode) => {
+const getStoryNodeTypeBadgeClassName = (node: StoryNodeJson) => {
   if (node.type === "failure") {
     return "border-red-400/25 bg-red-500/10 text-red-700 dark:text-red-300";
   }
@@ -155,7 +155,7 @@ const getStoryTextVisualWidth = (text: string, unitWidth: number) =>
 
 const getStoryNodeCardWidth = (
   graph: StoryGraph,
-  node: StoryContextNode,
+  node: StoryNodeJson,
 ) => {
   const title = node.title.trim() || emptyValueText;
   const titleWidth = 64 + getStoryTextVisualWidth(title, 13);
@@ -176,8 +176,8 @@ const getStoryNodeCardWidth = (
 };
 
 const getEdgeVisualTone = (
-  edge: StoryContextEdge,
-  targetNode: StoryContextNode | undefined,
+  edge: StoryEdgeJson,
+  targetNode: StoryNodeJson | undefined,
 ) => {
   if (targetNode?.type === "failure") {
     return {
@@ -248,7 +248,7 @@ const isBetterPreviousStoryRouteCandidate = (
   return candidate.edgeIds.length > current.edgeIds.length;
 };
 
-const sortEdgesForRoute = (edges: StoryContextEdge[]) =>
+const sortEdgesForRoute = (edges: StoryEdgeJson[]) =>
   [...edges].sort((left, right) =>
     Number(right.isDefault) - Number(left.isDefault) ||
     left.priority - right.priority ||
@@ -264,8 +264,8 @@ const buildSelectedStoryRouteEdgeIds = (
   }
 
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const edgesBySourceNodeId = new Map<string, StoryContextEdge[]>();
-  const edgesByTargetNodeId = new Map<string, StoryContextEdge[]>();
+  const edgesBySourceNodeId = new Map<string, StoryEdgeJson[]>();
+  const edgesByTargetNodeId = new Map<string, StoryEdgeJson[]>();
   sortEdgesForRoute(graph.edges).forEach((edge) => {
     const sourceEdges = edgesBySourceNodeId.get(edge.fromNodeId) ?? [];
     sourceEdges.push(edge);
@@ -362,7 +362,7 @@ const buildSelectedStoryRouteEdgeIds = (
 
 const canNodeUseMainPathRole = (
   graph: StoryGraph,
-  node: StoryContextNode,
+  node: StoryNodeJson,
 ) => {
   if (node.id === graph.entryNodeId) {
     return true;
@@ -471,29 +471,29 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
 };
 
 const getNodeScene = (
-  story: StoryAsset,
-  node: StoryContextNode | null | undefined,
+  story: StoryJson,
+  node: StoryNodeJson | null | undefined,
 ) => node?.sceneId
   ? story.scenes.find((scene) => scene.id === node.sceneId) ?? null
   : null;
 
 const getStageForNode = (
-  stages: StoryContextStage[],
-  node: StoryContextNode | null | undefined,
+  stages: StoryStageJson[],
+  node: StoryNodeJson | null | undefined,
 ) => node
   ? stages.find((stage) => stage.id === node.stageId) ?? null
   : null;
 
 const createSceneForStoryNode = (
-  story: StoryAsset,
+  story: StoryJson,
   title: string,
-): StoryContextScene => ({
+): StorySceneJson => ({
   ...createStoryScene(story.scenes.length),
   title: title.trim() || `节点场景 ${story.scenes.length + 1}`,
   scene: "新的剧情节点等待配置。",
 });
 
-const ensureStoryStage = (story: StoryAsset) => {
+const ensureStoryStage = (story: StoryJson) => {
   const fallbackStage = story.graph.stages[0] ?? createStoryStage(0);
   return {
     stage: fallbackStage,
@@ -520,7 +520,7 @@ export const StoryGraphModule = ({
     ? graph.nodes.find((node) => node.id === editingNodeId) ?? null
     : null;
 
-  const saveStory = (nextStory: StoryAsset) => {
+  const saveStory = (nextStory: StoryJson) => {
     onSave({
       ...nextStory,
       updatedAt: now(),
@@ -541,7 +541,7 @@ export const StoryGraphModule = ({
   const createInitialNode = () => {
     const { stage, stages } = ensureStoryStage(story);
     const scene = createSceneForStoryNode(story, "入口节点");
-    const node: StoryContextNode = {
+    const node: StoryNodeJson = {
       id: createLocalId("story-node"),
       stageId: stage.id,
       sceneId: scene.id,
@@ -564,7 +564,7 @@ export const StoryGraphModule = ({
     });
   };
 
-  const createNextNode = (sourceNode: StoryContextNode | null) => {
+  const createNextNode = (sourceNode: StoryNodeJson | null) => {
     if (!sourceNode) {
       if (graph.nodes.length === 0) {
         createInitialNode();
@@ -582,7 +582,7 @@ export const StoryGraphModule = ({
       ? `节点 ${graph.nodes.length + 1}`
       : `分支 ${outgoingCount + 1}`;
     const scene = createSceneForStoryNode(story, nodeTitle);
-    const node: StoryContextNode = {
+    const node: StoryNodeJson = {
       id: createLocalId("story-node"),
       stageId: sourceNode.stageId || stages[0]?.id || "",
       sceneId: scene.id,
@@ -591,7 +591,7 @@ export const StoryGraphModule = ({
       pathRole: isDefaultPath && sourceNode.pathRole === "main" ? "main" : "branch",
       status: "ready",
     };
-    const edge: StoryContextEdge = {
+    const edge: StoryEdgeJson = {
       id: createLocalId("story-edge"),
       fromNodeId: sourceNode.id,
       toNodeId: node.id,
@@ -614,7 +614,7 @@ export const StoryGraphModule = ({
     });
   };
 
-  const updateNode = (nodeId: string, patch: Partial<StoryContextNode>) => {
+  const updateNode = (nodeId: string, patch: Partial<StoryNodeJson>) => {
     const nextNodes = graph.nodes.map((node) => {
       if (node.id !== nodeId) {
         return node;
@@ -641,7 +641,7 @@ export const StoryGraphModule = ({
     });
   };
 
-  const createMissingSceneForNode = (node: StoryContextNode) => {
+  const createMissingSceneForNode = (node: StoryNodeJson) => {
     if (node.sceneId) {
       return;
     }
@@ -667,7 +667,7 @@ export const StoryGraphModule = ({
     });
   };
 
-  const openSceneEditorForNode = (node: StoryContextNode) => {
+  const openSceneEditorForNode = (node: StoryNodeJson) => {
     if (!node.sceneId) {
       createMissingSceneForNode(node);
     }
@@ -703,7 +703,7 @@ export const StoryGraphModule = ({
     });
   };
 
-  const requestDeleteNode = (node: StoryContextNode) => {
+  const requestDeleteNode = (node: StoryNodeJson) => {
     if (node.id === graph.entryNodeId || graph.nodes.length <= 1) {
       return;
     }
@@ -716,7 +716,7 @@ export const StoryGraphModule = ({
     }
   };
 
-  const updateEdge = (edgeId: string, patch: Partial<StoryContextEdge>) => {
+  const updateEdge = (edgeId: string, patch: Partial<StoryEdgeJson>) => {
     const originalEdge = graph.edges.find((item) => item.id === edgeId);
     if (!originalEdge) {
       return;

@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import {
   EmptyBlock,
   StorySection,
@@ -17,7 +17,7 @@ import type { StoryModuleSave } from "../types";
 import { StoryScenesEdit, type StoryScenesEditHandle } from "./edit";
 
 type StoryScenesModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 

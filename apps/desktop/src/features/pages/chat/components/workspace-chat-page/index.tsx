@@ -27,7 +27,11 @@ import { useAgentClientEvents } from "./use-agent-client-events";
 import { useModelSettings } from "./use-model-settings";
 import { type RunningAgentTaskContext, useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
-import { loadStoryChatSeed, type StoryChatSeed, type StoryChatSeedRequest } from "./story-seed";
+import {
+  loadStoryChatSeed,
+  type StoryChatSeed,
+  type StoryChatSeedRequest,
+} from "@/features/story/presentation/chat-seed";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -267,7 +271,7 @@ export const WorkspaceChatPage = ({
     }
 
     let cancelled = false;
-    loadStoryChatSeed(workspace, storySeedRequest)
+    loadStoryChatSeed(storySeedRequest)
       .then((seed) => {
         if (!cancelled) {
           setStoryChatSeed(seed);
@@ -284,7 +288,7 @@ export const WorkspaceChatPage = ({
     return () => {
       cancelled = true;
     };
-  }, [storySeedRequest?.nodeId, storySeedRequest?.storyId, workspace]);
+  }, [storySeedRequest?.nodeId, storySeedRequest?.storyId]);
   const storyRuntimeContextSections = useMemo(
     () => (storyChatSeed ? [storyChatSeed.runtimeInstruction] : []),
     [storyChatSeed],

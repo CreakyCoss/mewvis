@@ -1,5 +1,5 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
 import {
   buildTavernStoryContextPackage,
@@ -24,7 +24,7 @@ export const buildTavernUserReplySceneSections = ({
 }: {
   room: TavernRoom;
   characters: TavernCharacter[];
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 }) => {
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const activeScene = storyContext.graph.activeScene;

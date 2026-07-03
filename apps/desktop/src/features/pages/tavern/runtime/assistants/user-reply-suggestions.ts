@@ -1,5 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -32,7 +32,7 @@ export type TavernUserReplySuggestionInput = {
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 export const runTavernUserReplySuggestions = async ({

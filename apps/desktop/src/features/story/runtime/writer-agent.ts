@@ -1,13 +1,14 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { buildStoryContextPackageFromAsset, type StoryAsset } from "../application/state";
+import { extractStoryNodeRuntimeData } from "../application/data-package";
+import type { StoryJson } from "../schema";
 
 export type StoryWriterAgentMode = "polish" | "expand";
 
 export type StoryWriterAgentInput = {
   workspacePath: string;
   runtimeModel?: RuntimeModelInput | null;
-  story: StoryAsset;
+  story: StoryJson;
   nodeId: string;
   mode: StoryWriterAgentMode;
   title: string;
@@ -33,24 +34,22 @@ const buildStoryWriterSystemPrompt = () =>
   ].join("\n");
 
 const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
-  const context = buildStoryContextPackageFromAsset(input.story, {
-    activeNodeId: input.nodeId,
+  const runtimeData = extractStoryNodeRuntimeData(input.story, {
+    nodeId: input.nodeId,
   });
-  const activeNode = context.graph.activeNode;
-  const activeScene = context.graph.activeScene;
 
   return JSON.stringify(
     {
       mode: input.mode,
-      story: context.story,
-      currentNode: activeNode,
-      currentScene: activeScene,
+      story: runtimeData.background,
+      currentNode: runtimeData.current.node,
+      currentScene: runtimeData.current.scene,
       graph: {
-        activeStage: context.graph.activeStage,
-        outgoingEdges: context.graph.edges.filter((edge) => !activeNode?.id || edge.fromNodeId === activeNode.id),
+        activeStage: runtimeData.current.stage,
+        outgoingEdges: runtimeData.branch.outgoingEdges,
       },
-      characters: context.characters,
-      lorebookEntries: context.world.lorebookEntries.filter((entry) => entry.enabled),
+      characters: runtimeData.characters,
+      lorebookEntries: runtimeData.world.lorebookEntries.filter((entry) => entry.enabled),
       manuscript: {
         title: input.title,
         summary: input.summary ?? "",

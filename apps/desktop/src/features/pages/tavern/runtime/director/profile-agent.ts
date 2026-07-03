@@ -1,5 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernDirectorProfile,
@@ -18,7 +18,7 @@ export type RunTavernDirectorProfileAgentInput = {
   runtimeModel?: RuntimeModelInput | null;
   room: TavernRoom;
   characters: TavernCharacter[];
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 const DIRECTOR_PROFILE_AGENT_ROLE_ID = "tavern-one-shot-director-profile";
@@ -140,7 +140,7 @@ const resolveRoomDirectorProfileScene = (room: TavernRoom) => {
 
 const resolveDirectorProfileScene = (
   room: TavernRoom,
-  storyContext?: StoryContextPackage,
+  storyContext?: TavernStoryContextPackage,
 ) => {
   const activeScene = storyContext?.graph.activeScene;
   if (activeScene) {
@@ -159,7 +159,7 @@ const resolveDirectorProfileScene = (
 const buildDirectorProfileRequestContext = (
   room: TavernRoom,
   characters: TavernCharacter[],
-  storyContext?: StoryContextPackage,
+  storyContext?: TavernStoryContextPackage,
 ) => {
   const activeInstance = room.sceneInstances.find((instance) =>
     instance.id === room.activeSceneInstanceId

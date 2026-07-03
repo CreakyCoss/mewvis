@@ -4,7 +4,7 @@ import {
   filterTavernFactEventsForAudience,
   formatTavernCharacterRelationships,
 } from "../../../core";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -130,7 +130,7 @@ export const buildTavernDirectorContextSections = ({
   promptBlocksText,
 }: {
   room: TavernRoom;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;

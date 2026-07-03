@@ -1,13 +1,15 @@
 import type {
-  StoryDataPackage,
-} from "@/features/story";
-import type {
   TavernPresentationInput,
 } from "@/features/pages/tavern/presentation/input";
 import type {
   TavernStoryGraph,
   TavernStoryNode,
 } from "@/features/pages/tavern/types";
+import type {
+  StoryRuntimeData,
+} from "../application/data-package";
+import { extractStoryNodeRuntimeData } from "../application/data-package";
+import type { StoryJson } from "../schema";
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
 
@@ -24,19 +26,19 @@ const normalizeTavernNodeStatus = (
 ): TavernStoryNode["status"] =>
   value === "ready" || value === "played" || value === "draft" ? value : "draft";
 
-const createTavernGraphFromStoryDataPackage = (
-  dataPackage: StoryDataPackage,
+const createTavernGraphFromStoryRuntimeData = (
+  runtimeData: StoryRuntimeData,
 ): TavernStoryGraph => ({
   version: 1,
-  entryNodeId: dataPackage.graph.entryNodeId,
-  activeNodeId: dataPackage.graph.activeNodeId,
-  stages: dataPackage.graph.stages.map((stage) => ({
+  entryNodeId: runtimeData.graph.entryNodeId,
+  activeNodeId: runtimeData.graph.activeNodeId,
+  stages: runtimeData.graph.stages.map((stage) => ({
     id: stage.id,
     title: stage.title,
     summary: stage.summary,
     order: stage.order,
   })),
-  nodes: dataPackage.graph.nodes.map((node, index) => ({
+  nodes: runtimeData.graph.nodes.map((node, index) => ({
     id: node.id,
     stageId: node.stageId,
     sceneId: node.sceneId,
@@ -48,10 +50,10 @@ const createTavernGraphFromStoryDataPackage = (
       y: 160,
     },
     status: normalizeTavernNodeStatus(node.status),
-    createdAt: dataPackage.timestamps.createdAt,
-    updatedAt: dataPackage.timestamps.updatedAt,
+    createdAt: runtimeData.timestamps.createdAt,
+    updatedAt: runtimeData.timestamps.updatedAt,
   })),
-  edges: dataPackage.graph.edges.map((edge, index) => ({
+  edges: runtimeData.graph.edges.map((edge, index) => ({
     id: edge.id,
     fromNodeId: edge.fromNodeId,
     toNodeId: edge.toNodeId,
@@ -59,13 +61,13 @@ const createTavernGraphFromStoryDataPackage = (
     reason: edge.reason,
     isDefault: edge.isDefault,
     priority: typeof edge.priority === "number" ? edge.priority : index,
-    createdAt: dataPackage.timestamps.createdAt,
-    updatedAt: dataPackage.timestamps.updatedAt,
+    createdAt: runtimeData.timestamps.createdAt,
+    updatedAt: runtimeData.timestamps.updatedAt,
   })),
 });
 
 const formatStoryCharacterMemory = (
-  character: StoryDataPackage["characters"][number],
+  character: StoryRuntimeData["characters"][number],
 ) => [
   character.memory?.required,
   character.memory?.public,
@@ -73,47 +75,47 @@ const formatStoryCharacterMemory = (
   character.memory?.privateSelf,
 ].map(trimText).filter(Boolean).join("\n\n");
 
-export const createTavernPresentationInputFromStoryDataPackage = (
-  dataPackage: StoryDataPackage,
+export const createTavernPresentationInputFromStoryRuntimeData = (
+  runtimeData: StoryRuntimeData,
 ): TavernPresentationInput => {
-  const activeNodeId = dataPackage.graph.activeNodeId || dataPackage.nodeId;
-  const activeNode = dataPackage.graph.nodes.find((node) => node.id === activeNodeId) ??
-    dataPackage.current.node ??
-    dataPackage.graph.nodes.find((node) => node.id === dataPackage.graph.entryNodeId) ??
-    dataPackage.graph.nodes[0];
+  const activeNodeId = runtimeData.graph.activeNodeId || runtimeData.nodeId;
+  const activeNode = runtimeData.graph.nodes.find((node) => node.id === activeNodeId) ??
+    runtimeData.current.node ??
+    runtimeData.graph.nodes.find((node) => node.id === runtimeData.graph.entryNodeId) ??
+    runtimeData.graph.nodes[0];
   const activeSceneId = activeNode?.sceneId ||
-    dataPackage.current.scene?.id ||
-    dataPackage.scenes[0]?.id ||
+    runtimeData.current.scene?.id ||
+    runtimeData.scenes[0]?.id ||
     "";
-  const characterIds = dataPackage.characters.map((character) => character.id);
+  const characterIds = runtimeData.characters.map((character) => character.id);
 
   return {
     version: 1,
     source: {
       type: "story",
-      id: dataPackage.storyId,
-      label: dataPackage.background.title,
+      id: runtimeData.storyId,
+      label: runtimeData.background.title,
     },
     meta: {
-      title: dataPackage.background.title,
-      userPersonaName: dataPackage.background.userPersonaName,
+      title: runtimeData.background.title,
+      userPersonaName: runtimeData.background.userPersonaName,
     },
     world: {
-      outline: dataPackage.background.outline,
-      goal: dataPackage.background.goal,
-      lorebookEntries: dataPackage.world.lorebookEntries.map((entry) => ({
+      outline: runtimeData.background.outline,
+      goal: runtimeData.background.goal,
+      lorebookEntries: runtimeData.world.lorebookEntries.map((entry) => ({
         id: entry.id,
         title: entry.title,
         content: entry.content,
         keywords: entry.keywords,
         enabled: entry.enabled,
         alwaysOn: entry.alwaysOn,
-        createdAt: dataPackage.timestamps.createdAt,
-        updatedAt: dataPackage.timestamps.updatedAt,
+        createdAt: runtimeData.timestamps.createdAt,
+        updatedAt: runtimeData.timestamps.updatedAt,
       })),
     },
     cast: {
-      characters: dataPackage.characters.map((character) => ({
+      characters: runtimeData.characters.map((character) => ({
         id: character.id,
         name: character.name,
         avatar: character.avatar,
@@ -128,12 +130,12 @@ export const createTavernPresentationInputFromStoryDataPackage = (
       activeCharacterId: characterIds[0],
     },
     route: {
-      graph: createTavernGraphFromStoryDataPackage(dataPackage),
+      graph: createTavernGraphFromStoryRuntimeData(runtimeData),
       activeNodeId,
     },
     scenes: {
       activeSceneId,
-      items: dataPackage.scenes.map((scene, index) => ({
+      items: runtimeData.scenes.map((scene, index) => ({
         id: scene.id,
         title: scene.title,
         order: index,
@@ -146,20 +148,31 @@ export const createTavernPresentationInputFromStoryDataPackage = (
         sceneStatus: scene.status
           ? {
               ...scene.status,
-              updatedAt: dataPackage.timestamps.updatedAt,
+              updatedAt: runtimeData.timestamps.updatedAt,
             }
           : undefined,
         characterIds,
         activeCharacterId: characterIds[0],
-        createdAt: dataPackage.timestamps.createdAt,
-        updatedAt: dataPackage.timestamps.updatedAt,
+        createdAt: runtimeData.timestamps.createdAt,
+        updatedAt: runtimeData.timestamps.updatedAt,
       })),
     },
     opening: {
       messages: [{
         role: "narrator",
-        content: `已从故事「${dataPackage.background.title}」进入酒馆演绎。`,
+        content: `已从故事「${runtimeData.background.title}」进入酒馆演绎。`,
       }],
     },
   };
 };
+
+export const createTavernPresentationInputFromStoryJson = (
+  story: StoryJson,
+  {
+    nodeId,
+  }: {
+    nodeId?: string | null;
+  } = {},
+) => createTavernPresentationInputFromStoryRuntimeData(
+  extractStoryNodeRuntimeData(story, { nodeId }),
+);

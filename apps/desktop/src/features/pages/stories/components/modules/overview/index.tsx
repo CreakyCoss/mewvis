@@ -15,7 +15,7 @@ import { useRef } from "react";
 import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import { cn } from "@/lib/utils";
 import type { StoryDraft } from "../../story-form-utils";
 import { formatCount, manuscriptSourceLabels } from "../../story-form-utils";
@@ -27,7 +27,7 @@ import {
 import { StoryOverviewEdit, type StoryOverviewEditHandle } from "./edit";
 
 type StoryOverviewModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onOpenModule: (moduleId: StoryConfigTab) => void;
   onSave: (draft: StoryDraft) => void;
 };

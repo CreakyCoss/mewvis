@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
@@ -39,7 +39,7 @@ export type BuildTavernSystemPromptInput = {
   references: TavernReferencedFile[];
   currentUserText: string;
   turnInstruction?: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 export type TavernCharacterPromptParts = {

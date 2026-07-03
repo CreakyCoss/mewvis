@@ -1,5 +1,5 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   tavernMessagesToRuntimeMessages,
 } from "../../prompt";
@@ -81,7 +81,7 @@ export const buildTavernQuickContext = ({
   storyContext: inputStoryContext,
   conversationScope = "recent",
 }: Pick<TavernQuickSummaryInput, "room" | "characters" | "messages"> & {
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
   conversationScope?: "recent" | "full";
 }) => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({

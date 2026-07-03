@@ -4,7 +4,7 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import type {
-  StoryAsset,
+  StoryJson,
   StoryManuscriptDraft,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
@@ -31,7 +31,7 @@ export type StoryManuscriptEditHandle = {
 
 type StoryManuscriptEditProps = {
   bind: Ref<StoryManuscriptEditHandle>;
-  story: StoryAsset;
+  story: StoryJson;
   onAccept: (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => void;
   onCreate: (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => void;
   onPolish: (input: {

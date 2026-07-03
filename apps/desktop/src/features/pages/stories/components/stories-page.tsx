@@ -71,23 +71,26 @@ export const StoriesPage = () => {
     [openRegisteredStoryPresentation],
   );
   const {
-    convertImportDraft,
+    convertImportStory,
     importAsNewStory,
-    importDraft,
     importRaw,
     importSourceKind,
+    importStory,
+    isConvertingImport,
     isImportOpen,
     mergeImportIntoActiveStory,
     openImportDialog,
-    setImportDraft,
     setImportRaw,
     setImportSourceKind,
+    setImportStory,
     setIsImportOpen,
   } = useStoryImport({
     activeStory,
     createStory,
     persistStory,
+    selectedRuntimeModel,
     setActiveTab,
+    settingsError,
     workspace,
   });
   const {
@@ -245,14 +248,15 @@ export const StoriesPage = () => {
         activeStory={activeStory}
         importSourceKind={importSourceKind}
         importRaw={importRaw}
-        importDraft={importDraft}
+        importStory={importStory}
+        isConvertingImport={isConvertingImport}
         setImportSourceKind={setImportSourceKind}
         setImportRaw={setImportRaw}
-        setImportDraft={setImportDraft}
+        setImportStory={setImportStory}
         onOpenChange={setIsImportOpen}
-        onConvert={convertImportDraft}
+        onConvert={() => void convertImportStory()}
         onImportNewStory={importAsNewStory}
-        onMergeIntoActiveStory={mergeImportIntoActiveStory}
+        onMergeIntoActiveStory={() => void mergeImportIntoActiveStory()}
       />
 
       <StoryTavernSelectDialog

@@ -2,10 +2,8 @@ import {
   buildTavernStoryContextPackage,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
+  type TavernStoryContextLorebookEntry,
 } from "../../../adapters/story";
-import type {
-  StoryContextLorebookEntry,
-} from "@/features/story";
 import type {
   TavernCharacter,
   TavernRoom,
@@ -32,7 +30,7 @@ export const selectTavernLorebookEntries = ({
 };
 
 export const formatTavernLorebookEntries = (
-  entries: StoryContextLorebookEntry[],
+  entries: TavernStoryContextLorebookEntry[],
   {
     maxEntries,
     maxContentChars,

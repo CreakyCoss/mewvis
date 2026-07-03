@@ -1,3 +1,3 @@
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 
-export type StoryModuleSave = (story: StoryAsset) => void;
+export type StoryModuleSave = (story: StoryJson) => void;

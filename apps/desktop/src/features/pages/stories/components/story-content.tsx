@@ -15,7 +15,7 @@ import { resolveAgentAvatar } from "@/assets/agent-avatars";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
-  StoryAsset,
+  StoryJson,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
 } from "@/features/story";
@@ -41,7 +41,7 @@ type StoryContentProps = {
     input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">,
   ) => void;
   onCreateStory: () => void;
-  onDeleteStory: (story: StoryAsset) => void;
+  onDeleteStory: (story: StoryJson) => void;
   onOpenImportDialog: () => void;
   onOpenStoryPresentation: (
     channel: StoryPresentationChannel,
@@ -59,14 +59,14 @@ type StoryContentProps = {
     patch: StoryManuscriptDraftUpdateInput,
   ) => void;
   onSaveOverviewDraft: (draft: StoryDraft) => void;
-  onSaveStory: (story: StoryAsset) => void;
-  onSelectStory: (story: StoryAsset) => void;
+  onSaveStory: (story: StoryJson) => void;
+  onSelectStory: (story: StoryJson) => void;
   onSetActiveTab: (tab: StoryConfigTab) => void;
-  onStartEditing: (story: StoryAsset) => void;
+  onStartEditing: (story: StoryJson) => void;
   onExitHomeFullscreen?: () => void;
   isEditing: boolean;
-  story: StoryAsset | null;
-  stories: StoryAsset[];
+  story: StoryJson | null;
+  stories: StoryJson[];
 };
 
 export const StoryContent = ({
@@ -169,7 +169,7 @@ export const StoryContent = ({
           ) : null}
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <BookOpen className="size-10 text-muted-foreground" />
-            <div className="text-base font-medium">暂无故事资产</div>
+            <div className="text-base font-medium">暂无故事</div>
             <Button type="button" className="gap-2" onClick={onCreateStory} disabled={!canCreateStory}>
               <Plus className="size-4" />
               新建故事
@@ -210,7 +210,7 @@ export const StoryContent = ({
                 <BookOpen className="size-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <h1 className="truncate text-xl font-semibold leading-7">故事资产</h1>
+                <h1 className="truncate text-xl font-semibold leading-7">故事</h1>
                 <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span>{stories.length} 个故事</span>
                   <span>{totalCharacterCount} 角色</span>
@@ -246,7 +246,7 @@ export const StoryContent = ({
 
           <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
             {stories.map((item) => (
-              <StoryAssetCard
+              <StoryCard
                 key={item.id}
                 story={item}
                 isActive={item.id === story.id}
@@ -332,14 +332,14 @@ const StoryCardMetric = ({
   </span>
 );
 
-const StoryAssetCard = ({
+const StoryCard = ({
   story,
   isActive,
   onSelect,
   onEdit,
   onDelete,
 }: {
-  story: StoryAsset;
+  story: StoryJson;
   isActive: boolean;
   onSelect: () => void;
   onEdit: () => void;

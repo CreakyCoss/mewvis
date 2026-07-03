@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createEmptyStoryState, upsertStoryAsset, type StoryAsset, type StoryState } from "@/features/story";
+import { createEmptyStoryState, upsertStoryJson, type StoryJson, type StoryState } from "@/features/story";
 import {
   createStory as createStoryInWorkspace,
   deleteStoryRecord,
   loadStoryLibrary,
-  saveStoryAsset,
+  saveStoryJson,
   updateStoryRecordName,
   type CreateStoryInput,
   type StoryRecord,
@@ -46,7 +46,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
           return;
         }
         console.error("Failed to load story library", error);
-        toast.error("无法加载故事资产。");
+        toast.error("无法加载故事。");
         setStoryRecords([]);
         setStoryWorkspacesById({});
         setStoryState(createEmptyStoryState());
@@ -75,7 +75,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
     }
   }, [requestedStoryId, storyState.activeStoryId, storyState.stories]);
 
-  const persistStory = async (story: StoryAsset) => {
+  const persistStory = async (story: StoryJson) => {
     const workspace = storyWorkspacesById[story.id];
     if (!workspace) {
       toast.error("找不到故事工作区，无法保存。");
@@ -89,7 +89,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
         workspaceId: story.id,
         updatedAt: Date.now(),
       };
-      const savedStory = await saveStoryAsset(workspace, nextStory);
+      const savedStory = await saveStoryJson(workspace, nextStory);
       if (workspace.name !== savedStory.title) {
         const updatedRecord = await updateStoryRecordName(savedStory.id, savedStory.title);
         setStoryRecords((current) =>
@@ -105,7 +105,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
         }));
       }
       setStoryState((current) => ({
-        ...upsertStoryAsset(current, savedStory),
+        ...upsertStoryJson(current, savedStory),
         activeStoryId: savedStory.id,
       }));
     } catch (error) {
@@ -119,7 +119,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
   const persistStoryState = async (nextState: StoryState) => {
     setIsSaving(true);
     try {
-      const savedStories: StoryAsset[] = [];
+      const savedStories: StoryJson[] = [];
       for (const story of nextState.stories) {
         const workspace = storyWorkspacesById[story.id];
         if (!workspace) {
@@ -127,7 +127,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
           continue;
         }
         savedStories.push(
-          await saveStoryAsset(workspace, {
+          await saveStoryJson(workspace, {
             ...story,
             workspaceId: story.id,
             updatedAt: Date.now(),
@@ -150,7 +150,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
     }
   };
 
-  const selectStory = (story: StoryAsset) => {
+  const selectStory = (story: StoryJson) => {
     setStoryState((current) => ({
       ...current,
       activeStoryId: story.id,
@@ -167,7 +167,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
         [story.id]: workspace,
       }));
       setStoryState((current) => ({
-        ...upsertStoryAsset(
+        ...upsertStoryJson(
           {
             ...current,
             activeStoryId: story.id,
@@ -187,7 +187,7 @@ export const useStoryState = ({ requestedStoryId }: UseStoryStateInput) => {
     }
   };
 
-  const deleteStory = async (story: StoryAsset) => {
+  const deleteStory = async (story: StoryJson) => {
     setIsSaving(true);
     try {
       await deleteStoryRecord(story.id);

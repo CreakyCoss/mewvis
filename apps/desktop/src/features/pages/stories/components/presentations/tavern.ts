@@ -1,9 +1,8 @@
 import { toast } from "sonner";
-import { getStoryNodeDataPackage } from "@/features/story";
+import { createTavernPresentationInputFromStoryJson } from "@/features/story/presentation/tavern-input";
 import { openTavernPresentationInput } from "@/features/pages/tavern/presentation/open";
 import type { TavernRoom } from "@/features/pages/tavern/types";
 import { resolveStoryNodeId, type StoryPresentationAdapter } from "./shared";
-import { createTavernPresentationInputFromStoryDataPackage } from "./tavern-input";
 
 const trimPathEnd = (value: string) => value.trim().replace(/[\\/]+$/, "");
 
@@ -46,10 +45,9 @@ export const openStoryTavernPresentation = async ({
   setOpeningStoryId: Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["setOpeningStoryId"];
 }) => {
   const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
-  const dataPackage = getStoryNodeDataPackage(activeStory, {
+  const presentationInput = createTavernPresentationInputFromStoryJson(activeStory, {
     nodeId: targetNodeId,
   });
-  const presentationInput = createTavernPresentationInputFromStoryDataPackage(dataPackage);
   setOpeningStoryId(activeStory.id);
 
   try {

@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
-  StoryAsset,
+  StoryJson,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
 } from "@/features/story";
@@ -20,7 +20,7 @@ import {
 import { StoryManuscriptEdit, type StoryManuscriptEditHandle } from "./edit";
 
 type StoryManuscriptsModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onAccept: (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => void;
   onCreateDraft: (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => void;
   onPolishDraft: (input: {

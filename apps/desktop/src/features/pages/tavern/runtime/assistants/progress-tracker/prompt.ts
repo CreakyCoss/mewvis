@@ -2,7 +2,7 @@ import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "../../../message";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -49,7 +49,7 @@ export const buildTavernProgressTrackingPrompt = ({
   messages: TavernMessage[];
   sourceMessages: TavernMessage[];
   currentUserText: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 }) => {
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const activeScene = storyContext.graph.activeScene;

@@ -1,5 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type { TavernPageContextValue } from "../../../context";
 import { createTavernMessage } from "../../../../message";
 import {
@@ -126,7 +126,7 @@ const generateMissingInnerThought = async ({
   turnMessages: TavernMessage[];
   text: string;
   finalText: string;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
 }) => {
   try {
     return await runTavernInnerThought({
@@ -224,7 +224,7 @@ const runSpeakerReplyThroughCollaboration = async ({
   currentUserText: string;
   turnInstruction: string;
   allowNonverbalReply: boolean;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   onTextDelta: (delta: string) => void;
 }) => {
   const collaborationInput = buildTavernSpeakerCollaborationInput({
@@ -507,7 +507,7 @@ const finalizeSpeakerReplyRuntime = async ({
   runtime: SpeakerReplyRuntime;
   runtimeMessages: TavernMessage[];
   runtimeRoom: TavernRoom;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   text: string;
   turnMessages: TavernMessage[];
   turnNarratorTexts: string[];
@@ -669,7 +669,7 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   runtimeRoom: TavernRoom;
   selectedReplyOption?: TavernReplyOption;
   speakers: TavernCharacter[];
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   turnMessages: TavernMessage[];
   turnNarratorTexts: string[];
 }) => {
@@ -888,7 +888,7 @@ const runSingleSpeakerReply = async ({
   mode: TurnMode;
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
   activeReplyRef: ActiveReplyRef;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
 }) => {
   // 角色阶段只关心单个角色的流式回复、兜底重试、心理补全和知识压缩。
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
@@ -1149,7 +1149,7 @@ export const runSpeakerReplyFlow = async ({
   turnNarratorTexts: string[];
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
   activeReplyRef: ActiveReplyRef;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
 }) => {
   // 自动续调度围绕“待回应事项”循环推进；每轮仍复用单角色回复流程。
   let speakerQueue = speakers;

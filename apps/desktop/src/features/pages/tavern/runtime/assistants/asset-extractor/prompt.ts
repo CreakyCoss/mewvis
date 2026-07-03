@@ -2,7 +2,7 @@ import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import {
   tavernMessagesToRuntimeMessages,
 } from "../../prompt";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryLorebookEntries,
@@ -63,7 +63,7 @@ export const buildTavernAssetExtractionPrompt = ({
   messages: TavernMessage[];
   sourceMessages: TavernMessage[];
   currentUserText: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 }) => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,

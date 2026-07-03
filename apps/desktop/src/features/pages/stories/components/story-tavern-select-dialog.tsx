@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import type { StoryWorkspace } from "@/features/story/storage";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { loadTavernState } from "@/features/pages/tavern/state/storage";
@@ -28,7 +28,7 @@ type TavernCarrierWorkspace = {
 
 type StoryTavernSelectDialogProps = {
   open: boolean;
-  activeStory: StoryAsset | null;
+  activeStory: StoryJson | null;
   nodeId?: string | null;
   storyWorkspace: StoryWorkspace | null;
   tavernWorkspace: Workspace | null;

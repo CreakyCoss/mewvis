@@ -1,6 +1,6 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
   projectTavernSceneOntoRoom,
@@ -107,7 +107,7 @@ export const runDirectorLoopTurn = async ({
   runtimeModel: RuntimeModelOption;
   runtimeRoom: TavernRoom;
   selectedReplyOption?: TavernReplyOption;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   text: string;
   turnMessages: TavernMessage[];
   userMessage: TavernMessage;

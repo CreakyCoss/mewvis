@@ -1,10 +1,4 @@
 import {
-  getStoryGraphContextSlice,
-  selectStoryLorebookEntries,
-  type StoryContextLorebookEntry,
-  type StoryContextPackage,
-} from "@/features/story";
-import {
   joinPromptLines,
   type TavernPromptSection,
 } from "../../runtime/prompt/shared/sections";
@@ -13,6 +7,12 @@ import {
   escapePromptXmlText,
   limitPromptText,
 } from "../../runtime/prompt/shared/text";
+import {
+  getTavernStoryGraphContextSlice,
+  selectTavernStoryLorebookEntries as selectTavernStoryLorebookEntriesFromContext,
+  type TavernStoryContextLorebookEntry,
+  type TavernStoryContextPackage,
+} from "./context-package";
 
 const limitEscapedPromptText = (text: string, maxChars?: number) =>
   escapePromptXmlText(maxChars ? limitPromptText(text, maxChars) : text);
@@ -22,17 +22,17 @@ export const selectTavernStoryLorebookEntries = ({
   currentUserText,
   activeCharacterId,
 }: {
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   currentUserText: string;
   activeCharacterId?: string;
-}) => selectStoryLorebookEntries({
+}) => selectTavernStoryLorebookEntriesFromContext({
   context: storyContext,
   currentText: currentUserText,
   activeCharacterId,
 });
 
 export const formatTavernStoryLorebookEntries = (
-  entries: StoryContextLorebookEntry[],
+  entries: TavernStoryContextLorebookEntry[],
   {
     maxEntries,
     maxContentChars,
@@ -49,12 +49,12 @@ export const formatTavernStoryLorebookEntries = (
   ].join("\n")).join("\n\n");
 
 const storyNodeTitle = (
-  storyContext: StoryContextPackage,
+  storyContext: TavernStoryContextPackage,
   nodeId: string,
 ) => storyContext.graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
 
 export const formatTavernStoryGraphContext = (
-  storyContext: StoryContextPackage,
+  storyContext: TavernStoryContextPackage,
   {
     maxEdges,
     maxSummaryChars,
@@ -63,7 +63,7 @@ export const formatTavernStoryGraphContext = (
     maxSummaryChars?: number;
   } = {},
 ) => {
-  const graphSlice = getStoryGraphContextSlice(storyContext, { maxEdges });
+  const graphSlice = getTavernStoryGraphContextSlice(storyContext, { maxEdges });
   const activeNode = graphSlice.activeNode;
   if (!activeNode) {
     return "";
@@ -101,7 +101,7 @@ export const formatTavernStoryGraphContext = (
   ].filter(Boolean).join("\n");
 };
 
-const buildStoryArcContent = (storyContext: StoryContextPackage) => {
+const buildStoryArcContent = (storyContext: TavernStoryContextPackage) => {
   if (!storyContext.story.outline.trim() && !storyContext.story.goal.trim()) {
     return "";
   }
@@ -116,7 +116,7 @@ const buildStoryArcContent = (storyContext: StoryContextPackage) => {
   ]);
 };
 
-const buildStoryMemoryContent = (storyContext: StoryContextPackage) => {
+const buildStoryMemoryContent = (storyContext: TavernStoryContextPackage) => {
   const layers = storyContext.memory.sceneLayers;
   return joinPromptLines([
     storyContext.memory.manual.trim()
@@ -139,7 +139,7 @@ export const buildTavernStoryPromptSections = ({
   lorebookText,
   storyGraphText,
 }: {
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
   lorebookText: string;
   storyGraphText: string;
 }): TavernPromptSection[] => {

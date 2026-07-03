@@ -6,7 +6,7 @@ import type {
   TavernReferencedFile,
   TavernRoom,
 } from "../../types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import {
   isTavernFixedOrderPhase,
 } from "../../core";
@@ -110,7 +110,7 @@ export type BuildTavernPromptPreviewInput = {
   currentUserText?: string;
   selectedTargetCharacterIds?: string[];
   activeCharacterId?: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 const previewCurrentUserText = "（预览）请按当前场景继续回应。";
@@ -312,10 +312,10 @@ const buildSourceDuplicateWarnings = (room: TavernRoom): TavernPromptPreviewWarn
 
 const buildEditableTagWarnings = (
   room: TavernRoom,
-  storyContext: StoryContextPackage,
+  storyContext: TavernStoryContextPackage,
 ) => {
   const activeScene = storyContext.graph.activeScene;
-  const characterMemoryText = (character: StoryContextPackage["characters"][number]) => {
+  const characterMemoryText = (character: TavernStoryContextPackage["characters"][number]) => {
     const layers = character.memory;
     return [
       layers?.required,

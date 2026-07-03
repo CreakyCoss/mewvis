@@ -1,7 +1,7 @@
 import {
   appendReferencesToPrompt,
 } from "@/features/ai/components/context-tools";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -49,7 +49,7 @@ export type BuildTavernDirectorPromptContextInput = {
   selectedTargetCharacterIds: string[];
   maxSpeakers: number;
   randomEventOpportunity?: boolean;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 export const buildTavernDirectorPromptContext = ({

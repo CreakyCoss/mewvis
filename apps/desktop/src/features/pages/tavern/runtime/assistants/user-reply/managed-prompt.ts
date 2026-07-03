@@ -1,4 +1,4 @@
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -20,7 +20,7 @@ export const buildTavernManagedUserReplyPrompt = ({
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 }) => {
   const characterList = characters.map((character) =>
     `${character.name}: ${character.description}`

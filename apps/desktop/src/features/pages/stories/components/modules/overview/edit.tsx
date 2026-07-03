@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import type { StoryDraft } from "../../story-form-utils";
 import {
   EditorField,
@@ -23,15 +23,15 @@ import {
   emptyValueText,
 } from "../../story-primitives";
 
-export type StoryOverviewEditHandle = (story?: StoryAsset) => void;
+export type StoryOverviewEditHandle = (story?: StoryJson) => void;
 
 type StoryOverviewEditProps = {
   bind: Ref<StoryOverviewEditHandle>;
-  story: StoryAsset;
+  story: StoryJson;
   onSave: (draft: StoryDraft) => void;
 };
 
-const createDraft = (story: StoryAsset): StoryDraft => ({
+const createDraft = (story: StoryJson): StoryDraft => ({
   title: story.title,
   outline: story.outline,
   goal: story.goal,

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryAsset, StoryContextLorebookEntry } from "@/features/story";
+import type { StoryJson, StoryLorebookEntryJson } from "@/features/story";
 import {
   createStoryLorebookEntry,
   splitKeywords,
@@ -32,12 +32,12 @@ import {
 import type { StoryModuleSave } from "../types";
 
 export type StoryWorldEditHandle = (
-  entry?: StoryContextLorebookEntry | null,
+  entry?: StoryLorebookEntryJson | null,
 ) => void;
 
 type StoryWorldEditProps = {
   bind: Ref<StoryWorldEditHandle>;
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 
@@ -51,7 +51,7 @@ type LoreDraft = {
 };
 
 const createDraft = (
-  entry: StoryContextLorebookEntry | null,
+  entry: StoryLorebookEntryJson | null,
   index: number,
 ): LoreDraft => {
   const created = entry ?? createStoryLorebookEntry(index);
@@ -74,7 +74,7 @@ export const StoryWorldEdit = ({
   const [draft, setDraft] = useState<LoreDraft | null>(null);
   const [error, setError] = useState("");
 
-  const open = (entry: StoryContextLorebookEntry | null = null) => {
+  const open = (entry: StoryLorebookEntryJson | null = null) => {
     setDraft(createDraft(entry, story.lorebookEntries.length));
     setError("");
   };
@@ -99,7 +99,7 @@ export const StoryWorldEdit = ({
     }
 
     const now = Date.now();
-    const nextEntry: StoryContextLorebookEntry = {
+    const nextEntry: StoryLorebookEntryJson = {
       id: draft.id ?? `story-lore-${crypto.randomUUID()}`,
       title,
       content,

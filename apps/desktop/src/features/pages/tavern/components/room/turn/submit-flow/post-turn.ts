@@ -1,5 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type { TavernPageContextValue } from "../../../context";
 import {
   projectTavernSceneOntoRoom,
@@ -71,7 +71,7 @@ export const runProgressTrackingStep = async ({
   userMessage: TavernMessage;
   runtimeModel: RuntimeModelOption;
   shouldShowProgressTrace: boolean;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
 }) => {
   // 状态追踪失败不阻断本轮回复，只记录错误并保留已经生成的消息。
   ctx.setTurnStatus("正在更新状态面板...");
@@ -195,7 +195,7 @@ export const runAssetExtractionStep = async ({
   text: string;
   runtimeModel: RuntimeModelOption;
   mode: TurnMode;
-  storyContext: StoryContextPackage;
+  storyContext: TavernStoryContextPackage;
 }) => {
   // 剧情资产整理是本轮后的增强流程，失败时只提示，不回滚对话。
   ctx.setTurnStatus("正在整理本轮剧情资产...");

@@ -1,5 +1,5 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { StoryContextPackage } from "@/features/story";
+import type { TavernStoryContextPackage } from "@/features/pages/tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -31,12 +31,12 @@ export type RunTavernInnerThoughtInput = {
   messages: TavernMessage[];
   currentUserText: string;
   replyContent: string;
-  storyContext?: StoryContextPackage;
+  storyContext?: TavernStoryContextPackage;
 };
 
 const resolveInnerThoughtSceneText = (
   room: TavernRoom,
-  storyContext?: StoryContextPackage,
+  storyContext?: TavernStoryContextPackage,
 ) => {
   const storyScene = storyContext?.graph.activeScene;
   if (storyScene) {

@@ -9,7 +9,7 @@ import {
 import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StoryAsset } from "@/features/story";
+import type { StoryJson } from "@/features/story";
 import {
   EmptyBlock,
   StorySection,
@@ -27,7 +27,7 @@ import type { StoryModuleSave } from "../types";
 import { StoryWorldEdit, type StoryWorldEditHandle } from "./edit";
 
 type StoryWorldModuleProps = {
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 

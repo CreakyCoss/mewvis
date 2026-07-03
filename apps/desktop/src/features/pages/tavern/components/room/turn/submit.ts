@@ -2,8 +2,7 @@ import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernPageContextValue } from "../../context";
 import {
-  loadTavernStoryState,
-  resolveTavernRuntimeStoryContextPackage,
+  buildTavernStoryContextPackage,
 } from "../../../adapters/story";
 import type {
   TavernReferencedFile,
@@ -163,11 +162,9 @@ export const submitRoomTurn = async ({
   }
 
   let text = draftText;
-  const storyState = await loadTavernStoryState(activeRoom.storyBinding?.storyId).catch(() => null);
-  const preliminaryStoryContext = resolveTavernRuntimeStoryContextPackage({
+  const preliminaryStoryContext = buildTavernStoryContextPackage({
     room: activeRoom,
     characters: roomCharacters,
-    storyState,
   });
   try {
     text = await resolveManagedUserText({
@@ -213,10 +210,9 @@ export const submitRoomTurn = async ({
     message: null,
     text: "",
   };
-  const storyContext = resolveTavernRuntimeStoryContextPackage({
+  const storyContext = buildTavernStoryContextPackage({
     room: runtime.runtimeRoom,
     characters: roomCharacters,
-    storyState,
   });
 
   try {

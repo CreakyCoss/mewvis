@@ -8,22 +8,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  type StoryAsset,
-  type StoryImportDraft,
+  type StoryJson,
   type StoryImportSourceKind,
 } from "@/features/story";
-import { StoryImportDraftReview } from "./import-dialog/draft-review";
 import { StoryImportSourcePanel } from "./import-dialog/source-panel";
+import { StoryJsonImportReview } from "./import-dialog/story-json-review";
 
 type StoryImportDialogProps = {
   open: boolean;
-  activeStory: StoryAsset | null;
+  activeStory: StoryJson | null;
   importSourceKind: StoryImportSourceKind;
   importRaw: string;
-  importDraft: StoryImportDraft | null;
+  importStory: StoryJson | null;
+  isConvertingImport: boolean;
   setImportSourceKind: (kind: StoryImportSourceKind) => void;
   setImportRaw: (raw: string) => void;
-  setImportDraft: (draft: StoryImportDraft | null) => void;
+  setImportStory: (story: StoryJson | null) => void;
   onOpenChange: (open: boolean) => void;
   onConvert: () => void;
   onImportNewStory: () => void;
@@ -35,10 +35,11 @@ export const StoryImportDialog = ({
   activeStory,
   importSourceKind,
   importRaw,
-  importDraft,
+  importStory,
+  isConvertingImport,
   setImportSourceKind,
   setImportRaw,
-  setImportDraft,
+  setImportStory,
   onOpenChange,
   onConvert,
   onImportNewStory,
@@ -49,7 +50,7 @@ export const StoryImportDialog = ({
       <DialogHeader className="shrink-0">
         <DialogTitle>导入故事</DialogTitle>
         <DialogDescription>
-          JSON、纯文本、角色卡和世界书会先转换为标准故事草稿，确认后再写入故事资产。
+          标准 JSON 会直接读取；非标准来源会由 AI 转换为 story.json。
         </DialogDescription>
       </DialogHeader>
 
@@ -59,17 +60,15 @@ export const StoryImportDialog = ({
             <StoryImportSourcePanel
               importRaw={importRaw}
               importSourceKind={importSourceKind}
+              isConverting={isConvertingImport}
               onConvert={onConvert}
-              setImportDraft={setImportDraft}
               setImportRaw={setImportRaw}
               setImportSourceKind={setImportSourceKind}
+              setImportStory={setImportStory}
             />
           </div>
           <div className="min-h-0 lg:flex">
-            <StoryImportDraftReview
-              importDraft={importDraft}
-              setImportDraft={setImportDraft}
-            />
+            <StoryJsonImportReview story={importStory} />
           </div>
         </div>
       </div>
@@ -82,14 +81,14 @@ export const StoryImportDialog = ({
           type="button"
           variant="outline"
           onClick={onMergeIntoActiveStory}
-          disabled={!importDraft || !activeStory}
+          disabled={isConvertingImport || (!importStory && !importRaw.trim()) || !activeStory}
         >
           合并到当前故事
         </Button>
         <Button
           type="button"
           onClick={onImportNewStory}
-          disabled={!importDraft || importDraft.mode === "lorebookPatch"}
+          disabled={isConvertingImport || !importStory}
         >
           导入为新故事
         </Button>

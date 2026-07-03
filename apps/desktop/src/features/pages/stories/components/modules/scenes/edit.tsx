@@ -12,9 +12,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type {
-  StoryAsset,
-  StoryContextScene,
-  StoryContextSceneStatus,
+  StoryJson,
+  StorySceneJson,
+  StorySceneStatusJson,
 } from "@/features/story";
 import { createStoryScene } from "../../story-form-utils";
 import {
@@ -32,11 +32,11 @@ import {
 } from "../../story-primitives";
 import type { StoryModuleSave } from "../types";
 
-export type StoryScenesEditHandle = (scene?: StoryContextScene | null) => void;
+export type StoryScenesEditHandle = (scene?: StorySceneJson | null) => void;
 
 type StoryScenesEditProps = {
   bind: Ref<StoryScenesEditHandle>;
-  story: StoryAsset;
+  story: StoryJson;
   onSave: StoryModuleSave;
 };
 
@@ -49,12 +49,12 @@ type SceneDraft = {
   direction: string;
   transition: string;
   memory: string;
-  status: StoryContextSceneStatus;
+  status: StorySceneStatusJson;
 };
 
 const createStatus = (
-  status: StoryContextSceneStatus | undefined,
-): StoryContextSceneStatus => ({
+  status: StorySceneStatusJson | undefined,
+): StorySceneStatusJson => ({
   location: status?.location ?? "",
   timeLabel: status?.timeLabel ?? "",
   weather: status?.weather ?? "",
@@ -64,7 +64,7 @@ const createStatus = (
 });
 
 const createDraft = (
-  scene: StoryContextScene | null,
+  scene: StorySceneJson | null,
   index: number,
 ): SceneDraft => {
   const created = scene ?? createStoryScene(index);
@@ -90,7 +90,7 @@ export const StoryScenesEdit = ({
   const [draft, setDraft] = useState<SceneDraft | null>(null);
   const [error, setError] = useState("");
 
-  const open = (scene: StoryContextScene | null = null) => {
+  const open = (scene: StorySceneJson | null = null) => {
     setDraft(createDraft(scene, story.scenes.length));
     setError("");
   };
@@ -114,7 +114,7 @@ export const StoryScenesEdit = ({
     }
 
     const now = Date.now();
-    const nextScene: StoryContextScene = {
+    const nextScene: StorySceneJson = {
       id: draft.id ?? `story-scene-${crypto.randomUUID()}`,
       title,
       scene: draft.scene.trim(),
@@ -144,7 +144,7 @@ export const StoryScenesEdit = ({
   };
 
   const updateStatus = (
-    field: keyof StoryContextSceneStatus,
+    field: keyof StorySceneStatusJson,
     value: string,
   ) => {
     setDraft((current) =>

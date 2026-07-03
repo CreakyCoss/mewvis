@@ -6,15 +6,15 @@ import {
   runStoryWriterAgent,
   submitStoryManuscriptDraft,
   updateStoryManuscriptDraft,
-  type StoryAsset,
+  type StoryJson,
   type StoryManuscriptDraftUpdateInput,
   type StoryManuscriptSubmissionInput,
 } from "@/features/story";
 import { getPendingDraftCount } from "./story-form-utils";
 
 type UseStoryManuscriptsInput = {
-  activeStory: StoryAsset | null;
-  persistStory: (story: StoryAsset) => void;
+  activeStory: StoryJson | null;
+  persistStory: (story: StoryJson) => void;
   runtimeAgentRequiresModel: boolean;
   selectedRuntimeModel: RuntimeModelOption | null;
   settingsError: string;

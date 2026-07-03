@@ -11,9 +11,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type {
-  StoryAsset,
-  StoryContextEdge,
-  StoryContextNode,
+  StoryJson,
+  StoryEdgeJson,
+  StoryNodeJson,
 } from "@/features/story";
 import {
   EditorField,
@@ -26,20 +26,20 @@ import {
 
 type StoryGraphNodeEditDialogProps = {
   canChooseMainPath: boolean;
-  node: StoryContextNode | null;
+  node: StoryNodeJson | null;
   open: boolean;
-  story: StoryAsset;
-  onCreateNextNode: (node: StoryContextNode) => void;
+  story: StoryJson;
+  onCreateNextNode: (node: StoryNodeJson) => void;
   onDeleteEdge: (edgeId: string) => void;
   onOpenChange: (open: boolean) => void;
-  onUpdateEdge: (edgeId: string, patch: Partial<StoryContextEdge>) => void;
-  onUpdateNode: (nodeId: string, patch: Partial<StoryContextNode>) => void;
+  onUpdateEdge: (edgeId: string, patch: Partial<StoryEdgeJson>) => void;
+  onUpdateNode: (nodeId: string, patch: Partial<StoryNodeJson>) => void;
 };
 
-const getNodeSelectLabel = (node: StoryContextNode) =>
+const getNodeSelectLabel = (node: StoryNodeJson) =>
   node.title.trim() || node.id;
 
-const isNormalNode = (node: StoryContextNode | undefined) =>
+const isNormalNode = (node: StoryNodeJson | undefined) =>
   !node || node.type === "normal" || node.type.trim() === "";
 
 export const StoryGraphNodeEditDialog = ({
@@ -55,7 +55,7 @@ export const StoryGraphNodeEditDialog = ({
 }: StoryGraphNodeEditDialogProps) => {
   const graph = story.graph;
   const renderEdgeEditor = (
-    edge: StoryContextEdge,
+    edge: StoryEdgeJson,
     direction: "outgoing" | "incoming",
   ) => {
     const isOutgoing = direction === "outgoing";
