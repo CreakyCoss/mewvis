@@ -2,8 +2,8 @@ import { Bot, Plus, Save, Trash2 } from "lucide-react";
 import {
   agentAvatarGroups,
   normalizeAgentAvatarId,
-  resolveAgentAvatar,
-} from "@/assets/agent-avatars";
+  resolveAvatar,
+} from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,7 +40,7 @@ export const AgentSettingsDialog = ({
     save,
     remove,
   } = useAgentSettings(open);
-  const draftAvatar = resolveAgentAvatar(normalizeAgentAvatarId(draft.avatar));
+  const draftAvatar = resolveAvatar(normalizeAgentAvatarId(draft.avatar));
 
   const handleSave = async () => {
     const didSave = await save();
@@ -87,7 +87,7 @@ export const AgentSettingsDialog = ({
 
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {agents.map((agent) => {
-                const avatar = resolveAgentAvatar(normalizeAgentAvatarId(agent.avatar));
+                const avatar = resolveAvatar(normalizeAgentAvatarId(agent.avatar));
                 return (
                   <button
                     key={agent.id}

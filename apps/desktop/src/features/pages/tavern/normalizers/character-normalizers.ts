@@ -1,4 +1,4 @@
-import { normalizeTavernAvatarId } from "@/assets/agent-avatars";
+import { normalizeTavernAvatarId } from "@/assets/avatars";
 import {
   createTavernId as createId,
   now,

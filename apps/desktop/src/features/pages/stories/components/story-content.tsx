@@ -11,7 +11,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
@@ -375,7 +375,7 @@ const StoryCard = ({
               {visibleCharacters.length > 0 ? (
                 <div className="flex min-w-0 items-end">
                   {visibleCharacters.map((character, index) => {
-                    const avatar = resolveAgentAvatar(character.avatar);
+                    const avatar = resolveAvatar(character.avatar);
                     return (
                       <span
                         key={character.id}

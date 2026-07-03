@@ -12,7 +12,7 @@ import {
   Target,
   UsersRound,
 } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import { HoverCardContent } from "@/components/ui/hover-card";
 import { getVisualPreset } from "@/features/pages/tavern/visual-presets";
@@ -128,7 +128,7 @@ export const CharacterDetail = ({
   onCompact?: () => void;
   onRebuild?: () => void;
 }) => {
-  const avatar = resolveAgentAvatar(character.avatar).src;
+  const avatar = resolveAvatar(character.avatar).src;
   const publicStatus = room.characterPublicStatuses[character.id];
   const privateStatus = room.characterPrivateStatuses[character.id];
   const holding = trimArray(publicStatus?.holding);

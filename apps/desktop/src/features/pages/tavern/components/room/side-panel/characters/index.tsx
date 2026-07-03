@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import {
   HoverCard,
   HoverCardTrigger,
@@ -19,7 +19,7 @@ const CharacterCardContent = ({
   isActive: boolean;
   metrics: ResolvedStatusMetric[];
 }) => {
-  const avatar = resolveAgentAvatar(character.avatar).src;
+  const avatar = resolveAvatar(character.avatar).src;
   const compactMetrics = metrics.slice(0, 2);
 
   if (isActive) {

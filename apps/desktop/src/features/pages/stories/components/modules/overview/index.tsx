@@ -12,7 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { StoryJson } from "@/features/story";
@@ -249,7 +249,7 @@ export const StoryOverviewModule = ({
             {story.characters.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {story.characters.slice(0, 4).map((character) => {
-                  const avatar = resolveAgentAvatar(character.avatar);
+                  const avatar = resolveAvatar(character.avatar);
                   return (
                     <div
                       key={character.id}

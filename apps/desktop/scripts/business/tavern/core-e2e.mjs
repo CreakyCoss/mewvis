@@ -8,7 +8,7 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-core-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const avatarPath = resolve(workspaceRoot, "src/assets/agent-avatars/index.ts");
+const avatarPath = resolve(workspaceRoot, "src/assets/avatars/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
 const directorDecisionPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/decision.ts");
 const directorPromptPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/prompt.ts");
@@ -36,7 +36,7 @@ const assert = (condition, message, details) => {
 };
 
 writeFileSync(entryPath, `
-  import { allAgentAvatarOptions } from ${JSON.stringify(avatarPath)};
+  import { allAvatarOptions } from ${JSON.stringify(avatarPath)};
   import {
     advanceTavernProgressFromFactEvents,
     applyTavernStatusEventsToSnapshot,
@@ -158,7 +158,7 @@ writeFileSync(entryPath, `
   const globalRef = { type: "global" };
   const activeSceneInstanceIdForRoom = (targetRoom) =>
     targetRoom.activeSceneInstanceId ?? targetRoom.activeSceneId ?? targetRoom.id;
-  const knownAvatarIds = new Set(allAgentAvatarOptions.map((option) => option.id));
+  const knownAvatarIds = new Set(allAvatarOptions.map((option) => option.id));
   const statusDefinitions = [
     {
       id: "health",
@@ -2476,6 +2476,7 @@ try {
       ".jpg": "dataurl",
       ".jpeg": "dataurl",
       ".png": "dataurl",
+      ".svg": "dataurl",
       ".webp": "dataurl",
     },
     logLevel: "silent",

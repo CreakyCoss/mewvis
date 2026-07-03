@@ -1,6 +1,6 @@
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { MessageCircle } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "../../types";
 
@@ -32,7 +32,7 @@ export const CharacterButton = forwardRef<HTMLButtonElement, CharacterButtonProp
     {...props}
   >
     <img
-      src={resolveAgentAvatar(character.avatar).src}
+      src={resolveAvatar(character.avatar).src}
       alt=""
       className="size-8 shrink-0 rounded-md"
     />

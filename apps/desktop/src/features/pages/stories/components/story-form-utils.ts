@@ -12,7 +12,7 @@ import type {
 import {
   defaultTavernAvatar,
   tavernAvatarOptions,
-} from "@/assets/agent-avatars";
+} from "@/assets/avatars";
 
 export type StoryDraft = Pick<
   StoryJson,

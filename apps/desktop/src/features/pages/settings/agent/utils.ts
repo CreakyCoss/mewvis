@@ -1,4 +1,4 @@
-import { defaultAgentAvatar } from "@/assets/agent-avatars";
+import { defaultAgentAvatar } from "@/assets/avatars";
 import type {
   AgentProfile,
   AiAgent,

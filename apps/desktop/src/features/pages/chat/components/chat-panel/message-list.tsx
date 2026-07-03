@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -288,7 +288,7 @@ export const MessageList = ({
           !message.text.trim();
         const isMessageStreaming =
           message.status === "loading" || message.status === "streaming";
-        const messageAgentAvatar = resolveAgentAvatar(
+        const messageAgentAvatar = resolveAvatar(
           message.agentAvatar ?? null,
         );
         const agentBlocks = message.agentBlocks ?? [];

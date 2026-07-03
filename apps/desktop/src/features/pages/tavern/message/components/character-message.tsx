@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export const CharacterMessage = ({
   thought,
   visualPreset,
 }: CharacterMessageProps) => {
-  const avatar = resolveAgentAvatar(character?.avatar);
+  const avatar = resolveAvatar(character?.avatar);
   const displayThought = immersiveDescriptionEnabled ? thought?.trim() ?? "" : "";
   const displayContent = immersiveDescriptionEnabled
     ? content

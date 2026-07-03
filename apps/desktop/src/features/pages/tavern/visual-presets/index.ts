@@ -1,6 +1,6 @@
-import generalTavernBackgroundUrl from "@/assets/tavern-backgrounds/general-lounge.jpg";
-import tavernBackgroundUrl from "@/assets/tavern-backgrounds/rainy-tavern.jpg";
-import wuxiaBackgroundUrl from "@/assets/tavern-backgrounds/wuxia-courtyard.jpg";
+import generalTavernBackgroundUrl from "@/assets/backgrounds/general-lounge.jpg";
+import tavernBackgroundUrl from "@/assets/backgrounds/rainy-tavern.jpg";
+import wuxiaBackgroundUrl from "@/assets/backgrounds/wuxia-courtyard.jpg";
 import type { VisualPresetDefinition, VisualPresetId } from "./types";
 
 export type {

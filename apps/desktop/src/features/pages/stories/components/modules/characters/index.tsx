@@ -1,6 +1,6 @@
 import { Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { useRef } from "react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import type { StoryJson } from "@/features/story";
 import {
@@ -59,7 +59,7 @@ export const StoryCharactersModule = ({
         ) : (
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
             {story.characters.map((character) => {
-              const avatar = resolveAgentAvatar(character.avatar);
+              const avatar = resolveAvatar(character.avatar);
               return (
                 <div
                   key={character.id}

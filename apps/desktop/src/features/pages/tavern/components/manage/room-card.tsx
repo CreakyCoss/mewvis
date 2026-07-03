@@ -17,7 +17,7 @@ import {
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -255,7 +255,7 @@ export const RoomCard = ({
                   {visibleCharacters.map((character, index) => (
                     <img
                       key={character.id}
-                      src={resolveAgentAvatar(character.avatar).src}
+                      src={resolveAvatar(character.avatar).src}
                       alt=""
                       className={cn(
                         "size-12 rounded-lg border-2 border-background bg-background object-cover shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",

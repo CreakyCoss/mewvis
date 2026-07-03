@@ -1,5 +1,5 @@
 import { Activity, CheckCircle2, Circle, Heart, Swords, Trophy } from "lucide-react";
-import { resolveAgentAvatar } from "@/assets/agent-avatars";
+import { resolveAvatar } from "@/assets/avatars";
 import { cn } from "@/lib/utils";
 import {
   getTavernStatusSnapshotValue,
@@ -363,7 +363,7 @@ const RelationshipCompactCard = ({
   visualPreset: VisualPresetDefinition;
 }) => {
   const danger = isRelationshipCardDanger(metrics);
-  const avatar = character ? resolveAgentAvatar(character.avatar).src : null;
+  const avatar = character ? resolveAvatar(character.avatar).src : null;
   const displayLabel = character?.name ?? compactRelationshipLabel(label).replace(/^你对\s*/, "");
   return (
     <div

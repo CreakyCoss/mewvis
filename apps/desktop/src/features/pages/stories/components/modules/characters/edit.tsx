@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import {
   normalizeTavernAvatarId,
-  resolveAgentAvatar,
+  resolveAvatar,
   tavernAvatarGroups,
-} from "@/assets/agent-avatars";
+} from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -235,7 +235,7 @@ export const StoryCharactersEdit = ({
                         onClick={() => setIsAvatarPickerOpen(true)}
                       >
                         <img
-                          src={resolveAgentAvatar(draft.avatar).src}
+                          src={resolveAvatar(draft.avatar).src}
                           alt={draft.name}
                           className="size-full object-cover"
                         />
@@ -291,7 +291,7 @@ export const StoryCharactersEdit = ({
                       onClick={() => setIsAvatarPickerOpen(true)}
                     >
                       <img
-                        src={resolveAgentAvatar(draft.avatar).src}
+                        src={resolveAvatar(draft.avatar).src}
                         alt={draft.name}
                         className="size-full object-cover"
                       />
