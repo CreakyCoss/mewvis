@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createEmptyStoryState, upsertStoryJson, type StoryJson, type StoryState } from "@/features/story";
+import { createEmptyStoryState, upsertStoryJson, type StoryState } from "@/features/story/model/story-state";
+import type { StoryJson } from "@/features/story/model/story-types";
 import {
   createStory as createStoryInWorkspace,
   deleteStoryRecord,
@@ -10,7 +11,7 @@ import {
   type CreateStoryInput,
   type StoryRecord,
   type StoryWorkspace,
-} from "@/features/story/storage";
+} from "@/features/story/persistence/story-storage";
 
 type UseStoryStateInput = {
   requestedStoryId: string;

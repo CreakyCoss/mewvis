@@ -14,7 +14,7 @@ import type {
   StoryJson,
   StoryEdgeJson,
   StoryNodeJson,
-} from "@/features/story";
+} from "@/features/story/model/story-types";
 import {
   EditorField,
   editorControlClassName,

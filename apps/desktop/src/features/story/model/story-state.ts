@@ -5,8 +5,8 @@ import {
 } from "./manuscript-inbox";
 import type {
   StoryJson as CanonicalStoryJson,
-} from "../schema";
-export type { StoryJson } from "../schema";
+} from "./story-types";
+export type { StoryJson } from "./story-types";
 
 export type StoryState = {
   version: 1;

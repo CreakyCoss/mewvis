@@ -15,10 +15,10 @@ import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
-  StoryJson,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
-} from "@/features/story";
+} from "@/features/story/model/manuscript-inbox";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { StoryCharactersModule } from "./modules/characters";
 import { StoryGraphModule } from "./modules/graph";
 import { StoryManuscriptsModule } from "./modules/manuscripts";

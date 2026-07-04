@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   type StoryJson,
   type StoryCharacterJson,
-} from "@/features/story";
+} from "@/features/story/model/story-types";
 import { cn } from "@/lib/utils";
 import {
   createStoryCharacter,

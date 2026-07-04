@@ -15,7 +15,7 @@ import type {
   StoryJson,
   StorySceneJson,
   StorySceneStatusJson,
-} from "@/features/story";
+} from "@/features/story/model/story-types";
 import { createStoryScene } from "../../story-form-utils";
 import {
   EditorField,

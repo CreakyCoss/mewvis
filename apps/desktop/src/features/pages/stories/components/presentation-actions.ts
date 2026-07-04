@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { openRegisteredStoryPresentation, type StoryPresentationChannel } from "./presentations/registry";
-import { type StoryJson, type StoryState } from "@/features/story";
+import type { StoryState } from "@/features/story/model/story-state";
+import type { StoryJson } from "@/features/story/model/story-types";
 import type { Workspace } from "@/features/pages/workspace/types";
-import type { StoryWorkspace } from "@/features/story/storage";
+import type { StoryWorkspace } from "@/features/story/persistence/story-storage";
 
 type StoryPresentationActionsInput = {
   workspace: Workspace | null;

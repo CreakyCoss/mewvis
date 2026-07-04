@@ -4,9 +4,9 @@ import {
   submitStoryManuscriptToState,
   type StoryJson,
   type StoryState,
-} from "./application/state";
-import { normalizeStoryState } from "./normalize";
-import type { StoryManuscriptSubmissionInput } from "./application/manuscript-inbox";
+} from "../model/story-state";
+import { normalizeStoryState } from "../model/story-normalizer";
+import type { StoryManuscriptSubmissionInput } from "../model/manuscript-inbox";
 
 const STORY_REGISTRY_STORAGE_KEY = "novel-claw:story:records";
 const STORY_JSON_STORAGE_PREFIX = "novel-claw:story:json";

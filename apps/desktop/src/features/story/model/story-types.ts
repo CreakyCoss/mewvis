@@ -1,4 +1,4 @@
-import type { StoryManuscriptInbox } from "./application/manuscript-inbox";
+import type { StoryManuscriptInbox } from "./manuscript-inbox";
 
 export type StoryJsonVersion = 1;
 

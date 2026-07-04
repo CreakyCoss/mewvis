@@ -3,13 +3,13 @@ import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pa
 import {
   acceptStoryManuscriptDraft,
   rejectStoryManuscriptDraft,
-  runStoryWriterAgent,
   submitStoryManuscriptDraft,
   updateStoryManuscriptDraft,
-  type StoryJson,
   type StoryManuscriptDraftUpdateInput,
   type StoryManuscriptSubmissionInput,
-} from "@/features/story";
+} from "@/features/story/model/manuscript-inbox";
+import { runStoryWriterAgent } from "@/features/story/agents/story-writer-agent";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { getPendingDraftCount } from "./story-form-utils";
 
 type UseStoryManuscriptsInput = {

@@ -6,9 +6,8 @@ import type {
   StoryNodeJson,
   StorySceneJson,
   StoryStageJson,
-  StoryImportSourceKind,
-  StoryManuscriptDraft,
-} from "@/features/story";
+} from "@/features/story/model/story-types";
+import type { StoryManuscriptDraft } from "@/features/story/model/manuscript-inbox";
 import {
   defaultTavernAvatar,
   tavernAvatarOptions,
@@ -141,13 +140,4 @@ export const manuscriptSourceLabels: Record<StoryManuscriptDraft["source"], stri
   manual: "手写",
   aiPolish: "AI 润色",
   import: "导入",
-};
-
-export const storyImportSourceLabels: Record<StoryImportSourceKind, string> = {
-  json: "JSON",
-  plainText: "纯文本",
-  aiGenerated: "AI 生成",
-  characterCard: "角色卡",
-  worldBook: "世界书",
-  unknown: "自动",
 };

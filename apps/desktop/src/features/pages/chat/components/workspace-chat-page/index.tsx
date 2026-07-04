@@ -11,7 +11,7 @@ import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import { submitStoryManuscript } from "@/features/story/storage";
+import { submitStoryManuscript } from "@/features/story/persistence/story-storage";
 import { saveChatSession } from "../../api";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";
@@ -28,10 +28,10 @@ import { useModelSettings } from "./use-model-settings";
 import { type RunningAgentTaskContext, useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
 import {
-  loadStoryChatSeed,
+  loadChatSeedFromStory,
   type StoryChatSeed,
   type StoryChatSeedRequest,
-} from "@/features/story/presentation/chat-seed";
+} from "@/features/story/projection/chat-seed";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -271,7 +271,7 @@ export const WorkspaceChatPage = ({
     }
 
     let cancelled = false;
-    loadStoryChatSeed(storySeedRequest)
+    loadChatSeedFromStory(storySeedRequest)
       .then((seed) => {
         if (!cancelled) {
           setStoryChatSeed(seed);

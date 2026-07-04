@@ -11,8 +11,8 @@ const bundledPath = join(tempDir, "runner.mjs");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
 const presentationInputPath = resolve(workspaceRoot, "src/features/pages/tavern/presentation/input/index.ts");
 const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
-const storyTavernInputPath = resolve(workspaceRoot, "src/features/pages/stories/components/presentations/tavern-input.ts");
-const storyPath = resolve(workspaceRoot, "src/features/story/index.ts");
+const storyTavernInputPath = resolve(workspaceRoot, "src/features/story/projection/tavern-input.ts");
+const storyRuntimeContextPath = resolve(workspaceRoot, "src/features/story/projection/story-runtime-context.ts");
 
 writeFileSync(entryPath, `
   import {
@@ -22,11 +22,11 @@ writeFileSync(entryPath, `
     materializeTavernPresentationInput,
   } from ${JSON.stringify(presentationInputPath)};
   import {
-    createTavernPresentationInputFromStoryDataPackage,
+    createTavernInputFromStoryRuntimeContext,
   } from ${JSON.stringify(storyTavernInputPath)};
   import {
-    getStoryNodeDataPackage,
-  } from ${JSON.stringify(storyPath)};
+    createStoryNodeRuntimeContext,
+  } from ${JSON.stringify(storyRuntimeContextPath)};
   import {
     createTavernRuntimeRoomSnapshot,
     materializeTavernRuntimeRoomSnapshot,
@@ -243,8 +243,8 @@ writeFileSync(entryPath, `
     createdAt: 1_800_000_300_000,
     updatedAt: 1_800_000_300_100,
   };
-  const tavernInput = createTavernPresentationInputFromStoryDataPackage(
-    getStoryNodeDataPackage(storyAsset, { nodeId: "node-target" }),
+  const tavernInput = createTavernInputFromStoryRuntimeContext(
+    createStoryNodeRuntimeContext(storyAsset, { nodeId: "node-target" }),
   );
   const seedMaterialized = materializeTavernPresentationInput(
     "workspace-seed",
@@ -282,6 +282,7 @@ try {
       ".jpg": "dataurl",
       ".jpeg": "dataurl",
       ".png": "dataurl",
+      ".svg": "dataurl",
       ".webp": "dataurl",
     },
   });

@@ -1,5 +1,5 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { StoryJson } from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { EmptyBlock } from "../story-primitives";
 
 type StoryJsonImportReviewProps = {

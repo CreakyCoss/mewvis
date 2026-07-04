@@ -2,7 +2,7 @@ import { Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { useRef } from "react";
 import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import {
   EmptyBlock,
   StorySection,

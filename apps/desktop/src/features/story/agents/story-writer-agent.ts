@@ -1,7 +1,7 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { extractStoryNodeRuntimeData } from "../application/data-package";
-import type { StoryJson } from "../schema";
+import { createStoryNodeRuntimeContext } from "../projection/story-runtime-context";
+import type { StoryJson } from "../model/story-types";
 
 export type StoryWriterAgentMode = "polish" | "expand";
 
@@ -34,7 +34,7 @@ const buildStoryWriterSystemPrompt = () =>
   ].join("\n");
 
 const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
-  const runtimeData = extractStoryNodeRuntimeData(input.story, {
+  const runtimeData = createStoryNodeRuntimeContext(input.story, {
     nodeId: input.nodeId,
   });
 

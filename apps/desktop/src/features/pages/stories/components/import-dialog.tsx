@@ -7,21 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  type StoryJson,
-  type StoryImportSourceKind,
-} from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { StoryImportSourcePanel } from "./import-dialog/source-panel";
 import { StoryJsonImportReview } from "./import-dialog/story-json-review";
 
 type StoryImportDialogProps = {
   open: boolean;
   activeStory: StoryJson | null;
-  importSourceKind: StoryImportSourceKind;
   importRaw: string;
   importStory: StoryJson | null;
   isConvertingImport: boolean;
-  setImportSourceKind: (kind: StoryImportSourceKind) => void;
   setImportRaw: (raw: string) => void;
   setImportStory: (story: StoryJson | null) => void;
   onOpenChange: (open: boolean) => void;
@@ -33,11 +28,9 @@ type StoryImportDialogProps = {
 export const StoryImportDialog = ({
   open,
   activeStory,
-  importSourceKind,
   importRaw,
   importStory,
   isConvertingImport,
-  setImportSourceKind,
   setImportRaw,
   setImportStory,
   onOpenChange,
@@ -59,11 +52,9 @@ export const StoryImportDialog = ({
           <div className="min-h-0 lg:overflow-y-auto lg:pr-1">
             <StoryImportSourcePanel
               importRaw={importRaw}
-              importSourceKind={importSourceKind}
               isConverting={isConvertingImport}
               onConvert={onConvert}
               setImportRaw={setImportRaw}
-              setImportSourceKind={setImportSourceKind}
               setImportStory={setImportStory}
             />
           </div>

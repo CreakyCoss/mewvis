@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryJson } from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import type { StoryDraft } from "../../story-form-utils";
 import {
   EditorField,

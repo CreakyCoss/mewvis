@@ -6,10 +6,10 @@ import type {
   TavernStoryNode,
 } from "@/features/pages/tavern/types";
 import type {
-  StoryRuntimeData,
-} from "../application/data-package";
-import { extractStoryNodeRuntimeData } from "../application/data-package";
-import type { StoryJson } from "../schema";
+  StoryRuntimeContext,
+} from "./story-runtime-context";
+import { createStoryNodeRuntimeContext } from "./story-runtime-context";
+import type { StoryJson } from "../model/story-types";
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
 
@@ -26,8 +26,8 @@ const normalizeTavernNodeStatus = (
 ): TavernStoryNode["status"] =>
   value === "ready" || value === "played" || value === "draft" ? value : "draft";
 
-const createTavernGraphFromStoryRuntimeData = (
-  runtimeData: StoryRuntimeData,
+const createTavernGraphFromStoryRuntimeContext = (
+  runtimeData: StoryRuntimeContext,
 ): TavernStoryGraph => ({
   version: 1,
   entryNodeId: runtimeData.graph.entryNodeId,
@@ -67,7 +67,7 @@ const createTavernGraphFromStoryRuntimeData = (
 });
 
 const formatStoryCharacterMemory = (
-  character: StoryRuntimeData["characters"][number],
+  character: StoryRuntimeContext["characters"][number],
 ) => [
   character.memory?.required,
   character.memory?.public,
@@ -75,8 +75,8 @@ const formatStoryCharacterMemory = (
   character.memory?.privateSelf,
 ].map(trimText).filter(Boolean).join("\n\n");
 
-export const createTavernPresentationInputFromStoryRuntimeData = (
-  runtimeData: StoryRuntimeData,
+export const createTavernInputFromStoryRuntimeContext = (
+  runtimeData: StoryRuntimeContext,
 ): TavernPresentationInput => {
   const activeNodeId = runtimeData.graph.activeNodeId || runtimeData.nodeId;
   const activeNode = runtimeData.graph.nodes.find((node) => node.id === activeNodeId) ??
@@ -130,7 +130,7 @@ export const createTavernPresentationInputFromStoryRuntimeData = (
       activeCharacterId: characterIds[0],
     },
     route: {
-      graph: createTavernGraphFromStoryRuntimeData(runtimeData),
+      graph: createTavernGraphFromStoryRuntimeContext(runtimeData),
       activeNodeId,
     },
     scenes: {
@@ -166,13 +166,13 @@ export const createTavernPresentationInputFromStoryRuntimeData = (
   };
 };
 
-export const createTavernPresentationInputFromStoryJson = (
+export const createTavernInputFromStory = (
   story: StoryJson,
   {
     nodeId,
   }: {
     nodeId?: string | null;
   } = {},
-) => createTavernPresentationInputFromStoryRuntimeData(
-  extractStoryNodeRuntimeData(story, { nodeId }),
+) => createTavernInputFromStoryRuntimeContext(
+  createStoryNodeRuntimeContext(story, { nodeId }),
 );

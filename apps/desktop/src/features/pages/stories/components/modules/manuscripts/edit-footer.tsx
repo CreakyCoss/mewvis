@@ -1,7 +1,7 @@
 import { Check, Loader2, Save, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import type { StoryManuscriptDraft } from "@/features/story";
+import type { StoryManuscriptDraft } from "@/features/story/model/manuscript-inbox";
 import type {
   ManuscriptEditDraft,
   ManuscriptEditMode,

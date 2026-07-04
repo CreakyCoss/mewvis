@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { createTavernPresentationInputFromStoryJson } from "@/features/story/presentation/tavern-input";
+import { createTavernInputFromStory } from "@/features/story/projection/tavern-input";
 import { openTavernPresentationInput } from "@/features/pages/tavern/presentation/open";
 import type { TavernRoom } from "@/features/pages/tavern/types";
 import { resolveStoryNodeId, type StoryPresentationAdapter } from "./shared";
@@ -45,7 +45,7 @@ export const openStoryTavernPresentation = async ({
   setOpeningStoryId: Parameters<StoryPresentationAdapter<"tavern">["open"]>[0]["setOpeningStoryId"];
 }) => {
   const targetNodeId = resolveStoryNodeId(activeStory, nodeId);
-  const presentationInput = createTavernPresentationInputFromStoryJson(activeStory, {
+  const presentationInput = createTavernInputFromStory(activeStory, {
     nodeId: targetNodeId,
   });
   setOpeningStoryId(activeStory.id);

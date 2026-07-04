@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { editorHeaderActionButtonClassName } from "./story-primitives";
 import {
   storyPresentationDefinitions,

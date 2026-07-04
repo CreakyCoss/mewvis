@@ -1,13 +1,13 @@
-import type { StoryJson } from "../schema";
+import type { StoryJson } from "../model/story-types";
 import type {
   StoryAcceptedManuscript,
-} from "./manuscript-inbox";
+} from "../model/manuscript-inbox";
 
-export type StoryRuntimeDataScope = "node" | "branch";
+export type StoryRuntimeContextScope = "node" | "branch";
 
-export type StoryRuntimeData = {
+export type StoryRuntimeContext = {
   version: 1;
-  scope: StoryRuntimeDataScope;
+  scope: StoryRuntimeContextScope;
   storyId: string;
   nodeId: string;
   timestamps: {
@@ -54,20 +54,20 @@ export type StoryRuntimeData = {
   };
 };
 
-export const extractStoryNodeRuntimeData = (
+export const createStoryNodeRuntimeContext = (
   story: StoryJson,
   {
     nodeId,
   }: {
     nodeId?: string | null;
   } = {},
-) => createStoryRuntimeData({
+) => createStoryRuntimeContext({
   story,
   scope: "node",
   activeNodeId: nodeId,
 });
 
-export const extractStoryBranchRuntimeData = (
+export const createStoryBranchRuntimeContext = (
   story: StoryJson,
   {
     activeNodeId,
@@ -78,7 +78,7 @@ export const extractStoryBranchRuntimeData = (
     pathNodeIds?: string[];
     pathEdgeIds?: string[];
   } = {},
-) => createStoryRuntimeData({
+) => createStoryRuntimeContext({
   story,
   scope: "branch",
   activeNodeId: activeNodeId ?? pathNodeIds.at(-1),
@@ -104,7 +104,7 @@ const getSceneForNode = (
   ? story.scenes.find((scene) => scene.id === node.sceneId) ?? null
   : null;
 
-const createStoryRuntimeData = ({
+const createStoryRuntimeContext = ({
   story,
   scope,
   activeNodeId,
@@ -112,11 +112,11 @@ const createStoryRuntimeData = ({
   pathEdgeIds = [],
 }: {
   story: StoryJson;
-  scope: StoryRuntimeDataScope;
+  scope: StoryRuntimeContextScope;
   activeNodeId?: string | null;
   pathNodeIds?: string[];
   pathEdgeIds?: string[];
-}): StoryRuntimeData => {
+}): StoryRuntimeContext => {
   const node = getNode(story, compact(activeNodeId));
   const nodeId = node?.id ?? "";
   const stage = node

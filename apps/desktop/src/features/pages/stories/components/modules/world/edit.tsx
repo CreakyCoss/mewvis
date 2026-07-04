@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryJson, StoryLorebookEntryJson } from "@/features/story";
+import type { StoryJson, StoryLorebookEntryJson } from "@/features/story/model/story-types";
 import {
   createStoryLorebookEntry,
   splitKeywords,

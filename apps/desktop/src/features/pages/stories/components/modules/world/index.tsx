@@ -9,7 +9,7 @@ import {
 import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "@/features/story";
+import type { StoryJson } from "@/features/story/model/story-types";
 import {
   EmptyBlock,
   StorySection,

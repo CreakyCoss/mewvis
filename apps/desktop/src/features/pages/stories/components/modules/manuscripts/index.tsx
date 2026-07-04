@@ -3,10 +3,10 @@ import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
-  StoryJson,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
-} from "@/features/story";
+} from "@/features/story/model/manuscript-inbox";
+import type { StoryJson } from "@/features/story/model/story-types";
 import { manuscriptSourceLabels } from "../../story-form-utils";
 import {
   EmptyBlock,

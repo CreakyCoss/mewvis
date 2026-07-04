@@ -1,10 +1,10 @@
 import type { ChatMessage } from "@/features/pages/chat/types";
 import { createMessageId } from "@/features/pages/chat/utils/sessions";
 import {
-  extractStoryNodeRuntimeData,
-  type StoryRuntimeData,
-} from "../application/data-package";
-import { loadStoryById } from "../storage";
+  createStoryNodeRuntimeContext,
+  type StoryRuntimeContext,
+} from "./story-runtime-context";
+import { loadStoryById } from "../persistence/story-storage";
 
 export type StoryChatSeedRequest = {
   storyId: string;
@@ -32,7 +32,7 @@ const formatListSection = (
   : "";
 
 const formatStoryContextForChat = (
-  runtimeData: StoryRuntimeData,
+  runtimeData: StoryRuntimeContext,
 ) => {
   const activeNode = runtimeData.current.node;
   const activeStage = runtimeData.current.stage;
@@ -116,7 +116,7 @@ const createSeedMessages = ({
   }];
 };
 
-export const loadStoryChatSeed = async (
+export const loadChatSeedFromStory = async (
   request: StoryChatSeedRequest,
 ): Promise<StoryChatSeed | null> => {
   const loaded = await loadStoryById(request.storyId);
@@ -129,7 +129,7 @@ export const loadStoryChatSeed = async (
   const activeNodeId = story.graph.nodes.some((node) => node.id === requestedNodeId)
     ? requestedNodeId
     : story.graph.activeNodeId || story.graph.entryNodeId || story.graph.nodes[0]?.id || "";
-  const runtimeData = extractStoryNodeRuntimeData(story, {
+  const runtimeData = createStoryNodeRuntimeContext(story, {
     nodeId: activeNodeId,
   });
   const title = `${story.title} - 剧情梳理`;

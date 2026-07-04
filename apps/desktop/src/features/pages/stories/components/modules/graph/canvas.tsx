@@ -22,7 +22,7 @@ import type {
   StoryNodeJson,
   StorySceneJson,
   StoryStageJson,
-} from "@/features/story";
+} from "@/features/story/model/story-types";
 import { cn } from "@/lib/utils";
 import {
   createStoryScene,

@@ -4,11 +4,11 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import type {
-  StoryJson,
   StoryManuscriptDraft,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
-} from "@/features/story";
+} from "@/features/story/model/manuscript-inbox";
+import type { StoryJson } from "@/features/story/model/story-types";
 import {
   StoryFormDialogContent,
   StoryFormHeader,

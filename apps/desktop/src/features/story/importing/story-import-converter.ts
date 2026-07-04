@@ -1,12 +1,10 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { StoryImportSourceKind } from "../import-source";
-import { assertStoryJsonReady, normalizeStoryJson } from "../normalize";
-import type { StoryJson } from "../schema";
+import { assertStoryJsonReady, normalizeStoryJson } from "../model/story-normalizer";
+import type { StoryJson } from "../model/story-types";
 
 export type StoryJsonConversionInput = {
   source: string;
-  sourceKind: StoryImportSourceKind;
   runtimeModel?: RuntimeModelInput | null;
   existingStory?: StoryJson | null;
   storyId?: string;
@@ -102,6 +100,7 @@ const buildStoryJsonSchemaInstruction = () => [
 
 const buildStoryJsonConverterSystemPrompt = () => [
   "你是 story.json 转换器，只负责把来源内容转换为应用的标准故事 JSON。",
+  "先自动识别来源内容类型，例如标准 story.json、纯文本、大纲、角色卡、世界书或 AI 生成设定，再选择合适的字段映射策略。",
   "不要输出补丁、摘要或解释。",
   "不要保留非标准字段。",
   buildStoryJsonSchemaInstruction(),
@@ -109,7 +108,6 @@ const buildStoryJsonConverterSystemPrompt = () => [
 
 const buildStoryJsonConverterRequest = (input: StoryJsonConversionInput) => JSON.stringify(
   {
-    sourceKind: input.sourceKind,
     targetIdentity: {
       storyId: input.storyId ?? input.existingStory?.id ?? "",
       workspaceId: input.workspaceId ?? input.existingStory?.workspaceId ?? "",

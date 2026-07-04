@@ -1,6 +1,7 @@
 import type { NavigateFunction } from "react-router";
-import type { StoryJson, StoryState } from "@/features/story";
-import type { StoryWorkspace } from "@/features/story/storage";
+import type { StoryState } from "@/features/story/model/story-state";
+import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryWorkspace } from "@/features/story/persistence/story-storage";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { TavernRoom } from "@/features/pages/tavern/types";
 

@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { StoryJson } from "@/features/story";
-import type { StoryWorkspace } from "@/features/story/storage";
+import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryWorkspace } from "@/features/story/persistence/story-storage";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { loadTavernState } from "@/features/pages/tavern/state/storage";
 import type { TavernRoom } from "@/features/pages/tavern/types";

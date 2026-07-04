@@ -2,13 +2,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
+import { normalizeStoryJson } from "@/features/story/model/story-normalizer";
 import {
   convertStorySourceToStoryJson,
-  normalizeStoryJson,
   parseStoryJsonFromText,
-  type StoryJson,
-  type StoryImportSourceKind,
-} from "@/features/story";
+} from "@/features/story/importing/story-import-converter";
+import type { StoryJson } from "@/features/story/model/story-types";
 import type { StoryConfigTab } from "./story-tabs";
 
 type UseStoryImportInput = {
@@ -54,7 +53,6 @@ export const useStoryImport = ({
   workspace,
 }: UseStoryImportInput) => {
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [importSourceKind, setImportSourceKind] = useState<StoryImportSourceKind>("unknown");
   const [importRaw, setImportRaw] = useState("");
   const [importStory, setImportStory] = useState<StoryJson | null>(null);
   const [isConvertingImport, setIsConvertingImport] = useState(false);
@@ -62,7 +60,6 @@ export const useStoryImport = ({
   const openImportDialog = () => {
     setImportRaw("");
     setImportStory(null);
-    setImportSourceKind("unknown");
     setIsImportOpen(true);
   };
 
@@ -87,7 +84,6 @@ export const useStoryImport = ({
       const parsed = parseStoryJsonFromText(importRaw);
       const story = parsed ?? await convertStorySourceToStoryJson({
         source: importRaw,
-        sourceKind: importSourceKind,
         runtimeModel: requireImportRuntimeModel(),
       });
       setImportStory(story);
@@ -169,7 +165,6 @@ export const useStoryImport = ({
         ? mergeStoryJsonIntoStory(activeStory, parsed)
         : await convertStorySourceToStoryJson({
             source: importRaw,
-            sourceKind: importSourceKind,
             runtimeModel: requireImportRuntimeModel(),
             existingStory: activeStory,
             storyId: activeStory.id,
@@ -199,14 +194,12 @@ export const useStoryImport = ({
     convertImportStory,
     importAsNewStory,
     importRaw,
-    importSourceKind,
     importStory,
     isConvertingImport,
     isImportOpen,
     mergeImportIntoActiveStory,
     openImportDialog,
     setImportRaw,
-    setImportSourceKind,
     setImportStory,
     setIsImportOpen,
   };

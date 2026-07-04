@@ -2,7 +2,7 @@ import type {
   StoryManuscriptDraft,
   StoryManuscriptDraftUpdateInput,
   StoryManuscriptSubmissionInput,
-} from "@/features/story";
+} from "@/features/story/model/manuscript-inbox";
 
 export type ManuscriptEditMode = "create" | "edit";
 

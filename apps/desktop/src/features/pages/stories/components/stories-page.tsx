@@ -74,14 +74,12 @@ export const StoriesPage = () => {
     convertImportStory,
     importAsNewStory,
     importRaw,
-    importSourceKind,
     importStory,
     isConvertingImport,
     isImportOpen,
     mergeImportIntoActiveStory,
     openImportDialog,
     setImportRaw,
-    setImportSourceKind,
     setImportStory,
     setIsImportOpen,
   } = useStoryImport({
@@ -246,11 +244,9 @@ export const StoriesPage = () => {
       <StoryImportDialog
         open={isImportOpen}
         activeStory={activeStory}
-        importSourceKind={importSourceKind}
         importRaw={importRaw}
         importStory={importStory}
         isConvertingImport={isConvertingImport}
-        setImportSourceKind={setImportSourceKind}
         setImportRaw={setImportRaw}
         setImportStory={setImportStory}
         onOpenChange={setIsImportOpen}

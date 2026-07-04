@@ -2,7 +2,7 @@ import { normalizeTavernAvatarId } from "@/assets/avatars";
 import {
   createEmptyStoryManuscriptInbox,
   type StoryManuscriptInbox,
-} from "./application/manuscript-inbox";
+} from "./manuscript-inbox";
 import type {
   StoryCharacterJson,
   StoryCharacterMemoryJson,
@@ -14,7 +14,7 @@ import type {
   StorySceneJson,
   StorySceneStatusJson,
   StoryStageJson,
-} from "./schema";
+} from "./story-types";
 
 export type StoryStateJson = {
   version: 1;
