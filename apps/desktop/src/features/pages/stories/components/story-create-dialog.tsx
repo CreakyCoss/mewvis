@@ -1,6 +1,8 @@
-import type { FormEvent } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import type { FormEvent, Ref } from "react";
+import { useCallback, useImperativeHandle, useState } from "react";
+import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
 import { FolderOpen } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,48 +14,72 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { StoryJson } from "../story/model/types";
+import { createStory as createStoryInWorkspace, type CreateStoryInput } from "../storage";
 
-export type StoryCreateForm = {
+export type StoryCreateDialogHandle = () => void;
+
+type StoryCreateForm = {
   name: string;
   workspacePath: string;
 };
 
 type StoryCreateDialogProps = {
-  open: boolean;
-  form: StoryCreateForm;
-  isSaving: boolean;
-  onOpenChange: (open: boolean) => void;
-  onFormChange: (updater: (current: StoryCreateForm) => StoryCreateForm) => void;
-  onSubmit: () => Promise<unknown> | unknown;
+  bind: Ref<StoryCreateDialogHandle>;
+  onCreated: (story: StoryJson) => void;
 };
 
-export const StoryCreateDialog = ({
-  open: isOpen,
-  form,
-  isSaving,
-  onOpenChange,
-  onFormChange,
-  onSubmit,
-}: StoryCreateDialogProps) => {
+const emptyForm = (): StoryCreateForm => ({
+  name: "",
+  workspacePath: "",
+});
+
+export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [form, setForm] = useState<StoryCreateForm>(emptyForm);
+
+  const open = useCallback(() => {
+    setForm(emptyForm());
+    setIsOpen(true);
+  }, []);
+
+  useImperativeHandle(bind, () => open, [open]);
+
   const chooseDirectory = async () => {
-    const selected = await open({
+    const selected = await openDirectoryDialog({
       directory: true,
       multiple: false,
       title: "选择故事工作区",
     });
 
     if (typeof selected === "string") {
-      onFormChange((current) => ({ ...current, workspacePath: selected }));
+      setForm((current) => ({ ...current, workspacePath: selected }));
+    }
+  };
+
+  const createStory = async (input: CreateStoryInput) => {
+    setIsSaving(true);
+    try {
+      const { story } = await createStoryInWorkspace(input);
+      toast.success("故事已创建。");
+      setIsOpen(false);
+      onCreated(story);
+    } catch (error) {
+      console.error("Failed to create story", error);
+      toast.error(error instanceof Error ? error.message : "故事创建失败。");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void onSubmit();
+    void createStory(form);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !isSaving && setIsOpen(open)}>
       <DialogContent className="border-transparent shadow-lg sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-lg">新建故事</DialogTitle>
@@ -70,7 +96,7 @@ export const StoryCreateDialog = ({
               value={form.name}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                onFormChange((current) => ({ ...current, name: value }));
+                setForm((current) => ({ ...current, name: value }));
               }}
               placeholder="例如：雨巷尽头"
               required
@@ -85,12 +111,12 @@ export const StoryCreateDialog = ({
                 value={form.workspacePath}
                 onChange={(event) => {
                   const value = event.currentTarget.value;
-                  onFormChange((current) => ({ ...current, workspacePath: value }));
+                  setForm((current) => ({ ...current, workspacePath: value }));
                 }}
                 placeholder="请选择目录"
                 required
               />
-              <Button type="button" variant="outline" onClick={chooseDirectory} title="选择目录">
+              <Button type="button" variant="outline" onClick={chooseDirectory} title="选择目录" disabled={isSaving}>
                 <FolderOpen className="size-4" />
                 <span>选择</span>
               </Button>
