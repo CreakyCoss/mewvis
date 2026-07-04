@@ -13,7 +13,7 @@ import type { StoryConfigTab } from "./story-tabs";
 type UseStoryImportInput = {
   activeStory: StoryJson | null;
   createStory: (input: { name: string; workspacePath: string }) => Promise<StoryJson | null>;
-  persistStory: (story: StoryJson) => void;
+  persistStory: (story: StoryJson) => void | Promise<unknown>;
   selectedRuntimeModel: RuntimeModelOption | null;
   setActiveTab: (tab: StoryConfigTab) => void;
   settingsError: string;
@@ -82,10 +82,12 @@ export const useStoryImport = ({
     setIsConvertingImport(true);
     try {
       const parsed = parseStoryJsonFromText(importRaw);
-      const story = parsed ?? await convertStorySourceToStoryJson({
-        source: importRaw,
-        runtimeModel: requireImportRuntimeModel(),
-      });
+      const story =
+        parsed ??
+        (await convertStorySourceToStoryJson({
+          source: importRaw,
+          runtimeModel: requireImportRuntimeModel(),
+        }));
       setImportStory(story);
       toast.success(parsed ? "已读取标准 story.json。" : "AI 已转换为标准 story.json。");
     } catch (error) {
@@ -129,7 +131,7 @@ export const useStoryImport = ({
         throw new Error("导入内容不是有效的 story.json。");
       }
 
-      persistStory({
+      await persistStory({
         ...story,
         id: baseStory.id,
         workspaceId: baseStory.id,
@@ -156,11 +158,13 @@ export const useStoryImport = ({
 
     setIsConvertingImport(true);
     try {
-      const parsed = importStory ?? parseStoryJsonFromText(importRaw, {
-        storyId: activeStory.id,
-        workspaceId: activeStory.workspaceId,
-        title: activeStory.title,
-      });
+      const parsed =
+        importStory ??
+        parseStoryJsonFromText(importRaw, {
+          storyId: activeStory.id,
+          workspaceId: activeStory.workspaceId,
+          title: activeStory.title,
+        });
       const updatedStory = parsed
         ? mergeStoryJsonIntoStory(activeStory, parsed)
         : await convertStorySourceToStoryJson({
@@ -172,7 +176,7 @@ export const useStoryImport = ({
             title: activeStory.title,
           });
 
-      persistStory({
+      await persistStory({
         ...updatedStory,
         id: activeStory.id,
         workspaceId: activeStory.workspaceId,

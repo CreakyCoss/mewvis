@@ -11,176 +11,364 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { toast } from "sonner";
 import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type {
-  StoryManuscriptDraftUpdateInput,
-  StoryManuscriptSubmissionInput,
-} from "@/features/story/model/manuscript-inbox";
+import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
+import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
+import type { StoryState } from "@/features/story/model/story-state";
 import type { StoryJson } from "@/features/story/model/story-types";
-import { StoryCharactersModule } from "./modules/characters";
-import { StoryGraphModule } from "./modules/graph";
-import { StoryManuscriptsModule } from "./modules/manuscripts";
-import { StoryOverviewModule } from "./modules/overview";
-import { StoryScenesModule } from "./modules/scenes";
-import { StoryWorldModule } from "./modules/world";
-import type { StoryPresentationChannel } from "./presentations/registry";
-import type { StoryDraft } from "./story-form-utils";
 import {
-  storyConfigTabs,
-  type StoryConfigTab,
-} from "./story-tabs";
+  createStory as createStoryInWorkspace,
+  deleteStoryRecord,
+  loadStoryById,
+  loadStoryLibrary,
+  saveStoryJson,
+  updateStoryRecordName,
+  type CreateStoryInput,
+  type StoryWorkspace,
+} from "@/features/story/persistence/story-storage";
+import { STORIES_FULLSCREEN_SEARCH_PARAM, STORIES_STORY_SEARCH_PARAM, buildStoryOpenSearch } from "../navigation";
+import { StoryImportDialog } from "./import-dialog";
+import { StoryModules, type StoryModulesHandle } from "./modules";
+import { useStoryPresentationActions } from "./presentation-actions";
+import { StoryCreateDialog, type StoryCreateForm } from "./story-create-dialog";
+import { getPendingDraftCount } from "./story-form-utils";
+import { StoryHeader } from "./story-header";
+import { StoryTavernSelectDialog } from "./story-tavern-select-dialog";
+import { useStoryImport } from "./use-story-import";
 
 type StoryContentProps = {
-  activeTab: StoryConfigTab;
-  canCreateStory: boolean;
-  isLoading: boolean;
-  onAcceptManuscript: (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => void;
-  onCreateManuscriptDraft: (
-    input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">,
-  ) => void;
-  onCreateStory: () => void;
-  onDeleteStory: (story: StoryJson) => void;
-  onOpenImportDialog: () => void;
-  onOpenStoryPresentation: (
-    channel: StoryPresentationChannel,
-    nodeId?: string,
-  ) => void | Promise<void>;
-  onPolishManuscriptDraft: (input: {
-    nodeId: string;
-    title: string;
-    summary?: string;
-    content: string;
-  }) => Promise<string>;
-  onRejectManuscript: (draftId: string) => void;
-  onSaveManuscriptDraft: (
-    draftId: string,
-    patch: StoryManuscriptDraftUpdateInput,
-  ) => void;
-  onSaveOverviewDraft: (draft: StoryDraft) => void;
-  onSaveStory: (story: StoryJson) => void;
-  onSelectStory: (story: StoryJson) => void;
-  onSetActiveTab: (tab: StoryConfigTab) => void;
-  onStartEditing: (story: StoryJson) => void;
-  onExitHomeFullscreen?: () => void;
-  isEditing: boolean;
-  story: StoryJson | null;
-  stories: StoryJson[];
+  isHomeFullscreen: boolean;
 };
 
-export const StoryContent = ({
-  activeTab,
-  canCreateStory,
-  isLoading,
-  onAcceptManuscript,
-  onCreateManuscriptDraft,
-  onCreateStory,
-  onDeleteStory,
-  onOpenImportDialog,
-  onOpenStoryPresentation,
-  onPolishManuscriptDraft,
-  onRejectManuscript,
-  onSaveManuscriptDraft,
-  onSaveOverviewDraft,
-  onSaveStory,
-  onSelectStory,
-  onSetActiveTab,
-  onStartEditing,
-  onExitHomeFullscreen,
-  isEditing,
-  story,
-  stories,
-}: StoryContentProps) => {
-  const renderActiveModule = () => {
-    if (!story) {
+export const StoryContent = ({ isHomeFullscreen }: StoryContentProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const modulesRef = useRef<StoryModulesHandle>(null);
+  const pendingOpenStoryRef = useRef<StoryJson | null>(null);
+  const lastOpenedStoryIdRef = useRef("");
+  const { selectedRuntimeModel, settingsError } = useRuntimeAgentSettings();
+  const { activeWorkspace, defaultWorkspace, overview } = useWorkspaceOverview();
+  const workspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const requestedStoryId = searchParams.get(STORIES_STORY_SEARCH_PARAM)?.trim() ?? "";
+  const [stories, setStories] = useState<StoryJson[]>([]);
+  const [storyWorkspacesById, setStoryWorkspacesById] = useState<Record<string, StoryWorkspace>>({});
+  const [selectedStoryId, setSelectedStoryId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [tavernSelectNodeId, setTavernSelectNodeId] = useState<string | null | undefined>(undefined);
+  const [createForm, setCreateForm] = useState<StoryCreateForm>({
+    name: "",
+    workspacePath: "",
+  });
+
+  const activeStory = stories.find((story) => story.id === requestedStoryId) ?? pendingOpenStoryRef.current ?? null;
+  const selectedStory = stories.find((story) => story.id === selectedStoryId) ?? activeStory ?? stories[0] ?? null;
+  const activeStoryWorkspace = activeStory ? (storyWorkspacesById[activeStory.id] ?? null) : null;
+  const isEditorOpen = isHomeFullscreen && Boolean(requestedStoryId) && (isLoading || Boolean(activeStory));
+  const pendingDraftCount = activeStory ? getPendingDraftCount(activeStory) : 0;
+  const storyState = useMemo<StoryState>(
+    () => ({
+      version: 1,
+      activeStoryId: activeStory?.id ?? selectedStory?.id ?? "",
+      stories,
+    }),
+    [activeStory?.id, selectedStory?.id, stories],
+  );
+
+  const replaceStorySearch = useCallback(
+    (search: string) => {
+      navigate(
+        {
+          pathname: location.pathname,
+          search,
+          hash: location.hash,
+        },
+        { replace: true },
+      );
+    },
+    [location.hash, location.pathname, navigate],
+  );
+
+  const refreshStories = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { state, workspacesByStoryId } = await loadStoryLibrary(requestedStoryId);
+      setStories(state.stories);
+      setStoryWorkspacesById(workspacesByStoryId);
+      setSelectedStoryId((current) =>
+        current && state.stories.some((story) => story.id === current)
+          ? current
+          : state.activeStoryId || state.stories[0]?.id || "",
+      );
+    } catch (error) {
+      console.error("Failed to load story library", error);
+      toast.error("无法加载故事。");
+      setStories([]);
+      setStoryWorkspacesById({});
+      setSelectedStoryId("");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [requestedStoryId]);
+
+  useEffect(() => {
+    void refreshStories();
+  }, [refreshStories]);
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      lastOpenedStoryIdRef.current = "";
+      return;
+    }
+    if (!activeStory || lastOpenedStoryIdRef.current === requestedStoryId) {
+      return;
+    }
+    if (!modulesRef.current) {
+      return;
+    }
+
+    modulesRef.current(activeStory);
+    pendingOpenStoryRef.current = null;
+    lastOpenedStoryIdRef.current = activeStory.id;
+    setSelectedStoryId(activeStory.id);
+  }, [activeStory, isEditorOpen, requestedStoryId]);
+
+  const exitHomeFullscreen = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.delete(STORIES_FULLSCREEN_SEARCH_PARAM);
+
+    const nextSearch = params.toString();
+    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
+  }, [location.search, replaceStorySearch]);
+
+  const backToStoryHome = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    params.set(STORIES_FULLSCREEN_SEARCH_PARAM, "1");
+    params.delete(STORIES_STORY_SEARCH_PARAM);
+
+    const nextSearch = params.toString();
+    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
+  }, [location.search, replaceStorySearch]);
+
+  const closeStoryEditor = useCallback(() => {
+    pendingOpenStoryRef.current = null;
+    lastOpenedStoryIdRef.current = "";
+    backToStoryHome();
+    void refreshStories();
+  }, [backToStoryHome, refreshStories]);
+
+  const openStoryEditor = useCallback(
+    (story: StoryJson) => {
+      pendingOpenStoryRef.current = story;
+      setSelectedStoryId(story.id);
+      replaceStorySearch(buildStoryOpenSearch({ storyId: story.id, fullscreen: true }));
+    },
+    [replaceStorySearch],
+  );
+
+  const createStoryWorkspace = useCallback(async (input: CreateStoryInput) => {
+    setIsSaving(true);
+    try {
+      const { record, story, workspace: storyWorkspace } = await createStoryInWorkspace(input);
+      setStories((current) => [story, ...current.filter((item) => item.id !== story.id)]);
+      setStoryWorkspacesById((current) => ({
+        ...current,
+        [story.id]: storyWorkspace,
+      }));
+      setSelectedStoryId(story.id);
+      toast.success("故事已创建。");
+      return {
+        record,
+        story,
+        workspace: storyWorkspace,
+      };
+    } catch (error) {
+      console.error("Failed to create story", error);
+      toast.error(error instanceof Error ? error.message : "故事创建失败。");
       return null;
+    } finally {
+      setIsSaving(false);
     }
+  }, []);
 
-    if (activeTab === "overview") {
-      return (
-        <StoryOverviewModule
-          story={story}
-          onOpenModule={onSetActiveTab}
-          onSave={onSaveOverviewDraft}
-        />
-      );
-    }
-    if (activeTab === "characters") {
-      return <StoryCharactersModule story={story} onSave={onSaveStory} />;
-    }
-    if (activeTab === "scenes") {
-      return <StoryScenesModule story={story} onSave={onSaveStory} />;
-    }
-    if (activeTab === "world") {
-      return <StoryWorldModule story={story} onSave={onSaveStory} />;
-    }
-    if (activeTab === "graph") {
-      return (
-        <StoryGraphModule
-          story={story}
-          onSave={onSaveStory}
-          onOpenScenes={() => onSetActiveTab("scenes")}
-          onOpenNodeTavern={(nodeId) => void onOpenStoryPresentation("tavern", nodeId)}
-          onOpenNodeChat={(nodeId) => void onOpenStoryPresentation("chat", nodeId)}
-        />
-      );
-    }
-    if (activeTab === "manuscripts") {
-      return (
-        <StoryManuscriptsModule
-          story={story}
-          onAccept={onAcceptManuscript}
-          onCreateDraft={onCreateManuscriptDraft}
-          onPolishDraft={onPolishManuscriptDraft}
-          onSaveDraft={onSaveManuscriptDraft}
-          onReject={onRejectManuscript}
-        />
-      );
-    }
-
-    return null;
+  const openCreateStoryDialog = () => {
+    setCreateForm({
+      name: "",
+      workspacePath: "",
+    });
+    setIsCreateDialogOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="p-6 text-sm text-muted-foreground">加载中...</div>
-      </ScrollArea>
-    );
-  }
+  const handleCreateStory = async () => {
+    const created = await createStoryWorkspace(createForm);
+    if (!created) {
+      return;
+    }
 
-  if (!story) {
-    return (
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex min-h-[320px] flex-col px-6 py-5">
-          {onExitHomeFullscreen ? (
-            <div className="flex shrink-0">
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-9 gap-2 px-2.5"
-                onClick={onExitHomeFullscreen}
-              >
-                <ArrowLeft className="size-4" />
-                返回
-              </Button>
-            </div>
-          ) : null}
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <BookOpen className="size-10 text-muted-foreground" />
-            <div className="text-base font-medium">暂无故事</div>
-            <Button type="button" className="gap-2" onClick={onCreateStory} disabled={!canCreateStory}>
-              <Plus className="size-4" />
-              新建故事
-            </Button>
-          </div>
-        </div>
-      </ScrollArea>
-    );
-  }
+    setIsCreateDialogOpen(false);
+    openStoryEditor(created.story);
+  };
 
-  if (!isEditing) {
+  const resolveStoryWorkspace = useCallback(
+    async (storyId: string) => {
+      if (storyWorkspacesById[storyId]) {
+        return storyWorkspacesById[storyId];
+      }
+
+      const loaded = await loadStoryById(storyId);
+      if (!loaded) {
+        return null;
+      }
+      setStoryWorkspacesById((current) => ({
+        ...current,
+        [storyId]: loaded.workspace,
+      }));
+      return loaded.workspace;
+    },
+    [storyWorkspacesById],
+  );
+
+  const persistStoryFromPage = useCallback(
+    async (story: StoryJson) => {
+      const storyWorkspace = await resolveStoryWorkspace(story.id);
+      if (!storyWorkspace) {
+        toast.error("找不到故事工作区，无法保存。");
+        return null;
+      }
+
+      setIsSaving(true);
+      try {
+        const savedStory = await saveStoryJson(storyWorkspace, {
+          ...story,
+          workspaceId: storyWorkspace.id,
+          updatedAt: Date.now(),
+        });
+        let nextWorkspace = storyWorkspace;
+        if (storyWorkspace.name !== savedStory.title) {
+          const updatedRecord = await updateStoryRecordName(savedStory.id, savedStory.title);
+          nextWorkspace = {
+            id: updatedRecord.id,
+            name: updatedRecord.name,
+            path: updatedRecord.workspacePath,
+          };
+        }
+
+        setStoryWorkspacesById((current) => ({
+          ...current,
+          [savedStory.id]: nextWorkspace,
+        }));
+        setStories((current) => current.map((item) => (item.id === savedStory.id ? savedStory : item)));
+        return savedStory;
+      } catch (error) {
+        console.error("Failed to save story", error);
+        toast.error("故事保存失败。");
+        return null;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [resolveStoryWorkspace],
+  );
+
+  const persistStoryState = useCallback(
+    async (nextState: StoryState) => {
+      for (const story of nextState.stories) {
+        await persistStoryFromPage(story);
+      }
+    },
+    [persistStoryFromPage],
+  );
+
+  const { openingStoryId, openStoryPresentation: openRegisteredStoryPresentation } = useStoryPresentationActions({
+    workspace,
+    activeStoryWorkspace,
+    activeStory,
+    storyState,
+    persistStoryState,
+  });
+
+  const openStoryPresentation = useCallback(
+    (channel: Parameters<typeof openRegisteredStoryPresentation>[0], nodeId?: string | null) => {
+      if (channel === "tavern") {
+        setTavernSelectNodeId(nodeId ?? null);
+        return;
+      }
+
+      return openRegisteredStoryPresentation(channel, nodeId);
+    },
+    [openRegisteredStoryPresentation],
+  );
+
+  const {
+    convertImportStory,
+    importAsNewStory,
+    importRaw,
+    importStory,
+    isConvertingImport,
+    isImportOpen,
+    mergeImportIntoActiveStory,
+    openImportDialog,
+    setImportRaw,
+    setImportStory,
+    setIsImportOpen,
+  } = useStoryImport({
+    activeStory,
+    createStory: async (input) => {
+      const created = await createStoryWorkspace(input);
+      return created?.story ?? null;
+    },
+    persistStory: async (story) => {
+      const savedStory = await persistStoryFromPage(story);
+      if (savedStory) {
+        pendingOpenStoryRef.current = savedStory;
+        openStoryEditor(savedStory);
+        modulesRef.current?.(savedStory);
+      }
+    },
+    selectedRuntimeModel,
+    setActiveTab: () => undefined,
+    settingsError,
+    workspace,
+  });
+
+  const handleDeleteStory = async (story: StoryJson) => {
+    const confirmed = window.confirm(
+      `删除故事「${story.title}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/ 运行时数据。`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await deleteStoryRecord(story.id);
+      setStories((current) => current.filter((item) => item.id !== story.id));
+      setStoryWorkspacesById((current) => {
+        const next = { ...current };
+        delete next[story.id];
+        return next;
+      });
+      setSelectedStoryId((current) => (current === story.id ? "" : current));
+      if (requestedStoryId === story.id) {
+        backToStoryHome();
+      }
+      toast.success("故事及工作区已删除。");
+    } catch (error) {
+      console.error("Failed to delete story", error);
+      toast.error(error instanceof Error ? error.message : "故事删除失败。");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderStoryList = () => {
     const totalCharacterCount = stories.reduce((sum, item) => sum + item.characters.length, 0);
     const totalNodeCount = stories.reduce((sum, item) => sum + item.graph.nodes.length, 0);
     const totalDraftCount = stories.reduce(
@@ -193,7 +381,7 @@ export const StoryContent = ({
         <div className="flex w-full flex-col gap-5 px-5 py-5 lg:px-7">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              {onExitHomeFullscreen ? (
+              {isHomeFullscreen ? (
                 <Button
                   type="button"
                   size="icon"
@@ -201,7 +389,7 @@ export const StoryContent = ({
                   className="size-9 shrink-0"
                   title="返回侧边栏"
                   aria-label="返回侧边栏"
-                  onClick={onExitHomeFullscreen}
+                  onClick={exitHomeFullscreen}
                 >
                   <ArrowLeft className="size-4" />
                 </Button>
@@ -225,8 +413,8 @@ export const StoryContent = ({
                 size="sm"
                 variant="outline"
                 className="h-9 gap-1.5"
-                onClick={onOpenImportDialog}
-                disabled={!canCreateStory}
+                onClick={openImportDialog}
+                disabled={isSaving}
               >
                 <FileUp className="size-4" />
                 导入故事
@@ -235,8 +423,8 @@ export const StoryContent = ({
                 type="button"
                 size="sm"
                 className="h-9 gap-1.5"
-                onClick={onCreateStory}
-                disabled={!canCreateStory}
+                onClick={openCreateStoryDialog}
+                disabled={isSaving}
               >
                 <Plus className="size-4" />
                 新建故事
@@ -249,86 +437,113 @@ export const StoryContent = ({
               <StoryCard
                 key={item.id}
                 story={item}
-                isActive={item.id === story.id}
-                onSelect={() => onSelectStory(item)}
-                onEdit={() => {
-                  onStartEditing(item);
-                }}
-                onDelete={() => onDeleteStory(item)}
+                isActive={item.id === selectedStory?.id}
+                onSelect={() => setSelectedStoryId(item.id)}
+                onEdit={() => openStoryEditor(item)}
+                onDelete={() => void handleDeleteStory(item)}
               />
             ))}
           </section>
         </div>
       </ScrollArea>
     );
-  }
+  };
 
   return (
-    <div className="min-h-0 flex-1 overflow-hidden bg-background">
-      <div className="flex h-full min-h-0 overflow-hidden">
-        <aside className="hidden w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4 md:flex">
-          <nav className="flex min-h-0 flex-1 flex-col gap-1">
-            {storyConfigTabs.map(({ id, label, description, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                title={`${label}：${description}`}
-                aria-label={`切换到${label}`}
-                onClick={() => onSetActiveTab(id)}
-                className={[
-                  "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-                  activeTab === id ? "bg-primary/10 text-primary" : "",
-                ].join(" ")}
-              >
-                <Icon className="size-4" />
-                <span className="max-w-full truncate">{label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
+    <>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {isEditorOpen ? (
+          <StoryHeader
+            activeStory={activeStory}
+            canCreateStory
+            isSaving={isSaving}
+            onBackToList={closeStoryEditor}
+            onCreateStory={openCreateStoryDialog}
+            onOpenImportDialog={openImportDialog}
+            onOpenStoryPresentation={openStoryPresentation}
+            openingStoryId={openingStoryId}
+            pendingDraftCount={pendingDraftCount}
+            workspaceName={activeStoryWorkspace?.name}
+          />
+        ) : null}
 
-        <ScrollArea className="min-h-0 flex-1 bg-muted/10">
-          <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
-            <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
-              {storyConfigTabs.map(({ id, label, description, icon: Icon }) => (
-                <Button
-                  key={id}
-                  type="button"
-                  title={`${label}：${description}`}
-                  aria-label={`切换到${label}`}
-                  size="sm"
-                  variant={activeTab === id ? "default" : "outline"}
-                  className="h-8 shrink-0 gap-1.5 px-3 text-xs"
-                  onClick={() => onSetActiveTab(id)}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
+        {isEditorOpen ? (
+          <StoryModules bind={modulesRef} />
+        ) : isLoading ? (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="p-6 text-sm text-muted-foreground">加载中...</div>
+          </ScrollArea>
+        ) : stories.length === 0 ? (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="flex min-h-[320px] flex-col px-6 py-5">
+              {isHomeFullscreen ? (
+                <div className="flex shrink-0">
+                  <Button type="button" variant="ghost" className="h-9 gap-2 px-2.5" onClick={exitHomeFullscreen}>
+                    <ArrowLeft className="size-4" />
+                    返回
+                  </Button>
+                </div>
+              ) : null}
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                <BookOpen className="size-10 text-muted-foreground" />
+                <div className="text-base font-medium">暂无故事</div>
+                <Button type="button" className="gap-2" onClick={openCreateStoryDialog} disabled={isSaving}>
+                  <Plus className="size-4" />
+                  新建故事
                 </Button>
-              ))}
-            </nav>
-
-            <div className="mx-auto w-full max-w-7xl">
-              {renderActiveModule()}
+              </div>
             </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        ) : (
+          renderStoryList()
+        )}
       </div>
-    </div>
+
+      <StoryImportDialog
+        open={isImportOpen}
+        activeStory={activeStory}
+        importRaw={importRaw}
+        importStory={importStory}
+        isConvertingImport={isConvertingImport}
+        setImportRaw={setImportRaw}
+        setImportStory={setImportStory}
+        onOpenChange={setIsImportOpen}
+        onConvert={() => void convertImportStory()}
+        onImportNewStory={importAsNewStory}
+        onMergeIntoActiveStory={() => void mergeImportIntoActiveStory()}
+      />
+
+      <StoryCreateDialog
+        open={isCreateDialogOpen}
+        form={createForm}
+        isSaving={isSaving}
+        onOpenChange={setIsCreateDialogOpen}
+        onFormChange={setCreateForm}
+        onSubmit={handleCreateStory}
+      />
+
+      <StoryTavernSelectDialog
+        open={tavernSelectNodeId !== undefined}
+        activeStory={activeStory}
+        nodeId={tavernSelectNodeId ?? undefined}
+        storyWorkspace={activeStoryWorkspace}
+        tavernWorkspace={workspace}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setTavernSelectNodeId(undefined);
+          }
+        }}
+      />
+    </>
   );
 };
 
-const StoryCardMetric = ({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-}) => (
+const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
   <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5 text-[11px] text-foreground/80">
     <Icon className="size-3.5 shrink-0" />
-    <span className="truncate">{value} {label}</span>
+    <span className="truncate">
+      {value} {label}
+    </span>
   </span>
 );
 
@@ -345,7 +560,8 @@ const StoryCard = ({
   onEdit: () => void;
   onDelete: () => void;
 }) => {
-  const activeNode = story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
+  const activeNode =
+    story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
     story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
     story.graph.nodes[0] ??
     null;
@@ -357,7 +573,9 @@ const StoryCard = ({
     <article
       className={[
         "flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)] transition-colors",
-        isActive ? "border-primary/45 bg-primary/[0.035] shadow-[0_20px_58px_-38px_rgb(13_148_136_/_0.45)]" : "hover:border-primary/20",
+        isActive
+          ? "border-primary/45 bg-primary/[0.035] shadow-[0_20px_58px_-38px_rgb(13_148_136_/_0.45)]"
+          : "hover:border-primary/20",
       ].join(" ")}
     >
       <button
@@ -384,11 +602,7 @@ const StoryCard = ({
                           index > 0 ? "-ml-3" : "",
                         ].join(" ")}
                       >
-                        <img
-                          src={avatar.src}
-                          alt={character.name}
-                          className="size-full object-cover"
-                        />
+                        <img src={avatar.src} alt={character.name} className="size-full object-cover" />
                       </span>
                     );
                   })}
@@ -408,9 +622,7 @@ const StoryCard = ({
         </div>
 
         <div className="flex flex-col px-3.5 pt-8 pb-3">
-          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">
-            {story.title}
-          </h3>
+          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{story.title}</h3>
           <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
             {story.outline || "暂无故事定位。"}
           </p>
@@ -429,12 +641,8 @@ const StoryCard = ({
                   <Target className="size-4" />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-5 text-foreground">
-                    当前目标
-                  </div>
-                  <div className="line-clamp-1">
-                    {story.goal || activeNode?.title || "暂无整体目标。"}
-                  </div>
+                  <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
+                  <div className="line-clamp-1">{story.goal || activeNode?.title || "暂无整体目标。"}</div>
                 </div>
               </div>
             </div>
