@@ -1,9 +1,9 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { assertStoryJsonReady, normalizeStoryJson } from "../model/story-normalizer";
-import type { StoryJson } from "../model/story-types";
+import { assertStoryJsonReady, normalizeStoryJson } from "../../model/normalizer";
+import type { StoryJson } from "../../model/types";
 
-export type StoryJsonConversionInput = {
+type StoryJsonConversionInput = {
   source: string;
   runtimeModel?: RuntimeModelInput | null;
   existingStory?: StoryJson | null;
@@ -23,9 +23,7 @@ const extractJsonObjectText = (value: string) => {
   const stripped = stripOutputFence(value);
   const firstBrace = stripped.indexOf("{");
   const lastBrace = stripped.lastIndexOf("}");
-  return firstBrace >= 0 && lastBrace > firstBrace
-    ? stripped.slice(firstBrace, lastBrace + 1)
-    : stripped;
+  return firstBrace >= 0 && lastBrace > firstBrace ? stripped.slice(firstBrace, lastBrace + 1) : stripped;
 };
 
 const parseJsonObject = (value: string) => {
@@ -46,12 +44,10 @@ const isStoryJsonLike = (value: unknown) => {
 
   return (
     value.version === 1 ||
-    (
-      typeof value.title === "string" &&
+    (typeof value.title === "string" &&
       Array.isArray(value.scenes) &&
       isRecord(value.graph) &&
-      Array.isArray(value.graph.nodes)
-    )
+      Array.isArray(value.graph.nodes))
   );
 };
 
@@ -83,47 +79,48 @@ export const parseStoryJsonFromText = (
   }
 };
 
-const buildStoryJsonSchemaInstruction = () => [
-  "输出必须是一个 JSON 对象，不能有 markdown、解释、注释或额外文本。",
-  "JSON 必须符合 StoryJson v1：",
-  "- version: 1",
-  "- id, workspaceId, title, outline, goal, userPersonaName",
-  "- characters: [{ id, name, avatar, description, speakingStyle, writingStyle?, replyStylePrompt?, goals?, relationshipSummary?, publicRelationshipSummary?, memory? }]",
-  "- lorebookEntries: [{ id, title, content, keywords, enabled, alwaysOn }]",
-  "- scenes: [{ id, title, scene, goal, plot, direction, transition, memory, status? }]",
-  "- graph: { entryNodeId, activeNodeId, stages, nodes, edges }",
-  "- manuscriptInbox: { version: 1, drafts: [], accepted: [] }",
-  "- createdAt, updatedAt",
-  "graph.nodes 的 sceneId 必须引用 scenes；stageId 必须引用 stages。",
-  "如果无法从来源判断字段内容，填空字符串或空数组，但保留结构完整。",
-].join("\n");
+const buildStoryJsonSchemaInstruction = () =>
+  [
+    "输出必须是一个 JSON 对象，不能有 markdown、解释、注释或额外文本。",
+    "JSON 必须符合 StoryJson v1：",
+    "- version: 1",
+    "- id, workspaceId, title, outline, goal, userPersonaName",
+    "- characters: [{ id, name, avatar, description, speakingStyle, writingStyle?, replyStylePrompt?, goals?, relationshipSummary?, publicRelationshipSummary?, memory? }]",
+    "- lorebookEntries: [{ id, title, content, keywords, enabled, alwaysOn }]",
+    "- scenes: [{ id, title, scene, goal, plot, direction, transition, memory, status? }]",
+    "- graph: { entryNodeId, activeNodeId, stages, nodes, edges }",
+    "- manuscriptInbox: { version: 1, drafts: [], accepted: [] }",
+    "- createdAt, updatedAt",
+    "graph.nodes 的 sceneId 必须引用 scenes；stageId 必须引用 stages。",
+    "如果无法从来源判断字段内容，填空字符串或空数组，但保留结构完整。",
+  ].join("\n");
 
-const buildStoryJsonConverterSystemPrompt = () => [
-  "你是 story.json 转换器，只负责把来源内容转换为应用的标准故事 JSON。",
-  "先自动识别来源内容类型，例如标准 story.json、纯文本、大纲、角色卡、世界书或 AI 生成设定，再选择合适的字段映射策略。",
-  "不要输出补丁、摘要或解释。",
-  "不要保留非标准字段。",
-  buildStoryJsonSchemaInstruction(),
-].join("\n\n");
+const buildStoryJsonConverterSystemPrompt = () =>
+  [
+    "你是 story.json 转换器，只负责把来源内容转换为应用的标准故事 JSON。",
+    "先自动识别来源内容类型，例如标准 story.json、纯文本、大纲、角色卡、世界书或 AI 生成设定，再选择合适的字段映射策略。",
+    "不要输出补丁、摘要或解释。",
+    "不要保留非标准字段。",
+    buildStoryJsonSchemaInstruction(),
+  ].join("\n\n");
 
-const buildStoryJsonConverterRequest = (input: StoryJsonConversionInput) => JSON.stringify(
-  {
-    targetIdentity: {
-      storyId: input.storyId ?? input.existingStory?.id ?? "",
-      workspaceId: input.workspaceId ?? input.existingStory?.workspaceId ?? "",
-      title: input.title ?? input.existingStory?.title ?? "",
+const buildStoryJsonConverterRequest = (input: StoryJsonConversionInput) =>
+  JSON.stringify(
+    {
+      targetIdentity: {
+        storyId: input.storyId ?? input.existingStory?.id ?? "",
+        workspaceId: input.workspaceId ?? input.existingStory?.workspaceId ?? "",
+        title: input.title ?? input.existingStory?.title ?? "",
+      },
+      mergeMode: Boolean(input.existingStory),
+      existingStory: input.existingStory ?? null,
+      source: input.source,
     },
-    mergeMode: Boolean(input.existingStory),
-    existingStory: input.existingStory ?? null,
-    source: input.source,
-  },
-  null,
-  2,
-);
+    null,
+    2,
+  );
 
-export const convertStorySourceToStoryJson = async (
-  input: StoryJsonConversionInput,
-): Promise<StoryJson> => {
+export const convertStorySourceToStoryJson = async (input: StoryJsonConversionInput): Promise<StoryJson> => {
   const parsed = parseStoryJsonFromText(input.source, {
     storyId: input.storyId ?? input.existingStory?.id,
     workspaceId: input.workspaceId ?? input.existingStory?.workspaceId,
@@ -141,17 +138,19 @@ export const convertStorySourceToStoryJson = async (
   const result = await storyJsonAgentClient.agent.chat({
     runtimeModel: input.runtimeModel,
     systemPrompt: buildStoryJsonConverterSystemPrompt(),
-    messages: [{
-      role: "user",
-      content: [
-        input.existingStory
-          ? "将来源内容合并进 existingStory，并输出合并后的完整 StoryJson。"
-          : "将来源内容转换为一个完整 StoryJson。",
-        "<request_context>",
-        buildStoryJsonConverterRequest(input),
-        "</request_context>",
-      ].join("\n\n"),
-    }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          input.existingStory
+            ? "将来源内容合并进 existingStory，并输出合并后的完整 StoryJson。"
+            : "将来源内容转换为一个完整 StoryJson。",
+          "<request_context>",
+          buildStoryJsonConverterRequest(input),
+          "</request_context>",
+        ].join("\n\n"),
+      },
+    ],
     stream: false,
   });
 

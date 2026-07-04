@@ -1,8 +1,5 @@
 import { normalizeTavernAvatarId } from "@/assets/avatars";
-import {
-  createEmptyStoryManuscriptInbox,
-  type StoryManuscriptInbox,
-} from "./manuscript-inbox";
+import { createEmptyStoryManuscriptInbox, type StoryManuscriptInbox } from "../modules/manuscripts/manuscript-inbox";
 import type {
   StoryCharacterJson,
   StoryCharacterMemoryJson,
@@ -14,7 +11,7 @@ import type {
   StorySceneJson,
   StorySceneStatusJson,
   StoryStageJson,
-} from "./story-types";
+} from "./types";
 
 export type StoryStateJson = {
   version: 1;
@@ -29,19 +26,20 @@ export type NormalizeStoryJsonOptions = {
   timestamp?: number;
 };
 
-const trimText = (value: unknown) => typeof value === "string" ? value.trim() : "";
+const trimText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const stringArray = (value: unknown) => Array.isArray(value)
-  ? value.flatMap((item) => {
-      const text = trimText(item);
-      return text ? [text] : [];
-    })
-  : [];
+const stringArray = (value: unknown) =>
+  Array.isArray(value)
+    ? value.flatMap((item) => {
+        const text = trimText(item);
+        return text ? [text] : [];
+      })
+    : [];
 
 const numberValue = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -60,10 +58,7 @@ const normalizeCharacterMemory = (value: unknown): StoryCharacterMemoryJson | un
   };
 };
 
-const normalizeCharacter = (
-  value: unknown,
-  index: number,
-): StoryCharacterJson | null => {
+const normalizeCharacter = (value: unknown, index: number): StoryCharacterJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -91,10 +86,7 @@ const normalizeCharacter = (
   };
 };
 
-const normalizeLorebookEntry = (
-  value: unknown,
-  index: number,
-): StoryLorebookEntryJson | null => {
+const normalizeLorebookEntry = (value: unknown, index: number): StoryLorebookEntryJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -130,10 +122,7 @@ const normalizeSceneStatus = (value: unknown): StorySceneStatusJson | undefined 
   return Object.values(status).some(Boolean) ? status : undefined;
 };
 
-const normalizeScene = (
-  value: unknown,
-  index: number,
-): StorySceneJson | null => {
+const normalizeScene = (value: unknown, index: number): StorySceneJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -159,10 +148,7 @@ const normalizeScene = (
   };
 };
 
-const normalizeStage = (
-  value: unknown,
-  index: number,
-): StoryStageJson | null => {
+const normalizeStage = (value: unknown, index: number): StoryStageJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -196,10 +182,7 @@ const normalizeNode = (
   };
 };
 
-const normalizeEdge = (
-  value: unknown,
-  index: number,
-): StoryEdgeJson | null => {
+const normalizeEdge = (value: unknown, index: number): StoryEdgeJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -221,32 +204,30 @@ const normalizeEdge = (
   };
 };
 
-const createFallbackGraph = ({
-  storyId,
-  scenes,
-}: {
-  storyId: string;
-  scenes: StorySceneJson[];
-}): StoryGraphJson => {
+const createFallbackGraph = ({ storyId, scenes }: { storyId: string; scenes: StorySceneJson[] }): StoryGraphJson => {
   const stageId = `${storyId}-stage-main`;
   const nodeId = `${storyId}-node-main`;
   return {
     entryNodeId: nodeId,
     activeNodeId: nodeId,
-    stages: [{
-      id: stageId,
-      title: "起始阶段",
-      order: 0,
-    }],
-    nodes: [{
-      id: nodeId,
-      stageId,
-      sceneId: scenes[0]?.id,
-      title: "起始节点",
-      type: "normal",
-      pathRole: "main",
-      status: "draft",
-    }],
+    stages: [
+      {
+        id: stageId,
+        title: "起始阶段",
+        order: 0,
+      },
+    ],
+    nodes: [
+      {
+        id: nodeId,
+        stageId,
+        sceneId: scenes[0]?.id,
+        title: "起始节点",
+        type: "normal",
+        pathRole: "main",
+        status: "draft",
+      },
+    ],
     edges: [],
   };
 };
@@ -284,17 +265,13 @@ const normalizeGraph = ({
   const edges = Array.isArray(value.edges)
     ? value.edges.flatMap((edge, index) => {
         const normalized = normalizeEdge(edge, index);
-        return normalized && nodeIds.has(normalized.fromNodeId) && nodeIds.has(normalized.toNodeId)
-          ? [normalized]
-          : [];
+        return normalized && nodeIds.has(normalized.fromNodeId) && nodeIds.has(normalized.toNodeId) ? [normalized] : [];
       })
     : [];
   const entryNodeId = nodeIds.has(trimText(value.entryNodeId))
     ? trimText(value.entryNodeId)
-    : resolvedNodes[0]?.id ?? fallback.entryNodeId;
-  const activeNodeId = nodeIds.has(trimText(value.activeNodeId))
-    ? trimText(value.activeNodeId)
-    : entryNodeId;
+    : (resolvedNodes[0]?.id ?? fallback.entryNodeId);
+  const activeNodeId = nodeIds.has(trimText(value.activeNodeId)) ? trimText(value.activeNodeId) : entryNodeId;
 
   return {
     entryNodeId,
@@ -306,14 +283,9 @@ const normalizeGraph = ({
 };
 
 const normalizeManuscriptInbox = (value: unknown): StoryManuscriptInbox =>
-  isRecord(value) && value.version === 1
-    ? value as StoryManuscriptInbox
-    : createEmptyStoryManuscriptInbox();
+  isRecord(value) && value.version === 1 ? (value as StoryManuscriptInbox) : createEmptyStoryManuscriptInbox();
 
-export const normalizeStoryJson = (
-  value: unknown,
-  options: NormalizeStoryJsonOptions = {},
-): StoryJson | null => {
+export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOptions = {}): StoryJson | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -328,26 +300,29 @@ export const normalizeStoryJson = (
   const lorebookInput = Array.isArray(value.lorebookEntries)
     ? value.lorebookEntries
     : Array.isArray(world.lorebookEntries)
-    ? world.lorebookEntries
-    : [];
+      ? world.lorebookEntries
+      : [];
   const scenes = Array.isArray(value.scenes)
     ? value.scenes.flatMap((scene, index) => {
         const normalized = normalizeScene(scene, index);
         return normalized ? [normalized] : [];
       })
     : [];
-  const resolvedScenes = scenes.length > 0
-    ? scenes
-    : [{
-        id: `${id}-scene-main`,
-        title: "起始场景",
-        scene: trimText(value.outline),
-        goal: trimText(value.goal),
-        plot: "",
-        direction: "",
-        transition: "",
-        memory: "",
-      }];
+  const resolvedScenes =
+    scenes.length > 0
+      ? scenes
+      : [
+          {
+            id: `${id}-scene-main`,
+            title: "起始场景",
+            scene: trimText(value.outline),
+            goal: trimText(value.goal),
+            plot: "",
+            direction: "",
+            transition: "",
+            memory: "",
+          },
+        ];
 
   return {
     version: 1,
@@ -385,10 +360,7 @@ export const createEmptyStoryState = (): StoryStateJson => ({
   stories: [],
 });
 
-export const normalizeStoryState = (
-  workspaceId: string,
-  value: unknown,
-): StoryStateJson | null => {
+export const normalizeStoryState = (workspaceId: string, value: unknown): StoryStateJson | null => {
   if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.stories)) {
     return null;
   }
@@ -406,7 +378,7 @@ export const normalizeStoryState = (
 
   const activeStoryId = stories.some((story) => story.id === value.activeStoryId)
     ? trimText(value.activeStoryId)
-    : stories[0]?.id ?? "";
+    : (stories[0]?.id ?? "");
 
   return {
     version: 1,

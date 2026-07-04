@@ -11,7 +11,7 @@ import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import { submitStoryManuscript } from "@/features/story/persistence/story-storage";
+import { submitStoryManuscript } from "@/features/pages/stories/storage";
 import { saveChatSession } from "../../api";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";
@@ -27,11 +27,7 @@ import { useAgentClientEvents } from "./use-agent-client-events";
 import { useModelSettings } from "./use-model-settings";
 import { type RunningAgentTaskContext, useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
-import {
-  loadChatSeedFromStory,
-  type StoryChatSeed,
-  type StoryChatSeedRequest,
-} from "@/features/story/projection/chat-seed";
+import type { StoryChatSeed } from "./story-seed";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -66,7 +62,7 @@ type WorkspaceChatPageProps = {
   onSessionCreated?: (sessionId: string) => void;
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
-  storySeedRequest?: StoryChatSeedRequest | null;
+  storyChatSeed?: StoryChatSeed | null;
 };
 
 const resolveStringStateAction = (action: SetStateAction<string>, previous: string) =>
@@ -129,7 +125,7 @@ export const WorkspaceChatPage = ({
   onSessionCreated,
   onOpenWorkspace,
   onCreateWorkspace,
-  storySeedRequest = null,
+  storyChatSeed = null,
 }: WorkspaceChatPageProps) => {
   const agentClient = useMemo(() => createAgentClient(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -175,7 +171,6 @@ export const WorkspaceChatPage = ({
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
-  const [storyChatSeed, setStoryChatSeed] = useState<StoryChatSeed | null>(null);
   const [storySubmittingMessageIds, setStorySubmittingMessageIds] = useState<string[]>([]);
   const upsertSession = useChatSessionsStore((store) => store.upsertSession);
   const upsertSessionMeta = useChatSessionsStore((store) => store.upsertSessionMeta);
@@ -264,31 +259,6 @@ export const WorkspaceChatPage = ({
 
     return `${groupNames.slice(0, 2).join("、")} 等 ${groupNames.length} 组`;
   }, [selectedSkillGroupIds, selectedSkillGroups]);
-  useEffect(() => {
-    if (!storySeedRequest?.storyId) {
-      setStoryChatSeed(null);
-      return;
-    }
-
-    let cancelled = false;
-    loadChatSeedFromStory(storySeedRequest)
-      .then((seed) => {
-        if (!cancelled) {
-          setStoryChatSeed(seed);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error("Failed to load story chat seed", error);
-          setStoryChatSeed(null);
-          setChatError("无法加载故事聊天上下文。");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storySeedRequest?.nodeId, storySeedRequest?.storyId]);
   const storyRuntimeContextSections = useMemo(
     () => (storyChatSeed ? [storyChatSeed.runtimeInstruction] : []),
     [storyChatSeed],

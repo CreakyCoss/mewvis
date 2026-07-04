@@ -3,9 +3,14 @@ import { useEffect } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { WorkspaceChatPage } from "@/features/pages/chat/components/workspace-chat-page";
+import type { StoryChatSeed } from "@/features/pages/chat/components/workspace-chat-page/story-seed";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { APP_DISPLAY_NAME } from "@/product-config";
+
+type ChatLocationState = {
+  storyChatSeed?: StoryChatSeed | null;
+};
 
 const LoadingState = ({ error }: { error: string }) => (
   <main className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-foreground">
@@ -43,18 +48,10 @@ export const ChatPage = () => {
   const workspaces = overview?.workspaces ?? [];
   const fallbackWorkspace =
     defaultWorkspace ?? activeWorkspace ?? workspaces.find(isDefaultWorkspace) ?? workspaces[0] ?? null;
-  const workspace =
-    workspaces.find((item) => item.id === workspaceId) ?? fallbackWorkspace;
+  const workspace = workspaces.find((item) => item.id === workspaceId) ?? fallbackWorkspace;
   const isRouteNewSession = !sessionId && location.pathname.endsWith("/new");
-  const searchParams = new URLSearchParams(location.search);
-  const storyId = searchParams.get("storyId")?.trim() ?? "";
-  const storyNodeId = searchParams.get("storyNodeId")?.trim() ?? "";
-  const storySeedRequest = storyId
-    ? {
-        storyId,
-        nodeId: storyNodeId || null,
-      }
-    : null;
+  const locationState = location.state as ChatLocationState | null;
+  const storyChatSeed = locationState?.storyChatSeed ?? null;
 
   useEffect(() => {
     if (!workspace) {
@@ -75,7 +72,7 @@ export const ChatPage = () => {
   }
 
   if (workspaceId && workspace.id !== workspaceId) {
-    return <Navigate to={`/chat/${workspace.id}/new`} replace />;
+    return <Navigate to={`/chat/${workspace.id}/new`} replace state={location.state} />;
   }
 
   const openWorkspace = (targetWorkspace: Workspace) => {
@@ -94,15 +91,14 @@ export const ChatPage = () => {
           navigate(
             {
               pathname: `/chat/${workspace.id}/session/${nextSessionId}`,
-              search: location.search,
             },
-            { replace: true },
+            { replace: true, state: location.state },
           );
         }
       }}
       onOpenWorkspace={openWorkspace}
       onCreateWorkspace={openCreateWorkspace}
-      storySeedRequest={storySeedRequest}
+      storyChatSeed={storyChatSeed}
     />
   );
 };

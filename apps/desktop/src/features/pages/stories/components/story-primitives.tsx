@@ -1,12 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export const selectClassName =
@@ -14,15 +8,7 @@ export const selectClassName =
 
 export const emptyValueText = "未填写";
 
-export const StoryMetric = ({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) => (
+export const StoryMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
   <div className="flex min-w-0 items-center gap-2.5 border-border/60 bg-background/72 px-3 py-3">
     <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/10">
       <Icon className="size-4" />
@@ -87,16 +73,12 @@ export const StorySection = ({
               </span>
             ) : null}
           </div>
-          {description ? (
-            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p>
-          ) : null}
+          {description ? <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p> : null}
         </div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
-    <div className={cn("space-y-3 px-4 py-4", contentClassName)}>
-      {children}
-    </div>
+    <div className={cn("space-y-3 px-4 py-4", contentClassName)}>{children}</div>
   </section>
 );
 
@@ -121,11 +103,7 @@ export const EditorField = ({
       {action ? <span className="shrink-0">{action}</span> : null}
     </span>
     {children}
-    {description ? (
-      <span className="block text-xs leading-5 text-muted-foreground">
-        {description}
-      </span>
-    ) : null}
+    {description ? <span className="block text-xs leading-5 text-muted-foreground">{description}</span> : null}
   </label>
 );
 
@@ -153,14 +131,11 @@ export const editorIconActionButtonClassName =
 export const editorDangerIconActionButtonClassName =
   "size-7 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
 
-export const editorListEntryTitleClassName =
-  "min-w-0 truncate text-[13px] font-semibold leading-5 text-foreground/90";
+export const editorListEntryTitleClassName = "min-w-0 truncate text-[13px] font-semibold leading-5 text-foreground/90";
 
-export const editorListEntryBodyClassName =
-  "whitespace-pre-wrap text-[13px] leading-5 text-muted-foreground";
+export const editorListEntryBodyClassName = "whitespace-pre-wrap text-[13px] leading-5 text-muted-foreground";
 
-export const editorListBadgeClassName =
-  "h-[18px] px-1.5 text-[11px] font-medium leading-4";
+export const editorListBadgeClassName = "h-[18px] px-1.5 text-[11px] font-medium leading-4";
 
 export const editorListKeywordClassName =
   "rounded-full bg-muted/70 px-2 py-0.5 text-[11px] leading-4 text-muted-foreground";
@@ -168,13 +143,7 @@ export const editorListKeywordClassName =
 export const editorControlClassName =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
-export const StoryFormDialogContent = ({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) => (
+export const StoryFormDialogContent = ({ children, className }: { children: ReactNode; className?: string }) => (
   <DialogContent
     className={cn(
       "!flex h-[min(820px,calc(100vh-2rem))] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl",
@@ -201,11 +170,7 @@ export const StoryFormHeader = ({
       </span>
       <div className="min-w-0">
         <DialogTitle className="text-xl leading-7">{title}</DialogTitle>
-        {description ? (
-          <DialogDescription className="mt-0.5 text-sm leading-6">
-            {description}
-          </DialogDescription>
-        ) : null}
+        {description ? <DialogDescription className="mt-0.5 text-sm leading-6">{description}</DialogDescription> : null}
       </div>
     </div>
   </DialogHeader>
@@ -255,9 +220,7 @@ export const StoryFormFooter = ({
   >
     {status ? (
       <>
-        <div className="min-w-0 text-xs leading-5 text-muted-foreground">
-          {status}
-        </div>
+        <div className="min-w-0 text-xs leading-5 text-muted-foreground">{status}</div>
         <div className="flex shrink-0 justify-end gap-2">{children}</div>
       </>
     ) : (
@@ -288,11 +251,7 @@ export const StoryFormSidebarCard = ({
       )}
       <div className="min-w-0">
         <div className="truncate text-lg font-semibold leading-7">{title}</div>
-        {meta ? (
-          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] leading-4">
-            {meta}
-          </div>
-        ) : null}
+        {meta ? <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] leading-4">{meta}</div> : null}
       </div>
     </div>
     {children ? <div className="mt-4">{children}</div> : null}
@@ -311,8 +270,7 @@ export const StoryStatusPill = ({
       "inline-flex h-5 min-w-10 items-center justify-center rounded-full px-2 text-[11px] font-medium leading-4 ring-1",
       tone === "active" &&
         "bg-teal-500/10 text-teal-700 ring-teal-500/12 dark:bg-teal-400/14 dark:text-teal-200 dark:ring-teal-300/16",
-      tone === "muted" &&
-        "bg-muted text-muted-foreground ring-border/55 dark:bg-muted/55",
+      tone === "muted" && "bg-muted text-muted-foreground ring-border/55 dark:bg-muted/55",
       tone === "info" &&
         "bg-sky-500/10 text-sky-700 ring-sky-500/14 dark:bg-sky-400/14 dark:text-sky-200 dark:ring-sky-300/16",
       tone === "warning" &&
@@ -323,13 +281,7 @@ export const StoryStatusPill = ({
   </span>
 );
 
-export const StoryFormSidebarPanel = ({
-  title,
-  children,
-}: {
-  title: ReactNode;
-  children: ReactNode;
-}) => (
+export const StoryFormSidebarPanel = ({ title, children }: { title: ReactNode; children: ReactNode }) => (
   <section className="rounded-lg border bg-background/74 p-3 shadow-xs">
     <div className="text-xs font-medium text-muted-foreground">{title}</div>
     <div className="mt-2">{children}</div>
@@ -346,9 +298,7 @@ export const StoryFormNav = ({
   }>;
 }) => (
   <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg border bg-background/74 p-2 shadow-xs">
-    <div className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">
-      快速定位
-    </div>
+    <div className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">快速定位</div>
     {items.map(({ href, icon: Icon, label }) => (
       <button
         key={href}
@@ -393,22 +343,9 @@ export const StoryFormCard = ({
   const hasDescription = Boolean(description);
 
   return (
-    <section
-      id={id}
-      className={cn("overflow-hidden rounded-lg border bg-card shadow-xs", className)}
-    >
-      <div
-        className={cn(
-          "flex justify-between gap-3 px-4 py-3",
-          hasDescription ? "items-start" : "items-center",
-        )}
-      >
-        <div
-          className={cn(
-            "flex min-w-0 gap-2.5",
-            hasDescription ? "items-start" : "items-center",
-          )}
-        >
+    <section id={id} className={cn("overflow-hidden rounded-lg border bg-card shadow-xs", className)}>
+      <div className={cn("flex justify-between gap-3 px-4 py-3", hasDescription ? "items-start" : "items-center")}>
+        <div className={cn("flex min-w-0 gap-2.5", hasDescription ? "items-start" : "items-center")}>
           <span
             className={cn(
               "flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary",
@@ -419,18 +356,12 @@ export const StoryFormCard = ({
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold leading-5">{title}</h3>
-            {description ? (
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
+            {description ? <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p> : null}
           </div>
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      <div className={cn("border-t px-4 py-3", contentClassName)}>
-        {children}
-      </div>
+      <div className={cn("border-t px-4 py-3", contentClassName)}>{children}</div>
     </section>
   );
 };

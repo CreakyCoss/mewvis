@@ -17,13 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type {
-  StoryJson,
-  StoryEdgeJson,
-  StoryNodeJson,
-  StorySceneJson,
-  StoryStageJson,
-} from "@/features/story/model/story-types";
+import type { StoryJson, StoryEdgeJson, StoryNodeJson, StorySceneJson, StoryStageJson } from "../../model/types";
 import { cn } from "@/lib/utils";
 import { createStoryScene, createStoryStage, formatCount } from "../../../components/story-form-utils";
 import {

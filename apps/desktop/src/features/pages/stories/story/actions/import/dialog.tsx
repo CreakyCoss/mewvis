@@ -15,12 +15,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
-import {
-  convertStorySourceToStoryJson,
-  parseStoryJsonFromText,
-} from "@/features/story/importing/story-import-converter";
-import { normalizeStoryJson } from "@/features/story/model/story-normalizer";
-import type { StoryJson } from "@/features/story/model/story-types";
+import { convertStorySourceToStoryJson, parseStoryJsonFromText } from "./converter";
+import { normalizeStoryJson } from "../../model/normalizer";
+import type { StoryJson } from "../../model/types";
 import { EditorField, EmptyBlock } from "../../../components/story-primitives";
 
 type StoryImportDialogProps = {

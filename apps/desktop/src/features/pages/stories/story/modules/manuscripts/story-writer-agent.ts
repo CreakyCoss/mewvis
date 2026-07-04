@@ -1,7 +1,7 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { createStoryNodeRuntimeContext } from "../projection/story-runtime-context";
-import type { StoryJson } from "../model/story-types";
+import { buildStoryNodePublicContext } from "../../utils/node-public-context";
+import type { StoryJson } from "../../model/types";
 
 export type StoryWriterAgentMode = "polish" | "expand";
 
@@ -34,22 +34,20 @@ const buildStoryWriterSystemPrompt = () =>
   ].join("\n");
 
 const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
-  const runtimeData = createStoryNodeRuntimeContext(input.story, {
-    nodeId: input.nodeId,
-  });
+  const nodeContext = buildStoryNodePublicContext(input.story, input.nodeId);
 
   return JSON.stringify(
     {
       mode: input.mode,
-      story: runtimeData.background,
-      currentNode: runtimeData.current.node,
-      currentScene: runtimeData.current.scene,
+      story: nodeContext.background,
+      currentNode: nodeContext.current.node,
+      currentScene: nodeContext.current.scene,
       graph: {
-        activeStage: runtimeData.current.stage,
-        outgoingEdges: runtimeData.branch.outgoingEdges,
+        activeStage: nodeContext.current.stage,
+        outgoingEdges: nodeContext.branch.outgoingEdges,
       },
-      characters: runtimeData.characters,
-      lorebookEntries: runtimeData.world.lorebookEntries.filter((entry) => entry.enabled),
+      characters: nodeContext.characters,
+      lorebookEntries: nodeContext.world.lorebookEntries.filter((entry) => entry.enabled),
       manuscript: {
         title: input.title,
         summary: input.summary ?? "",

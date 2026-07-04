@@ -5,10 +5,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { openTavernPresentationInput } from "@/features/pages/tavern/presentation/open";
 import type { TavernRoom } from "@/features/pages/tavern/types";
-import { createTavernInputFromStory } from "@/features/story/projection/tavern-input";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";
+import { createTavernPayload } from "./payload";
 import { getDefaultNodeId, resolveNodeId } from "../node";
 
 type OpenStoryTavernInput = {
@@ -44,7 +44,7 @@ export const TavernStoryAction = () => {
         tavernId: tavernRoom.id,
         runtimePath: getTavernWorkspacePath(storyNodeId),
         carrierRoom: tavernRoom,
-        presentationInput: createTavernInputFromStory(story, {
+        presentationInput: createTavernPayload(story, {
           nodeId: storyNodeId,
         }),
       });

@@ -4,9 +4,9 @@ import {
   submitStoryManuscriptToState,
   type StoryJson,
   type StoryState,
-} from "../model/story-state";
-import { normalizeStoryState } from "../model/story-normalizer";
-import type { StoryManuscriptSubmissionInput } from "../model/manuscript-inbox";
+} from "./story/model/state";
+import { normalizeStoryState } from "./story/model/normalizer";
+import type { StoryManuscriptSubmissionInput } from "./story/modules/manuscripts/manuscript-inbox";
 
 const STORY_REGISTRY_STORAGE_KEY = "novel-claw:story:records";
 const STORY_JSON_STORAGE_PREFIX = "novel-claw:story:json";
@@ -351,10 +351,7 @@ export const loadStoryById = async (
   };
 };
 
-export const submitStoryManuscript = async (
-  storyId: string,
-  input: StoryManuscriptSubmissionInput,
-) => {
+export const submitStoryManuscript = async (storyId: string, input: StoryManuscriptSubmissionInput) => {
   const loaded = await loadStoryById(storyId);
   if (!loaded) {
     throw new Error("找不到要收稿的故事。");

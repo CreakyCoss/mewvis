@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { type StoryJson, type StoryCharacterJson } from "@/features/story/model/story-types";
+import { type StoryJson, type StoryCharacterJson } from "../../model/types";
 import { cn } from "@/lib/utils";
 import { createStoryCharacter, emptyCharacterMemory } from "../../../components/story-form-utils";
 import {

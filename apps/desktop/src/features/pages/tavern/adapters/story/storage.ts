@@ -1,6 +1,4 @@
-import {
-  submitStoryManuscript,
-} from "@/features/story/persistence/story-storage";
+import { submitStoryManuscript } from "@/features/pages/stories/storage";
 
 type TavernStoryManuscriptSubmissionInput = Parameters<typeof submitStoryManuscript>[1];
 

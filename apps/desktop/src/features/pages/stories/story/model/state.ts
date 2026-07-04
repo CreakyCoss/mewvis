@@ -2,11 +2,9 @@ import {
   createEmptyStoryManuscriptInbox,
   submitStoryManuscriptDraft,
   type StoryManuscriptSubmissionInput,
-} from "./manuscript-inbox";
-import type {
-  StoryJson as CanonicalStoryJson,
-} from "./story-types";
-export type { StoryJson } from "./story-types";
+} from "../modules/manuscripts/manuscript-inbox";
+import type { StoryJson as CanonicalStoryJson } from "./types";
+export type { StoryJson } from "./types";
 
 export type StoryState = {
   version: 1;
@@ -45,33 +43,39 @@ export const createStandaloneStoryJson = ({
     userPersonaName: "我",
     characters: [],
     lorebookEntries: [],
-    scenes: [{
-      id: sceneId,
-      title: "起始场景",
-      scene: "",
-      goal: "",
-      plot: "",
-      direction: "",
-      transition: "",
-      memory: "",
-    }],
+    scenes: [
+      {
+        id: sceneId,
+        title: "起始场景",
+        scene: "",
+        goal: "",
+        plot: "",
+        direction: "",
+        transition: "",
+        memory: "",
+      },
+    ],
     graph: {
       entryNodeId: nodeId,
       activeNodeId: nodeId,
-      stages: [{
-        id: stageId,
-        title: "起始阶段",
-        order: 0,
-      }],
-      nodes: [{
-        id: nodeId,
-        stageId,
-        sceneId,
-        title: "起始节点",
-        type: "normal",
-        pathRole: "main",
-        status: "draft",
-      }],
+      stages: [
+        {
+          id: stageId,
+          title: "起始阶段",
+          order: 0,
+        },
+      ],
+      nodes: [
+        {
+          id: nodeId,
+          stageId,
+          sceneId,
+          title: "起始节点",
+          type: "normal",
+          pathRole: "main",
+          status: "draft",
+        },
+      ],
       edges: [],
     },
     manuscriptInbox: createEmptyStoryManuscriptInbox(),
@@ -80,20 +84,15 @@ export const createStandaloneStoryJson = ({
   };
 };
 
-export const upsertStoryJson = (
-  state: StoryState,
-  story: CanonicalStoryJson,
-): StoryState => {
+export const upsertStoryJson = (state: StoryState, story: CanonicalStoryJson): StoryState => {
   const exists = state.stories.some((item) => item.id === story.id);
   const stories = exists
-    ? state.stories.map((item) => item.id === story.id ? story : item)
+    ? state.stories.map((item) => (item.id === story.id ? story : item))
     : [...state.stories, story];
 
   return {
     version: 1,
-    activeStoryId: stories.some((item) => item.id === state.activeStoryId)
-      ? state.activeStoryId
-      : story.id,
+    activeStoryId: stories.some((item) => item.id === state.activeStoryId) ? state.activeStoryId : story.id,
     stories,
   };
 };

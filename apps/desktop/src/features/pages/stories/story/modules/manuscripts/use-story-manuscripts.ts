@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
+import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import {
   acceptStoryManuscriptDraft,
   rejectStoryManuscriptDraft,
@@ -7,39 +8,25 @@ import {
   updateStoryManuscriptDraft,
   type StoryManuscriptDraftUpdateInput,
   type StoryManuscriptSubmissionInput,
-} from "@/features/story/model/manuscript-inbox";
-import { runStoryWriterAgent } from "@/features/story/agents/story-writer-agent";
-import type { StoryJson } from "@/features/story/model/story-types";
-import { getPendingDraftCount } from "./story-form-utils";
+} from "./manuscript-inbox";
+import type { StoryJson } from "../../model/types";
+import type { StoryWorkspace } from "../../../storage";
+import { runStoryWriterAgent } from "./story-writer-agent";
 
 type UseStoryManuscriptsInput = {
-  activeStory: StoryJson | null;
-  persistStory: (story: StoryJson) => void;
-  runtimeAgentRequiresModel: boolean;
-  selectedRuntimeModel: RuntimeModelOption | null;
-  settingsError: string;
-  workspace: { path: string } | null;
+  onSave: (story: StoryJson) => void;
+  story: StoryJson;
+  workspace: StoryWorkspace | null;
 };
 
-export const useStoryManuscripts = ({
-  activeStory,
-  persistStory,
-  runtimeAgentRequiresModel,
-  selectedRuntimeModel,
-  settingsError,
-  workspace,
-}: UseStoryManuscriptsInput) => {
-  const acceptManuscript = (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => {
-    if (!activeStory) {
-      return;
-    }
+export const useStoryManuscripts = ({ onSave, story, workspace }: UseStoryManuscriptsInput) => {
+  const { runtimeAgentRequiresModel, selectedRuntimeModel, settingsError } = useRuntimeAgentSettings();
 
+  const acceptManuscript = (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => {
     try {
-      const inbox = patch
-        ? updateStoryManuscriptDraft(activeStory.manuscriptInbox, draftId, patch)
-        : activeStory.manuscriptInbox;
-      persistStory({
-        ...activeStory,
+      const inbox = patch ? updateStoryManuscriptDraft(story.manuscriptInbox, draftId, patch) : story.manuscriptInbox;
+      onSave({
+        ...story,
         manuscriptInbox: acceptStoryManuscriptDraft(inbox, draftId).inbox,
       });
       toast.success("已收稿。");
@@ -50,14 +37,10 @@ export const useStoryManuscripts = ({
   };
 
   const saveManuscriptDraft = (draftId: string, patch: StoryManuscriptDraftUpdateInput) => {
-    if (!activeStory) {
-      return;
-    }
-
     try {
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: updateStoryManuscriptDraft(activeStory.manuscriptInbox, draftId, patch),
+      onSave({
+        ...story,
+        manuscriptInbox: updateStoryManuscriptDraft(story.manuscriptInbox, draftId, patch),
       });
       toast.success("稿件已保存。");
     } catch (error) {
@@ -67,18 +50,14 @@ export const useStoryManuscripts = ({
   };
 
   const createManuscriptDraft = (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => {
-    if (!activeStory) {
-      return;
-    }
-
     try {
-      const { inbox } = submitStoryManuscriptDraft(activeStory.manuscriptInbox, {
+      const { inbox } = submitStoryManuscriptDraft(story.manuscriptInbox, {
         ...input,
-        storyId: activeStory.id,
+        storyId: story.id,
         source: "manual",
       });
-      persistStory({
-        ...activeStory,
+      onSave({
+        ...story,
         manuscriptInbox: inbox,
       });
       toast.success("稿件已加入收稿箱。");
@@ -99,7 +78,7 @@ export const useStoryManuscripts = ({
     summary?: string;
     content: string;
   }) => {
-    if (!workspace || !activeStory) {
+    if (!workspace) {
       throw new Error("当前没有可用故事。");
     }
     if (settingsError) {
@@ -112,7 +91,7 @@ export const useStoryManuscripts = ({
     return runStoryWriterAgent({
       workspacePath: workspace.path,
       runtimeModel: selectedRuntimeModel ? requireRuntimeModelInput(selectedRuntimeModel) : null,
-      story: activeStory,
+      story,
       nodeId,
       mode: "polish",
       title,
@@ -122,14 +101,10 @@ export const useStoryManuscripts = ({
   };
 
   const rejectManuscript = (draftId: string) => {
-    if (!activeStory) {
-      return;
-    }
-
     try {
-      persistStory({
-        ...activeStory,
-        manuscriptInbox: rejectStoryManuscriptDraft(activeStory.manuscriptInbox, draftId),
+      onSave({
+        ...story,
+        manuscriptInbox: rejectStoryManuscriptDraft(story.manuscriptInbox, draftId),
       });
       toast.success("已退回稿件。");
     } catch (error) {
@@ -141,7 +116,6 @@ export const useStoryManuscripts = ({
   return {
     acceptManuscript,
     createManuscriptDraft,
-    pendingDraftCount: activeStory ? getPendingDraftCount(activeStory) : 0,
     polishManuscriptDraft,
     rejectManuscript,
     saveManuscriptDraft,

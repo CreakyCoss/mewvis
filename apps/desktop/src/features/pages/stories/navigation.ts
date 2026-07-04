@@ -5,13 +5,7 @@ export const STORIES_FULLSCREEN_SEARCH = `?${STORIES_FULLSCREEN_SEARCH_PARAM}=1`
 export const isStoriesFullscreenSearch = (search: string) =>
   new URLSearchParams(search).get(STORIES_FULLSCREEN_SEARCH_PARAM) === "1";
 
-export const buildStoryOpenSearch = ({
-  storyId,
-  fullscreen = true,
-}: {
-  storyId?: string;
-  fullscreen?: boolean;
-}) => {
+export const buildStoryOpenSearch = ({ storyId, fullscreen = true }: { storyId?: string; fullscreen?: boolean }) => {
   const params = new URLSearchParams();
   if (fullscreen) {
     params.set(STORIES_FULLSCREEN_SEARCH_PARAM, "1");

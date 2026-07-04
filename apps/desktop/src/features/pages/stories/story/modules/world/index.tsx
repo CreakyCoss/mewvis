@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2 } from "lucid
 import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "../../model/types";
 import {
   EmptyBlock,
   StorySection,

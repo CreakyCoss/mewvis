@@ -1,12 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import type { StoryJson } from "@/features/story/model/story-types";
-import {
-  loadStoryById,
-  saveStoryJson,
-  updateStoryRecordName,
-  type StoryWorkspace,
-} from "@/features/story/persistence/story-storage";
+import type { StoryJson } from "./model/types";
+import { loadStoryById, saveStoryJson, updateStoryRecordName, type StoryWorkspace } from "../storage";
 import type { StoryNodeSelectOption } from "./actions/node";
 
 export type StoryModulesHandle = (story: StoryJson) => void;

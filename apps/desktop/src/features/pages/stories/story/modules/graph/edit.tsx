@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import type { StoryJson, StoryEdgeJson, StoryNodeJson } from "@/features/story/model/story-types";
+import type { StoryJson, StoryEdgeJson, StoryNodeJson } from "../../model/types";
 import {
   EditorField,
   editorControlClassName,

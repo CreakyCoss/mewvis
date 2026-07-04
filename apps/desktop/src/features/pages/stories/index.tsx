@@ -28,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "./story/model/types";
 import {
   createStory as createStoryInWorkspace,
   deleteStoryRecord,
@@ -38,7 +38,7 @@ import {
   updateStoryRecordName,
   type CreateStoryInput,
   type StoryWorkspace,
-} from "@/features/story/persistence/story-storage";
+} from "./storage";
 import { StoryCreateDialog, type StoryCreateForm } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
 import { StoryImportDialog } from "./story/actions/import";

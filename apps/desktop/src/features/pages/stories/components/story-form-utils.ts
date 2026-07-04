@@ -6,17 +6,11 @@ import type {
   StoryNodeJson,
   StorySceneJson,
   StoryStageJson,
-} from "@/features/story/model/story-types";
-import type { StoryManuscriptDraft } from "@/features/story/model/manuscript-inbox";
-import {
-  defaultTavernAvatar,
-  tavernAvatarOptions,
-} from "@/assets/avatars";
+} from "../story/model/types";
+import type { StoryManuscriptDraft } from "../story/modules/manuscripts/manuscript-inbox";
+import { defaultTavernAvatar, tavernAvatarOptions } from "@/assets/avatars";
 
-export type StoryDraft = Pick<
-  StoryJson,
-  "title" | "outline" | "goal" | "userPersonaName"
->;
+export type StoryDraft = Pick<StoryJson, "title" | "outline" | "goal" | "userPersonaName">;
 
 export const formatCount = (count: number, label: string) => `${count} ${label}`;
 
@@ -32,8 +26,7 @@ export const getPendingDraftCount = (story: StoryJson) =>
 const createStoryLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const getDefaultTavernAvatarId = (index = 0) =>
-  tavernAvatarOptions[Math.abs(index) % tavernAvatarOptions.length]?.id
-  ?? defaultTavernAvatar.id;
+  tavernAvatarOptions[Math.abs(index) % tavernAvatarOptions.length]?.id ?? defaultTavernAvatar.id;
 
 export const emptyCharacterMemory = (): NonNullable<StoryCharacterJson["memory"]> => ({
   required: "",
@@ -123,7 +116,7 @@ export const createStoryEdge = (story: StoryJson): StoryEdgeJson | null => {
   };
 };
 
-export const moveItem = <T,>(items: T[], index: number, direction: -1 | 1) => {
+export const moveItem = <T>(items: T[], index: number, direction: -1 | 1) => {
   const targetIndex = index + direction;
   if (targetIndex < 0 || targetIndex >= items.length) {
     return items;

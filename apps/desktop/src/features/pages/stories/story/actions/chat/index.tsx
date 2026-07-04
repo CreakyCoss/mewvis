@@ -6,15 +6,8 @@ import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryChatSelectDialog } from "./dialog";
+import { createChatPayload } from "./payload";
 import { getDefaultNodeId, resolveNodeId } from "../node";
-
-const buildChatSearch = ({ nodeId, storyId }: { nodeId?: string | null; storyId: string }) => {
-  const search = [`storyId=${encodeURIComponent(storyId)}`, nodeId ? `storyNodeId=${encodeURIComponent(nodeId)}` : ""]
-    .filter(Boolean)
-    .join("&");
-
-  return search ? `?${search}` : "";
-};
 
 export const ChatStoryAction = () => {
   const navigate = useNavigate();
@@ -36,12 +29,12 @@ export const ChatStoryAction = () => {
     }
 
     const storyNodeId = resolveNodeId(story, nodeId);
-    navigate({
-      pathname: getChatWorkspacePath(chatWorkspace.id),
-      search: buildChatSearch({
-        storyId: story.id,
-        nodeId: storyNodeId,
-      }),
+    navigate(getChatWorkspacePath(chatWorkspace.id), {
+      state: {
+        storyChatSeed: createChatPayload(story, {
+          nodeId: storyNodeId,
+        }),
+      },
     });
   };
 

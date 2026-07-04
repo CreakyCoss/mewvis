@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryJson, StorySceneJson, StorySceneStatusJson } from "@/features/story/model/story-types";
+import type { StoryJson, StorySceneJson, StorySceneStatusJson } from "../../model/types";
 import { createStoryScene } from "../../../components/story-form-utils";
 import {
   EditorField,

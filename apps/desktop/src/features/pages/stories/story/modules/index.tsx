@@ -2,10 +2,8 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, FileText, GitBranch, GitMerge, House, UsersRound, type LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "../model/types";
 import type { StoryDraft } from "../../components/story-form-utils";
-import { useStoryManuscripts } from "../../components/use-story-manuscripts";
 import type { StoryConfigTab } from "./types";
 import { useStoryState } from "../use-story-state";
 import { StoryCharactersModule } from "./characters";
@@ -19,17 +17,8 @@ export const StoryModules = () => {
   const story = useStoryState((state) => state.story);
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const saveStory = useStoryState((state) => state.saveStory);
-  const { runtimeAgentRequiresModel, selectedRuntimeModel, settingsError } = useRuntimeAgentSettings();
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
   const storyId = story?.id ?? "";
-  const manuscriptActions = useStoryManuscripts({
-    activeStory: story,
-    persistStory: (nextStory) => void saveStory(nextStory),
-    runtimeAgentRequiresModel,
-    selectedRuntimeModel,
-    settingsError,
-    workspace: storyWorkspace,
-  });
 
   const saveOverviewDraft = useCallback(
     (draft: StoryDraft) => {
@@ -122,11 +111,8 @@ export const StoryModules = () => {
       render: (targetStory) => (
         <StoryManuscriptsModule
           story={targetStory}
-          onAccept={manuscriptActions.acceptManuscript}
-          onCreateDraft={manuscriptActions.createManuscriptDraft}
-          onPolishDraft={manuscriptActions.polishManuscriptDraft}
-          onSaveDraft={manuscriptActions.saveManuscriptDraft}
-          onReject={manuscriptActions.rejectManuscript}
+          workspace={storyWorkspace}
+          onSave={(nextStory) => void saveStory(nextStory)}
         />
       ),
     },

@@ -2,11 +2,8 @@ import { Check, FileText, Plus, ScrollText, X } from "lucide-react";
 import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type {
-  StoryManuscriptDraftUpdateInput,
-  StoryManuscriptSubmissionInput,
-} from "@/features/story/model/manuscript-inbox";
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "../../model/types";
+import type { StoryWorkspace } from "../../../storage";
 import { manuscriptSourceLabels } from "../../../components/story-form-utils";
 import {
   EmptyBlock,
@@ -18,26 +15,22 @@ import {
   editorListEntryTitleClassName,
 } from "../../../components/story-primitives";
 import { StoryManuscriptEdit, type StoryManuscriptEditHandle } from "./edit";
+import { useStoryManuscripts } from "./use-story-manuscripts";
 
 type StoryManuscriptsModuleProps = {
+  onSave: (story: StoryJson) => void;
   story: StoryJson;
-  onAccept: (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => void;
-  onCreateDraft: (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => void;
-  onPolishDraft: (input: { nodeId: string; title: string; summary?: string; content: string }) => Promise<string>;
-  onSaveDraft: (draftId: string, patch: StoryManuscriptDraftUpdateInput) => void;
-  onReject: (draftId: string) => void;
+  workspace: StoryWorkspace | null;
 };
 
-export const StoryManuscriptsModule = ({
-  story,
-  onAccept,
-  onCreateDraft,
-  onPolishDraft,
-  onSaveDraft,
-  onReject,
-}: StoryManuscriptsModuleProps) => {
+export const StoryManuscriptsModule = ({ onSave, story, workspace }: StoryManuscriptsModuleProps) => {
   const editRef = useRef<StoryManuscriptEditHandle>(null);
   const pendingDrafts = story.manuscriptInbox.drafts.filter((draft) => draft.status === "pending");
+  const manuscriptActions = useStoryManuscripts({
+    onSave,
+    story,
+    workspace,
+  });
 
   return (
     <>
@@ -82,7 +75,7 @@ export const StoryManuscriptsModule = ({
                         size="icon-xs"
                         variant="ghost"
                         className={editorIconActionButtonClassName}
-                        onClick={() => onAccept(draft.id)}
+                        onClick={() => manuscriptActions.acceptManuscript(draft.id)}
                         title="收稿"
                         aria-label="收稿"
                       >
@@ -93,7 +86,7 @@ export const StoryManuscriptsModule = ({
                         size="icon-xs"
                         variant="ghost"
                         className={editorDangerIconActionButtonClassName}
-                        onClick={() => onReject(draft.id)}
+                        onClick={() => manuscriptActions.rejectManuscript(draft.id)}
                         title="退回"
                         aria-label="退回"
                       >
@@ -135,11 +128,11 @@ export const StoryManuscriptsModule = ({
       <StoryManuscriptEdit
         bind={editRef}
         story={story}
-        onAccept={onAccept}
-        onCreate={onCreateDraft}
-        onPolish={onPolishDraft}
-        onSave={onSaveDraft}
-        onReject={onReject}
+        onAccept={manuscriptActions.acceptManuscript}
+        onCreate={manuscriptActions.createManuscriptDraft}
+        onPolish={manuscriptActions.polishManuscriptDraft}
+        onSave={manuscriptActions.saveManuscriptDraft}
+        onReject={manuscriptActions.rejectManuscript}
       />
     </>
   );

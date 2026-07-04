@@ -15,7 +15,7 @@ import { useRef } from "react";
 import { resolveAvatar } from "@/assets/avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "../../model/types";
 import { cn } from "@/lib/utils";
 import type { StoryDraft } from "../../../components/story-form-utils";
 import { formatCount, manuscriptSourceLabels } from "../../../components/story-form-utils";

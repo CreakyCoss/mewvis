@@ -16,9 +16,7 @@ export {
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
 } from "./prompt-sections";
-export {
-  submitTavernStoryManuscript,
-} from "./storage";
+export { submitTavernStoryManuscript } from "./storage";
 export {
   cloneTavernRuntimeStoryProjectionFields,
   getTavernActiveSceneInstance,

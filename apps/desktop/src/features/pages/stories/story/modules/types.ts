@@ -1,4 +1,4 @@
-import type { StoryJson } from "@/features/story/model/story-types";
+import type { StoryJson } from "../model/types";
 
 export type StoryConfigTab = "overview" | "characters" | "scenes" | "world" | "graph" | "manuscripts";
 

@@ -1,9 +1,4 @@
-export type StoryManuscriptSource =
-  | "tavern"
-  | "chat"
-  | "manual"
-  | "aiPolish"
-  | "import";
+export type StoryManuscriptSource = "tavern" | "chat" | "manual" | "aiPolish" | "import";
 
 export type StoryManuscriptDraftStatus = "pending" | "accepted" | "rejected";
 
@@ -135,9 +130,7 @@ export const updateStoryManuscriptDraft = (
     throw new Error("只能编辑待确认稿件。");
   }
 
-  const nextContent = input.content === undefined
-    ? draft.content
-    : trimText(input.content);
+  const nextContent = input.content === undefined ? draft.content : trimText(input.content);
   if (!nextContent) {
     throw new Error("稿件内容不能为空。");
   }
@@ -149,18 +142,14 @@ export const updateStoryManuscriptDraft = (
       item.id === draftId
         ? {
             ...item,
-            title: input.title === undefined
-              ? item.title
-              : trimText(input.title) || "未命名稿件",
+            title: input.title === undefined ? item.title : trimText(input.title) || "未命名稿件",
             content: nextContent,
             summary: input.summary === undefined ? item.summary : trimText(input.summary),
-            branchId: input.branchId === undefined
-              ? item.branchId
-              : trimText(input.branchId ?? "") || undefined,
+            branchId: input.branchId === undefined ? item.branchId : trimText(input.branchId ?? "") || undefined,
             metadata: input.metadata ?? item.metadata,
             updatedAt,
           }
-        : item
+        : item,
     ),
   };
 };
@@ -212,7 +201,7 @@ export const acceptStoryManuscriptDraft = (
               acceptedAt,
               updatedAt: acceptedAt,
             }
-          : item
+          : item,
       ),
       accepted: [...inbox.accepted, accepted],
     },
@@ -246,7 +235,7 @@ export const rejectStoryManuscriptDraft = (
             rejectedAt,
             updatedAt: rejectedAt,
           }
-        : item
+        : item,
     ),
   };
 };
@@ -262,8 +251,10 @@ export const listStoryManuscriptDrafts = (
     nodeId?: string;
     status?: StoryManuscriptDraftStatus;
   } = {},
-) => inbox.drafts.filter((draft) =>
-  (!storyId || draft.storyId === storyId) &&
-  (!nodeId || draft.nodeId === nodeId) &&
-  (!status || draft.status === status)
-);
+) =>
+  inbox.drafts.filter(
+    (draft) =>
+      (!storyId || draft.storyId === storyId) &&
+      (!nodeId || draft.nodeId === nodeId) &&
+      (!status || draft.status === status),
+  );
