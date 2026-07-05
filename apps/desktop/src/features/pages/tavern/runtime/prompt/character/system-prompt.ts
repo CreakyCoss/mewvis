@@ -120,10 +120,10 @@ export const buildTavernCharacterPromptParts = ({
   storyContext: inputStoryContext,
 }: BuildTavernSystemPromptInput): TavernCharacterPromptParts => {
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
-  const activeStoryCharacter = storyContext.characters.find((character) =>
+  const matchedStoryCharacter = storyContext.characters.find((character) =>
     character.id === activeCharacter.id
   );
-  const characterLayers = activeStoryCharacter?.memory;
+  const characterLayers = matchedStoryCharacter?.memory;
   const characterMemory = [
     characterLayers?.required?.trim() ?? "",
     characterLayers?.public?.trim() ?? "",

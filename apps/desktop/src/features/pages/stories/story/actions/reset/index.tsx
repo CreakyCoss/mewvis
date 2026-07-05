@@ -33,7 +33,6 @@ export const ResetStoryAction = () => {
     const savedStory = await saveStory(
       createStandaloneStoryJson({
         id: story.id,
-        workspaceId: story.workspaceId,
         title: "未命名故事",
         timestamp: Date.now(),
       }),

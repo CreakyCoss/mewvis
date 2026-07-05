@@ -1,11 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import {
-  createStandaloneStoryJson,
-  submitStoryManuscriptToState,
-  type StoryJson,
-  type StoryState,
-} from "./story/model/state";
-import { normalizeStoryState } from "./story/model/normalizer";
+import { createStandaloneStoryJson, submitStoryManuscriptToStory, type StoryJson } from "./story/model/state";
+import { normalizeStoryJson } from "./story/model/normalizer";
 import type { StoryManuscriptSubmissionInput } from "./story/modules/manuscripts/manuscript-inbox";
 
 const STORY_REGISTRY_STORAGE_KEY = "novel-claw:story:records";
@@ -80,16 +75,12 @@ const normalizeStoryJsonForRecord = (record: StoryRecord, value: unknown): Story
   const candidate = {
     ...(value as Record<string, unknown>),
     id: record.id,
-    workspaceId: record.id,
     title: typeof (value as { title?: unknown }).title === "string" ? (value as { title: string }).title : record.name,
   };
-  const state = normalizeStoryState(record.id, {
-    version: 1,
-    activeStoryId: record.id,
-    stories: [candidate],
+  return normalizeStoryJson(candidate, {
+    id: record.id,
+    title: record.name,
   });
-
-  return state?.stories[0] ?? null;
 };
 
 const createStoryManifest = (story: StoryJson): StoryManifest => ({
@@ -233,14 +224,12 @@ export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => 
         normalizeStoryJsonForRecord(record, parsed) ??
         createStandaloneStoryJson({
           id: record.id,
-          workspaceId: record.id,
           title: record.name,
         })
       );
     } catch {
       return createStandaloneStoryJson({
         id: record.id,
-        workspaceId: record.id,
         title: record.name,
       });
     }
@@ -251,7 +240,6 @@ export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => 
     normalizeStoryJsonForRecord(record, parsed) ??
     createStandaloneStoryJson({
       id: record.id,
-      workspaceId: record.id,
       title: record.name,
     })
   );
@@ -270,7 +258,6 @@ export const saveStoryJson = async (workspace: StoryWorkspace, story: StoryJson)
       {
         ...story,
         id: workspace.id,
-        workspaceId: workspace.id,
       },
     ) ?? story;
 
@@ -295,7 +282,6 @@ export const createStory = async (
   const workspace = storyWorkspaceFromRecord(record);
   const story = createStandaloneStoryJson({
     id: record.id,
-    workspaceId: record.id,
     title: record.name,
   });
   const savedStory = await saveStoryJson(workspace, story);
@@ -307,28 +293,18 @@ export const createStory = async (
   };
 };
 
-export const loadStoryLibrary = async (
-  requestedStoryId = "",
-): Promise<{
+export const loadStoryLibrary = async (): Promise<{
   records: StoryRecord[];
   workspacesByStoryId: Record<string, StoryWorkspace>;
-  state: StoryState;
+  stories: StoryJson[];
 }> => {
   const records = await listStoryRecords();
   const stories = await Promise.all(records.map(loadStoryJson));
-  const activeStoryId =
-    requestedStoryId && stories.some((story) => story.id === requestedStoryId)
-      ? requestedStoryId
-      : (stories[0]?.id ?? "");
 
   return {
     records,
     workspacesByStoryId: Object.fromEntries(records.map((record) => [record.id, storyWorkspaceFromRecord(record)])),
-    state: {
-      version: 1,
-      activeStoryId,
-      stories,
-    },
+    stories,
   };
 };
 
@@ -357,12 +333,7 @@ export const submitStoryManuscript = async (storyId: string, input: StoryManuscr
     throw new Error("找不到要收稿的故事。");
   }
 
-  const currentState: StoryState = {
-    version: 1,
-    activeStoryId: loaded.story.id,
-    stories: [loaded.story],
-  };
-  const submission = submitStoryManuscriptToState(currentState, input);
+  const submission = submitStoryManuscriptToStory(loaded.story, input);
   const story = await saveStoryJson(loaded.workspace, submission.story);
   if (!story) {
     throw new Error("稿件已提交，但无法读取保存后的故事。");
@@ -371,10 +342,5 @@ export const submitStoryManuscript = async (storyId: string, input: StoryManuscr
   return {
     draft: submission.draft,
     story,
-    state: {
-      version: 1 as const,
-      activeStoryId: story.id,
-      stories: [story],
-    },
   };
 };

@@ -13,15 +13,8 @@ import type {
   StoryStageJson,
 } from "./types";
 
-export type StoryStateJson = {
-  version: 1;
-  activeStoryId: string;
-  stories: StoryJson[];
-};
-
 export type NormalizeStoryJsonOptions = {
   id?: string;
-  workspaceId?: string;
   title?: string;
   timestamp?: number;
 };
@@ -292,7 +285,6 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
 
   const timestamp = options.timestamp ?? Date.now();
   const id = trimText(options.id) || trimText(value.id) || createId("story");
-  const workspaceId = trimText(options.workspaceId) || trimText(value.workspaceId) || id;
   const title = trimText(value.title) || trimText(value.name) || trimText(options.title) || "未命名故事";
   const createdAt = numberValue(value.createdAt, timestamp);
   const updatedAt = numberValue(value.updatedAt, timestamp);
@@ -327,7 +319,6 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
   return {
     version: 1,
     id,
-    workspaceId,
     title,
     outline: trimText(value.outline),
     goal: trimText(value.goal),
@@ -351,39 +342,6 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
     manuscriptInbox: normalizeManuscriptInbox(value.manuscriptInbox),
     createdAt,
     updatedAt,
-  };
-};
-
-export const createEmptyStoryState = (): StoryStateJson => ({
-  version: 1,
-  activeStoryId: "",
-  stories: [],
-});
-
-export const normalizeStoryState = (workspaceId: string, value: unknown): StoryStateJson | null => {
-  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.stories)) {
-    return null;
-  }
-
-  const stories = value.stories.flatMap((story) => {
-    const normalized = normalizeStoryJson(story, {
-      workspaceId,
-    });
-    return normalized?.workspaceId === workspaceId ? [normalized] : [];
-  });
-
-  if (stories.length === 0) {
-    return createEmptyStoryState();
-  }
-
-  const activeStoryId = stories.some((story) => story.id === value.activeStoryId)
-    ? trimText(value.activeStoryId)
-    : (stories[0]?.id ?? "");
-
-  return {
-    version: 1,
-    activeStoryId,
-    stories,
   };
 };
 

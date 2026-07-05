@@ -92,7 +92,6 @@ export type StoryGraphJson = {
 export type StoryJson = {
   version: StoryJsonVersion;
   id: string;
-  workspaceId: string;
   title: string;
   outline: string;
   goal: string;

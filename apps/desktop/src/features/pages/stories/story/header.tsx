@@ -1,11 +1,13 @@
 import { ArrowLeft, BookOpen } from "lucide-react";
-import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { StoryActions } from "./actions";
 import { useStoryState } from "./use-story-state";
 
-export const StoryHeader = () => {
-  const navigate = useNavigate();
+type StoryHeaderProps = {
+  onBack: () => void;
+};
+
+export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
   const story = useStoryState((state) => state.story);
 
   return (
@@ -20,7 +22,7 @@ export const StoryHeader = () => {
               className="size-9 shrink-0"
               title="返回故事入口"
               aria-label="返回故事入口"
-              onClick={() => navigate(-1)}
+              onClick={onBack}
             >
               <ArrowLeft className="size-4" />
             </Button>

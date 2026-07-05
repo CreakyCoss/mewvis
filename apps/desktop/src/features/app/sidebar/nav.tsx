@@ -3,9 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
-import { TAVERN_FULLSCREEN_SEARCH } from "@/features/pages/tavern/navigation";
-import { STORIES_FULLSCREEN_SEARCH } from "@/features/pages/stories/navigation";
 import { cn } from "@/lib/utils";
+import { FULLSCREEN_SEARCH } from "@/utils/navigation";
 
 type NavProps = {
   chatPath: string;
@@ -23,13 +22,13 @@ const navItems: NavItem[] = [
   { id: "knowledge", to: "/knowledge", label: "知识库", icon: Database },
   {
     id: "stories",
-    to: { pathname: "/stories", search: STORIES_FULLSCREEN_SEARCH },
+    to: { pathname: "/stories", search: FULLSCREEN_SEARCH },
     label: "故事",
     icon: BookOpen,
   },
   {
     id: "tavern",
-    to: { pathname: "/tavern", search: TAVERN_FULLSCREEN_SEARCH },
+    to: { pathname: "/tavern", search: FULLSCREEN_SEARCH },
     label: "酒馆",
     icon: Wine,
   },

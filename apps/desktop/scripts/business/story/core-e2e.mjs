@@ -8,17 +8,20 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const statePath = resolve(workspaceRoot, "src/features/story/model/story-state.ts");
-const manuscriptInboxPath = resolve(workspaceRoot, "src/features/story/model/manuscript-inbox.ts");
-const runtimeContextPath = resolve(workspaceRoot, "src/features/story/projection/story-runtime-context.ts");
-const normalizePath = resolve(workspaceRoot, "src/features/story/model/story-normalizer.ts");
+const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
+const manuscriptInboxPath = resolve(
+  workspaceRoot,
+  "src/features/pages/stories/story/modules/manuscripts/manuscript-inbox.ts",
+);
+const runtimeContextPath = resolve(workspaceRoot, "src/features/pages/stories/story/utils/node-public-context.ts");
+const normalizePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/normalizer.ts");
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
-    createEmptyStoryState,
     createStandaloneStoryJson,
-    submitStoryManuscriptToState,
-    upsertStoryJson,
+    submitStoryManuscriptToStory,
   } from ${JSON.stringify(statePath)};
   import {
     acceptStoryManuscriptDraft,
@@ -26,11 +29,10 @@ writeFileSync(entryPath, `
     updateStoryManuscriptDraft,
   } from ${JSON.stringify(manuscriptInboxPath)};
   import {
-    createStoryBranchRuntimeContext,
-    createStoryNodeRuntimeContext,
+    buildStoryNodePublicContext,
   } from ${JSON.stringify(runtimeContextPath)};
   import {
-    normalizeStoryState,
+    normalizeStoryJson,
   } from ${JSON.stringify(normalizePath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -40,10 +42,8 @@ writeFileSync(entryPath, `
     }
   };
 
-  const workspaceId = "workspace-story-core";
   const baseStory = createStandaloneStoryJson({
     id: "story-fog-archive",
-    workspaceId,
     title: "雾港档案",
     timestamp: 1_800_000_000_000,
   });
@@ -137,15 +137,14 @@ writeFileSync(entryPath, `
     },
   };
 
-  const state = upsertStoryJson(createEmptyStoryState(), story);
   assert(
-    state.activeStoryId === story.id &&
-      state.stories.length === 1,
-    "upsert 应维护当前故事状态。",
-    state,
+    story.id === "story-fog-archive" &&
+      story.graph.nodes.length === 2,
+    "独立故事应维护单个 StoryJson。",
+    story,
   );
 
-  const submitted = submitStoryManuscriptToState(state, {
+  const submitted = submitStoryManuscriptToStory(story, {
     storyId: story.id,
     nodeId: ledgerNode.id,
     source: "chat",
@@ -189,9 +188,7 @@ writeFileSync(entryPath, `
     manuscriptInbox: acceptedResult.inbox,
     updatedAt: 1_800_000_000_300,
   };
-  const nodeContext = createStoryNodeRuntimeContext(acceptedStory, {
-    nodeId: ledgerNode.id,
-  });
+  const nodeContext = buildStoryNodePublicContext(acceptedStory, ledgerNode.id);
   assert(
     nodeContext.scope === "node" &&
       nodeContext.current.node?.id === ledgerNode.id &&
@@ -206,36 +203,27 @@ writeFileSync(entryPath, `
     nodeContext,
   );
 
-  const branchContext = createStoryBranchRuntimeContext(acceptedStory, {
-    activeNodeId: ledgerNode.id,
-    pathNodeIds: [entryNode.id, ledgerNode.id],
-    pathEdgeIds: [ledgerEdge.id],
-  });
   assert(
-    branchContext.scope === "branch" &&
-      branchContext.branch.pathNodeIds.join(">") === [entryNode.id, ledgerNode.id].join(">") &&
-      branchContext.branch.pathEdgeIds[0] === ledgerEdge.id &&
-      branchContext.branch.incomingEdges[0]?.id === ledgerEdge.id,
-    "分支运行上下文应保留路径节点、路径边和当前节点入边。",
-    branchContext,
+    nodeContext.branch.incomingEdges[0]?.id === ledgerEdge.id &&
+      nodeContext.branch.outgoingEdges.length === 0,
+    "节点公开上下文应保留当前节点入边和出边。",
+    nodeContext.branch,
   );
 
-  const normalizedState = normalizeStoryState(workspaceId, {
-    version: 1,
-    activeStoryId: acceptedStory.id,
-    stories: [
-      acceptedStory,
-      { ...acceptedStory, id: "other-story", workspaceId: "other-workspace" },
-    ],
+  const normalizedStory = normalizeStoryJson({
+    ...acceptedStory,
+    id: "story-normalized",
+  }, {
+    id: "story-normalized",
   });
   assert(
-    normalizedState?.activeStoryId === acceptedStory.id &&
-      normalizedState.stories.length === 2 &&
-      normalizedState.stories.every((item) => item.workspaceId === workspaceId),
-    "故事状态归一化应绑定目标工作区并保留当前故事。",
-    normalizedState,
+    normalizedStory?.id === "story-normalized" &&
+      !("workspaceId" in normalizedStory),
+    "故事归一化应返回单个 StoryJson 且不包含 workspaceId。",
+    normalizedStory,
   );
-`);
+`,
+);
 
 try {
   await build({

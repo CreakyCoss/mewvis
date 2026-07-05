@@ -54,11 +54,9 @@ const createOverwriteStory = (originalStory: StoryJson, importStory: StoryJson):
   ({
     ...(normalizeStoryJson(importStory, {
       id: originalStory.id,
-      workspaceId: originalStory.workspaceId,
       timestamp: Date.now(),
     }) ?? importStory),
     id: originalStory.id,
-    workspaceId: originalStory.workspaceId,
     createdAt: originalStory.createdAt,
     updatedAt: Date.now(),
   }) satisfies StoryJson;

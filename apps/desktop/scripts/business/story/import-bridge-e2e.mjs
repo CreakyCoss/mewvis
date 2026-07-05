@@ -8,9 +8,11 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-import-bridge-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const importConverterPath = resolve(workspaceRoot, "src/features/story/importing/story-import-converter.ts");
+const importConverterPath = resolve(workspaceRoot, "src/features/pages/stories/story/actions/import/converter.ts");
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
     convertStorySourceToStoryJson,
     parseStoryJsonFromText,
@@ -26,7 +28,6 @@ writeFileSync(entryPath, `
   const source = JSON.stringify({
     version: 1,
     id: "story-imported",
-    workspaceId: "workspace-import",
     title: "潮汐档案",
     outline: "潮汐档案馆记录着失踪船只。",
     goal: "找出潮汐钟停摆原因。",
@@ -97,12 +98,10 @@ writeFileSync(entryPath, `
 
   const parsed = parseStoryJsonFromText("前置文本\\n" + source + "\\n后置文本", {
     storyId: "story-target",
-    workspaceId: "workspace-target",
     title: "目标标题",
   });
   assert(
     parsed?.id === "story-target" &&
-      parsed.workspaceId === "workspace-target" &&
       parsed.title === "潮汐档案" &&
       parsed.characters[0]?.name === "穆青檐" &&
       parsed.lorebookEntries[0]?.title === "潮汐钟" &&
@@ -114,11 +113,9 @@ writeFileSync(entryPath, `
   const converted = await convertStorySourceToStoryJson({
     source,
     storyId: "story-converted",
-    workspaceId: "workspace-converted",
   });
   assert(
     converted.id === "story-converted" &&
-      converted.workspaceId === "workspace-converted" &&
       converted.title === "潮汐档案",
     "标准 story.json 导入不应要求来源类型或运行模型。",
     converted,
@@ -128,7 +125,8 @@ writeFileSync(entryPath, `
     parseStoryJsonFromText("{\\"title\\":\\"缺少结构\\"}") === null,
     "不具备 story 结构的 JSON 不应被当成标准 story.json。",
   );
-`);
+`,
+);
 
 try {
   await build({

@@ -3,32 +3,18 @@ import {
   submitStoryManuscriptDraft,
   type StoryManuscriptSubmissionInput,
 } from "../modules/manuscripts/manuscript-inbox";
-import type { StoryJson as CanonicalStoryJson } from "./types";
+import type { StoryJson } from "./types";
 export type { StoryJson } from "./types";
-
-export type StoryState = {
-  version: 1;
-  activeStoryId: string;
-  stories: CanonicalStoryJson[];
-};
-
-export const createEmptyStoryState = (): StoryState => ({
-  version: 1,
-  activeStoryId: "",
-  stories: [],
-});
 
 export const createStandaloneStoryJson = ({
   id = `story-${crypto.randomUUID()}`,
-  workspaceId,
   title = "未命名故事",
   timestamp = Date.now(),
 }: {
   id?: string;
-  workspaceId: string;
   title?: string;
   timestamp?: number;
-}): CanonicalStoryJson => {
+}): StoryJson => {
   const sceneId = `${id}-scene-main`;
   const stageId = `${id}-stage-main`;
   const nodeId = `${id}-node-main`;
@@ -36,7 +22,6 @@ export const createStandaloneStoryJson = ({
   return {
     version: 1,
     id,
-    workspaceId,
     title: title.trim() || "未命名故事",
     outline: "",
     goal: "",
@@ -84,21 +69,8 @@ export const createStandaloneStoryJson = ({
   };
 };
 
-export const upsertStoryJson = (state: StoryState, story: CanonicalStoryJson): StoryState => {
-  const exists = state.stories.some((item) => item.id === story.id);
-  const stories = exists
-    ? state.stories.map((item) => (item.id === story.id ? story : item))
-    : [...state.stories, story];
-
-  return {
-    version: 1,
-    activeStoryId: stories.some((item) => item.id === state.activeStoryId) ? state.activeStoryId : story.id,
-    stories,
-  };
-};
-
-export const submitStoryManuscriptToState = (
-  state: StoryState,
+export const submitStoryManuscriptToStory = (
+  story: StoryJson,
   input: StoryManuscriptSubmissionInput,
   {
     timestamp = Date.now(),
@@ -106,8 +78,7 @@ export const submitStoryManuscriptToState = (
     timestamp?: number;
   } = {},
 ) => {
-  const story = state.stories.find((item) => item.id === input.storyId);
-  if (!story) {
+  if (story.id !== input.storyId) {
     throw new Error("找不到要收稿的故事。");
   }
   if (!story.graph.nodes.some((node) => node.id === input.nodeId)) {
@@ -118,7 +89,7 @@ export const submitStoryManuscriptToState = (
     ...input,
     createdAt: input.createdAt ?? timestamp,
   });
-  const nextStory: CanonicalStoryJson = {
+  const nextStory: StoryJson = {
     ...story,
     manuscriptInbox: inbox,
     updatedAt: timestamp,
@@ -127,6 +98,5 @@ export const submitStoryManuscriptToState = (
   return {
     draft,
     story: nextStory,
-    state: upsertStoryJson(state, nextStory),
   };
 };

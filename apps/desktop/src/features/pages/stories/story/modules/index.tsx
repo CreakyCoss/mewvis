@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, FileText, GitBranch, GitMerge, House, UsersRound, type LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryJson } from "../model/types";
@@ -20,22 +20,19 @@ export const StoryModules = () => {
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
   const storyId = story?.id ?? "";
 
-  const saveOverviewDraft = useCallback(
-    (draft: StoryDraft) => {
-      if (!story) {
-        return;
-      }
+  const saveOverviewDraft = (draft: StoryDraft) => {
+    if (!story) {
+      return;
+    }
 
-      void saveStory({
-        ...story,
-        title: draft.title.trim() || story.title,
-        outline: draft.outline,
-        goal: draft.goal,
-        userPersonaName: draft.userPersonaName.trim() || "我",
-      });
-    },
-    [saveStory, story],
-  );
+    void saveStory({
+      ...story,
+      title: draft.title.trim() || story.title,
+      outline: draft.outline,
+      goal: draft.goal,
+      userPersonaName: draft.userPersonaName.trim() || "我",
+    });
+  };
 
   useEffect(() => {
     if (!storyId) {

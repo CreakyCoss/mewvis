@@ -1,5 +1,5 @@
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
@@ -16,8 +16,11 @@ import {
 } from "@/features/pages/tavern/navigation";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { buildStoryOpenSearch } from "@/features/pages/stories/navigation";
+import { FULLSCREEN_SEARCH } from "@/utils/navigation";
 import { useLlmSettingsStore } from "../settings/llm/store";
+
+const buildStoriesOpenSearch = ({ fullscreen = true }: { fullscreen?: boolean }) =>
+  fullscreen ? FULLSCREEN_SEARCH : "";
 
 const LoadingState = () => (
   <section className="flex h-full min-h-0 items-center justify-center bg-background text-sm text-muted-foreground">
@@ -28,18 +31,12 @@ const LoadingState = () => (
   </section>
 );
 
-const StoryRuntimeMissingState = ({
-  onGoHome,
-}: {
-  onGoHome: () => void;
-}) => (
+const StoryRuntimeMissingState = ({ onGoHome }: { onGoHome: () => void }) => (
   <section className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-center">
     <div className="flex max-w-sm flex-col items-center gap-3">
       <AlertCircle className="size-9 text-muted-foreground" />
       <div className="text-base font-medium">无法加载故事酒馆</div>
-      <p className="text-sm leading-6 text-muted-foreground">
-        缺少故事酒馆运行目录，请从故事页重新选择酒馆进入。
-      </p>
+      <p className="text-sm leading-6 text-muted-foreground">缺少故事酒馆运行目录，请从故事页重新选择酒馆进入。</p>
       <Button type="button" variant="outline" onClick={onGoHome}>
         返回首页
       </Button>
@@ -64,13 +61,12 @@ export const TavernPage = () => {
   const tavernId = searchParams.get(TAVERN_ID_SEARCH_PARAM)?.trim() ?? "";
   const tavernRuntimePath = searchParams.get(TAVERN_RUNTIME_PATH_SEARCH_PARAM)?.trim() ?? "";
   const isStoryRuntimeRequest = Boolean(storyId || tavernId || tavernRuntimePath);
-  const exitTavernSurface = useCallback(() => {
+  const exitTavernSurface = () => {
     if (isStoryRuntimeRequest) {
       navigate(
         {
           pathname: "/stories",
-          search: buildStoryOpenSearch({
-            storyId: storyId || undefined,
+          search: buildStoriesOpenSearch({
             fullscreen: Boolean(storyId),
           }),
         },
@@ -91,7 +87,7 @@ export const TavernPage = () => {
       },
       { replace: true },
     );
-  }, [isStoryRuntimeRequest, location.hash, location.pathname, location.search, navigate, storyId]);
+  };
 
   const storyRuntimeWorkspace = isStoryRuntimeRequest
     ? storyRuntimeWorkspaceFromPath({

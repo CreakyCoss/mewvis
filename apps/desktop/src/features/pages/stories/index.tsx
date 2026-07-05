@@ -1,5 +1,5 @@
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,48 +10,34 @@ import { deleteStoryRecord, loadStoryLibrary } from "./storage";
 import { StoryCard } from "./components/story-card";
 import { StoryCreateDialog, type StoryCreateDialogHandle } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
-import {
-  STORIES_FULLSCREEN_SEARCH_PARAM,
-  STORIES_STORY_SEARCH_PARAM,
-  buildStoryOpenSearch,
-  isStoriesFullscreenSearch,
-} from "./navigation";
+import { FULLSCREEN_SEARCH, isFullscreenSearch } from "@/utils/navigation";
 
 export const StoriesPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isHomeFullscreen = isStoriesFullscreenSearch(location.search);
+  const isHomeFullscreen = isFullscreenSearch(location.search);
   const modulesRef = useRef<StoryModulesHandle>(null);
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
-  const pendingOpenStoryRef = useRef<StoryJson | null>(null);
-  const lastOpenedStoryIdRef = useRef("");
-  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const requestedStoryId = searchParams.get(STORIES_STORY_SEARCH_PARAM)?.trim() ?? "";
+  const [editingStoryId, setEditingStoryId] = useState("");
   const [stories, setStories] = useState<StoryJson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const activeStory = stories.find((story) => story.id === requestedStoryId) ?? pendingOpenStoryRef.current ?? null;
-  const isEditorOpen = isHomeFullscreen && Boolean(requestedStoryId) && (isLoading || Boolean(activeStory));
+  const replaceStorySearch = (search: string) => {
+    navigate(
+      {
+        pathname: location.pathname,
+        search,
+        hash: location.hash,
+      },
+      { replace: true },
+    );
+  };
 
-  const replaceStorySearch = useCallback(
-    (search: string) => {
-      navigate(
-        {
-          pathname: location.pathname,
-          search,
-          hash: location.hash,
-        },
-        { replace: true },
-      );
-    },
-    [location.hash, location.pathname, navigate],
-  );
-
-  const refreshStories = useCallback(async () => {
+  const refreshStories = async () => {
     setIsLoading(true);
     try {
-      const { state } = await loadStoryLibrary(requestedStoryId);
-      setStories(state.stories);
+      const { stories } = await loadStoryLibrary();
+      setStories(stories);
     } catch (error) {
       console.error("Failed to load story library", error);
       toast.error("无法加载故事。");
@@ -59,75 +45,47 @@ export const StoriesPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [requestedStoryId]);
+  };
 
   useEffect(() => {
     void refreshStories();
-  }, [refreshStories]);
+  }, []);
 
-  useEffect(() => {
-    if (!isEditorOpen) {
-      lastOpenedStoryIdRef.current = "";
-      return;
-    }
-    if (!activeStory || lastOpenedStoryIdRef.current === requestedStoryId) {
-      return;
-    }
-    if (!modulesRef.current) {
-      return;
-    }
+  const exitHomeFullscreen = () => {
+    setEditingStoryId("");
+    replaceStorySearch("");
+  };
 
-    modulesRef.current(activeStory);
-    pendingOpenStoryRef.current = null;
-    lastOpenedStoryIdRef.current = activeStory.id;
-  }, [activeStory, isEditorOpen, requestedStoryId]);
+  const backToStoryHome = () => {
+    setEditingStoryId("");
+    replaceStorySearch(FULLSCREEN_SEARCH);
+    void refreshStories();
+  };
 
-  const exitHomeFullscreen = useCallback(() => {
-    const params = new URLSearchParams(location.search);
-    params.delete(STORIES_FULLSCREEN_SEARCH_PARAM);
-
-    const nextSearch = params.toString();
-    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
-  }, [location.search, replaceStorySearch]);
-
-  const backToStoryHome = useCallback(() => {
-    const params = new URLSearchParams(location.search);
-    params.set(STORIES_FULLSCREEN_SEARCH_PARAM, "1");
-    params.delete(STORIES_STORY_SEARCH_PARAM);
-
-    const nextSearch = params.toString();
-    replaceStorySearch(nextSearch ? `?${nextSearch}` : "");
-  }, [location.search, replaceStorySearch]);
-
-  const openStoryEditor = useCallback(
-    (story: StoryJson) => {
-      pendingOpenStoryRef.current = story;
-      navigate({
-        pathname: location.pathname,
-        search: buildStoryOpenSearch({ storyId: story.id, fullscreen: true }),
-        hash: location.hash,
-      });
-    },
-    [location.hash, location.pathname, navigate],
-  );
+  const openStoryEditor = (story: StoryJson) => {
+    modulesRef.current?.open(story);
+    setEditingStoryId(story.id);
+    navigate({
+      pathname: location.pathname,
+      search: FULLSCREEN_SEARCH,
+      hash: location.hash,
+    });
+  };
 
   const openCreateStoryDialog = () => {
     createDialogRef.current?.();
   };
 
-  const handleStoryCreated = useCallback(
-    (story: StoryJson) => {
-      setStories((current) => [story, ...current.filter((item) => item.id !== story.id)]);
-      openStoryEditor(story);
-    },
-    [openStoryEditor],
-  );
+  const handleStoryCreated = (story: StoryJson) => {
+    setStories((current) => [story, ...current.filter((item) => item.id !== story.id)]);
+    openStoryEditor(story);
+  };
 
   const handleDeleteStory = async (story: StoryJson) => {
     try {
       await deleteStoryRecord(story.id);
       setStories((current) => current.filter((item) => item.id !== story.id));
-      if (requestedStoryId === story.id) {
+      if (editingStoryId === story.id) {
         backToStoryHome();
       }
       toast.success("故事及工作区已删除。");
@@ -186,9 +144,10 @@ export const StoriesPage = () => {
   const content = (
     <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
       <div className="flex min-w-0 flex-1 flex-col">
-        {isEditorOpen ? (
-          <StoryModulesContent bind={modulesRef} />
-        ) : isLoading ? (
+        <div className={editingStoryId ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} />
+        </div>
+        {editingStoryId ? null : isLoading ? (
           <ScrollArea className="min-h-0 flex-1">
             <div className="p-6 text-sm text-muted-foreground">加载中...</div>
           </ScrollArea>

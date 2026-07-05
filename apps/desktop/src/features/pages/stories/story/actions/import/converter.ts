@@ -8,7 +8,6 @@ type StoryJsonConversionInput = {
   runtimeModel?: RuntimeModelInput | null;
   existingStory?: StoryJson | null;
   storyId?: string;
-  workspaceId?: string;
   title?: string;
 };
 
@@ -55,7 +54,6 @@ export const parseStoryJsonFromText = (
   value: string,
   options: {
     storyId?: string;
-    workspaceId?: string;
     title?: string;
   } = {},
 ): StoryJson | null => {
@@ -66,7 +64,6 @@ export const parseStoryJsonFromText = (
     }
     const normalized = normalizeStoryJson(parsed, {
       id: options.storyId,
-      workspaceId: options.workspaceId,
       title: options.title,
     });
     if (!normalized) {
@@ -84,7 +81,7 @@ const buildStoryJsonSchemaInstruction = () =>
     "输出必须是一个 JSON 对象，不能有 markdown、解释、注释或额外文本。",
     "JSON 必须符合 StoryJson v1：",
     "- version: 1",
-    "- id, workspaceId, title, outline, goal, userPersonaName",
+    "- id, title, outline, goal, userPersonaName",
     "- characters: [{ id, name, avatar, description, speakingStyle, writingStyle?, replyStylePrompt?, goals?, relationshipSummary?, publicRelationshipSummary?, memory? }]",
     "- lorebookEntries: [{ id, title, content, keywords, enabled, alwaysOn }]",
     "- scenes: [{ id, title, scene, goal, plot, direction, transition, memory, status? }]",
@@ -109,7 +106,6 @@ const buildStoryJsonConverterRequest = (input: StoryJsonConversionInput) =>
     {
       targetIdentity: {
         storyId: input.storyId ?? input.existingStory?.id ?? "",
-        workspaceId: input.workspaceId ?? input.existingStory?.workspaceId ?? "",
         title: input.title ?? input.existingStory?.title ?? "",
       },
       mergeMode: Boolean(input.existingStory),
@@ -123,7 +119,6 @@ const buildStoryJsonConverterRequest = (input: StoryJsonConversionInput) =>
 export const convertStorySourceToStoryJson = async (input: StoryJsonConversionInput): Promise<StoryJson> => {
   const parsed = parseStoryJsonFromText(input.source, {
     storyId: input.storyId ?? input.existingStory?.id,
-    workspaceId: input.workspaceId ?? input.existingStory?.workspaceId,
     title: input.title ?? input.existingStory?.title,
   });
   if (parsed && !input.existingStory) {
@@ -156,7 +151,6 @@ export const convertStorySourceToStoryJson = async (input: StoryJsonConversionIn
 
   const normalized = normalizeStoryJson(parseJsonObject(result.text), {
     id: input.storyId ?? input.existingStory?.id,
-    workspaceId: input.workspaceId ?? input.existingStory?.workspaceId,
     title: input.title ?? input.existingStory?.title,
   });
   if (!normalized) {

@@ -4,14 +4,16 @@ import type { StoryJson } from "./model/types";
 import { loadStoryById, saveStoryJson, updateStoryRecordName, type StoryWorkspace } from "../storage";
 import type { StoryNodeSelectOption } from "./actions/node";
 
-export type StoryModulesHandle = (story: StoryJson) => void;
+export type StoryModulesHandle = {
+  open: (story: StoryJson) => void;
+};
 
-type StoryStateStore = {
+type StoryStore = {
   buildNodeOptions: (story: StoryJson | null) => StoryNodeSelectOption[];
-  getChatWorkspacePath: (workspaceId: string) => string;
+  getChatWorkspacePath: (chatWorkspaceId: string) => string;
   getTavernWorkspacePath: (nodeId: string) => string;
   isSaving: boolean;
-  openStory: StoryModulesHandle;
+  openStory: (story: StoryJson) => void;
   saveStory: (story: StoryJson) => Promise<StoryJson | null>;
   story: StoryJson | null;
   storyWorkspace: StoryWorkspace | null;
@@ -31,7 +33,7 @@ const resolveStoryWorkspace = async (storyId: string, storyWorkspace: StoryWorks
   return loaded?.workspace ?? null;
 };
 
-export const useStoryState = create<StoryStateStore>((set, get) => ({
+export const useStoryState = create<StoryStore>((set, get) => ({
   isSaving: false,
   story: null,
   storyWorkspace: null,
@@ -58,7 +60,7 @@ export const useStoryState = create<StoryStateStore>((set, get) => ({
     });
   },
 
-  getChatWorkspacePath: (workspaceId) => `/chat/${workspaceId}/new`,
+  getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
 
   getTavernWorkspacePath: (nodeId) => {
     const { story, storyWorkspace } = get();
@@ -110,7 +112,6 @@ export const useStoryState = create<StoryStateStore>((set, get) => ({
     try {
       const savedStory = await saveStoryJson(workspace, {
         ...nextStory,
-        workspaceId: workspace.id,
         updatedAt: Date.now(),
       });
       let nextWorkspace = workspace;

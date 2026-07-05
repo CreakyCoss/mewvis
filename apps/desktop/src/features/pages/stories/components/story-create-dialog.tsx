@@ -1,5 +1,5 @@
 import type { FormEvent, Ref } from "react";
-import { useCallback, useImperativeHandle, useState } from "react";
+import { useImperativeHandle, useState } from "react";
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -39,12 +39,12 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<StoryCreateForm>(emptyForm);
 
-  const open = useCallback(() => {
+  const open = () => {
     setForm(emptyForm());
     setIsOpen(true);
-  }, []);
+  };
 
-  useImperativeHandle(bind, () => open, [open]);
+  useImperativeHandle(bind, () => open);
 
   const chooseDirectory = async () => {
     const selected = await openDirectoryDialog({
