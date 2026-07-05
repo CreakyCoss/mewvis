@@ -1,4 +1,4 @@
-import { buildStoryNodePublicContext, type StoryNodePublicContext } from "../../utils/node-public-context";
+import { buildStoryNodeProjection, type StoryNodeProjection } from "../../model/projection";
 import type { TavernPresentationInput } from "@/features/pages/tavern/presentation/input";
 import type { TavernStoryGraph, TavernStoryNode } from "@/features/pages/tavern/types";
 import type { StoryJson } from "../../model/types";
@@ -14,7 +14,7 @@ const normalizeTavernPathRole = (value: string): TavernStoryNode["pathRole"] =>
 const normalizeTavernNodeStatus = (value: string | undefined): TavernStoryNode["status"] =>
   value === "ready" || value === "played" || value === "draft" ? value : "draft";
 
-const createTavernGraph = (nodeContext: StoryNodePublicContext): TavernStoryGraph => ({
+const createTavernGraph = (nodeContext: StoryNodeProjection): TavernStoryGraph => ({
   version: 1,
   entryNodeId: nodeContext.graph.entryNodeId,
   activeNodeId: nodeContext.graph.activeNodeId,
@@ -52,13 +52,13 @@ const createTavernGraph = (nodeContext: StoryNodePublicContext): TavernStoryGrap
   })),
 });
 
-const formatCharacterMemory = (character: StoryNodePublicContext["characters"][number]) =>
+const formatCharacterMemory = (character: StoryNodeProjection["characters"][number]) =>
   [character.memory?.required, character.memory?.public, character.memory?.known, character.memory?.privateSelf]
     .map(trimText)
     .filter(Boolean)
     .join("\n\n");
 
-const createInputFromNodeContext = (nodeContext: StoryNodePublicContext): TavernPresentationInput => {
+const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernPresentationInput => {
   const activeNodeId = nodeContext.graph.activeNodeId || nodeContext.nodeId;
   const activeNode =
     nodeContext.graph.nodes.find((node) => node.id === activeNodeId) ??
@@ -154,4 +154,4 @@ export const createTavernPayload = (
   }: {
     nodeId?: string | null;
   } = {},
-) => createInputFromNodeContext(buildStoryNodePublicContext(story, nodeId));
+) => createInputFromNodeContext(buildStoryNodeProjection(story, nodeId));

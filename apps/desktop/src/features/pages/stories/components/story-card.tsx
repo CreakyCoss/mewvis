@@ -27,10 +27,12 @@ const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label
 export const StoryCard = ({
   story,
   onEdit,
+  onManuscripts,
   onDelete,
 }: {
   story: StoryJson;
   onEdit: () => void;
+  onManuscripts: () => void;
   onDelete: () => void | Promise<void>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -40,7 +42,6 @@ export const StoryCard = ({
     story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
     story.graph.nodes[0] ??
     null;
-  const pendingDraftCount = story.manuscriptInbox.drafts.filter((draft) => draft.status === "pending").length;
   const visibleCharacters = story.characters.slice(0, 4);
   const hiddenCharacterCount = Math.max(0, story.characters.length - visibleCharacters.length);
 
@@ -125,18 +126,12 @@ export const StoryCard = ({
                   </div>
                 </div>
               </div>
-              {pendingDraftCount > 0 ? (
-                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <FileText className="size-3.5" />
-                  {pendingDraftCount} 篇待收稿
-                </div>
-              ) : null}
             </div>
           </div>
         </button>
 
         <div className="border-t bg-background/80 p-2.5">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
             <Button
               type="button"
               size="sm"
@@ -146,6 +141,16 @@ export const StoryCard = ({
             >
               <Pencil className="size-4 shrink-0" />
               <span className="truncate">编辑</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
+              onClick={onManuscripts}
+            >
+              <FileText className="size-4 shrink-0" />
+              <span className="truncate">稿件</span>
             </Button>
             <Button
               type="button"

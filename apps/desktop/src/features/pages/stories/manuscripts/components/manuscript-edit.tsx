@@ -6,36 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  StoryManuscriptDraft,
-  StoryManuscriptDraftUpdateInput,
-  StoryManuscriptSubmissionInput,
-} from "./manuscript-inbox";
-import type { StoryJson } from "../../model/types";
+import type { StoryJson } from "../../story/model/types";
 import {
   EditorField,
   StoryFormDialogContent,
   StoryFormHeader,
   selectClassName,
-} from "../../../components/story-primitives";
-import { manuscriptSourceLabels } from "../../../components/story-form-utils";
+} from "../../components/story-primitives";
+import { manuscriptSourceLabels, manuscriptStatusLabels } from "../model/operations";
+import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "../model/types";
 
 export type StoryManuscriptEditHandle = {
-  create: () => void;
-  edit: (draft: StoryManuscriptDraft) => void;
+  create: (nodeId?: string) => void;
+  edit: (draft: StoryManuscript) => void;
 };
 
 type StoryManuscriptEditProps = {
   bind: Ref<StoryManuscriptEditHandle>;
   story: StoryJson;
-  onAccept: (draftId: string, patch?: StoryManuscriptDraftUpdateInput) => void;
-  onCreate: (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => void;
+  onAccept: (draftId: string, patch?: StoryManuscriptUpdateInput) => void | Promise<void>;
+  onCreate: (input: Omit<StoryManuscriptSubmissionInput, "storyId" | "source">) => void | Promise<void>;
   onPolish: (input: { nodeId: string; title: string; summary?: string; content: string }) => Promise<string>;
-  onSave: (draftId: string, patch: StoryManuscriptDraftUpdateInput) => void;
-  onReject: (draftId: string) => void;
+  onSave: (draftId: string, patch: StoryManuscriptUpdateInput) => void | Promise<void>;
+  onReject: (draftId: string) => void | Promise<void>;
 };
 
-type ManuscriptForm = Pick<StoryManuscriptDraft, "title" | "summary" | "content" | "branchId" | "nodeId">;
+type ManuscriptForm = Pick<StoryManuscript, "title" | "summary" | "content" | "branchId" | "nodeId">;
 
 type ManuscriptEditorState =
   | {
@@ -44,11 +40,11 @@ type ManuscriptEditorState =
     }
   | {
       mode: "edit";
-      draft: StoryManuscriptDraft;
+      draft: StoryManuscript;
       form: ManuscriptForm;
     };
 
-const createFormFromDraft = (draft: StoryManuscriptDraft): ManuscriptForm => ({
+const createFormFromDraft = (draft: StoryManuscript): ManuscriptForm => ({
   title: draft.title,
   summary: draft.summary,
   content: draft.content,
@@ -56,7 +52,7 @@ const createFormFromDraft = (draft: StoryManuscriptDraft): ManuscriptForm => ({
   nodeId: draft.nodeId,
 });
 
-const createDraftPatch = (form: ManuscriptForm): StoryManuscriptDraftUpdateInput => ({
+const createDraftPatch = (form: ManuscriptForm): StoryManuscriptUpdateInput => ({
   title: form.title,
   summary: form.summary,
   content: form.content,
@@ -144,7 +140,7 @@ const StoryManuscriptEditForm = ({
         </EditorField>
       </div>
     </div>
-    <EditorField label="正文">
+    <EditorField label="正文 Markdown">
       <Textarea
         className="min-h-[18rem] resize-y font-mono text-sm leading-6"
         value={form.content}
@@ -189,7 +185,7 @@ const StoryManuscriptEditFooter = ({
     {isCreate ? (
       <Button type="submit" className="gap-2" disabled={isPolishing || !form.nodeId || !form.content.trim()}>
         <Save className="size-4" />
-        加入收稿箱
+        加入未收稿
       </Button>
     ) : isPendingDraft ? (
       <>
@@ -225,7 +221,7 @@ export const StoryManuscriptEdit = ({
 
   const defaultNodeId = story.graph.activeNodeId || story.graph.entryNodeId || story.graph.nodes[0]?.id || "";
 
-  const create = () => {
+  const create = (nodeId = defaultNodeId) => {
     setEditor({
       mode: "create",
       form: {
@@ -233,13 +229,13 @@ export const StoryManuscriptEdit = ({
         summary: "",
         content: "",
         branchId: "",
-        nodeId: defaultNodeId,
+        nodeId,
       },
     });
     setError("");
   };
 
-  const edit = (nextDraft: StoryManuscriptDraft) => {
+  const edit = (nextDraft: StoryManuscript) => {
     setEditor({
       mode: "edit",
       draft: nextDraft,
@@ -301,11 +297,11 @@ export const StoryManuscriptEdit = ({
       return;
     }
     if (editor.mode === "create") {
-      onCreate(createSubmission(editor.form));
+      void onCreate(createSubmission(editor.form));
       close();
       return;
     }
-    onSave(editor.draft.id, createDraftPatch(editor.form));
+    void onSave(editor.draft.id, createDraftPatch(editor.form));
     close();
   };
 
@@ -313,7 +309,7 @@ export const StoryManuscriptEdit = ({
     if (editor?.mode !== "edit") {
       return;
     }
-    onAccept(editor.draft.id, createDraftPatch(editor.form));
+    void onAccept(editor.draft.id, createDraftPatch(editor.form));
     close();
   };
 
@@ -321,7 +317,7 @@ export const StoryManuscriptEdit = ({
     if (editor?.mode !== "edit") {
       return;
     }
-    onReject(editor.draft.id);
+    void onReject(editor.draft.id);
     close();
   };
 
@@ -351,8 +347,8 @@ export const StoryManuscriptEdit = ({
             {editor.mode === "edit" ? (
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{manuscriptSourceLabels[editor.draft.source]}</Badge>
-                <Badge variant="outline">{editor.draft.status}</Badge>
-                <Badge variant="outline">节点：{editor.draft.nodeId}</Badge>
+                <Badge variant="outline">{manuscriptStatusLabels[editor.draft.status]}</Badge>
+                <Badge variant="outline">节点：{editor.draft.nodeSnapshot.title}</Badge>
               </div>
             ) : null}
             {error ? (

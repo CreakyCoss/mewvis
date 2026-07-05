@@ -7,7 +7,6 @@ import type {
   StorySceneJson,
   StoryStageJson,
 } from "../story/model/types";
-import type { StoryManuscriptDraft } from "../story/modules/manuscripts/manuscript-inbox";
 import { defaultTavernAvatar, tavernAvatarOptions } from "@/assets/avatars";
 
 export type StoryDraft = Pick<StoryJson, "title" | "outline" | "goal" | "userPersonaName">;
@@ -19,9 +18,6 @@ export const splitKeywords = (value: string) =>
     .split(/[\n,，、]/)
     .map((item) => item.trim())
     .filter(Boolean);
-
-export const getPendingDraftCount = (story: StoryJson) =>
-  story.manuscriptInbox.drafts.filter((draft) => draft.status === "pending").length;
 
 const createStoryLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -125,12 +121,4 @@ export const moveItem = <T>(items: T[], index: number, direction: -1 | 1) => {
   const [item] = nextItems.splice(index, 1);
   nextItems.splice(targetIndex, 0, item);
   return nextItems;
-};
-
-export const manuscriptSourceLabels: Record<StoryManuscriptDraft["source"], string> = {
-  tavern: "酒馆",
-  chat: "聊天框",
-  manual: "手写",
-  aiPolish: "AI 润色",
-  import: "导入",
 };

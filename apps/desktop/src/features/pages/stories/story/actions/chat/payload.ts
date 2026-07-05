@@ -1,6 +1,6 @@
 import type { StoryChatSeed } from "@/features/pages/chat/components/workspace-chat-page/story-seed";
 import { createMessageId } from "@/features/pages/chat/utils/sessions";
-import { buildStoryNodePublicContext, type StoryNodePublicContext } from "../../utils/node-public-context";
+import { buildStoryNodeProjection, type StoryNodeProjection } from "../../model/projection";
 import type { StoryJson } from "../../model/types";
 
 const compact = (value: string | undefined | null) => value?.trim() ?? "";
@@ -11,7 +11,7 @@ const truncate = (value: string, maxLength: number) =>
 const formatListSection = (title: string, items: string[]) =>
   items.length ? [`## ${title}`, ...items].join("\n") : "";
 
-const formatNodeContextForChat = (nodeContext: StoryNodePublicContext) => {
+const formatNodeContextForChat = (nodeContext: StoryNodeProjection) => {
   const activeNode = nodeContext.current.node;
   const activeStage = nodeContext.current.stage;
   const activeScene = nodeContext.current.scene;
@@ -37,12 +37,6 @@ const formatNodeContextForChat = (nodeContext: StoryNodePublicContext) => {
       .filter((entry) => entry.enabled)
       .slice(0, 12)
       .map((entry) => `- ${entry.title}：${truncate(entry.content, 260)}`),
-  );
-  const acceptedManuscripts = formatListSection(
-    "已收稿内容",
-    nodeContext.memory.acceptedManuscripts
-      .slice(0, 6)
-      .map((item) => `- ${item.title}：${truncate(item.summary || item.content, 260)}`),
   );
   const outgoingEdges = formatListSection(
     "可选分支",
@@ -77,7 +71,6 @@ const formatNodeContextForChat = (nodeContext: StoryNodePublicContext) => {
       : "",
     characters,
     lore,
-    acceptedManuscripts,
     outgoingEdges,
     "</story_context>",
   ]
@@ -116,7 +109,7 @@ export const createChatPayload = (
   const activeNodeId = story.graph.nodes.some((node) => node.id === requestedNodeId)
     ? requestedNodeId
     : story.graph.activeNodeId || story.graph.entryNodeId || story.graph.nodes[0]?.id || "";
-  const nodeContext = buildStoryNodePublicContext(story, activeNodeId);
+  const nodeContext = buildStoryNodeProjection(story, activeNodeId);
   const title = `${story.title} - 剧情梳理`;
   const runtimeInstruction = [
     "你正在帮助用户进行故事剧情梳理。",

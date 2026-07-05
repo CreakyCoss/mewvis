@@ -18,12 +18,13 @@ import { Button } from "@/components/ui/button";
 import type { StoryJson } from "../../model/types";
 import { cn } from "@/lib/utils";
 import type { StoryDraft } from "../../../components/story-form-utils";
-import { formatCount, manuscriptSourceLabels } from "../../../components/story-form-utils";
+import { formatCount } from "../../../components/story-form-utils";
 import type { StoryConfigTab } from "../types";
 import { editorHeaderActionButtonClassName, emptyValueText } from "../../../components/story-primitives";
 import { StoryOverviewEdit, type StoryOverviewEditHandle } from "./edit";
 
 type StoryOverviewModuleProps = {
+  onOpenManuscripts?: () => void;
   story: StoryJson;
   onOpenModule: (moduleId: StoryConfigTab) => void;
   onSave: (draft: StoryDraft) => void;
@@ -131,7 +132,7 @@ const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: str
   </div>
 );
 
-export const StoryOverviewModule = ({ story, onOpenModule, onSave }: StoryOverviewModuleProps) => {
+export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, onSave }: StoryOverviewModuleProps) => {
   const editRef = useRef<StoryOverviewEditHandle>(null);
   const activeNode =
     story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
@@ -142,8 +143,6 @@ export const StoryOverviewModule = ({ story, onOpenModule, onSave }: StoryOvervi
     ? (story.scenes.find((scene) => scene.id === activeNode.sceneId) ?? null)
     : (story.scenes[0] ?? null);
   const lorebookEntry = story.lorebookEntries[0] ?? null;
-  const pendingDrafts = story.manuscriptInbox.drafts.filter((draft) => draft.status === "pending");
-  const latestAcceptedDraft = story.manuscriptInbox.accepted[0] ?? null;
 
   return (
     <>
@@ -333,25 +332,19 @@ export const StoryOverviewModule = ({ story, onOpenModule, onSave }: StoryOvervi
           <OverviewCard
             icon={FileText}
             title="稿件"
-            meta={`${formatCount(pendingDrafts.length, "待收稿")} · ${formatCount(story.manuscriptInbox.accepted.length, "已收稿")}`}
-            actionLabel="查看稿件"
-            onAction={() => onOpenModule("manuscripts")}
+            meta={formatCount(story.graph.nodes.length, "节点")}
+            actionLabel={onOpenManuscripts ? "打开稿件" : undefined}
+            onAction={onOpenManuscripts}
           >
-            {pendingDrafts[0] || latestAcceptedDraft ? (
+            {activeNode ? (
               <div className="rounded-lg bg-muted/10 px-5 py-5">
-                <div className="text-xs font-medium text-muted-foreground">
-                  {pendingDrafts[0] ? "最新待收稿" : "最新收稿"}
-                </div>
-                <div className="mt-1 truncate text-base font-semibold leading-6">
-                  {(pendingDrafts[0] ?? latestAcceptedDraft)?.title ?? emptyValueText}
-                </div>
+                <div className="text-xs font-medium text-muted-foreground">当前节点</div>
+                <div className="mt-1 truncate text-base font-semibold leading-6">{activeNode.title}</div>
                 <div className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                  {(pendingDrafts[0] ?? latestAcceptedDraft)?.summary ||
-                    (pendingDrafts[0] ?? latestAcceptedDraft)?.content ||
-                    emptyValueText}
+                  {activeScene?.plot || activeScene?.goal || activeScene?.scene || "暂无节点进展。"}
                 </div>
                 <Badge variant="outline" className="mt-3">
-                  {manuscriptSourceLabels[(pendingDrafts[0] ?? latestAcceptedDraft)?.source ?? "manual"]}
+                  {activeNode.id}
                 </Badge>
               </div>
             ) : (

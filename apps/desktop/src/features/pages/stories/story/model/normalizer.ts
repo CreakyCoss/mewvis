@@ -1,5 +1,4 @@
 import { normalizeTavernAvatarId } from "@/assets/avatars";
-import type { StoryManuscriptInbox } from "../modules/manuscripts/manuscript-inbox";
 import { createDefaultStoryJson } from "./state";
 import type {
   StoryCharacterJson,
@@ -254,9 +253,6 @@ const normalizeGraph = ({
   };
 };
 
-const normalizeManuscriptInbox = (value: unknown, fallback: StoryManuscriptInbox): StoryManuscriptInbox =>
-  isRecord(value) && value.version === 1 ? (value as StoryManuscriptInbox) : fallback;
-
 export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOptions = {}): StoryJson | null => {
   if (!isRecord(value)) {
     return null;
@@ -319,7 +315,6 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
       storyId: id,
       scenes: resolvedScenes,
     }),
-    manuscriptInbox: normalizeManuscriptInbox(value.manuscriptInbox, defaultStory.manuscriptInbox),
     createdAt,
     updatedAt,
   };

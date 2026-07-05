@@ -14,7 +14,9 @@ const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/
 const storyTavernInputPath = resolve(workspaceRoot, "src/features/story/projection/tavern-input.ts");
 const storyRuntimeContextPath = resolve(workspaceRoot, "src/features/story/projection/story-runtime-context.ts");
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
     createTavernRoom,
   } from ${JSON.stringify(manualFactoriesPath)};
@@ -234,11 +236,6 @@ writeFileSync(entryPath, `
         alwaysOn: true,
       },
     ],
-    manuscriptInbox: {
-      version: 1,
-      drafts: [],
-      accepted: [],
-    },
     sourceRefs: [],
     createdAt: 1_800_000_300_000,
     updatedAt: 1_800_000_300_100,
@@ -264,7 +261,8 @@ writeFileSync(entryPath, `
     "story tavern bridge 应能从故事标准数据包创建酒馆私有输入并物化运行房间。",
     seedMaterialized.room,
   );
-`);
+`,
+);
 
 try {
   await build({

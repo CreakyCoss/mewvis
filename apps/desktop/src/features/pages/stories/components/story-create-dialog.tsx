@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { StoryJson } from "../story/model/types";
-import { createStory as createStoryInWorkspace, type CreateStoryInput } from "../storage";
+import { createStory as createStoryInWorkspace, type CreateStoryInput, type StoryLibraryItem } from "../storage";
 
 export type StoryCreateDialogHandle = () => void;
 
@@ -26,7 +25,7 @@ type StoryCreateForm = {
 
 type StoryCreateDialogProps = {
   bind: Ref<StoryCreateDialogHandle>;
-  onCreated: (story: StoryJson) => void;
+  onCreated: (item: StoryLibraryItem) => void;
 };
 
 const emptyForm = (): StoryCreateForm => ({
@@ -61,10 +60,14 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
   const createStory = async (input: CreateStoryInput) => {
     setIsSaving(true);
     try {
-      const { story } = await createStoryInWorkspace(input);
+      const { story, workspace } = await createStoryInWorkspace(input);
       toast.success("故事已创建。");
       setIsOpen(false);
-      onCreated(story);
+      onCreated({
+        id: story.id,
+        story,
+        workspace,
+      });
     } catch (error) {
       console.error("Failed to create story", error);
       toast.error(error instanceof Error ? error.message : "故事创建失败。");

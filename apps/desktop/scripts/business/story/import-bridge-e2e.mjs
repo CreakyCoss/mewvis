@@ -87,11 +87,6 @@ writeFileSync(
       ],
       edges: [],
     },
-    manuscriptInbox: {
-      version: 1,
-      drafts: [],
-      accepted: [],
-    },
     createdAt: 1_800_000_000_000,
     updatedAt: 1_800_000_000_000,
   });

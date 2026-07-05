@@ -9,11 +9,8 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
-const manuscriptInboxPath = resolve(
-  workspaceRoot,
-  "src/features/pages/stories/story/modules/manuscripts/manuscript-inbox.ts",
-);
-const runtimeContextPath = resolve(workspaceRoot, "src/features/pages/stories/story/utils/node-public-context.ts");
+const manuscriptOperationsPath = resolve(workspaceRoot, "src/features/pages/stories/manuscripts/model/operations.ts");
+const nodeProjectionPath = resolve(workspaceRoot, "src/features/pages/stories/story/model/projection.ts");
 const normalizePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/normalizer.ts");
 
 writeFileSync(
@@ -21,16 +18,16 @@ writeFileSync(
   `
   import {
     createDefaultStoryJson,
-    submitStoryManuscriptToStory,
   } from ${JSON.stringify(statePath)};
   import {
-    acceptStoryManuscriptDraft,
-    listStoryManuscriptDrafts,
-    updateStoryManuscriptDraft,
-  } from ${JSON.stringify(manuscriptInboxPath)};
+    acceptStoryManuscript,
+    createStoryManuscript,
+    groupStoryManuscriptsByNode,
+    updateStoryManuscript,
+  } from ${JSON.stringify(manuscriptOperationsPath)};
   import {
-    buildStoryNodePublicContext,
-  } from ${JSON.stringify(runtimeContextPath)};
+    buildStoryNodeProjection,
+  } from ${JSON.stringify(nodeProjectionPath)};
   import {
     normalizeStoryJson,
   } from ${JSON.stringify(normalizePath)};
@@ -144,7 +141,7 @@ writeFileSync(
     story,
   );
 
-  const submitted = submitStoryManuscriptToStory(story, {
+  const submitted = createStoryManuscript(story, {
     storyId: story.id,
     nodeId: ledgerNode.id,
     source: "chat",
@@ -155,51 +152,48 @@ writeFileSync(
     summary: "发现巡检表缺页。",
     metadata: { channel: "chat" },
   }, {
+    id: "story-manuscript-draft-1",
     timestamp: 1_800_000_000_200,
   });
-  const updatedInbox = updateStoryManuscriptDraft(
-    submitted.story.manuscriptInbox,
-    submitted.draft.id,
+  const updatedDraft = updateStoryManuscript(
+    submitted,
     {
       title: "巡检表缺页稿",
       summary: "确认巡检表缺页。",
       updatedAt: 1_800_000_000_250,
     },
   );
-  const pendingDrafts = listStoryManuscriptDrafts(updatedInbox, {
-    storyId: story.id,
-    nodeId: ledgerNode.id,
-    status: "pending",
-  });
+  const groupedDrafts = groupStoryManuscriptsByNode(story, [updatedDraft]);
+  const pendingDrafts = groupedDrafts[ledgerNode.id]?.pending ?? [];
   assert(
     pendingDrafts.length === 1 &&
       pendingDrafts[0]?.title === "巡检表缺页稿",
-    "稿件收件箱应支持查询和编辑待确认稿。",
+    "稿件模型应支持按节点查询和编辑未收稿。",
     pendingDrafts,
   );
 
-  const acceptedResult = acceptStoryManuscriptDraft(
-    updatedInbox,
-    submitted.draft.id,
+  const acceptedManuscript = acceptStoryManuscript(
+    updatedDraft,
     { acceptedAt: 1_800_000_000_300 },
   );
-  const acceptedStory = {
-    ...submitted.story,
-    manuscriptInbox: acceptedResult.inbox,
-    updatedAt: 1_800_000_000_300,
-  };
-  const nodeContext = buildStoryNodePublicContext(acceptedStory, ledgerNode.id);
+  assert(
+    acceptedManuscript.status === "accepted" &&
+      acceptedManuscript.acceptedAt === 1_800_000_000_300,
+    "稿件模型应支持将未收稿转为已收稿。",
+    acceptedManuscript,
+  );
+  const nodeContext = buildStoryNodeProjection(story, ledgerNode.id);
   assert(
     nodeContext.scope === "node" &&
       nodeContext.current.node?.id === ledgerNode.id &&
       nodeContext.current.scene?.id === ledgerScene.id &&
       nodeContext.current.progress.includes("发现缺页") &&
-      nodeContext.current.progress.includes("确认巡检表缺页") &&
+      !nodeContext.current.progress.includes("确认巡检表缺页") &&
       nodeContext.graph.activeNodeId === ledgerNode.id &&
       nodeContext.scenes.some((scene) => scene.id === ledgerScene.id) &&
-      nodeContext.memory.acceptedManuscripts.length === 1 &&
+      !("acceptedManuscripts" in nodeContext.memory) &&
       nodeContext.memory.characterPublicMemories[0]?.memory.includes("巡检表被改过"),
-    "节点运行上下文应包含背景、结构、场景、当前节点进展、角色记忆和已收稿件。",
+    "节点运行上下文应包含背景、结构、场景、当前节点进展和角色记忆，不包含稿件内容。",
     nodeContext,
   );
 
@@ -211,7 +205,7 @@ writeFileSync(
   );
 
   const normalizedStory = normalizeStoryJson({
-    ...acceptedStory,
+    ...story,
     id: "story-normalized",
   }, {
     id: "story-normalized",

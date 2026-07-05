@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { BookOpen, FileText, GitBranch, GitMerge, House, UsersRound, type LucideIcon } from "lucide-react";
+import { BookOpen, FileText, GitBranch, House, UsersRound, type LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryJson } from "../model/types";
 import type { StoryDraft } from "../../components/story-form-utils";
@@ -8,12 +8,16 @@ import type { StoryConfigTab } from "./types";
 import { useStoryState } from "../use-story-state";
 import { StoryCharactersModule } from "./characters";
 import { StoryGraphModule } from "./graph";
-import { StoryManuscriptsModule } from "./manuscripts";
 import { StoryOverviewModule } from "./overview";
 import { StoryScenesModule } from "./scenes";
 import { StoryWorldModule } from "./world";
+import type { StoryLibraryItem } from "../../storage";
 
-export const StoryModules = () => {
+type StoryModulesProps = {
+  onOpenManuscripts: (item: StoryLibraryItem) => void;
+};
+
+export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
   const story = useStoryState((state) => state.story);
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const saveStory = useStoryState((state) => state.saveStory);
@@ -57,7 +61,21 @@ export const StoryModules = () => {
       description: "核心故事资源概览",
       icon: House,
       render: (targetStory) => (
-        <StoryOverviewModule story={targetStory} onOpenModule={setActiveTab} onSave={saveOverviewDraft} />
+        <StoryOverviewModule
+          story={targetStory}
+          onOpenManuscripts={
+            storyWorkspace
+              ? () =>
+                  onOpenManuscripts({
+                    id: targetStory.id,
+                    story: targetStory,
+                    workspace: storyWorkspace,
+                  })
+              : undefined
+          }
+          onOpenModule={setActiveTab}
+          onSave={saveOverviewDraft}
+        />
       ),
     },
     {
@@ -98,19 +116,6 @@ export const StoryModules = () => {
       icon: FileText,
       render: (targetStory) => (
         <StoryWorldModule story={targetStory} onSave={(nextStory) => void saveStory(nextStory)} />
-      ),
-    },
-    {
-      id: "manuscripts",
-      label: "稿件",
-      description: "收稿和记录",
-      icon: GitMerge,
-      render: (targetStory) => (
-        <StoryManuscriptsModule
-          story={targetStory}
-          workspace={storyWorkspace}
-          onSave={(nextStory) => void saveStory(nextStory)}
-        />
       ),
     },
   ];

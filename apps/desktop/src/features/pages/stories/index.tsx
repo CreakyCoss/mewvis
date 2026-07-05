@@ -5,11 +5,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
-import type { StoryJson } from "./story/model/types";
-import { deleteStoryRecord, loadStoryLibrary } from "./storage";
+import { deleteStoryRecord, loadStoryLibrary, type StoryLibraryItem } from "./storage";
 import { StoryCard } from "./components/story-card";
 import { StoryCreateDialog, type StoryCreateDialogHandle } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
+import { StoryManuscriptsPage, type StoryManuscriptsHandle } from "./manuscripts";
 import { FULLSCREEN_SEARCH, isFullscreenSearch } from "@/utils/navigation";
 
 export const StoriesPage = () => {
@@ -17,9 +17,9 @@ export const StoriesPage = () => {
   const navigate = useNavigate();
   const isHomeFullscreen = isFullscreenSearch(location.search);
   const modulesRef = useRef<StoryModulesHandle>(null);
+  const manuscriptsRef = useRef<StoryManuscriptsHandle>(null);
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
-  const [editingStoryId, setEditingStoryId] = useState("");
-  const [stories, setStories] = useState<StoryJson[]>([]);
+  const [storyItems, setStoryItems] = useState<StoryLibraryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const replaceStorySearch = (search: string) => {
@@ -36,12 +36,11 @@ export const StoriesPage = () => {
   const refreshStories = async () => {
     setIsLoading(true);
     try {
-      const { stories } = await loadStoryLibrary();
-      setStories(stories);
+      setStoryItems(await loadStoryLibrary());
     } catch (error) {
       console.error("Failed to load story library", error);
       toast.error("无法加载故事。");
-      setStories([]);
+      setStoryItems([]);
     } finally {
       setIsLoading(false);
     }
@@ -51,20 +50,35 @@ export const StoriesPage = () => {
     void refreshStories();
   }, []);
 
+  const closeStoryViews = () => {
+    modulesRef.current?.close();
+    manuscriptsRef.current?.close();
+  };
+
   const exitHomeFullscreen = () => {
-    setEditingStoryId("");
+    closeStoryViews();
     replaceStorySearch("");
   };
 
   const backToStoryHome = () => {
-    setEditingStoryId("");
+    closeStoryViews();
     replaceStorySearch(FULLSCREEN_SEARCH);
     void refreshStories();
   };
 
-  const openStoryEditor = (story: StoryJson) => {
-    modulesRef.current?.open(story);
-    setEditingStoryId(story.id);
+  const openStoryEditor = (item: StoryLibraryItem) => {
+    manuscriptsRef.current?.close();
+    modulesRef.current?.open(item);
+    navigate({
+      pathname: location.pathname,
+      search: FULLSCREEN_SEARCH,
+      hash: location.hash,
+    });
+  };
+
+  const openStoryManuscripts = (item: StoryLibraryItem) => {
+    modulesRef.current?.close();
+    manuscriptsRef.current?.open(item);
     navigate({
       pathname: location.pathname,
       search: FULLSCREEN_SEARCH,
@@ -76,18 +90,15 @@ export const StoriesPage = () => {
     createDialogRef.current?.();
   };
 
-  const handleStoryCreated = (story: StoryJson) => {
-    setStories((current) => [story, ...current.filter((item) => item.id !== story.id)]);
-    openStoryEditor(story);
+  const handleStoryCreated = (item: StoryLibraryItem) => {
+    setStoryItems((current) => [item, ...current.filter((currentItem) => currentItem.id !== item.id)]);
+    openStoryEditor(item);
   };
 
-  const handleDeleteStory = async (story: StoryJson) => {
+  const handleDeleteStory = async (item: StoryLibraryItem) => {
     try {
-      await deleteStoryRecord(story.id);
-      setStories((current) => current.filter((item) => item.id !== story.id));
-      if (editingStoryId === story.id) {
-        backToStoryHome();
-      }
+      await deleteStoryRecord(item.id);
+      setStoryItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
       toast.success("故事及工作区已删除。");
     } catch (error) {
       console.error("Failed to delete story", error);
@@ -127,11 +138,12 @@ export const StoriesPage = () => {
           </header>
 
           <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-5">
-            {stories.map((item) => (
+            {storyItems.map((item) => (
               <StoryCard
                 key={item.id}
-                story={item}
+                story={item.story}
                 onEdit={() => openStoryEditor(item)}
+                onManuscripts={() => openStoryManuscripts(item)}
                 onDelete={() => handleDeleteStory(item)}
               />
             ))}
@@ -143,15 +155,14 @@ export const StoriesPage = () => {
 
   const content = (
     <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className={editingStoryId ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
-          <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} />
-        </div>
-        {editingStoryId ? null : isLoading ? (
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} onOpenManuscripts={openStoryManuscripts} />
+        <StoryManuscriptsPage bind={manuscriptsRef} onBack={backToStoryHome} onOpenStoryEditor={openStoryEditor} />
+        {isLoading ? (
           <ScrollArea className="min-h-0 flex-1">
             <div className="p-6 text-sm text-muted-foreground">加载中...</div>
           </ScrollArea>
-        ) : stories.length === 0 ? (
+        ) : storyItems.length === 0 ? (
           <ScrollArea className="min-h-0 flex-1">
             <div className="flex min-h-[320px] flex-col px-6 py-5">
               {isHomeFullscreen ? (

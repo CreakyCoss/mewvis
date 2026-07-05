@@ -1,7 +1,6 @@
-import type { StoryAcceptedManuscript } from "../modules/manuscripts/manuscript-inbox";
-import type { StoryJson } from "../model/types";
+import type { StoryJson } from "./types";
 
-export type StoryNodePublicContext = {
+export type StoryNodeProjection = {
   version: 1;
   scope: "node";
   storyId: string;
@@ -41,7 +40,6 @@ export type StoryNodePublicContext = {
   };
   characters: StoryJson["characters"];
   memory: {
-    acceptedManuscripts: StoryAcceptedManuscript[];
     characterPublicMemories: Array<{
       characterId: string;
       name: string;
@@ -50,20 +48,13 @@ export type StoryNodePublicContext = {
   };
 };
 
-export const buildStoryNodePublicContext = (story: StoryJson, nodeId?: string | null): StoryNodePublicContext => {
+export const buildStoryNodeProjection = (story: StoryJson, nodeId?: string | null): StoryNodeProjection => {
   const node = getNode(story, compact(nodeId));
   const resolvedNodeId = node?.id ?? "";
   const stage = node ? (story.graph.stages.find((item) => item.id === node.stageId) ?? null) : null;
   const scene = getSceneForNode(story, node);
   const pathNodeIds = unique([resolvedNodeId]);
-  const acceptedNodeIds = new Set(pathNodeIds);
-  const acceptedManuscripts = story.manuscriptInbox.accepted.filter(
-    (item) => acceptedNodeIds.size === 0 || acceptedNodeIds.has(item.nodeId),
-  );
-  const progress = [scene?.plot, ...acceptedManuscripts.map((item) => item.summary || item.content)]
-    .map(compact)
-    .filter(Boolean)
-    .join("\n\n");
+  const progress = compact(scene?.plot);
 
   return {
     version: 1,
@@ -105,7 +96,6 @@ export const buildStoryNodePublicContext = (story: StoryJson, nodeId?: string | 
     },
     characters: story.characters,
     memory: {
-      acceptedManuscripts,
       characterPublicMemories: story.characters.flatMap((character) => {
         const memory = compact(character.memory?.public);
         return memory

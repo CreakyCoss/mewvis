@@ -1,5 +1,3 @@
-import type { StoryManuscriptInbox } from "../modules/manuscripts/manuscript-inbox";
-
 export type StoryJsonVersion = 1;
 
 export type StoryLorebookEntryJson = {
@@ -100,7 +98,6 @@ export type StoryJson = {
   lorebookEntries: StoryLorebookEntryJson[];
   scenes: StorySceneJson[];
   graph: StoryGraphJson;
-  manuscriptInbox: StoryManuscriptInbox;
   createdAt: number;
   updatedAt: number;
 };

@@ -1,11 +1,18 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 import type { StoryJson } from "./model/types";
-import { loadStoryById, saveStoryJson, updateStoryRecordName, type StoryWorkspace } from "../storage";
+import {
+  loadStoryById,
+  saveStoryJson,
+  updateStoryRecordName,
+  type StoryLibraryItem,
+  type StoryWorkspace,
+} from "../storage";
 import type { StoryNodeSelectOption } from "./actions/node";
 
 export type StoryModulesHandle = {
-  open: (story: StoryJson) => void;
+  close: () => void;
+  open: (item: StoryLibraryItem) => void;
 };
 
 type StoryStore = {
@@ -13,7 +20,8 @@ type StoryStore = {
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
   getTavernWorkspacePath: (nodeId: string) => string;
   isSaving: boolean;
-  openStory: (story: StoryJson) => void;
+  closeStory: () => void;
+  openStory: (item: StoryLibraryItem) => void;
   saveStory: (story: StoryJson) => Promise<StoryJson | null>;
   story: StoryJson | null;
   storyWorkspace: StoryWorkspace | null;
@@ -37,6 +45,13 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   isSaving: false,
   story: null,
   storyWorkspace: null,
+
+  closeStory: () => {
+    set({
+      story: null,
+      storyWorkspace: null,
+    });
+  },
 
   buildNodeOptions: (story) => {
     if (!story) {
@@ -76,29 +91,11 @@ export const useStoryState = create<StoryStore>((set, get) => ({
     ].join("/");
   },
 
-  openStory: (nextStory) => {
+  openStory: (item) => {
     set({
-      story: nextStory,
-      storyWorkspace: null,
+      story: item.story,
+      storyWorkspace: item.workspace,
     });
-
-    void loadStoryById(nextStory.id)
-      .then((loaded) => {
-        if (!loaded) {
-          return;
-        }
-        if (get().story?.id !== nextStory.id) {
-          return;
-        }
-        set({
-          story: loaded.story,
-          storyWorkspace: loaded.workspace,
-        });
-      })
-      .catch((error) => {
-        console.error("Failed to load story workspace", error);
-        set({ storyWorkspace: null });
-      });
   },
 
   saveStory: async (nextStory) => {

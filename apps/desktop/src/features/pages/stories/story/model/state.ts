@@ -1,10 +1,4 @@
-import {
-  createEmptyStoryManuscriptInbox,
-  submitStoryManuscriptDraft,
-  type StoryManuscriptSubmissionInput,
-} from "../modules/manuscripts/manuscript-inbox";
 import type { StoryJson } from "./types";
-export type { StoryJson } from "./types";
 
 export const createDefaultStoryJson = ({
   id = `story-${crypto.randomUUID()}`,
@@ -63,40 +57,7 @@ export const createDefaultStoryJson = ({
       ],
       edges: [],
     },
-    manuscriptInbox: createEmptyStoryManuscriptInbox(),
     createdAt: timestamp,
     updatedAt: timestamp,
-  };
-};
-
-export const submitStoryManuscriptToStory = (
-  story: StoryJson,
-  input: StoryManuscriptSubmissionInput,
-  {
-    timestamp = Date.now(),
-  }: {
-    timestamp?: number;
-  } = {},
-) => {
-  if (story.id !== input.storyId) {
-    throw new Error("找不到要收稿的故事。");
-  }
-  if (!story.graph.nodes.some((node) => node.id === input.nodeId)) {
-    throw new Error("找不到稿件绑定的故事节点。");
-  }
-
-  const { draft, inbox } = submitStoryManuscriptDraft(story.manuscriptInbox, {
-    ...input,
-    createdAt: input.createdAt ?? timestamp,
-  });
-  const nextStory: StoryJson = {
-    ...story,
-    manuscriptInbox: inbox,
-    updatedAt: timestamp,
-  };
-
-  return {
-    draft,
-    story: nextStory,
   };
 };

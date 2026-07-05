@@ -1,7 +1,7 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { buildStoryNodePublicContext } from "../../utils/node-public-context";
-import type { StoryJson } from "../../model/types";
+import { buildStoryNodeProjection } from "../story/model/projection";
+import type { StoryJson } from "../story/model/types";
 
 export type StoryWriterAgentMode = "polish" | "expand";
 
@@ -26,7 +26,7 @@ const stripOutputFence = (value: string) =>
 const buildStoryWriterSystemPrompt = () =>
   [
     "你是故事端独立写作助手，只处理 story_context 与当前稿件。",
-    "必须只输出可直接保存为稿件正文的内容，不要输出解释、标题、JSON、markdown 代码块或额外问候。",
+    "必须只输出可直接保存为稿件正文的 Markdown 内容，不要输出解释、标题、JSON、代码块或额外问候。",
     "polish 模式：保留原剧情事实、视角和人物意图，提升文笔、节奏、清晰度和连续性。",
     "expand 模式：在不篡改故事结构和节点目标的前提下补足描写、动作、对话和承接。",
     "不得启动酒馆导演调度，不得安排多 agent 发言，不得替换 story_context 中的角色设定。",
@@ -34,7 +34,7 @@ const buildStoryWriterSystemPrompt = () =>
   ].join("\n");
 
 const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
-  const nodeContext = buildStoryNodePublicContext(input.story, input.nodeId);
+  const nodeContext = buildStoryNodeProjection(input.story, input.nodeId);
 
   return JSON.stringify(
     {
@@ -62,7 +62,9 @@ const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
 export const runStoryWriterAgent = async (input: StoryWriterAgentInput) => {
   const storyWriterAgentClient = createAgentClient();
   const taskInstruction =
-    input.mode === "polish" ? "润色当前稿件，只输出润色后的正文。" : "扩写当前稿件，只输出扩写后的正文。";
+    input.mode === "polish"
+      ? "润色当前稿件，只输出润色后的 Markdown 正文。"
+      : "扩写当前稿件，只输出扩写后的 Markdown 正文。";
   const result = await storyWriterAgentClient.agent.chat({
     runtimeModel: input.runtimeModel,
     systemPrompt: buildStoryWriterSystemPrompt(),
