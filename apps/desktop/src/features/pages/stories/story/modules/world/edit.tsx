@@ -6,7 +6,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoryJson, StoryLorebookEntryJson } from "../../model/types";
-import { createStoryLorebookEntry, splitKeywords } from "../../../components/story-form-utils";
+import { createStoryLocalId, createStoryLorebookEntry } from "../../model/state";
+import { splitKeywords } from "../utils";
 import {
   EditorField,
   StoryFormCard,
@@ -82,7 +83,7 @@ export const StoryWorldEdit = ({ bind, story, onSave }: StoryWorldEditProps) => 
 
     const now = Date.now();
     const nextEntry: StoryLorebookEntryJson = {
-      id: draft.id ?? `story-lore-${crypto.randomUUID()}`,
+      id: draft.id ?? createStoryLocalId("story-lore"),
       title,
       content,
       keywords: splitKeywords(draft.keywords),

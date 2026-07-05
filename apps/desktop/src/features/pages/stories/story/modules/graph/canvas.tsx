@@ -18,8 +18,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { StoryJson, StoryEdgeJson, StoryNodeJson, StorySceneJson } from "../../model/types";
+import { createStoryEdge, createStoryNode, createStoryScene } from "../../model/state";
 import { cn } from "@/lib/utils";
-import { createStoryScene, formatCount } from "../../../components/story-form-utils";
+import { formatCount } from "../utils";
 import {
   EmptyBlock,
   StorySection,
@@ -81,8 +82,6 @@ const storyDetailTitleClassName = "truncate text-[13px] font-semibold leading-5 
 const storyDetailBadgeClassName = "rounded-sm border px-1 py-0.5 text-[9px] font-medium leading-3.5";
 const storyDetailCardClassName = "rounded-md border bg-muted/15 p-2.5";
 const storyDetailBodyClassName = "mt-1 text-xs leading-5 text-foreground/85";
-
-const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const now = () => Date.now();
 
@@ -463,14 +462,11 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
 
   const createInitialNode = () => {
     const scene = createSceneForStoryNode(story, "入口节点");
-    const node: StoryNodeJson = {
-      id: createLocalId("story-node"),
+    const node = createStoryNode(story, {
       sceneId: scene.id,
       title: "入口节点",
-      type: "normal",
-      pathRole: "main",
       status: "ready",
-    };
+    });
 
     saveStory({
       ...story,
@@ -499,23 +495,22 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
     const isDefaultPath = outgoingCount === 0;
     const nodeTitle = isDefaultPath ? `节点 ${graph.nodes.length + 1}` : `分支 ${outgoingCount + 1}`;
     const scene = createSceneForStoryNode(story, nodeTitle);
-    const node: StoryNodeJson = {
-      id: createLocalId("story-node"),
+    const node = createStoryNode(story, {
       sceneId: scene.id,
       title: nodeTitle,
-      type: "normal",
       pathRole: isDefaultPath && sourceNode.pathRole === "main" ? "main" : "branch",
       status: "ready",
-    };
-    const edge: StoryEdgeJson = {
-      id: createLocalId("story-edge"),
+    });
+    const edge = createStoryEdge(story, {
       fromNodeId: sourceNode.id,
       toNodeId: node.id,
       label: isDefaultPath ? "继续" : `分支 ${outgoingCount + 1}`,
-      reason: "",
       isDefault: isDefaultPath,
       priority: outgoingCount,
-    };
+    });
+    if (!edge) {
+      return;
+    }
 
     saveStory({
       ...story,

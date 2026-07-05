@@ -11,7 +11,7 @@ import {
   editorIconActionButtonClassName,
   emptyValueText,
 } from "../../../components/story-primitives";
-import { formatCount } from "../../../components/story-form-utils";
+import { formatCount } from "../utils";
 import type { StoryModuleSave } from "../types";
 import { StoryCharactersEdit, type StoryCharactersEditHandle } from "./edit";
 

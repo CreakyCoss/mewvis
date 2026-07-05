@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, FileText, GitBranch, House, UsersRound, type LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryJson } from "../model/types";
-import type { StoryDraft } from "../../components/story-form-utils";
+import type { StoryDraft } from "./utils";
 import type { StoryConfigTab } from "./types";
 import { useStoryState } from "../use-story-state";
 import { StoryCharactersModule } from "./characters";

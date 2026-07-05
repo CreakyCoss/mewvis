@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoryJson, StorySceneJson, StorySceneStatusJson } from "../../model/types";
-import { createStoryScene } from "../../../components/story-form-utils";
+import { createStoryLocalId, createStoryScene } from "../../model/state";
 import {
   EditorField,
   StoryFormCard,
@@ -96,7 +96,7 @@ export const StoryScenesEdit = ({ bind, story, onSave }: StoryScenesEditProps) =
 
     const now = Date.now();
     const nextScene: StorySceneJson = {
-      id: draft.id ?? `story-scene-${crypto.randomUUID()}`,
+      id: draft.id ?? createStoryLocalId("story-scene"),
       title,
       scene: draft.scene.trim(),
       goal: draft.goal.trim(),

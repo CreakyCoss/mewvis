@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { type StoryJson, type StoryCharacterJson } from "../../model/types";
+import { createStoryCharacter, createStoryLocalId, emptyCharacterMemory } from "../../model/state";
 import { cn } from "@/lib/utils";
-import { createStoryCharacter, emptyCharacterMemory } from "../../../components/story-form-utils";
 import {
   EditorField,
   StoryFormCard,
@@ -113,7 +113,7 @@ export const StoryCharactersEdit = ({ bind, story, onSave }: StoryCharactersEdit
 
     const now = Date.now();
     const nextCharacter: StoryCharacterJson = {
-      id: draft.id ?? `story-character-${crypto.randomUUID()}`,
+      id: draft.id ?? createStoryLocalId("story-character"),
       name,
       avatar: normalizeTavernAvatarId(draft.avatar),
       description,

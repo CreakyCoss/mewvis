@@ -12,7 +12,7 @@ import {
   editorQuietActionButtonClassName,
   emptyValueText,
 } from "../../../components/story-primitives";
-import { formatCount, moveItem } from "../../../components/story-form-utils";
+import { formatCount, moveItem } from "../utils";
 import type { StoryModuleSave } from "../types";
 import { StoryScenesEdit, type StoryScenesEditHandle } from "./edit";
 
