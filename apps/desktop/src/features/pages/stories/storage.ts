@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { createStandaloneStoryJson, submitStoryManuscriptToStory, type StoryJson } from "./story/model/state";
+import { createDefaultStoryJson, submitStoryManuscriptToStory, type StoryJson } from "./story/model/state";
 import { normalizeStoryJson } from "./story/model/normalizer";
 import type { StoryManuscriptSubmissionInput } from "./story/modules/manuscripts/manuscript-inbox";
 
@@ -222,13 +222,13 @@ export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => 
       const parsed = raw ? JSON.parse(raw) : null;
       return (
         normalizeStoryJsonForRecord(record, parsed) ??
-        createStandaloneStoryJson({
+        createDefaultStoryJson({
           id: record.id,
           title: record.name,
         })
       );
     } catch {
-      return createStandaloneStoryJson({
+      return createDefaultStoryJson({
         id: record.id,
         title: record.name,
       });
@@ -238,7 +238,7 @@ export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => 
   const parsed = await readJsonWorkspaceFile(record.workspacePath, STORY_JSON_FILE);
   return (
     normalizeStoryJsonForRecord(record, parsed) ??
-    createStandaloneStoryJson({
+    createDefaultStoryJson({
       id: record.id,
       title: record.name,
     })
@@ -280,7 +280,7 @@ export const createStory = async (
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
-  const story = createStandaloneStoryJson({
+  const story = createDefaultStoryJson({
     id: record.id,
     title: record.name,
   });

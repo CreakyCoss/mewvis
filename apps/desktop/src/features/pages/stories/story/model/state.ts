@@ -6,7 +6,7 @@ import {
 import type { StoryJson } from "./types";
 export type { StoryJson } from "./types";
 
-export const createStandaloneStoryJson = ({
+export const createDefaultStoryJson = ({
   id = `story-${crypto.randomUUID()}`,
   title = "未命名故事",
   timestamp = Date.now(),

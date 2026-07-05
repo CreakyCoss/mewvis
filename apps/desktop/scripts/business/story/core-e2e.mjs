@@ -20,7 +20,7 @@ writeFileSync(
   entryPath,
   `
   import {
-    createStandaloneStoryJson,
+    createDefaultStoryJson,
     submitStoryManuscriptToStory,
   } from ${JSON.stringify(statePath)};
   import {
@@ -42,7 +42,7 @@ writeFileSync(
     }
   };
 
-  const baseStory = createStandaloneStoryJson({
+  const baseStory = createDefaultStoryJson({
     id: "story-fog-archive",
     title: "雾港档案",
     timestamp: 1_800_000_000_000,
@@ -221,6 +221,10 @@ writeFileSync(
       !("workspaceId" in normalizedStory),
     "故事归一化应返回单个 StoryJson 且不包含 workspaceId。",
     normalizedStory,
+  );
+  assert(
+    normalizeStoryJson(null) === null,
+    "故事归一化应保留空输入返回 null 的语义。",
   );
 `,
 );

@@ -1,5 +1,6 @@
 import { normalizeTavernAvatarId } from "@/assets/avatars";
-import { createEmptyStoryManuscriptInbox, type StoryManuscriptInbox } from "../modules/manuscripts/manuscript-inbox";
+import type { StoryManuscriptInbox } from "../modules/manuscripts/manuscript-inbox";
+import { createDefaultStoryJson } from "./state";
 import type {
   StoryCharacterJson,
   StoryCharacterMemoryJson,
@@ -23,8 +24,6 @@ const trimText = (value: unknown) => (typeof value === "string" ? value.trim() :
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
-
-const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const stringArray = (value: unknown) =>
   Array.isArray(value)
@@ -198,30 +197,10 @@ const normalizeEdge = (value: unknown, index: number): StoryEdgeJson | null => {
 };
 
 const createFallbackGraph = ({ storyId, scenes }: { storyId: string; scenes: StorySceneJson[] }): StoryGraphJson => {
-  const stageId = `${storyId}-stage-main`;
-  const nodeId = `${storyId}-node-main`;
+  const graph = createDefaultStoryJson({ id: storyId }).graph;
   return {
-    entryNodeId: nodeId,
-    activeNodeId: nodeId,
-    stages: [
-      {
-        id: stageId,
-        title: "起始阶段",
-        order: 0,
-      },
-    ],
-    nodes: [
-      {
-        id: nodeId,
-        stageId,
-        sceneId: scenes[0]?.id,
-        title: "起始节点",
-        type: "normal",
-        pathRole: "main",
-        status: "draft",
-      },
-    ],
-    edges: [],
+    ...graph,
+    nodes: graph.nodes.map((node, index) => (index === 0 ? { ...node, sceneId: scenes[0]?.id } : node)),
   };
 };
 
@@ -275,8 +254,8 @@ const normalizeGraph = ({
   };
 };
 
-const normalizeManuscriptInbox = (value: unknown): StoryManuscriptInbox =>
-  isRecord(value) && value.version === 1 ? (value as StoryManuscriptInbox) : createEmptyStoryManuscriptInbox();
+const normalizeManuscriptInbox = (value: unknown, fallback: StoryManuscriptInbox): StoryManuscriptInbox =>
+  isRecord(value) && value.version === 1 ? (value as StoryManuscriptInbox) : fallback;
 
 export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOptions = {}): StoryJson | null => {
   if (!isRecord(value)) {
@@ -284,8 +263,12 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
   }
 
   const timestamp = options.timestamp ?? Date.now();
-  const id = trimText(options.id) || trimText(value.id) || createId("story");
-  const title = trimText(value.title) || trimText(value.name) || trimText(options.title) || "未命名故事";
+  const defaultStory = createDefaultStoryJson({
+    id: trimText(options.id) || trimText(value.id) || undefined,
+    title: trimText(value.title) || trimText(value.name) || trimText(options.title) || undefined,
+    timestamp,
+  });
+  const { id, title } = defaultStory;
   const createdAt = numberValue(value.createdAt, timestamp);
   const updatedAt = numberValue(value.updatedAt, timestamp);
   const world = isRecord(value.world) ? value.world : {};
@@ -303,26 +286,23 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
   const resolvedScenes =
     scenes.length > 0
       ? scenes
-      : [
-          {
-            id: `${id}-scene-main`,
-            title: "起始场景",
-            scene: trimText(value.outline),
-            goal: trimText(value.goal),
-            plot: "",
-            direction: "",
-            transition: "",
-            memory: "",
-          },
-        ];
+      : defaultStory.scenes.map((scene, index) =>
+          index === 0
+            ? {
+                ...scene,
+                scene: trimText(value.outline),
+                goal: trimText(value.goal),
+              }
+            : scene,
+        );
 
   return {
-    version: 1,
+    version: defaultStory.version,
     id,
     title,
     outline: trimText(value.outline),
     goal: trimText(value.goal),
-    userPersonaName: trimText(value.userPersonaName) || "我",
+    userPersonaName: trimText(value.userPersonaName) || defaultStory.userPersonaName,
     characters: Array.isArray(value.characters)
       ? value.characters.flatMap((character, index) => {
           const normalized = normalizeCharacter(character, index);
@@ -339,7 +319,7 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
       storyId: id,
       scenes: resolvedScenes,
     }),
-    manuscriptInbox: normalizeManuscriptInbox(value.manuscriptInbox),
+    manuscriptInbox: normalizeManuscriptInbox(value.manuscriptInbox, defaultStory.manuscriptInbox),
     createdAt,
     updatedAt,
   };

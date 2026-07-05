@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { createStandaloneStoryJson } from "../../model/state";
+import { createDefaultStoryJson } from "../../model/state";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 
@@ -31,7 +31,7 @@ export const ResetStoryAction = () => {
     }
 
     const savedStory = await saveStory(
-      createStandaloneStoryJson({
+      createDefaultStoryJson({
         id: story.id,
         title: "未命名故事",
         timestamp: Date.now(),
