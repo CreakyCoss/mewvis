@@ -4,13 +4,13 @@ import {
   rejectStoryManuscript,
   sortNewestFirst,
   updateStoryManuscript,
-} from "./model/operations";
-import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "./model/types";
-import { loadStoryManuscripts, persistStoryManuscripts } from "./storage";
-import { loadStoryById, type StoryWorkspace } from "../storage";
-import type { StoryJson } from "../story/model/types";
+} from "./domain";
+import { loadStoryManuscripts, persistStoryManuscripts } from "./repository";
+import type { StoryJson } from "../../story/model/types";
+import { loadStoryById, type StoryWorkspace } from "../../storage";
+import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "../model/types";
 
-export type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "./model/types";
+export type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "../model/types";
 
 export const listStoryManuscripts = async (workspace: StoryWorkspace, storyId: string) =>
   (await loadStoryManuscripts(workspace.path, storyId)).sort(sortNewestFirst);

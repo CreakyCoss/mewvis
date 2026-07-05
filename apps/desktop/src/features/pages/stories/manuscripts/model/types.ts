@@ -1,8 +1,8 @@
 import type { StoryJson } from "../../story/model/types";
+import type { StoryManuscriptManifestIdsKey, StoryManuscriptStatus as StoryManuscriptStatusValue } from "./status";
 
-export const storyManuscriptStatuses = ["pending", "accepted", "rejected"] as const;
-
-export type StoryManuscriptStatus = (typeof storyManuscriptStatuses)[number];
+export { storyManuscriptStatuses } from "./status";
+export type { StoryManuscriptStatus } from "./status";
 
 export type StoryManuscriptSource = "tavern" | "chat" | "manual" | "aiPolish" | "import";
 
@@ -57,7 +57,7 @@ export type StoryManuscriptMeta = {
   storyId: string;
   nodeId: string;
   branchId?: string;
-  status: StoryManuscriptStatus;
+  status: StoryManuscriptStatusValue;
   source: StoryManuscriptSource;
   sourceRunId?: string;
   sourceMessageIds: string[];
@@ -80,10 +80,7 @@ export type StoryManuscript = StoryManuscriptMeta & {
 export type StoryManuscriptsNodeManifest = {
   nodeId: string;
   nodeSnapshot: StoryManuscriptNodeSnapshot | null;
-  pendingIds: string[];
-  acceptedIds: string[];
-  rejectedIds: string[];
-};
+} & Record<StoryManuscriptManifestIdsKey, string[]>;
 
 export type StoryManuscriptsManifest = {
   version: 1;
@@ -96,8 +93,5 @@ export type StoryManuscriptsByNode = Record<
   string,
   {
     node: StoryJson["graph"]["nodes"][number] | null;
-    pending: StoryManuscript[];
-    accepted: StoryManuscript[];
-    rejected: StoryManuscript[];
-  }
+  } & Record<StoryManuscriptStatusValue, StoryManuscript[]>
 >;

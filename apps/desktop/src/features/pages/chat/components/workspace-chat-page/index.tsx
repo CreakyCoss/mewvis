@@ -11,7 +11,7 @@ import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import { submitStoryManuscript } from "@/features/pages/stories/manuscripts/service";
+import { submitStoryManuscript } from "@/features/pages/stories/manuscripts/core/use-cases";
 import { saveChatSession } from "../../api";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";

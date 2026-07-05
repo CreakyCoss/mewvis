@@ -1,4 +1,4 @@
-import { submitStoryManuscript } from "@/features/pages/stories/manuscripts/service";
+import { submitStoryManuscript } from "@/features/pages/stories/manuscripts/core/use-cases";
 
 type TavernStoryManuscriptSubmissionInput = Parameters<typeof submitStoryManuscript>[1];
 

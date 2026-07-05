@@ -1,16 +1,18 @@
 import type { StoryJson } from "../../story/model/types";
+import { storyManuscriptContentPath } from "./file-layout";
+import { storyManuscriptStatusOptions } from "../model/status";
 import type {
   StoryManuscript,
-  StoryManuscriptMeta,
   StoryManuscriptsByNode,
-  StoryManuscriptsManifest,
   StoryManuscriptNodeSnapshot,
   StoryManuscriptSource,
   StoryManuscriptStatus,
   StoryManuscriptStorySnapshot,
   StoryManuscriptSubmissionInput,
   StoryManuscriptUpdateInput,
-} from "./types";
+} from "../model/types";
+
+export { storyManuscriptStatusLabels as manuscriptStatusLabels } from "../model/status";
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -22,12 +24,6 @@ export const manuscriptSourceLabels: Record<StoryManuscriptSource, string> = {
   manual: "手写",
   aiPolish: "AI 润色",
   import: "导入",
-};
-
-export const manuscriptStatusLabels: Record<StoryManuscriptStatus, string> = {
-  pending: "未收稿",
-  accepted: "已收稿",
-  rejected: "已退回",
 };
 
 export const createStorySnapshot = (story: StoryJson): StoryManuscriptStorySnapshot => ({
@@ -60,12 +56,6 @@ export const createNodeSnapshot = (story: StoryJson, nodeId: string): StoryManus
     scenePlot: scene?.plot || undefined,
   };
 };
-
-export const storyManuscriptContentPath = (manuscript: Pick<StoryManuscript, "id" | "nodeId" | "status">) =>
-  `manuscripts/${manuscript.status}/${encodePathSegment(manuscript.nodeId)}/${encodePathSegment(manuscript.id)}.md`;
-
-export const storyManuscriptMetaPath = (manuscript: Pick<StoryManuscript, "id" | "nodeId" | "status">) =>
-  `manuscripts/${manuscript.status}/${encodePathSegment(manuscript.nodeId)}/${encodePathSegment(manuscript.id)}.json`;
 
 export const createStoryManuscript = (
   story: StoryJson,
@@ -192,49 +182,11 @@ export const rejectStoryManuscript = (
   };
 };
 
-export const storyManuscriptToMeta = ({ content: _content, ...meta }: StoryManuscript): StoryManuscriptMeta => meta;
-
-export const createEmptyStoryManuscriptsManifest = (storyId: string): StoryManuscriptsManifest => ({
-  version: 1,
-  storyId,
-  updatedAt: Date.now(),
-  nodes: [],
-});
-
-export const createStoryManuscriptsManifest = (
-  storyId: string,
-  manuscripts: StoryManuscript[],
-): StoryManuscriptsManifest => {
-  const nodesById = new Map<string, StoryManuscriptsManifest["nodes"][number]>();
-
-  for (const manuscript of manuscripts) {
-    const node =
-      nodesById.get(manuscript.nodeId) ??
-      ({
-        nodeId: manuscript.nodeId,
-        nodeSnapshot: manuscript.nodeSnapshot,
-        pendingIds: [],
-        acceptedIds: [],
-        rejectedIds: [],
-      } satisfies StoryManuscriptsManifest["nodes"][number]);
-    node.nodeSnapshot = manuscript.nodeSnapshot;
-    if (manuscript.status === "pending") {
-      node.pendingIds.push(manuscript.id);
-    } else if (manuscript.status === "accepted") {
-      node.acceptedIds.push(manuscript.id);
-    } else {
-      node.rejectedIds.push(manuscript.id);
-    }
-    nodesById.set(manuscript.nodeId, node);
-  }
-
-  return {
-    version: 1,
-    storyId,
-    updatedAt: manuscripts.reduce((latest, item) => Math.max(latest, item.updatedAt), Date.now()),
-    nodes: [...nodesById.values()].sort((left, right) => left.nodeId.localeCompare(right.nodeId)),
-  };
-};
+const createEmptyManuscriptStatusGroups = () =>
+  Object.fromEntries(storyManuscriptStatusOptions.map(({ status }) => [status, []])) as unknown as Record<
+    StoryManuscriptStatus,
+    StoryManuscript[]
+  >;
 
 export const groupStoryManuscriptsByNode = (
   story: StoryJson,
@@ -245,9 +197,7 @@ export const groupStoryManuscriptsByNode = (
       node.id,
       {
         node,
-        pending: [],
-        accepted: [],
-        rejected: [],
+        ...createEmptyManuscriptStatusGroups(),
       },
     ]),
   );
@@ -257,17 +207,15 @@ export const groupStoryManuscriptsByNode = (
       grouped[manuscript.nodeId] ??
       (grouped[manuscript.nodeId] = {
         node: null,
-        pending: [],
-        accepted: [],
-        rejected: [],
+        ...createEmptyManuscriptStatusGroups(),
       });
     group[manuscript.status].push(manuscript);
   }
 
   for (const group of Object.values(grouped)) {
-    group.pending.sort(sortNewestFirst);
-    group.accepted.sort(sortNewestFirst);
-    group.rejected.sort(sortNewestFirst);
+    for (const { status } of storyManuscriptStatusOptions) {
+      group[status].sort(sortNewestFirst);
+    }
   }
 
   return grouped;
@@ -275,5 +223,3 @@ export const groupStoryManuscriptsByNode = (
 
 export const sortNewestFirst = (left: StoryManuscript, right: StoryManuscript) =>
   right.updatedAt - left.updatedAt || right.createdAt - left.createdAt;
-
-const encodePathSegment = (value: string) => encodeURIComponent(value.trim() || "unknown").replace(/\./g, "%2E");

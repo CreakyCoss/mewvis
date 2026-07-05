@@ -12,10 +12,11 @@ import {
   editorIconActionButtonClassName,
   editorDangerIconActionButtonClassName,
 } from "../components/story-primitives";
-import { groupStoryManuscriptsByNode, manuscriptSourceLabels, manuscriptStatusLabels } from "./model/operations";
+import { groupStoryManuscriptsByNode, manuscriptSourceLabels } from "./core/domain";
+import { storyManuscriptStatusOptions, type StoryManuscriptStatus } from "./model/status";
 import type { StoryManuscript } from "./model/types";
 import { StoryManuscriptEdit, type StoryManuscriptEditHandle } from "./components/manuscript-edit";
-import { useStoryManuscripts } from "./hooks/use-story-manuscripts";
+import { useStoryManuscripts } from "./use-story-manuscripts";
 
 export type StoryManuscriptsHandle = {
   close: () => void;
@@ -28,11 +29,16 @@ type StoryManuscriptsPageProps = {
   onOpenStoryEditor: (item: StoryLibraryItem) => void;
 };
 
-const manuscriptGroupTabs = [
-  { status: "pending", label: "未收稿", icon: FileText },
-  { status: "accepted", label: "已收稿", icon: ScrollText },
-  { status: "rejected", label: "已退回", icon: X },
-] as const;
+const manuscriptStatusIcons = {
+  pending: FileText,
+  accepted: ScrollText,
+  rejected: X,
+} satisfies Record<StoryManuscriptStatus, typeof FileText>;
+
+const manuscriptGroupTabs = storyManuscriptStatusOptions.map((option) => ({
+  ...option,
+  icon: manuscriptStatusIcons[option.status],
+}));
 
 const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
@@ -53,11 +59,14 @@ export const StoryManuscriptsPage = ({ bind, onBack, onOpenStoryEditor }: StoryM
     onBack();
   }, [close, onBack]);
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      handleBack();
-    }
-  }, [handleBack]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        handleBack();
+      }
+    },
+    [handleBack],
+  );
 
   useImperativeHandle(bind, () => ({ close, open }), [close, open]);
 
@@ -177,11 +186,14 @@ const StoryManuscriptsContent = ({
                       <span className="truncate text-sm font-medium">{node.title}</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant={group?.pending.length ? "default" : "outline"}>
-                        {group?.pending.length ?? 0} 未
-                      </Badge>
-                      <Badge variant="outline">{group?.accepted.length ?? 0} 收</Badge>
-                      <Badge variant="outline">{group?.rejected.length ?? 0} 退</Badge>
+                      {storyManuscriptStatusOptions.map(({ badgeVariant, shortLabel, status }) => {
+                        const count = group?.[status].length ?? 0;
+                        return (
+                          <Badge key={status} variant={count ? badgeVariant : "outline"}>
+                            {count} {shortLabel}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </button>
                 );
@@ -213,16 +225,14 @@ const StoryManuscriptsContent = ({
                 </section>
 
                 <div className="grid gap-4 xl:grid-cols-3">
-                  {manuscriptGroupTabs.map(({ status, label, icon: Icon }) => (
+                  {manuscriptGroupTabs.map(({ badgeVariant, emptyText, status, label, icon: Icon }) => (
                     <section key={status} className="min-w-0 rounded-lg border bg-background">
                       <div className="flex items-center justify-between gap-3 border-b px-3 py-2.5">
                         <div className="flex min-w-0 items-center gap-2">
                           <Icon className="size-4 shrink-0 text-primary" />
                           <h3 className="truncate text-sm font-semibold">{label}</h3>
                         </div>
-                        <Badge variant={status === "pending" ? "default" : "outline"}>
-                          {selectedGroup?.[status].length ?? 0}
-                        </Badge>
+                        <Badge variant={badgeVariant}>{selectedGroup?.[status].length ?? 0}</Badge>
                       </div>
                       <div className="space-y-2 p-3">
                         {selectedGroup?.[status].length ? (
@@ -236,7 +246,7 @@ const StoryManuscriptsContent = ({
                             />
                           ))
                         ) : (
-                          <EmptyBlock text={`暂无${manuscriptStatusLabels[status]}件`} />
+                          <EmptyBlock text={emptyText} />
                         )}
                       </div>
                     </section>

@@ -2,17 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRuntimeAgentSettings } from "@/features/ai/hooks/use-runtime-agent-settings";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
-import type { StoryJson } from "../../story/model/types";
-import type { StoryWorkspace } from "../../storage";
+import type { StoryJson } from "../story/model/types";
+import type { StoryWorkspace } from "../storage";
 import {
   acceptStoryManuscriptDraft,
   listStoryManuscripts,
   rejectStoryManuscriptDraft,
   submitStoryManuscriptToWorkspace,
   updateStoryManuscriptDraft,
-} from "../service";
-import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "../model/types";
-import { runStoryWriterAgent } from "../story-writer-agent";
+} from "./core/use-cases";
+import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "./model/types";
+import { runStoryWriterAgent } from "./story-writer-agent";
 
 type UseStoryManuscriptsInput = {
   story: StoryJson;

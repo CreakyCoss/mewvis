@@ -13,7 +13,7 @@ import {
   StoryFormHeader,
   selectClassName,
 } from "../../components/story-primitives";
-import { manuscriptSourceLabels, manuscriptStatusLabels } from "../model/operations";
+import { manuscriptSourceLabels, manuscriptStatusLabels } from "../core/domain";
 import type { StoryManuscript, StoryManuscriptSubmissionInput, StoryManuscriptUpdateInput } from "../model/types";
 
 export type StoryManuscriptEditHandle = {

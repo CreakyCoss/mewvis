@@ -1,21 +1,18 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   createStoryManuscriptsManifest,
+  MANUSCRIPTS_MANIFEST_FILE,
   storyManuscriptContentPath,
   storyManuscriptMetaPath,
   storyManuscriptToMeta,
-} from "./model/operations";
+} from "./file-layout";
 import {
   normalizeStoryManuscript,
   normalizeStoryManuscriptMeta,
   normalizeStoryManuscriptsManifest,
-} from "./model/normalizer";
-import type { StoryManuscript } from "./model/types";
-
-const MANUSCRIPTS_MANIFEST_FILE = "manuscripts/manifest.json";
-const STORY_MANUSCRIPTS_STORAGE_PREFIX = "novel-claw:story:manuscripts";
-
-const storyManuscriptsStorageKey = (storyId: string) => `${STORY_MANUSCRIPTS_STORAGE_PREFIX}:${storyId}`;
+} from "../model/normalizer";
+import { storyManuscriptStatusOptions } from "../model/status";
+import type { StoryManuscript } from "../model/types";
 
 const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
   try {
@@ -66,56 +63,20 @@ const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: 
   }
 };
 
-const loadStoryManuscriptsFromLocalStorage = (storyId: string): StoryManuscript[] => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(storyManuscriptsStorageKey(storyId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed)
-      ? parsed.flatMap((item) => {
-          const meta = normalizeStoryManuscriptMeta(item);
-          const content = isRecord(item) && typeof item.content === "string" ? item.content : "";
-          return meta ? [{ ...meta, content }] : [];
-        })
-      : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveStoryManuscriptsToLocalStorage = (storyId: string, manuscripts: StoryManuscript[]) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(storyManuscriptsStorageKey(storyId), JSON.stringify(manuscripts));
-};
-
-export const removeStoryManuscriptsFromLocalStorage = (storyId: string) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(storyManuscriptsStorageKey(storyId));
-};
-
 export const loadStoryManuscripts = async (workspacePath: string, storyId: string): Promise<StoryManuscript[]> => {
   if (!isTauri()) {
-    return loadStoryManuscriptsFromLocalStorage(storyId);
+    return [];
   }
 
   const manifest = normalizeStoryManuscriptsManifest(
     await readJsonWorkspaceFile(workspacePath, MANUSCRIPTS_MANIFEST_FILE),
     storyId,
   );
-  const manuscriptRefs = manifest.nodes.flatMap((node) => [
-    ...node.pendingIds.map((id) => ({ id, nodeId: node.nodeId, status: "pending" as const })),
-    ...node.acceptedIds.map((id) => ({ id, nodeId: node.nodeId, status: "accepted" as const })),
-    ...node.rejectedIds.map((id) => ({ id, nodeId: node.nodeId, status: "rejected" as const })),
-  ]);
+  const manuscriptRefs = manifest.nodes.flatMap((node) =>
+    storyManuscriptStatusOptions.flatMap(({ manifestIdsKey, status }) =>
+      node[manifestIdsKey].map((id) => ({ id, nodeId: node.nodeId, status })),
+    ),
+  );
 
   const manuscripts = await Promise.all(
     manuscriptRefs.map(async (ref) => {
@@ -143,7 +104,6 @@ export const persistStoryManuscripts = async (
   }));
 
   if (!isTauri()) {
-    saveStoryManuscriptsToLocalStorage(storyId, normalized);
     return normalized;
   }
 
@@ -175,6 +135,3 @@ export const persistStoryManuscripts = async (
 
   return normalized;
 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value && typeof value === "object" && !Array.isArray(value));

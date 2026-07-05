@@ -1,5 +1,5 @@
-import { createEmptyStoryManuscriptsManifest, storyManuscriptContentPath } from "./operations";
-import { storyManuscriptStatuses } from "./types";
+import { createEmptyStoryManuscriptsManifest, storyManuscriptContentPath } from "../core/file-layout";
+import { storyManuscriptStatusOptions, storyManuscriptStatuses, type StoryManuscriptManifestIdsKey } from "./status";
 import type {
   StoryManuscript,
   StoryManuscriptMeta,
@@ -30,6 +30,11 @@ const stringArray = (value: unknown) =>
     : [];
 
 const objectValue = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
+
+const normalizeManifestIdGroups = (node: Record<string, unknown>) =>
+  Object.fromEntries(
+    storyManuscriptStatusOptions.map(({ manifestIdsKey }) => [manifestIdsKey, stringArray(node[manifestIdsKey])]),
+  ) as Record<StoryManuscriptManifestIdsKey, string[]>;
 
 const normalizeStorySnapshot = (
   value: unknown,
@@ -137,9 +142,7 @@ export const normalizeStoryManuscriptsManifest = (value: unknown, storyId: strin
             {
               nodeId,
               nodeSnapshot: isRecord(node.nodeSnapshot) ? normalizeNodeSnapshot(node.nodeSnapshot, { nodeId }) : null,
-              pendingIds: stringArray(node.pendingIds),
-              acceptedIds: stringArray(node.acceptedIds),
-              rejectedIds: stringArray(node.rejectedIds),
+              ...normalizeManifestIdGroups(node),
             },
           ];
         })
