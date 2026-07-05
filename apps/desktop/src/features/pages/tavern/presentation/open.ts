@@ -78,7 +78,6 @@ export const openTavernPresentationInput = async ({
         storyNodeId: resolvedStoryNodeId,
         tavernId,
         runtimePath,
-        fullscreen: true,
       }),
     },
   };

@@ -1,15 +1,26 @@
-import { buildSearch, FULLSCREEN_SEARCH, FULLSCREEN_SEARCH_PARAM, isFullscreenSearch } from "@/utils/navigation";
-
-export const TAVERN_FULLSCREEN_SEARCH_PARAM = FULLSCREEN_SEARCH_PARAM;
 export const TAVERN_ROOM_SEARCH_PARAM = "roomId";
 export const TAVERN_SCENE_INSTANCE_SEARCH_PARAM = "sceneInstanceId";
 export const TAVERN_STORY_SEARCH_PARAM = "storyId";
 export const TAVERN_STORY_NODE_SEARCH_PARAM = "storyNodeId";
 export const TAVERN_ID_SEARCH_PARAM = "tavernId";
 export const TAVERN_RUNTIME_PATH_SEARCH_PARAM = "tavernRuntimePath";
-export const TAVERN_FULLSCREEN_SEARCH = FULLSCREEN_SEARCH;
 
-export const isTavernFullscreenSearch = isFullscreenSearch;
+type SearchParamValue = string | number | null | undefined;
+
+const buildTavernSearch = (entries: Record<string, SearchParamValue>) => {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(entries)) {
+    if (value === null || value === undefined || value === "") {
+      continue;
+    }
+
+    params.set(key, String(value));
+  }
+
+  const search = params.toString();
+  return search ? `?${search}` : "";
+};
 
 export const buildTavernOpenSearch = ({
   roomId,
@@ -18,7 +29,6 @@ export const buildTavernOpenSearch = ({
   storyNodeId,
   tavernId,
   runtimePath,
-  fullscreen = true,
 }: {
   roomId?: string;
   sceneInstanceId?: string;
@@ -26,10 +36,8 @@ export const buildTavernOpenSearch = ({
   storyNodeId?: string;
   tavernId?: string;
   runtimePath?: string;
-  fullscreen?: boolean;
 }) => {
-  return buildSearch({
-    [TAVERN_FULLSCREEN_SEARCH_PARAM]: fullscreen,
+  return buildTavernSearch({
     [TAVERN_ROOM_SEARCH_PARAM]: roomId,
     [TAVERN_SCENE_INSTANCE_SEARCH_PARAM]: sceneInstanceId,
     [TAVERN_STORY_SEARCH_PARAM]: storyId,

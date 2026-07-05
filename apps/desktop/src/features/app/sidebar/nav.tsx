@@ -4,7 +4,6 @@ import type { To } from "react-router";
 import { NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FULLSCREEN_SEARCH } from "@/utils/navigation";
 
 type NavProps = {
   chatPath: string;
@@ -22,13 +21,13 @@ const navItems: NavItem[] = [
   { id: "knowledge", to: "/knowledge", label: "知识库", icon: Database },
   {
     id: "stories",
-    to: { pathname: "/stories", search: FULLSCREEN_SEARCH },
+    to: "/stories",
     label: "故事",
     icon: BookOpen,
   },
   {
     id: "tavern",
-    to: { pathname: "/tavern", search: FULLSCREEN_SEARCH },
+    to: "/tavern",
     label: "酒馆",
     icon: Wine,
   },

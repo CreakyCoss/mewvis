@@ -14,9 +14,10 @@ import {
   UsersRound,
   Wine,
 } from "lucide-react";
-import { createContext, useContext } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { create } from "zustand";
 import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,27 +42,30 @@ type RoomCardRuntimeValue = {
   onOperationStatusChange?: (status: string) => void;
 };
 
-const RoomCardRuntimeContext = createContext<RoomCardRuntimeValue | null>(null);
+const createInitialRoomCardRuntimeValue = (): RoomCardRuntimeValue => ({
+  openRoomEditor: () => undefined,
+  onRequestDangerAction: () => undefined,
+});
 
-export const RoomCardRuntimeProvider = ({
-  value,
-  children,
-}: {
-  value: RoomCardRuntimeValue;
-  children: ReactNode;
-}) => (
-  <RoomCardRuntimeContext.Provider value={value}>
-    {children}
-  </RoomCardRuntimeContext.Provider>
-);
+const useRoomCardRuntimeStore = create<RoomCardRuntimeValue>(() => createInitialRoomCardRuntimeValue());
 
-const useRoomCardRuntime = () => {
-  const value = useContext(RoomCardRuntimeContext);
-  if (!value) {
-    throw new Error("RoomCardRuntimeContext is missing.");
+export const RoomCardRuntimeProvider = ({ value, children }: { value: RoomCardRuntimeValue; children: ReactNode }) => {
+  const isStoreInitializedRef = useRef(false);
+
+  if (!isStoreInitializedRef.current) {
+    useRoomCardRuntimeStore.setState(value);
+    isStoreInitializedRef.current = true;
   }
 
-  return value;
+  useLayoutEffect(() => {
+    useRoomCardRuntimeStore.setState(value);
+  }, [value]);
+
+  return children;
+};
+
+const useRoomCardRuntime = () => {
+  return useRoomCardRuntimeStore();
 };
 
 type RoomCardProps = {
@@ -72,13 +76,7 @@ type RoomCardProps = {
   onOpenRoom?: (room: TavernRoom) => void;
 };
 
-export const RoomCard = ({
-  room,
-  onRoomRemove,
-  onRoomCopy,
-  onRoomChange,
-  onOpenRoom,
-}: RoomCardProps) => {
+export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange, onOpenRoom }: RoomCardProps) => {
   const {
     activeRoom,
     characterById,
@@ -90,11 +88,7 @@ export const RoomCard = ({
     deleteRoom,
     exportRoom,
   } = useManagementContext();
-  const {
-    openRoomEditor,
-    onRequestDangerAction,
-    onOperationStatusChange,
-  } = useRoomCardRuntime();
+  const { openRoomEditor, onRequestDangerAction, onOperationStatusChange } = useRoomCardRuntime();
 
   const isActive = room.id === activeRoom?.id;
   const roomCharacters = room.characterIds
@@ -103,10 +97,7 @@ export const RoomCard = ({
   const messages = messagesByRoomId[room.id] ?? [];
   const visualPreset = getVisualPreset(room.scenePresetId);
   const visibleCharacters = roomCharacters.slice(0, 4);
-  const hiddenCharacterCount = Math.max(
-    0,
-    roomCharacters.length - visibleCharacters.length,
-  );
+  const hiddenCharacterCount = Math.max(0, roomCharacters.length - visibleCharacters.length);
   const sceneCount = Math.max(1, room.scenes?.length ?? 1);
   const roomBadgeClassName = room.systemPresetId
     ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
@@ -142,9 +133,7 @@ export const RoomCard = ({
 
   const handleExportRoom = () => {
     const exported = exportRoom(room.id);
-    const message = exported
-      ? `已导出「${room.title}」运行快照`
-      : `导出「${room.title}」运行快照失败`;
+    const message = exported ? `已导出「${room.title}」运行快照` : `导出「${room.title}」运行快照失败`;
 
     setOperationStatus(message);
     if (exported) {
@@ -185,8 +174,7 @@ export const RoomCard = ({
 
     onRequestDangerAction({
       title: "恢复默认",
-      description:
-        `恢复「${room.title}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
+      description: `恢复「${room.title}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
       confirmLabel: "恢复默认",
       onConfirm: () => {
         void restoreSystemPresetRoom(room.id).then((applied) => {
@@ -279,9 +267,7 @@ export const RoomCard = ({
         </div>
 
         <div className="flex flex-col px-3.5 pt-8 pb-3">
-          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">
-            {room.title}
-          </h3>
+          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{room.title}</h3>
           <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
             {compactScene(room.scene)}
           </p>
@@ -309,12 +295,8 @@ export const RoomCard = ({
                   <Target className="size-4" />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-5 text-foreground">
-                    当前目标
-                  </div>
-                  <div className="line-clamp-1">
-                    {room.sceneGoal.trim() || emptyValueText}
-                  </div>
+                  <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
+                  <div className="line-clamp-1">{room.sceneGoal.trim() || emptyValueText}</div>
                 </div>
               </div>
             </div>
@@ -362,37 +344,18 @@ export const RoomCard = ({
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className="w-48 rounded-lg p-1.5 shadow-xl"
-            >
-              <DropdownMenuLabel className="px-2 py-1 text-xs text-muted-foreground">
-                房间操作
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                className="h-8 gap-2 rounded-md px-2 text-sm"
-                onSelect={handleCopyRoom}
-              >
+            <DropdownMenuContent align="end" sideOffset={8} className="w-48 rounded-lg p-1.5 shadow-xl">
+              <DropdownMenuLabel className="px-2 py-1 text-xs text-muted-foreground">房间操作</DropdownMenuLabel>
+              <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleCopyRoom}>
                 <Copy className="size-4" />
                 复制酒馆
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="h-8 gap-2 rounded-md px-2 text-sm"
-                onSelect={handleExportRoom}
-              >
+              <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleExportRoom}>
                 <Download className="size-4" />
                 导出运行快照
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="h-8 gap-2 rounded-md px-2 text-sm"
-                onSelect={handleRoomLockChange}
-              >
-                {room.locked ? (
-                  <LockKeyhole className="size-4" />
-                ) : (
-                  <UnlockKeyhole className="size-4" />
-                )}
+              <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleRoomLockChange}>
+                {room.locked ? <LockKeyhole className="size-4" /> : <UnlockKeyhole className="size-4" />}
                 {room.locked ? "解锁酒馆" : "锁定酒馆"}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="mx-2 my-1.5" />

@@ -11,16 +11,10 @@ import {
   TAVERN_STORY_NODE_SEARCH_PARAM,
   TAVERN_ID_SEARCH_PARAM,
   TAVERN_RUNTIME_PATH_SEARCH_PARAM,
-  isTavernFullscreenSearch,
-  TAVERN_FULLSCREEN_SEARCH_PARAM,
 } from "@/features/pages/tavern/navigation";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { FULLSCREEN_SEARCH } from "@/utils/navigation";
 import { useLlmSettingsStore } from "../settings/llm/store";
-
-const buildStoriesOpenSearch = ({ fullscreen = true }: { fullscreen?: boolean }) =>
-  fullscreen ? FULLSCREEN_SEARCH : "";
 
 const LoadingState = () => (
   <section className="flex h-full min-h-0 items-center justify-center bg-background text-sm text-muted-foreground">
@@ -52,7 +46,6 @@ export const TavernPage = () => {
   const workspaces = overview?.workspaces ?? [];
   const workspace =
     workspaces.find((item) => item.id === workspaceId) ?? activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
-  const isHomeFullscreen = isTavernFullscreenSearch(location.search);
   const searchParams = new URLSearchParams(location.search);
   const initialRoomId = searchParams.get(TAVERN_ROOM_SEARCH_PARAM) ?? "";
   const initialSceneInstanceId = searchParams.get(TAVERN_SCENE_INSTANCE_SEARCH_PARAM) ?? "";
@@ -66,23 +59,17 @@ export const TavernPage = () => {
       navigate(
         {
           pathname: "/stories",
-          search: buildStoriesOpenSearch({
-            fullscreen: Boolean(storyId),
-          }),
+          search: "",
         },
         { replace: true },
       );
       return;
     }
 
-    const params = new URLSearchParams(location.search);
-    params.delete(TAVERN_FULLSCREEN_SEARCH_PARAM);
-
-    const nextSearch = params.toString();
     navigate(
       {
         pathname: location.pathname,
-        search: nextSearch ? `?${nextSearch}` : "",
+        search: location.search,
         hash: location.hash,
       },
       { replace: true },
@@ -119,10 +106,9 @@ export const TavernPage = () => {
         tavernId: tavernId || undefined,
         runtimePath: tavernRuntimePath || undefined,
       }}
-      isHomeFullscreen={isHomeFullscreen}
       initialRoomId={initialRoomId || tavernId}
       initialSceneInstanceId={initialSceneInstanceId}
-      onExitHomeFullscreen={exitTavernSurface}
+      onExitStoryRuntime={exitTavernSurface}
     />
   );
 };
@@ -169,19 +155,17 @@ type TavernContainerProps = {
     tavernId?: string;
     runtimePath?: string;
   };
-  isHomeFullscreen: boolean;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
-  onExitHomeFullscreen: () => void;
+  onExitStoryRuntime: () => void;
 };
 
 const TavernContainer = ({
   workspace,
   runtimeScope,
-  isHomeFullscreen,
   initialRoomId,
   initialSceneInstanceId,
-  onExitHomeFullscreen,
+  onExitStoryRuntime,
 }: TavernContainerProps) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
@@ -217,10 +201,9 @@ const TavernContainer = ({
       runtimeScope={runtimeScope}
       files={files}
       runtimeModel={runtimeModels[0] ?? null}
-      isHomeFullscreen={isHomeFullscreen}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}
-      onExitHomeFullscreen={onExitHomeFullscreen}
+      onExitStoryRuntime={onExitStoryRuntime}
     />
   );
 };

@@ -1,21 +1,18 @@
-import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { WindowDragRegion } from "@/components/window-drag-region";
 import { deleteStoryRecord, loadStoryLibrary, type StoryLibraryItem } from "./storage";
 import { StoryCard } from "./components/story-card";
 import { StoryCreateDialog, type StoryCreateDialogHandle } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
 import { StoryManuscriptsPage, type StoryManuscriptsHandle } from "./manuscripts";
-import { FULLSCREEN_SEARCH, isFullscreenSearch } from "@/utils/navigation";
 
 export const StoriesPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isHomeFullscreen = isFullscreenSearch(location.search);
   const modulesRef = useRef<StoryModulesHandle>(null);
   const manuscriptsRef = useRef<StoryManuscriptsHandle>(null);
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
@@ -55,35 +52,20 @@ export const StoriesPage = () => {
     manuscriptsRef.current?.close();
   };
 
-  const exitHomeFullscreen = () => {
-    closeStoryViews();
-    replaceStorySearch("");
-  };
-
   const backToStoryHome = () => {
     closeStoryViews();
-    replaceStorySearch(FULLSCREEN_SEARCH);
+    replaceStorySearch("");
     void refreshStories();
   };
 
   const openStoryEditor = (item: StoryLibraryItem) => {
     manuscriptsRef.current?.close();
     modulesRef.current?.open(item);
-    navigate({
-      pathname: location.pathname,
-      search: FULLSCREEN_SEARCH,
-      hash: location.hash,
-    });
   };
 
   const openStoryManuscripts = (item: StoryLibraryItem) => {
     modulesRef.current?.close();
     manuscriptsRef.current?.open(item);
-    navigate({
-      pathname: location.pathname,
-      search: FULLSCREEN_SEARCH,
-      hash: location.hash,
-    });
   };
 
   const openCreateStoryDialog = () => {
@@ -112,19 +94,6 @@ export const StoriesPage = () => {
         <div className="flex w-full flex-col gap-5 px-5 py-5 lg:px-7">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              {isHomeFullscreen ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="size-9 shrink-0"
-                  title="返回侧边栏"
-                  aria-label="返回侧边栏"
-                  onClick={exitHomeFullscreen}
-                >
-                  <ArrowLeft className="size-4" />
-                </Button>
-              ) : null}
               <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
                 <BookOpen className="size-5 text-primary" />
               </div>
@@ -156,8 +125,6 @@ export const StoriesPage = () => {
   const content = (
     <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} onOpenManuscripts={openStoryManuscripts} />
-        <StoryManuscriptsPage bind={manuscriptsRef} onBack={backToStoryHome} onOpenStoryEditor={openStoryEditor} />
         {isLoading ? (
           <ScrollArea className="min-h-0 flex-1">
             <div className="p-6 text-sm text-muted-foreground">加载中...</div>
@@ -165,14 +132,6 @@ export const StoriesPage = () => {
         ) : storyItems.length === 0 ? (
           <ScrollArea className="min-h-0 flex-1">
             <div className="flex min-h-[320px] flex-col px-6 py-5">
-              {isHomeFullscreen ? (
-                <div className="flex shrink-0">
-                  <Button type="button" variant="ghost" className="h-9 gap-2 px-2.5" onClick={exitHomeFullscreen}>
-                    <ArrowLeft className="size-4" />
-                    返回
-                  </Button>
-                </div>
-              ) : null}
               <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                 <BookOpen className="size-10 text-muted-foreground" />
                 <div className="text-base font-medium">暂无故事</div>
@@ -188,18 +147,11 @@ export const StoriesPage = () => {
         )}
       </div>
 
+      <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} onOpenManuscripts={openStoryManuscripts} />
+      <StoryManuscriptsPage bind={manuscriptsRef} onBack={backToStoryHome} onOpenStoryEditor={openStoryEditor} />
       <StoryCreateDialog bind={createDialogRef} onCreated={handleStoryCreated} />
     </section>
   );
-
-  if (isHomeFullscreen) {
-    return (
-      <div className="fixed inset-0 z-[45] flex h-screen min-h-0 w-screen flex-col bg-background text-foreground">
-        <WindowDragRegion className="h-10 shrink-0" />
-        <div className="flex min-h-0 flex-1">{content}</div>
-      </div>
-    );
-  }
 
   return content;
 };

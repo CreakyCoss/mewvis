@@ -1,27 +1,21 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { create } from "zustand";
 import { WorkspaceFormDialog } from "@/features/pages/components/workspace-form-dialog";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { useOverview } from "@/features/pages/workspace/hooks/use-overview";
-import type { Workspace } from "@/features/pages/workspace/types";
+import { defaultWorkspaceForm, type Workspace } from "@/features/pages/workspace/types";
 import { appStorageKey } from "@/product-config";
 
 const ACTIVE_WORKSPACE_STORAGE_KEY = appStorageKey("active-workspace");
 
-type WorkspaceContextValue = ReturnType<typeof useOverview> & {
+type WorkspaceOverviewState = ReturnType<typeof useOverview>;
+
+type WorkspaceStore = WorkspaceOverviewState & {
   activeWorkspace: Workspace | null;
   defaultWorkspace: Workspace | null;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   saveWorkspaceAndActivate: () => Promise<Workspace | null>;
 };
-
-const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 const loadStoredWorkspace = () => {
   const stored = sessionStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
@@ -43,20 +37,67 @@ const loadStoredWorkspace = () => {
   }
 };
 
+const createInitialOverviewState = (): WorkspaceOverviewState => ({
+  overview: null,
+  form: defaultWorkspaceForm,
+  editingWorkspace: null,
+  sections: [],
+  isDialogOpen: false,
+  isLoading: true,
+  isSaving: false,
+  deletingWorkspaceId: null,
+  error: "",
+  setForm: () => undefined,
+  setIsDialogOpen: () => undefined,
+  handleDialogOpenChange: () => undefined,
+  openCreateWorkspace: () => undefined,
+  openEditWorkspace: () => undefined,
+  deleteWorkspace: async () => false,
+  loadOverview: async () => undefined,
+  saveWorkspace: async () => null,
+});
+
+export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
+  ...createInitialOverviewState(),
+  activeWorkspace: loadStoredWorkspace(),
+  defaultWorkspace: null,
+  setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
+  saveWorkspaceAndActivate: async () => {
+    const saved = await get().saveWorkspace();
+    if (saved) {
+      set({ activeWorkspace: saved });
+    }
+    return saved;
+  },
+}));
+
+const syncWorkspaceStore = (overviewState: WorkspaceOverviewState, defaultWorkspace: Workspace | null) => {
+  useWorkspaceStore.setState({
+    ...overviewState,
+    defaultWorkspace,
+  });
+};
+
 type ProviderProps = {
   children: ReactNode;
 };
 
 export const WorkspaceProvider = ({ children }: ProviderProps) => {
   const overviewState = useOverview();
-  const { overview, saveWorkspace } = overviewState;
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
-    loadStoredWorkspace,
-  );
-  const defaultWorkspace = useMemo(
-    () => overview?.workspaces.find(isDefaultWorkspace) ?? null,
-    [overview],
-  );
+  const { overview } = overviewState;
+  const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const defaultWorkspace = useMemo(() => overview?.workspaces.find(isDefaultWorkspace) ?? null, [overview]);
+  const isStoreInitializedRef = useRef(false);
+
+  if (!isStoreInitializedRef.current) {
+    syncWorkspaceStore(overviewState, defaultWorkspace);
+    isStoreInitializedRef.current = true;
+  }
+
+  useLayoutEffect(() => {
+    syncWorkspaceStore(overviewState, defaultWorkspace);
+  }, [defaultWorkspace, overviewState]);
 
   useEffect(() => {
     if (!overview) {
@@ -64,13 +105,10 @@ export const WorkspaceProvider = ({ children }: ProviderProps) => {
     }
 
     if (activeWorkspace) {
-      const latest = overview.workspaces.find(
-        (workspace) => workspace.id === activeWorkspace.id,
-      );
+      const latest = overview.workspaces.find((workspace) => workspace.id === activeWorkspace.id);
       if (
         latest &&
-        (latest.updatedAt !== activeWorkspace.updatedAt ||
-          latest.isDefault !== activeWorkspace.isDefault)
+        (latest.updatedAt !== activeWorkspace.updatedAt || latest.isDefault !== activeWorkspace.isDefault)
       ) {
         setActiveWorkspace(latest);
       }
@@ -87,49 +125,18 @@ export const WorkspaceProvider = ({ children }: ProviderProps) => {
 
   useEffect(() => {
     if (activeWorkspace) {
-      sessionStorage.setItem(
-        ACTIVE_WORKSPACE_STORAGE_KEY,
-        JSON.stringify(activeWorkspace),
-      );
+      sessionStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, JSON.stringify(activeWorkspace));
       return;
     }
 
     sessionStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
   }, [activeWorkspace]);
 
-  const saveWorkspaceAndActivate = async () => {
-    const saved = await saveWorkspace();
-    if (saved) {
-      setActiveWorkspace(saved);
-    }
-    return saved;
-  };
-
-  const value = useMemo(
-    () => ({
-      ...overviewState,
-      activeWorkspace,
-      defaultWorkspace,
-      setActiveWorkspace,
-      saveWorkspaceAndActivate,
-    }),
-    [activeWorkspace, defaultWorkspace, overviewState, saveWorkspaceAndActivate],
-  );
-
-  return (
-    <WorkspaceContext.Provider value={value}>
-      {children}
-    </WorkspaceContext.Provider>
-  );
+  return children;
 };
 
 export const useWorkspaceOverview = () => {
-  const context = useContext(WorkspaceContext);
-  if (!context) {
-    throw new Error("useWorkspaceOverview must be used within WorkspaceProvider");
-  }
-
-  return context;
+  return useWorkspaceStore();
 };
 
 export const WorkspaceDialogHost = () => {

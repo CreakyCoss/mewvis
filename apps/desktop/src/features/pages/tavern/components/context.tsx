@@ -1,28 +1,16 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import type {
-  RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
+import { useLayoutEffect, useRef } from "react";
+import { create } from "zustand";
+import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/tavern/visual-presets";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { TavernRuntimeScope } from "../state/storage";
-import {
-  projectTavernSceneOntoRoom,
-  syncTavernRoomActiveScene,
-} from "../runtime/active-scene-runtime";
-import {
-  createDefaultTavernState,
-} from "../state/state-normalizer";
-import {
-  hasTavernPresentationStarted,
-  normalizeTavernPresentation,
-} from "../prompt-registry/presentation-rules";
+import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../runtime/active-scene-runtime";
+import { createDefaultTavernState } from "../state/state-normalizer";
+import { hasTavernPresentationStarted, normalizeTavernPresentation } from "../prompt-registry/presentation-rules";
 import { createTavernProgressCheckpoint } from "../core";
-import {
-  buildTavernMessageSegments,
-  inferTavernMessageKind,
-} from "../message";
+import { buildTavernMessageSegments, inferTavernMessageKind } from "../message";
 import type {
   TavernCharacter,
   TavernMessage,
@@ -38,16 +26,12 @@ export type TavernPageProps = {
   runtimeScope?: TavernRuntimeScope;
   files: WorkspaceFileEntry[];
   runtimeModel: RuntimeModelOption | null;
-  isHomeFullscreen?: boolean;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
-  onExitHomeFullscreen?: () => void;
+  onExitStoryRuntime?: () => void;
 };
 
-type TavernPageProviderProps = Pick<
-  TavernPageProps,
-  "workspace" | "runtimeModel"
->;
+type TavernPageProviderProps = Pick<TavernPageProps, "workspace" | "runtimeModel">;
 
 export type TavernPageContextValue = TavernPageProviderProps & {
   state: TavernState;
@@ -101,101 +85,183 @@ export type TavernPageContextValue = TavernPageProviderProps & {
 const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
   room.activeSceneInstanceId ?? room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
-const getSceneMessages = (
-  room: TavernRoom,
-  state: Pick<TavernState, "messagesByInstance">,
-) => {
+const getSceneMessages = (room: TavernRoom, state: Pick<TavernState, "messagesByInstance">) => {
   const sceneInstanceId = getRoomActiveSceneInstanceId(room);
   return state.messagesByInstance[sceneInstanceId] ?? [];
 };
 
-const TavernPageContext = createContext<TavernPageContextValue | null>(null);
+const EMPTY_WORKSPACE: Workspace = {
+  id: "",
+  name: "",
+  description: null,
+  path: "",
+  isDefault: false,
+  isPinned: false,
+  order: 0,
+  groupId: null,
+  createdAt: 0,
+  updatedAt: 0,
+};
 
-export const TavernPageProvider = ({
-  children,
-  workspace,
-  runtimeModel,
-}: TavernPageProviderProps & {
-  children: ReactNode;
-}) => {
-  const [state, setState] = useState<TavernState>(() => createDefaultTavernState(workspace.id));
-  const [draft, setDraft] = useState("");
-  const [draftCursor, setDraftCursor] = useState(0);
-  const [error, setError] = useState("");
-  const [isManagedModeEnabled, setIsManagedModeEnabled] = useState(false);
-  const [isManagedAutoRunStarted, setIsManagedAutoRunStarted] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
-  const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
-  const [isQuickSummaryBusy, setIsQuickSummaryBusy] = useState(false);
-  const [turnStatus, setTurnStatus] = useState("");
-  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
-  const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
+type TavernPageDerivedState = Pick<
+  TavernPageContextValue,
+  "activeRoom" | "visualPreset" | "characterById" | "roomCharacters" | "roomMessages" | "activeCharacter"
+>;
 
-  const activeRoom = useMemo(
-    () => {
-      const room = state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null;
-      return room ? projectTavernSceneOntoRoom(room) : null;
-    },
-    [state.activeRoomId, state.rooms],
-  );
-  const visualPreset = useMemo(
-    () => getVisualPreset(activeRoom?.scenePresetId),
-    [activeRoom?.scenePresetId],
-  );
-  const characterById = useMemo(
-    () => new Map([
-      ...state.rooms.flatMap((room) =>
-        (room.localCharacters ?? []).map((character) => [character.id, character] as const)
-      ),
-    ]),
-    [state.rooms],
-  );
-  const roomCharacters = useMemo(
-    () => activeRoom
-      ? activeRoom.characterIds
+type TavernPageStore = TavernPageContextValue & {
+  configure: (props: TavernPageProviderProps) => void;
+  resetForWorkspace: (workspace: Workspace, runtimeModel: RuntimeModelOption | null) => void;
+};
+
+const resolveSetStateAction = <T,>(action: SetStateAction<T>, current: T) =>
+  typeof action === "function" ? (action as (previous: T) => T)(current) : action;
+
+const deriveTavernPageState = (state: TavernState): TavernPageDerivedState => {
+  const room = state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null;
+  const activeRoom = room ? projectTavernSceneOntoRoom(room) : null;
+  const visualPreset = getVisualPreset(activeRoom?.scenePresetId);
+  const characterById = new Map([
+    ...state.rooms.flatMap((room) =>
+      (room.localCharacters ?? []).map((character) => [character.id, character] as const),
+    ),
+  ]);
+  const roomCharacters = activeRoom
+    ? activeRoom.characterIds
         .map((characterId) => characterById.get(characterId))
         .filter((character): character is TavernCharacter => Boolean(character))
-      : [],
-    [activeRoom, characterById],
-  );
-  const roomMessages = useMemo(
-    () => activeRoom ? getSceneMessages(activeRoom, state) : [],
-    [activeRoom, state],
-  );
-  const activeCharacter = useMemo(
-    () => roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId)
-      ?? roomCharacters[0]
-      ?? null,
-    [activeRoom?.activeCharacterId, roomCharacters],
-  );
-  const resetExecutionTrace = useCallback((steps: ExecutionStep[]) => {
-    setExecutionSteps(steps);
-  }, []);
-  const patchExecutionStep = useCallback((
-    stepId: string,
-    patch: Partial<Omit<ExecutionStep, "id">>,
-  ) => {
-    setExecutionSteps((current) => current.map((step) =>
-      step.id === stepId ? { ...step, ...patch } : step
-    ));
-  }, []);
-  const appendExecutionStep = useCallback((step: ExecutionStep) => {
-    setExecutionSteps((current) => [...current, step]);
-  }, []);
-  const upsertExecutionStep = useCallback((step: ExecutionStep) => {
-    setExecutionSteps((current) => {
-      if (!current.some((item) => item.id === step.id)) {
-        return [...current, step];
-      }
-      return current.map((item) => item.id === step.id ? { ...item, ...step } : item);
+    : [];
+  const roomMessages = activeRoom ? getSceneMessages(activeRoom, state) : [];
+  const activeCharacter =
+    roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId) ?? roomCharacters[0] ?? null;
+
+  return {
+    activeRoom,
+    visualPreset,
+    characterById,
+    roomCharacters,
+    roomMessages,
+    activeCharacter,
+  };
+};
+
+const initialTavernState = createDefaultTavernState(EMPTY_WORKSPACE.id);
+
+export const useTavernPageStore = create<TavernPageStore>((set, get) => ({
+  workspace: EMPTY_WORKSPACE,
+  runtimeModel: null,
+  state: initialTavernState,
+  ...deriveTavernPageState(initialTavernState),
+  draft: "",
+  draftCursor: 0,
+  error: "",
+  isManagedModeEnabled: false,
+  isManagedAutoRunStarted: false,
+  isSending: false,
+  isGeneratingReplySuggestions: false,
+  replySuggestions: [],
+  isQuickSummaryBusy: false,
+  turnStatus: "",
+  executionSteps: [],
+  executionTraceAnchorMessageId: "",
+  configure: ({ workspace, runtimeModel }) => set({ workspace, runtimeModel }),
+  resetForWorkspace: (workspace, runtimeModel) => {
+    const state = createDefaultTavernState(workspace.id);
+    set({
+      workspace,
+      runtimeModel,
+      state,
+      ...deriveTavernPageState(state),
+      draft: "",
+      draftCursor: 0,
+      error: "",
+      isManagedModeEnabled: false,
+      isManagedAutoRunStarted: false,
+      isSending: false,
+      isGeneratingReplySuggestions: false,
+      replySuggestions: [],
+      isQuickSummaryBusy: false,
+      turnStatus: "",
+      executionSteps: [],
+      executionTraceAnchorMessageId: "",
     });
-  }, []);
-  const appendProgressCheckpointToRoom = useCallback((
-    room: TavernRoom,
-    reason: TavernProgressCheckpoint["reason"],
-    turnId?: string,
-  ): TavernRoom => {
+  },
+  setState: (action) =>
+    set((current) => {
+      const state = resolveSetStateAction(action, current.state);
+      return {
+        state,
+        ...deriveTavernPageState(state),
+      };
+    }),
+  setDraft: (action) =>
+    set((current) => ({
+      draft: resolveSetStateAction(action, current.draft),
+    })),
+  setDraftCursor: (action) =>
+    set((current) => ({
+      draftCursor: resolveSetStateAction(action, current.draftCursor),
+    })),
+  setError: (action) =>
+    set((current) => ({
+      error: resolveSetStateAction(action, current.error),
+    })),
+  setIsManagedModeEnabled: (action) =>
+    set((current) => ({
+      isManagedModeEnabled: resolveSetStateAction(action, current.isManagedModeEnabled),
+    })),
+  setIsManagedAutoRunStarted: (action) =>
+    set((current) => ({
+      isManagedAutoRunStarted: resolveSetStateAction(action, current.isManagedAutoRunStarted),
+    })),
+  setIsSending: (action) =>
+    set((current) => ({
+      isSending: resolveSetStateAction(action, current.isSending),
+    })),
+  setIsGeneratingReplySuggestions: (action) =>
+    set((current) => ({
+      isGeneratingReplySuggestions: resolveSetStateAction(action, current.isGeneratingReplySuggestions),
+    })),
+  setReplySuggestions: (action) =>
+    set((current) => ({
+      replySuggestions: resolveSetStateAction(action, current.replySuggestions),
+    })),
+  setIsQuickSummaryBusy: (action) =>
+    set((current) => ({
+      isQuickSummaryBusy: resolveSetStateAction(action, current.isQuickSummaryBusy),
+    })),
+  setTurnStatus: (action) =>
+    set((current) => ({
+      turnStatus: resolveSetStateAction(action, current.turnStatus),
+    })),
+  setExecutionSteps: (action) =>
+    set((current) => ({
+      executionSteps: resolveSetStateAction(action, current.executionSteps),
+    })),
+  setExecutionTraceAnchorMessageId: (action) =>
+    set((current) => ({
+      executionTraceAnchorMessageId: resolveSetStateAction(action, current.executionTraceAnchorMessageId),
+    })),
+  resetExecutionTrace: (steps) => {
+    set({ executionSteps: steps });
+  },
+  patchExecutionStep: (stepId, patch) => {
+    set((current) => ({
+      executionSteps: current.executionSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
+    }));
+  },
+  appendExecutionStep: (step) => {
+    set((current) => ({
+      executionSteps: [...current.executionSteps, step],
+    }));
+  },
+  upsertExecutionStep: (step) => {
+    set((current) => ({
+      executionSteps: current.executionSteps.some((item) => item.id === step.id)
+        ? current.executionSteps.map((item) => (item.id === step.id ? { ...item, ...step } : item))
+        : [...current.executionSteps, step],
+    }));
+  },
+  appendProgressCheckpointToRoom: (room, reason, turnId) => {
     const checkpoint = createTavernProgressCheckpoint({
       room,
       turnId,
@@ -206,9 +272,9 @@ export const TavernPageProvider = ({
       ...room,
       statusCheckpoints: [...room.statusCheckpoints, checkpoint].slice(-20),
     });
-  }, []);
-  const patchRoom = useCallback((roomId: string, patch: Partial<TavernRoom>) => {
-    setState((current) => {
+  },
+  patchRoom: (roomId, patch) => {
+    get().setState((current) => {
       let patchedRoom: TavernRoom | null = null;
       const nextRooms = current.rooms.map((room) => {
         if (room.id !== roomId) {
@@ -232,9 +298,9 @@ export const TavernPageProvider = ({
         rooms: nextRooms,
       };
     });
-  }, []);
-  const appendMessagesToRoom = useCallback((roomId: string, messages: TavernMessage[]) => {
-    setState((current) => {
+  },
+  appendMessagesToRoom: (roomId, messages) => {
+    get().setState((current) => {
       const room = current.rooms.find((item) => item.id === roomId);
       const sceneInstanceId = room ? getRoomActiveSceneInstanceId(room) : roomId;
       const sceneId = room?.activeSceneId;
@@ -245,10 +311,7 @@ export const TavernPageProvider = ({
         sceneId: message.sceneId ?? sceneId,
         sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
       }));
-      const nextSceneMessages = [
-        ...(current.messagesByInstance[sceneInstanceId] ?? []),
-        ...materializedMessages,
-      ];
+      const nextSceneMessages = [...(current.messagesByInstance[sceneInstanceId] ?? []), ...materializedMessages];
 
       return {
         ...current,
@@ -258,8 +321,7 @@ export const TavernPageProvider = ({
           }
 
           const presentation = normalizeTavernPresentation(room.presentation);
-          const shouldWritePresentationLock =
-            shouldLockPresentation && presentation.lockedSceneId !== sceneInstanceId;
+          const shouldWritePresentationLock = shouldLockPresentation && presentation.lockedSceneId !== sceneInstanceId;
           return {
             ...room,
             presentation: shouldWritePresentationLock
@@ -278,9 +340,9 @@ export const TavernPageProvider = ({
         },
       };
     });
-  }, []);
-  const patchMessage = useCallback((messageId: string, patch: Partial<TavernMessage>) => {
-    setState((current) => {
+  },
+  patchMessage: (messageId, patch) => {
+    get().setState((current) => {
       let patchedSceneId = "";
       const nextMessagesByInstance = Object.fromEntries(
         Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
@@ -303,13 +365,13 @@ export const TavernPageProvider = ({
                 patch.characterId !== undefined);
             return {
               ...nextMessage,
-              kind: nextMessage.kind ?? inferTavernMessageKind({
-                role: nextMessage.role,
-                presentationProfileId: nextMessage.presentationProfileId,
-              }),
-              segments: shouldRebuildSegments
-                ? buildTavernMessageSegments(nextMessage)
-                : nextMessage.segments,
+              kind:
+                nextMessage.kind ??
+                inferTavernMessageKind({
+                  role: nextMessage.role,
+                  presentationProfileId: nextMessage.presentationProfileId,
+                }),
+              segments: shouldRebuildSegments ? buildTavernMessageSegments(nextMessage) : nextMessage.segments,
             };
           });
           return [sceneId, nextMessages];
@@ -325,9 +387,9 @@ export const TavernPageProvider = ({
         messagesByInstance: nextMessagesByInstance,
       };
     });
-  }, []);
-  const removeMessage = useCallback((messageId: string) => {
-    setState((current) => {
+  },
+  removeMessage: (messageId) => {
+    get().setState((current) => {
       let removedSceneId = "";
       const nextMessagesByInstance = Object.fromEntries(
         Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
@@ -347,113 +409,41 @@ export const TavernPageProvider = ({
       if (!removedSceneId) {
         return current;
       }
-      const removedRoom = current.rooms.find((room) =>
-        getRoomActiveSceneInstanceId(room) === removedSceneId
-      );
+      const removedRoom = current.rooms.find((room) => getRoomActiveSceneInstanceId(room) === removedSceneId);
 
       return {
         ...current,
         rooms: current.rooms.map((room) =>
-          removedRoom && room.id === removedRoom.id ? { ...room, updatedAt: Date.now() } : room
+          removedRoom && room.id === removedRoom.id ? { ...room, updatedAt: Date.now() } : room,
         ),
         messagesByInstance: nextMessagesByInstance,
       };
     });
-  }, []);
-  const reportError = useCallback((message: string) => {
-    setError(message);
-  }, []);
+  },
+  reportError: (message) => {
+    set({ error: message });
+  },
+}));
 
-  const value = useMemo<TavernPageContextValue>(() => ({
-    workspace,
-    runtimeModel,
-    state,
-    setState,
-    draft,
-    setDraft,
-    draftCursor,
-    setDraftCursor,
-    error,
-    setError,
-    isManagedModeEnabled,
-    setIsManagedModeEnabled,
-    isManagedAutoRunStarted,
-    setIsManagedAutoRunStarted,
-    isSending,
-    setIsSending,
-    isGeneratingReplySuggestions,
-    setIsGeneratingReplySuggestions,
-    replySuggestions,
-    setReplySuggestions,
-    isQuickSummaryBusy,
-    setIsQuickSummaryBusy,
-    turnStatus,
-    setTurnStatus,
-    executionSteps,
-    setExecutionSteps,
-    executionTraceAnchorMessageId,
-    setExecutionTraceAnchorMessageId,
-    activeRoom,
-    visualPreset,
-    characterById,
-    roomCharacters,
-    roomMessages,
-    activeCharacter,
-    resetExecutionTrace,
-    patchExecutionStep,
-    appendExecutionStep,
-    upsertExecutionStep,
-    appendProgressCheckpointToRoom,
-    patchRoom,
-    appendMessagesToRoom,
-    patchMessage,
-    removeMessage,
-    reportError,
-  }), [
-    activeCharacter,
-    activeRoom,
-    appendExecutionStep,
-    appendMessagesToRoom,
-    appendProgressCheckpointToRoom,
-    characterById,
-    draft,
-    draftCursor,
-    error,
-    executionSteps,
-    executionTraceAnchorMessageId,
-    isGeneratingReplySuggestions,
-    isManagedAutoRunStarted,
-    isManagedModeEnabled,
-    isQuickSummaryBusy,
-    isSending,
-    patchExecutionStep,
-    patchMessage,
-    patchRoom,
-    replySuggestions,
-    removeMessage,
-    reportError,
-    resetExecutionTrace,
-    roomCharacters,
-    roomMessages,
-    runtimeModel,
-    state,
-    turnStatus,
-    visualPreset,
-    workspace,
-    upsertExecutionStep,
-  ]);
+export const TavernPageProvider = ({
+  children,
+  workspace,
+  runtimeModel,
+}: TavernPageProviderProps & {
+  children: ReactNode;
+}) => {
+  const isStoreInitializedRef = useRef(false);
 
-  return (
-    <TavernPageContext.Provider value={value}>
-      {children}
-    </TavernPageContext.Provider>
-  );
-};
-
-export const useTavernPageContext = () => {
-  const context = useContext(TavernPageContext);
-  if (!context) {
-    throw new Error("useTavernPageContext must be used within TavernPageProvider.");
+  if (!isStoreInitializedRef.current) {
+    useTavernPageStore.getState().resetForWorkspace(workspace, runtimeModel);
+    isStoreInitializedRef.current = true;
   }
-  return context;
+
+  useLayoutEffect(() => {
+    useTavernPageStore.getState().configure({ workspace, runtimeModel });
+  }, [runtimeModel, workspace]);
+
+  return children;
 };
+
+export const useTavernPageContext = () => useTavernPageStore();

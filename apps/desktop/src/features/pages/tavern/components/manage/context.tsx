@@ -1,13 +1,7 @@
-import { createContext, useContext } from "react";
-import type { ReactNode } from "react";
+import { create } from "zustand";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernTextFieldAgentRequest } from "../../runtime/assistants";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-  TavernRoomSettings,
-} from "../../types";
+import type { TavernCharacter, TavernMessage, TavernRoom, TavernRoomSettings } from "../../types";
 
 export type PageNavigationHandle = {
   open: (room: TavernRoom, sceneInstanceId?: string) => void;
@@ -33,25 +27,30 @@ export type ManagementContextValue = {
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
 };
 
-const ManagementContext = createContext<ManagementContextValue | null>(null);
+const createInitialManagementContextValue = (): ManagementContextValue => ({
+  rooms: [],
+  activeRoom: null,
+  characterById: new Map(),
+  messagesByRoomId: {},
+  createRoom: () => undefined,
+  selectRoom: () => undefined,
+  patchRoom: () => undefined,
+  copyRoom: () => false,
+  restoreSystemPresetRoom: async () => false,
+  setRoomLocked: () => false,
+  deleteRoom: () => false,
+  exportRoom: () => false,
+  globalRuntimeModel: null,
+  runTextFieldAgent: async () => "",
+  regenerateDirectorProfile: async () => {
+    throw new Error("Management store is not initialized.");
+  },
+});
 
-export const ManagementContextProvider = ({
-  value,
-  children,
-}: {
-  value: ManagementContextValue;
-  children: ReactNode;
-}) => (
-  <ManagementContext.Provider value={value}>
-    {children}
-  </ManagementContext.Provider>
-);
+export const useManagementStore = create<ManagementContextValue>(() => createInitialManagementContextValue());
 
-export const useManagementContext = () => {
-  const value = useContext(ManagementContext);
-  if (!value) {
-    throw new Error("ManagementContext is missing.");
-  }
-
-  return value;
+export const syncManagementStore = (value: ManagementContextValue) => {
+  useManagementStore.setState(value);
 };
+
+export const useManagementContext = () => useManagementStore();

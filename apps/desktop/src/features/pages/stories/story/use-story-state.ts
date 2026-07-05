@@ -10,11 +10,6 @@ import {
 } from "../storage";
 import type { StoryNodeSelectOption } from "./actions/node";
 
-export type StoryModulesHandle = {
-  close: () => void;
-  open: (item: StoryLibraryItem) => void;
-};
-
 type StoryStore = {
   buildNodeOptions: (story: StoryJson | null) => StoryNodeSelectOption[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;

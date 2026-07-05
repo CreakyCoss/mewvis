@@ -12,7 +12,9 @@ import type { MouseEvent, Ref } from "react";
 import { useImperativeHandle, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
 import {
@@ -100,6 +102,9 @@ const editorModuleGroups: Array<{
     mobileLabel: "运行",
   },
 ];
+
+const fullScreenDialogContentClassName =
+  "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
 
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
@@ -333,11 +338,11 @@ export const RoomEditor = ({
     openStoryConfig();
   };
 
-  if (!data) {
-    return null;
-  }
-
   const renderActiveModule = () => {
+    if (!data) {
+      return null;
+    }
+
     switch (activeModuleId) {
       case "basic":
         return (
@@ -377,109 +382,121 @@ export const RoomEditor = ({
   };
 
   return (
-    <div className="absolute inset-0 z-30 flex min-h-0 overflow-hidden bg-background">
-      <aside className="hidden w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4 md:flex">
-        <div className="mb-4 flex justify-center">
-          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Wine className="size-5" />
-          </span>
-        </div>
-        <nav className="flex min-h-0 flex-1 flex-col gap-1">
-          {editorModuleGroups.map((group) => (
-            <div key={group.id} className="flex flex-col gap-1">
-              <div className="px-1 pt-2 pb-1 text-center text-[10px] font-medium leading-4 text-muted-foreground/75">
-                {group.label}
+    <Dialog open={Boolean(data)} onOpenChange={(open) => !open && closeRoomEditor()}>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/5 backdrop-blur-none"
+        className={fullScreenDialogContentClassName}
+      >
+        <DialogTitle className="sr-only">{data?.title ? `${data.title} · 酒馆编辑` : "酒馆编辑"}</DialogTitle>
+        <WindowDragRegion className="h-10 shrink-0" />
+        {data ? (
+          <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
+            <aside className="hidden w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4 md:flex">
+              <div className="mb-4 flex justify-center">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                  <Wine className="size-5" />
+                </span>
               </div>
-              {editorModules
-                .filter((module) => module.group === group.id)
-                .map(({ id, label, description, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    title={`${group.label} / ${label}：${description}`}
-                    aria-label={`切换到${group.label}的${label}`}
-                    onClick={() => setActiveModuleId(id)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-                      activeModuleId === id && "bg-primary/10 text-primary",
-                    )}
-                  >
-                    <Icon className="size-4" />
-                    <span className="max-w-full truncate">{label}</span>
-                  </button>
+              <nav className="flex min-h-0 flex-1 flex-col gap-1">
+                {editorModuleGroups.map((group) => (
+                  <div key={group.id} className="flex flex-col gap-1">
+                    <div className="px-1 pt-2 pb-1 text-center text-[10px] font-medium leading-4 text-muted-foreground/75">
+                      {group.label}
+                    </div>
+                    {editorModules
+                      .filter((module) => module.group === group.id)
+                      .map(({ id, label, description, icon: Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          title={`${group.label} / ${label}：${description}`}
+                          aria-label={`切换到${group.label}的${label}`}
+                          onClick={() => setActiveModuleId(id)}
+                          className={cn(
+                            "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+                            activeModuleId === id && "bg-primary/10 text-primary",
+                          )}
+                        >
+                          <Icon className="size-4" />
+                          <span className="max-w-full truncate">{label}</span>
+                        </button>
+                      ))}
+                  </div>
                 ))}
-            </div>
-          ))}
-        </nav>
-        <div className="mt-3 border-t pt-3">
-          <button
-            type="button"
-            className="flex h-12 w-full flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            title="退出编辑"
-            aria-label="退出编辑"
-            onClick={closeRoomEditor}
-          >
-            <LogOut className="size-4 rotate-180" />
-          </button>
-        </div>
-      </aside>
+              </nav>
+              <div className="mt-3 border-t pt-3">
+                <button
+                  type="button"
+                  className="flex h-12 w-full flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  title="退出编辑"
+                  aria-label="退出编辑"
+                  onClick={closeRoomEditor}
+                >
+                  <LogOut className="size-4 rotate-180" />
+                </button>
+              </div>
+            </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Header
-          data={data}
-          characterById={characterById}
-          messagesByRoomId={messagesByRoomId}
-          textFieldAgentError={textFieldAgentError}
-          onEnterRoom={enterRoom}
-          onOpenStoryConfig={openStoryConfig}
-        />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Header
+                data={data}
+                characterById={characterById}
+                messagesByRoomId={messagesByRoomId}
+                textFieldAgentError={textFieldAgentError}
+                onEnterRoom={enterRoom}
+                onOpenStoryConfig={openStoryConfig}
+              />
 
-        <ScrollArea className="min-h-0 flex-1 bg-muted/10">
-          <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
-            <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
-              <Button
-                type="button"
-                title="退出编辑"
-                aria-label="退出编辑"
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 gap-1.5 px-2 text-xs"
-                onClick={closeRoomEditor}
-              >
-                <LogOut className="size-3.5 rotate-180" />
-              </Button>
-              {editorModuleGroups.map((group) => (
-                <div key={group.id} className="flex shrink-0 items-center gap-1">
-                  <span className="rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium leading-5 text-muted-foreground">
-                    {group.mobileLabel}
-                  </span>
-                  {editorModules
-                    .filter((module) => module.group === group.id)
-                    .map(({ id, label, description, icon: Icon }) => (
-                      <Button
-                        key={id}
-                        type="button"
-                        title={`${group.label} / ${label}：${description}`}
-                        aria-label={`切换到${group.label}的${label}`}
-                        size="sm"
-                        variant={activeModuleId === id ? "default" : "outline"}
-                        className="h-8 shrink-0 gap-1.5 px-3 text-xs"
-                        onClick={() => setActiveModuleId(id)}
-                      >
-                        <Icon className="size-3.5" />
-                        {label}
-                      </Button>
+              <ScrollArea className="min-h-0 flex-1 bg-muted/10">
+                <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
+                  <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
+                    <Button
+                      type="button"
+                      title="退出编辑"
+                      aria-label="退出编辑"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                      onClick={closeRoomEditor}
+                    >
+                      <LogOut className="size-3.5 rotate-180" />
+                    </Button>
+                    {editorModuleGroups.map((group) => (
+                      <div key={group.id} className="flex shrink-0 items-center gap-1">
+                        <span className="rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium leading-5 text-muted-foreground">
+                          {group.mobileLabel}
+                        </span>
+                        {editorModules
+                          .filter((module) => module.group === group.id)
+                          .map(({ id, label, description, icon: Icon }) => (
+                            <Button
+                              key={id}
+                              type="button"
+                              title={`${group.label} / ${label}：${description}`}
+                              aria-label={`切换到${group.label}的${label}`}
+                              size="sm"
+                              variant={activeModuleId === id ? "default" : "outline"}
+                              className="h-8 shrink-0 gap-1.5 px-3 text-xs"
+                              onClick={() => setActiveModuleId(id)}
+                            >
+                              <Icon className="size-3.5" />
+                              {label}
+                            </Button>
+                          ))}
+                      </div>
                     ))}
-                </div>
-              ))}
-            </nav>
+                  </nav>
 
-            <div className="mx-auto w-full max-w-7xl">
-              {renderActiveModule()}
+                  <div className="mx-auto w-full max-w-7xl">
+                    {renderActiveModule()}
+                  </div>
+                </div>
+              </ScrollArea>
             </div>
           </div>
-        </ScrollArea>
-      </div>
-    </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -3,7 +3,9 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WindowDragRegion } from "@/components/window-drag-region";
 import type { StoryLibraryItem } from "../storage";
 import {
   EmptyBlock,
@@ -32,6 +34,9 @@ const manuscriptGroupTabs = [
   { status: "rejected", label: "已退回", icon: X },
 ] as const;
 
+const fullScreenDialogContentClassName =
+  "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
+
 export const StoryManuscriptsPage = ({ bind, onBack, onOpenStoryEditor }: StoryManuscriptsPageProps) => {
   const [item, setItem] = useState<StoryLibraryItem | null>(null);
 
@@ -43,24 +48,38 @@ export const StoryManuscriptsPage = ({ bind, onBack, onOpenStoryEditor }: StoryM
     setItem(nextItem);
   }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     close();
     onBack();
-  };
+  }, [close, onBack]);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      handleBack();
+    }
+  }, [handleBack]);
 
   useImperativeHandle(bind, () => ({ close, open }), [close, open]);
 
-  if (!item) {
-    return null;
-  }
-
   return (
-    <StoryManuscriptsContent
-      key={item.id}
-      item={item}
-      onBack={handleBack}
-      onOpenStoryEditor={() => onOpenStoryEditor(item)}
-    />
+    <Dialog open={Boolean(item)} onOpenChange={handleOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/5 backdrop-blur-none"
+        className={fullScreenDialogContentClassName}
+      >
+        <DialogTitle className="sr-only">{item?.story.title ? `${item.story.title} · 稿件` : "故事稿件"}</DialogTitle>
+        <WindowDragRegion className="h-10 shrink-0" />
+        {item ? (
+          <StoryManuscriptsContent
+            key={item.id}
+            item={item}
+            onBack={handleBack}
+            onOpenStoryEditor={() => onOpenStoryEditor(item)}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -90,7 +109,7 @@ const StoryManuscriptsContent = ({
   }, [story.graph.activeNodeId, story.graph.entryNodeId, story.graph.nodes]);
 
   return (
-    <div className="absolute inset-0 z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="shrink-0 border-b bg-background px-5 py-4 shadow-sm lg:px-7">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">

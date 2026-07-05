@@ -101,6 +101,8 @@ const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请�
 const TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS = 90_000;
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
+const fullScreenDialogContentClassName =
+  "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none p-0 !ring-0";
 
 const createEmptyTavernState = (): TavernState => ({
   version: 4,
@@ -234,10 +236,9 @@ export const TavernPage = ({
   files,
   runtimeModel,
   runtimeScope,
-  isHomeFullscreen = false,
   initialRoomId,
   initialSceneInstanceId,
-  onExitHomeFullscreen,
+  onExitStoryRuntime,
 }: TavernPageProps) => (
   <TavernPageProvider
     workspace={workspace}
@@ -246,26 +247,24 @@ export const TavernPage = ({
     <TavernPageContent
       files={files}
       runtimeScope={runtimeScope}
-      isHomeFullscreen={isHomeFullscreen}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}
-      onExitHomeFullscreen={onExitHomeFullscreen}
+      onExitStoryRuntime={onExitStoryRuntime}
     />
   </TavernPageProvider>
 );
 
 type TavernPageContentProps = Pick<
   TavernPageProps,
-  "files" | "runtimeScope" | "isHomeFullscreen" | "initialRoomId" | "initialSceneInstanceId" | "onExitHomeFullscreen"
+  "files" | "runtimeScope" | "initialRoomId" | "initialSceneInstanceId" | "onExitStoryRuntime"
 >;
 
 const TavernPageContent = ({
   files,
   runtimeScope = {},
-  isHomeFullscreen = false,
   initialRoomId,
   initialSceneInstanceId,
-  onExitHomeFullscreen,
+  onExitStoryRuntime,
 }: TavernPageContentProps) => {
   const ctx = useTavernPageContext();
   const {
@@ -1297,21 +1296,9 @@ const TavernPageContent = ({
       >
         <ManagementPage
           tavernPage={tavernPage}
-          onBack={isHomeFullscreen ? onExitHomeFullscreen : undefined}
         />
       </ManagementProvider>
     );
-
-    if (isHomeFullscreen) {
-      return (
-        <div className="fixed inset-0 z-[45] flex h-screen min-h-0 w-screen flex-col bg-background text-foreground">
-          <WindowDragRegion className="h-10 shrink-0" />
-          <div className="flex min-h-0 flex-1">
-            {managementPage}
-          </div>
-        </div>
-      );
-    }
 
     return managementPage;
   }
@@ -1419,59 +1406,70 @@ const TavernPageContent = ({
       .filter(([, memory]) => memory.trim())
     : [];
 
+  const closeRoomSurface = () => {
+    sidePanelRef.current?.hide();
+    setIsManagedAutoRunStarted(false);
+    setIsSceneDriveAutoRunning(false);
+    if (managedAutoRunTimerRef.current !== null) {
+      window.clearTimeout(managedAutoRunTimerRef.current);
+      managedAutoRunTimerRef.current = null;
+    }
+    clearSceneDriveAutoTimer();
+    sceneDriveAutoRunCountRef.current = 0;
+    if (isStoryRuntimeScope) {
+      onExitStoryRuntime?.();
+      return;
+    }
+    setViewMode("home");
+  };
+
   return (
-    <div
-      className={cn(
-        "fixed inset-0 z-[45] flex h-screen min-h-0 w-screen flex-1 text-foreground",
-        visualPreset.tavern.page,
-      )}
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          closeRoomSurface();
+        }
+      }}
     >
-      <div
-        className={[
-          "grid h-full min-h-0 w-full grid-cols-1",
-          isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-1",
-        ].join(" ")}
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/5 backdrop-blur-none"
+        className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
       >
-        <main className="flex min-h-0 min-w-0 flex-col">
-          <Header
-            isManagedModeEnabled={isManagedModeEnabled}
-            isSceneDriveAutoRunning={isSceneDriveAutoRunning}
-            isSidePanelOpen={isSidePanelOpen}
-            onBack={() => {
-              sidePanelRef.current?.hide();
-              setIsManagedAutoRunStarted(false);
-              setIsSceneDriveAutoRunning(false);
-              if (managedAutoRunTimerRef.current !== null) {
-                window.clearTimeout(managedAutoRunTimerRef.current);
-                managedAutoRunTimerRef.current = null;
-              }
-              clearSceneDriveAutoTimer();
-              sceneDriveAutoRunCountRef.current = 0;
-              if (isStoryRuntimeScope) {
-                onExitHomeFullscreen?.();
-                return;
-              }
-              setViewMode("home");
-            }}
-            onOpenQuickSummary={() => {
-              quickSummaryRef.current?.();
-            }}
-            onClearCurrentSceneMessages={() => {
-              void clearActiveSceneMessages();
-            }}
-            onLoadBranchMemory={loadActiveBranchMemory}
-            onRebuildRuntime={undefined}
-            onSelectSceneInstance={(sceneInstanceId) =>
-              selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
-            onSceneDriveTurn={() => {
-              void handleSceneDriveTurn();
-            }}
-            onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
-            onToggleManagedMode={handleToggleManagedMode}
-            onToggleSidePanel={() => {
-              sidePanelRef.current?.toggle();
-            }}
-          />
+        <DialogTitle className="sr-only">{activeRoom.title ? `${activeRoom.title} · 酒馆` : "酒馆房间"}</DialogTitle>
+        <WindowDragRegion className="h-10 shrink-0" />
+        <div
+          className={[
+            "grid min-h-0 w-full flex-1 grid-cols-1",
+            isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-1",
+          ].join(" ")}
+        >
+          <main className="flex min-h-0 min-w-0 flex-col">
+            <Header
+              isManagedModeEnabled={isManagedModeEnabled}
+              isSceneDriveAutoRunning={isSceneDriveAutoRunning}
+              isSidePanelOpen={isSidePanelOpen}
+              onBack={closeRoomSurface}
+              onOpenQuickSummary={() => {
+                quickSummaryRef.current?.();
+              }}
+              onClearCurrentSceneMessages={() => {
+                void clearActiveSceneMessages();
+              }}
+              onLoadBranchMemory={loadActiveBranchMemory}
+              onRebuildRuntime={undefined}
+              onSelectSceneInstance={(sceneInstanceId) =>
+                selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
+              onSceneDriveTurn={() => {
+                void handleSceneDriveTurn();
+              }}
+              onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
+              onToggleManagedMode={handleToggleManagedMode}
+              onToggleSidePanel={() => {
+                sidePanelRef.current?.toggle();
+              }}
+            />
 
           {hasGlobalHeaderProgress && (
             <ProgressPanel
@@ -1558,26 +1556,26 @@ const TavernPageContent = ({
             }}
             onKeyDown={handleComposerKeyDown}
           />
-        </main>
+          </main>
 
-        <SidePanel
-          bind={sidePanelRef}
-          isOpen={isSidePanelOpen}
-          onOpenChange={setIsSidePanelOpen}
-        />
-      </div>
+          <SidePanel
+            bind={sidePanelRef}
+            isOpen={isSidePanelOpen}
+            onOpenChange={setIsSidePanelOpen}
+          />
+        </div>
 
-      <QuickSummary bind={quickSummaryRef} />
-      <Dialog
-        open={Boolean(branchMemoryPreview)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setBranchMemoryPreview(null);
-          }
-        }}
-      >
-        {branchMemoryPreview && (
-          <DialogContent className="sm:max-w-2xl">
+        <QuickSummary bind={quickSummaryRef} />
+        <Dialog
+          open={Boolean(branchMemoryPreview)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setBranchMemoryPreview(null);
+            }
+          }}
+        >
+          {branchMemoryPreview && (
+            <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>加载上游记忆</DialogTitle>
               <DialogDescription>
@@ -1644,9 +1642,10 @@ const TavernPageContent = ({
                 应用记忆
               </Button>
             </DialogFooter>
-          </DialogContent>
-        )}
-      </Dialog>
-    </div>
+            </DialogContent>
+          )}
+        </Dialog>
+      </DialogContent>
+    </Dialog>
   );
 };
