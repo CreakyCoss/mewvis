@@ -17,9 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { StoryJson, StoryEdgeJson, StoryNodeJson, StorySceneJson, StoryStageJson } from "../../model/types";
+import type { StoryJson, StoryEdgeJson, StoryNodeJson, StorySceneJson } from "../../model/types";
 import { cn } from "@/lib/utils";
-import { createStoryScene, createStoryStage, formatCount } from "../../../components/story-form-utils";
+import { createStoryScene, formatCount } from "../../../components/story-form-utils";
 import {
   EmptyBlock,
   StorySection,
@@ -377,7 +377,6 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
   });
 
   const nodeIndexById = new Map(graph.nodes.map((node, index) => [node.id, index]));
-  const stageOrderById = new Map(graph.stages.map((stage, index) => [stage.id, stage.order ?? index]));
   const layoutNodes: StoryGraphLayoutNode[] = [];
   const laneCountByDepth = new Map<number, number>();
   let maxLaneCount = 1;
@@ -387,7 +386,6 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
     .sort(
       (left, right) =>
         (depthByNodeId.get(left.id) ?? 0) - (depthByNodeId.get(right.id) ?? 0) ||
-        (stageOrderById.get(left.stageId) ?? 0) - (stageOrderById.get(right.stageId) ?? 0) ||
         (nodeIndexById.get(left.id) ?? 0) - (nodeIndexById.get(right.id) ?? 0),
     )
     .forEach((node) => {
@@ -427,22 +425,11 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
 const getNodeScene = (story: StoryJson, node: StoryNodeJson | null | undefined) =>
   node?.sceneId ? (story.scenes.find((scene) => scene.id === node.sceneId) ?? null) : null;
 
-const getStageForNode = (stages: StoryStageJson[], node: StoryNodeJson | null | undefined) =>
-  node ? (stages.find((stage) => stage.id === node.stageId) ?? null) : null;
-
 const createSceneForStoryNode = (story: StoryJson, title: string): StorySceneJson => ({
   ...createStoryScene(story.scenes.length),
   title: title.trim() || `节点场景 ${story.scenes.length + 1}`,
   scene: "新的剧情节点等待配置。",
 });
-
-const ensureStoryStage = (story: StoryJson) => {
-  const fallbackStage = story.graph.stages[0] ?? createStoryStage(0);
-  return {
-    stage: fallbackStage,
-    stages: story.graph.stages.length > 0 ? story.graph.stages : [fallbackStage],
-  };
-};
 
 export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModuleProps) => {
   const graph = story.graph;
@@ -452,7 +439,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
     graph.nodes[0] ??
     null;
   const activeNodeScene = getNodeScene(story, activeNode);
-  const activeNodeStage = getStageForNode(graph.stages, activeNode);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [pendingDeleteNode, setPendingDeleteNode] = useState<StoryNodeJson | null>(null);
   const editingNode = editingNodeId ? (graph.nodes.find((node) => node.id === editingNodeId) ?? null) : null;
@@ -476,11 +462,9 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
   };
 
   const createInitialNode = () => {
-    const { stage, stages } = ensureStoryStage(story);
     const scene = createSceneForStoryNode(story, "入口节点");
     const node: StoryNodeJson = {
       id: createLocalId("story-node"),
-      stageId: stage.id,
       sceneId: scene.id,
       title: "入口节点",
       type: "normal",
@@ -493,7 +477,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
       scenes: [...story.scenes, scene],
       graph: {
         ...graph,
-        stages,
         nodes: [...graph.nodes, node],
         entryNodeId: graph.entryNodeId || node.id,
         activeNodeId: node.id,
@@ -512,14 +495,12 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
       return;
     }
 
-    const { stages } = ensureStoryStage(story);
     const outgoingCount = graph.edges.filter((edge) => edge.fromNodeId === sourceNode.id).length;
     const isDefaultPath = outgoingCount === 0;
     const nodeTitle = isDefaultPath ? `节点 ${graph.nodes.length + 1}` : `分支 ${outgoingCount + 1}`;
     const scene = createSceneForStoryNode(story, nodeTitle);
     const node: StoryNodeJson = {
       id: createLocalId("story-node"),
-      stageId: sourceNode.stageId || stages[0]?.id || "",
       sceneId: scene.id,
       title: nodeTitle,
       type: "normal",
@@ -541,7 +522,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
       scenes: [...story.scenes, scene],
       graph: {
         ...graph,
-        stages,
         nodes: [...graph.nodes, node],
         edges: [...graph.edges, edge],
         activeNodeId: node.id,
@@ -1036,12 +1016,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                   </div>
 
                   <div className="mt-3 space-y-2">
-                    <div className={storyDetailCardClassName}>
-                      <div className={storyDetailMetaClassName}>所属阶段</div>
-                      <div className={cn("line-clamp-2", storyDetailBodyClassName)}>
-                        {activeNodeStage?.title?.trim() || emptyValueText}
-                      </div>
-                    </div>
                     <div className={storyDetailCardClassName}>
                       <div className={storyDetailMetaClassName}>场景描述</div>
                       <div className={cn("line-clamp-4", storyDetailBodyClassName)}>

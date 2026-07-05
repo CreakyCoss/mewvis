@@ -45,7 +45,6 @@ export const createNodeSnapshot = (story: StoryJson, nodeId: string): StoryManus
     throw new Error("找不到稿件绑定的故事节点。");
   }
 
-  const stage = story.graph.stages.find((item) => item.id === node.stageId) ?? null;
   const scene = node.sceneId ? (story.scenes.find((item) => item.id === node.sceneId) ?? null) : null;
 
   return {
@@ -54,8 +53,6 @@ export const createNodeSnapshot = (story: StoryJson, nodeId: string): StoryManus
     type: node.type,
     pathRole: node.pathRole,
     status: node.status || undefined,
-    stageId: node.stageId,
-    stageTitle: stage?.title || undefined,
     sceneId: node.sceneId,
     sceneTitle: scene?.title || undefined,
     sceneSummary: scene?.scene || undefined,

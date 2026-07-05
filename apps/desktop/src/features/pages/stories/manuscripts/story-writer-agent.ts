@@ -43,7 +43,6 @@ const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
       currentNode: nodeContext.current.node,
       currentScene: nodeContext.current.scene,
       graph: {
-        activeStage: nodeContext.current.stage,
         outgoingEdges: nodeContext.branch.outgoingEdges,
       },
       characters: nodeContext.characters,

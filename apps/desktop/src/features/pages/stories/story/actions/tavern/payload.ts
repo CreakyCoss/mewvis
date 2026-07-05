@@ -18,15 +18,8 @@ const createTavernGraph = (nodeContext: StoryNodeProjection): TavernStoryGraph =
   version: 1,
   entryNodeId: nodeContext.graph.entryNodeId,
   activeNodeId: nodeContext.graph.activeNodeId,
-  stages: nodeContext.graph.stages.map((stage) => ({
-    id: stage.id,
-    title: stage.title,
-    summary: stage.summary,
-    order: stage.order,
-  })),
   nodes: nodeContext.graph.nodes.map((node, index) => ({
     id: node.id,
-    stageId: node.stageId,
     sceneId: node.sceneId,
     title: node.title,
     type: normalizeTavernNodeType(node.type),

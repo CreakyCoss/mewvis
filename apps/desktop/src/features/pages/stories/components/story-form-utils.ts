@@ -5,7 +5,6 @@ import type {
   StoryLorebookEntryJson,
   StoryNodeJson,
   StorySceneJson,
-  StoryStageJson,
 } from "../story/model/types";
 import { defaultTavernAvatar, tavernAvatarOptions } from "@/assets/avatars";
 
@@ -74,19 +73,10 @@ export const createStoryLorebookEntry = (index: number): StoryLorebookEntryJson 
   alwaysOn: false,
 });
 
-export const createStoryStage = (index: number): StoryStageJson => ({
-  id: createStoryLocalId("story-stage"),
-  title: `阶段 ${index + 1}`,
-  summary: "",
-  order: index,
-});
-
 export const createStoryNode = (story: StoryJson): StoryNodeJson => {
-  const stage = story.graph.stages[0] ?? createStoryStage(0);
   const scene = story.scenes[0];
   return {
     id: createStoryLocalId("story-node"),
-    stageId: stage.id,
     sceneId: scene?.id,
     title: `节点 ${story.graph.nodes.length + 1}`,
     type: "normal",

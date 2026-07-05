@@ -218,7 +218,6 @@ export const RoomEditor = ({
       storyContext: {
         story: storyContext.story,
         activeNode: storyContext.graph.activeNode,
-        activeStage: storyContext.graph.activeStage,
         activeScene: storyContext.graph.activeScene,
         branch: storyContext.branch,
         characters: storyContext.characters,
@@ -226,7 +225,6 @@ export const RoomEditor = ({
         graph: {
           entryNodeId: storyContext.graph.entryNodeId,
           activeNodeId: storyContext.graph.activeNodeId,
-          stages: storyContext.graph.stages,
           nodes: storyContext.graph.nodes,
           edges: storyContext.graph.edges,
         },

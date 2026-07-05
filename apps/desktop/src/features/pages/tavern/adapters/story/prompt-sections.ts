@@ -72,7 +72,6 @@ export const formatTavernStoryGraphContext = (
   const activeScene = graphSlice.activeScene;
   return [
     `current_node: ${escapePromptXmlText(activeNode.title)}`,
-    `stage: ${escapePromptXmlText(graphSlice.activeStage?.title ?? "未分组")}`,
     `node_type: ${escapePromptXmlText(activeNode.type)}`,
     `path_role: ${escapePromptXmlText(activeNode.pathRole)}`,
     activeScene ? `scene: ${escapePromptXmlText(activeScene.title)}` : "scene: 未绑定",

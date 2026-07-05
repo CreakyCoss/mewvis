@@ -59,7 +59,6 @@ writeFileSync(
   };
   const ledgerNode = {
     id: "node-ledger",
-    stageId: "stage-ledger",
     sceneId: ledgerScene.id,
     title: "巡检表缺页",
     type: "normal",
@@ -122,12 +121,8 @@ writeFileSync(
     graph: {
       entryNodeId: entryNode.id,
       activeNodeId: ledgerNode.id,
-      stages: [
-        { ...baseStory.graph.stages[0], id: "stage-entry", title: "入口阶段" },
-        { id: "stage-ledger", title: "证据阶段", order: 1 },
-      ],
       nodes: [
-        { ...entryNode, stageId: "stage-entry", sceneId: "scene-entry", title: "入口节点" },
+        { ...entryNode, sceneId: "scene-entry", title: "入口节点" },
         ledgerNode,
       ],
       edges: [ledgerEdge],

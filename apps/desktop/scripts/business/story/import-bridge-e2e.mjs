@@ -73,11 +73,9 @@ writeFileSync(
     graph: {
       entryNodeId: "node-archive",
       activeNodeId: "node-archive",
-      stages: [{ id: "stage-entry", title: "入口", order: 0 }],
       nodes: [
         {
           id: "node-archive",
-          stageId: "stage-entry",
           sceneId: "scene-archive",
           title: "档案馆节点",
           type: "normal",

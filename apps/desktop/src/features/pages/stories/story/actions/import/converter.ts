@@ -85,9 +85,9 @@ const buildStoryJsonSchemaInstruction = () =>
     "- characters: [{ id, name, avatar, description, speakingStyle, writingStyle?, replyStylePrompt?, goals?, relationshipSummary?, publicRelationshipSummary?, memory? }]",
     "- lorebookEntries: [{ id, title, content, keywords, enabled, alwaysOn }]",
     "- scenes: [{ id, title, scene, goal, plot, direction, transition, memory, status? }]",
-    "- graph: { entryNodeId, activeNodeId, stages, nodes, edges }",
+    "- graph: { entryNodeId, activeNodeId, nodes, edges }",
     "- createdAt, updatedAt",
-    "graph.nodes 的 sceneId 必须引用 scenes；stageId 必须引用 stages。",
+    "graph.nodes 的 sceneId 必须引用 scenes。",
     "如果无法从来源判断字段内容，填空字符串或空数组，但保留结构完整。",
   ].join("\n");
 

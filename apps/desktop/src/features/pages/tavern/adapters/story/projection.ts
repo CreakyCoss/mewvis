@@ -87,7 +87,6 @@ export const getTavernRuntimeStoryProjection = (
 
 const cloneTavernStoryGraph = (storyGraph: TavernStoryGraph): TavernStoryGraph => ({
   ...storyGraph,
-  stages: storyGraph.stages.map((stage) => ({ ...stage })),
   nodes: storyGraph.nodes.map((node) => ({
     ...node,
     position: { ...node.position },

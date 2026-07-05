@@ -12,7 +12,6 @@ import type {
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-  TavernStoryStage,
 } from "../../types";
 import {
   getTavernRuntimeStoryProjection,
@@ -85,7 +84,6 @@ export type TavernStoryContextPackage = {
   story: TavernStoryContextPackageInput["story"];
   graph: TavernStoryGraph & {
     activeNode?: TavernStoryNode;
-    activeStage?: TavernStoryStage;
     activeScene?: TavernStoryContextScene;
   };
   scenes: TavernStoryContextScene[];
@@ -105,7 +103,6 @@ export type TavernStoryContextPackage = {
 
 export type TavernStoryGraphContextSlice = {
   activeNode?: TavernStoryNode;
-  activeStage?: TavernStoryStage;
   activeScene?: TavernStoryContextScene;
   incomingEdges: TavernStoryEdge[];
   outgoingEdges: TavernStoryEdge[];
@@ -234,9 +231,6 @@ const buildTavernStoryContextPackageFromInput = (
   const activeNode = input.graph.nodes.find((node) => node.id === input.graph.activeNodeId) ??
     input.graph.nodes.find((node) => node.id === input.graph.entryNodeId) ??
     input.graph.nodes[0];
-  const activeStage = activeNode
-    ? input.graph.stages.find((stage) => stage.id === activeNode.stageId)
-    : undefined;
   const activeScene = (
     activeNode?.sceneId
       ? input.scenes.find((scene) => scene.id === activeNode.sceneId)
@@ -256,7 +250,6 @@ const buildTavernStoryContextPackageFromInput = (
       ...input.graph,
       activeNodeId: activeNode?.id ?? input.graph.activeNodeId,
       activeNode,
-      activeStage,
       activeScene,
     },
     scenes: input.scenes,
@@ -343,7 +336,6 @@ export const getTavernStoryGraphContextSlice = (
 
   return {
     activeNode,
-    activeStage: context.graph.activeStage,
     activeScene: context.graph.activeScene,
     incomingEdges,
     outgoingEdges,

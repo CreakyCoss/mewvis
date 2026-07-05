@@ -7,21 +7,7 @@ import type {
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-  TavernStoryStage,
 } from "../types";
-
-const defaultStoryStageTitle = "第一阶段";
-
-const createTavernStoryStage = (
-  input: Partial<TavernStoryStage> = {},
-): TavernStoryStage => ({
-  id: input.id || createId("stage"),
-  title: input.title?.trim() || defaultStoryStageTitle,
-  summary: input.summary?.trim() || undefined,
-  routeNodeId: input.routeNodeId?.trim() || undefined,
-  order: typeof input.order === "number" ? input.order : 0,
-  collapsed: Boolean(input.collapsed),
-});
 
 const normalizeTavernStoryNodeType = (value: unknown): TavernStoryNode["type"] => {
   if (value === "failure" || value === "ending") {
@@ -36,7 +22,6 @@ const normalizeTavernStoryPathRole = (value: unknown): TavernStoryNode["pathRole
 
 const createTavernStoryNode = (
   input: Partial<TavernStoryNode> & {
-    stageId: string;
     title: string;
   },
 ): TavernStoryNode => {
@@ -44,7 +29,6 @@ const createTavernStoryNode = (
 
   return {
     id: input.id || createId("node"),
-    stageId: input.stageId,
     sceneId: input.sceneId?.trim() || undefined,
     title: input.title.trim() || "未命名节点",
     type: normalizeTavernStoryNodeType(input.type),
@@ -83,10 +67,8 @@ const createTavernStoryEdge = (
 export const createDefaultStoryGraph = (
   scenes: TavernScene[],
 ): TavernStoryGraph => {
-  const stage = createTavernStoryStage({ title: defaultStoryStageTitle, order: 0 });
   const nodes = scenes.map((scene, index) =>
     createTavernStoryNode({
-      stageId: stage.id,
       sceneId: scene.id,
       title: scene.title || `节点 ${index + 1}`,
       type: index === scenes.length - 1 && scenes.length > 1 ? "ending" : "normal",
@@ -102,7 +84,6 @@ export const createDefaultStoryGraph = (
   );
   const entryNode = nodes[0] ??
     createTavernStoryNode({
-      stageId: stage.id,
       title: "入口节点",
       status: "draft",
     });
@@ -122,7 +103,6 @@ export const createDefaultStoryGraph = (
     version: 1,
     entryNodeId: entryNode.id,
     activeNodeId: entryNode.id,
-    stages: [{ ...stage, routeNodeId: nodes[nodes.length - 1]?.id ?? entryNode.id }],
     nodes: nodes.length > 0 ? nodes : [entryNode],
     edges,
   };
@@ -137,18 +117,6 @@ export const normalizeStoryGraph = (
   }
 
   const candidate = value as Partial<TavernStoryGraph>;
-  const stages = Array.isArray(candidate.stages)
-    ? candidate.stages
-        .map((stage) => createTavernStoryStage(stage))
-        .filter((stage) => stage.title.trim())
-        .sort((left, right) => left.order - right.order)
-        .map((stage, index) => ({ ...stage, order: index }))
-    : [];
-  const normalizedStages = stages.length > 0
-    ? stages
-    : createDefaultStoryGraph(scenes).stages;
-  const stageIds = new Set(normalizedStages.map((stage) => stage.id));
-  const fallbackStageId = normalizedStages[0]?.id ?? createId("stage");
   const sceneIds = new Set(scenes.map((scene) => scene.id));
   const nodes = Array.isArray(candidate.nodes)
     ? candidate.nodes
@@ -161,9 +129,6 @@ export const normalizeStoryGraph = (
 
           return createTavernStoryNode({
             ...rawNode,
-            stageId: rawNode.stageId && stageIds.has(rawNode.stageId)
-              ? rawNode.stageId
-              : fallbackStageId,
             sceneId: rawNode.sceneId && sceneIds.has(rawNode.sceneId)
               ? rawNode.sceneId
               : undefined,
@@ -176,12 +141,6 @@ export const normalizeStoryGraph = (
     ? nodes
     : createDefaultStoryGraph(scenes).nodes;
   const nodeIds = new Set(normalizedNodes.map((node) => node.id));
-  const validatedStages = normalizedStages.map((stage) => ({
-    ...stage,
-    routeNodeId: stage.routeNodeId && nodeIds.has(stage.routeNodeId)
-      ? stage.routeNodeId
-      : undefined,
-  }));
   const edges = Array.isArray(candidate.edges)
     ? candidate.edges
         .map((edge) => {
@@ -215,7 +174,6 @@ export const normalizeStoryGraph = (
     version: 1,
     entryNodeId,
     activeNodeId,
-    stages: validatedStages,
     nodes: normalizedNodes,
     edges,
   };

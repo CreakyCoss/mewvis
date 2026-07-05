@@ -289,10 +289,8 @@ writeFileSync(entryPath, `
       version: 1,
       entryNodeId: "node-alpha",
       activeNodeId: "node-alpha",
-      stages: [{ id: "stage-alpha", title: "测试阶段", order: 0 }],
       nodes: [{
         id: "node-alpha",
-        stageId: "stage-alpha",
         sceneId: "scene-alpha",
         title: "测试节点",
         type: "normal",
@@ -581,12 +579,11 @@ writeFileSync(entryPath, `
       version: 1,
       entryNodeId: "node-1",
       activeNodeId: "node-1",
-      stages: [{ id: "stage-1", title: "测试分支", order: 0 }],
       nodes: [
-        { id: "node-1", stageId: "stage-1", sceneId: "scene-1", title: "1", type: "normal", pathRole: "main", position: { x: 0, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
-        { id: "node-1-5", stageId: "stage-1", sceneId: "scene-1-5", title: "1.5", type: "normal", pathRole: "branch", position: { x: 120, y: 80 }, status: "ready", createdAt: now, updatedAt: now },
-        { id: "node-2", stageId: "stage-1", sceneId: "scene-2", title: "2", type: "normal", pathRole: "main", position: { x: 240, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
-        { id: "node-3", stageId: "stage-1", sceneId: "scene-3", title: "3", type: "ending", pathRole: "main", position: { x: 360, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-1", sceneId: "scene-1", title: "1", type: "normal", pathRole: "main", position: { x: 0, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-1-5", sceneId: "scene-1-5", title: "1.5", type: "normal", pathRole: "branch", position: { x: 120, y: 80 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-2", sceneId: "scene-2", title: "2", type: "normal", pathRole: "main", position: { x: 240, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
+        { id: "node-3", sceneId: "scene-3", title: "3", type: "ending", pathRole: "main", position: { x: 360, y: 0 }, status: "ready", createdAt: now, updatedAt: now },
       ],
       edges: [
         { id: "edge-1-2", fromNodeId: "node-1", toNodeId: "node-2", label: "直接进入 2", isDefault: true, priority: 0, createdAt: now, updatedAt: now },

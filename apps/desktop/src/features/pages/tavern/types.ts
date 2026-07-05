@@ -241,15 +241,6 @@ export type TavernLorebookEntry = {
   updatedAt: number;
 };
 
-export type TavernStoryStage = {
-  id: string;
-  title: string;
-  summary?: string;
-  routeNodeId?: string;
-  order: number;
-  collapsed?: boolean;
-};
-
 export type TavernStoryNodeType = "normal" | "failure" | "ending";
 
 export type TavernStoryPathRole = "main" | "branch";
@@ -258,7 +249,6 @@ export type TavernStoryNodeStatus = "draft" | "ready" | "played";
 
 export type TavernStoryNode = {
   id: string;
-  stageId: string;
   sceneId?: string;
   title: string;
   type: TavernStoryNodeType;
@@ -288,7 +278,6 @@ export type TavernStoryGraph = {
   version: 1;
   entryNodeId: string;
   activeNodeId: string;
-  stages: TavernStoryStage[];
   nodes: TavernStoryNode[];
   edges: TavernStoryEdge[];
 };

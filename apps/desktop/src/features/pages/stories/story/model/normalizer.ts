@@ -10,7 +10,6 @@ import type {
   StoryNodeJson,
   StorySceneJson,
   StorySceneStatusJson,
-  StoryStageJson,
 } from "./types";
 
 export type NormalizeStoryJsonOptions = {
@@ -139,23 +138,9 @@ const normalizeScene = (value: unknown, index: number): StorySceneJson | null =>
   };
 };
 
-const normalizeStage = (value: unknown, index: number): StoryStageJson | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  return {
-    id: trimText(value.id) || `stage-${index + 1}`,
-    title: trimText(value.title) || `阶段 ${index + 1}`,
-    summary: trimText(value.summary) || undefined,
-    order: numberValue(value.order, index),
-  };
-};
-
 const normalizeNode = (
   value: unknown,
   index: number,
-  fallbackStageId: string,
   fallbackSceneId?: string,
 ): StoryNodeJson | null => {
   if (!isRecord(value)) {
@@ -164,7 +149,6 @@ const normalizeNode = (
 
   return {
     id: trimText(value.id) || `node-${index + 1}`,
-    stageId: trimText(value.stageId) || fallbackStageId,
     sceneId: trimText(value.sceneId) || fallbackSceneId,
     title: trimText(value.title) || `节点 ${index + 1}`,
     type: trimText(value.type) || "normal",
@@ -217,17 +201,9 @@ const normalizeGraph = ({
   }
 
   const fallback = createFallbackGraph({ storyId, scenes });
-  const stages = Array.isArray(value.stages)
-    ? value.stages.flatMap((stage, index) => {
-        const normalized = normalizeStage(stage, index);
-        return normalized ? [normalized] : [];
-      })
-    : [];
-  const resolvedStages = stages.length > 0 ? stages : fallback.stages;
-  const fallbackStageId = resolvedStages[0]?.id ?? fallback.stages[0].id;
   const nodes = Array.isArray(value.nodes)
     ? value.nodes.flatMap((node, index) => {
-        const normalized = normalizeNode(node, index, fallbackStageId, scenes[index]?.id ?? scenes[0]?.id);
+        const normalized = normalizeNode(node, index, scenes[index]?.id ?? scenes[0]?.id);
         return normalized ? [normalized] : [];
       })
     : [];
@@ -247,7 +223,6 @@ const normalizeGraph = ({
   return {
     entryNodeId,
     activeNodeId,
-    stages: resolvedStages,
     nodes: resolvedNodes,
     edges,
   };

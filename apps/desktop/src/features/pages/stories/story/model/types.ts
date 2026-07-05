@@ -52,16 +52,8 @@ export type StoryCharacterJson = {
   memory?: StoryCharacterMemoryJson;
 };
 
-export type StoryStageJson = {
-  id: string;
-  title: string;
-  summary?: string;
-  order: number;
-};
-
 export type StoryNodeJson = {
   id: string;
-  stageId: string;
   sceneId?: string;
   title: string;
   type: string;
@@ -82,7 +74,6 @@ export type StoryEdgeJson = {
 export type StoryGraphJson = {
   entryNodeId: string;
   activeNodeId: string;
-  stages: StoryStageJson[];
   nodes: StoryNodeJson[];
   edges: StoryEdgeJson[];
 };

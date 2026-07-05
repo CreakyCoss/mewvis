@@ -13,7 +13,6 @@ const formatListSection = (title: string, items: string[]) =>
 
 const formatNodeContextForChat = (nodeContext: StoryNodeProjection) => {
   const activeNode = nodeContext.current.node;
-  const activeStage = nodeContext.current.stage;
   const activeScene = nodeContext.current.scene;
   const characters = formatListSection(
     "角色",
@@ -51,7 +50,6 @@ const formatNodeContextForChat = (nodeContext: StoryNodeProjection) => {
     nodeContext.background.outline ? `定位：${nodeContext.background.outline}` : "",
     nodeContext.background.goal ? `目标：${nodeContext.background.goal}` : "",
     nodeContext.background.userPersonaName ? `用户称呼：${nodeContext.background.userPersonaName}` : "",
-    activeStage ? `当前阶段：${activeStage.title}${activeStage.summary ? ` - ${activeStage.summary}` : ""}` : "",
     activeNode
       ? `当前节点：${activeNode.title}（${activeNode.type}/${activeNode.pathRole}/${activeNode.status ?? "draft"}）`
       : "",

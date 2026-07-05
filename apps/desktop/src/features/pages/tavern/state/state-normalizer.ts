@@ -315,7 +315,6 @@ export const normalizeTavernState = (
       room.workspaceId === workspaceId &&
       room.title &&
       room.storyGraph &&
-      Array.isArray(room.storyGraph.stages) &&
       Array.isArray(room.storyGraph.nodes) &&
       Array.isArray(room.storyGraph.edges) &&
       Array.isArray(room.scenes) &&

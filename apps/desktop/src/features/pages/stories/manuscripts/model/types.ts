@@ -21,8 +21,6 @@ export type StoryManuscriptNodeSnapshot = {
   type: string;
   pathRole: string;
   status?: string;
-  stageId: string;
-  stageTitle?: string;
   sceneId?: string;
   sceneTitle?: string;
   sceneSummary?: string;

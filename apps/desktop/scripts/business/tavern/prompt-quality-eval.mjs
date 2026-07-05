@@ -491,14 +491,8 @@ writeFileSync(helperEntryPath, `
         version: 1,
         entryNodeId: "quality-node-alpha",
         activeNodeId: "quality-node-alpha",
-        stages: [{
-          id: "quality-stage-alpha",
-          title: "第一幕",
-          order: 0,
-        }],
         nodes: [{
           id: "quality-node-alpha",
-          stageId: "quality-stage-alpha",
           title: "铜牌失踪",
           summary: "铜牌消失，窗边留下湿泥脚印。",
           type: "normal",

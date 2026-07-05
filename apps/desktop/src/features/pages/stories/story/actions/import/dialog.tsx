@@ -43,7 +43,6 @@ const mergeStoryJsonIntoStory = (story: StoryJson, incoming: StoryJson): StoryJs
   graph: {
     entryNodeId: story.graph.entryNodeId || incoming.graph.entryNodeId,
     activeNodeId: story.graph.activeNodeId || incoming.graph.activeNodeId,
-    stages: dedupeById([...story.graph.stages, ...incoming.graph.stages]),
     nodes: dedupeById([...story.graph.nodes, ...incoming.graph.nodes]),
     edges: dedupeById([...story.graph.edges, ...incoming.graph.edges]),
   },

@@ -55,8 +55,6 @@ const normalizeNodeSnapshot = (value: unknown, fallback: { nodeId: string }): St
     type: trimText(source.type) || "normal",
     pathRole: trimText(source.pathRole) || "main",
     status: trimText(source.status) || undefined,
-    stageId: trimText(source.stageId),
-    stageTitle: trimText(source.stageTitle) || undefined,
     sceneId: trimText(source.sceneId) || undefined,
     sceneTitle: trimText(source.sceneTitle) || undefined,
     sceneSummary: trimText(source.sceneSummary) || undefined,

@@ -349,22 +349,12 @@ export const ManagementProvider = ({
       }));
       const activeSceneId = sceneIdMap.get(sourceRoom.activeSceneId ?? "") ?? copiedScenes[0]?.id ?? "";
       const storyNodeIdMap = new Map<string, string>();
-      const storyStageIdMap = new Map<string, string>();
-      const copiedStages = sourceRoom.storyGraph.stages.map((stage) => {
-        const copiedStageId = createLocalId("stage");
-        storyStageIdMap.set(stage.id, copiedStageId);
-        return {
-          ...stage,
-          id: copiedStageId,
-        };
-      });
       const copiedNodes = sourceRoom.storyGraph.nodes.map((node) => {
         const copiedNodeId = createLocalId("node");
         storyNodeIdMap.set(node.id, copiedNodeId);
         return {
           ...node,
           id: copiedNodeId,
-          stageId: storyStageIdMap.get(node.stageId) ?? copiedStages[0]?.id ?? "",
           sceneId: node.sceneId ? sceneIdMap.get(node.sceneId) : undefined,
           createdAt,
           updatedAt: createdAt,
@@ -408,7 +398,6 @@ export const ManagementProvider = ({
           version: 1,
           entryNodeId: copiedEntryNodeId,
           activeNodeId: copiedActiveNodeId,
-          stages: copiedStages,
           nodes: copiedNodes,
           edges: copiedEdges,
         },

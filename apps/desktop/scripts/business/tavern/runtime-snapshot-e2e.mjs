@@ -154,13 +154,9 @@ writeFileSync(
     graph: {
       entryNodeId: "node-entry",
       activeNodeId: "node-target",
-      stages: [
-        { id: "stage-entry", title: "入口", order: 0 },
-      ],
       nodes: [
         {
           id: "node-entry",
-          stageId: "stage-entry",
           sceneId: "scene-entry",
           title: "入口节点",
           type: "normal",
@@ -169,7 +165,6 @@ writeFileSync(
         },
         {
           id: "node-target",
-          stageId: "stage-entry",
           sceneId: "scene-target",
           title: "目标节点",
           type: "normal",

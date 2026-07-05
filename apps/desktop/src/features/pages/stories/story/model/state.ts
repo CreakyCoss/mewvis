@@ -10,7 +10,6 @@ export const createDefaultStoryJson = ({
   timestamp?: number;
 }): StoryJson => {
   const sceneId = `${id}-scene-main`;
-  const stageId = `${id}-stage-main`;
   const nodeId = `${id}-node-main`;
 
   return {
@@ -37,17 +36,9 @@ export const createDefaultStoryJson = ({
     graph: {
       entryNodeId: nodeId,
       activeNodeId: nodeId,
-      stages: [
-        {
-          id: stageId,
-          title: "起始阶段",
-          order: 0,
-        },
-      ],
       nodes: [
         {
           id: nodeId,
-          stageId,
           sceneId,
           title: "起始节点",
           type: "normal",

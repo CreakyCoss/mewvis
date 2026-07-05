@@ -17,7 +17,6 @@ export type StoryNodeProjection = {
   };
   current: {
     node: StoryJson["graph"]["nodes"][number] | null;
-    stage: StoryJson["graph"]["stages"][number] | null;
     scene: StoryJson["scenes"][number] | null;
     progress: string;
   };
@@ -30,7 +29,6 @@ export type StoryNodeProjection = {
   graph: {
     entryNodeId: string;
     activeNodeId: string;
-    stages: StoryJson["graph"]["stages"];
     nodes: StoryJson["graph"]["nodes"];
     edges: StoryJson["graph"]["edges"];
   };
@@ -51,7 +49,6 @@ export type StoryNodeProjection = {
 export const buildStoryNodeProjection = (story: StoryJson, nodeId?: string | null): StoryNodeProjection => {
   const node = getNode(story, compact(nodeId));
   const resolvedNodeId = node?.id ?? "";
-  const stage = node ? (story.graph.stages.find((item) => item.id === node.stageId) ?? null) : null;
   const scene = getSceneForNode(story, node);
   const pathNodeIds = unique([resolvedNodeId]);
   const progress = compact(scene?.plot);
@@ -73,7 +70,6 @@ export const buildStoryNodeProjection = (story: StoryJson, nodeId?: string | nul
     },
     current: {
       node,
-      stage,
       scene,
       progress,
     },
@@ -86,7 +82,6 @@ export const buildStoryNodeProjection = (story: StoryJson, nodeId?: string | nul
     graph: {
       entryNodeId: story.graph.entryNodeId,
       activeNodeId: resolvedNodeId || story.graph.activeNodeId,
-      stages: story.graph.stages,
       nodes: story.graph.nodes,
       edges: story.graph.edges,
     },
