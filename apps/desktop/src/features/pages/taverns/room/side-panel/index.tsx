@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TavernSceneNovelizerSection } from "@/features/scene-novelizer/adapters/tavern/TavernSceneNovelizerSection";
 import { cn } from "@/lib/utils";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { CharacterStatusSection } from "./characters/section";
 import { IllustrationHintsPreviewSection } from "./illustration-hints-preview";
 import { RuntimeTimelineSection } from "./runtime-timeline";
 import { SceneOverviewSection } from "./scene-overview";
@@ -48,6 +49,8 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
           />
 
           <RuntimeTimelineSection />
+
+          <CharacterStatusSection />
         </div>
       </ScrollArea>
     </aside>
