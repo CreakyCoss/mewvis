@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
 import { IllustrationHintsPreviewSection } from "./illustration-hints-preview";
+import { PlotDataSection } from "./plot-data";
 import { RuntimeTimelineSection } from "./runtime-timeline";
 import { SceneOverviewSection } from "./scene-overview";
 import type { SidePanelProps } from "./types";
@@ -15,6 +16,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
     useTavernRoomContext();
   const [isSceneOperationBusy, setIsSceneOperationBusy] = useState(false);
   const [isNovelizerOperationBusy, setIsNovelizerOperationBusy] = useState(false);
+  const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
 
   useImperativeHandle(
     bind,
@@ -34,7 +36,10 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
     <aside className={cn("hidden min-h-0 flex-col border-l lg:flex", visualPreset.tavern.sidePanel)}>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
-          <SceneOverviewSection externalBusy={isNovelizerOperationBusy} onBusyChange={setIsSceneOperationBusy} />
+          <SceneOverviewSection
+            externalBusy={isNovelizerOperationBusy || isPlotDataOperationBusy}
+            onBusyChange={setIsSceneOperationBusy}
+          />
 
           <IllustrationHintsPreviewSection />
 
@@ -44,13 +49,18 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
             characters={roomCharacters}
             workspace={workspace}
             runtimeModel={runtimeModel}
-            disabled={isSending || isSceneOperationBusy}
+            disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy}
             onBusyChange={setIsNovelizerOperationBusy}
           />
 
           <RuntimeTimelineSection />
 
           <CharacterStatusSection />
+
+          <PlotDataSection
+            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy}
+            onBusyChange={setIsPlotDataOperationBusy}
+          />
         </div>
       </ScrollArea>
     </aside>
