@@ -8,6 +8,7 @@ import { RoomCard } from "@/features/pages/taverns/components/room-card";
 import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/manage";
 import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
+import type { TavernRoomRuntimeState } from "@/features/pages/taverns/room/model";
 import {
   createTavernRoomRuntimeStateFromConfigState,
   pickTavernRoomConfig,
@@ -49,6 +50,19 @@ const createEmptyTavernState = (): TavernState => ({
   rooms: [],
 });
 
+type TavernPageLocationState = {
+  tavernRuntimeState?: TavernRoomRuntimeState;
+};
+
+const getTavernRuntimeStateFromLocation = (state: unknown): TavernRoomRuntimeState | undefined => {
+  if (!state || typeof state !== "object") {
+    return undefined;
+  }
+
+  const runtimeState = (state as TavernPageLocationState).tavernRuntimeState;
+  return runtimeState?.version === 4 && Array.isArray(runtimeState.rooms) ? runtimeState : undefined;
+};
+
 export const TavernPage = () => {
   const { workspaceId } = useParams();
   const location = useLocation();
@@ -58,6 +72,7 @@ export const TavernPage = () => {
   const workspace =
     workspaces.find((item) => item.id === workspaceId) ?? activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
   const routeSearch = parseTavernRouteSearch(location.search);
+  const locationRuntimeState = getTavernRuntimeStateFromLocation(location.state);
   const exitTavernSurface = () => {
     if (routeSearch.isStoryRuntimeRequest) {
       navigate(
@@ -107,6 +122,7 @@ export const TavernPage = () => {
       runtimeScope={routeSearch.runtimeScope}
       initialRoomId={routeSearch.initialRoomId}
       initialSceneInstanceId={routeSearch.initialSceneInstanceId}
+      initialRuntimeState={routeSearch.isStoryRuntimeRequest ? locationRuntimeState : undefined}
       onExitStoryRuntime={exitTavernSurface}
     />
   );
@@ -151,6 +167,7 @@ type TavernsPageRuntimeProps = {
   runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
+  initialRuntimeState?: TavernRoomRuntimeState;
   onExitStoryRuntime: () => void;
 };
 
@@ -159,6 +176,7 @@ const TavernsPageRuntime = ({
   runtimeScope,
   initialRoomId,
   initialSceneInstanceId,
+  initialRuntimeState,
   onExitStoryRuntime,
 }: TavernsPageRuntimeProps) => {
   return (
@@ -167,6 +185,7 @@ const TavernsPageRuntime = ({
       runtimeScope={runtimeScope}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}
+      initialRuntimeState={initialRuntimeState}
       onExitStoryRuntime={onExitStoryRuntime}
     />
   );
@@ -177,6 +196,7 @@ type TavernsPageContentProps = {
   runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
+  initialRuntimeState?: TavernRoomRuntimeState;
   onExitStoryRuntime: () => void;
 };
 
@@ -185,6 +205,7 @@ const TavernsPageContent = ({
   runtimeScope = {},
   initialRoomId,
   initialSceneInstanceId,
+  initialRuntimeState,
   onExitStoryRuntime,
 }: TavernsPageContentProps) => {
   const runtimeScopeKey = `${runtimeScope.storyId ?? ""}:${runtimeScope.storyNodeId ?? ""}:${runtimeScope.tavernId ?? ""}:${runtimeScope.runtimePath ?? ""}`;
@@ -276,7 +297,10 @@ const TavernsPageContent = ({
 
   const openTavernRoom = useCallback(
     (room: TavernRoom, sceneInstanceId?: string) => {
-      const runtimeState = createTavernRoomRuntimeStateFromConfigState(state, room);
+      const runtimeState =
+        isStoryRuntimeScope && initialRuntimeState?.rooms.some((item) => item.id === room.id)
+          ? initialRuntimeState
+          : createTavernRoomRuntimeStateFromConfigState(state, room);
       const runtimeRoom = runtimeState.rooms.find((item) => item.id === room.id) ?? runtimeState.rooms[0];
       if (!runtimeRoom) {
         return;
@@ -298,7 +322,7 @@ const TavernsPageContent = ({
         onClose: isStoryRuntimeScope ? onExitStoryRuntime : undefined,
       });
     },
-    [isStoryRuntimeScope, onExitStoryRuntime, state, tavernRuntimeScope, workspace],
+    [initialRuntimeState, isStoryRuntimeScope, onExitStoryRuntime, state, tavernRuntimeScope, workspace],
   );
 
   useEffect(() => {

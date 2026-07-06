@@ -52,6 +52,7 @@ export const openTavernPresentationInput = async ({
     tavernState: nextTavernState,
     room,
     sceneInstanceId,
+    runtimeState,
   } = materializeTavernPresentationRoomState({
     tavernState,
     workspaceId: workspace.id,
@@ -70,6 +71,7 @@ export const openTavernPresentationInput = async ({
   return {
     room,
     sceneInstanceId,
+    runtimeState,
     target: {
       pathname: "/tavern",
       search: buildTavernOpenSearch({

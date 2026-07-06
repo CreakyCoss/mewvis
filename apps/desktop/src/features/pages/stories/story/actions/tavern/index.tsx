@@ -37,7 +37,7 @@ export const TavernStoryAction = () => {
 
     const storyNodeId = resolveNodeId(story, nodeId);
     try {
-      const { target } = await openTavernPresentationInput({
+      const { runtimeState, target } = await openTavernPresentationInput({
         workspace: storyWorkspace,
         storyId: story.id,
         storyNodeId,
@@ -48,7 +48,11 @@ export const TavernStoryAction = () => {
           nodeId: storyNodeId,
         }),
       });
-      navigate(target);
+      navigate(target, {
+        state: {
+          tavernRuntimeState: runtimeState,
+        },
+      });
     } catch (error) {
       console.error("Failed to open story in tavern", error);
       toast.error("无法打开酒馆呈现。");
