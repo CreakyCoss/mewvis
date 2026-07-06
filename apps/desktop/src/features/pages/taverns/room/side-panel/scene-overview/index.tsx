@@ -54,6 +54,7 @@ import { buildTavernMemoryOverviewSummary } from "../memory-summary";
 type SceneOverviewSectionProps = {
   externalBusy: boolean;
   onBusyChange?: (isBusy: boolean) => void;
+  onOpenTipsDetail: () => void;
 };
 
 const replyModeDescriptions: Record<TavernReplyMode, string> = {
@@ -180,16 +181,14 @@ const SceneDetailsSection = ({
   scene,
   memorySummary,
   isSending,
-  onOpenMemoryEditor,
-  onOpenPromptOverrideEditor,
+  onOpenTipsDetail,
   onImmersiveDescriptionChange,
 }: {
   immersiveDescriptionEnabled: boolean;
   scene: string | undefined;
   memorySummary: string | undefined;
   isSending: boolean;
-  onOpenMemoryEditor: () => void;
-  onOpenPromptOverrideEditor: () => void;
+  onOpenTipsDetail: () => void;
   onImmersiveDescriptionChange: (checked: boolean) => void;
 }) => (
   <SectionCard className="space-y-2 px-3 py-3">
@@ -210,8 +209,8 @@ const SceneDetailsSection = ({
         onCheckedChange={onImmersiveDescriptionChange}
       />
     </div>
-    <DetailRow icon={FileText} title="场景描述" summary={compactText(scene)} onClick={onOpenPromptOverrideEditor} />
-    <DetailRow icon={Brain} title="节点记忆" summary={compactText(memorySummary)} onClick={onOpenMemoryEditor} />
+    <DetailRow icon={FileText} title="场景描述" summary={compactText(scene)} onClick={onOpenTipsDetail} />
+    <DetailRow icon={Brain} title="节点记忆" summary={compactText(memorySummary)} onClick={onOpenTipsDetail} />
   </SectionCard>
 );
 
@@ -363,7 +362,7 @@ const ToolActionsSection = ({
   </SectionCard>
 );
 
-export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOverviewSectionProps) => {
+export const SceneOverviewSection = ({ externalBusy, onBusyChange, onOpenTipsDetail }: SceneOverviewSectionProps) => {
   const { activeRoom, roomCharacters, isSending, patchRoom } = useTavernRoomContext();
   const [secretDialogMode, setSecretDialogMode] = useState<"record" | "reveal" | null>(null);
   const [secretDraftText, setSecretDraftText] = useState("");
@@ -555,8 +554,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
         scene={activeRoom.scene}
         memorySummary={memoryOverviewSummary}
         isSending={isSending}
-        onOpenMemoryEditor={openMemoryEditor}
-        onOpenPromptOverrideEditor={openPromptOverrideEditor}
+        onOpenTipsDetail={onOpenTipsDetail}
         onImmersiveDescriptionChange={(checked) =>
           patchRoom(activeRoom.id, {
             settings: {

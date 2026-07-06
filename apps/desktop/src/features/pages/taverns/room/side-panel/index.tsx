@@ -1,11 +1,11 @@
-import { useImperativeHandle, useState } from "react";
+import { useImperativeHandle, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TavernSceneNovelizerSection } from "@/features/scene-novelizer/adapters/tavern/TavernSceneNovelizerSection";
 import { cn } from "@/lib/utils";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
 import { IllustrationHintsPreviewSection } from "./illustration-hints-preview";
-import { PlotDataSection } from "./plot-data";
+import { PlotDataSection, type PlotDataSectionHandle } from "./plot-data";
 import { RuntimeTimelineSection } from "./runtime-timeline";
 import { SceneOverviewSection } from "./scene-overview";
 import type { SidePanelProps } from "./types";
@@ -18,6 +18,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
   const [isNovelizerOperationBusy, setIsNovelizerOperationBusy] = useState(false);
   const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
   const [isCharacterOperationBusy, setIsCharacterOperationBusy] = useState(false);
+  const plotDataSectionRef = useRef<PlotDataSectionHandle | null>(null);
 
   useImperativeHandle(
     bind,
@@ -40,6 +41,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
           <SceneOverviewSection
             externalBusy={isNovelizerOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsSceneOperationBusy}
+            onOpenTipsDetail={() => plotDataSectionRef.current?.open("tips")}
           />
 
           <IllustrationHintsPreviewSection />
@@ -62,6 +64,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
           />
 
           <PlotDataSection
+            bind={plotDataSectionRef}
             externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsPlotDataOperationBusy}
           />

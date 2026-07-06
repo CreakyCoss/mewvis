@@ -38,7 +38,7 @@ const hasAssetDraftItems = (draft: TavernAssetDraft) =>
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
-type DetailPanelKey = "asset-drafts" | "lorebook" | "illustration-hints" | "tips";
+export type DetailPanelKey = "asset-drafts" | "lorebook" | "illustration-hints" | "tips";
 
 export type PlotDataSectionHandle = {
   open: (detailPanel: DetailPanelKey) => void;
