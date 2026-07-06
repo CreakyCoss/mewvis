@@ -17,14 +17,14 @@ import { Button } from "@/components/ui/button";
 import {
   getTavernPresentationProfile,
   isTavernPresentationLocked,
-} from "../../../../tavern/prompt-registry/presentation-rules";
+} from "../../../tavern/prompt-registry/presentation-rules";
 import type {
   TavernMessage,
   TavernPromptBlock,
   TavernPromptBlockSourceType,
   TavernPromptBlockTarget,
   TavernRoom,
-} from "../../../../tavern/types";
+} from "../../../tavern/types";
 import {
   EditorMetricStrip,
   EditorSection,
@@ -91,41 +91,31 @@ const getPresentationContractLabel = (room: TavernRoom) => {
 const getEnabledPromptBlocks = (blocks: TavernPromptBlock[]) =>
   blocks.filter((block) => block.enabled && block.text.trim());
 
-const countBlocksByTarget = (
-  blocks: TavernPromptBlock[],
-  target: TavernPromptBlockTarget,
-) => blocks.filter((block) => block.target === target).length;
+const countBlocksByTarget = (blocks: TavernPromptBlock[], target: TavernPromptBlockTarget) =>
+  blocks.filter((block) => block.target === target).length;
 
-const countEnabledBlocksBySource = (
-  blocks: TavernPromptBlock[],
-  sourceTypes: TavernPromptBlockSourceType[],
-) => getEnabledPromptBlocks(blocks).filter((block) =>
-  block.source && sourceTypes.includes(block.source.type)
-).length;
+const countEnabledBlocksBySource = (blocks: TavernPromptBlock[], sourceTypes: TavernPromptBlockSourceType[]) =>
+  getEnabledPromptBlocks(blocks).filter((block) => block.source && sourceTypes.includes(block.source.type)).length;
 
-const getSourceLabels = (
-  blocks: TavernPromptBlock[],
-  sourceTypes?: TavernPromptBlockSourceType[],
-) => Array.from(new Set(
-  getEnabledPromptBlocks(blocks).flatMap((block) => {
-    if (!block.source) {
-      return [];
-    }
-    if (sourceTypes && !sourceTypes.includes(block.source.type)) {
-      return [];
-    }
-    return [`${sourceTypeLabels[block.source.type]}：${block.source.label}`];
-  }),
-));
+const getSourceLabels = (blocks: TavernPromptBlock[], sourceTypes?: TavernPromptBlockSourceType[]) =>
+  Array.from(
+    new Set(
+      getEnabledPromptBlocks(blocks).flatMap((block) => {
+        if (!block.source) {
+          return [];
+        }
+        if (sourceTypes && !sourceTypes.includes(block.source.type)) {
+          return [];
+        }
+        return [`${sourceTypeLabels[block.source.type]}：${block.source.label}`];
+      }),
+    ),
+  );
 
 const formatCompactList = (items: string[], fallback: string) =>
   items.length > 0 ? items.slice(0, 3).join(" / ") : fallback;
 
-const PromptHierarchy = ({
-  steps,
-}: {
-  steps: PromptHierarchyStep[];
-}) => (
+const PromptHierarchy = ({ steps }: { steps: PromptHierarchyStep[] }) => (
   <div className="overflow-hidden rounded-lg border border-border/70 bg-background/72 shadow-xs">
     {steps.map((step, index) => {
       const Icon = step.icon;
@@ -139,16 +129,10 @@ const PromptHierarchy = ({
             <Icon className="size-4" />
           </span>
           <div className="min-w-0">
-            <div className="text-[11px] font-medium text-muted-foreground">
-              L{index + 1}
-            </div>
-            <div className="truncate text-sm font-semibold leading-5">
-              {step.label}
-            </div>
+            <div className="text-[11px] font-medium text-muted-foreground">L{index + 1}</div>
+            <div className="truncate text-sm font-semibold leading-5">{step.label}</div>
           </div>
-          <div className="min-w-0 text-xs leading-5 text-muted-foreground">
-            {step.description}
-          </div>
+          <div className="min-w-0 text-xs leading-5 text-muted-foreground">{step.description}</div>
           <div className="flex min-w-0 justify-start sm:justify-end">
             <EditorStatusPill tone={step.tone}>{step.value}</EditorStatusPill>
           </div>
@@ -158,11 +142,7 @@ const PromptHierarchy = ({
   </div>
 );
 
-export const PromptSummaryContent = ({
-  data,
-}: {
-  data: TavernRoom;
-}) => {
+export const PromptSummaryContent = ({ data }: { data: TavernRoom }) => {
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
   const blocks = data.prompt.blocks;
   const enabledBlocks = getEnabledPromptBlocks(blocks);
@@ -274,11 +254,7 @@ export const PromptSummaryContent = ({
                   {label}
                 </EditorStatusPill>
               ))}
-              {sourceLabels.length > 5 && (
-                <EditorStatusPill tone="muted">
-                  +{sourceLabels.length - 5}
-                </EditorStatusPill>
-              )}
+              {sourceLabels.length > 5 && <EditorStatusPill tone="muted">+{sourceLabels.length - 5}</EditorStatusPill>}
             </div>
           </div>
         </aside>
@@ -311,7 +287,7 @@ export const PromptSection = ({
         description="管理系统控制层和酒馆保存的可编辑提示词文本块。"
         meta={`${presentationProfile.label} / ${enabledBlockCount} 块启用`}
         metaClassName="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
-        action={(
+        action={
           <Button
             type="button"
             size="sm"
@@ -322,7 +298,7 @@ export const PromptSection = ({
             <Pencil className="size-3.5" />
             编辑
           </Button>
-        )}
+        }
         contentClassName="p-4"
       >
         <PromptSummaryContent data={data} />

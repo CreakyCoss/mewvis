@@ -1,12 +1,10 @@
-import type { TavernRoom } from "../../../../tavern/types";
+import type { TavernRoom } from "../../../tavern/types";
 import type {
   TavernPromptPreviewWarning,
   TavernPromptPreviewWarningLocation,
-} from "../../../../tavern/runtime/prompt/preview";
+} from "../../../tavern/runtime/prompt/preview";
 
-export type TavernPromptWarningNavigationTarget =
-  | "runtimeBasic"
-  | "storyConfig";
+export type TavernPromptWarningNavigationTarget = "runtimeBasic" | "storyConfig";
 
 export type TavernPromptWarningNavigationRequest = {
   target: TavernPromptWarningNavigationTarget;
@@ -60,10 +58,7 @@ export const resolveTavernPromptWarningNavigationLocation = (
   return null;
 };
 
-export const resolveTavernPromptWarningNavigation = (
-  warning: TavernPromptPreviewWarning,
-  room: TavernRoom,
-) => warning.locations
-  ?.map((location) => resolveTavernPromptWarningNavigationLocation(location, room))
-  .find((request): request is TavernPromptWarningNavigationRequest => Boolean(request))
-  ?? null;
+export const resolveTavernPromptWarningNavigation = (warning: TavernPromptPreviewWarning, room: TavernRoom) =>
+  warning.locations
+    ?.map((location) => resolveTavernPromptWarningNavigationLocation(location, room))
+    .find((request): request is TavernPromptWarningNavigationRequest => Boolean(request)) ?? null;

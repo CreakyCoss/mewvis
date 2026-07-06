@@ -20,10 +20,7 @@ import {
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type {
-  TavernRoom,
-  TavernRoomSettings,
-} from "../../../../tavern/types";
+import type { TavernRoom, TavernRoomSettings } from "../../../tavern/types";
 import {
   EditorMetricStrip,
   EditorProgressCard,
@@ -46,8 +43,8 @@ type SettingsSectionProps = {
   onSave: ModuleSave;
 };
 
-const booleanTone = (value: boolean) => value ? "active" : "muted";
-const enabledText = (value: boolean) => value ? "开启" : "关闭";
+const booleanTone = (value: boolean) => (value ? "active" : "muted");
+const enabledText = (value: boolean) => (value ? "开启" : "关闭");
 const directorScaleLabel = {
   focused: "聚焦",
   balanced: "均衡",
@@ -86,9 +83,7 @@ export const SettingsSection = ({
   const [isRegeneratingDirectorProfile, setIsRegeneratingDirectorProfile] = useState(false);
   const [directorProfileError, setDirectorProfileError] = useState("");
   const modelLabel = globalRuntimeModel
-    ? `${globalRuntimeModel.provider.name} / ${
-        globalRuntimeModel.modelName || globalRuntimeModel.modelId
-      }`
+    ? `${globalRuntimeModel.provider.name} / ${globalRuntimeModel.modelName || globalRuntimeModel.modelId}`
     : "未选择";
   const directorProfileCharacterCount = data.settings.directorScheduling.profile
     ? Object.keys(data.settings.directorScheduling.profile.characterProfiles).length
@@ -127,7 +122,7 @@ export const SettingsSection = ({
         icon={Settings2}
         title="运行设置"
         description="控制模型执行、自动化、导演调度、状态追踪和信息揭示。"
-        action={(
+        action={
           <div className="flex flex-wrap justify-end gap-1.5">
             <Button
               type="button"
@@ -135,10 +130,7 @@ export const SettingsSection = ({
               variant="outline"
               className={editorHeaderActionButtonClassName}
               disabled={
-                data.locked ||
-                isRegeneratingDirectorProfile ||
-                !globalRuntimeModel ||
-                data.characterIds.length === 0
+                data.locked || isRegeneratingDirectorProfile || !globalRuntimeModel || data.characterIds.length === 0
               }
               onClick={() => void regenerateDirectorProfile()}
             >
@@ -156,7 +148,7 @@ export const SettingsSection = ({
               编辑
             </Button>
           </div>
-        )}
+        }
         contentClassName="space-y-4 pb-4"
       >
         <EditorMetricStrip
@@ -219,14 +211,10 @@ export const SettingsSection = ({
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={Activity} label="状态追踪">
-                  <EditorStatusPill tone="active">
-                    {getProgressModeLabel(data)}
-                  </EditorStatusPill>
+                  <EditorStatusPill tone="active">{getProgressModeLabel(data)}</EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={PackageCheck} label="草稿上限">
-                  <EditorStatusPill tone="info">
-                    {data.settings.maxAssetDrafts} 份
-                  </EditorStatusPill>
+                  <EditorStatusPill tone="info">{data.settings.maxAssetDrafts} 份</EditorStatusPill>
                 </EditorSettingRow>
               </EditorSettingGroup>
 
@@ -238,14 +226,14 @@ export const SettingsSection = ({
                 </EditorSettingRow>
                 <EditorSettingRow icon={Clapperboard} label="推进策略">
                   <EditorStatusPill tone="info">
-                    {agencyModeLabel[data.settings.directorNarrativeControl.agencyMode]} / {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} / {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
+                    {agencyModeLabel[data.settings.directorNarrativeControl.agencyMode]} /{" "}
+                    {directorScaleLabel[data.settings.directorNarrativeControl.responseScale]} /{" "}
+                    {qnaBreakLabel[data.settings.directorNarrativeControl.qnaBreak]}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UsersRound} label="导演回环">
                   <EditorStatusPill tone={data.settings.directorLoop.enabled ? "active" : "muted"}>
-                    {data.settings.directorLoop.enabled
-                      ? `${data.settings.directorLoop.maxRounds} 轮`
-                      : "关闭"}
+                    {data.settings.directorLoop.enabled ? `${data.settings.directorLoop.maxRounds} 轮` : "关闭"}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={ShieldCheck} label="质量护栏">
@@ -260,16 +248,14 @@ export const SettingsSection = ({
                     {data.settings.informationPolicy.mode === "open"
                       ? "开放"
                       : data.settings.informationPolicy.mode === "mystery"
-                      ? "悬疑"
-                      : data.settings.informationPolicy.mode === "social_deduction"
-                      ? "阵营"
-                      : "自定义"}
+                        ? "悬疑"
+                        : data.settings.informationPolicy.mode === "social_deduction"
+                          ? "阵营"
+                          : "自定义"}
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={UserRoundMinus} label="角色压缩">
-                  <EditorStatusPill
-                    tone={data.settings.agentKnowledgeCompactIntervalTurns > 0 ? "info" : "muted"}
-                  >
+                  <EditorStatusPill tone={data.settings.agentKnowledgeCompactIntervalTurns > 0 ? "info" : "muted"}>
                     {data.settings.agentKnowledgeCompactIntervalTurns > 0
                       ? `${data.settings.agentKnowledgeCompactIntervalTurns} 轮`
                       : "关闭"}
@@ -298,12 +284,7 @@ export const SettingsSection = ({
         )}
       </EditorSection>
 
-      <SettingsEdit
-        bind={editRef}
-        data={data}
-        modelLabel={modelLabel}
-        onSave={onSave}
-      />
+      <SettingsEdit bind={editRef} data={data} modelLabel={modelLabel} onSave={onSave} />
     </>
   );
 };

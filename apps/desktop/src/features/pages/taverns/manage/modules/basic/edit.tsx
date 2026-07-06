@@ -1,18 +1,12 @@
 import type { Ref } from "react";
 import { useImperativeHandle, useState } from "react";
-import {
-  MessageSquareText,
-  Wine,
-} from "lucide-react";
+import { MessageSquareText, Wine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/taverns/tavern/visual-presets";
-import type {
-  TavernReplyMode,
-  TavernRoom,
-} from "../../../../tavern/types";
+import type { TavernReplyMode, TavernRoom } from "../../../tavern/types";
 import {
   EditorField,
   EditorFormCard,
@@ -25,11 +19,7 @@ import {
   EditorFormSidebarPanel,
   EditorStatusPill,
 } from "../../primitives";
-import {
-  editorControlClassName,
-  emptyValueText,
-  replyModeOptions,
-} from "../../utils";
+import { editorControlClassName, emptyValueText, replyModeOptions } from "../../utils";
 import type { ModuleEditProps } from "../types";
 
 export type BasicEditHandle = (data?: TavernRoom) => void;
@@ -44,11 +34,7 @@ type BasicEditProps = ModuleEditProps & {
   bind: Ref<BasicEditHandle>;
 };
 
-export const BasicEdit = ({
-  bind,
-  data,
-  onSave,
-}: BasicEditProps) => {
+export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
   const [draft, setDraft] = useState<BasicDraft | null>(null);
   const [error, setError] = useState("");
 
@@ -82,7 +68,7 @@ export const BasicEdit = ({
           : {
               ...scene,
               scenePresetId: draft.scenePresetId,
-            }
+            },
       ),
       replyMode: draft.replyMode,
     });
@@ -100,11 +86,7 @@ export const BasicEdit = ({
     >
       {draft && (
         <EditorFormDialogContent className="sm:max-w-5xl">
-          <EditorFormHeader
-            icon={Wine}
-            title="编辑运行基础"
-            description="修改酒馆房间名称、视觉场景和角色发言模式。"
-          />
+          <EditorFormHeader icon={Wine} title="编辑运行基础" description="修改酒馆房间名称、视觉场景和角色发言模式。" />
           <form
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
@@ -113,21 +95,22 @@ export const BasicEdit = ({
             }}
           >
             <EditorFormLayout
-              sidebar={(
+              sidebar={
                 <>
                   <EditorFormSidebarCard
                     icon={Wine}
                     title={draft.title.trim() || emptyValueText}
-                    meta={(
+                    meta={
                       <>
                         <EditorStatusPill tone="active">
                           {replyModeOptions.find((option) => option.value === draft.replyMode)?.label ?? "发言模式"}
                         </EditorStatusPill>
                         <EditorStatusPill>
-                          {TAVERN_SCENE_PRESET_OPTIONS.find((preset) => preset.id === draft.scenePresetId)?.label ?? "场景"}
+                          {TAVERN_SCENE_PRESET_OPTIONS.find((preset) => preset.id === draft.scenePresetId)?.label ??
+                            "场景"}
                         </EditorStatusPill>
                       </>
-                    )}
+                    }
                   >
                     <p className="line-clamp-4 text-xs leading-5 text-muted-foreground">
                       故事、角色、世界书和剧情结构由独立故事页维护。
@@ -145,7 +128,7 @@ export const BasicEdit = ({
                     ]}
                   />
                 </>
-              )}
+              }
             >
               <EditorFormCard
                 id="tavern-basic-info-section"
@@ -159,10 +142,12 @@ export const BasicEdit = ({
                       id="tavern-basic-title"
                       value={draft.title}
                       className={editorControlClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        title: event.target.value,
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          title: event.target.value,
+                        })
+                      }
                     />
                   </EditorField>
 
@@ -171,10 +156,12 @@ export const BasicEdit = ({
                       id="tavern-basic-scene-preset"
                       value={draft.scenePresetId}
                       className={editorControlClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        scenePresetId: event.target.value as TavernRoom["scenePresetId"],
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          scenePresetId: event.target.value as TavernRoom["scenePresetId"],
+                        })
+                      }
                     >
                       {TAVERN_SCENE_PRESET_OPTIONS.map((preset) => (
                         <NativeSelectOption key={preset.id} value={preset.id}>
@@ -198,10 +185,12 @@ export const BasicEdit = ({
                       id="tavern-basic-reply-mode"
                       value={draft.replyMode}
                       className={editorControlClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        replyMode: event.target.value as TavernReplyMode,
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          replyMode: event.target.value as TavernReplyMode,
+                        })
+                      }
                     >
                       {replyModeOptions.map((option) => (
                         <NativeSelectOption key={option.value} value={option.value}>
@@ -210,7 +199,6 @@ export const BasicEdit = ({
                       ))}
                     </NativeSelect>
                   </EditorField>
-
                 </div>
               </EditorFormCard>
 
@@ -222,12 +210,12 @@ export const BasicEdit = ({
             </EditorFormLayout>
 
             <EditorFormFooter
-              status={(
+              status={
                 <span className="inline-flex items-center gap-1.5">
                   <MessageSquareText className="size-3.5" />
                   保存后立即更新酒馆运行配置
                 </span>
-              )}
+              }
             >
               <Button type="button" variant="outline" onClick={close}>
                 取消

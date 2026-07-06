@@ -30,25 +30,21 @@ import {
   buildTavernPromptPreview,
   type TavernPromptPreviewWarning,
   type TavernPromptPreviewWarningSeverity,
-} from "../../../../tavern/runtime/prompt/preview";
-import {
-  getTavernRuntimeStoryProjection,
-} from "../../../../tavern/adapters/story";
-import {
-  getTavernCharacterStylePreset,
-} from "../../../../tavern/prompt-registry/character-style-presets";
+} from "../../../tavern/runtime/prompt/preview";
+import { getTavernRuntimeStoryProjection } from "../../../tavern/adapters/story";
+import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
   getTavernPresentationProfile,
   isTavernPresentationLocked,
   normalizeTavernPresentation,
   normalizeTavernPresentationProfileId,
-} from "../../../../tavern/prompt-registry/presentation-rules";
+} from "../../../tavern/prompt-registry/presentation-rules";
 import {
   TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS,
   getTavernSystemNarrativePreset,
   normalizeTavernSystemNarrativePresetId,
-} from "../../../../tavern/prompt-registry/system-narrative-styles";
+} from "../../../tavern/prompt-registry/system-narrative-styles";
 import {
   DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID,
   TAVERN_PROMPT_STYLE_PACKAGE_OPTIONS,
@@ -57,18 +53,18 @@ import {
   getTavernPromptStylePackage,
   normalizeTavernPromptStylePackageId,
   type TavernPromptStylePackageId,
-} from "../../../../tavern/prompt-registry/style-packages";
+} from "../../../tavern/prompt-registry/style-packages";
 import {
   createDefaultTavernPromptSettings,
   createRoomStylePromptBlocks,
   createSystemNarrativePromptBlocks,
   normalizeTavernPromptSettings,
-} from "../../../../tavern/prompt-registry/text-blocks";
+} from "../../../tavern/prompt-registry/text-blocks";
 import {
   TAVERN_PROMPT_STYLE_PRESETS,
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
-} from "../../../../tavern/presentation/prompt-styles";
+} from "../../../tavern/presentation/prompt-styles";
 import type {
   TavernMessage,
   TavernPresentationProfileId,
@@ -79,7 +75,7 @@ import type {
   TavernRoom,
   TavernRoomPromptSettings,
   TavernSystemNarrativePresetId,
-} from "../../../../tavern/types";
+} from "../../../tavern/types";
 import {
   EditorField,
   EditorFormCard,
@@ -93,14 +89,8 @@ import {
   EditorFormSidebarPanel,
   EditorStatusPill,
 } from "../../primitives";
-import {
-  editorControlClassName,
-  emptyValueText,
-} from "../../utils";
-import {
-  resolveTavernPromptWarningNavigation,
-  type TavernPromptWarningNavigationRequest,
-} from "./warning-navigation";
+import { editorControlClassName, emptyValueText } from "../../utils";
+import { resolveTavernPromptWarningNavigation, type TavernPromptWarningNavigationRequest } from "./warning-navigation";
 import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 
 export type PromptEditHandle = (data?: TavernRoom) => void;
@@ -175,9 +165,7 @@ const formatPromptCharCount = (value: number) => {
   return String(value);
 };
 
-const getPromptWarningTone = (
-  severity: TavernPromptPreviewWarningSeverity,
-): "active" | "muted" | "info" | "warning" =>
+const getPromptWarningTone = (severity: TavernPromptPreviewWarningSeverity): "active" | "muted" | "info" | "warning" =>
   severity === "danger" || severity === "warning" ? "warning" : "info";
 
 const getPromptWarningLabel = (severity: TavernPromptPreviewWarningSeverity) => {
@@ -223,13 +211,13 @@ const focusPromptWarningLocation = (warning: TavernPromptPreviewWarning) => {
     return false;
   }
 
-  const fieldElementId = promptBlockLocation.field === "label"
-    ? `tavern-prompt-block-label-${promptBlockLocation.blockId}`
-    : `tavern-prompt-block-${promptBlockLocation.blockId}`;
+  const fieldElementId =
+    promptBlockLocation.field === "label"
+      ? `tavern-prompt-block-label-${promptBlockLocation.blockId}`
+      : `tavern-prompt-block-${promptBlockLocation.blockId}`;
 
   return (
-    focusElementById(fieldElementId) ||
-    focusElementById(`tavern-prompt-block-card-${promptBlockLocation.blockId}`)
+    focusElementById(fieldElementId) || focusElementById(`tavern-prompt-block-card-${promptBlockLocation.blockId}`)
   );
 };
 
@@ -244,39 +232,32 @@ const getGenerationContractLabel = (profileId: TavernPresentationProfileId) => {
 };
 
 const sortPromptBlocks = (blocks: TavernPromptBlock[]) =>
-  [...blocks].sort((left, right) =>
-    left.order - right.order || left.label.localeCompare(right.label)
-  );
+  [...blocks].sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
 
 const clonePromptBlock = (block: TavernPromptBlock): TavernPromptBlock => ({
   ...block,
   source: block.source ? { ...block.source } : undefined,
 });
 
-const clonePromptSettings = (
-  prompt: TavernRoomPromptSettings,
-): TavernRoomPromptSettings => ({
+const clonePromptSettings = (prompt: TavernRoomPromptSettings): TavernRoomPromptSettings => ({
   version: 1,
   blocks: sortPromptBlocks(prompt.blocks.map(clonePromptBlock)),
 });
 
-const getFirstSourceId = (
-  prompt: TavernRoomPromptSettings,
-  sourceType: TavernPromptBlockSourceType,
-) => prompt.blocks.find((block) => block.source?.type === sourceType)?.source?.id;
+const getFirstSourceId = (prompt: TavernRoomPromptSettings, sourceType: TavernPromptBlockSourceType) =>
+  prompt.blocks.find((block) => block.source?.type === sourceType)?.source?.id;
 
 const getPromptPresetDraft = (
   prompt: TavernRoomPromptSettings,
   presentationProfileId: TavernPresentationProfileId,
 ): PromptPresetDraft => {
-  const systemNarrativePresetId = normalizeTavernSystemNarrativePresetId(
-    getFirstSourceId(prompt, "system_narrative"),
-  );
+  const systemNarrativePresetId = normalizeTavernSystemNarrativePresetId(getFirstSourceId(prompt, "system_narrative"));
   const roomStyleId = normalizeTavernPromptStyleId(getFirstSourceId(prompt, "room_style"));
-  const matchedStylePackage = TAVERN_PROMPT_STYLE_PACKAGES.find((stylePackage) =>
-    stylePackage.presentationProfileId === presentationProfileId &&
-    stylePackage.systemNarrativePresetId === systemNarrativePresetId &&
-    stylePackage.promptStyleId === roomStyleId
+  const matchedStylePackage = TAVERN_PROMPT_STYLE_PACKAGES.find(
+    (stylePackage) =>
+      stylePackage.presentationProfileId === presentationProfileId &&
+      stylePackage.systemNarrativePresetId === systemNarrativePresetId &&
+      stylePackage.promptStyleId === roomStyleId,
   );
 
   return {
@@ -297,9 +278,7 @@ const replaceBlocksBySourceTypes = ({
 }): TavernRoomPromptSettings => ({
   version: 1,
   blocks: sortPromptBlocks([
-    ...prompt.blocks.filter((block) =>
-      !block.source || !sourceTypes.includes(block.source.type)
-    ),
+    ...prompt.blocks.filter((block) => !block.source || !sourceTypes.includes(block.source.type)),
     ...nextBlocks.map(clonePromptBlock),
   ]),
 });
@@ -310,15 +289,12 @@ const updatePromptBlock = (
   updater: (block: TavernPromptBlock) => TavernPromptBlock,
 ): TavernRoomPromptSettings => ({
   version: 1,
-  blocks: sortPromptBlocks(prompt.blocks.map((block) =>
-    block.id === blockId ? updater(clonePromptBlock(block)) : clonePromptBlock(block)
-  )),
+  blocks: sortPromptBlocks(
+    prompt.blocks.map((block) => (block.id === blockId ? updater(clonePromptBlock(block)) : clonePromptBlock(block))),
+  ),
 });
 
-const removePromptBlock = (
-  prompt: TavernRoomPromptSettings,
-  blockId: string,
-): TavernRoomPromptSettings => ({
+const removePromptBlock = (prompt: TavernRoomPromptSettings, blockId: string): TavernRoomPromptSettings => ({
   version: 1,
   blocks: prompt.blocks.filter((block) => block.id !== blockId).map(clonePromptBlock),
 });
@@ -346,18 +322,13 @@ const createCustomPromptBlock = (
   };
 };
 
-const createPromptFallback = (
-  room: TavernRoom,
-  presentationProfileId: TavernPresentationProfileId,
-) => createDefaultTavernPromptSettings({
-  presentationProfileId,
-  immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
-});
+const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPresentationProfileId) =>
+  createDefaultTavernPromptSettings({
+    presentationProfileId,
+    immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
+  });
 
-const buildPromptPreviewRoom = (
-  room: TavernRoom,
-  draft: PromptDraft,
-): TavernRoom => ({
+const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRoom => ({
   ...room,
   presentation: {
     ...normalizeTavernPresentation(room.presentation),
@@ -381,9 +352,7 @@ const buildPromptBlockAgentContext = ({
   block: TavernPromptBlock;
 }) => {
   const storyProjection = getTavernRuntimeStoryProjection(room);
-  const activeNode = storyProjection.graph.nodes.find((node) =>
-    node.id === storyProjection.graph.activeNodeId
-  );
+  const activeNode = storyProjection.graph.nodes.find((node) => node.id === storyProjection.graph.activeNodeId);
 
   return {
     promptEditingMode: "saved_prompt_block",
@@ -432,9 +401,7 @@ export const PromptEdit = ({
   const [focusedBlockId, setFocusedBlockId] = useState("");
 
   const open = (nextData = data) => {
-    const presentationProfileId = normalizeTavernPresentationProfileId(
-      nextData.presentation?.profileId,
-    );
+    const presentationProfileId = normalizeTavernPresentationProfileId(nextData.presentation?.profileId);
     const prompt = normalizeTavernPromptSettings(
       nextData.prompt,
       createPromptFallback(nextData, presentationProfileId),
@@ -461,12 +428,14 @@ export const PromptEdit = ({
     updater: (prompt: TavernRoomPromptSettings, current: PromptDraft) => TavernRoomPromptSettings,
   ) => {
     setError("");
-    setDraft((current) => current
-      ? {
-          ...current,
-          prompt: updater(current.prompt, current),
-        }
-      : current);
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            prompt: updater(current.prompt, current),
+          }
+        : current,
+    );
   };
 
   const applySystemNarrativePreset = () => {
@@ -479,7 +448,7 @@ export const PromptEdit = ({
           presentationProfileId: current.presentationProfileId,
           immersiveDescriptionEnabled: current.immersiveDescriptionEnabled,
         }),
-      })
+      }),
     );
   };
 
@@ -524,17 +493,14 @@ export const PromptEdit = ({
         nextBlocks: createRoomStylePromptBlocks({
           promptStyleId: current.presets.roomStyleId,
         }),
-      })
+      }),
     );
   };
 
   const addCustomBlock = (target: TavernPromptBlockTarget) => {
     patchDraftPrompt((prompt) => ({
       version: 1,
-      blocks: sortPromptBlocks([
-        ...prompt.blocks.map(clonePromptBlock),
-        createCustomPromptBlock(prompt, target),
-      ]),
+      blocks: sortPromptBlocks([...prompt.blocks.map(clonePromptBlock), createCustomPromptBlock(prompt, target)]),
     }));
   };
 
@@ -544,9 +510,7 @@ export const PromptEdit = ({
       setFocusedBlockId(promptBlockLocation.blockId);
       if (typeof window !== "undefined") {
         window.setTimeout(() => {
-          setFocusedBlockId((current) =>
-            current === promptBlockLocation.blockId ? "" : current
-          );
+          setFocusedBlockId((current) => (current === promptBlockLocation.blockId ? "" : current));
         }, 1800);
       }
     }
@@ -566,8 +530,8 @@ export const PromptEdit = ({
       characters: getTavernRuntimeStoryProjection(data).characters,
       messages,
     });
-    const blockingWarning = previewForSave.warnings.find((warning) =>
-      warning.severity === "danger" && warning.blocksSave !== false
+    const blockingWarning = previewForSave.warnings.find(
+      (warning) => warning.severity === "danger" && warning.blocksSave !== false,
     );
 
     if (blockingWarning) {
@@ -614,21 +578,15 @@ export const PromptEdit = ({
         sceneId: data.activeSceneId,
       })
     : false;
-  const selectedPresentationProfile = draft
-    ? getTavernPresentationProfile(draft.presentationProfileId)
-    : null;
-  const selectedStylePackage = draft
-    ? getTavernPromptStylePackage(draft.presets.stylePackageId)
-    : null;
+  const selectedPresentationProfile = draft ? getTavernPresentationProfile(draft.presentationProfileId) : null;
+  const selectedStylePackage = draft ? getTavernPromptStylePackage(draft.presets.stylePackageId) : null;
   const selectedPackageCharacterStyle = selectedStylePackage
     ? getTavernCharacterStylePreset(selectedStylePackage.characterStylePresetId)
     : null;
   const selectedSystemNarrativePreset = draft
     ? getTavernSystemNarrativePreset(draft.presets.systemNarrativePresetId)
     : null;
-  const selectedRoomStyle = draft
-    ? getTavernPromptStylePreset(draft.presets.roomStyleId)
-    : null;
+  const selectedRoomStyle = draft ? getTavernPromptStylePreset(draft.presets.roomStyleId) : null;
   const enabledBlockCount = draft
     ? draft.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length
     : 0;
@@ -638,23 +596,23 @@ export const PromptEdit = ({
       return new Map<TavernPromptBlockTarget, TavernPromptBlock[]>();
     }
 
-    return new Map(promptBlockTargets.map((target) => [
-      target.id,
-      draft.prompt.blocks.filter((block) => block.target === target.id),
-    ]));
+    return new Map(
+      promptBlockTargets.map((target) => [
+        target.id,
+        draft.prompt.blocks.filter((block) => block.target === target.id),
+      ]),
+    );
   }, [draft]);
-  const previewRoom = useMemo(
-    () => draft ? buildPromptPreviewRoom(data, draft) : null,
-    [data, draft],
-  );
+  const previewRoom = useMemo(() => (draft ? buildPromptPreviewRoom(data, draft) : null), [data, draft]);
   const promptPreview = useMemo(
-    () => previewRoom
-      ? buildTavernPromptPreview({
-          room: previewRoom,
-          characters: getTavernRuntimeStoryProjection(previewRoom).characters,
-          messages,
-        })
-      : null,
+    () =>
+      previewRoom
+        ? buildTavernPromptPreview({
+            room: previewRoom,
+            characters: getTavernRuntimeStoryProjection(previewRoom).characters,
+            messages,
+          })
+        : null,
     [messages, previewRoom],
   );
   const promptPreviewBlockingCount = promptPreview?.summary.blockingWarningCount ?? 0;
@@ -667,9 +625,7 @@ export const PromptEdit = ({
       };
     }
 
-    const navigation = previewRoom
-      ? resolveTavernPromptWarningNavigation(warning, previewRoom)
-      : null;
+    const navigation = previewRoom ? resolveTavernPromptWarningNavigation(warning, previewRoom) : null;
 
     if (!navigation || !onOpenWarningNavigation) {
       return null;
@@ -708,12 +664,12 @@ export const PromptEdit = ({
             }}
           >
             <EditorFormLayout
-              sidebar={(
+              sidebar={
                 <>
                   <EditorFormSidebarCard
                     icon={ScrollText}
                     title={data.title.trim() || emptyValueText}
-                    meta={(
+                    meta={
                       <>
                         <EditorStatusPill tone="info">
                           {selectedPresentationProfile?.label ?? emptyValueText}
@@ -724,11 +680,13 @@ export const PromptEdit = ({
                         <EditorStatusPill tone={draft.immersiveDescriptionEnabled ? "active" : "muted"}>
                           沉浸描写{draft.immersiveDescriptionEnabled ? "开" : "关"}
                         </EditorStatusPill>
-                        <EditorStatusPill tone={promptPreviewBlockingCount > 0 || promptPreviewWarningCount > 0 ? "warning" : "active"}>
+                        <EditorStatusPill
+                          tone={promptPreviewBlockingCount > 0 || promptPreviewWarningCount > 0 ? "warning" : "active"}
+                        >
                           诊断 {promptPreviewBlockingCount + promptPreviewWarningCount}
                         </EditorStatusPill>
                       </>
-                    )}
+                    }
                   >
                     <p className="text-xs leading-5 text-muted-foreground">
                       {selectedPresentationProfile?.description ?? "选择一个呈现结构。"}
@@ -754,7 +712,7 @@ export const PromptEdit = ({
                     ]}
                   />
                 </>
-              )}
+              }
             >
               <EditorFormCard
                 id="tavern-prompt-structure-section"
@@ -767,9 +725,7 @@ export const PromptEdit = ({
                     label="呈现规则"
                     htmlFor="tavern-prompt-presentation-profile"
                     description={
-                      presentationLocked
-                        ? "场景已开始，呈现规则已锁定。"
-                        : selectedPresentationProfile?.description
+                      presentationLocked ? "场景已开始，呈现规则已锁定。" : selectedPresentationProfile?.description
                     }
                   >
                     <NativeSelect
@@ -777,12 +733,12 @@ export const PromptEdit = ({
                       value={draft.presentationProfileId}
                       className={selectClassName}
                       disabled={presentationLocked}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presentationProfileId: normalizeTavernPresentationProfileId(
-                          event.target.value,
-                        ),
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          presentationProfileId: normalizeTavernPresentationProfileId(event.target.value),
+                        })
+                      }
                     >
                       {TAVERN_PRESENTATION_PROFILE_OPTIONS.map((profile) => (
                         <NativeSelectOption key={profile.id} value={profile.id}>
@@ -795,19 +751,19 @@ export const PromptEdit = ({
                   <div className="rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold leading-5">
-                          沉浸描写
-                        </div>
+                        <div className="truncate text-sm font-semibold leading-5">沉浸描写</div>
                         <div className="mt-1 text-xs leading-5 text-muted-foreground">
                           作为系统叙事文本块的引用参数；已编辑文本不会被自动覆盖。
                         </div>
                       </div>
                       <Switch
                         checked={draft.immersiveDescriptionEnabled}
-                        onCheckedChange={(checked) => setDraft({
-                          ...draft,
-                          immersiveDescriptionEnabled: checked === true,
-                        })}
+                        onCheckedChange={(checked) =>
+                          setDraft({
+                            ...draft,
+                            immersiveDescriptionEnabled: checked === true,
+                          })
+                        }
                         aria-label="切换沉浸描写"
                       />
                     </div>
@@ -826,24 +782,26 @@ export const PromptEdit = ({
                     label="风格套餐"
                     htmlFor="tavern-prompt-style-package-preset"
                     description={selectedStylePackage?.description}
-                    action={(
+                    action={
                       <Button type="button" size="sm" variant="outline" onClick={applyStylePackagePreset}>
                         <Sparkles className="size-3.5" />
                         引用套餐
                       </Button>
-                    )}
+                    }
                   >
                     <NativeSelect
                       id="tavern-prompt-style-package-preset"
                       value={draft.presets.stylePackageId}
                       className={selectClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presets: {
-                          ...draft.presets,
-                          stylePackageId: normalizeTavernPromptStylePackageId(event.target.value),
-                        },
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          presets: {
+                            ...draft.presets,
+                            stylePackageId: normalizeTavernPromptStylePackageId(event.target.value),
+                          },
+                        })
+                      }
                     >
                       {TAVERN_PROMPT_STYLE_PACKAGE_OPTIONS.map((stylePackage) => (
                         <NativeSelectOption key={stylePackage.id} value={stylePackage.id}>
@@ -859,9 +817,7 @@ export const PromptEdit = ({
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {selectedStylePackage && (
-                        <EditorStatusPill tone="active">
-                          Codex {selectedStylePackage.codexReviewScore}
-                        </EditorStatusPill>
+                        <EditorStatusPill tone="active">Codex {selectedStylePackage.codexReviewScore}</EditorStatusPill>
                       )}
                       {selectedStylePackage?.strengths.map((strength) => (
                         <EditorStatusPill key={strength} tone="info">
@@ -870,15 +826,12 @@ export const PromptEdit = ({
                       ))}
                       {selectedStylePackage && (
                         <EditorStatusPill tone="muted">
-                          角色风格：{selectedPackageCharacterStyle?.label ?? selectedStylePackage.characterStylePresetId}
+                          角色风格：
+                          {selectedPackageCharacterStyle?.label ?? selectedStylePackage.characterStylePresetId}
                         </EditorStatusPill>
                       )}
                     </div>
-                    {selectedStylePackage && (
-                      <div className="mt-2">
-                        {selectedStylePackage.codexReviewNote}
-                      </div>
-                    )}
+                    {selectedStylePackage && <div className="mt-2">{selectedStylePackage.codexReviewNote}</div>}
                   </div>
                 </div>
 
@@ -887,26 +840,26 @@ export const PromptEdit = ({
                     label="系统叙事"
                     htmlFor="tavern-prompt-system-narrative-preset"
                     description={selectedSystemNarrativePreset?.description}
-                    action={(
+                    action={
                       <Button type="button" size="sm" variant="outline" onClick={applySystemNarrativePreset}>
                         <Sparkles className="size-3.5" />
                         引用
                       </Button>
-                    )}
+                    }
                   >
                     <NativeSelect
                       id="tavern-prompt-system-narrative-preset"
                       value={draft.presets.systemNarrativePresetId}
                       className={selectClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presets: {
-                          ...draft.presets,
-                          systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(
-                            event.target.value,
-                          ),
-                        },
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          presets: {
+                            ...draft.presets,
+                            systemNarrativePresetId: normalizeTavernSystemNarrativePresetId(event.target.value),
+                          },
+                        })
+                      }
                     >
                       {TAVERN_SYSTEM_NARRATIVE_PRESET_OPTIONS.map((preset) => (
                         <NativeSelectOption key={preset.id} value={preset.id}>
@@ -920,24 +873,26 @@ export const PromptEdit = ({
                     label="酒馆风格"
                     htmlFor="tavern-prompt-room-style-preset"
                     description={selectedRoomStyle?.description}
-                    action={(
+                    action={
                       <Button type="button" size="sm" variant="outline" onClick={applyRoomStylePreset}>
                         <Wand2 className="size-3.5" />
                         引用
                       </Button>
-                    )}
+                    }
                   >
                     <NativeSelect
                       id="tavern-prompt-room-style-preset"
                       value={draft.presets.roomStyleId}
                       className={selectClassName}
-                      onChange={(event) => setDraft({
-                        ...draft,
-                        presets: {
-                          ...draft.presets,
-                          roomStyleId: normalizeTavernPromptStyleId(event.target.value),
-                        },
-                      })}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          presets: {
+                            ...draft.presets,
+                            roomStyleId: normalizeTavernPromptStyleId(event.target.value),
+                          },
+                        })
+                      }
                     >
                       {TAVERN_PROMPT_STYLE_PRESETS.map((preset) => (
                         <NativeSelectOption key={preset.id} value={preset.id}>
@@ -946,7 +901,6 @@ export const PromptEdit = ({
                       ))}
                     </NativeSelect>
                   </EditorField>
-
                 </div>
               </EditorFormCard>
 
@@ -975,11 +929,12 @@ export const PromptEdit = ({
                         {
                           icon: AlertTriangle,
                           label: "结构诊断",
-                          value: promptPreviewBlockingCount > 0
-                            ? `${promptPreviewBlockingCount} 阻断`
-                            : promptPreviewWarningCount > 0
-                              ? `${promptPreviewWarningCount} 风险`
-                              : "通过",
+                          value:
+                            promptPreviewBlockingCount > 0
+                              ? `${promptPreviewBlockingCount} 阻断`
+                              : promptPreviewWarningCount > 0
+                                ? `${promptPreviewWarningCount} 风险`
+                                : "通过",
                           description: promptPreview.activeCharacter
                             ? `角色：${promptPreview.activeCharacter.name}`
                             : "未找到角色",
@@ -994,8 +949,9 @@ export const PromptEdit = ({
                     />
 
                     {(() => {
-                      const actionableWarnings = promptPreview.warnings
-                        .filter((warning) => warning.severity !== "info");
+                      const actionableWarnings = promptPreview.warnings.filter(
+                        (warning) => warning.severity !== "info",
+                      );
 
                       if (actionableWarnings.length === 0) {
                         return (
@@ -1060,40 +1016,31 @@ export const PromptEdit = ({
                       </TabsList>
 
                       {promptPreview.items.map((item) => {
-                        const actionableItemWarnings = item.warnings
-                          .filter((warning) => warning.severity !== "info");
+                        const actionableItemWarnings = item.warnings.filter((warning) => warning.severity !== "info");
 
                         return (
                           <TabsContent key={item.target} value={item.target} className="space-y-3">
                             <div className="grid gap-2 md:grid-cols-4">
                               <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">
-                                  systemPrompt
-                                </div>
+                                <div className="text-[11px] font-medium text-muted-foreground">systemPrompt</div>
                                 <div className="mt-0.5 text-sm font-semibold leading-5">
                                   {formatPromptCharCount(item.metrics.systemPromptChars)}
                                 </div>
                               </div>
                               <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">
-                                  runtimeInstruction
-                                </div>
+                                <div className="text-[11px] font-medium text-muted-foreground">runtimeInstruction</div>
                                 <div className="mt-0.5 text-sm font-semibold leading-5">
                                   {formatPromptCharCount(item.metrics.runtimeInstructionChars)}
                                 </div>
                               </div>
                               <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">
-                                  requestContext
-                                </div>
+                                <div className="text-[11px] font-medium text-muted-foreground">requestContext</div>
                                 <div className="mt-0.5 text-sm font-semibold leading-5">
                                   {formatPromptCharCount(item.metrics.requestContextChars)}
                                 </div>
                               </div>
                               <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">
-                                  userMessage
-                                </div>
+                                <div className="text-[11px] font-medium text-muted-foreground">userMessage</div>
                                 <div className="mt-0.5 text-sm font-semibold leading-5">
                                   {formatPromptCharCount(item.metrics.userMessageChars)}
                                 </div>
@@ -1163,16 +1110,9 @@ export const PromptEdit = ({
                                 {blocks.filter((block) => block.enabled).length}/{blocks.length} 块启用
                               </span>
                             </div>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              {target.description}
-                            </p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{target.description}</p>
                           </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addCustomBlock(target.id)}
-                          >
+                          <Button type="button" size="sm" variant="outline" onClick={() => addCustomBlock(target.id)}>
                             <Plus className="size-3.5" />
                             添加
                           </Button>
@@ -1198,8 +1138,7 @@ export const PromptEdit = ({
                                   className={cn(
                                     "rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs transition-[border-color,box-shadow]",
                                     !block.enabled && "opacity-70",
-                                    focusedBlockId === block.id &&
-                                      "border-primary/55 ring-2 ring-primary/20",
+                                    focusedBlockId === block.id && "border-primary/55 ring-2 ring-primary/20",
                                   )}
                                 >
                                   <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -1207,17 +1146,14 @@ export const PromptEdit = ({
                                       <input
                                         id={`tavern-prompt-block-label-${block.id}`}
                                         value={block.label}
-                                        className={cn(
-                                          editorControlClassName,
-                                          "h-9 w-full px-3 text-sm font-semibold",
-                                        )}
+                                        className={cn(editorControlClassName, "h-9 w-full px-3 text-sm font-semibold")}
                                         aria-label={`${target.label}文本块标题`}
                                         onChange={(event) => {
                                           patchDraftPrompt((prompt) =>
                                             updatePromptBlock(prompt, block.id, (nextBlock) => ({
                                               ...nextBlock,
                                               label: event.target.value,
-                                            }))
+                                            })),
                                           );
                                         }}
                                       />
@@ -1236,7 +1172,7 @@ export const PromptEdit = ({
                                             updatePromptBlock(prompt, block.id, (nextBlock) => ({
                                               ...nextBlock,
                                               enabled: checked === true,
-                                            }))
+                                            })),
                                           );
                                         }}
                                         aria-label={`切换${block.label}`}
@@ -1246,9 +1182,7 @@ export const PromptEdit = ({
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => {
-                                          patchDraftPrompt((prompt) =>
-                                            removePromptBlock(prompt, block.id)
-                                          );
+                                          patchDraftPrompt((prompt) => removePromptBlock(prompt, block.id));
                                         }}
                                         aria-label={`删除${block.label}`}
                                       >
@@ -1271,7 +1205,7 @@ export const PromptEdit = ({
                                             updatePromptBlock(prompt, block.id, (nextBlock) => ({
                                               ...nextBlock,
                                               text,
-                                            }))
+                                            })),
                                           );
                                         },
                                         context: buildPromptBlockAgentContext({
@@ -1286,16 +1220,13 @@ export const PromptEdit = ({
                                     id={textAreaId}
                                     value={block.text}
                                     placeholder="写入要注入到该 Agent 的提示词文本。"
-                                    className={cn(
-                                      "mt-1 min-h-32 resize-y text-sm leading-6",
-                                      editorControlClassName,
-                                    )}
+                                    className={cn("mt-1 min-h-32 resize-y text-sm leading-6", editorControlClassName)}
                                     onChange={(event) => {
                                       patchDraftPrompt((prompt) =>
                                         updatePromptBlock(prompt, block.id, (nextBlock) => ({
                                           ...nextBlock,
                                           text: event.target.value,
-                                        }))
+                                        })),
                                       );
                                     }}
                                   />
@@ -1318,7 +1249,7 @@ export const PromptEdit = ({
             </EditorFormLayout>
 
             <EditorFormFooter
-              status={(
+              status={
                 <span className="inline-flex items-center gap-1.5">
                   <Goal className="size-3.5" />
                   {promptPreviewBlockingCount > 0
@@ -1327,7 +1258,7 @@ export const PromptEdit = ({
                       ? `有 ${promptPreviewWarningCount} 项风险诊断，保存后影响后续请求`
                       : "诊断通过；保存后会影响后续整理员、导演与角色请求"}
                 </span>
-              )}
+              }
             >
               <Button type="button" variant="outline" onClick={close}>
                 取消

@@ -1,38 +1,15 @@
-import { AlertCircle, Loader2, MoreHorizontal, Plus, TriangleAlertIcon, Wine } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Wine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  formatCount,
-  OrdinaryCreate,
-  type OrdinaryCreateHandle,
-  RoomCard,
-  RoomCardRuntimeProvider,
-  RoomEditor,
-  type RoomEditorHandle,
-  type PendingDangerAction,
-  useSyncManagementStore,
-} from "@/features/pages/taverns/manage";
+import { RoomCard } from "@/features/pages/taverns/components/room-card";
+import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/manage";
+import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
 import { parseTavernRouteSearch } from "@/features/pages/taverns/navigation";
-import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
+import { useSyncManagementStore } from "@/features/pages/taverns/store";
 import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
 import {
   loadTavernState,
@@ -227,18 +204,12 @@ const TavernsPageContent = ({
   const [state, setState] = useState<TavernState>(() =>
     isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id),
   );
-  const activeRoom = useMemo(() => {
-    const room = state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null;
-    return room ? projectTavernSceneOntoRoom(room) : null;
-  }, [state.activeRoomId, state.rooms]);
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
   const roomDialogRef = useRef<TavernRoomHandle>(null);
-  const ordinaryCreateRef = useRef<OrdinaryCreateHandle>(null);
   const roomEditorRef = useRef<RoomEditorHandle>(null);
   const workspaceIdRef = useRef(workspace.id);
   const initialOpenKeyRef = useRef("");
   const runtimeScopeKeyRef = useRef(runtimeScopeKey);
-  const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
   const [roomOperationStatus, setRoomOperationStatus] = useState("");
 
   useEffect(() => {
@@ -349,7 +320,6 @@ const TavernsPageContent = ({
     state,
     setState,
     onError: reportManagementError,
-    onCloseActiveRoom: () => undefined,
   });
   const {
     rooms,
@@ -364,25 +334,21 @@ const TavernsPageContent = ({
   const totalRoomMessageCount = Object.values(messagesByRoomId).reduce((sum, messages) => sum + messages.length, 0);
   const totalRoomCharacterCount = rooms.reduce((sum, room) => sum + (room.localCharacters?.length ?? 0), 0);
 
-  const requestDangerAction = (action: PendingDangerAction) => {
-    setPendingDangerAction(action);
-  };
-
   const openRoomEditor = (room: TavernRoom) => {
     roomEditorRef.current?.(room);
   };
 
-  const closeDangerAction = () => {
-    setPendingDangerAction(null);
-  };
+  const createOrdinaryRoom = () => {
+    const room = createRoom();
+    setRoomOperationStatus("已创建普通酒馆。");
 
-  const confirmDangerAction = () => {
-    if (!pendingDangerAction) {
+    if (!room) {
       return;
     }
 
-    pendingDangerAction.onConfirm();
-    closeDangerAction();
+    window.setTimeout(() => {
+      openRoomEditor(room);
+    }, 0);
   };
 
   if (!isTavernStateHydrated) {
@@ -393,7 +359,7 @@ const TavernsPageContent = ({
     );
   }
 
-  if (isStoryRuntimeScope && !activeRoom) {
+  if (isStoryRuntimeScope && state.rooms.length === 0) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6">
         <div className="rounded-md border bg-card px-5 py-4 text-sm text-muted-foreground">
@@ -424,98 +390,36 @@ const TavernsPageContent = ({
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <OrdinaryCreate
-                  bind={ordinaryCreateRef}
-                  onCreateRoom={createRoom}
-                  onOpenRoomEditor={openRoomEditor}
-                  onOperationStatusChange={setRoomOperationStatus}
-                  showTrigger={false}
-                />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="size-9"
-                      title="更多酒馆操作"
-                      aria-label="更多酒馆操作"
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuLabel>酒馆操作</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => ordinaryCreateRef.current?.()}>
-                      <Plus className="size-4" />
-                      普通创建
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button type="button" size="sm" className="h-9 gap-1.5" onClick={createOrdinaryRoom}>
+                  <Plus className="size-4" />
+                  普通创建
+                </Button>
               </div>
             </header>
 
             <section className="space-y-3">
-              <RoomCardRuntimeProvider
-                value={{
-                  openRoomEditor,
-                  onRequestDangerAction: requestDangerAction,
-                  onOperationStatusChange: setRoomOperationStatus,
-                }}
-              >
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
-                  {rooms.length > 0 ? (
-                    rooms.map((room) => <RoomCard key={room.id} room={room} />)
-                  ) : (
-                    <div className="col-span-full rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
-                      酒馆暂无房间。可以手动创建一个空房间并维护酒馆配置。
-                    </div>
-                  )}
-                </div>
-              </RoomCardRuntimeProvider>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
+                {rooms.length > 0 ? (
+                  rooms.map((room) => (
+                    <RoomCard
+                      key={room.id}
+                      room={room}
+                      openRoomEditor={openRoomEditor}
+                      onOperationStatusChange={setRoomOperationStatus}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+                    酒馆暂无房间。可以手动创建一个空房间并维护酒馆配置。
+                  </div>
+                )}
+              </div>
             </section>
           </div>
         </ScrollArea>
       )}
 
       <TavernRoomDialog bind={roomDialogRef} />
-      <Dialog
-        open={Boolean(pendingDangerAction)}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeDangerAction();
-          }
-        }}
-      >
-        {pendingDangerAction && (
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
-                  <TriangleAlertIcon className="size-4" />
-                </span>
-                <DialogTitle>{pendingDangerAction.title}</DialogTitle>
-              </div>
-              <DialogDescription>{pendingDangerAction.description}</DialogDescription>
-            </DialogHeader>
-
-            {pendingDangerAction.summary && (
-              <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-                {pendingDangerAction.summary}
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeDangerAction}>
-                取消
-              </Button>
-              <Button type="button" variant="destructive" onClick={confirmDangerAction}>
-                {pendingDangerAction.confirmLabel}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        )}
-      </Dialog>
 
       <RoomEditor
         bind={roomEditorRef}

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { TavernRoom } from "../../../../tavern/types";
+import type { TavernRoom } from "../../../tavern/types";
 import {
   EditorMetricStrip,
   EditorProgressCard,
@@ -51,18 +51,14 @@ const getProgressModeLabel = (data: TavernRoom) => {
   return `${data.progressTracker.intervalTurns} 轮`;
 };
 
-export const ProgressSection = ({
-  data,
-  onSave,
-}: ProgressSectionProps) => {
+export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
   const editRef = useRef<ProgressEditHandle>(null);
   const activeTaskCount = getActiveTaskCount(data);
   const outcomeEventCount = getOutcomeEventCount(data);
   const statusEventCounts = getStatusEventCounts(data);
   const progressPlacementText = getProgressPlacementText(data);
-  const appliedStatusEventRate = data.statusEvents.length > 0
-    ? Math.round((statusEventCounts.applied / data.statusEvents.length) * 100)
-    : 0;
+  const appliedStatusEventRate =
+    data.statusEvents.length > 0 ? Math.round((statusEventCounts.applied / data.statusEvents.length) * 100) : 0;
 
   return (
     <>
@@ -70,7 +66,7 @@ export const ProgressSection = ({
         icon={Activity}
         title="进度系统"
         description="检查状态栏定义、规则引擎、任务目标、结局条件和可重建快照。"
-        action={(
+        action={
           <Button
             type="button"
             size="sm"
@@ -81,7 +77,7 @@ export const ProgressSection = ({
             <Pencil className="size-3.5" />
             编辑
           </Button>
-        )}
+        }
         contentClassName="space-y-4 pb-4"
       >
         <EditorMetricStrip
@@ -157,9 +153,7 @@ export const ProgressSection = ({
                   </EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={Gauge} label="置信阈值">
-                  <EditorStatusPill tone="active">
-                    {data.progressTracker.factConfidenceThreshold}
-                  </EditorStatusPill>
+                  <EditorStatusPill tone="active">{data.progressTracker.factConfidenceThreshold}</EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={ArchiveRestore} label="检查点">
                   <EditorStatusPill tone={data.statusCheckpoints.length > 0 ? "info" : "muted"}>
@@ -184,11 +178,7 @@ export const ProgressSection = ({
         </div>
       </EditorSection>
 
-      <ProgressEdit
-        bind={editRef}
-        data={data}
-        onSave={onSave}
-      />
+      <ProgressEdit bind={editRef} data={data} onSave={onSave} />
     </>
   );
 };

@@ -1,7 +1,5 @@
-import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../../tavern/runtime/active-scene-runtime";
-import {
-  cloneTavernRuntimeStoryProjectionFields,
-} from "../../tavern/adapters/story";
+import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../tavern/runtime/active-scene-runtime";
+import { cloneTavernRuntimeStoryProjectionFields } from "../tavern/adapters/story";
 import type {
   TavernCharacter,
   TavernCondition,
@@ -15,14 +13,12 @@ import type {
   TavernStatusDefinition,
   TavernStatusRule,
   TavernTaskDefinition,
-} from "../../tavern/types";
+} from "../tavern/types";
 
 export const replyModeOptions: Array<{
   value: TavernReplyMode;
   label: string;
-}> = [
-  { value: "director", label: "导演调度" },
-];
+}> = [{ value: "director", label: "导演调度" }];
 
 export const formatCount = (value: number, label: string) => `${value} ${label}`;
 
@@ -42,9 +38,10 @@ export const getRoomCharacterById = (
 export const getRoomCharacters = (
   room: Pick<TavernRoom, "characterIds">,
   roomCharacterById: Map<string, TavernCharacter>,
-) => room.characterIds
-  .map((characterId) => roomCharacterById.get(characterId))
-  .filter((character): character is TavernCharacter => Boolean(character));
+) =>
+  room.characterIds
+    .map((characterId) => roomCharacterById.get(characterId))
+    .filter((character): character is TavernCharacter => Boolean(character));
 
 export const getActiveTaskCount = (room: Pick<TavernRoom, "taskSnapshot">) =>
   Object.values(room.taskSnapshot).filter((task) => task.status !== "inactive").length;
@@ -73,40 +70,36 @@ export const getUnknownErrorMessage = (error: unknown) => {
 };
 
 export const parseKeywords = (value: string) =>
-  value.split(/[,，\n]/)
+  value
+    .split(/[,，\n]/)
     .map((keyword) => keyword.trim())
     .filter(Boolean);
 
 export const cloneRoomCharacterConfigs = (
   configs: Record<string, TavernRoomCharacterConfig> | undefined,
-): Record<string, TavernRoomCharacterConfig> => Object.fromEntries(
-  Object.entries(configs ?? {}).map(([characterId, config]) => [
-    characterId,
-    {
-      ...config,
-    },
-  ]),
-);
+): Record<string, TavernRoomCharacterConfig> =>
+  Object.fromEntries(
+    Object.entries(configs ?? {}).map(([characterId, config]) => [
+      characterId,
+      {
+        ...config,
+      },
+    ]),
+  );
 
-export const characterMemoriesFromConfigs = (
-  configs: Record<string, TavernRoomCharacterConfig>,
-) => Object.fromEntries(
-  Object.entries(configs).flatMap(([characterId, config]) => {
-    const memory = config.memory?.trim() ?? "";
-    return memory ? [[characterId, memory]] : [];
-  }),
-);
+export const characterMemoriesFromConfigs = (configs: Record<string, TavernRoomCharacterConfig>) =>
+  Object.fromEntries(
+    Object.entries(configs).flatMap(([characterId, config]) => {
+      const memory = config.memory?.trim() ?? "";
+      return memory ? [[characterId, memory]] : [];
+    }),
+  );
 
 export const editorControlClassName = "w-full bg-background/80 shadow-none";
-export const settingsFlagGridClassName =
-  "grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-2";
-export const settingsEditorMetricGridClassName =
-  "grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3";
+export const settingsFlagGridClassName = "grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-2";
+export const settingsEditorMetricGridClassName = "grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3";
 
-export const focusRoomEditorElementById = (
-  elementId: string | undefined,
-  delayMs = 80,
-) => {
+export const focusRoomEditorElementById = (elementId: string | undefined, delayMs = 80) => {
   if (!elementId || typeof window === "undefined" || typeof document === "undefined") {
     return;
   }
@@ -127,9 +120,7 @@ export const focusRoomEditorElementById = (
 export const getReplyModeLabel = (replyMode: TavernReplyMode) =>
   replyModeOptions.find((option) => option.value === replyMode)?.label ?? "导演调度";
 
-type ProgressJsonParseResult<T> =
-  | { ok: true; value: T[] }
-  | { ok: false; error: string };
+type ProgressJsonParseResult<T> = { ok: true; value: T[] } | { ok: false; error: string };
 
 export const formatProgressJson = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -139,10 +130,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasStringField = (value: Record<string, unknown>, field: string) =>
   typeof value[field] === "string" && value[field].trim().length > 0;
 
-const hasRecordField = (value: Record<string, unknown>, field: string) =>
-  isRecord(value[field]);
+const hasRecordField = (value: Record<string, unknown>, field: string) => isRecord(value[field]);
 
-export const parseProgressJsonArray = <T,>(
+export const parseProgressJsonArray = <T>(
   raw: string,
   label: string,
   guard: (item: unknown) => item is T,
@@ -182,25 +172,23 @@ export const parseProgressJsonArray = <T,>(
   return { ok: true, value: parsed };
 };
 
-export const isStatusDefinitionDraft = (item: unknown): item is TavernStatusDefinition => (
+export const isStatusDefinitionDraft = (item: unknown): item is TavernStatusDefinition =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
   hasStringField(item, "scope") &&
   hasStringField(item, "valueType") &&
   hasStringField(item, "visibility") &&
-  hasRecordField(item, "updatePolicy")
-);
+  hasRecordField(item, "updatePolicy");
 
-export const isStatusRuleDraft = (item: unknown): item is TavernStatusRule => (
+export const isStatusRuleDraft = (item: unknown): item is TavernStatusRule =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
   hasRecordField(item, "when") &&
-  hasRecordField(item, "apply")
-);
+  hasRecordField(item, "apply");
 
-export const isProgressViewDraft = (item: unknown): item is TavernProgressView => (
+export const isProgressViewDraft = (item: unknown): item is TavernProgressView =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
@@ -208,17 +196,15 @@ export const isProgressViewDraft = (item: unknown): item is TavernProgressView =
   hasStringField(item, "placement") &&
   hasStringField(item, "ownerBinding") &&
   hasStringField(item, "layout") &&
-  Array.isArray(item.items)
-);
+  Array.isArray(item.items);
 
-export const isRoleAssignmentDefinitionDraft = (item: unknown): item is TavernRoleAssignmentDefinition => (
+export const isRoleAssignmentDefinitionDraft = (item: unknown): item is TavernRoleAssignmentDefinition =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
-  (item.count === undefined || typeof item.count === "number")
-);
+  (item.count === undefined || typeof item.count === "number");
 
-export const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition => (
+export const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "title") &&
@@ -231,10 +217,9 @@ export const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefiniti
   hasRecordField(item, "lifecycle") &&
   isRecord(item.lifecycle) &&
   hasStringField(item.lifecycle, "initialStatus") &&
-  hasRecordField(item.lifecycle, "completeCondition")
-);
+  hasRecordField(item.lifecycle, "completeCondition");
 
-export const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinition => (
+export const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinition =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
@@ -242,8 +227,7 @@ export const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDe
   typeof item.priority === "number" &&
   typeof item.exclusive === "boolean" &&
   hasStringField(item, "endScene") &&
-  hasStringField(item, "visibility")
-);
+  hasStringField(item, "visibility");
 
 const collectConditionRefs = (
   condition: TavernCondition | undefined,
@@ -356,26 +340,27 @@ export const getErrorMessage = (error: unknown) => {
 
 const cloneTavernDirectorProfile = (
   profile: TavernRoomSettings["directorScheduling"]["profile"],
-): TavernRoomSettings["directorScheduling"]["profile"] => profile
-  ? {
-      ...profile,
-      globalGoals: [...profile.globalGoals],
-      globalRules: [...profile.globalRules],
-      characterProfiles: Object.fromEntries(
-        Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
-          characterId,
-          {
-            ...characterProfile,
-            interestTags: [...characterProfile.interestTags],
-            goalTags: [...characterProfile.goalTags],
-            knowledgeTags: [...characterProfile.knowledgeTags],
-            speechTriggers: [...characterProfile.speechTriggers],
-            silenceTriggers: [...characterProfile.silenceTriggers],
-          },
-        ]),
-      ),
-    }
-  : undefined;
+): TavernRoomSettings["directorScheduling"]["profile"] =>
+  profile
+    ? {
+        ...profile,
+        globalGoals: [...profile.globalGoals],
+        globalRules: [...profile.globalRules],
+        characterProfiles: Object.fromEntries(
+          Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
+            characterId,
+            {
+              ...characterProfile,
+              interestTags: [...characterProfile.interestTags],
+              goalTags: [...characterProfile.goalTags],
+              knowledgeTags: [...characterProfile.knowledgeTags],
+              speechTriggers: [...characterProfile.speechTriggers],
+              silenceTriggers: [...characterProfile.silenceTriggers],
+            },
+          ]),
+        ),
+      }
+    : undefined;
 
 export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
   ...settings,
@@ -422,25 +407,26 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
   ...cloneTavernRuntimeStoryProjectionFields(room),
   characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
   characterMemories: { ...room.characterMemories },
-  scenes: room.scenes?.map((scene) => ({
-    ...scene,
-    characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
-    characterMemories: { ...scene.characterMemories },
-    characterIds: [...scene.characterIds],
-    assetDrafts: scene.assetDrafts.map((draft) => ({
-      ...draft,
-      sourceMessageIds: [...draft.sourceMessageIds],
-      characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
-      lorebookEntries: draft.lorebookEntries.map((entry) => ({
-        ...entry,
-        keywords: [...entry.keywords],
+  scenes:
+    room.scenes?.map((scene) => ({
+      ...scene,
+      characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
+      characterMemories: { ...scene.characterMemories },
+      characterIds: [...scene.characterIds],
+      assetDrafts: scene.assetDrafts.map((draft) => ({
+        ...draft,
+        sourceMessageIds: [...draft.sourceMessageIds],
+        characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
+        lorebookEntries: draft.lorebookEntries.map((entry) => ({
+          ...entry,
+          keywords: [...entry.keywords],
+        })),
       })),
-    })),
-    illustrationHints: scene.illustrationHints.map((hint) => ({
-      ...hint,
-      sourceMessageIds: [...hint.sourceMessageIds],
-    })),
-  })) ?? [],
+      illustrationHints: scene.illustrationHints.map((hint) => ({
+        ...hint,
+        sourceMessageIds: [...hint.sourceMessageIds],
+      })),
+    })) ?? [],
   assetDrafts: room.assetDrafts.map((draft) => ({
     ...draft,
     sourceMessageIds: [...draft.sourceMessageIds],

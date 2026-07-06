@@ -1,13 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { useImperativeHandle, useState } from "react";
-import {
-  Clapperboard,
-  ChevronRight,
-  type LucideIcon,
-  Sparkles,
-  ThumbsUp,
-  UsersRound,
-} from "lucide-react";
+import { Clapperboard, ChevronRight, type LucideIcon, Sparkles, ThumbsUp, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -26,14 +19,14 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS,
   TAVERN_QUALITY_RULES,
-} from "../../../../tavern/prompt-registry/rule-layers/resolver";
-import type { TavernQualityRuleId } from "../../../../tavern/prompt-registry/rule-layers/types";
+} from "../../../tavern/prompt-registry/rule-layers/resolver";
+import type { TavernQualityRuleId } from "../../../tavern/prompt-registry/rule-layers/types";
 import type {
   TavernProgressTrackerSettings,
   TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomSettings,
-} from "../../../../tavern/types";
+} from "../../../tavern/types";
 import {
   applyInformationPolicyModePreset,
   cloneTavernRoomSettings,
@@ -209,10 +202,7 @@ const settingsPresets: SettingsPresetDefinition[] = [
         eventInterruption: "auto",
         qnaBreak: "auto",
       },
-      informationPolicy: applyInformationPolicyModePreset(
-        "open",
-        draft.informationPolicy,
-      ),
+      informationPolicy: applyInformationPolicyModePreset("open", draft.informationPolicy),
     }),
   },
 ];
@@ -242,23 +232,13 @@ const SettingsSection = ({
   <section className="grid gap-4 rounded-lg border border-border/70 bg-background/80 p-4 shadow-xs lg:grid-cols-[14rem_minmax(0,1fr)]">
     <div className="min-w-0">
       <h3 className="text-base font-semibold leading-6 text-foreground">{title}</h3>
-      <p className="mt-2 max-w-xs text-xs leading-5 text-muted-foreground">
-        {description}
-      </p>
+      <p className="mt-2 max-w-xs text-xs leading-5 text-muted-foreground">{description}</p>
     </div>
     <div className="min-w-0 space-y-2.5">{children}</div>
   </section>
 );
 
-const SettingsRow = ({
-  label,
-  description,
-  control,
-}: {
-  label: string;
-  description: string;
-  control: ReactNode;
-}) => (
+const SettingsRow = ({ label, description, control }: { label: string; description: string; control: ReactNode }) => (
   <div className="grid min-h-9 gap-2 rounded-md px-0.5 py-1 sm:grid-cols-[11rem_minmax(0,1fr)_minmax(10rem,16rem)] sm:items-center sm:gap-4">
     <div className="text-sm font-medium leading-5 text-foreground/82">{label}</div>
     <div className="text-xs leading-5 text-muted-foreground">{description}</div>
@@ -280,25 +260,20 @@ const SettingsSwitch = ({
   <SettingsRow
     label={label}
     description={description}
-    control={(
+    control={
       <Switch
         checked={checked}
         onCheckedChange={(nextChecked) => onCheckedChange(nextChecked === true)}
         aria-label={label}
       />
-    )}
+    }
   />
 );
 
 const selectClassName = cn(editorControlClassName, "h-9 min-w-0 max-w-full sm:w-56");
 const inputClassName = cn(editorControlClassName, "h-9 min-w-0 max-w-full sm:w-56");
 
-export const SettingsEdit = ({
-  bind,
-  data,
-  onSave,
-  modelLabel,
-}: SettingsEditProps) => {
+export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditProps) => {
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [error, setError] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState<SettingsPresetId>("default");
@@ -342,21 +317,12 @@ export const SettingsEdit = ({
         immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
         showExecutionTrace: draft.showExecutionTrace,
         autoAssetExtractionEnabled: draft.autoAssetExtractionEnabled,
-        assetExtractionIntervalTurns: Math.min(
-          10,
-          Math.max(1, Number(draft.assetExtractionIntervalTurns) || 1),
-        ),
+        assetExtractionIntervalTurns: Math.min(10, Math.max(1, Number(draft.assetExtractionIntervalTurns) || 1)),
         maxAssetDrafts: Math.min(20, Math.max(1, Number(draft.maxAssetDrafts) || 1)),
-        directorMaxSpeakers: Math.min(
-          6,
-          Math.max(1, Number(draft.directorMaxSpeakers) || 1),
-        ),
+        directorMaxSpeakers: Math.min(6, Math.max(1, Number(draft.directorMaxSpeakers) || 1)),
         directorLoop: {
           enabled: draft.directorLoop.enabled,
-          maxRounds: Math.min(
-            5,
-            Math.max(1, Number(draft.directorLoop.maxRounds) || 1),
-          ),
+          maxRounds: Math.min(5, Math.max(1, Number(draft.directorLoop.maxRounds) || 1)),
         },
         agentKnowledgeCompactIntervalTurns: Math.min(
           50,
@@ -371,10 +337,7 @@ export const SettingsEdit = ({
         randomEvents: {
           ...data.settings.randomEvents,
           enabled: draft.randomEvents.enabled,
-          probability: Math.min(
-            1,
-            Math.max(0, Number(draft.randomEvents.probability) || 0),
-          ),
+          probability: Math.min(1, Math.max(0, Number(draft.randomEvents.probability) || 0)),
         },
         illustrationHints: {
           ...data.settings.illustrationHints,
@@ -392,26 +355,16 @@ export const SettingsEdit = ({
       progressTracker: {
         enabled: draft.progressTracker.enabled,
         mode: draft.progressTracker.mode,
-        intervalTurns: Math.min(
-          50,
-          Math.max(1, Number(draft.progressTracker.intervalTurns) || 1),
-        ),
+        intervalTurns: Math.min(50, Math.max(1, Number(draft.progressTracker.intervalTurns) || 1)),
         applyMode: draft.progressTracker.applyMode,
-        factConfidenceThreshold: Math.min(
-          1,
-          Math.max(0, Number(draft.progressTracker.factConfidenceThreshold) || 0),
-        ),
-        generateCheckpointBeforeContextTrim:
-          draft.progressTracker.generateCheckpointBeforeContextTrim,
+        factConfidenceThreshold: Math.min(1, Math.max(0, Number(draft.progressTracker.factConfidenceThreshold) || 0)),
+        generateCheckpointBeforeContextTrim: draft.progressTracker.generateCheckpointBeforeContextTrim,
       },
     });
     close();
   };
 
-  const toggleInteractionQualityRule = (
-    ruleId: TavernQualityRuleId,
-    checked: boolean,
-  ) => {
+  const toggleInteractionQualityRule = (ruleId: TavernQualityRuleId, checked: boolean) => {
     if (!draft) {
       return;
     }
@@ -438,9 +391,7 @@ export const SettingsEdit = ({
         <DialogContent className="!flex h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl xl:max-w-6xl">
           <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle>编辑运行设置</DialogTitle>
-            <DialogDescription>
-              调整执行过程、剧情资产整理和导演调度设置。
-            </DialogDescription>
+            <DialogDescription>调整执行过程、剧情资产整理和导演调度设置。</DialogDescription>
           </DialogHeader>
 
           <form
@@ -452,10 +403,7 @@ export const SettingsEdit = ({
           >
             <div className="min-h-0 flex-1 overflow-y-auto bg-muted/10 px-4 py-4">
               <div className="space-y-3">
-                <SettingsSection
-                  title="运行预设"
-                  description="选择预设方案，快速配置一套适合的运行设置。"
-                >
+                <SettingsSection title="运行预设" description="选择预设方案，快速配置一套适合的运行设置。">
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     {settingsPresets.map((preset) => {
                       const PresetIcon = preset.icon;
@@ -493,22 +441,19 @@ export const SettingsEdit = ({
                   <SettingsRow
                     label="酒馆模型"
                     description="酒馆统一使用当前默认模型。"
-                    control={(
+                    control={
                       <div
-                        className={cn(
-                          inputClassName,
-                          "flex items-center overflow-hidden px-3 text-sm text-foreground",
-                        )}
+                        className={cn(inputClassName, "flex items-center overflow-hidden px-3 text-sm text-foreground")}
                         title={modelLabel}
                       >
                         <span className="min-w-0 truncate">{modelLabel}</span>
                       </div>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="互动剧本模式"
                     description="选择信息可见性和叙事观察风格。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-information-mode"
                         value={draft.informationPolicy.mode}
@@ -517,29 +462,21 @@ export const SettingsEdit = ({
                           const mode = event.target.value as TavernRoomSettings["informationPolicy"]["mode"];
                           setDraft({
                             ...draft,
-                            informationPolicy: applyInformationPolicyModePreset(
-                              mode,
-                              draft.informationPolicy,
-                            ),
+                            informationPolicy: applyInformationPolicyModePreset(mode, draft.informationPolicy),
                           });
                           setSelectedPresetId("default");
                         }}
                       >
                         <NativeSelectOption value="open">开放演绎</NativeSelectOption>
                         <NativeSelectOption value="mystery">推理悬疑</NativeSelectOption>
-                        <NativeSelectOption value="social_deduction">
-                          狼人杀阵营
-                        </NativeSelectOption>
+                        <NativeSelectOption value="social_deduction">狼人杀阵营</NativeSelectOption>
                         <NativeSelectOption value="custom">自定义</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                 </SettingsSection>
 
-                <SettingsSection
-                  title="执行体验"
-                  description="控制执行过程中的展示与交互体验。"
-                >
+                <SettingsSection title="执行体验" description="控制执行过程中的展示与交互体验。">
                   <SettingsSwitch
                     label="显示执行过程"
                     description="实时展示模型思考与执行过程。"
@@ -586,7 +523,7 @@ export const SettingsEdit = ({
                   <SettingsRow
                     label="界面视角"
                     description="选择界面呈现与叙事观察的视角。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-information-view"
                         value={draft.informationPolicy.uiDefaultView}
@@ -596,7 +533,8 @@ export const SettingsEdit = ({
                             ...draft,
                             informationPolicy: {
                               ...draft.informationPolicy,
-                              uiDefaultView: event.target.value as TavernRoomSettings["informationPolicy"]["uiDefaultView"],
+                              uiDefaultView: event.target
+                                .value as TavernRoomSettings["informationPolicy"]["uiDefaultView"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -606,14 +544,11 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="reveal">复盘视角</NativeSelectOption>
                         <NativeSelectOption value="director">导演视角</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                 </SettingsSection>
 
-                <SettingsSection
-                  title="剧情自动化"
-                  description="自动化管理剧情资产与事件，减轻导演负担。"
-                >
+                <SettingsSection title="剧情自动化" description="自动化管理剧情资产与事件，减轻导演负担。">
                   <SettingsSwitch
                     label="自动整理剧情资产"
                     description="自动归档与整理角色、线索与事件。"
@@ -659,7 +594,7 @@ export const SettingsEdit = ({
                   <SettingsRow
                     label="整理间隔"
                     description="每隔多少轮自动整理一次剧情资产。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-asset-interval"
                         type="number"
@@ -670,20 +605,17 @@ export const SettingsEdit = ({
                         onChange={(event) => {
                           setDraft({
                             ...draft,
-                            assetExtractionIntervalTurns: Math.min(
-                              10,
-                              Math.max(1, Number(event.target.value) || 1),
-                            ),
+                            assetExtractionIntervalTurns: Math.min(10, Math.max(1, Number(event.target.value) || 1)),
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="状态更新"
                     description="选择状态追踪的触发方式。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-progress-mode"
                         value={draft.progressTracker.mode}
@@ -703,12 +635,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="afterTurn">每轮</NativeSelectOption>
                         <NativeSelectOption value="fixedTurns">固定轮次</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="状态间隔"
                     description="固定轮次模式下的状态更新间隔。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-progress-interval"
                         type="number"
@@ -721,21 +653,18 @@ export const SettingsEdit = ({
                             ...draft,
                             progressTracker: {
                               ...draft.progressTracker,
-                              intervalTurns: Math.min(
-                                50,
-                                Math.max(1, Number(event.target.value) || 1),
-                              ),
+                              intervalTurns: Math.min(50, Math.max(1, Number(event.target.value) || 1)),
                             },
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="应用方式"
                     description="选择状态变更是否自动应用。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-progress-apply-mode"
                         value={draft.progressTracker.applyMode}
@@ -754,12 +683,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="review">需确认</NativeSelectOption>
                         <NativeSelectOption value="auto">自动</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="事实置信度"
                     description="低于阈值的状态事实不会自动采纳。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-progress-confidence"
                         type="number"
@@ -773,21 +702,18 @@ export const SettingsEdit = ({
                             ...draft,
                             progressTracker: {
                               ...draft.progressTracker,
-                              factConfidenceThreshold: Math.min(
-                                1,
-                                Math.max(0, Number(event.target.value) || 0),
-                              ),
+                              factConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
                             },
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="随机事件概率"
                     description="控制导演随机事件被触发的概率。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-random-event-probability"
                         type="number"
@@ -801,16 +727,13 @@ export const SettingsEdit = ({
                             ...draft,
                             randomEvents: {
                               ...draft.randomEvents,
-                              probability: Math.min(
-                                1,
-                                Math.max(0, Number(event.target.value) || 0),
-                              ),
+                              probability: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
                             },
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsSwitch
                     label="检查点"
@@ -854,9 +777,7 @@ export const SettingsEdit = ({
                             className="mt-0.5"
                           />
                           <span className="min-w-0">
-                            <span className="text-sm font-semibold leading-5">
-                              {rule.label}
-                            </span>
+                            <span className="text-sm font-semibold leading-5">{rule.label}</span>
                             <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                               {rule.description}
                             </span>
@@ -867,14 +788,11 @@ export const SettingsEdit = ({
                   </div>
                 </SettingsSection>
 
-                <SettingsSection
-                  title="角色与身份"
-                  description="管理角色身份的分配策略与可知性。"
-                >
+                <SettingsSection title="角色与身份" description="管理角色身份的分配策略与可知性。">
                   <SettingsRow
                     label="导演人数"
                     description="单轮最多调度多少名角色发言。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-director-speakers"
                         type="number"
@@ -885,15 +803,12 @@ export const SettingsEdit = ({
                         onChange={(event) => {
                           setDraft({
                             ...draft,
-                            directorMaxSpeakers: Math.min(
-                              6,
-                              Math.max(1, Number(event.target.value) || 1),
-                            ),
+                            directorMaxSpeakers: Math.min(6, Math.max(1, Number(event.target.value) || 1)),
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsSwitch
                     label="导演回环"
@@ -913,7 +828,7 @@ export const SettingsEdit = ({
                   <SettingsRow
                     label="回环轮数"
                     description="导演回环开启时最多追加多少轮调度。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-director-loop-rounds"
                         type="number"
@@ -926,21 +841,18 @@ export const SettingsEdit = ({
                             ...draft,
                             directorLoop: {
                               ...draft.directorLoop,
-                              maxRounds: Math.min(
-                                5,
-                                Math.max(1, Number(event.target.value) || 1),
-                              ),
+                              maxRounds: Math.min(5, Math.max(1, Number(event.target.value) || 1)),
                             },
                           });
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="用户控制权"
                     description="决定用户输入被导演视为主角行动、剧情指令还是场景自推动信号。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-agency-mode"
                         value={draft.directorNarrativeControl.agencyMode}
@@ -950,7 +862,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              agencyMode: event.target.value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
+                              agencyMode: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -960,12 +873,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="story_directive">剧情指令</NativeSelectOption>
                         <NativeSelectOption value="scene_drive">场景自推</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="调度规模"
                     description="控制导演默认偏单角色、均衡接力或多人群像。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-response-scale"
                         value={draft.directorNarrativeControl.responseScale}
@@ -975,7 +888,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              responseScale: event.target.value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
+                              responseScale: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -985,12 +899,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="balanced">均衡接力</NativeSelectOption>
                         <NativeSelectOption value="ensemble">多人群像</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="旁白压力"
                     description="控制导演用旁白承接环境、压力和未发言动作的积极程度。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-narrator-pressure"
                         value={draft.directorNarrativeControl.narratorPressure}
@@ -1000,7 +914,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              narratorPressure: event.target.value as TavernRoomSettings["directorNarrativeControl"]["narratorPressure"],
+                              narratorPressure: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["narratorPressure"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1010,12 +925,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="balanced">均衡</NativeSelectOption>
                         <NativeSelectOption value="high">高</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="事件打断"
                     description="控制导演是否在问答停滞时引入公开局势变化。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-event-interruption"
                         value={draft.directorNarrativeControl.eventInterruption}
@@ -1025,7 +940,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              eventInterruption: event.target.value as TavernRoomSettings["directorNarrativeControl"]["eventInterruption"],
+                              eventInterruption: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["eventInterruption"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1035,12 +951,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="auto">自动</NativeSelectOption>
                         <NativeSelectOption value="forceOnStall">停滞强制</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="行动后果"
                     description="控制用户行动是否必须带来公开可见后果。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-user-consequence"
                         value={draft.directorNarrativeControl.userActionConsequence}
@@ -1050,7 +966,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              userActionConsequence: event.target.value as TavernRoomSettings["directorNarrativeControl"]["userActionConsequence"],
+                              userActionConsequence: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["userActionConsequence"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1060,12 +977,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="visible">可见</NativeSelectOption>
                         <NativeSelectOption value="strict">严格</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="主线钩子"
                     description="控制局部线索是否要接回长期目标、代价或势力压力。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-main-hook"
                         value={draft.directorNarrativeControl.mainHook}
@@ -1075,7 +992,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              mainHook: event.target.value as TavernRoomSettings["directorNarrativeControl"]["mainHook"],
+                              mainHook: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["mainHook"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1085,12 +1003,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="auto">自动</NativeSelectOption>
                         <NativeSelectOption value="forceOnStall">停滞强制</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="问答打断"
                     description="控制连续问询时导演打破解释链的积极程度。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-director-qna-break"
                         value={draft.directorNarrativeControl.qnaBreak}
@@ -1100,7 +1018,8 @@ export const SettingsEdit = ({
                             ...draft,
                             directorNarrativeControl: {
                               ...draft.directorNarrativeControl,
-                              qnaBreak: event.target.value as TavernRoomSettings["directorNarrativeControl"]["qnaBreak"],
+                              qnaBreak: event.target
+                                .value as TavernRoomSettings["directorNarrativeControl"]["qnaBreak"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1110,12 +1029,12 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="auto">自动</NativeSelectOption>
                         <NativeSelectOption value="aggressive">积极</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsRow
                     label="身份分配策略"
                     description="选择角色身份的分配方式。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-role-strategy"
                         value={draft.informationPolicy.roleAssignment.strategy}
@@ -1127,7 +1046,8 @@ export const SettingsEdit = ({
                               ...draft.informationPolicy,
                               roleAssignment: {
                                 ...draft.informationPolicy.roleAssignment,
-                                strategy: event.target.value as TavernRoomSettings["informationPolicy"]["roleAssignment"]["strategy"],
+                                strategy: event.target
+                                  .value as TavernRoomSettings["informationPolicy"]["roleAssignment"]["strategy"],
                               },
                             },
                           });
@@ -1137,7 +1057,7 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="manual">手动</NativeSelectOption>
                         <NativeSelectOption value="director_random">导演随机</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsSwitch
                     label="剧本身份分配"
@@ -1151,9 +1071,7 @@ export const SettingsEdit = ({
                           roleAssignment: {
                             ...draft.informationPolicy.roleAssignment,
                             enabled: checked,
-                            strategy: checked
-                              ? draft.informationPolicy.roleAssignment.strategy
-                              : "manual",
+                            strategy: checked ? draft.informationPolicy.roleAssignment.strategy : "manual",
                           },
                         },
                       });
@@ -1217,7 +1135,7 @@ export const SettingsEdit = ({
                   <SettingsRow
                     label="角色压缩间隔"
                     description="定期压缩角色知识，控制上下文长度。"
-                    control={(
+                    control={
                       <Input
                         id="tavern-settings-layout-agent-compact-interval"
                         type="number"
@@ -1236,18 +1154,15 @@ export const SettingsEdit = ({
                           setSelectedPresetId("default");
                         }}
                       />
-                    )}
+                    }
                   />
                 </SettingsSection>
 
-                <SettingsSection
-                  title="信息揭示"
-                  description="控制心理活动与隐藏信息的揭示规则。"
-                >
+                <SettingsSection title="信息揭示" description="控制心理活动与隐藏信息的揭示规则。">
                   <SettingsRow
                     label="心理揭示"
                     description="选择心理活动揭示的方式。"
-                    control={(
+                    control={
                       <NativeSelect
                         id="tavern-settings-layout-thought-reveal"
                         value={draft.informationPolicy.revealThoughts}
@@ -1257,7 +1172,8 @@ export const SettingsEdit = ({
                             ...draft,
                             informationPolicy: {
                               ...draft.informationPolicy,
-                              revealThoughts: event.target.value as TavernRoomSettings["informationPolicy"]["revealThoughts"],
+                              revealThoughts: event.target
+                                .value as TavernRoomSettings["informationPolicy"]["revealThoughts"],
                             },
                           });
                           setSelectedPresetId("default");
@@ -1267,7 +1183,7 @@ export const SettingsEdit = ({
                         <NativeSelectOption value="sceneOutcome">结局后</NativeSelectOption>
                         <NativeSelectOption value="never">不揭示</NativeSelectOption>
                       </NativeSelect>
-                    )}
+                    }
                   />
                   <SettingsSwitch
                     label="隐藏角色心理"
@@ -1307,16 +1223,12 @@ export const SettingsEdit = ({
                 <details className="group rounded-lg border border-border/70 bg-background/80 shadow-xs">
                   <summary className="grid cursor-pointer list-none gap-4 p-4 lg:grid-cols-[14rem_minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
                     <div className="min-w-0">
-                      <h3 className="text-base font-semibold leading-6 text-foreground">
-                        高级选项
-                      </h3>
+                      <h3 className="text-base font-semibold leading-6 text-foreground">高级选项</h3>
                       <p className="mt-2 max-w-xs text-xs leading-5 text-muted-foreground">
                         更多进阶设置，按需展开配置。
                       </p>
                     </div>
-                    <div className="text-xs leading-5 text-muted-foreground">
-                      草稿上限、身份池 JSON、性能与限制
-                    </div>
+                    <div className="text-xs leading-5 text-muted-foreground">草稿上限、身份池 JSON、性能与限制</div>
                     <ChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" />
                   </summary>
                   <div className="border-t border-border/70 px-4 py-3">
@@ -1324,7 +1236,7 @@ export const SettingsEdit = ({
                       <SettingsRow
                         label="草稿上限"
                         description="限制自动整理时保留的剧情资产草稿数量。"
-                        control={(
+                        control={
                           <Input
                             id="tavern-settings-layout-max-drafts"
                             type="number"
@@ -1335,35 +1247,27 @@ export const SettingsEdit = ({
                             onChange={(event) => {
                               setDraft({
                                 ...draft,
-                                maxAssetDrafts: Math.min(
-                                  20,
-                                  Math.max(1, Number(event.target.value) || 1),
-                                ),
+                                maxAssetDrafts: Math.min(20, Math.max(1, Number(event.target.value) || 1)),
                               });
                               setSelectedPresetId("default");
                             }}
                           />
-                        )}
+                        }
                       />
                       <div className="grid gap-2 py-1 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
                         <div>
-                          <div className="text-sm font-medium leading-5 text-foreground/82">
-                            身份池 JSON
-                          </div>
-                          <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                            用于身份分配的候选定义。
-                          </div>
+                          <div className="text-sm font-medium leading-5 text-foreground/82">身份池 JSON</div>
+                          <div className="mt-1 text-xs leading-5 text-muted-foreground">用于身份分配的候选定义。</div>
                         </div>
                         <Textarea
                           value={draft.rolePoolJson}
-                          className={cn(
-                            "min-h-32 font-mono text-xs leading-5",
-                            editorControlClassName,
-                          )}
-                          onChange={(event) => setDraft({
-                            ...draft,
-                            rolePoolJson: event.target.value,
-                          })}
+                          className={cn("min-h-32 font-mono text-xs leading-5", editorControlClassName)}
+                          onChange={(event) =>
+                            setDraft({
+                              ...draft,
+                              rolePoolJson: event.target.value,
+                            })
+                          }
                         />
                       </div>
                     </div>

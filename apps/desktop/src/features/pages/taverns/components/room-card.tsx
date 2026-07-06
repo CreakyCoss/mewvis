@@ -9,16 +9,23 @@ import {
   RotateCcw,
   Target,
   Trash2,
+  TriangleAlertIcon,
   UnlockKeyhole,
   UsersRound,
   Wine,
 } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
-import type { ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { create } from "zustand";
 import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,67 +35,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { getVisualPreset } from "../tavern/visual-presets";
+import { emptyValueText } from "../manage/utils";
+import { useManagementStore } from "../store";
 import type { TavernCharacter, TavernRoom } from "../tavern/types";
 import { compactScene } from "../tavern/utils";
-import { useManagementStore } from "./runtime-store";
-import type { PendingDangerAction } from "./room-editor/types";
-import { emptyValueText } from "./room-editor/utils";
+import { getVisualPreset } from "../tavern/visual-presets";
 
-type RoomCardRuntimeValue = {
-  openRoomEditor: (room: TavernRoom) => void;
-  onRequestDangerAction: (action: PendingDangerAction) => void;
-  onOperationStatusChange?: (status: string) => void;
-};
-
-const createInitialRoomCardRuntimeValue = (): RoomCardRuntimeValue => ({
-  openRoomEditor: () => undefined,
-  onRequestDangerAction: () => undefined,
-});
-
-const useRoomCardRuntimeStore = create<RoomCardRuntimeValue>(() => createInitialRoomCardRuntimeValue());
-
-export const RoomCardRuntimeProvider = ({ value, children }: { value: RoomCardRuntimeValue; children: ReactNode }) => {
-  const isStoreInitializedRef = useRef(false);
-
-  if (!isStoreInitializedRef.current) {
-    useRoomCardRuntimeStore.setState(value);
-    isStoreInitializedRef.current = true;
-  }
-
-  useLayoutEffect(() => {
-    useRoomCardRuntimeStore.setState(value);
-  }, [value]);
-
-  return children;
-};
-
-const useRoomCardRuntime = () => {
-  return useRoomCardRuntimeStore();
+type PendingDangerAction = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  summary?: string;
+  onConfirm: () => void;
 };
 
 type RoomCardProps = {
   room: TavernRoom;
+  openRoomEditor: (room: TavernRoom) => void;
+  onOperationStatusChange?: (status: string) => void;
   onRoomRemove?: (roomId: string) => void;
   onRoomCopy?: (roomId: string) => void;
   onRoomChange?: (roomId: string) => void;
 };
 
-export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomCardProps) => {
-  const {
-    activeRoomId,
-    characterById,
-    messagesByRoomId,
-    selectRoom,
-    copyRoom,
-    restoreSystemPresetRoom,
-    setRoomLocked,
-    deleteRoom,
-    exportRoom,
-  } = useManagementStore();
-  const { openRoomEditor, onRequestDangerAction, onOperationStatusChange } = useRoomCardRuntime();
-
-  const isActive = room.id === activeRoomId;
+export const RoomCard = ({
+  room,
+  openRoomEditor,
+  onOperationStatusChange,
+  onRoomRemove,
+  onRoomCopy,
+  onRoomChange,
+}: RoomCardProps) => {
+  const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
+  const { characterById, messagesByRoomId, copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } =
+    useManagementStore();
   const roomCharacters = room.characterIds
     .map((characterId) => characterById.get(characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
@@ -108,6 +88,23 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
 
   const setOperationStatus = (status: string) => {
     onOperationStatusChange?.(status);
+  };
+
+  const requestDangerAction = (action: PendingDangerAction) => {
+    setPendingDangerAction(action);
+  };
+
+  const closeDangerAction = () => {
+    setPendingDangerAction(null);
+  };
+
+  const confirmDangerAction = () => {
+    if (!pendingDangerAction) {
+      return;
+    }
+
+    pendingDangerAction.onConfirm();
+    closeDangerAction();
   };
 
   const handleCopyRoom = () => {
@@ -143,7 +140,7 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
       ? "锁定后将不能删除该酒馆或恢复系统默认。"
       : "解锁后将重新允许删除该酒馆或恢复系统默认。";
 
-    onRequestDangerAction({
+    requestDangerAction({
       title: actionLabel,
       description: `${actionLabel}「${room.title}」？${consequence}`,
       confirmLabel: actionLabel,
@@ -165,7 +162,7 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
       return;
     }
 
-    onRequestDangerAction({
+    requestDangerAction({
       title: "恢复默认",
       description: `恢复「${room.title}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
       confirmLabel: "恢复默认",
@@ -188,7 +185,7 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
       return;
     }
 
-    onRequestDangerAction({
+    requestDangerAction({
       title: "删除酒馆",
       description: `删除酒馆「${room.title}」？房间、对话记录和剧情资产都会被永久移除。`,
       confirmLabel: "删除酒馆",
@@ -205,17 +202,8 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
   };
 
   return (
-    <article
-      className={cn(
-        "flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)] transition-colors",
-        isActive && "border-primary/45 bg-primary/[0.035] shadow-[0_20px_58px_-38px_rgb(13_148_136_/_0.45)]",
-      )}
-    >
-      <button
-        type="button"
-        className="flex min-w-0 flex-col text-left transition-colors hover:bg-accent/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-        onClick={() => selectRoom(room.id)}
-      >
+    <article className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)]">
+      <div className="flex min-w-0 flex-col text-left">
         <div className="relative">
           <div
             className="h-[clamp(6.25rem,9vw,7.5rem)] w-full overflow-hidden rounded-t-lg bg-muted bg-cover bg-center shadow-inner"
@@ -301,7 +289,7 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       <div className="border-t bg-background/80 p-2.5">
         <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2">
@@ -365,6 +353,44 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomC
           </DropdownMenu>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(pendingDangerAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDangerAction();
+          }
+        }}
+      >
+        {pendingDangerAction && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <DialogTitle>{pendingDangerAction.title}</DialogTitle>
+              </div>
+              <DialogDescription>{pendingDangerAction.description}</DialogDescription>
+            </DialogHeader>
+
+            {pendingDangerAction.summary && (
+              <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                {pendingDangerAction.summary}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDangerAction}>
+                取消
+              </Button>
+              <Button type="button" variant="destructive" onClick={confirmDangerAction}>
+                {pendingDangerAction.confirmLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </article>
   );
 };

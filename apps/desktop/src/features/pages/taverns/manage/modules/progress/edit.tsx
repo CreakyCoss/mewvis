@@ -18,7 +18,7 @@ import type {
   TavernStatusDefinition,
   TavernStatusRule,
   TavernTaskDefinition,
-} from "../../../../tavern/types";
+} from "../../../tavern/types";
 import { EditorField } from "../../primitives";
 import {
   editorControlClassName,
@@ -49,11 +49,7 @@ type ProgressEditProps = {
   onSave: ModuleSave;
 };
 
-export const ProgressEdit = ({
-  bind,
-  data,
-  onSave,
-}: ProgressEditProps) => {
+export const ProgressEdit = ({ bind, data, onSave }: ProgressEditProps) => {
   const [draft, setDraft] = useState<ProgressDraft | null>(null);
   const [error, setError] = useState("");
 
@@ -90,11 +86,7 @@ export const ProgressEdit = ({
       return;
     }
 
-    const statusRules = parseProgressJsonArray<TavernStatusRule>(
-      draft.statusRulesJson,
-      "状态规则",
-      isStatusRuleDraft,
-    );
+    const statusRules = parseProgressJsonArray<TavernStatusRule>(draft.statusRulesJson, "状态规则", isStatusRuleDraft);
     if (!statusRules.ok) {
       setError(statusRules.error);
       return;
@@ -165,9 +157,7 @@ export const ProgressEdit = ({
         <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-3xl lg:max-w-4xl">
           <DialogHeader>
             <DialogTitle>编辑状态与进度配置</DialogTitle>
-            <DialogDescription>
-              编辑状态栏、规则引擎、任务目标和结局条件。任务与结局作用于当前场景。
-            </DialogDescription>
+            <DialogDescription>编辑状态栏、规则引擎、任务目标和结局条件。任务与结局作用于当前场景。</DialogDescription>
           </DialogHeader>
 
           <form
@@ -193,10 +183,12 @@ export const ProgressEdit = ({
                     value={draft.statusDefinitionsJson}
                     spellCheck={false}
                     className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      statusDefinitionsJson: event.target.value,
-                    })}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        statusDefinitionsJson: event.target.value,
+                      })
+                    }
                   />
                 </EditorField>
 
@@ -210,10 +202,12 @@ export const ProgressEdit = ({
                     value={draft.statusRulesJson}
                     spellCheck={false}
                     className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      statusRulesJson: event.target.value,
-                    })}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        statusRulesJson: event.target.value,
+                      })
+                    }
                   />
                 </EditorField>
 
@@ -227,10 +221,12 @@ export const ProgressEdit = ({
                     value={draft.progressViewsJson}
                     spellCheck={false}
                     className={cn("min-h-[200px] resize-y font-mono text-xs leading-5", editorControlClassName)}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      progressViewsJson: event.target.value,
-                    })}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        progressViewsJson: event.target.value,
+                      })
+                    }
                   />
                 </EditorField>
 
@@ -244,10 +240,12 @@ export const ProgressEdit = ({
                     value={draft.taskDefinitionsJson}
                     spellCheck={false}
                     className={cn("min-h-[160px] resize-y font-mono text-xs leading-5", editorControlClassName)}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      taskDefinitionsJson: event.target.value,
-                    })}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        taskDefinitionsJson: event.target.value,
+                      })
+                    }
                   />
                 </EditorField>
 
@@ -261,10 +259,12 @@ export const ProgressEdit = ({
                     value={draft.sceneOutcomesJson}
                     spellCheck={false}
                     className={cn("min-h-[160px] resize-y font-mono text-xs leading-5", editorControlClassName)}
-                    onChange={(event) => setDraft({
-                      ...draft,
-                      sceneOutcomesJson: event.target.value,
-                    })}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        sceneOutcomesJson: event.target.value,
+                      })
+                    }
                   />
                 </EditorField>
               </div>

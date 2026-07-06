@@ -1,24 +1,31 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { create } from "zustand";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../tavern/runtime/active-scene-runtime";
-import { createTavernRoom } from "../tavern/factories/manual-factories";
-import { getTavernSystemPreset } from "../tavern/system-preset-registry";
-import { createTavernRoomFromSystemPreset } from "../tavern/factories/system-preset-room";
-import { createTavernMessage } from "../tavern/message";
-import { deleteTavernBridgeSessionsForRoom } from "../tavern/runtime/conversation";
-import { runTavernDirectorProfileAgent } from "../tavern/runtime/director";
-import { runTavernTextFieldAgent } from "../tavern/runtime/assistants";
-import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
-import { createTavernRuntimeRoomSnapshot } from "../tavern/adapters/runtime-room-snapshot";
-import type { TavernCharacter, TavernMessage, TavernRoom, TavernScene, TavernState } from "../tavern/types";
-import { sanitizeFileName } from "../room/quick-summary/utils";
-import { syncManagementStore, type ManagementStoreValue } from "./runtime-store";
+import { createTavernRuntimeRoomSnapshot } from "./tavern/adapters/runtime-room-snapshot";
+import { createTavernRoom } from "./tavern/factories/manual-factories";
+import { createTavernRoomFromSystemPreset } from "./tavern/factories/system-preset-room";
+import { createTavernMessage } from "./tavern/message";
+import { runTavernTextFieldAgent } from "./tavern/runtime/assistants";
+import type { TavernTextFieldAgentRequest } from "./tavern/runtime/assistants";
+import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "./tavern/runtime/active-scene-runtime";
+import { deleteTavernBridgeSessionsForRoom } from "./tavern/runtime/conversation";
+import { runTavernDirectorProfileAgent } from "./tavern/runtime/director";
+import { getTavernSystemPreset } from "./tavern/system-preset-registry";
+import type {
+  TavernCharacter,
+  TavernMessage,
+  TavernRoom,
+  TavernRoomSettings,
+  TavernScene,
+  TavernState,
+} from "./tavern/types";
+import { sanitizeFileName } from "./room/quick-summary/utils";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -31,21 +38,56 @@ const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.sc
 
 const getRoomActiveSceneInstanceId = (room: TavernRoom) => room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
 
+export type ManagementStoreValue = {
+  rooms: TavernRoom[];
+  characterById: Map<string, TavernCharacter>;
+  messagesByRoomId: Record<string, TavernMessage[]>;
+  createRoom: () => TavernRoom | void;
+  patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
+  copyRoom: (roomId: string) => boolean;
+  restoreSystemPresetRoom: (roomId: string) => Promise<boolean>;
+  setRoomLocked: (roomId: string, locked: boolean) => boolean;
+  deleteRoom: (roomId: string) => boolean;
+  exportRoom: (roomId: string) => boolean;
+  globalRuntimeModel: RuntimeModelOption | null;
+  runTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
+  regenerateDirectorProfile: (
+    room: TavernRoom,
+  ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
+};
+
+const createInitialManagementStoreValue = (): ManagementStoreValue => ({
+  rooms: [],
+  characterById: new Map(),
+  messagesByRoomId: {},
+  createRoom: () => undefined,
+  patchRoom: () => undefined,
+  copyRoom: () => false,
+  restoreSystemPresetRoom: async () => false,
+  setRoomLocked: () => false,
+  deleteRoom: () => false,
+  exportRoom: () => false,
+  globalRuntimeModel: null,
+  runTextFieldAgent: async () => "",
+  regenerateDirectorProfile: async () => {
+    throw new Error("Management store is not initialized.");
+  },
+});
+
+export const useManagementStore = create<ManagementStoreValue>(() => createInitialManagementStoreValue());
+
+const syncManagementStore = (value: ManagementStoreValue) => {
+  useManagementStore.setState(value);
+};
+
 type ManagementStoreSyncOptions = {
   workspace: Workspace;
   state: TavernState;
   setState: Dispatch<SetStateAction<TavernState>>;
   onError?: (message: string) => void;
-  onCloseActiveRoom: () => void;
 };
 
-export const useSyncManagementStore = ({
-  workspace,
-  state,
-  setState,
-  onError,
-  onCloseActiveRoom,
-}: ManagementStoreSyncOptions) => {
+export const useSyncManagementStore = ({ workspace, state, setState, onError }: ManagementStoreSyncOptions) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const characterById = useMemo(
@@ -124,21 +166,15 @@ export const useSyncManagementStore = ({
         for (const instance of runtimeTargetRoom.sceneInstances) {
           delete nextMessagesByInstance[instance.id];
         }
-        const activeRoomId = current.activeRoomId === roomId ? (nextRooms[0]?.id ?? "") : current.activeRoomId;
-
         return {
           ...current,
-          activeRoomId,
           rooms: nextRooms,
           messagesByInstance: nextMessagesByInstance,
         };
       });
-      if (state.activeRoomId === roomId) {
-        onCloseActiveRoom();
-      }
       return true;
     },
-    [onCloseActiveRoom, setState, state.activeRoomId, state.rooms],
+    [setState, state.rooms],
   );
 
   const copyRoom = useCallback(
@@ -397,7 +433,6 @@ export const useSyncManagementStore = ({
 
         return {
           ...current,
-          activeRoomId: copiedRoomId,
           rooms: [...current.rooms, copiedRoom],
           messagesByInstance: {
             ...current.messagesByInstance,
@@ -445,7 +480,6 @@ export const useSyncManagementStore = ({
 
         return {
           ...current,
-          activeRoomId: sourceRoom.id,
           rooms: current.rooms.map((item) => (item.id === sourceRoom.id ? restored.room : item)),
           messagesByInstance: {
             ...current.messagesByInstance,
@@ -534,7 +568,6 @@ export const useSyncManagementStore = ({
 
     setState((current) => ({
       ...current,
-      activeRoomId: nextRoom.id,
       rooms: [...current.rooms, nextRoom],
       messagesByInstance: {
         ...current.messagesByInstance,
@@ -547,16 +580,6 @@ export const useSyncManagementStore = ({
     }));
     return nextRoom;
   }, [setState, state.rooms.length, workspace.id]);
-
-  const selectRoom = useCallback(
-    (roomId: string) => {
-      setState((current) => ({
-        ...current,
-        activeRoomId: roomId,
-      }));
-    },
-    [setState],
-  );
 
   const runTextFieldAgent = useCallback(
     async (request: TavernTextFieldAgentRequest) => {
@@ -602,11 +625,9 @@ export const useSyncManagementStore = ({
   const value = useMemo<ManagementStoreValue>(
     () => ({
       rooms: state.rooms,
-      activeRoomId: state.activeRoomId,
       characterById,
       messagesByRoomId,
       createRoom,
-      selectRoom,
       patchRoom,
       copyRoom,
       restoreSystemPresetRoom,
@@ -629,9 +650,7 @@ export const useSyncManagementStore = ({
       restoreSystemPresetRoom,
       runTextFieldAgent,
       runtimeModel,
-      selectRoom,
       setRoomLocked,
-      state.activeRoomId,
       state.rooms,
     ],
   );
