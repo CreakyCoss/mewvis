@@ -17,6 +17,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
   const [isSceneOperationBusy, setIsSceneOperationBusy] = useState(false);
   const [isNovelizerOperationBusy, setIsNovelizerOperationBusy] = useState(false);
   const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
+  const [isCharacterOperationBusy, setIsCharacterOperationBusy] = useState(false);
 
   useImperativeHandle(
     bind,
@@ -37,7 +38,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
           <SceneOverviewSection
-            externalBusy={isNovelizerOperationBusy || isPlotDataOperationBusy}
+            externalBusy={isNovelizerOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsSceneOperationBusy}
           />
 
@@ -49,16 +50,19 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
             characters={roomCharacters}
             workspace={workspace}
             runtimeModel={runtimeModel}
-            disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy}
+            disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsNovelizerOperationBusy}
           />
 
           <RuntimeTimelineSection />
 
-          <CharacterStatusSection />
+          <CharacterStatusSection
+            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy || isPlotDataOperationBusy}
+            onBusyChange={setIsCharacterOperationBusy}
+          />
 
           <PlotDataSection
-            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy}
+            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsPlotDataOperationBusy}
           />
         </div>
