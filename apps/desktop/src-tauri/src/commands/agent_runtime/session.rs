@@ -1,7 +1,8 @@
 use super::{
     rpc::call_agent_runtime_rpc,
     session_paths::{resolve_optional_session_root_dir, resolve_session_root_dir},
-    supervisor::AgentRuntimeSupervisor, types::AgentRuntimeModelInput,
+    supervisor::AgentRuntimeSupervisor,
+    types::AgentRuntimeModelInput,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -175,10 +176,8 @@ pub async fn list_agent_runtime_sessions(
     app: AppHandle,
     input: ListAgentRuntimeSessionsInput,
 ) -> Result<Value, String> {
-    let root_dir = resolve_runtime_session_query_root_dir(
-        &input.workspace_path,
-        input.root_dir.as_deref(),
-    )?;
+    let root_dir =
+        resolve_runtime_session_query_root_dir(&input.workspace_path, input.root_dir.as_deref())?;
     call_session_runtime(
         app,
         json!({

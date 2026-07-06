@@ -78,7 +78,9 @@ pub fn run_agent_runtime_collaboration(
         ),
     );
 
-    let allowed_tools = input.allowed_tools.unwrap_or_else(default_collaboration_allowed_tools);
+    let allowed_tools = input
+        .allowed_tools
+        .unwrap_or_else(default_collaboration_allowed_tools);
     let enabled_skills = input.enabled_skills.unwrap_or_default();
     let command = json!({
         "type": "run_collaboration",
@@ -131,11 +133,8 @@ pub fn run_agent_runtime_collaboration_mode(
         Some(&input.workspace_path),
         input.session_root_dir.as_deref(),
     )?;
-    let session_key = session_key_for_collaboration_mode(
-        &input,
-        &task_id,
-        session_root_dir.as_deref(),
-    );
+    let session_key =
+        session_key_for_collaboration_mode(&input, &task_id, session_root_dir.as_deref());
 
     append_agent_diagnostic(
         &app,
@@ -153,7 +152,9 @@ pub fn run_agent_runtime_collaboration_mode(
         ),
     );
 
-    let allowed_tools = input.allowed_tools.unwrap_or_else(default_collaboration_allowed_tools);
+    let allowed_tools = input
+        .allowed_tools
+        .unwrap_or_else(default_collaboration_allowed_tools);
     let enabled_skills = input.enabled_skills.unwrap_or_default();
     let command = json!({
         "type": "run_collaboration_mode",
@@ -206,7 +207,10 @@ fn session_key_for_collaboration_mode(
     session_root_dir: Option<&str>,
 ) -> String {
     let session_scope = session_root_dir.unwrap_or(task_id);
-    format!("{}|collaboration-mode|{}|{}", input.workspace_path, input.mode, session_scope)
+    format!(
+        "{}|collaboration-mode|{}|{}",
+        input.workspace_path, input.mode, session_scope
+    )
 }
 
 fn default_collaboration_allowed_tools() -> Vec<String> {
@@ -236,7 +240,9 @@ fn validate_collaboration_input(input: &RunAgentRuntimeCollaborationInput) -> Re
         .and_then(|workflow| workflow.get("runtime"))
         .is_some()
     {
-        return Err("协作 workflow 不再接受 runtime 字段；runtime 由 native profile 决定".to_string());
+        return Err(
+            "协作 workflow 不再接受 runtime 字段；runtime 由 native profile 决定".to_string(),
+        );
     }
 
     if input.agents.is_empty() {
