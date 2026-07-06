@@ -29,6 +29,7 @@ type ExecutionChainProps = {
   icon?: ComponentType<{ className?: string }>;
   className?: string;
   contentClassName?: string;
+  showHeader?: boolean;
   onToggle: () => void;
 };
 
@@ -61,6 +62,7 @@ export const ExecutionChain = ({
   icon: Icon = Wrench,
   className,
   contentClassName,
+  showHeader = true,
   onToggle,
 }: ExecutionChainProps) => {
   if (groups.length === 0) {
@@ -72,31 +74,42 @@ export const ExecutionChain = ({
   const hiddenGroupCount = groups.length - visibleGroups.length;
   const errorCount = groups.filter((group) => group.status === "error").length;
   const runningCount = groups.filter((group) => group.status === "running").length;
+  const shouldShowContent = !showHeader || !isCollapsed;
 
   return (
     <div className={cn("mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs", className)}>
-      <button
-        type="button"
-        className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-        onClick={onToggle}
-      >
-        {isCollapsed ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
-        <Icon className="size-3.5 shrink-0" />
-        <span className="shrink-0">{title}</span>
-        <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">{groups.length} 段</span>
-        {summaryText ? (
-          <span className="min-w-0 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">{summaryText}</span>
-        ) : null}
-        {errorCount > 0 && (
-          <span className="shrink-0 rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
-            {errorCount} 个错误
-          </span>
-        )}
-        {(isBusy || runningCount > 0) && <Loader2 className="ml-auto size-3 shrink-0 animate-spin" />}
-      </button>
+      {showHeader && (
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+          onClick={onToggle}
+        >
+          {isCollapsed ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+          <Icon className="size-3.5 shrink-0" />
+          <span className="shrink-0">{title}</span>
+          <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">{groups.length} 段</span>
+          {summaryText ? (
+            <span className="min-w-0 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">
+              {summaryText}
+            </span>
+          ) : null}
+          {errorCount > 0 && (
+            <span className="shrink-0 rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
+              {errorCount} 个错误
+            </span>
+          )}
+          {(isBusy || runningCount > 0) && <Loader2 className="ml-auto size-3 shrink-0 animate-spin" />}
+        </button>
+      )}
 
-      {!isCollapsed && (
-        <div className={cn("max-h-72 space-y-1.5 overflow-auto bg-background/45 px-2.5 py-2", contentClassName)}>
+      {shouldShowContent && (
+        <div
+          className={cn(
+            "max-h-72 space-y-1.5 overflow-auto bg-background/45 px-2.5 py-2",
+            !showHeader && "bg-transparent",
+            contentClassName,
+          )}
+        >
           {hiddenGroupCount > 0 && (
             <div className="rounded-sm bg-background/70 px-2 py-1 text-xs text-muted-foreground">
               已折叠较早的 {hiddenGroupCount} 段执行过程，当前显示最近阶段。
