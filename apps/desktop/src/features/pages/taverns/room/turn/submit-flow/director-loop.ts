@@ -1,7 +1,7 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type { TavernPageContextValue } from "@/features/pages/taverns/components/context";
+import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
@@ -99,7 +99,7 @@ export const runDirectorLoopTurn = async ({
   activeReplyRef: ActiveReplyRef;
   availableActiveCharacter: TavernCharacter | null;
   availableRoomCharacters: TavernCharacter[];
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   mode: TurnMode;
   references: TavernReferencedFile[];
   room: TavernRoom;
@@ -326,7 +326,7 @@ const startLoopSpeakerRuntime = ({
   speaker,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   runtimeRoom: TavernRoom;
   speaker: TavernCharacter;
@@ -367,7 +367,7 @@ const appendLoopSpeakerDelta = ({
   runtimeRoom,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   delta: string;
   runtime: LoopSpeakerRuntime;
   runtimeRoom: TavernRoom;
@@ -396,7 +396,7 @@ const finalizeLoopSpeakerRuntime = ({
   runtimeRoom,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   outputText: string;
   runtime: LoopSpeakerRuntime;
   runtimeRoom: TavernRoom;
@@ -455,7 +455,7 @@ const applyLoopSupervisorDecision = ({
 }: {
   availableActiveCharacter: TavernCharacter | null;
   availableRoomCharacters: TavernCharacter[];
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   decision: TavernLoopSupervisorDecision;
   room: TavernRoom;
   runtimeMessages: TavernMessage[];

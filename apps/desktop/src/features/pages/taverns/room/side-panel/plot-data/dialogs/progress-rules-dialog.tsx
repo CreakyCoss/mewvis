@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { isTavernProgressVisibilityVisibleToUser } from "@/features/pages/taverns/tavern/core";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   formatStatusRuleValue,
   formatStatusTarget,
@@ -17,7 +17,7 @@ import {
 } from "./shared";
 
 export const ProgressRulesDialog = ({ bind }: PlotDataDialogProps) => {
-  const { activeRoom, roomCharacters } = useTavernPageContext();
+  const { activeRoom, roomCharacters } = useTavernRoomContext();
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const statusDefinitionById = new Map(activeRoom?.statusDefinitions.map((definition) => [definition.id, definition]) ?? []);
   const visibleStatusDefinitions = activeRoom?.statusDefinitions.filter((definition) =>

@@ -17,7 +17,7 @@ import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientRuntimeSessionSnapshot, RuntimeSessionTimelineItem } from "@/agent-client/types";
 import { cn } from "@/lib/utils";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "@/features/pages/taverns/tavern/core";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { EmptyPanelCard, PanelSectionTitle } from "./shared";
 
 type TimelineFilter = "all" | "collaboration" | "agent" | "error";
@@ -132,12 +132,12 @@ const filterTimeline = (timeline: RuntimeSessionTimelineItem[], filter: Timeline
   return timeline.filter((item) => item.source === filter);
 };
 
-const activeSceneInstanceIdFor = (room: ReturnType<typeof useTavernPageContext>["activeRoom"]) =>
+const activeSceneInstanceIdFor = (room: ReturnType<typeof useTavernRoomContext>["activeRoom"]) =>
   room?.activeSceneInstanceId ?? room?.activeSceneId ?? room?.sceneInstances[0]?.id ?? room?.id ?? "";
 
 const buildRoleLabelMap = (
-  room: NonNullable<ReturnType<typeof useTavernPageContext>["activeRoom"]>,
-  characters: ReturnType<typeof useTavernPageContext>["roomCharacters"],
+  room: NonNullable<ReturnType<typeof useTavernRoomContext>["activeRoom"]>,
+  characters: ReturnType<typeof useTavernRoomContext>["roomCharacters"],
 ) =>
   new Map<string, string>([
     [tavernDirectorAgentRoleId(room), "导演"],
@@ -248,7 +248,7 @@ const RuntimeTimelineEvent = ({
 };
 
 export const RuntimeTimelineSection = () => {
-  const { activeRoom, roomCharacters, state, workspace, isSending } = useTavernPageContext();
+  const { activeRoom, roomCharacters, state, workspace, isSending } = useTavernRoomContext();
   const [snapshot, setSnapshot] = useState<AgentClientRuntimeSessionSnapshot | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);

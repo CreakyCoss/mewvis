@@ -1,5 +1,5 @@
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
-import type { TavernPageContextValue } from "@/features/pages/taverns/components/context";
+import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import type { ExecutionStep } from "../../execution-trace";
 import type {
   TavernWorkflowTraceEvent,
@@ -22,7 +22,7 @@ const agentTraceStepId = (workflowRunId: string, stepId: string) => `workflow:${
 
 const shortId = (value: string | null | undefined) => value?.slice(0, 8) ?? "runtime";
 
-const activeTraceSceneInstanceId = (ctx: TavernPageContextValue) =>
+const activeTraceSceneInstanceId = (ctx: TavernRoomContextValue) =>
   ctx.activeRoom?.activeSceneInstanceId ??
   ctx.activeRoom?.activeSceneId ??
   ctx.activeRoom?.sceneInstances[0]?.id ??
@@ -316,7 +316,7 @@ const applyEventToTraceRun = (
 };
 
 const persistCollaborationTraceEvent = (
-  ctx: TavernPageContextValue,
+  ctx: TavernRoomContextValue,
   event: AgentClientCollaborationEvent,
   options: CollaborationTraceOptions,
 ) => {
@@ -376,12 +376,12 @@ const persistCollaborationTraceEvent = (
   });
 };
 
-const upsertTraceStep = (ctx: TavernPageContextValue, step: ExecutionStep) => {
+const upsertTraceStep = (ctx: TavernRoomContextValue, step: ExecutionStep) => {
   ctx.upsertExecutionStep(step);
 };
 
 const patchAgentEventDetail = (
-  ctx: TavernPageContextValue,
+  ctx: TavernRoomContextValue,
   event: Extract<AgentClientCollaborationEvent, { type: "agent_event" }>,
 ) => {
   const nestedEvent = event.event;
@@ -423,7 +423,7 @@ const patchAgentEventDetail = (
 };
 
 export const applyTavernCollaborationTraceEvent = (
-  ctx: TavernPageContextValue,
+  ctx: TavernRoomContextValue,
   event: AgentClientCollaborationEvent,
   options: CollaborationTraceOptions = {},
 ) => {

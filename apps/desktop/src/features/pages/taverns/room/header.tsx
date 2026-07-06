@@ -16,7 +16,7 @@ import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { SceneSelector } from "./scene-selector";
 
 type HeaderProps = {
@@ -53,7 +53,7 @@ export const Header = ({
   onToggleManagedMode,
   onToggleSidePanel,
 }: HeaderProps) => {
-  const { activeRoom, visualPreset, isQuickSummaryBusy, isSending } = useTavernPageContext();
+  const { activeRoom, visualPreset, isQuickSummaryBusy, isSending } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }

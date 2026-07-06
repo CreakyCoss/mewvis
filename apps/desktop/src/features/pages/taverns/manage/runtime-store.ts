@@ -3,12 +3,12 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
 import type { TavernCharacter, TavernMessage, TavernRoom, TavernRoomSettings } from "../tavern/types";
 
-export type ManagementContextValue = {
+export type ManagementStoreValue = {
   rooms: TavernRoom[];
-  activeRoom: TavernRoom | null;
+  activeRoomId: string;
   characterById: Map<string, TavernCharacter>;
   messagesByRoomId: Record<string, TavernMessage[]>;
-  createRoom: () => string | void;
+  createRoom: () => TavernRoom | void;
   selectRoom: (roomId: string) => void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   copyRoom: (roomId: string) => boolean;
@@ -23,9 +23,9 @@ export type ManagementContextValue = {
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
 };
 
-const createInitialManagementContextValue = (): ManagementContextValue => ({
+const createInitialManagementStoreValue = (): ManagementStoreValue => ({
   rooms: [],
-  activeRoom: null,
+  activeRoomId: "",
   characterById: new Map(),
   messagesByRoomId: {},
   createRoom: () => undefined,
@@ -43,10 +43,8 @@ const createInitialManagementContextValue = (): ManagementContextValue => ({
   },
 });
 
-export const useManagementStore = create<ManagementContextValue>(() => createInitialManagementContextValue());
+export const useManagementStore = create<ManagementStoreValue>(() => createInitialManagementStoreValue());
 
-export const syncManagementStore = (value: ManagementContextValue) => {
+export const syncManagementStore = (value: ManagementStoreValue) => {
   useManagementStore.setState(value);
 };
-
-export const useManagementContext = () => useManagementStore();

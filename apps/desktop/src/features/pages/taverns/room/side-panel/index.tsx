@@ -2,7 +2,7 @@ import { useImperativeHandle, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TavernSceneNovelizerSection } from "@/features/scene-novelizer/adapters/tavern/TavernSceneNovelizerSection";
 import { cn } from "@/lib/utils";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
 import { IllustrationHintsPreviewSection } from "./illustration-hints-preview";
 import { PlotDataSection, type PlotDataSectionHandle } from "./plot-data";
@@ -26,7 +26,7 @@ export const SidePanel = ({
     visualPreset,
     workspace,
     isSending,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const [isSceneOperationBusy, setIsSceneOperationBusy] = useState(false);
   const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
   const [isCharacterOperationBusy, setIsCharacterOperationBusy] = useState(false);

@@ -1,4 +1,4 @@
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   requireRuntimeModelInput,
@@ -18,7 +18,7 @@ import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
 import { createTavernRuntimeRoomSnapshot } from "../tavern/adapters/runtime-room-snapshot";
 import type { TavernCharacter, TavernMessage, TavernRoom, TavernScene, TavernState } from "../tavern/types";
 import { sanitizeFileName } from "../room/quick-summary/utils";
-import { syncManagementStore, type ManagementContextValue } from "./context";
+import { syncManagementStore, type ManagementStoreValue } from "./runtime-store";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -31,29 +31,23 @@ const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.sc
 
 const getRoomActiveSceneInstanceId = (room: TavernRoom) => room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
 
-type ManagementProviderProps = {
+type ManagementStoreSyncOptions = {
   workspace: Workspace;
   state: TavernState;
   setState: Dispatch<SetStateAction<TavernState>>;
   onError?: (message: string) => void;
   onCloseActiveRoom: () => void;
-  children: ReactNode;
 };
 
-export const ManagementProvider = ({
+export const useSyncManagementStore = ({
   workspace,
   state,
   setState,
   onError,
   onCloseActiveRoom,
-  children,
-}: ManagementProviderProps) => {
+}: ManagementStoreSyncOptions) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
-  const activeRoom = useMemo(
-    () => state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null,
-    [state.activeRoomId, state.rooms],
-  );
   const characterById = useMemo(
     () =>
       new Map([
@@ -139,12 +133,12 @@ export const ManagementProvider = ({
           messagesByInstance: nextMessagesByInstance,
         };
       });
-      if (activeRoom?.id === roomId) {
+      if (state.activeRoomId === roomId) {
         onCloseActiveRoom();
       }
       return true;
     },
-    [activeRoom?.id, onCloseActiveRoom, setState, state.rooms],
+    [onCloseActiveRoom, setState, state.activeRoomId, state.rooms],
   );
 
   const copyRoom = useCallback(
@@ -551,7 +545,7 @@ export const ManagementProvider = ({
         [getRoomActiveSceneInstanceId(nextRoom)]: [],
       },
     }));
-    return nextRoom.id;
+    return nextRoom;
   }, [setState, state.rooms.length, workspace.id]);
 
   const selectRoom = useCallback(
@@ -605,10 +599,10 @@ export const ManagementProvider = ({
     [characterById, runtimeModel, workspace.path],
   );
 
-  const value = useMemo<ManagementContextValue>(
+  const value = useMemo<ManagementStoreValue>(
     () => ({
       rooms: state.rooms,
-      activeRoom,
+      activeRoomId: state.activeRoomId,
       characterById,
       messagesByRoomId,
       createRoom,
@@ -624,7 +618,6 @@ export const ManagementProvider = ({
       regenerateDirectorProfile,
     }),
     [
-      activeRoom,
       characterById,
       copyRoom,
       createRoom,
@@ -638,6 +631,7 @@ export const ManagementProvider = ({
       runtimeModel,
       selectRoom,
       setRoomLocked,
+      state.activeRoomId,
       state.rooms,
     ],
   );
@@ -652,5 +646,5 @@ export const ManagementProvider = ({
     syncManagementStore(value);
   }, [value]);
 
-  return children;
+  return value;
 };

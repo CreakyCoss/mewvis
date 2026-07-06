@@ -81,7 +81,7 @@ import type {
   TavernTaskDefinition,
   TavernTaskState,
 } from "@/features/pages/taverns/tavern/types";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   compactText,
   MeterBar,
@@ -1221,7 +1221,7 @@ export const SceneOverviewSection = ({
     resetExecutionTrace,
     patchExecutionStep,
     setExecutionTraceAnchorMessageId,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const [isTrackingProgress, setIsTrackingProgress] = useState(false);
   const [secretDialogMode, setSecretDialogMode] = useState<"record" | "reveal" | null>(null);
   const [secretDraftText, setSecretDraftText] = useState("");

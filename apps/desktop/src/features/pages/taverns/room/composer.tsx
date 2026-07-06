@@ -6,7 +6,7 @@ import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "@/features/pages/taverns/tavern/types";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 
 type ComposerProps = {
   referencedFilePreviews: WorkspaceFileEntry[];
@@ -45,7 +45,7 @@ export const Composer = ({
     setDraft,
     setDraftCursor,
     visualPreset,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const isManagedAutoRunning = isManagedModeEnabled && isManagedAutoRunStarted;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
   const placeholder = isManagedAutoRunning

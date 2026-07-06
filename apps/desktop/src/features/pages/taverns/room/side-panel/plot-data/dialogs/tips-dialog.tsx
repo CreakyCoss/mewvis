@@ -1,5 +1,5 @@
 import { Switch } from "@/components/ui/switch";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   buildTavernCurrentCharacterMemoriesText,
   buildTavernCurrentSceneMemoryText,
@@ -13,7 +13,7 @@ import {
 } from "./shared";
 
 export const TipsDialog = ({ bind }: PlotDataDialogProps) => {
-  const { activeRoom, isSending, patchRoom, roomCharacters } = useTavernPageContext();
+  const { activeRoom, isSending, patchRoom, roomCharacters } = useTavernRoomContext();
   const userPersonaName = activeRoom?.userPersonaName.trim() ?? "";
   const sceneStatusItems = activeRoom ? [
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "director"]}`,

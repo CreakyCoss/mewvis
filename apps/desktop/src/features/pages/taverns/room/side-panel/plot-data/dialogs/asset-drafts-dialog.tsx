@@ -17,7 +17,7 @@ import type {
   TavernAssetDraft,
   TavernCharacter,
 } from "@/features/pages/taverns/tavern/types";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   ConfirmActionDialog,
   EmptyDetailState,
@@ -156,7 +156,7 @@ const AssetDraftPreview = ({
 };
 
 export const AssetDraftsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
-  const { activeRoom, roomCharacters, patchRoom } = useTavernPageContext();
+  const { activeRoom, roomCharacters, patchRoom } = useTavernRoomContext();
   const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
 
   const applyAssetDraft = (draftId: string) => {

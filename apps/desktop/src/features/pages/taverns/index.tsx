@@ -1,28 +1,38 @@
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MoreHorizontal, Plus, TriangleAlertIcon, Wine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ManagementPage } from "@/features/pages/taverns/manage";
-import { ManagementProvider } from "@/features/pages/taverns/manage/provider";
 import {
-  TavernPageProvider,
-  useTavernPageContext,
-} from "@/features/pages/taverns/components/context";
-import { TavernRoomDialog } from "@/features/pages/taverns/room";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
-  TAVERN_ROOM_SEARCH_PARAM,
-  TAVERN_SCENE_INSTANCE_SEARCH_PARAM,
-  TAVERN_STORY_SEARCH_PARAM,
-  TAVERN_STORY_NODE_SEARCH_PARAM,
-  TAVERN_ID_SEARCH_PARAM,
-  TAVERN_RUNTIME_PATH_SEARCH_PARAM,
-} from "@/features/pages/taverns/navigation";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  syncTavernRoomActiveScene,
-  switchTavernRoomSceneInstance,
-} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
-import { disposeTavernBridgeSessionWorkers } from "@/features/pages/taverns/tavern/runtime/conversation";
+  formatCount,
+  OrdinaryCreate,
+  type OrdinaryCreateHandle,
+  RoomCard,
+  RoomCardRuntimeProvider,
+  RoomEditor,
+  type RoomEditorHandle,
+  type PendingDangerAction,
+  useSyncManagementStore,
+} from "@/features/pages/taverns/manage";
+import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
+import { parseTavernRouteSearch } from "@/features/pages/taverns/navigation";
+import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
 import {
   loadTavernState,
@@ -30,10 +40,8 @@ import {
   type TavernRuntimeScope,
 } from "@/features/pages/taverns/tavern/state/storage";
 import type { TavernRoom, TavernState } from "@/features/pages/taverns/tavern/types";
-import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { useLlmSettingsStore } from "../settings/llm/store";
 
 const LoadingState = () => (
   <section className="flex h-full min-h-0 items-center justify-center bg-background text-sm text-muted-foreground">
@@ -73,16 +81,9 @@ export const TavernPage = () => {
   const workspaces = overview?.workspaces ?? [];
   const workspace =
     workspaces.find((item) => item.id === workspaceId) ?? activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
-  const searchParams = new URLSearchParams(location.search);
-  const initialRoomId = searchParams.get(TAVERN_ROOM_SEARCH_PARAM) ?? "";
-  const initialSceneInstanceId = searchParams.get(TAVERN_SCENE_INSTANCE_SEARCH_PARAM) ?? "";
-  const storyId = searchParams.get(TAVERN_STORY_SEARCH_PARAM)?.trim() ?? "";
-  const storyNodeId = searchParams.get(TAVERN_STORY_NODE_SEARCH_PARAM)?.trim() ?? "";
-  const tavernId = searchParams.get(TAVERN_ID_SEARCH_PARAM)?.trim() ?? "";
-  const tavernRuntimePath = searchParams.get(TAVERN_RUNTIME_PATH_SEARCH_PARAM)?.trim() ?? "";
-  const isStoryRuntimeRequest = Boolean(storyId || tavernId || tavernRuntimePath);
+  const routeSearch = parseTavernRouteSearch(location.search);
   const exitTavernSurface = () => {
-    if (isStoryRuntimeRequest) {
+    if (routeSearch.isStoryRuntimeRequest) {
       navigate(
         {
           pathname: "/stories",
@@ -103,20 +104,20 @@ export const TavernPage = () => {
     );
   };
 
-  const storyRuntimeWorkspace = isStoryRuntimeRequest
+  const storyRuntimeWorkspace = routeSearch.isStoryRuntimeRequest
     ? storyRuntimeWorkspaceFromPath({
         workspaceId,
-        storyId,
-        runtimePath: tavernRuntimePath,
+        storyId: routeSearch.storyId,
+        runtimePath: routeSearch.runtimePath,
       })
     : null;
-  const tavernWorkspace = isStoryRuntimeRequest ? storyRuntimeWorkspace : workspace;
+  const tavernWorkspace = routeSearch.isStoryRuntimeRequest ? storyRuntimeWorkspace : workspace;
 
-  if (!isStoryRuntimeRequest && !tavernWorkspace && !overview) {
+  if (!routeSearch.isStoryRuntimeRequest && !tavernWorkspace && !overview) {
     return <LoadingState />;
   }
 
-  if (isStoryRuntimeRequest && !storyRuntimeWorkspace) {
+  if (routeSearch.isStoryRuntimeRequest && !storyRuntimeWorkspace) {
     return <StoryRuntimeMissingState onGoHome={() => navigate("/", { replace: true })} />;
   }
 
@@ -127,14 +128,9 @@ export const TavernPage = () => {
   return (
     <TavernsPageRuntime
       workspace={tavernWorkspace}
-      runtimeScope={{
-        storyId: storyId || undefined,
-        storyNodeId: storyNodeId || undefined,
-        tavernId: tavernId || undefined,
-        runtimePath: tavernRuntimePath || undefined,
-      }}
-      initialRoomId={initialRoomId || tavernId}
-      initialSceneInstanceId={initialSceneInstanceId}
+      runtimeScope={routeSearch.runtimeScope}
+      initialRoomId={routeSearch.initialRoomId}
+      initialSceneInstanceId={routeSearch.initialSceneInstanceId}
       onExitStoryRuntime={exitTavernSurface}
     />
   );
@@ -189,52 +185,19 @@ const TavernsPageRuntime = ({
   initialSceneInstanceId,
   onExitStoryRuntime,
 }: TavernsPageRuntimeProps) => {
-  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
-  const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
-  const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
-
-  useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    void listWorkspaceFiles(workspace.path)
-      .then((nextFiles) => {
-        if (!isCancelled) {
-          setFiles(nextFiles);
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setFiles([]);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [workspace.path]);
-
   return (
-    <TavernPageProvider
+    <TavernsPageContent
       workspace={workspace}
-      runtimeModel={runtimeModels[0] ?? null}
-    >
-      <TavernsPageContent
-        files={files}
-        runtimeScope={runtimeScope}
-        initialRoomId={initialRoomId}
-        initialSceneInstanceId={initialSceneInstanceId}
-        onExitStoryRuntime={onExitStoryRuntime}
-      />
-    </TavernPageProvider>
+      runtimeScope={runtimeScope}
+      initialRoomId={initialRoomId}
+      initialSceneInstanceId={initialSceneInstanceId}
+      onExitStoryRuntime={onExitStoryRuntime}
+    />
   );
 };
 
 type TavernsPageContentProps = {
-  files: WorkspaceFileEntry[];
+  workspace: Workspace;
   runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
@@ -242,82 +205,41 @@ type TavernsPageContentProps = {
 };
 
 const TavernsPageContent = ({
-  files,
+  workspace,
   runtimeScope = {},
   initialRoomId,
   initialSceneInstanceId,
   onExitStoryRuntime,
 }: TavernsPageContentProps) => {
-  const {
-    activeRoom,
-    setDraft,
-    setDraftCursor,
-    setError,
-    setExecutionSteps,
-    setExecutionTraceAnchorMessageId,
-    setIsGeneratingReplySuggestions,
-    setIsManagedAutoRunStarted,
-    setIsManagedModeEnabled,
-    setIsQuickSummaryBusy,
-    setIsSending,
-    setReplySuggestions,
-    setState,
-    setTurnStatus,
-    state,
-    workspace,
-  } = useTavernPageContext();
   const runtimeScopeKey = `${runtimeScope.storyId ?? ""}:${runtimeScope.storyNodeId ?? ""}:${runtimeScope.tavernId ?? ""}:${runtimeScope.runtimePath ?? ""}`;
-  const tavernRuntimeScope = useMemo(() => ({
-    storyId: runtimeScope.storyId,
-    storyNodeId: runtimeScope.storyNodeId,
-    tavernId: runtimeScope.tavernId,
-    runtimePath: runtimeScope.runtimePath,
-  }), [runtimeScope.runtimePath, runtimeScope.storyId, runtimeScope.storyNodeId, runtimeScope.tavernId]);
-  const isStoryRuntimeScope = Boolean(
-    tavernRuntimeScope.storyId &&
-    tavernRuntimeScope.tavernId &&
-    tavernRuntimeScope.runtimePath,
+  const tavernRuntimeScope = useMemo(
+    () => ({
+      storyId: runtimeScope.storyId,
+      storyNodeId: runtimeScope.storyNodeId,
+      tavernId: runtimeScope.tavernId,
+      runtimePath: runtimeScope.runtimePath,
+    }),
+    [runtimeScope.runtimePath, runtimeScope.storyId, runtimeScope.storyNodeId, runtimeScope.tavernId],
   );
+  const isStoryRuntimeScope = Boolean(
+    tavernRuntimeScope.storyId && tavernRuntimeScope.tavernId && tavernRuntimeScope.runtimePath,
+  );
+  const [state, setState] = useState<TavernState>(() =>
+    isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id),
+  );
+  const activeRoom = useMemo(() => {
+    const room = state.rooms.find((room) => room.id === state.activeRoomId) ?? state.rooms[0] ?? null;
+    return room ? projectTavernSceneOntoRoom(room) : null;
+  }, [state.activeRoomId, state.rooms]);
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
-  const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(isStoryRuntimeScope);
+  const roomDialogRef = useRef<TavernRoomHandle>(null);
+  const ordinaryCreateRef = useRef<OrdinaryCreateHandle>(null);
+  const roomEditorRef = useRef<RoomEditorHandle>(null);
   const workspaceIdRef = useRef(workspace.id);
-  const tavernRoomsRef = useRef<TavernRoom[]>(state.rooms);
   const initialOpenKeyRef = useRef("");
   const runtimeScopeKeyRef = useRef(runtimeScopeKey);
-
-  useEffect(() => {
-    tavernRoomsRef.current = state.rooms;
-  }, [state.rooms]);
-
-  useEffect(() => {
-    const workspaceId = workspace.id;
-    const workspacePath = workspace.path;
-
-    return () => {
-      const rooms = [
-        ...new Map(
-          tavernRoomsRef.current
-            .filter((room) => room.workspaceId === workspaceId)
-            .map((room) => [room.id, room] as const),
-        ).values(),
-      ];
-
-      if (rooms.length === 0) {
-        return;
-      }
-
-      void Promise.allSettled(
-        rooms.map((room) => disposeTavernBridgeSessionWorkers({ workspacePath, room })),
-      ).then((results) => {
-        const failed = results.find(
-          (result): result is PromiseRejectedResult => result.status === "rejected",
-        );
-        if (failed) {
-          console.warn("Failed to dispose tavern bridge workers", failed.reason);
-        }
-      });
-    };
-  }, [workspace.id, workspace.path]);
+  const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
+  const [roomOperationStatus, setRoomOperationStatus] = useState("");
 
   useEffect(() => {
     const didWorkspaceChange = workspaceIdRef.current !== workspace.id;
@@ -331,37 +253,7 @@ const TavernsPageContent = ({
     initialOpenKeyRef.current = "";
     setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
     setIsTavernStateHydrated(false);
-    setIsRoomDialogOpen(isStoryRuntimeScope);
-    setDraft("");
-    setDraftCursor(0);
-    setError("");
-    setIsManagedModeEnabled(false);
-    setIsManagedAutoRunStarted(false);
-    setIsSending(false);
-    setIsGeneratingReplySuggestions(false);
-    setReplySuggestions([]);
-    setIsQuickSummaryBusy(false);
-    setTurnStatus("");
-    setExecutionSteps([]);
-    setExecutionTraceAnchorMessageId("");
-  }, [
-    isStoryRuntimeScope,
-    runtimeScopeKey,
-    setDraft,
-    setDraftCursor,
-    setError,
-    setExecutionSteps,
-    setExecutionTraceAnchorMessageId,
-    setIsGeneratingReplySuggestions,
-    setIsManagedAutoRunStarted,
-    setIsManagedModeEnabled,
-    setIsQuickSummaryBusy,
-    setIsSending,
-    setReplySuggestions,
-    setState,
-    setTurnStatus,
-    workspace.id,
-  ]);
+  }, [isStoryRuntimeScope, runtimeScopeKey, setState, workspace.id]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -382,9 +274,11 @@ const TavernsPageContent = ({
         }
 
         console.error("Failed to load tavern state", loadError);
-        toast.error(isStoryRuntimeScope
-          ? "无法加载故事酒馆记录，请从故事页重新进入或重建。"
-          : "无法加载酒馆记录，已使用默认酒馆。");
+        toast.error(
+          isStoryRuntimeScope
+            ? "无法加载故事酒馆记录，请从故事页重新进入或重建。"
+            : "无法加载酒馆记录，已使用默认酒馆。",
+        );
         setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
         setIsTavernStateHydrated(true);
       });
@@ -395,10 +289,7 @@ const TavernsPageContent = ({
   }, [isStoryRuntimeScope, runtimeScopeKey, setState, tavernRuntimeScope, workspace.id, workspace.path]);
 
   useEffect(() => {
-    if (
-      isTavernStateHydrated &&
-      state.rooms.some((room) => room.workspaceId === workspace.id)
-    ) {
+    if (isTavernStateHydrated && state.rooms.some((room) => room.workspaceId === workspace.id)) {
       void saveTavernState(workspace.path, workspace.id, state, tavernRuntimeScope).catch((saveError) => {
         console.error("Failed to save tavern state", saveError);
       });
@@ -413,24 +304,20 @@ const TavernsPageContent = ({
     setState(createDefaultTavernState(workspace.id));
   }, [isStoryRuntimeScope, isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
 
-  const openTavernRoom = useCallback((room: TavernRoom, sceneInstanceId?: string) => {
-    setState((current) => {
-      const currentRoom = current.rooms.find((item) => item.id === room.id) ?? room;
-      const nextRoom = sceneInstanceId
-        ? switchTavernRoomSceneInstance(currentRoom, sceneInstanceId)
-        : syncTavernRoomActiveScene(currentRoom);
-      const hasRoom = current.rooms.some((item) => item.id === room.id);
-
-      return {
-        ...current,
-        activeRoomId: room.id,
-        rooms: hasRoom
-          ? current.rooms.map((item) => item.id === room.id ? nextRoom : item)
-          : [...current.rooms, nextRoom],
-      };
-    });
-    setIsRoomDialogOpen(true);
-  }, [setState]);
+  const openTavernRoom = useCallback(
+    (room: TavernRoom, sceneInstanceId?: string) => {
+      roomDialogRef.current?.({
+        workspace,
+        runtimeScope: tavernRuntimeScope,
+        room,
+        storyData: state,
+        sceneInstanceId,
+        onStateChange: setState,
+        onClose: isStoryRuntimeScope ? onExitStoryRuntime : undefined,
+      });
+    },
+    [isStoryRuntimeScope, onExitStoryRuntime, state, tavernRuntimeScope, workspace],
+  );
 
   useEffect(() => {
     if (!isTavernStateHydrated || !initialRoomId) {
@@ -449,22 +336,54 @@ const TavernsPageContent = ({
 
     initialOpenKeyRef.current = key;
     openTavernRoom(room, initialSceneInstanceId);
-  }, [
-    initialRoomId,
-    initialSceneInstanceId,
-    isTavernStateHydrated,
-    openTavernRoom,
-    state.rooms,
-  ]);
+  }, [initialRoomId, initialSceneInstanceId, isTavernStateHydrated, openTavernRoom, state.rooms]);
 
-  const closeRoomDialog = useCallback(() => {
-    if (isStoryRuntimeScope) {
-      onExitStoryRuntime();
+  const reportManagementError = useCallback((message: string) => {
+    if (message) {
+      toast.error(message);
+    }
+  }, []);
+
+  const management = useSyncManagementStore({
+    workspace,
+    state,
+    setState,
+    onError: reportManagementError,
+    onCloseActiveRoom: () => undefined,
+  });
+  const {
+    rooms,
+    characterById,
+    messagesByRoomId,
+    createRoom,
+    patchRoom,
+    globalRuntimeModel,
+    runTextFieldAgent,
+    regenerateDirectorProfile,
+  } = management;
+  const totalRoomMessageCount = Object.values(messagesByRoomId).reduce((sum, messages) => sum + messages.length, 0);
+  const totalRoomCharacterCount = rooms.reduce((sum, room) => sum + (room.localCharacters?.length ?? 0), 0);
+
+  const requestDangerAction = (action: PendingDangerAction) => {
+    setPendingDangerAction(action);
+  };
+
+  const openRoomEditor = (room: TavernRoom) => {
+    roomEditorRef.current?.(room);
+  };
+
+  const closeDangerAction = () => {
+    setPendingDangerAction(null);
+  };
+
+  const confirmDangerAction = () => {
+    if (!pendingDangerAction) {
       return;
     }
 
-    setIsRoomDialogOpen(false);
-  }, [isStoryRuntimeScope, onExitStoryRuntime]);
+    pendingDangerAction.onConfirm();
+    closeDangerAction();
+  };
 
   if (!isTavernStateHydrated) {
     return (
@@ -485,24 +404,128 @@ const TavernsPageContent = ({
   }
 
   return (
-    <>
+    <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-background text-foreground">
       {!isStoryRuntimeScope && (
-        <ManagementProvider
-          workspace={workspace}
-          state={state}
-          setState={setState}
-          onError={setError}
-          onCloseActiveRoom={() => setIsRoomDialogOpen(false)}
-        >
-          <ManagementPage onOpenRoom={openTavernRoom} />
-        </ManagementProvider>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex w-full flex-col gap-4 px-5 py-5 lg:px-7">
+            <header className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
+                  <Wine className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="truncate text-xl font-semibold leading-7">酒馆管理</h1>
+                  <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>{formatCount(rooms.length, "房间")}</span>
+                    <span>{formatCount(totalRoomCharacterCount, "角色")}</span>
+                    <span>{formatCount(totalRoomMessageCount, "消息")}</span>
+                    {roomOperationStatus && <span aria-live="polite">{roomOperationStatus}</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <OrdinaryCreate
+                  bind={ordinaryCreateRef}
+                  onCreateRoom={createRoom}
+                  onOpenRoomEditor={openRoomEditor}
+                  onOperationStatusChange={setRoomOperationStatus}
+                  showTrigger={false}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="size-9"
+                      title="更多酒馆操作"
+                      aria-label="更多酒馆操作"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuLabel>酒馆操作</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => ordinaryCreateRef.current?.()}>
+                      <Plus className="size-4" />
+                      普通创建
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </header>
+
+            <section className="space-y-3">
+              <RoomCardRuntimeProvider
+                value={{
+                  openRoomEditor,
+                  onRequestDangerAction: requestDangerAction,
+                  onOperationStatusChange: setRoomOperationStatus,
+                }}
+              >
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-start gap-5">
+                  {rooms.length > 0 ? (
+                    rooms.map((room) => <RoomCard key={room.id} room={room} />)
+                  ) : (
+                    <div className="col-span-full rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+                      酒馆暂无房间。可以手动创建一个空房间并维护酒馆配置。
+                    </div>
+                  )}
+                </div>
+              </RoomCardRuntimeProvider>
+            </section>
+          </div>
+        </ScrollArea>
       )}
 
-      <TavernRoomDialog
-        files={files}
-        isOpen={isRoomDialogOpen && Boolean(activeRoom)}
-        onClose={closeRoomDialog}
+      <TavernRoomDialog bind={roomDialogRef} />
+      <Dialog
+        open={Boolean(pendingDangerAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDangerAction();
+          }
+        }}
+      >
+        {pendingDangerAction && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                  <TriangleAlertIcon className="size-4" />
+                </span>
+                <DialogTitle>{pendingDangerAction.title}</DialogTitle>
+              </div>
+              <DialogDescription>{pendingDangerAction.description}</DialogDescription>
+            </DialogHeader>
+
+            {pendingDangerAction.summary && (
+              <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                {pendingDangerAction.summary}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDangerAction}>
+                取消
+              </Button>
+              <Button type="button" variant="destructive" onClick={confirmDangerAction}>
+                {pendingDangerAction.confirmLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      <RoomEditor
+        bind={roomEditorRef}
+        characterById={characterById}
+        messagesByRoomId={messagesByRoomId}
+        globalRuntimeModel={globalRuntimeModel}
+        onPatchRoom={patchRoom}
+        onRunTextFieldAgent={runTextFieldAgent}
+        onRegenerateDirectorProfile={regenerateDirectorProfile}
       />
-    </>
+    </div>
   );
 };

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import type { TavernCharacter, TavernMessage, TavernRoom } from "../../types";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";
@@ -15,7 +15,7 @@ type MessageRoleRendererContext = {
   character: TavernCharacter | null;
   isSending: boolean;
   message: TavernRenderableMessage;
-  visualPreset: ReturnType<typeof useTavernPageContext>["visualPreset"];
+  visualPreset: ReturnType<typeof useTavernRoomContext>["visualPreset"];
 };
 
 const messageRoleRenderers: Record<
@@ -65,7 +65,7 @@ export const MessageRow = ({
     characterById,
     isSending,
     visualPreset,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }

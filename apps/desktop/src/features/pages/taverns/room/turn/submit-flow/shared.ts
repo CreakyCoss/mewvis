@@ -4,7 +4,7 @@ import {
 } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import type { TavernPageContextValue } from "@/features/pages/taverns/components/context";
+import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
 import {
   isTavernCharacterAvailableForSpeech,
@@ -266,7 +266,7 @@ export const beginTurnSubmission = ({
   room,
   mode,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   mode: TurnMode;
 }) => {
@@ -293,7 +293,7 @@ export const abortTurnSubmission = ({
   ctx,
   mode,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   mode: TurnMode;
 }) => {
   if (mode.isManagedMode) {
@@ -308,7 +308,7 @@ export const readTurnReferences = async ({
   referencedFilePreviews,
   readReferencedFiles,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   referencedFilePreviews: WorkspaceFileEntry[];
   readReferencedFiles: () => Promise<TavernReferencedFile[]>;
 }) => {
@@ -328,7 +328,7 @@ export const resolveManagedUserText = async ({
   mode,
   storyContext,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   runtimeModel: RuntimeModelOption;
   draftText: string;
@@ -433,7 +433,7 @@ export const prepareTurnTraceAndUserMessage = ({
   runtime,
   mode,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
@@ -485,7 +485,7 @@ export const handleTurnFailure = ({
   activeReplyRef,
   mode,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   error: unknown;
   activeReplyRef: ActiveReplyRef;

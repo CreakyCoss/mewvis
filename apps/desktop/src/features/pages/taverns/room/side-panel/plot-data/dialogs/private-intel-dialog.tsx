@@ -1,5 +1,5 @@
 import { filterTavernFactEventsForAudience } from "@/features/pages/taverns/tavern/core";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   formatFactAudience,
   isHiddenFactEvent,
@@ -11,7 +11,7 @@ import {
 } from "./shared";
 
 export const PrivateIntelDialog = ({ bind }: PlotDataDialogProps) => {
-  const { activeRoom, roomCharacters } = useTavernPageContext();
+  const { activeRoom, roomCharacters } = useTavernRoomContext();
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const privateIntelEvents = activeRoom ? filterTavernFactEventsForAudience({
     factEvents: activeRoom.factEvents,

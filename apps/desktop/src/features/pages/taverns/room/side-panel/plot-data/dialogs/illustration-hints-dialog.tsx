@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   ConfirmActionDialog,
   EmptyDetailState,
@@ -11,7 +11,7 @@ import {
 } from "./shared";
 
 export const IllustrationHintsDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
-  const { activeRoom, patchRoom } = useTavernPageContext();
+  const { activeRoom, patchRoom } = useTavernRoomContext();
   const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
 
   const clearIllustrationHints = () => {

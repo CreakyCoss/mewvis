@@ -15,7 +15,7 @@ import type {
   TavernStatusValue,
 } from "@/features/pages/taverns/tavern/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 
 type ProgressPanelProps = {
   placement: TavernProgressView["placement"];
@@ -593,7 +593,7 @@ export const ProgressPanel = ({
     roomCharacters,
     activeCharacter,
     visualPreset,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }

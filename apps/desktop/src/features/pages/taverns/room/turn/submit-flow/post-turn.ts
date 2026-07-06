@@ -1,6 +1,6 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type { TavernPageContextValue } from "@/features/pages/taverns/components/context";
+import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
@@ -30,7 +30,7 @@ export const syncOpenPendingInteractions = ({
   room,
   openPendingInteractions,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   openPendingInteractions: TavernPendingInteractions;
 }) => {
@@ -61,7 +61,7 @@ export const runProgressTrackingStep = async ({
   shouldShowProgressTrace,
   storyContext,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   runtimeRoom: TavernRoom;
   runtimeMessages: TavernMessage[];
@@ -186,7 +186,7 @@ export const runAssetExtractionStep = async ({
   mode,
   storyContext,
 }: {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   room: TavernRoom;
   runtimeRoom: TavernRoom;
   runtimeMessages: TavernMessage[];

@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import type { TavernPageContextValue } from "@/features/pages/taverns/components/context";
+import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import {
   buildTavernStoryContextPackage,
 } from "@/features/pages/taverns/tavern/adapters/story";
@@ -41,7 +41,7 @@ export type SubmitRoomTurnTrigger = {
 };
 
 type SubmitRoomTurnParams = {
-  ctx: TavernPageContextValue;
+  ctx: TavernRoomContextValue;
   event?: FormEvent;
   submittedText?: string;
   selectedReplyOption?: TavernReplyOption;

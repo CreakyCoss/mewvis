@@ -5,7 +5,32 @@ export const TAVERN_STORY_NODE_SEARCH_PARAM = "storyNodeId";
 export const TAVERN_ID_SEARCH_PARAM = "tavernId";
 export const TAVERN_RUNTIME_PATH_SEARCH_PARAM = "tavernRuntimePath";
 
+export type TavernRouteSearchState = {
+  roomId: string;
+  sceneInstanceId: string;
+  storyId: string;
+  storyNodeId: string;
+  tavernId: string;
+  runtimePath: string;
+  isStoryRuntimeRequest: boolean;
+  runtimeScope: {
+    storyId?: string;
+    storyNodeId?: string;
+    tavernId?: string;
+    runtimePath?: string;
+  };
+  initialRoomId: string;
+  initialSceneInstanceId: string;
+};
+
 type SearchParamValue = string | number | null | undefined;
+
+const searchParamsFrom = (search: string | URLSearchParams) =>
+  typeof search === "string" ? new URLSearchParams(search) : search;
+
+const getSearchParam = (params: URLSearchParams, key: string) => params.get(key) ?? "";
+
+const getTrimmedSearchParam = (params: URLSearchParams, key: string) => params.get(key)?.trim() ?? "";
 
 const buildTavernSearch = (entries: Record<string, SearchParamValue>) => {
   const params = new URLSearchParams();
@@ -45,4 +70,33 @@ export const buildTavernOpenSearch = ({
     [TAVERN_ID_SEARCH_PARAM]: tavernId,
     [TAVERN_RUNTIME_PATH_SEARCH_PARAM]: runtimePath,
   });
+};
+
+export const parseTavernRouteSearch = (search: string | URLSearchParams): TavernRouteSearchState => {
+  const params = searchParamsFrom(search);
+  const roomId = getSearchParam(params, TAVERN_ROOM_SEARCH_PARAM);
+  const sceneInstanceId = getSearchParam(params, TAVERN_SCENE_INSTANCE_SEARCH_PARAM);
+  const storyId = getTrimmedSearchParam(params, TAVERN_STORY_SEARCH_PARAM);
+  const storyNodeId = getTrimmedSearchParam(params, TAVERN_STORY_NODE_SEARCH_PARAM);
+  const tavernId = getTrimmedSearchParam(params, TAVERN_ID_SEARCH_PARAM);
+  const runtimePath = getTrimmedSearchParam(params, TAVERN_RUNTIME_PATH_SEARCH_PARAM);
+  const isStoryRuntimeRequest = Boolean(storyId || tavernId || runtimePath);
+
+  return {
+    roomId,
+    sceneInstanceId,
+    storyId,
+    storyNodeId,
+    tavernId,
+    runtimePath,
+    isStoryRuntimeRequest,
+    runtimeScope: {
+      storyId: storyId || undefined,
+      storyNodeId: storyNodeId || undefined,
+      tavernId: tavernId || undefined,
+      runtimePath: runtimePath || undefined,
+    },
+    initialRoomId: roomId || tavernId,
+    initialSceneInstanceId: sceneInstanceId,
+  };
 };

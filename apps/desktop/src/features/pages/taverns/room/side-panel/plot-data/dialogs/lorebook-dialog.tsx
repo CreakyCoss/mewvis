@@ -1,4 +1,4 @@
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   EmptyDetailState,
   PlotDataSheet,
@@ -6,7 +6,7 @@ import {
 } from "./shared";
 
 export const LorebookDialog = ({ bind }: PlotDataDialogProps) => {
-  const { activeRoom } = useTavernPageContext();
+  const { activeRoom } = useTavernRoomContext();
 
   return (
     <PlotDataSheet

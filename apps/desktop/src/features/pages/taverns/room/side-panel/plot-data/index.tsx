@@ -33,7 +33,7 @@ import {
   createTavernAssetDraft,
 } from "@/features/pages/taverns/tavern/factories/asset-factories";
 import type { TavernAssetDraft } from "@/features/pages/taverns/tavern/types";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { DetailPanelKey } from "../types";
 import {
   AssetDraftsDialog,
@@ -167,7 +167,7 @@ export const PlotDataSection = ({
     resetExecutionTrace,
     patchExecutionStep,
     setExecutionTraceAnchorMessageId,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const [isExtractingAssets, setIsExtractingAssets] = useState(false);
   const assetDraftsDialogRef = useRef<PlotDataDialogHandle | null>(null);
   const lorebookDialogRef = useRef<PlotDataDialogHandle | null>(null);

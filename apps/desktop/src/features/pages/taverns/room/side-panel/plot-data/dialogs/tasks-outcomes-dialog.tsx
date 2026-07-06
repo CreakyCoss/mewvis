@@ -9,7 +9,7 @@ import {
   isTavernProgressVisibilityVisibleToUser,
   resolveTavernPendingOutcomeEvent,
 } from "@/features/pages/taverns/tavern/core";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   formatConditionSummary,
   formatEntityRef,
@@ -31,7 +31,7 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
     patchRoom,
     reportError,
     appendProgressCheckpointToRoom,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const visibleTaskDefinitions = activeRoom?.taskDefinitions.filter((task) =>
     isTavernProgressVisibilityVisibleToUser(task.visibility)

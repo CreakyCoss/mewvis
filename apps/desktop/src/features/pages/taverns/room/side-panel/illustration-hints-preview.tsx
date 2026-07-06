@@ -1,9 +1,9 @@
 import { Sparkles } from "lucide-react";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { EmptyPanelCard } from "./shared";
 
 export const IllustrationHintsPreviewSection = () => {
-  const { activeRoom } = useTavernPageContext();
+  const { activeRoom } = useTavernRoomContext();
 
   if (!activeRoom) {
     return null;

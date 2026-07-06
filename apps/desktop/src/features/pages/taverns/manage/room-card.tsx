@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Copy,
   Download,
   LockKeyhole,
@@ -32,12 +31,12 @@ import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../tavern/visual-presets";
 import type { TavernCharacter, TavernRoom } from "../tavern/types";
 import { compactScene } from "../tavern/utils";
-import { useManagementContext } from "./context";
+import { useManagementStore } from "./runtime-store";
 import type { PendingDangerAction } from "./room-editor/types";
 import { emptyValueText } from "./room-editor/utils";
 
 type RoomCardRuntimeValue = {
-  openRoomEditor: (roomId: string) => void;
+  openRoomEditor: (room: TavernRoom) => void;
   onRequestDangerAction: (action: PendingDangerAction) => void;
   onOperationStatusChange?: (status: string) => void;
 };
@@ -73,12 +72,11 @@ type RoomCardProps = {
   onRoomRemove?: (roomId: string) => void;
   onRoomCopy?: (roomId: string) => void;
   onRoomChange?: (roomId: string) => void;
-  onOpenRoom?: (room: TavernRoom) => void;
 };
 
-export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange, onOpenRoom }: RoomCardProps) => {
+export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange }: RoomCardProps) => {
   const {
-    activeRoom,
+    activeRoomId,
     characterById,
     messagesByRoomId,
     selectRoom,
@@ -87,10 +85,10 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange, onOpenR
     setRoomLocked,
     deleteRoom,
     exportRoom,
-  } = useManagementContext();
+  } = useManagementStore();
   const { openRoomEditor, onRequestDangerAction, onOperationStatusChange } = useRoomCardRuntime();
 
-  const isActive = room.id === activeRoom?.id;
+  const isActive = room.id === activeRoomId;
   const roomCharacters = room.characterIds
     .map((characterId) => characterById.get(characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
@@ -110,11 +108,6 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange, onOpenR
 
   const setOperationStatus = (status: string) => {
     onOperationStatusChange?.(status);
-  };
-
-  const handleOpenRoom = () => {
-    selectRoom(room.id);
-    onOpenRoom?.(room);
   };
 
   const handleCopyRoom = () => {
@@ -311,22 +304,12 @@ export const RoomCard = ({ room, onRoomRemove, onRoomCopy, onRoomChange, onOpenR
       </button>
 
       <div className="border-t bg-background/80 p-2.5">
-        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_2.25rem] gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] gap-2">
           <Button
             type="button"
             size="sm"
             className="h-9 min-w-0 whitespace-nowrap text-sm shadow-[0_12px_28px_-22px_rgb(13_148_136_/_0.95)]"
-            onClick={handleOpenRoom}
-          >
-            <ArrowRight className="size-4 shrink-0" />
-            <span className="truncate">进入</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
-            onClick={() => openRoomEditor(room.id)}
+            onClick={() => openRoomEditor(room)}
           >
             <Pencil className="size-4 shrink-0" />
             <span className="truncate">编辑</span>

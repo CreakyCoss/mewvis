@@ -8,7 +8,7 @@ import {
   getTavernRuntimeStoryProjection,
   submitTavernStoryManuscript,
 } from "@/features/pages/taverns/tavern/adapters/story";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   generateQuickNovel,
   generateQuickSummary,
@@ -80,7 +80,7 @@ export const QuickSummary = ({
     isSending,
     visualPreset,
     setIsQuickSummaryBusy,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<QuickSummaryTab>("summary");
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);

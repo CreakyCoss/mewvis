@@ -2,13 +2,14 @@ import { Plus } from "lucide-react";
 import type { Ref } from "react";
 import { useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
+import type { TavernRoom } from "../tavern/types";
 
 export type OrdinaryCreateHandle = () => void;
 
 type OrdinaryCreateProps = {
   bind: Ref<OrdinaryCreateHandle>;
-  onCreateRoom: () => string | void;
-  onOpenRoomEditor: (roomId: string) => void;
+  onCreateRoom: () => TavernRoom | void;
+  onOpenRoomEditor: (room: TavernRoom) => void;
   onOperationStatusChange: (status: string) => void;
   showTrigger?: boolean;
 };
@@ -21,15 +22,15 @@ export const OrdinaryCreate = ({
   showTrigger = true,
 }: OrdinaryCreateProps) => {
   const open = () => {
-    const roomId = onCreateRoom();
+    const room = onCreateRoom();
     onOperationStatusChange("已创建普通酒馆。");
 
-    if (!roomId) {
+    if (!room) {
       return;
     }
 
     window.setTimeout(() => {
-      onOpenRoomEditor(roomId);
+      onOpenRoomEditor(room);
     }, 0);
   };
 

@@ -1,15 +1,7 @@
-import {
-  Activity,
-  LogOut,
-  Pencil,
-  ScrollText,
-  Settings2,
-  Sparkles,
-  Wine,
-} from "lucide-react";
+import { Activity, LogOut, Pencil, ScrollText, Settings2, Sparkles, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MouseEvent, Ref } from "react";
-import { useImperativeHandle, useState } from "react";
+import { useCallback, useImperativeHandle, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -17,19 +9,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import {
-  projectTavernSceneOntoRoom,
-} from "../../tavern/runtime/active-scene-runtime";
-import {
-  buildTavernStoryContextPackage,
-  getTavernRuntimeStoryProjection,
-} from "../../tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-  TavernRoomSettings,
-} from "../../tavern/types";
+import { projectTavernSceneOntoRoom } from "../../tavern/runtime/active-scene-runtime";
+import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "../../tavern/adapters/story";
+import type { TavernCharacter, TavernMessage, TavernRoom, TavernRoomSettings } from "../../tavern/types";
 import type { TavernTextFieldAgentRequest } from "../../tavern/runtime/assistants";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
@@ -38,19 +20,11 @@ import type { TavernPromptWarningNavigationRequest } from "./modules/prompt/warn
 import { ProgressSection } from "./modules/progress";
 import { SettingsSection } from "./modules/settings";
 import type { TextFieldAgentActionRenderer } from "./modules/types";
-import {
-  cloneTavernRoom,
-  getErrorMessage,
-  prepareTavernRoomForSave,
-} from "./utils";
+import { cloneTavernRoom, getErrorMessage, prepareTavernRoomForSave } from "./utils";
 
-export type RoomEditorHandle = (roomId: string) => void;
+export type RoomEditorHandle = (room: TavernRoom) => void;
 
-type EditorModuleId =
-  | "basic"
-  | "prompt"
-  | "settings"
-  | "progress";
+type EditorModuleId = "basic" | "prompt" | "settings" | "progress";
 
 type EditorModuleGroupId = "runtime";
 
@@ -108,32 +82,24 @@ const fullScreenDialogContentClassName =
 
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
-  rooms: TavernRoom[];
-  activeRoom: TavernRoom;
   characterById: Map<string, TavernCharacter>;
   messagesByRoomId: Record<string, TavernMessage[]>;
   globalRuntimeModel: RuntimeModelOption | null;
-  onSelectRoom: (roomId: string) => void;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
   onRegenerateDirectorProfile: (
     room: TavernRoom,
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
-  onOpenRoom: (room: TavernRoom) => void;
 };
 
 export const RoomEditor = ({
   bind,
-  rooms,
-  activeRoom,
   characterById,
   messagesByRoomId,
   globalRuntimeModel,
-  onSelectRoom,
   onPatchRoom,
   onRunTextFieldAgent,
   onRegenerateDirectorProfile,
-  onOpenRoom,
 }: RoomEditorProps) => {
   const navigate = useNavigate();
   const [data, setData] = useState<TavernRoom | null>(null);
@@ -141,20 +107,14 @@ export const RoomEditor = ({
   const [textFieldAgentError, setTextFieldAgentError] = useState("");
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
 
-  const openRoomEditor = (roomId: string) => {
-    const room = rooms.find((item) => item.id === roomId);
-    if (!room) {
-      return;
-    }
-
-    onSelectRoom(roomId);
+  const open = useCallback((room: TavernRoom) => {
     setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
     setActiveModuleId("basic");
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
-  };
+  }, []);
 
-  useImperativeHandle(bind, () => openRoomEditor);
+  useImperativeHandle(bind, () => open, [bind, open]);
 
   const closeRoomEditor = () => {
     setData(null);
@@ -177,16 +137,6 @@ export const RoomEditor = ({
     persistRoom({ ...data, ...patch });
   };
 
-  const enterRoom = () => {
-    if (!data) {
-      return;
-    }
-
-    const nextRoom = persistRoom(data);
-    onSelectRoom(nextRoom.id);
-    onOpenRoom(nextRoom);
-  };
-
   const openStoryConfig = () => {
     const storyId = data?.storyBinding?.storyId ?? data?.id;
     if (!storyId) {
@@ -200,7 +150,11 @@ export const RoomEditor = ({
   };
 
   const buildTextFieldAgentContext = () => {
-    const room = data ?? activeRoom;
+    if (!data) {
+      throw new Error("Room editor is not open.");
+    }
+
+    const room = data;
     const storyProjection = getTavernRuntimeStoryProjection(room);
     const storyContext = buildTavernStoryContextPackage({
       room,
@@ -327,9 +281,7 @@ export const RoomEditor = ({
     );
   };
 
-  const requestPromptWarningNavigation = (
-    request: TavernPromptWarningNavigationRequest,
-  ) => {
+  const requestPromptWarningNavigation = (request: TavernPromptWarningNavigationRequest) => {
     if (request.target === "runtimeBasic") {
       setActiveModuleId("basic");
       return;
@@ -346,11 +298,7 @@ export const RoomEditor = ({
     switch (activeModuleId) {
       case "basic":
         return (
-          <BasicSection
-            data={data}
-            onSave={onModuleSave}
-            renderTextFieldAgentActions={renderTextFieldAgentActions}
-          />
+          <BasicSection data={data} onSave={onModuleSave} renderTextFieldAgentActions={renderTextFieldAgentActions} />
         );
       case "prompt":
         return (
@@ -372,12 +320,7 @@ export const RoomEditor = ({
           />
         );
       case "progress":
-        return (
-          <ProgressSection
-            data={data}
-            onSave={onModuleSave}
-          />
-        );
+        return <ProgressSection data={data} onSave={onModuleSave} />;
     }
   };
 
@@ -444,7 +387,6 @@ export const RoomEditor = ({
                 characterById={characterById}
                 messagesByRoomId={messagesByRoomId}
                 textFieldAgentError={textFieldAgentError}
-                onEnterRoom={enterRoom}
                 onOpenStoryConfig={openStoryConfig}
               />
 
@@ -488,9 +430,7 @@ export const RoomEditor = ({
                     ))}
                   </nav>
 
-                  <div className="mx-auto w-full max-w-7xl">
-                    {renderActiveModule()}
-                  </div>
+                  <div className="mx-auto w-full max-w-7xl">{renderActiveModule()}</div>
                 </div>
               </ScrollArea>
             </div>

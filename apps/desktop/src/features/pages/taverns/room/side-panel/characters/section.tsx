@@ -27,7 +27,7 @@ import {
   compactTavernAgentKnowledge,
   rebuildTavernAgentKnowledge,
 } from "@/features/pages/taverns/tavern/runtime/conversation";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard } from "../shared";
 import {
@@ -83,7 +83,7 @@ export const CharacterStatusSection = ({
     patchExecutionStep,
     setExecutionTraceAnchorMessageId,
     workspace,
-  } = useTavernPageContext();
+  } = useTavernRoomContext();
   const [compactingCharacterIds, setCompactingCharacterIds] = useState<Set<string>>(() => new Set());
   const [rebuildingCharacterIds, setRebuildingCharacterIds] = useState<Set<string>>(() => new Set());
   const [extractingCharacterMemoryIds, setExtractingCharacterMemoryIds] = useState<Set<string>>(() => new Set());

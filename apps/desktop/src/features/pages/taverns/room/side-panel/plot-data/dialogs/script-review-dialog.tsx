@@ -11,7 +11,7 @@ import {
   resolveTavernInformationView,
   type TavernInformationView,
 } from "@/features/pages/taverns/tavern/core";
-import { useTavernPageContext } from "@/features/pages/taverns/components/context";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import {
   formatFactAudience,
   formatFactType,
@@ -27,7 +27,7 @@ import {
 } from "./shared";
 
 export const ScriptReviewDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
-  const { activeRoom, roomCharacters, patchRoom } = useTavernPageContext();
+  const { activeRoom, roomCharacters, patchRoom } = useTavernRoomContext();
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const currentInformationView = activeRoom ? resolveTavernInformationView({
     policy: activeRoom.settings.informationPolicy,
