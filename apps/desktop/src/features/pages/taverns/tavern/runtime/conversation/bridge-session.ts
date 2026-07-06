@@ -10,15 +10,9 @@ import {
   compactLedger,
 } from "@/features/ai/components/conversation-ledger/api";
 import type { LedgerResult } from "@/features/ai/components/conversation-ledger/types";
-import {
-  tavernBridgeSessionRootDir,
-  tavernBridgeSessionRootDirsForRoom,
-} from "../../core";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../types";
+import { tavernBridgeSessionRootDir, tavernBridgeSessionRootDirsForRoom } from "../../core";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { buildTavernBridgeSystemPrompt } from "../prompt";
 import { tavernBridgeSessionInput } from "./bridge-session/input";
 import { tavernMessagesToLedgerMessages } from "./bridge-session/messages-to-ledger";
@@ -29,14 +23,12 @@ export { tavernBridgeSessionInput } from "./bridge-session/input";
 export { tavernMessagesToLedgerMessages } from "./bridge-session/messages-to-ledger";
 export type { TavernBridgeSessionInput } from "./bridge-session/types";
 
-const resolveBridgeSessionCreateSystemPrompt = async (
-  input: TavernBridgeSessionInput,
-) => {
+const resolveBridgeSessionCreateSystemPrompt = async (input: TavernBridgeSessionInput) => {
   const sessionInput = tavernBridgeSessionInput(input);
   try {
     const ledger = await readLedger(sessionInput);
-    const hasCachedSystemPrompt = ledger?.messages.some((message) =>
-      message.role === "system" && message.content.trim()
+    const hasCachedSystemPrompt = ledger?.messages.some(
+      (message) => message.role === "system" && message.content.trim(),
     );
     return hasCachedSystemPrompt ? null : buildTavernBridgeSystemPrompt(input.room);
   } catch {
@@ -44,10 +36,7 @@ const resolveBridgeSessionCreateSystemPrompt = async (
   }
 };
 
-export const ensureTavernBridgeSession = async ({
-  workspacePath,
-  room,
-}: TavernBridgeSessionInput) => {
+export const ensureTavernBridgeSession = async ({ workspacePath, room }: TavernBridgeSessionInput) => {
   const systemPrompt = await resolveBridgeSessionCreateSystemPrompt({
     workspacePath,
     room,
@@ -64,12 +53,8 @@ export const ensureTavernBridgeSession = async ({
   });
 };
 
-export const readTavernBridgeSession = async ({
-  workspacePath,
-  room,
-}: TavernBridgeSessionInput) => readLedger(
-  tavernBridgeSessionInput({ workspacePath, room }),
-);
+export const readTavernBridgeSession = async ({ workspacePath, room }: TavernBridgeSessionInput) =>
+  readLedger(tavernBridgeSessionInput({ workspacePath, room }));
 
 export const deleteTavernBridgeSession = async ({
   workspacePath,
@@ -78,15 +63,11 @@ export const deleteTavernBridgeSession = async ({
   workspacePath: string;
   room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
 }) => {
-  const sessionRootDirs = Array.from(new Set([
-    tavernBridgeSessionRootDir(room),
-  ]));
+  const sessionRootDirs = Array.from(new Set([tavernBridgeSessionRootDir(room)]));
   const results = await Promise.allSettled(
     sessionRootDirs.map((sessionRootDir) => deleteLedger({ workspacePath, sessionRootDir })),
   );
-  const failed = results.find(
-    (result): result is PromiseRejectedResult => result.status === "rejected",
-  );
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
   if (failed) {
     throw failed.reason;
   }
@@ -100,13 +81,9 @@ export const deleteTavernBridgeSessionsForRoom = async ({
   room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
 }) => {
   const results = await Promise.allSettled(
-    tavernBridgeSessionRootDirsForRoom(room).map((sessionRootDir) =>
-      deleteLedger({ workspacePath, sessionRootDir })
-    ),
+    tavernBridgeSessionRootDirsForRoom(room).map((sessionRootDir) => deleteLedger({ workspacePath, sessionRootDir })),
   );
-  const failed = results.find(
-    (result): result is PromiseRejectedResult => result.status === "rejected",
-  );
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
   if (failed) {
     throw failed.reason;
   }
@@ -121,12 +98,10 @@ export const disposeTavernBridgeSessionWorkers = async ({
 }) => {
   const results = await Promise.allSettled(
     tavernBridgeSessionRootDirsForRoom(room).map((sessionRootDir) =>
-      disposeLedgerWorkers({ workspacePath, sessionRootDir })
+      disposeLedgerWorkers({ workspacePath, sessionRootDir }),
     ),
   );
-  const failed = results.find(
-    (result): result is PromiseRejectedResult => result.status === "rejected",
-  );
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
   if (failed) {
     throw failed.reason;
   }
@@ -179,13 +154,14 @@ export const summarizeTavernBridgeSession = async ({
   runtimeModel?: RuntimeModelInput | null;
   summaryInstruction?: string | null;
   maxSummaryChars?: number | null;
-}): Promise<LedgerResult | null> => summarizeLedger({
-  ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentRoleId,
-  runtimeModel,
-  summaryInstruction,
-  maxSummaryChars,
-});
+}): Promise<LedgerResult | null> =>
+  summarizeLedger({
+    ...tavernBridgeSessionInput({ workspacePath, room }),
+    agentRoleId,
+    runtimeModel,
+    summaryInstruction,
+    maxSummaryChars,
+  });
 
 export const compactTavernAgentKnowledge = async ({
   workspacePath,
@@ -199,12 +175,13 @@ export const compactTavernAgentKnowledge = async ({
   runtimeModel?: RuntimeModelInput | null;
   agentRoleId: string;
   compactInstruction?: string | null;
-}) => compactLedger({
-  ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentRoleId,
-  runtimeModel,
-  compactInstruction,
-});
+}) =>
+  compactLedger({
+    ...tavernBridgeSessionInput({ workspacePath, room }),
+    agentRoleId,
+    runtimeModel,
+    compactInstruction,
+  });
 
 export const rebuildTavernAgentKnowledge = async ({
   workspacePath,
@@ -220,10 +197,11 @@ export const rebuildTavernAgentKnowledge = async ({
   agentRoleId: string;
   rebuildInstruction?: string | null;
   userMessage?: string | null;
-}) => rebuildAgentLedgerSession({
-  ...tavernBridgeSessionInput({ workspacePath, room }),
-  agentRoleId,
-  runtimeModel,
-  rebuildInstruction,
-  userMessage,
-});
+}) =>
+  rebuildAgentLedgerSession({
+    ...tavernBridgeSessionInput({ workspacePath, room }),
+    agentRoleId,
+    runtimeModel,
+    rebuildInstruction,
+    userMessage,
+  });

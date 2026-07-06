@@ -37,7 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { emptyValueText } from "../manage/utils";
 import type { TavernManagementValue } from "../store";
-import type { TavernCharacter, TavernRoom } from "../tavern/types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { compactScene } from "../tavern/utils";
 import { getVisualPreset } from "../tavern/visual-presets";
 

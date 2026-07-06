@@ -1,6 +1,7 @@
 import { materializeTavernPresentationInput, type TavernPresentationInput } from "./input";
 import { switchTavernRoomStoryNode } from "../runtime/active-scene-runtime";
-import type { TavernRoom, TavernState } from "../types";
+import type { TavernState } from "../types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
 
@@ -10,10 +11,7 @@ const resolvePreferredTavernRoomIds = (presentationInput: TavernPresentationInpu
 const resolveRoomSceneInstanceId = (room: TavernRoom, fallbackId?: string) =>
   room.activeSceneInstanceId ?? room.sceneInstances[0]?.id ?? fallbackId;
 
-const applyCarrierRoomConfig = (
-  room: TavernRoom,
-  carrierRoom: TavernRoom | undefined,
-): TavernRoom => {
+const applyCarrierRoomConfig = (room: TavernRoom, carrierRoom: TavernRoom | undefined): TavernRoom => {
   if (!carrierRoom) {
     return room;
   }

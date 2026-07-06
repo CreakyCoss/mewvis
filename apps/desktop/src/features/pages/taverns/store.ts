@@ -14,7 +14,13 @@ import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "./tavern/
 import { deleteTavernBridgeSessionsForRoom } from "./tavern/runtime/conversation";
 import { runTavernDirectorProfileAgent } from "./tavern/runtime/director";
 import { getTavernSystemPreset } from "./tavern/system-preset-registry";
-import type { TavernCharacter, TavernRoom, TavernRoomSettings, TavernScene, TavernState } from "./tavern/types";
+import type { TavernState } from "./tavern/types";
+import type {
+  TavernCharacter,
+  TavernRoom,
+  TavernRoomSettings,
+  TavernScene,
+} from "@/features/pages/taverns/manage/model";
 import { sanitizeFileName } from "./room/quick-summary/utils";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";

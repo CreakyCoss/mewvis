@@ -1,23 +1,22 @@
-import type {
-  TavernMessage,
-  TavernRoom,
-} from "@/features/pages/taverns/tavern/types";
-import {
-  getTavernRuntimeStoryProjection,
-} from "@/features/pages/taverns/tavern/adapters/story";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/tavern/adapters/story";
 import type { QuickNovelExportFormat } from "./types";
 
 export const sanitizeFileName = (value: string) =>
-  value.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").slice(0, 80) || "tavern-room";
+  value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 80) || "tavern-room";
 
-export const formatQuickSummaryGeneratedAt = (generatedAt?: number) => (
+export const formatQuickSummaryGeneratedAt = (generatedAt?: number) =>
   generatedAt
     ? new Intl.DateTimeFormat("zh-CN", {
         hour: "2-digit",
         minute: "2-digit",
       }).format(generatedAt)
-    : ""
-);
+    : "";
 
 export const createQuickNovelExportContent = ({
   format,
@@ -51,22 +50,10 @@ export const createQuickNovelExportContent = ({
     generatedAtText ? `生成时间：${generatedAtText}` : "",
   ].filter(Boolean);
 
-  return [
-    `# ${roomTitle}`,
-    "",
-    ...metadataLines,
-    "",
-    "---",
-    "",
-    trimmedContent,
-    "",
-  ].join("\n");
+  return [`# ${roomTitle}`, "", ...metadataLines, "", "---", "", trimmedContent, ""].join("\n");
 };
 
-export const createQuickSummarySignature = (
-  room: TavernRoom,
-  messages: TavernMessage[],
-) => {
+export const createQuickSummarySignature = (room: TavernRoom, messages: TavernMessage[]) => {
   const storyProjection = getTavernRuntimeStoryProjection(room);
 
   return JSON.stringify({

@@ -4,14 +4,12 @@ import type {
   TavernRoom,
   TavernSceneInstance,
   TavernSceneMemoryLayers,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 
 const trimmed = (value: string | undefined) => value?.trim() ?? "";
 
 const getActiveSceneInstance = (room: TavernRoom): TavernSceneInstance | null =>
-  room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ??
-  room.sceneInstances[0] ??
-  null;
+  room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0] ?? null;
 
 const uniqueBlocks = (values: Array<string | undefined>) => {
   const seen = new Set<string>();
@@ -26,24 +24,23 @@ const uniqueBlocks = (values: Array<string | undefined>) => {
   });
 };
 
-const formatMemorySections = (
-  sections: Array<{ title: string; values: Array<string | undefined> }>,
-) => {
+const formatMemorySections = (sections: Array<{ title: string; values: Array<string | undefined> }>) => {
   const seen = new Set<string>();
 
-  return sections.flatMap((section) => {
-    const lines = section.values.flatMap((value) => {
-      const text = trimmed(value);
-      if (!text || seen.has(text)) {
-        return [];
-      }
+  return sections
+    .flatMap((section) => {
+      const lines = section.values.flatMap((value) => {
+        const text = trimmed(value);
+        if (!text || seen.has(text)) {
+          return [];
+        }
 
-      seen.add(text);
-      return [text];
-    });
-    return lines.length > 0 ? [`【${section.title}】\n${lines.join("\n")}`] : [];
-  })
-  .join("\n\n");
+        seen.add(text);
+        return [text];
+      });
+      return lines.length > 0 ? [`【${section.title}】\n${lines.join("\n")}`] : [];
+    })
+    .join("\n\n");
 };
 
 const visibleSceneLayerValues = (layers: TavernSceneMemoryLayers | undefined) => [
@@ -72,10 +69,7 @@ export const buildTavernCurrentSceneMemoryText = (room: TavernRoom) => {
   ]);
 };
 
-export const buildTavernCharacterMemoryText = (
-  room: TavernRoom,
-  character: Pick<TavernCharacter, "id" | "name">,
-) => {
+export const buildTavernCharacterMemoryText = (room: TavernRoom, character: Pick<TavernCharacter, "id" | "name">) => {
   const activeInstance = getActiveSceneInstance(room);
   const layers = activeInstance?.characterMemoryLayers?.[character.id];
 
@@ -90,10 +84,11 @@ export const buildTavernCharacterMemoryText = (
 export const buildTavernCurrentCharacterMemoriesText = (
   room: TavernRoom,
   characters: Array<Pick<TavernCharacter, "id" | "name">>,
-) => characters
-  .map((character) => buildTavernCharacterMemoryText(room, character))
-  .filter(Boolean)
-  .join("\n\n");
+) =>
+  characters
+    .map((character) => buildTavernCharacterMemoryText(room, character))
+    .filter(Boolean)
+    .join("\n\n");
 
 export const buildTavernMemoryOverviewSummary = (
   room: TavernRoom,
@@ -106,13 +101,14 @@ export const buildTavernMemoryOverviewSummary = (
   ]);
   const seenLines = new Set<string>();
 
-  const lines = uniqueBlocks([
-    room.memory,
-    ...visibleSceneLayerValues(sceneLayers),
-    ...characterValues,
-  ])
+  const lines = uniqueBlocks([room.memory, ...visibleSceneLayerValues(sceneLayers), ...characterValues])
     .flatMap((block) => block.split(/\n+/))
-    .map((line) => line.replace(/^#+\s*/, "").replace(/^【(.+)】$/, "$1").trim())
+    .map((line) =>
+      line
+        .replace(/^#+\s*/, "")
+        .replace(/^【(.+)】$/, "$1")
+        .trim(),
+    )
     .flatMap((line) => {
       if (!line || seenLines.has(line)) {
         return [];

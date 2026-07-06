@@ -1,22 +1,13 @@
-import {
-  buildSceneInstancesForRuns,
-} from "./scene-instances";
-import {
-  createDefaultStoryGraph,
-  normalizeStoryGraph,
-} from "../story-model/story-graph";
+import { buildSceneInstancesForRuns } from "./scene-instances";
+import { createDefaultStoryGraph, normalizeStoryGraph } from "../story-model/story-graph";
 import {
   buildStoryRunsFromGraph,
   createRouteScopedSceneInstanceId,
   resolveActiveRun,
   resolveRunNodePrefix,
 } from "./story-runtime";
-import {
-  now,
-} from "../ids";
-import type {
-  TavernRoom,
-} from "../types";
+import { now } from "../ids";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
   if (!room.scenes?.length) {
@@ -29,35 +20,29 @@ export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
     : createDefaultStoryGraph(scenes);
   const createdAt = typeof room.createdAt === "number" ? room.createdAt : now();
   const storyRuns = room.storyRuns?.length
-    ? room.storyRuns.map((run) => {
-        const pathNodeIds = run.pathNodeIds.filter((nodeId) =>
-          graph.nodes.some((node) => node.id === nodeId)
-        );
-        const pathEdgeIds = run.pathEdgeIds.filter((edgeId) =>
-          graph.edges.some((edge) => edge.id === edgeId)
-        );
+    ? room.storyRuns
+        .map((run) => {
+          const pathNodeIds = run.pathNodeIds.filter((nodeId) => graph.nodes.some((node) => node.id === nodeId));
+          const pathEdgeIds = run.pathEdgeIds.filter((edgeId) => graph.edges.some((edge) => edge.id === edgeId));
 
-        return {
-          ...run,
-          pathNodeIds,
-          pathEdgeIds,
-          activeNodeId: pathNodeIds.includes(run.activeNodeId)
-            ? run.activeNodeId
-            : pathNodeIds[0] ?? graph.activeNodeId,
-        };
-      }).filter((run) => run.pathNodeIds.length > 0)
+          return {
+            ...run,
+            pathNodeIds,
+            pathEdgeIds,
+            activeNodeId: pathNodeIds.includes(run.activeNodeId)
+              ? run.activeNodeId
+              : (pathNodeIds[0] ?? graph.activeNodeId),
+          };
+        })
+        .filter((run) => run.pathNodeIds.length > 0)
     : buildStoryRunsFromGraph(graph, createdAt);
-  const normalizedRuns = storyRuns.length > 0
-    ? storyRuns
-    : buildStoryRunsFromGraph(graph, createdAt);
+  const normalizedRuns = storyRuns.length > 0 ? storyRuns : buildStoryRunsFromGraph(graph, createdAt);
   const activeRun = resolveActiveRun(normalizedRuns, room.activeRunId);
   const activeNodeId = activeRun?.pathNodeIds.includes(graph.activeNodeId)
     ? graph.activeNodeId
-    : activeRun?.activeNodeId ?? activeRun?.pathNodeIds[0] ?? graph.activeNodeId;
+    : (activeRun?.activeNodeId ?? activeRun?.pathNodeIds[0] ?? graph.activeNodeId);
   const syncedRuns = normalizedRuns.map((run) =>
-    activeRun && run.id === activeRun.id
-      ? { ...run, activeNodeId, updatedAt: room.updatedAt }
-      : run
+    activeRun && run.id === activeRun.id ? { ...run, activeNodeId, updatedAt: room.updatedAt } : run,
   );
   const sceneInstances = buildSceneInstancesForRuns({
     roomId: room.id,
@@ -67,12 +52,10 @@ export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
     existingInstances: room.sceneInstances,
   });
   const scopedInstanceId = activeRun
-    ? createRouteScopedSceneInstanceId(
-        room.id,
-        resolveRunNodePrefix(activeRun, activeNodeId),
-      )
+    ? createRouteScopedSceneInstanceId(room.id, resolveRunNodePrefix(activeRun, activeNodeId))
     : "";
-  const activeInstance = sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ??
+  const activeInstance =
+    sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ??
     sceneInstances.find((instance) => instance.id === scopedInstanceId) ??
     sceneInstances[0] ??
     null;

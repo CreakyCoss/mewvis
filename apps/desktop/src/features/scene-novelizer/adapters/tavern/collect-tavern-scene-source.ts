@@ -1,21 +1,9 @@
-import {
-  filterTavernFactEventsForAudience,
-} from "@/features/pages/taverns/tavern/core";
-import {
-  createTavernRenderableMessages,
-} from "@/features/pages/taverns/tavern/message";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernMessageSegment,
-  TavernRoom,
-} from "@/features/pages/taverns/tavern/types";
-import {
-  DEFAULT_SCENE_NOVELIZER_PLATFORM_ID,
-} from "../../prompt-registry/packages";
-import {
-  getDefaultSceneNovelizerRuleOptionIds,
-} from "../../prompt-registry/rule-options";
+import { filterTavernFactEventsForAudience } from "@/features/pages/taverns/tavern/core";
+import { createTavernRenderableMessages } from "@/features/pages/taverns/tavern/message";
+import type { TavernMessage, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { DEFAULT_SCENE_NOVELIZER_PLATFORM_ID } from "../../prompt-registry/packages";
+import { getDefaultSceneNovelizerRuleOptionIds } from "../../prompt-registry/rule-options";
 import type {
   SceneNovelMaterialBeat,
   SceneNovelMaterialKind,
@@ -29,8 +17,7 @@ const textSnippet = (text: string, maxChars = 240) => {
   return trimmed.length > maxChars ? `${trimmed.slice(0, maxChars)}...` : trimmed;
 };
 
-const containsAny = (text: string, patterns: RegExp[]) =>
-  patterns.some((pattern) => pattern.test(text));
+const containsAny = (text: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(text));
 
 const consequencePatterns = [
   /(?:于是|因此|只好|立刻|随即|终于|导致|换来|逼得|不得不|来不及|已经|变成|暴露|失去|锁死|受伤|惊动|追来|逼近)/,
@@ -46,22 +33,13 @@ const hookPatterns = [
 
 const quotedDialoguePattern = /["“「『]([^"”」』]{2,120})["”」』]/g;
 
-const getCharacterName = (
-  characterById: Map<string, TavernCharacter>,
-  characterId?: string,
-) => characterId ? characterById.get(characterId)?.name : undefined;
+const getCharacterName = (characterById: Map<string, TavernCharacter>, characterId?: string) =>
+  characterId ? characterById.get(characterId)?.name : undefined;
 
-const visibilityForSegment = (
-  segment: TavernMessageSegment,
-): SceneNovelMaterialVisibility =>
-  segment.type === "thought" && segment.visibility === "private"
-    ? "character_private"
-    : "public";
+const visibilityForSegment = (segment: TavernMessageSegment): SceneNovelMaterialVisibility =>
+  segment.type === "thought" && segment.visibility === "private" ? "character_private" : "public";
 
-const kindForSegment = (
-  segment: TavernMessageSegment,
-  messageRole: TavernMessage["role"],
-): SceneNovelMaterialKind => {
+const kindForSegment = (segment: TavernMessageSegment, messageRole: TavernMessage["role"]): SceneNovelMaterialKind => {
   if (messageRole === "user") {
     return "user_action";
   }
@@ -81,16 +59,14 @@ const kindForSegment = (
   return messageRole === "narrator" ? "narration" : "action";
 };
 
-const tagsForText = (text: string) => [
-  containsAny(text, consequencePatterns) ? "consequence" : "",
-  containsAny(text, interruptionPatterns) ? "interruption" : "",
-  containsAny(text, hookPatterns) ? "hook" : "",
-].filter(Boolean);
+const tagsForText = (text: string) =>
+  [
+    containsAny(text, consequencePatterns) ? "consequence" : "",
+    containsAny(text, interruptionPatterns) ? "interruption" : "",
+    containsAny(text, hookPatterns) ? "hook" : "",
+  ].filter(Boolean);
 
-const specializeKindByTags = (
-  baseKind: SceneNovelMaterialKind,
-  tags: string[],
-): SceneNovelMaterialKind => {
+const specializeKindByTags = (baseKind: SceneNovelMaterialKind, tags: string[]): SceneNovelMaterialKind => {
   if (baseKind === "narration" || baseKind === "action") {
     if (tags.includes("interruption")) {
       return "interruption";
@@ -158,45 +134,47 @@ const extractQuotedDialogueMaterials = ({
       continue;
     }
 
-    materials.push(createMaterial({
-      id: `${messageId}-quote-${materials.length + 1}`,
-      turnId,
-      turnIndex,
-      source: "character",
-      kind: "dialogue",
-      visibility: "public",
-      text: quote,
-      characterId,
-      characterName,
-      speakerName,
-      sourceMessageIds: [messageId],
-      tags: ["quoted-dialogue"],
-    }));
+    materials.push(
+      createMaterial({
+        id: `${messageId}-quote-${materials.length + 1}`,
+        turnId,
+        turnIndex,
+        source: "character",
+        kind: "dialogue",
+        visibility: "public",
+        text: quote,
+        characterId,
+        characterName,
+        speakerName,
+        sourceMessageIds: [messageId],
+        tags: ["quoted-dialogue"],
+      }),
+    );
   }
 
   return materials;
 };
 
-const summarizeSceneStatus = (room: TavernRoom) => [
-  room.sceneStatus?.location ? `地点：${room.sceneStatus.location}` : "",
-  room.sceneStatus?.timeLabel ? `时间：${room.sceneStatus.timeLabel}` : "",
-  room.sceneStatus?.weather ? `天气：${room.sceneStatus.weather}` : "",
-  room.sceneStatus?.atmosphere ? `氛围：${room.sceneStatus.atmosphere}` : "",
-  room.sceneStatus?.scenePhase ? `阶段：${room.sceneStatus.scenePhase}` : "",
-  room.sceneStatus?.immediateThreat ? `威胁：${room.sceneStatus.immediateThreat}` : "",
-].filter(Boolean).join("；");
+const summarizeSceneStatus = (room: TavernRoom) =>
+  [
+    room.sceneStatus?.location ? `地点：${room.sceneStatus.location}` : "",
+    room.sceneStatus?.timeLabel ? `时间：${room.sceneStatus.timeLabel}` : "",
+    room.sceneStatus?.weather ? `天气：${room.sceneStatus.weather}` : "",
+    room.sceneStatus?.atmosphere ? `氛围：${room.sceneStatus.atmosphere}` : "",
+    room.sceneStatus?.scenePhase ? `阶段：${room.sceneStatus.scenePhase}` : "",
+    room.sceneStatus?.immediateThreat ? `威胁：${room.sceneStatus.immediateThreat}` : "",
+  ]
+    .filter(Boolean)
+    .join("；");
 
 const buildStats = (materials: SceneNovelMaterialBeat[]) => ({
   userActionCount: materials.filter((item) => item.kind === "user_action").length,
   characterBeatCount: materials.filter((item) => item.source === "character").length,
   dialogueCount: materials.filter((item) => item.kind === "dialogue").length,
   thoughtCount: materials.filter((item) => item.kind === "thought").length,
-  consequenceCount: materials.filter((item) =>
-    item.kind === "consequence" || item.tags?.includes("consequence")
-  ).length,
-  hookCount: materials.filter((item) =>
-    item.kind === "hook" || item.tags?.includes("hook")
-  ).length,
+  consequenceCount: materials.filter((item) => item.kind === "consequence" || item.tags?.includes("consequence"))
+    .length,
+  hookCount: materials.filter((item) => item.kind === "hook" || item.tags?.includes("hook")).length,
 });
 
 export const collectTavernSceneNovelSource = ({
@@ -230,9 +208,7 @@ export const collectTavernSceneNovelSource = ({
   const materials = renderableMessages.flatMap((message) => {
     const currentTurnIndex = messageTurnIndexes.get(message.id) ?? 1;
     const characterName = getCharacterName(characterById, message.characterId);
-    const baseSource = message.role === "user"
-      ? "user"
-      : message.role === "narrator" ? "director" : "character";
+    const baseSource = message.role === "user" ? "user" : message.role === "narrator" ? "director" : "character";
     const segmentMaterials = message.segments.flatMap((segment, index) => {
       const text = segment.text.trim();
       if (!text) {
@@ -240,10 +216,7 @@ export const collectTavernSceneNovelSource = ({
       }
 
       const tags = tagsForText(text);
-      const kind = specializeKindByTags(
-        kindForSegment(segment, message.role),
-        tags,
-      );
+      const kind = specializeKindByTags(kindForSegment(segment, message.role), tags);
       const material = createMaterial({
         id: `${message.id}-${index}`,
         turnId: message.source.turnId,
@@ -258,17 +231,18 @@ export const collectTavernSceneNovelSource = ({
         sourceMessageIds: [message.id],
         tags,
       });
-      const quotedMaterials = message.role === "character" && segment.type === "narration"
-        ? extractQuotedDialogueMaterials({
-            text,
-            messageId: message.id,
-            turnId: message.source.turnId,
-            turnIndex: currentTurnIndex,
-            characterId: message.characterId,
-            characterName,
-            speakerName: message.speakerName,
-          })
-        : [];
+      const quotedMaterials =
+        message.role === "character" && segment.type === "narration"
+          ? extractQuotedDialogueMaterials({
+              text,
+              messageId: message.id,
+              turnId: message.source.turnId,
+              turnIndex: currentTurnIndex,
+              characterId: message.characterId,
+              characterName,
+              speakerName: message.speakerName,
+            })
+          : [];
 
       return [material, ...quotedMaterials];
     });
@@ -283,20 +257,22 @@ export const collectTavernSceneNovelSource = ({
     }
 
     const tags = tagsForText(text);
-    return [createMaterial({
-      id: `${message.id}-content`,
-      turnId: message.source.turnId,
-      turnIndex: currentTurnIndex,
-      source: baseSource,
-      kind: specializeKindByTags(message.role === "user" ? "user_action" : "narration", tags),
-      visibility: "public",
-      text,
-      characterId: message.characterId,
-      characterName,
-      speakerName: message.speakerName,
-      sourceMessageIds: [message.id],
-      tags,
-    })];
+    return [
+      createMaterial({
+        id: `${message.id}-content`,
+        turnId: message.source.turnId,
+        turnIndex: currentTurnIndex,
+        source: baseSource,
+        kind: specializeKindByTags(message.role === "user" ? "user_action" : "narration", tags),
+        visibility: "public",
+        text,
+        characterId: message.characterId,
+        characterName,
+        speakerName: message.speakerName,
+        sourceMessageIds: [message.id],
+        tags,
+      }),
+    ];
   });
 
   const visibleFacts = filterTavernFactEventsForAudience({

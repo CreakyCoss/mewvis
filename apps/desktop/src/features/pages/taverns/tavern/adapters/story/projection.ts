@@ -6,7 +6,7 @@ import type {
   TavernSceneInstance,
   TavernSceneStatus,
   TavernStoryGraph,
-} from "../../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernRuntimeStorySceneProjection = {
   id: string;
@@ -41,11 +41,8 @@ export type TavernRuntimeStoryProjection = {
   activeCharacterId: string;
 };
 
-export const getTavernActiveSceneInstance = (
-  room: TavernRoom,
-) => room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ??
-  room.sceneInstances[0] ??
-  null;
+export const getTavernActiveSceneInstance = (room: TavernRoom) =>
+  room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0] ?? null;
 
 export const getTavernRuntimeStoryProjection = (
   room: TavernRoom,
@@ -103,9 +100,7 @@ const cloneTavernStoryCharacter = (character: TavernCharacter): TavernCharacter 
   })),
 });
 
-const cloneTavernStoryLorebookEntry = (
-  entry: TavernLorebookEntry,
-): TavernLorebookEntry => ({
+const cloneTavernStoryLorebookEntry = (entry: TavernLorebookEntry): TavernLorebookEntry => ({
   ...entry,
   keywords: [...entry.keywords],
 });

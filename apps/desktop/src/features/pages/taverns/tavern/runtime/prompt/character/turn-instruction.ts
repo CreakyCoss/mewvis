@@ -1,12 +1,7 @@
 import { isTavernFixedOrderPhase } from "../../../core";
-import {
-  getTavernPresentationContract,
-} from "../../../presentation/presentation-contracts";
+import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { joinPromptLines } from "../shared/sections";
 import {
   DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
@@ -19,10 +14,7 @@ import {
 } from "./output-contract";
 import { buildCharacterTurnStyleInstruction } from "./style-instruction";
 
-export {
-  DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
-  type TavernCharacterPromptVariant,
-} from "./output-contract";
+export { DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT, type TavernCharacterPromptVariant } from "./output-contract";
 
 const buildSchedulingInstruction = (room: TavernRoom) => {
   if (!isTavernFixedOrderPhase(room)) {

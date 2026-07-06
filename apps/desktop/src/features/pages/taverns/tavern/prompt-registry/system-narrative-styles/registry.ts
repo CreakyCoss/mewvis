@@ -1,7 +1,7 @@
 import type {
   TavernSystemNarrativePresetId,
   TavernSystemNarrativePresetSettings,
-} from "../../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernSystemNarrativeRuleSet = {
   narrativeBeat: string[];
@@ -28,14 +28,9 @@ type TavernSystemNarrativeStyleRegistryEntry = TavernSystemNarrativePreset & {
   order: number;
 };
 
-const systemNarrativeStyleRegistry = new Map<
-  TavernSystemNarrativePresetId,
-  TavernSystemNarrativeStyleRegistryEntry
->();
+const systemNarrativeStyleRegistry = new Map<TavernSystemNarrativePresetId, TavernSystemNarrativeStyleRegistryEntry>();
 
-const toSystemNarrativePreset = (
-  entry: TavernSystemNarrativeStyleRegistryEntry,
-): TavernSystemNarrativePreset => ({
+const toSystemNarrativePreset = (entry: TavernSystemNarrativeStyleRegistryEntry): TavernSystemNarrativePreset => ({
   id: entry.id,
   label: entry.label,
   description: entry.description,
@@ -49,12 +44,11 @@ const toSystemNarrativePreset = (
 });
 
 const getOrderedSystemNarrativeStyleEntries = () =>
-  Array.from(systemNarrativeStyleRegistry.values())
-    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
+  Array.from(systemNarrativeStyleRegistry.values()).sort(
+    (left, right) => left.order - right.order || left.label.localeCompare(right.label),
+  );
 
-export const registerTavernSystemNarrativeStyle = (
-  style: TavernSystemNarrativeStyleRegistration,
-) => {
+export const registerTavernSystemNarrativeStyle = (style: TavernSystemNarrativeStyleRegistration) => {
   if (systemNarrativeStyleRegistry.has(style.id)) {
     throw new Error(`Duplicate tavern system narrative style id: ${style.id}`);
   }
@@ -66,9 +60,7 @@ export const registerTavernSystemNarrativeStyle = (
   });
 };
 
-export const registerTavernSystemNarrativeStyles = (
-  styles: TavernSystemNarrativeStyleRegistration[],
-) => {
+export const registerTavernSystemNarrativeStyles = (styles: TavernSystemNarrativeStyleRegistration[]) => {
   styles.forEach(registerTavernSystemNarrativeStyle);
 };
 

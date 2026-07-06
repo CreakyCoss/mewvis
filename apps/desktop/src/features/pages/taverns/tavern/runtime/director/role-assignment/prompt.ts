@@ -1,14 +1,6 @@
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
-import {
-  buildTavernStoryContextPackage,
-} from "../../../adapters/story";
-import {
-  createTavernRoleAssignmentParticipants,
-  expandTavernRoleAssignmentPool,
-} from "./participants";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { buildTavernStoryContextPackage } from "../../../adapters/story";
+import { createTavernRoleAssignmentParticipants, expandTavernRoleAssignmentPool } from "./participants";
 
 export const buildTavernDirectorRoleAssignmentPrompt = ({
   room,
@@ -46,24 +38,34 @@ export const buildTavernDirectorRoleAssignmentPrompt = ({
     "</room>",
     "",
     "<participants>",
-    participants.map((participant) =>
-      participant.isUser
-        ? `targetType: user\ncharacterId: \nname: ${participant.label}`
-        : `targetType: character\ncharacterId: ${participant.characterId}\nname: ${participant.label}`
-    ).join("\n\n---\n\n"),
+    participants
+      .map((participant) =>
+        participant.isUser
+          ? `targetType: user\ncharacterId: \nname: ${participant.label}`
+          : `targetType: character\ncharacterId: ${participant.characterId}\nname: ${participant.label}`,
+      )
+      .join("\n\n---\n\n"),
     "</participants>",
     "",
     "<role_pool>",
-    roleAssignment.rolePool.map((role) => [
-      `roleId: ${role.id}`,
-      `label: ${role.label}`,
-      `count: ${Math.max(1, Math.round(role.count || 1))}`,
-      role.factionId ? `factionId: ${role.factionId}` : "",
-      role.factionLabel ? `factionLabel: ${role.factionLabel}` : "",
-      role.description ? `description: ${role.description}` : "",
-    ].filter(Boolean).join("\n")).join("\n\n---\n\n"),
+    roleAssignment.rolePool
+      .map((role) =>
+        [
+          `roleId: ${role.id}`,
+          `label: ${role.label}`,
+          `count: ${Math.max(1, Math.round(role.count || 1))}`,
+          role.factionId ? `factionId: ${role.factionId}` : "",
+          role.factionLabel ? `factionLabel: ${role.factionLabel}` : "",
+          role.description ? `description: ${role.description}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      )
+      .join("\n\n---\n\n"),
     "</role_pool>",
     "",
     `<expanded_role_count>${rolePool.length}</expanded_role_count>`,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };

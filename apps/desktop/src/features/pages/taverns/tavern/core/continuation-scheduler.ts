@@ -1,7 +1,4 @@
-import type {
-  TavernCharacter,
-  TavernPendingInteraction,
-} from "../types";
+import type { TavernCharacter, TavernPendingInteraction } from "@/features/pages/taverns/manage/model";
 
 export type TavernContinuationPlan = {
   shouldContinue: boolean;
@@ -37,12 +34,10 @@ export const planTavernContinuation = ({
   }
 
   const characterIds = new Set(characters.map((character) => character.id));
-  const openInteractions = pendingInteractions.filter((interaction) =>
-    interaction.status === "open" && interaction.requiresResponse
+  const openInteractions = pendingInteractions.filter(
+    (interaction) => interaction.status === "open" && interaction.requiresResponse,
   );
-  const userTargeted = openInteractions.find((interaction) =>
-    interaction.target.type === "user"
-  );
+  const userTargeted = openInteractions.find((interaction) => interaction.target.type === "user");
   if (userTargeted && stopWhenUserTargeted) {
     return {
       shouldContinue: false,
@@ -52,9 +47,10 @@ export const planTavernContinuation = ({
     };
   }
 
-  const characterTargeted = openInteractions.find((interaction) =>
-    interaction.target.type === "character" &&
-    (interaction.target.characterIds ?? []).some((characterId) => characterIds.has(characterId))
+  const characterTargeted = openInteractions.find(
+    (interaction) =>
+      interaction.target.type === "character" &&
+      (interaction.target.characterIds ?? []).some((characterId) => characterIds.has(characterId)),
   );
   if (characterTargeted) {
     const speakerIds = [...new Set(characterTargeted.target.characterIds ?? [])]
@@ -72,8 +68,6 @@ export const planTavernContinuation = ({
     shouldContinue: false,
     speakerIds: [],
     interactionIds: [],
-    reason: openInteractions.some((interaction) => interaction.target.type === "group")
-      ? "group_targeted"
-      : "none",
+    reason: openInteractions.some((interaction) => interaction.target.type === "group") ? "group_targeted" : "none",
   };
 };

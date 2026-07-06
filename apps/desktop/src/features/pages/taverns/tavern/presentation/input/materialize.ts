@@ -4,25 +4,12 @@ import {
   DEFAULT_TAVERN_STATUS_DEFINITIONS,
   DEFAULT_TAVERN_STATUS_RULES,
 } from "../../defaults";
-import {
-  createTavernId as createId,
-  now,
-} from "../../ids";
-import {
-  materializeTavernMessage,
-} from "../../message";
-import {
-  normalizeReplyMode,
-} from "../../normalizers/reply-mode";
-import {
-  normalizeCharacterRelationships,
-} from "../../normalizers/relationships";
-import {
-  normalizeRoomCharacterConfigs,
-} from "../../normalizers/room-character-configs";
-import {
-  normalizeRoomSettings,
-} from "../../normalizers/room-settings";
+import { createTavernId as createId, now } from "../../ids";
+import { materializeTavernMessage } from "../../message";
+import { normalizeReplyMode } from "../../normalizers/reply-mode";
+import { normalizeCharacterRelationships } from "../../normalizers/relationships";
+import { normalizeRoomCharacterConfigs } from "../../normalizers/room-character-configs";
+import { normalizeRoomSettings } from "../../normalizers/room-settings";
 import {
   normalizeProgressTracker,
   normalizeProgressViews,
@@ -31,38 +18,16 @@ import {
   normalizeStatusRules,
   normalizeTaskDefinitions,
 } from "../../normalizers/status-normalizers";
-import {
-  normalizeRoomPresentation,
-} from "../presentation-settings";
-import {
-  createDefaultPromptForPresentation,
-} from "../presentation-settings";
-import {
-  createDefaultTavernPromptSettings,
-  normalizeTavernPromptSettings,
-} from "../../prompt-registry/text-blocks";
-import {
-  projectTavernSceneOntoRoom,
-} from "../../runtime/active-scene-runtime";
-import {
-  projectTavernSceneFieldsOntoRoom,
-} from "../../runtime/scene-field-projection";
-import {
-  buildTavernScene,
-  defaultSceneTitle,
-} from "../../story-model/scene-builder";
-import {
-  createTavernStoryBinding,
-} from "../../story-model/story-binding";
-import {
-  normalizeStoryGraph,
-} from "../../story-model/story-graph";
-import type {
-  TavernCharacter,
-  TavernLorebookEntry,
-  TavernMessage,
-  TavernRoom,
-} from "../../types";
+import { normalizeRoomPresentation } from "../presentation-settings";
+import { createDefaultPromptForPresentation } from "../presentation-settings";
+import { createDefaultTavernPromptSettings, normalizeTavernPromptSettings } from "../../prompt-registry/text-blocks";
+import { projectTavernSceneOntoRoom } from "../../runtime/active-scene-runtime";
+import { projectTavernSceneFieldsOntoRoom } from "../../runtime/scene-field-projection";
+import { buildTavernScene, defaultSceneTitle } from "../../story-model/scene-builder";
+import { createTavernStoryBinding } from "../../story-model/story-binding";
+import { normalizeStoryGraph } from "../../story-model/story-graph";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernLorebookEntry, TavernRoom } from "@/features/pages/taverns/manage/model";
 import type {
   TavernPresentationCharacterInput,
   TavernPresentationInput,
@@ -75,10 +40,7 @@ const trimText = (value: string | undefined | null) => value?.trim() ?? "";
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
 
-const createTavernInputCharacter = (
-  input: TavernPresentationCharacterInput,
-  createdAt: number,
-): TavernCharacter => ({
+const createTavernInputCharacter = (input: TavernPresentationCharacterInput, createdAt: number): TavernCharacter => ({
   id: trimText(input.id) || createId("character"),
   name: trimText(input.name) || "未命名角色",
   avatar: trimText(input.avatar),
@@ -155,11 +117,12 @@ const createTavernInputScene = ({
   const sceneCharacterIds = scene.characterIds?.length
     ? scene.characterIds.filter((characterId) => roomCharacterIds.includes(characterId))
     : roomCharacterIds;
-  const activeCharacterId = scene.activeCharacterId && sceneCharacterIds.includes(scene.activeCharacterId)
-    ? scene.activeCharacterId
-    : sceneCharacterIds.includes(roomActiveCharacterId)
-      ? roomActiveCharacterId
-      : sceneCharacterIds[0] ?? "";
+  const activeCharacterId =
+    scene.activeCharacterId && sceneCharacterIds.includes(scene.activeCharacterId)
+      ? scene.activeCharacterId
+      : sceneCharacterIds.includes(roomActiveCharacterId)
+        ? roomActiveCharacterId
+        : (sceneCharacterIds[0] ?? "");
 
   return buildTavernScene({
     id: trimText(scene.id) || undefined,
@@ -222,29 +185,35 @@ const createOpeningMessage = ({
       return null;
     }
 
-    return materializeTavernMessage({
+    return materializeTavernMessage(
+      {
+        id: createId("message"),
+        roomId: room.id,
+        sceneId: room.activeSceneId,
+        sceneInstanceId: room.activeSceneInstanceId,
+        role: "character",
+        characterId,
+        content,
+        createdAt,
+        status: "done",
+      },
+      room.presentation.profileId,
+    );
+  }
+
+  return materializeTavernMessage(
+    {
       id: createId("message"),
       roomId: room.id,
       sceneId: room.activeSceneId,
       sceneInstanceId: room.activeSceneInstanceId,
-      role: "character",
-      characterId,
+      role: input.role === "user" ? "user" : "narrator",
       content,
       createdAt,
       status: "done",
-    }, room.presentation.profileId);
-  }
-
-  return materializeTavernMessage({
-    id: createId("message"),
-    roomId: room.id,
-    sceneId: room.activeSceneId,
-    sceneInstanceId: room.activeSceneInstanceId,
-    role: input.role === "user" ? "user" : "narrator",
-    content,
-    createdAt,
-    status: "done",
-  }, room.presentation.profileId);
+    },
+    room.presentation.profileId,
+  );
 };
 
 export const materializeTavernPresentationInput = (
@@ -258,17 +227,15 @@ export const materializeTavernPresentationInput = (
 ) => {
   const createdAt = options.createdAt ?? now();
   const roomId = options.roomId ?? createId("room");
-  const characters = input.cast.characters.map((character) =>
-    createTavernInputCharacter(character, createdAt)
-  );
+  const characters = input.cast.characters.map((character) => createTavernInputCharacter(character, createdAt));
   const roomCharacterIds = resolveRoomCharacterIds({
     requestedCharacterIds: input.cast.characterIds,
     characters,
   });
-  const roomActiveCharacterId = input.cast.activeCharacterId &&
-      roomCharacterIds.includes(input.cast.activeCharacterId)
-    ? input.cast.activeCharacterId
-    : roomCharacterIds[0] ?? "";
+  const roomActiveCharacterId =
+    input.cast.activeCharacterId && roomCharacterIds.includes(input.cast.activeCharacterId)
+      ? input.cast.activeCharacterId
+      : (roomCharacterIds[0] ?? "");
   const characterMemoryDefaults = Object.fromEntries(
     input.cast.characters.flatMap((character) => {
       const characterId = trimText(character.id);
@@ -280,16 +247,18 @@ export const materializeTavernPresentationInput = (
   const lorebookEntries = input.world.lorebookEntries
     .map((entry) => createTavernInputLorebookEntry(entry, createdAt))
     .filter((entry): entry is TavernLorebookEntry => Boolean(entry));
-  const scenes = input.scenes.items.map((scene, index) =>
-    createTavernInputScene({
-      scene,
-      index,
-      roomCharacterIds,
-      roomActiveCharacterId,
-      characterMemoryDefaults,
-      createdAt,
-    })
-  ).sort((left, right) => left.order - right.order)
+  const scenes = input.scenes.items
+    .map((scene, index) =>
+      createTavernInputScene({
+        scene,
+        index,
+        roomCharacterIds,
+        roomActiveCharacterId,
+        characterMemoryDefaults,
+        createdAt,
+      }),
+    )
+    .sort((left, right) => left.order - right.order)
     .map((scene, index) => ({ ...scene, order: index }));
   const fallbackScene = buildTavernScene({
     title: defaultSceneTitle,
@@ -300,14 +269,15 @@ export const materializeTavernPresentationInput = (
     createdAt,
     updatedAt: createdAt,
   });
-  const activeScene = scenes.find((scene) => scene.id === input.scenes.activeSceneId) ??
-    scenes[0] ??
-    fallbackScene;
+  const activeScene = scenes.find((scene) => scene.id === input.scenes.activeSceneId) ?? scenes[0] ?? fallbackScene;
   const normalizedScenes = scenes.length > 0 ? scenes : [activeScene];
-  const storyGraph = normalizeStoryGraph({
-    ...input.route.graph,
-    activeNodeId: input.route.activeNodeId || input.route.graph.activeNodeId,
-  }, normalizedScenes);
+  const storyGraph = normalizeStoryGraph(
+    {
+      ...input.route.graph,
+      activeNodeId: input.route.activeNodeId || input.route.graph.activeNodeId,
+    },
+    normalizedScenes,
+  );
   const presentation = normalizeRoomPresentation({
     presentation: input.runtime?.presentation,
   });
@@ -336,12 +306,8 @@ export const materializeTavernPresentationInput = (
     statusDefinitions: normalizeStatusDefinitions(
       input.runtime?.progress?.statusDefinitions ?? DEFAULT_TAVERN_STATUS_DEFINITIONS,
     ),
-    statusRules: normalizeStatusRules(
-      input.runtime?.progress?.statusRules ?? DEFAULT_TAVERN_STATUS_RULES,
-    ),
-    progressViews: normalizeProgressViews(
-      input.runtime?.progress?.progressViews ?? DEFAULT_TAVERN_PROGRESS_VIEWS,
-    ),
+    statusRules: normalizeStatusRules(input.runtime?.progress?.statusRules ?? DEFAULT_TAVERN_STATUS_RULES),
+    progressViews: normalizeProgressViews(input.runtime?.progress?.progressViews ?? DEFAULT_TAVERN_PROGRESS_VIEWS),
     progressTracker: normalizeProgressTracker(
       input.runtime?.progress?.progressTracker ?? DEFAULT_TAVERN_PROGRESS_TRACKER,
     ),
@@ -387,18 +353,21 @@ export const materializeTavernPresentationInput = (
   return {
     room,
     characters,
-    messages: messages.length > 0
-      ? messages
-      : [{
-          id: createId("message"),
-          roomId,
-          sceneId: room.activeSceneId,
-          sceneInstanceId: room.activeSceneInstanceId,
-          role: "narrator" as const,
-          presentationProfileId: room.presentation.profileId,
-          content: "故事演绎已经准备好。",
-          createdAt,
-          status: "done" as const,
-        }].map((message) => materializeTavernMessage(message, room.presentation.profileId)),
+    messages:
+      messages.length > 0
+        ? messages
+        : [
+            {
+              id: createId("message"),
+              roomId,
+              sceneId: room.activeSceneId,
+              sceneInstanceId: room.activeSceneInstanceId,
+              role: "narrator" as const,
+              presentationProfileId: room.presentation.profileId,
+              content: "故事演绎已经准备好。",
+              createdAt,
+              status: "done" as const,
+            },
+          ].map((message) => materializeTavernMessage(message, room.presentation.profileId)),
   };
 };

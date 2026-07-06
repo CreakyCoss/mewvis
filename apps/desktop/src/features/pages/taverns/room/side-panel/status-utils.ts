@@ -1,6 +1,4 @@
-import {
-  getTavernStatusSnapshotValue,
-} from "@/features/pages/taverns/tavern/core";
+import { getTavernStatusSnapshotValue } from "@/features/pages/taverns/tavern/core";
 import type {
   TavernCharacter,
   TavernProgressView,
@@ -8,26 +6,15 @@ import type {
   TavernStatusDefinition,
   TavernStatusTargetRef,
   TavernStatusValue,
-} from "@/features/pages/taverns/tavern/types";
-import type {
-  ResolvedStatusMetric,
-  StatusProgressItem,
-} from "./types";
+} from "@/features/pages/taverns/manage/model";
+import type { ResolvedStatusMetric, StatusProgressItem } from "./types";
 
-export const getProgressStatusItems = (
-  views: TavernProgressView[],
-  placement: TavernProgressView["placement"],
-) =>
+export const getProgressStatusItems = (views: TavernProgressView[], placement: TavernProgressView["placement"]) =>
   views
     .filter((view) => view.placement === placement)
-    .flatMap((view) =>
-      view.items.flatMap((item) => item.type === "status" ? [item] : [])
-    );
+    .flatMap((view) => view.items.flatMap((item) => (item.type === "status" ? [item] : [])));
 
-export const numericStatusPercent = (
-  value: TavernStatusValue,
-  definition: TavernStatusDefinition,
-) => {
+export const numericStatusPercent = (value: TavernStatusValue, definition: TavernStatusDefinition) => {
   if (typeof value !== "number") {
     return 0;
   }
@@ -73,11 +60,8 @@ export const createResolvedStatusMetric = ({
   if (!target) {
     return null;
   }
-  const value = getTavernStatusSnapshotValue(
-    activeRoom.statusSnapshot,
-    target,
-    definition.id,
-  ) ?? definition.defaultValue;
+  const value =
+    getTavernStatusSnapshotValue(activeRoom.statusSnapshot, target, definition.id) ?? definition.defaultValue;
   return {
     key: `${definition.id}:${ownerCharacter?.id ?? "room"}`,
     definition,

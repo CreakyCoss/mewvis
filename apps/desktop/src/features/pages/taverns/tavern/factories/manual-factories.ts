@@ -1,49 +1,21 @@
-import {
-  DEFAULT_VISUAL_PRESET_ID,
-} from "@/features/pages/taverns/tavern/visual-presets";
-import {
-  projectTavernSceneOntoRoom,
-} from "../runtime/active-scene-runtime";
-import {
-  projectTavernSceneFieldsOntoRoom,
-} from "../runtime/scene-field-projection";
+import { DEFAULT_VISUAL_PRESET_ID } from "@/features/pages/taverns/tavern/visual-presets";
+import { projectTavernSceneOntoRoom } from "../runtime/active-scene-runtime";
+import { projectTavernSceneFieldsOntoRoom } from "../runtime/scene-field-projection";
 import {
   DEFAULT_TAVERN_PROGRESS_TRACKER,
   DEFAULT_TAVERN_PROGRESS_VIEWS,
   DEFAULT_TAVERN_STATUS_DEFINITIONS,
   DEFAULT_TAVERN_STATUS_RULES,
 } from "../defaults";
-import {
-  createTavernId as createId,
-  now,
-} from "../ids";
-import {
-  createDefaultPromptForPresentation,
-} from "../presentation/presentation-settings";
-import {
-  createDefaultTavernPresentation,
-} from "../prompt-registry/presentation-rules";
-import {
-  normalizeCharacterRelationships,
-} from "../normalizers/relationships";
-import {
-  cloneDefaultRoomSettings,
-} from "../normalizers/room-settings";
-import {
-  buildTavernScene,
-  defaultSceneTitle,
-} from "../story-model/scene-builder";
-import {
-  createDefaultStoryGraph,
-} from "../story-model/story-graph";
-import {
-  createTavernStoryBinding,
-} from "../story-model/story-binding";
-import type {
-  TavernCharacter,
-  TavernCharacterRelationship,
-  TavernRoom,
-} from "../types";
+import { createTavernId as createId, now } from "../ids";
+import { createDefaultPromptForPresentation } from "../presentation/presentation-settings";
+import { createDefaultTavernPresentation } from "../prompt-registry/presentation-rules";
+import { normalizeCharacterRelationships } from "../normalizers/relationships";
+import { cloneDefaultRoomSettings } from "../normalizers/room-settings";
+import { buildTavernScene, defaultSceneTitle } from "../story-model/scene-builder";
+import { createDefaultStoryGraph } from "../story-model/story-graph";
+import { createTavernStoryBinding } from "../story-model/story-binding";
+import type { TavernCharacter, TavernCharacterRelationship, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const createTavernRoom = (workspaceId: string, index: number): TavernRoom => {
   const createdAt = now();

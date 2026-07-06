@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { TavernRoom } from "../../../tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   EditorMetricStrip,
   EditorProgressCard,

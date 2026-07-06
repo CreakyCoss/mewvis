@@ -1,7 +1,4 @@
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
@@ -14,14 +11,13 @@ import {
 } from "@/features/pages/taverns/tavern/core";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
 import { runTavernManagedUserReply } from "@/features/pages/taverns/tavern/runtime/assistants";
+import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type {
   TavernAssetDraft,
   TavernCharacter,
-  TavernMessage,
-  TavernReferencedFile,
   TavernReplyOption,
   TavernRoom,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -44,16 +40,12 @@ export const hasAssetDraftItems = (draft: TavernAssetDraft) =>
   draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
   draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
 
-export const getRoomActiveSceneId = (room: TavernRoom) =>
-  room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
+export const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
 export const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
   room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
 
-export const shouldAutoExtractAssets = (
-  room: TavernRoom,
-  messagesAfterUser: TavernMessage[],
-) => {
+export const shouldAutoExtractAssets = (room: TavernRoom, messagesAfterUser: TavernMessage[]) => {
   if (!room.settings.autoAssetExtractionEnabled) {
     return false;
   }
@@ -63,14 +55,10 @@ export const shouldAutoExtractAssets = (
   }
 
   const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
-  return userTurnCount > 0 &&
-    userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
+  return userTurnCount > 0 && userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
 };
 
-export const shouldAutoTrackProgress = (
-  room: TavernRoom,
-  messagesAfterUser: TavernMessage[],
-) => {
+export const shouldAutoTrackProgress = (room: TavernRoom, messagesAfterUser: TavernMessage[]) => {
   if (
     !room.settings.statusTracking.enabled ||
     !room.progressTracker.enabled ||
@@ -100,12 +88,13 @@ export const shouldCompactCharacterKnowledgeAfterTurn = (
     return false;
   }
 
-  const completedTurns = messages.filter((message) =>
-    message.role === "character" &&
-    message.characterId === characterId &&
-    message.status !== "streaming" &&
-    message.status !== "error" &&
-    message.content.trim()
+  const completedTurns = messages.filter(
+    (message) =>
+      message.role === "character" &&
+      message.characterId === characterId &&
+      message.status !== "streaming" &&
+      message.status !== "error" &&
+      message.content.trim(),
   ).length;
   return completedTurns > 0 && completedTurns % interval === 0;
 };
@@ -143,10 +132,7 @@ export type ActiveReplyRef = {
   text: string;
 };
 
-export const resolveTurnMode = (
-  isManagedModeEnabled: boolean,
-  triggerType: TurnTriggerType = "user",
-): TurnMode => {
+export const resolveTurnMode = (isManagedModeEnabled: boolean, triggerType: TurnTriggerType = "user"): TurnMode => {
   const isSceneDriveMode = triggerType === "scene_drive";
   const isManagedMode = isManagedModeEnabled && !isSceneDriveMode;
 
@@ -167,33 +153,36 @@ export const resolveSubmitSpeakerPlan = ({
   activeCharacter: TavernCharacter | null;
 }): SubmitSpeakerPlan => {
   const fixedOrderSettings = room.settings.directorScheduling.fixedOrder;
-  const fixedOrderParticipants = isTavernFixedOrderPhase(room) && fixedOrderSettings.includeUser
-    ? orderTavernRoundParticipants({
-        room,
-        characters,
-        activeCharacterId: activeCharacter?.id,
-        includeUser: true,
-        userPosition: fixedOrderSettings.userPosition,
-        userPersonaName: room.userPersonaName,
-      })
-    : [];
+  const fixedOrderParticipants =
+    isTavernFixedOrderPhase(room) && fixedOrderSettings.includeUser
+      ? orderTavernRoundParticipants({
+          room,
+          characters,
+          activeCharacterId: activeCharacter?.id,
+          includeUser: true,
+          userPosition: fixedOrderSettings.userPosition,
+          userPersonaName: room.userPersonaName,
+        })
+      : [];
   const fixedOrderUserIndex = fixedOrderParticipants.findIndex((participant) => participant.type === "user");
-  const fixedOrderCharactersAfterUser = fixedOrderUserIndex >= 0
-    ? fixedOrderParticipants
-        .slice(fixedOrderUserIndex + 1)
-        .flatMap((participant) => participant.type === "character" ? [participant.character] : [])
-    : [];
-  const availableRoomCharacters = fixedOrderUserIndex >= 0
-    ? fixedOrderCharactersAfterUser
-    : orderTavernRoundSpeakers({
-        room,
-        characters,
-        activeCharacterId: activeCharacter?.id,
-      });
-  const availableActiveCharacter = activeCharacter &&
-      isTavernCharacterAvailableForSpeech(room, activeCharacter)
-    ? activeCharacter
-    : availableRoomCharacters[0] ?? null;
+  const fixedOrderCharactersAfterUser =
+    fixedOrderUserIndex >= 0
+      ? fixedOrderParticipants
+          .slice(fixedOrderUserIndex + 1)
+          .flatMap((participant) => (participant.type === "character" ? [participant.character] : []))
+      : [];
+  const availableRoomCharacters =
+    fixedOrderUserIndex >= 0
+      ? fixedOrderCharactersAfterUser
+      : orderTavernRoundSpeakers({
+          room,
+          characters,
+          activeCharacterId: activeCharacter?.id,
+        });
+  const availableActiveCharacter =
+    activeCharacter && isTavernCharacterAvailableForSpeech(room, activeCharacter)
+      ? activeCharacter
+      : (availableRoomCharacters[0] ?? null);
   const candidateSpeakers = availableRoomCharacters;
 
   return {
@@ -204,10 +193,7 @@ export const resolveSubmitSpeakerPlan = ({
   };
 };
 
-export const findMissingSpeakerModel = (
-  speakers: TavernCharacter[],
-  runtimeModel: RuntimeModelOption,
-) => {
+export const findMissingSpeakerModel = (speakers: TavernCharacter[], runtimeModel: RuntimeModelOption) => {
   const speakerModels = speakers.map((speaker) => ({
     speaker,
     resolvedModel: resolveTavernCharacterModel({
@@ -217,17 +203,17 @@ export const findMissingSpeakerModel = (
   return speakerModels.find((item) => !item.resolvedModel)?.speaker ?? null;
 };
 
-export const createSpeakerRuntimeModelResolver = (
-  runtimeModel: RuntimeModelOption,
-): RequireSpeakerRuntimeModel => (speaker) => {
-  const resolvedModel = resolveTavernCharacterModel({
-    fallbackRuntimeModel: runtimeModel,
-  });
-  if (!resolvedModel) {
-    throw new Error(`角色 ${speaker.name} 还没有可用模型。`);
-  }
-  return resolvedModel.runtimeModel;
-};
+export const createSpeakerRuntimeModelResolver =
+  (runtimeModel: RuntimeModelOption): RequireSpeakerRuntimeModel =>
+  (speaker) => {
+    const resolvedModel = resolveTavernCharacterModel({
+      fallbackRuntimeModel: runtimeModel,
+    });
+    if (!resolvedModel) {
+      throw new Error(`角色 ${speaker.name} 还没有可用模型。`);
+    }
+    return resolvedModel.runtimeModel;
+  };
 
 export const getReferencePreviewsForSubmit = ({
   submittedText,
@@ -235,7 +221,7 @@ export const getReferencePreviewsForSubmit = ({
 }: {
   submittedText?: string;
   referencedFilePreviews: WorkspaceFileEntry[];
-}) => submittedText === undefined ? referencedFilePreviews : [];
+}) => (submittedText === undefined ? referencedFilePreviews : []);
 
 export const validateSubmitReferences = ({
   submittedText,
@@ -280,22 +266,18 @@ export const beginTurnSubmission = ({
   ctx.patchRoom(room.id, {
     replyOptions: [],
   });
-  ctx.setTurnStatus(mode.isSceneDriveMode
-    ? "导演正在自推动场景..."
-    : mode.isManagedMode
-    ? "导演正在调度你的回复..."
-    : mode.isDirectorLikeMode
-    ? "导演正在接收你的消息..."
-    : "正在发送消息...");
+  ctx.setTurnStatus(
+    mode.isSceneDriveMode
+      ? "导演正在自推动场景..."
+      : mode.isManagedMode
+        ? "导演正在调度你的回复..."
+        : mode.isDirectorLikeMode
+          ? "导演正在接收你的消息..."
+          : "正在发送消息...",
+  );
 };
 
-export const abortTurnSubmission = ({
-  ctx,
-  mode,
-}: {
-  ctx: TavernRoomContextValue;
-  mode: TurnMode;
-}) => {
+export const abortTurnSubmission = ({ ctx, mode }: { ctx: TavernRoomContextValue; mode: TurnMode }) => {
   if (mode.isManagedMode) {
     ctx.setIsManagedAutoRunStarted(false);
   }
@@ -361,38 +343,32 @@ export const createUserTurnMessage = ({
   text: string;
   referencedFilePreviews: WorkspaceFileEntry[];
   selectedReplyOption?: TavernReplyOption;
-}) => createTavernMessage({
-  roomId: room.id,
-  sceneId: room.activeSceneId,
-  sceneInstanceId: getRoomActiveSceneInstanceId(room),
-  role: "user",
-  presentationProfileId: room.presentation?.profileId,
-  content: text,
-  status: "done",
-  referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),
-  targetCharacterIds: selectedReplyOption?.targetCharacterIds,
-  respondsToInteractionIds: selectedReplyOption?.respondsToInteractionId
-    ? [selectedReplyOption.respondsToInteractionId]
-    : undefined,
-});
+}) =>
+  createTavernMessage({
+    roomId: room.id,
+    sceneId: room.activeSceneId,
+    sceneInstanceId: getRoomActiveSceneInstanceId(room),
+    role: "user",
+    presentationProfileId: room.presentation?.profileId,
+    content: text,
+    status: "done",
+    referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),
+    targetCharacterIds: selectedReplyOption?.targetCharacterIds,
+    respondsToInteractionIds: selectedReplyOption?.respondsToInteractionId
+      ? [selectedReplyOption.respondsToInteractionId]
+      : undefined,
+  });
 
-export const createSceneDriveTurnAnchorMessage = ({
-  room,
-  directive,
-}: {
-  room: TavernRoom;
-  directive: string;
-}) => createTavernMessage({
-  roomId: room.id,
-  sceneId: room.activeSceneId,
-  sceneInstanceId: getRoomActiveSceneInstanceId(room),
-  role: "narrator",
-  presentationProfileId: room.presentation?.profileId,
-  content: directive.trim()
-    ? `场景自推动：${directive.trim()}`
-    : "场景自推动",
-  status: "done",
-});
+export const createSceneDriveTurnAnchorMessage = ({ room, directive }: { room: TavernRoom; directive: string }) =>
+  createTavernMessage({
+    roomId: room.id,
+    sceneId: room.activeSceneId,
+    sceneInstanceId: getRoomActiveSceneInstanceId(room),
+    role: "narrator",
+    presentationProfileId: room.presentation?.profileId,
+    content: directive.trim() ? `场景自推动：${directive.trim()}` : "场景自推动",
+    status: "done",
+  });
 
 export const createInitialTurnRuntime = ({
   room,
@@ -407,9 +383,7 @@ export const createInitialTurnRuntime = ({
   visibleUserMessage: TavernMessage | null;
   mode: TurnMode;
 }): TurnRuntimeState => {
-  const runtimeMessages = visibleUserMessage
-    ? [...roomMessages, visibleUserMessage]
-    : [...roomMessages];
+  const runtimeMessages = visibleUserMessage ? [...roomMessages, visibleUserMessage] : [...roomMessages];
   const turnMessages = visibleUserMessage ? [visibleUserMessage] : [];
 
   return {
@@ -442,20 +416,20 @@ export const prepareTurnTraceAndUserMessage = ({
   mode: TurnMode;
 }) => {
   // 提交流程真正开始后才清空输入和落地用户消息，保证前置失败不会改动页面。
-  ctx.setTurnStatus(mode.isSceneDriveMode
-    ? "导演正在准备自推动轮次..."
-    : mode.isDirectorLikeMode
-    ? "导演正在准备角色状态..."
-    : "正在准备对话...");
+  ctx.setTurnStatus(
+    mode.isSceneDriveMode
+      ? "导演正在准备自推动轮次..."
+      : mode.isDirectorLikeMode
+        ? "导演正在准备角色状态..."
+        : "正在准备对话...",
+  );
   if (runtime.shouldShowProgressTrace) {
     ctx.setExecutionTraceAnchorMessageId(visibleUserMessage?.id ?? turnAnchorMessage.id);
     ctx.resetExecutionTrace([
       {
         id: "context",
         label: mode.isSceneDriveMode ? "准备自推" : "准备对话",
-        detail: mode.isSceneDriveMode
-          ? "读取本轮导演方向与引用文件。"
-          : "读取本轮用户输入与引用文件。",
+        detail: mode.isSceneDriveMode ? "读取本轮导演方向与引用文件。" : "读取本轮用户输入与引用文件。",
         status: "running",
       },
     ]);
@@ -473,8 +447,8 @@ export const prepareTurnTraceAndUserMessage = ({
     detail: references.length
       ? `已加载 ${references.length} 个引用文件。`
       : mode.isSceneDriveMode
-      ? "已准备自推动轮次。"
-      : "已准备本轮对话。",
+        ? "已准备自推动轮次。"
+        : "已准备本轮对话。",
   });
 };
 
@@ -492,9 +466,9 @@ export const handleTurnFailure = ({
   mode: TurnMode;
 }) => {
   const message = getErrorMessage(error);
-  ctx.setExecutionSteps((current) => current.map((step) =>
-    step.status === "running" ? { ...step, status: "error", detail: message } : step
-  ));
+  ctx.setExecutionSteps((current) =>
+    current.map((step) => (step.status === "running" ? { ...step, status: "error", detail: message } : step)),
+  );
   if (activeReplyRef.message) {
     ctx.patchMessage(activeReplyRef.message.id, {
       content: activeReplyRef.text.trim()

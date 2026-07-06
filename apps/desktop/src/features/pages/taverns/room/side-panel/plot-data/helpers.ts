@@ -8,7 +8,7 @@ import type {
   TavernStatusRule,
   TavernStatusValue,
   TavernTaskState,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import type { TavernInformationView } from "@/features/pages/taverns/tavern/core";
 
 export const informationViewLabels: Record<TavernInformationView, string> = {
@@ -80,8 +80,7 @@ export const taskScopeLabels = {
 
 export const formatFactType = (type: string) => type.replace(/[_-]+/g, " ").trim();
 
-export const isHiddenFactEvent = (event: TavernFactEvent) =>
-  (event.visibility ?? "public") !== "public";
+export const isHiddenFactEvent = (event: TavernFactEvent) => (event.visibility ?? "public") !== "public";
 
 export const isIdentityFactEvent = (event: TavernFactEvent) =>
   /(?:role|identity|faction|camp|alignment|身份|阵营)/i.test(event.type);
@@ -96,15 +95,10 @@ export const formatStatusValue = (value: TavernStatusValue) => {
   return value === null || value === "" ? "未记录" : String(value);
 };
 
-export const formatFactAudience = (
-  event: TavernFactEvent,
-  characterNameById: Map<string, string>,
-) => {
+export const formatFactAudience = (event: TavernFactEvent, characterNameById: Map<string, string>) => {
   const audience = [
     event.visibleToUser ? "我" : "",
-    ...(event.visibleToCharacterIds ?? []).map((characterId) =>
-      characterNameById.get(characterId) ?? characterId
-    ),
+    ...(event.visibleToCharacterIds ?? []).map((characterId) => characterNameById.get(characterId) ?? characterId),
     ...(event.visibleToFactionIds ?? []).map((factionId) => `阵营：${factionId}`),
   ].filter(Boolean);
 
@@ -124,10 +118,7 @@ export const formatStatusRuleValue = (rule: TavernStatusRule) => {
   return formatStatusValue(rule.apply.value ?? null);
 };
 
-export const formatStatusTarget = (
-  event: TavernStatusEvent,
-  characterNameById: Map<string, string>,
-) => {
+export const formatStatusTarget = (event: TavernStatusEvent, characterNameById: Map<string, string>) => {
   switch (event.target.type) {
     case "global":
       return "全局";
@@ -138,21 +129,20 @@ export const formatStatusTarget = (
     case "character":
       return characterNameById.get(event.target.characterId) ?? event.target.characterId;
     case "relationship": {
-      const subject = event.target.subject.type === "character"
-        ? characterNameById.get(event.target.subject.characterId) ?? event.target.subject.characterId
-        : "我";
-      const object = event.target.object.type === "character"
-        ? characterNameById.get(event.target.object.characterId) ?? event.target.object.characterId
-        : "我";
+      const subject =
+        event.target.subject.type === "character"
+          ? (characterNameById.get(event.target.subject.characterId) ?? event.target.subject.characterId)
+          : "我";
+      const object =
+        event.target.object.type === "character"
+          ? (characterNameById.get(event.target.object.characterId) ?? event.target.object.characterId)
+          : "我";
       return `${subject} -> ${object}`;
     }
   }
 };
 
-export const formatEntityRef = (
-  entity: TavernEntityRef | undefined,
-  characterNameById: Map<string, string>,
-) => {
+export const formatEntityRef = (entity: TavernEntityRef | undefined, characterNameById: Map<string, string>) => {
   if (!entity) {
     return "未指定";
   }
@@ -199,7 +189,9 @@ export const formatConditionSummary = (
       condition.equals !== undefined ? `= ${formatStatusValue(condition.equals)}` : "",
       condition.notEquals !== undefined ? `!= ${formatStatusValue(condition.notEquals)}` : "",
       condition.crossing ? `穿越 ${condition.crossing}` : "",
-    ].filter(Boolean).join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
     return `状态 ${condition.status} ${parts}`;
   }
   if ("factEvent" in condition) {

@@ -1,8 +1,4 @@
-import type {
-  TavernCharacter,
-  TavernReplyOption,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const replyOptionIntents = new Set<TavernReplyOption["intent"]>([
   "answer",
@@ -49,17 +45,13 @@ const createReplyOptionId = (text: string, index: number) => {
 
 const normalizeReplyOptionIntent = (value: unknown): TavernReplyOption["intent"] =>
   typeof value === "string" && replyOptionIntents.has(value as TavernReplyOption["intent"])
-    ? value as TavernReplyOption["intent"]
+    ? (value as TavernReplyOption["intent"])
     : "ask";
 
-const normalizeReplyOptionTargetCharacterIds = (
-  value: unknown,
-  characterIds: Set<string>,
-) => Array.isArray(value)
-  ? [...new Set(value.flatMap((item) =>
-      typeof item === "string" && characterIds.has(item) ? [item] : []
-    ))]
-  : [];
+const normalizeReplyOptionTargetCharacterIds = (value: unknown, characterIds: Set<string>) =>
+  Array.isArray(value)
+    ? [...new Set(value.flatMap((item) => (typeof item === "string" && characterIds.has(item) ? [item] : [])))]
+    : [];
 
 export const parseSuggestions = (
   text: string,
@@ -72,53 +64,45 @@ export const parseSuggestions = (
   },
 ): TavernReplyOption[] => {
   const characterIds = new Set(characters.map((character) => character.id));
-  const pendingUserInteraction = room.pendingInteractions.find((interaction) =>
-    interaction.status === "open" &&
-    interaction.requiresResponse &&
-    interaction.target.type === "user"
+  const pendingUserInteraction = room.pendingInteractions.find(
+    (interaction) =>
+      interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
-  const fallbackTargetCharacterIds = pendingUserInteraction?.source.type === "character" &&
+  const fallbackTargetCharacterIds =
+    pendingUserInteraction?.source.type === "character" &&
     pendingUserInteraction.source.characterId &&
     characterIds.has(pendingUserInteraction.source.characterId)
-    ? [pendingUserInteraction.source.characterId]
-    : [];
+      ? [pendingUserInteraction.source.characterId]
+      : [];
 
   try {
     const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
     if (Array.isArray(parsed.replies)) {
       return parsed.replies.flatMap((item, index) => {
-        const record = item && typeof item === "object"
-          ? item as Record<string, unknown>
-          : {};
-        const rawText = typeof item === "string"
-          ? item
-          : typeof record.text === "string"
-          ? record.text
-          : "";
+        const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+        const rawText = typeof item === "string" ? item : typeof record.text === "string" ? record.text : "";
         const replyText = stripUserLabel(rawText, room.userPersonaName)
           .replace(/^["“”]+|["“”]+$/g, "")
           .trim();
         if (!replyText) {
           return [];
         }
-        const targetCharacterIds = normalizeReplyOptionTargetCharacterIds(
-          record.targetCharacterIds,
-          characterIds,
-        );
-        const respondsToInteractionId = typeof record.respondsToInteractionId === "string" &&
+        const targetCharacterIds = normalizeReplyOptionTargetCharacterIds(record.targetCharacterIds, characterIds);
+        const respondsToInteractionId =
+          typeof record.respondsToInteractionId === "string" &&
           room.pendingInteractions.some((interaction) => interaction.id === record.respondsToInteractionId)
-          ? record.respondsToInteractionId
-          : pendingUserInteraction?.id;
+            ? record.respondsToInteractionId
+            : pendingUserInteraction?.id;
 
-        return [{
-          id: createReplyOptionId(replyText, index),
-          text: replyText,
-          ...(respondsToInteractionId ? { respondsToInteractionId } : {}),
-          targetCharacterIds: targetCharacterIds.length > 0
-            ? targetCharacterIds
-            : fallbackTargetCharacterIds,
-          intent: normalizeReplyOptionIntent(record.intent),
-        }];
+        return [
+          {
+            id: createReplyOptionId(replyText, index),
+            text: replyText,
+            ...(respondsToInteractionId ? { respondsToInteractionId } : {}),
+            targetCharacterIds: targetCharacterIds.length > 0 ? targetCharacterIds : fallbackTargetCharacterIds,
+            intent: normalizeReplyOptionIntent(record.intent),
+          },
+        ];
       });
     }
   } catch {
@@ -134,15 +118,15 @@ export const parseSuggestions = (
         .trim();
 
       return cleaned
-        ? [{
-            id: createReplyOptionId(cleaned, index),
-            text: cleaned,
-            ...(pendingUserInteraction?.id
-              ? { respondsToInteractionId: pendingUserInteraction.id }
-              : {}),
-            targetCharacterIds: fallbackTargetCharacterIds,
-            intent: "ask" as const,
-          }]
+        ? [
+            {
+              id: createReplyOptionId(cleaned, index),
+              text: cleaned,
+              ...(pendingUserInteraction?.id ? { respondsToInteractionId: pendingUserInteraction.id } : {}),
+              targetCharacterIds: fallbackTargetCharacterIds,
+              intent: "ask" as const,
+            },
+          ]
         : [];
     });
 };
@@ -171,25 +155,14 @@ const cleanManagedReply = (text: string, userPersonaName: string) => {
 export const parseManagedReply = (text: string, userPersonaName: string) => {
   try {
     const parsed = JSON.parse(extractJsonObject(text)) as Record<string, unknown>;
-    const candidates = [
-      parsed.reply,
-      parsed.userReply,
-      parsed.user_reply,
-      parsed.content,
-      parsed.message,
-      parsed.text,
-    ];
-    const reply = candidates.find((candidate) =>
-      typeof candidate === "string" && candidate.trim()
-    );
+    const candidates = [parsed.reply, parsed.userReply, parsed.user_reply, parsed.content, parsed.message, parsed.text];
+    const reply = candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
     if (typeof reply === "string") {
       return cleanManagedReply(reply, userPersonaName);
     }
 
     if (Array.isArray(parsed.replies)) {
-      const firstReply = parsed.replies.find((candidate) =>
-        typeof candidate === "string" && candidate.trim()
-      );
+      const firstReply = parsed.replies.find((candidate) => typeof candidate === "string" && candidate.trim());
       if (typeof firstReply === "string") {
         return cleanManagedReply(firstReply, userPersonaName);
       }
@@ -204,7 +177,8 @@ export const parseManagedReply = (text: string, userPersonaName: string) => {
   }
 
   return cleanManagedReply(
-    trimmed.split(/\n+/)
+    trimmed
+      .split(/\n+/)
       .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""))
       .find((line) => line.trim()) ?? "",
     userPersonaName,

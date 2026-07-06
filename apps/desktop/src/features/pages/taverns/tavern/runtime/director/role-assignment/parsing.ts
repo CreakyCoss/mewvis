@@ -1,11 +1,5 @@
-import {
-  createTavernRoleAssignmentFactEvents,
-  type TavernRoleAssignmentSelection,
-} from "../../../core";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import { createTavernRoleAssignmentFactEvents, type TavernRoleAssignmentSelection } from "../../../core";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   createTavernRoleAssignmentParticipants,
   expandTavernRoleAssignmentPool,
@@ -57,9 +51,7 @@ export const parseTavernDirectorRoleAssignmentText = ({
   const participants = createTavernRoleAssignmentParticipants(room, characters);
   const rolePool = expandTavernRoleAssignmentPool(roleAssignment.rolePool);
   if (participants.length === 0 || rolePool.length !== participants.length) {
-    throw new Error(
-      `身份池数量必须等于参与者数量：participants=${participants.length}, roles=${rolePool.length}`,
-    );
+    throw new Error(`身份池数量必须等于参与者数量：participants=${participants.length}, roles=${rolePool.length}`);
   }
 
   let parsed: ParsedRoleAssignment;
@@ -74,17 +66,11 @@ export const parseTavernDirectorRoleAssignmentText = ({
   }
 
   const participantByKey = new Map(
-    participants.map((participant) => [
-      tavernRoleAssignmentParticipantKey(participant),
-      participant,
-    ]),
+    participants.map((participant) => [tavernRoleAssignmentParticipantKey(participant), participant]),
   );
   const roleById = new Map(roleAssignment.rolePool.map((role) => [role.id, role]));
   const roleLimits = new Map(
-    roleAssignment.rolePool.map((role) => [
-      role.id,
-      Math.max(1, Math.round(role.count || 1)),
-    ]),
+    roleAssignment.rolePool.map((role) => [role.id, Math.max(1, Math.round(role.count || 1))]),
   );
   const roleCounts = new Map<string, number>();
   const seenParticipants = new Set<string>();
@@ -96,19 +82,9 @@ export const parseTavernDirectorRoleAssignmentText = ({
     }
 
     const record = candidate as Record<string, unknown>;
-    const targetType = record.targetType === "user"
-      ? "user"
-      : record.targetType === "character"
-        ? "character"
-        : "";
-    const rawCharacterId = typeof record.characterId === "string"
-      ? record.characterId.trim()
-      : "";
-    const key = targetType === "user"
-      ? "user:user"
-      : targetType === "character"
-        ? `character:${rawCharacterId}`
-        : "";
+    const targetType = record.targetType === "user" ? "user" : record.targetType === "character" ? "character" : "";
+    const rawCharacterId = typeof record.characterId === "string" ? record.characterId.trim() : "";
+    const key = targetType === "user" ? "user:user" : targetType === "character" ? `character:${rawCharacterId}` : "";
     const roleId = typeof record.roleId === "string" ? record.roleId.trim() : "";
     const participant = participantByKey.get(key);
     const role = roleById.get(roleId);
@@ -127,37 +103,27 @@ export const parseTavernDirectorRoleAssignmentText = ({
     selections.push({ participant, role });
   }
 
-  const missingParticipants = participants.filter((participant) =>
-    !seenParticipants.has(tavernRoleAssignmentParticipantKey(participant))
+  const missingParticipants = participants.filter(
+    (participant) => !seenParticipants.has(tavernRoleAssignmentParticipantKey(participant)),
   );
-  const invalidRoleCounts = roleAssignment.rolePool.filter((role) =>
-    (roleCounts.get(role.id) ?? 0) !== Math.max(1, Math.round(role.count || 1))
+  const invalidRoleCounts = roleAssignment.rolePool.filter(
+    (role) => (roleCounts.get(role.id) ?? 0) !== Math.max(1, Math.round(role.count || 1)),
   );
-  if (
-    missingParticipants.length > 0 ||
-    invalidRoleCounts.length > 0 ||
-    selections.length !== participants.length
-  ) {
-    throw new Error([
-      "导演身份分配不完整。",
-      missingParticipants.length
-        ? `missing=${missingParticipants.map((item) => item.label).join(",")}`
-        : "",
-      invalidRoleCounts.length
-        ? `invalidRoles=${invalidRoleCounts.map((role) => role.id).join(",")}`
-        : "",
-    ].filter(Boolean).join(" "));
+  if (missingParticipants.length > 0 || invalidRoleCounts.length > 0 || selections.length !== participants.length) {
+    throw new Error(
+      [
+        "导演身份分配不完整。",
+        missingParticipants.length ? `missing=${missingParticipants.map((item) => item.label).join(",")}` : "",
+        invalidRoleCounts.length ? `invalidRoles=${invalidRoleCounts.map((role) => role.id).join(",")}` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
   }
 
-  const openingNarrator = typeof parsed.openingNarrator === "string"
-    ? parsed.openingNarrator.trim().slice(0, 240)
-    : "";
-  const dayAnnouncement = typeof parsed.dayAnnouncement === "string"
-    ? parsed.dayAnnouncement.trim().slice(0, 360)
-    : "";
-  const publicFact = typeof parsed.publicFact === "string"
-    ? parsed.publicFact.trim().slice(0, 240)
-    : "";
+  const openingNarrator = typeof parsed.openingNarrator === "string" ? parsed.openingNarrator.trim().slice(0, 240) : "";
+  const dayAnnouncement = typeof parsed.dayAnnouncement === "string" ? parsed.dayAnnouncement.trim().slice(0, 360) : "";
+  const publicFact = typeof parsed.publicFact === "string" ? parsed.publicFact.trim().slice(0, 240) : "";
 
   return {
     factEvents: createTavernRoleAssignmentFactEvents({

@@ -3,14 +3,13 @@ import { createContext, useContext } from "react";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
+import type { TavernMessage, TavernState } from "@/features/pages/taverns/tavern/types";
 import type {
   TavernCharacter,
-  TavernMessage,
   TavernProgressCheckpoint,
   TavernReplyOption,
   TavernRoom,
-  TavernState,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import type { ExecutionStep } from "./execution-trace";
 
 export type TavernRoomContextValue = {
@@ -66,16 +65,8 @@ export type TavernRoomContextValue = {
 
 const TavernRoomContext = createContext<TavernRoomContextValue | null>(null);
 
-export const TavernRoomProvider = ({
-  children,
-  value,
-}: {
-  children: ReactNode;
-  value: TavernRoomContextValue;
-}) => (
-  <TavernRoomContext.Provider value={value}>
-    {children}
-  </TavernRoomContext.Provider>
+export const TavernRoomProvider = ({ children, value }: { children: ReactNode; value: TavernRoomContextValue }) => (
+  <TavernRoomContext.Provider value={value}>{children}</TavernRoomContext.Provider>
 );
 
 export const useTavernRoomContext = () => {

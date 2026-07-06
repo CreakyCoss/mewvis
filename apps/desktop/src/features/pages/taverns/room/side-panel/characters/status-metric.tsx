@@ -1,18 +1,10 @@
-import {
-  Brain,
-  HeartPulse,
-  ShieldQuestion,
-  Smile,
-} from "lucide-react";
+import { Brain, HeartPulse, ShieldQuestion, Smile } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { TavernStatusValue } from "@/features/pages/taverns/tavern/types";
+import type { TavernStatusValue } from "@/features/pages/taverns/manage/model";
 import { MeterBar } from "../shared";
 import type { ResolvedStatusMetric } from "../types";
 
-const formatStatusValue = (
-  value: TavernStatusValue,
-  metric: ResolvedStatusMetric,
-) => {
+const formatStatusValue = (value: TavernStatusValue, metric: ResolvedStatusMetric) => {
   if (Array.isArray(value)) {
     return value.length > 0 ? value.join("、") : "无";
   }
@@ -44,8 +36,7 @@ const resolveMetricIcon = (label: string): LucideIcon => {
   return Brain;
 };
 
-export const formatMetricValue = (metric: ResolvedStatusMetric) =>
-  formatStatusValue(metric.value, metric);
+export const formatMetricValue = (metric: ResolvedStatusMetric) => formatStatusValue(metric.value, metric);
 
 export const CharacterMetricView = ({
   metric,
@@ -69,9 +60,7 @@ export const CharacterMetricView = ({
           </span>
           <span className="shrink-0 text-xs font-semibold tabular-nums">
             {value}
-            {isNumeric && (
-              <span className="ml-0.5 text-[11px] font-normal text-current/65">/{maxValue}</span>
-            )}
+            {isNumeric && <span className="ml-0.5 text-[11px] font-normal text-current/65">/{maxValue}</span>}
           </span>
         </div>
         {isNumeric && (
@@ -92,9 +81,7 @@ export const CharacterMetricView = ({
       <div className="flex min-w-0 items-end justify-between gap-1.5">
         <span className="shrink-0 text-[13px] font-semibold leading-none tabular-nums text-current/90">
           {value}
-          {isNumeric && (
-            <span className="ml-0.5 text-[11px] font-normal text-current/60">/{maxValue}</span>
-          )}
+          {isNumeric && <span className="ml-0.5 text-[11px] font-normal text-current/60">/{maxValue}</span>}
         </span>
       </div>
       {isNumeric && <MeterBar percent={metric.percent} />}

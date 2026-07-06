@@ -1,17 +1,7 @@
-import type {
-  TavernCharacter,
-  TavernFactEvent,
-  TavernMessage,
-  TavernRoom,
-} from "../../types";
-import {
-  normalizeTavernMessageForAudience,
-  type TavernVisibleMessage,
-} from "./visibility";
-import {
-  filterTavernFactEventsForAudience,
-  shouldShowTavernCharacterThoughts,
-} from "../../core/information-policy";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernFactEvent, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { normalizeTavernMessageForAudience, type TavernVisibleMessage } from "./visibility";
+import { filterTavernFactEventsForAudience, shouldShowTavernCharacterThoughts } from "../../core/information-policy";
 import { buildTavernMessageSegments } from "./segments";
 
 export type TavernRenderableMessage = TavernVisibleMessage & {
@@ -19,11 +9,8 @@ export type TavernRenderableMessage = TavernVisibleMessage & {
   userVisibleFactEvents?: TavernFactEvent[];
 };
 
-const sortByMessageOrder = (
-  a: TavernMessage,
-  b: TavernMessage,
-  messageOrderById: Map<string, number>,
-) => (messageOrderById.get(a.id) ?? 0) - (messageOrderById.get(b.id) ?? 0);
+const sortByMessageOrder = (a: TavernMessage, b: TavernMessage, messageOrderById: Map<string, number>) =>
+  (messageOrderById.get(a.id) ?? 0) - (messageOrderById.get(b.id) ?? 0);
 
 const getEntityCharacterId = (entity: TavernFactEvent["actor"]) =>
   entity?.type === "character" ? entity.characterId : undefined;
@@ -54,17 +41,16 @@ const resolveFactEventAnchorMessageId = ({
   const targetCharacterId = getEntityCharacterId(factEvent.target);
   const preferredCharacterId = actorCharacterId ?? targetCharacterId;
   const characterMessage = preferredCharacterId
-    ? sourceMessages.find((message) =>
-        message.role === "character" && message.characterId === preferredCharacterId
-      )
+    ? sourceMessages.find((message) => message.role === "character" && message.characterId === preferredCharacterId)
     : undefined;
   if (characterMessage) {
     return characterMessage.id;
   }
 
-  const userMessage = entityIsUser(factEvent.actor) || entityIsUser(factEvent.target)
-    ? sourceMessages.find((message) => message.role === "user")
-    : undefined;
+  const userMessage =
+    entityIsUser(factEvent.actor) || entityIsUser(factEvent.target)
+      ? sourceMessages.find((message) => message.role === "user")
+      : undefined;
   if (userMessage) {
     return userMessage.id;
   }
@@ -104,24 +90,20 @@ const createUserVisibleFactEventsByMessageId = ({
       continue;
     }
 
-    factsByMessageId.set(anchorMessageId, [
-      ...(factsByMessageId.get(anchorMessageId) ?? []),
-      factEvent,
-    ]);
+    factsByMessageId.set(anchorMessageId, [...(factsByMessageId.get(anchorMessageId) ?? []), factEvent]);
   }
 
   return factsByMessageId;
 };
 const normalizeNarratorEchoText = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
+  text.toLowerCase().replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
 
 const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
   const normalizedReply = normalizeNarratorEchoText(replyText);
 
-  return normalizedReply.length > 0 && narratorTexts.some((narratorText) =>
-    normalizeNarratorEchoText(narratorText) === normalizedReply
+  return (
+    normalizedReply.length > 0 &&
+    narratorTexts.some((narratorText) => normalizeNarratorEchoText(narratorText) === normalizedReply)
   );
 };
 
@@ -139,11 +121,7 @@ const isLikelyNarratorOnlyCharacterMessage = (
   characters: TavernCharacter[],
   userPersonaName: string,
 ) => {
-  if (
-    message.role !== "character" ||
-    message.status === "streaming" ||
-    message.status === "error"
-  ) {
+  if (message.role !== "character" || message.status === "streaming" || message.status === "error") {
     return false;
   }
 
@@ -158,23 +136,18 @@ const isLikelyNarratorOnlyCharacterMessage = (
     return false;
   }
 
-  const labels = [
-    userPersonaName,
-    ...characters.map((character) => character.name),
-  ].map((label) => label.trim()).filter(Boolean);
+  const labels = [userPersonaName, ...characters.map((character) => character.name)]
+    .map((label) => label.trim())
+    .filter(Boolean);
   if (labels.some((label) => content.includes(label))) {
     return false;
   }
 
-  if (
-    characterIntentPattern.test(content) ||
-    characterBodyActionPattern.test(content)
-  ) {
+  if (characterIntentPattern.test(content) || characterBodyActionPattern.test(content)) {
     return false;
   }
 
-  return narratorEnvironmentSubjectPattern.test(content) &&
-    narratorEnvironmentMotionPattern.test(content);
+  return narratorEnvironmentSubjectPattern.test(content) && narratorEnvironmentMotionPattern.test(content);
 };
 
 export const createTavernRenderableMessages = ({
@@ -191,9 +164,9 @@ export const createTavernRenderableMessages = ({
   const turnNarratorTexts: string[] = [];
   const includeAllThoughts = room
     ? shouldShowTavernCharacterThoughts({
-      settings: room.settings,
-      outcomeEvents: room.outcomeEvents,
-    })
+        settings: room.settings,
+        outcomeEvents: room.outcomeEvents,
+      })
     : true;
   const userVisibleFactEventsByMessageId = createUserVisibleFactEventsByMessageId({
     messages,

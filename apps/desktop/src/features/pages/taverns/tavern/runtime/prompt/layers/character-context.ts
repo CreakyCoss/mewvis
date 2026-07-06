@@ -1,25 +1,17 @@
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { formatTavernPromptCharacter } from "../context/characters";
 import type { TavernPromptSection } from "../shared/sections";
-import {
-  escapePromptXmlText,
-  limitPromptText,
-} from "../shared/text";
+import { escapePromptXmlText, limitPromptText } from "../shared/text";
 
-const limitEscapedPromptText = (text: string, maxChars: number) =>
-  escapePromptXmlText(limitPromptText(text, maxChars));
+const limitEscapedPromptText = (text: string, maxChars: number) => escapePromptXmlText(limitPromptText(text, maxChars));
 
-const buildCharacterPromptRules = (activeCharacter: TavernCharacter) => [
-  activeCharacter.writingStyle
-    ? `- 角色写作风格：${limitEscapedPromptText(activeCharacter.writingStyle, 240)}`
-    : "",
-  activeCharacter.replyStylePrompt
-    ? `- 角色级回复规则：${limitEscapedPromptText(activeCharacter.replyStylePrompt, 320)}`
-    : "",
-].filter(Boolean);
+const buildCharacterPromptRules = (activeCharacter: TavernCharacter) =>
+  [
+    activeCharacter.writingStyle ? `- 角色写作风格：${limitEscapedPromptText(activeCharacter.writingStyle, 240)}` : "",
+    activeCharacter.replyStylePrompt
+      ? `- 角色级回复规则：${limitEscapedPromptText(activeCharacter.replyStylePrompt, 320)}`
+      : "",
+  ].filter(Boolean);
 
 export const formatCompactPresentCharacters = ({
   activeCharacter,
@@ -29,10 +21,11 @@ export const formatCompactPresentCharacters = ({
   activeCharacter: TavernCharacter;
   room: TavernRoom;
   characters: TavernCharacter[];
-}) => characters
-  .filter((character) => character.id !== activeCharacter.id)
-  .map((character) => formatTavernPromptCharacter(character, { compact: true, room, characters }))
-  .join("\n\n---\n\n");
+}) =>
+  characters
+    .filter((character) => character.id !== activeCharacter.id)
+    .map((character) => formatTavernPromptCharacter(character, { compact: true, room, characters }))
+    .join("\n\n---\n\n");
 
 export const buildCharacterContextSections = ({
   activeCharacter,

@@ -1,9 +1,9 @@
+import type { TavernMessage } from "../../types";
 import type {
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
   TavernCharacterRelationship,
   TavernLorebookEntry,
-  TavernMessage,
   TavernPresentationSettings,
   TavernProgressTrackerSettings,
   TavernProgressView,
@@ -16,7 +16,7 @@ import type {
   TavernStatusRule,
   TavernStoryGraph,
   TavernTaskDefinition,
-} from "../../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernPresentationInputSource = {
   type: "story" | "manual" | "import";
@@ -39,21 +39,16 @@ export type TavernPresentationCharacterInput = {
   privateStatus?: Partial<TavernCharacterPrivateStatus>;
 };
 
-export type TavernPresentationLorebookEntryInput =
-  Pick<TavernLorebookEntry, "title" | "content" | "keywords" | "enabled" | "alwaysOn"> &
+export type TavernPresentationLorebookEntryInput = Pick<
+  TavernLorebookEntry,
+  "title" | "content" | "keywords" | "enabled" | "alwaysOn"
+> &
   Partial<Pick<TavernLorebookEntry, "id" | "createdAt" | "updatedAt">>;
 
-export type TavernPresentationSceneInput =
-  Pick<
-    TavernScene,
-    | "title"
-    | "scene"
-    | "sceneGoal"
-    | "plot"
-    | "storyDirection"
-    | "transition"
-    | "memory"
-  > &
+export type TavernPresentationSceneInput = Pick<
+  TavernScene,
+  "title" | "scene" | "sceneGoal" | "plot" | "storyDirection" | "transition" | "memory"
+> &
   Partial<
     Pick<
       TavernScene,

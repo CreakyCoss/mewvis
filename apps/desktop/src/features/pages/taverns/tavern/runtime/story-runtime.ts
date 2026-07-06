@@ -1,11 +1,5 @@
-import {
-  now,
-} from "../ids";
-import type {
-  TavernStoryEdge,
-  TavernStoryGraph,
-  TavernStoryRun,
-} from "../types";
+import { now } from "../ids";
+import type { TavernStoryEdge, TavernStoryGraph, TavernStoryRun } from "@/features/pages/taverns/manage/model";
 
 const stableIdHash = (value: string) => {
   let hash = 5381;
@@ -15,22 +9,18 @@ const stableIdHash = (value: string) => {
   return (hash >>> 0).toString(36);
 };
 
-export const createRouteScopedSceneInstanceId = (
-  roomId: string,
-  pathNodeIds: string[],
-) => `scene-instance-${stableIdHash([roomId, ...pathNodeIds].join(">"))}`;
+export const createRouteScopedSceneInstanceId = (roomId: string, pathNodeIds: string[]) =>
+  `scene-instance-${stableIdHash([roomId, ...pathNodeIds].join(">"))}`;
 
 const sortStoryEdgesForRoute = (edges: TavernStoryEdge[]) =>
-  [...edges].sort((left, right) =>
-    Number(right.isDefault) - Number(left.isDefault) ||
-    left.priority - right.priority ||
-    left.createdAt - right.createdAt
+  [...edges].sort(
+    (left, right) =>
+      Number(right.isDefault) - Number(left.isDefault) ||
+      left.priority - right.priority ||
+      left.createdAt - right.createdAt,
   );
 
-export const buildStoryRunsFromGraph = (
-  graph: TavernStoryGraph,
-  createdAt = now(),
-): TavernStoryRun[] => {
+export const buildStoryRunsFromGraph = (graph: TavernStoryGraph, createdAt = now()): TavernStoryRun[] => {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const edgesBySourceNodeId = new Map<string, TavernStoryEdge[]>();
   graph.edges.forEach((edge) => {
@@ -45,12 +35,7 @@ export const buildStoryRunsFromGraph = (
   }
 
   const runs: TavernStoryRun[] = [];
-  const walk = (
-    nodeId: string,
-    pathNodeIds: string[],
-    pathEdgeIds: string[],
-    visitedNodeIds: Set<string>,
-  ) => {
+  const walk = (nodeId: string, pathNodeIds: string[], pathEdgeIds: string[], visitedNodeIds: Set<string>) => {
     if (visitedNodeIds.has(nodeId)) {
       return;
     }
@@ -63,8 +48,9 @@ export const buildStoryRunsFromGraph = (
     const nextPathNodeIds = [...pathNodeIds, nodeId];
     const nextVisitedNodeIds = new Set(visitedNodeIds);
     nextVisitedNodeIds.add(nodeId);
-    const outgoingEdges = sortStoryEdgesForRoute(edgesBySourceNodeId.get(nodeId) ?? [])
-      .filter((edge) => nodeById.has(edge.toNodeId));
+    const outgoingEdges = sortStoryEdgesForRoute(edgesBySourceNodeId.get(nodeId) ?? []).filter((edge) =>
+      nodeById.has(edge.toNodeId),
+    );
 
     if (outgoingEdges.length === 0 || node.type === "ending" || node.type === "failure") {
       const title = nextPathNodeIds
@@ -84,38 +70,30 @@ export const buildStoryRunsFromGraph = (
     }
 
     outgoingEdges.forEach((edge) => {
-      walk(
-        edge.toNodeId,
-        nextPathNodeIds,
-        [...pathEdgeIds, edge.id],
-        nextVisitedNodeIds,
-      );
+      walk(edge.toNodeId, nextPathNodeIds, [...pathEdgeIds, edge.id], nextVisitedNodeIds);
     });
   };
 
   walk(entryNode.id, [], [], new Set());
   return runs.length > 0
     ? runs
-    : [{
-        id: `run-${stableIdHash(entryNode.id)}`,
-        title: entryNode.title.trim() || "默认路线",
-        pathNodeIds: [entryNode.id],
-        pathEdgeIds: [],
-        activeNodeId: entryNode.id,
-        createdAt,
-        updatedAt: createdAt,
-      }];
+    : [
+        {
+          id: `run-${stableIdHash(entryNode.id)}`,
+          title: entryNode.title.trim() || "默认路线",
+          pathNodeIds: [entryNode.id],
+          pathEdgeIds: [],
+          activeNodeId: entryNode.id,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      ];
 };
 
-export const resolveActiveRun = (
-  runs: TavernStoryRun[],
-  activeRunId: string | undefined,
-) => runs.find((run) => run.id === activeRunId) ?? runs[0] ?? null;
+export const resolveActiveRun = (runs: TavernStoryRun[], activeRunId: string | undefined) =>
+  runs.find((run) => run.id === activeRunId) ?? runs[0] ?? null;
 
-export const resolveRunNodePrefix = (
-  run: TavernStoryRun | null,
-  nodeId: string | undefined,
-) => {
+export const resolveRunNodePrefix = (run: TavernStoryRun | null, nodeId: string | undefined) => {
   if (!run || !nodeId) {
     return [];
   }

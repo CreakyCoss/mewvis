@@ -1,4 +1,4 @@
-import type { TavernFactEvent } from "../../../types";
+import type { TavernFactEvent } from "@/features/pages/taverns/manage/model";
 
 export type TavernDirectorRoleAssignment = {
   factEvents: TavernFactEvent[];

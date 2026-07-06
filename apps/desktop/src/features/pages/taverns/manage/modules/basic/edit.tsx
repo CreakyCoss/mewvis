@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/taverns/tavern/visual-presets";
-import type { TavernReplyMode, TavernRoom } from "../../../tavern/types";
+import type { TavernReplyMode, TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   EditorField,
   EditorFormCard,

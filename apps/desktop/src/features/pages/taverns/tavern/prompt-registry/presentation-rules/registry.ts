@@ -1,7 +1,4 @@
-import type {
-  TavernPresentationProfile,
-  TavernPresentationProfileId,
-} from "../../types";
+import type { TavernPresentationProfile, TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
 
 export type TavernPresentationRuleRegistration = TavernPresentationProfile & {
   selectable?: boolean;
@@ -13,14 +10,9 @@ type TavernPresentationRuleRegistryEntry = TavernPresentationProfile & {
   order: number;
 };
 
-const presentationRuleRegistry = new Map<
-  TavernPresentationProfileId,
-  TavernPresentationRuleRegistryEntry
->();
+const presentationRuleRegistry = new Map<TavernPresentationProfileId, TavernPresentationRuleRegistryEntry>();
 
-const toPresentationProfile = (
-  entry: TavernPresentationRuleRegistryEntry,
-): TavernPresentationProfile => ({
+const toPresentationProfile = (entry: TavernPresentationRuleRegistryEntry): TavernPresentationProfile => ({
   id: entry.id,
   label: entry.label,
   description: entry.description,
@@ -36,12 +28,11 @@ const toPresentationProfile = (
 });
 
 const getOrderedPresentationRuleEntries = () =>
-  Array.from(presentationRuleRegistry.values())
-    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
+  Array.from(presentationRuleRegistry.values()).sort(
+    (left, right) => left.order - right.order || left.label.localeCompare(right.label),
+  );
 
-export const registerTavernPresentationRule = (
-  rule: TavernPresentationRuleRegistration,
-) => {
+export const registerTavernPresentationRule = (rule: TavernPresentationRuleRegistration) => {
   if (presentationRuleRegistry.has(rule.id)) {
     throw new Error(`Duplicate tavern presentation rule id: ${rule.id}`);
   }
@@ -53,9 +44,7 @@ export const registerTavernPresentationRule = (
   });
 };
 
-export const registerTavernPresentationRules = (
-  rules: TavernPresentationRuleRegistration[],
-) => {
+export const registerTavernPresentationRules = (rules: TavernPresentationRuleRegistration[]) => {
   rules.forEach(registerTavernPresentationRule);
 };
 

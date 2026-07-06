@@ -4,7 +4,7 @@ import type {
   TavernFactEvent,
   TavernRoleAssignmentDefinition,
   TavernRoom,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 const generatedRoleAssignmentPrefix = "role-assignment";
 
@@ -20,7 +20,7 @@ export type TavernRoleAssignmentSelection = {
   role: TavernRoleAssignmentDefinition;
 };
 
-const shuffle = <T,>(items: T[], random: () => number) => {
+const shuffle = <T>(items: T[], random: () => number) => {
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index -= 1) {
     const targetIndex = Math.floor(random() * (index + 1));
@@ -30,25 +30,22 @@ const shuffle = <T,>(items: T[], random: () => number) => {
 };
 
 const expandRolePool = (rolePool: TavernRoleAssignmentDefinition[]) =>
-  rolePool.flatMap((role) =>
-    Array.from({ length: Math.max(1, Math.round(role.count || 1)) }, () => role)
-  );
+  rolePool.flatMap((role) => Array.from({ length: Math.max(1, Math.round(role.count || 1)) }, () => role));
 
 const roleFactionLabel = (role: TavernRoleAssignmentDefinition) =>
   role.factionLabel?.trim() || role.factionId?.trim() || "";
 
-const roleEvidence = (
-  participant: TavernRoleAssignmentParticipant,
-  role: TavernRoleAssignmentDefinition,
-) => [
-  `${participant.label} 的身份：${role.label}`,
-  roleFactionLabel(role) ? `阵营：${roleFactionLabel(role)}` : "",
-  role.description?.trim() || "",
-].filter(Boolean).join("\n");
+const roleEvidence = (participant: TavernRoleAssignmentParticipant, role: TavernRoleAssignmentDefinition) =>
+  [
+    `${participant.label} 的身份：${role.label}`,
+    roleFactionLabel(role) ? `阵营：${roleFactionLabel(role)}` : "",
+    role.description?.trim() || "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
 export const isGeneratedTavernRoleAssignmentFactEvent = (event: TavernFactEvent) =>
-  event.id.startsWith(`${generatedRoleAssignmentPrefix}-`) &&
-  event.type === "role_assignment";
+  event.id.startsWith(`${generatedRoleAssignmentPrefix}-`) && event.type === "role_assignment";
 
 export const createTavernRoleAssignmentFactEvents = ({
   room,
@@ -62,23 +59,17 @@ export const createTavernRoleAssignmentFactEvents = ({
   createdAt?: number;
 }): TavernFactEvent[] => {
   const roleAssignment = room.settings.informationPolicy.roleAssignment;
-  const userFactionIds = new Set(assignments.flatMap(({ participant, role }) =>
-    participant.isUser && role.factionId ? [role.factionId] : []
-  ));
+  const userFactionIds = new Set(
+    assignments.flatMap(({ participant, role }) => (participant.isUser && role.factionId ? [role.factionId] : [])),
+  );
 
   return assignments.map(({ participant, role }, index) => {
-    const visibleToCharacterIds = roleAssignment.revealToAssignedCharacter && participant.characterId
-      ? [participant.characterId]
-      : [];
-    const visibleToFactionIds = roleAssignment.revealFactionMembers && role.factionId
-      ? [role.factionId]
-      : [];
-    const visibleToUser = (
-      roleAssignment.revealToAssignedCharacter && participant.isUser
-    ) || (
-      roleAssignment.revealFactionMembers &&
-      Boolean(role.factionId && userFactionIds.has(role.factionId))
-    );
+    const visibleToCharacterIds =
+      roleAssignment.revealToAssignedCharacter && participant.characterId ? [participant.characterId] : [];
+    const visibleToFactionIds = roleAssignment.revealFactionMembers && role.factionId ? [role.factionId] : [];
+    const visibleToUser =
+      (roleAssignment.revealToAssignedCharacter && participant.isUser) ||
+      (roleAssignment.revealFactionMembers && Boolean(role.factionId && userFactionIds.has(role.factionId)));
 
     return {
       id: `${generatedRoleAssignmentPrefix}-${turnId}-${index + 1}`,
@@ -118,11 +109,13 @@ export const assignTavernRoleFacts = ({
 
   const participants: TavernRoleAssignmentParticipant[] = [
     ...(roleAssignment.includeUser
-      ? [{
-          entity: { type: "user", userId: "user" } as const,
-          label: room.userPersonaName.trim() || "我",
-          isUser: true,
-        }]
+      ? [
+          {
+            entity: { type: "user", userId: "user" } as const,
+            label: room.userPersonaName.trim() || "我",
+            isUser: true,
+          },
+        ]
       : []),
     ...characters.map((character) => ({
       entity: { type: "character", characterId: character.id } as const,
@@ -138,12 +131,10 @@ export const assignTavernRoleFacts = ({
 
   const shuffledParticipants = shuffle(participants, random);
   const shuffledRoles = shuffle(roles, random);
-  const assignments = shuffledParticipants
-    .slice(0, shuffledRoles.length)
-    .map((participant, index) => ({
-      participant,
-      role: shuffledRoles[index],
-    }));
+  const assignments = shuffledParticipants.slice(0, shuffledRoles.length).map((participant, index) => ({
+    participant,
+    role: shuffledRoles[index],
+  }));
 
   return createTavernRoleAssignmentFactEvents({
     room,

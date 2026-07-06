@@ -1,19 +1,12 @@
-import type {
-  TavernCharacterStylePresetId,
-} from "./character-style-presets";
-import {
-  createDefaultTavernPromptSettings,
-} from "./text-blocks";
-import type {
-  TavernPlatformStyleId,
-  TavernQualityRuleId,
-} from "./rule-layers/types";
+import type { TavernCharacterStylePresetId } from "./character-style-presets";
+import { createDefaultTavernPromptSettings } from "./text-blocks";
+import type { TavernPlatformStyleId, TavernQualityRuleId } from "./rule-layers/types";
 import type {
   TavernPresentationProfileId,
   TavernPromptStyleId,
   TavernRoomPromptSettings,
   TavernSystemNarrativePresetId,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernPromptStylePackageId =
   | "chat-character-banter"
@@ -44,8 +37,7 @@ export type TavernPromptStylePackage = {
   order: number;
 };
 
-export const DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID: TavernPromptStylePackageId =
-  "novel-default-flow";
+export const DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID: TavernPromptStylePackageId = "novel-default-flow";
 
 const tavernPromptStylePackages = [
   {
@@ -110,9 +102,11 @@ const tavernPromptStylePackages = [
     qualityRuleIds: [],
     immersiveDescriptionEnabled: true,
     characterStylePresetId: "cinematic-inner",
-    evaluationSummary: "真实场景评估均分 0.72，2/4 裁判判可用。短段落达标，最长约 89 字；外部压力改善，但仍需更强爆点。",
+    evaluationSummary:
+      "真实场景评估均分 0.72，2/4 裁判判可用。短段落达标，最长约 89 字；外部压力改善，但仍需更强爆点。",
     codexReviewScore: 72,
-    codexReviewNote: "快节奏和短段落已经接近番茄读感；仍易变成室内调查纪要，需要事件打断、用户行动后果和更清晰角色差异。",
+    codexReviewNote:
+      "快节奏和短段落已经接近番茄读感；仍易变成室内调查纪要，需要事件打断、用户行动后果和更清晰角色差异。",
     strengths: ["强开篇", "快冲突", "爽点反馈"],
     order: 40,
   },
@@ -203,30 +197,22 @@ const tavernPromptStylePackages = [
   },
 ] satisfies TavernPromptStylePackage[];
 
-export const TAVERN_PROMPT_STYLE_PACKAGES: TavernPromptStylePackage[] =
-  [...tavernPromptStylePackages].sort((left, right) =>
-  left.order - right.order || left.label.localeCompare(right.label)
+export const TAVERN_PROMPT_STYLE_PACKAGES: TavernPromptStylePackage[] = [...tavernPromptStylePackages].sort(
+  (left, right) => left.order - right.order || left.label.localeCompare(right.label),
 );
 
 export const TAVERN_PROMPT_STYLE_PACKAGE_OPTIONS = TAVERN_PROMPT_STYLE_PACKAGES;
 
-const promptStylePackageIds = new Set(
-  TAVERN_PROMPT_STYLE_PACKAGES.map((stylePackage) => stylePackage.id),
-);
+const promptStylePackageIds = new Set(TAVERN_PROMPT_STYLE_PACKAGES.map((stylePackage) => stylePackage.id));
 
-export const normalizeTavernPromptStylePackageId = (
-  value: unknown,
-): TavernPromptStylePackageId =>
+export const normalizeTavernPromptStylePackageId = (value: unknown): TavernPromptStylePackageId =>
   typeof value === "string" && promptStylePackageIds.has(value as TavernPromptStylePackageId)
-    ? value as TavernPromptStylePackageId
+    ? (value as TavernPromptStylePackageId)
     : DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID;
 
-export const getTavernPromptStylePackage = (
-  value: unknown,
-): TavernPromptStylePackage => {
+export const getTavernPromptStylePackage = (value: unknown): TavernPromptStylePackage => {
   const id = normalizeTavernPromptStylePackageId(value);
-  return TAVERN_PROMPT_STYLE_PACKAGES.find((stylePackage) => stylePackage.id === id) ??
-    TAVERN_PROMPT_STYLE_PACKAGES[0];
+  return TAVERN_PROMPT_STYLE_PACKAGES.find((stylePackage) => stylePackage.id === id) ?? TAVERN_PROMPT_STYLE_PACKAGES[0];
 };
 
 export const createTavernPromptSettingsFromStylePackage = ({

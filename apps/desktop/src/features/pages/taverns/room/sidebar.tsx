@@ -2,7 +2,7 @@ import { MessageCircle, Plus, Wine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/tavern/types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
 
 type SidebarProps = {
@@ -13,13 +13,7 @@ type SidebarProps = {
   onSelectRoom: (roomId: string) => void;
 };
 
-export const Sidebar = ({
-  rooms,
-  activeRoom,
-  characterById,
-  onCreateRoom,
-  onSelectRoom,
-}: SidebarProps) => (
+export const Sidebar = ({ rooms, activeRoom, characterById, onCreateRoom, onSelectRoom }: SidebarProps) => (
   <aside className="hidden min-h-0 flex-col border-r bg-muted/15 lg:flex">
     <div className="flex h-[73px] items-center justify-between border-b px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -56,12 +50,8 @@ export const Sidebar = ({
               onClick={() => onSelectRoom(room.id)}
               title={room.title}
             >
-              <span className="w-full truncate text-sm font-semibold text-foreground">
-                {room.title}
-              </span>
-              <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-                {compactScene(room.scene)}
-              </span>
+              <span className="w-full truncate text-sm font-semibold text-foreground">{room.title}</span>
+              <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">{compactScene(room.scene)}</span>
               {activeRoomCharacter && (
                 <span className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground/85">
                   <MessageCircle className="size-3" />

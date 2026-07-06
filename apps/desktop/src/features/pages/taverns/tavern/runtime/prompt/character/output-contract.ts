@@ -1,7 +1,4 @@
-import type {
-  TavernCharacter,
-  TavernPresentationDialoguePolicy,
-} from "../../../types";
+import type { TavernCharacter, TavernPresentationDialoguePolicy } from "@/features/pages/taverns/manage/model";
 import type { TavernPresentationRuntimeContract } from "../../../presentation/presentation-contracts";
 import {
   closeTavernProtocolTag,
@@ -10,18 +7,11 @@ import {
   wrapTavernProtocolTag,
 } from "../../../message/protocol/schema";
 
-export type TavernCharacterPromptVariant =
-  | "xml_contract"
-  | "dialogue_first"
-  | "minimal_contract";
+export type TavernCharacterPromptVariant = "xml_contract" | "dialogue_first" | "minimal_contract";
 
-export const DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT: TavernCharacterPromptVariant =
-  "xml_contract";
+export const DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT: TavernCharacterPromptVariant = "xml_contract";
 
-export type TavernCharacterTurnOutputMode =
-  | "narrative_beat"
-  | "dialogue_reply"
-  | "nonverbal_reply";
+export type TavernCharacterTurnOutputMode = "narrative_beat" | "dialogue_reply" | "nonverbal_reply";
 
 export const resolveCharacterTurnOutputMode = (
   presentationContract: TavernPresentationRuntimeContract,
@@ -49,11 +39,9 @@ const buildMinimalContractInstruction = ({
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
-  let publicContentRule =
-    `<${publicContentTag}> 必须非空，至少有一句${speaker.name}说出口的对白，可附带 0 到 1 段可观察动作。`;
+  let publicContentRule = `<${publicContentTag}> 必须非空，至少有一句${speaker.name}说出口的对白，可附带 0 到 1 段可观察动作。`;
   if (outputMode === "nonverbal_reply") {
-    publicContentRule =
-      `<${publicContentTag}> 可以只写一段${speaker.name}的可观察动作标注，也可以为空；不要强行说出口对白。`;
+    publicContentRule = `<${publicContentTag}> 可以只写一段${speaker.name}的可观察动作标注，也可以为空；不要强行说出口对白。`;
   }
 
   return [
@@ -73,16 +61,12 @@ const buildXmlContractInstruction = ({
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
-  let templateLine =
-    `<${publicContentTag}>一句当前角色直接说出口的非空对白。可选：*一个可观察小动作。*</${publicContentTag}>`;
-  let contentRule =
-    `<${publicContentTag}>...</${publicContentTag}> 中间必须有公开回复正文，不能为空，不能只写空白、沉默或不答。`;
+  let templateLine = `<${publicContentTag}>一句当前角色直接说出口的非空对白。可选：*一个可观察小动作。*</${publicContentTag}>`;
+  let contentRule = `<${publicContentTag}>...</${publicContentTag}> 中间必须有公开回复正文，不能为空，不能只写空白、沉默或不答。`;
 
   if (outputMode === "nonverbal_reply") {
-    templateLine =
-      `<${publicContentTag}>*一个当前角色可被观察到的动作。*</${publicContentTag}>，或在确实完全不动时使用空 <${publicContentTag}></${publicContentTag}>。`;
-    contentRule =
-      `<${publicContentTag}>...</${publicContentTag}> 允许没有直接对白；优先写一段 Markdown 单星号动作，不要替换成旁白或第三人称剧情总结。`;
+    templateLine = `<${publicContentTag}>*一个当前角色可被观察到的动作。*</${publicContentTag}>，或在确实完全不动时使用空 <${publicContentTag}></${publicContentTag}>。`;
+    contentRule = `<${publicContentTag}>...</${publicContentTag}> 允许没有直接对白；优先写一段 Markdown 单星号动作，不要替换成旁白或第三人称剧情总结。`;
   }
 
   return [
@@ -106,17 +90,12 @@ const buildDialogueFirstInstruction = ({
   publicContentTag: string;
   outputMode: TavernCharacterTurnOutputMode;
 }) => {
-  let publicContentExampleLines = [
-    "当前角色说出口的一句或两句公开对白。",
-    "可选：*当前角色可被观察到的小动作。*",
-  ];
-  let completionRule =
-    `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签，<${publicContentTag}> 也不能留空。`;
+  let publicContentExampleLines = ["当前角色说出口的一句或两句公开对白。", "可选：*当前角色可被观察到的小动作。*"];
+  let completionRule = `回复正文第一句必须是${speaker.name}说出口的对白，不要先写动作；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签，<${publicContentTag}> 也不能留空。`;
 
   if (outputMode === "nonverbal_reply") {
     publicContentExampleLines = ["*当前角色可被观察到的小动作。*"];
-    completionRule =
-      `本轮允许不说出口对白；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签。`;
+    completionRule = `本轮允许不说出口对白；不能省略 ${openTavernProtocolTag(privateThoughtTag)}、${closeTavernProtocolTag(privateThoughtTag)}、${openTavernProtocolTag(publicContentTag)}、${closeTavernProtocolTag(publicContentTag)} 任一标签。`;
   }
 
   return [
@@ -141,9 +120,10 @@ export const buildReplyFormatInstruction = (
   const publicContentTag = presentationContract.publicContentTag;
 
   if (outputMode === "narrative_beat") {
-    const narrativeBeatContentRule = dialoguePolicy === "mixed"
-      ? `<${publicContentTag}> 写 1 到 3 个自然段，以${speaker.name}的行动/观察/判断作为叙事支点；可以让其他在场角色有少量自然对白或可见反应，但不要替他们写未公开心理或完整行动闭环。`
-      : `<${publicContentTag}> 写 1 到 3 个自然段，围绕${speaker.name}形成“动作/观察 -> 线索或情绪判断 -> 留给用户可回应余地”的小说正文。`;
+    const narrativeBeatContentRule =
+      dialoguePolicy === "mixed"
+        ? `<${publicContentTag}> 写 1 到 3 个自然段，以${speaker.name}的行动/观察/判断作为叙事支点；可以让其他在场角色有少量自然对白或可见反应，但不要替他们写未公开心理或完整行动闭环。`
+        : `<${publicContentTag}> 写 1 到 3 个自然段，围绕${speaker.name}形成“动作/观察 -> 线索或情绪判断 -> 留给用户可回应余地”的小说正文。`;
 
     return [
       `输出只允许包含 ${formatTavernProtocolTagPair(privateThoughtTag)} 和 ${formatTavernProtocolTagPair(publicContentTag)} 两段。`,

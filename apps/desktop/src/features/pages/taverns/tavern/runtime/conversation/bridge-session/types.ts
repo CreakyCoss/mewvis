@@ -1,4 +1,4 @@
-import type { TavernRoom } from "../../../types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export type TavernBridgeSessionInput = {
   workspacePath: string;

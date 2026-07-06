@@ -74,7 +74,7 @@ import type {
   TavernRoom,
   TavernRoomPromptSettings,
   TavernSystemNarrativePresetId,
-} from "../../../tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import {
   EditorField,
   EditorFormCard,

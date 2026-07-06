@@ -1,13 +1,10 @@
-import {
-  createTavernId as createId,
-  now,
-} from "../ids";
+import { createTavernId as createId, now } from "../ids";
 import type {
   TavernScene,
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 const normalizeTavernStoryNodeType = (value: unknown): TavernStoryNode["type"] => {
   if (value === "failure" || value === "ending") {
@@ -16,9 +13,8 @@ const normalizeTavernStoryNodeType = (value: unknown): TavernStoryNode["type"] =
   return "normal";
 };
 
-const normalizeTavernStoryPathRole = (value: unknown): TavernStoryNode["pathRole"] => (
-  value === "branch" ? "branch" : "main"
-);
+const normalizeTavernStoryPathRole = (value: unknown): TavernStoryNode["pathRole"] =>
+  value === "branch" ? "branch" : "main";
 
 const createTavernStoryNode = (
   input: Partial<TavernStoryNode> & {
@@ -64,9 +60,7 @@ const createTavernStoryEdge = (
   };
 };
 
-export const createDefaultStoryGraph = (
-  scenes: TavernScene[],
-): TavernStoryGraph => {
+export const createDefaultStoryGraph = (scenes: TavernScene[]): TavernStoryGraph => {
   const nodes = scenes.map((scene, index) =>
     createTavernStoryNode({
       sceneId: scene.id,
@@ -80,9 +74,10 @@ export const createDefaultStoryGraph = (
       status: "ready",
       createdAt: scene.createdAt,
       updatedAt: scene.updatedAt,
-    })
+    }),
   );
-  const entryNode = nodes[0] ??
+  const entryNode =
+    nodes[0] ??
     createTavernStoryNode({
       title: "入口节点",
       status: "draft",
@@ -96,7 +91,7 @@ export const createDefaultStoryGraph = (
       priority: index,
       createdAt: node.createdAt,
       updatedAt: node.updatedAt,
-    })
+    }),
   );
 
   return {
@@ -108,10 +103,7 @@ export const createDefaultStoryGraph = (
   };
 };
 
-export const normalizeStoryGraph = (
-  value: unknown,
-  scenes: TavernScene[],
-): TavernStoryGraph => {
+export const normalizeStoryGraph = (value: unknown, scenes: TavernScene[]): TavernStoryGraph => {
   if (!value || typeof value !== "object") {
     return createDefaultStoryGraph(scenes);
   }
@@ -129,17 +121,13 @@ export const normalizeStoryGraph = (
 
           return createTavernStoryNode({
             ...rawNode,
-            sceneId: rawNode.sceneId && sceneIds.has(rawNode.sceneId)
-              ? rawNode.sceneId
-              : undefined,
+            sceneId: rawNode.sceneId && sceneIds.has(rawNode.sceneId) ? rawNode.sceneId : undefined,
             title,
           });
         })
         .filter((node): node is TavernStoryNode => Boolean(node))
     : [];
-  const normalizedNodes = nodes.length > 0
-    ? nodes
-    : createDefaultStoryGraph(scenes).nodes;
+  const normalizedNodes = nodes.length > 0 ? nodes : createDefaultStoryGraph(scenes).nodes;
   const nodeIds = new Set(normalizedNodes.map((node) => node.id));
   const edges = Array.isArray(candidate.edges)
     ? candidate.edges
@@ -163,12 +151,12 @@ export const normalizeStoryGraph = (
         })
         .filter((edge): edge is TavernStoryEdge => Boolean(edge))
     : [];
-  const entryNodeId = candidate.entryNodeId && nodeIds.has(candidate.entryNodeId)
-    ? candidate.entryNodeId
-    : normalizedNodes[0]?.id ?? "";
-  const activeNodeId = candidate.activeNodeId && nodeIds.has(candidate.activeNodeId)
-    ? candidate.activeNodeId
-    : entryNodeId;
+  const entryNodeId =
+    candidate.entryNodeId && nodeIds.has(candidate.entryNodeId)
+      ? candidate.entryNodeId
+      : (normalizedNodes[0]?.id ?? "");
+  const activeNodeId =
+    candidate.activeNodeId && nodeIds.has(candidate.activeNodeId) ? candidate.activeNodeId : entryNodeId;
 
   return {
     version: 1,

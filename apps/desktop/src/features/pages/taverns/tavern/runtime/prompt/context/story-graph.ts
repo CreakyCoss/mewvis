@@ -3,7 +3,7 @@ import {
   formatTavernStoryGraphContext as formatTavernStoryGraphContextFromPackage,
   getTavernRuntimeStoryProjection,
 } from "../../../adapters/story";
-import type { TavernRoom } from "../../../types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const formatTavernStoryGraphContext = (
   room: TavernRoom,

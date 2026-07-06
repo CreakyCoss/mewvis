@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { createDefaultTavernState, normalizeTavernState } from "./tavern/state/state-normalizer";
-import type { TavernRoom, TavernState } from "./tavern/types";
+import type { TavernState } from "./tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const TAVERN_SOURCE_DIR = "tavern";
 const TAVERN_MANIFEST_FILE_NAME = "manifest.json";

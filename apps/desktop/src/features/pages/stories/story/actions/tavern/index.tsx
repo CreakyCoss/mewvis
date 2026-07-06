@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { openTavernPresentationInput } from "@/features/pages/taverns/tavern/presentation/open";
-import type { TavernRoom } from "@/features/pages/taverns/tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";

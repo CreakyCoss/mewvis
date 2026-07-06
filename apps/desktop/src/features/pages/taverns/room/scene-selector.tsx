@@ -1,6 +1,6 @@
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import type { TavernScene } from "@/features/pages/taverns/tavern/types";
+import type { TavernScene } from "@/features/pages/taverns/manage/model";
 
 type SceneSelectorOption = {
   id: string;
@@ -28,10 +28,12 @@ export const SceneSelector = ({
   getSceneLabel,
   onSelectScene,
 }: SceneSelectorProps) => {
-  const selectorOptions = options ?? scenes.map((scene) => ({
-    id: scene.id,
-    label: getSceneLabel?.(scene) ?? scene.title,
-  }));
+  const selectorOptions =
+    options ??
+    scenes.map((scene) => ({
+      id: scene.id,
+      label: getSceneLabel?.(scene) ?? scene.title,
+    }));
 
   return (
     <div className={cn("relative w-full max-w-[15.5rem] min-w-0", className)}>
@@ -67,9 +69,7 @@ export const SceneSelector = ({
         aria-label={`选择${label.replace(/[:：]/g, "")}`}
         onChange={(event) => onSelectScene(event.target.value)}
       >
-        {selectorOptions.length === 0 && (
-          <NativeSelectOption value="">默认场景</NativeSelectOption>
-        )}
+        {selectorOptions.length === 0 && <NativeSelectOption value="">默认场景</NativeSelectOption>}
         {selectorOptions.map((option) => (
           <NativeSelectOption key={option.id} value={option.id}>
             {option.label}

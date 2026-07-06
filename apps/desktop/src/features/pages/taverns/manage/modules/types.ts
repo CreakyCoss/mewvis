@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { TavernRoom } from "../../tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export type TextFieldAgentActionRenderer = (options: {
   fieldKey: string;

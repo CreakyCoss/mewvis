@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "../tavern/types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { emptyValueText, getRoomCharacterById, getRoomCharacters } from "./utils";
 import { editorHeaderActionButtonClassName } from "./primitives";
 

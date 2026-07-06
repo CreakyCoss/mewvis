@@ -17,21 +17,21 @@ import { Button } from "@/components/ui/button";
 import { HoverCardContent } from "@/components/ui/hover-card";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/tavern/types";
-import {
-  formatTavernCharacterRelationshipSummary,
-} from "@/features/pages/taverns/tavern/core/relationships";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { compactText, emptyValueText } from "../shared";
 import type { ResolvedStatusMetric } from "../types";
 import { CharacterMetricView } from "./status-metric";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
 
-const trimArray = (values: string[] | undefined) =>
-  values?.map((value) => value.trim()).filter(Boolean) ?? [];
+const trimArray = (values: string[] | undefined) => values?.map((value) => value.trim()).filter(Boolean) ?? [];
 
 const splitLines = (value: string | undefined) =>
-  trimText(value).split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  trimText(value)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
 const splitPhrases = (value: string | undefined) =>
   trimText(value)
@@ -66,25 +66,13 @@ const DetailSection = ({
   </section>
 );
 
-const TextBlock = ({
-  value,
-  empty = emptyValueText,
-}: {
-  value: string | undefined;
-  empty?: string;
-}) => (
+const TextBlock = ({ value, empty = emptyValueText }: { value: string | undefined; empty?: string }) => (
   <div className="max-h-28 overflow-y-auto whitespace-pre-wrap text-xs leading-5 text-current/80">
     {compactText(value) === emptyValueText ? empty : compactText(value)}
   </div>
 );
 
-const LineList = ({
-  lines,
-  empty = emptyValueText,
-}: {
-  lines: string[];
-  empty?: string;
-}) => {
+const LineList = ({ lines, empty = emptyValueText }: { lines: string[]; empty?: string }) => {
   if (lines.length === 0) {
     return <div className="text-xs leading-5 text-current/60">{empty}</div>;
   }
@@ -196,16 +184,10 @@ export const CharacterDetail = ({
         <div className="overflow-hidden rounded-lg border border-current/10 bg-current/[0.075] dark:bg-current/[0.1] shadow-sm">
           <div className="grid min-h-36 md:grid-cols-[10.5rem_minmax(0,1fr)]">
             <div className="min-h-36 bg-current/10">
-              <img
-                src={avatar}
-                alt=""
-                className="size-full object-cover"
-              />
+              <img src={avatar} alt="" className="size-full object-cover" />
             </div>
             <div className="min-w-0 p-4">
-              <div className="truncate text-xl font-semibold leading-tight text-current">
-                {character.name}
-              </div>
+              <div className="truncate text-xl font-semibold leading-tight text-current">{character.name}</div>
               {headerPills.length > 0 && (
                 <div className="mt-2.5 flex min-w-0 flex-wrap gap-1.5">
                   {headerPills.map((pill) => (
@@ -219,11 +201,7 @@ export const CharacterDetail = ({
               {visibleMetrics.length > 0 ? (
                 <div className="mt-3 grid max-w-[20rem] grid-cols-2 gap-1.5">
                   {visibleMetrics.map((metric) => (
-                    <CharacterMetricView
-                      key={metric.key}
-                      metric={metric}
-                      variant="featured"
-                    />
+                    <CharacterMetricView key={metric.key} metric={metric} variant="featured" />
                   ))}
                 </div>
               ) : (
@@ -298,11 +276,7 @@ export const CharacterDetail = ({
                   onClick={onExtractMemory}
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isExtractingMemory ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-4" />
-                    )}
+                    {isExtractingMemory ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[13px] font-semibold">从剧情整理</span>
@@ -322,11 +296,7 @@ export const CharacterDetail = ({
                   onClick={onCompact}
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isCompacting ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RefreshCcw className="size-4" />
-                    )}
+                    {isCompacting ? <Loader2 className="size-4 animate-spin" /> : <RefreshCcw className="size-4" />}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[13px] font-semibold">压缩角色知识</span>
@@ -346,11 +316,7 @@ export const CharacterDetail = ({
                   onClick={onRebuild}
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isRebuilding ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RotateCcw className="size-4" />
-                    )}
+                    {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[13px] font-semibold">重建记忆</span>

@@ -4,20 +4,11 @@ import {
   parseTavernReplyText,
   resolveTavernMessageSegments,
 } from "../../../message";
-import {
-  getTavernPresentationContractForMessageKind,
-} from "../../../presentation/presentation-contracts";
-import {
-  getTavernProtocolHistoryPrivateThoughtTag,
-} from "../../../message/protocol/schema";
-import type {
-  TavernCharacter,
-  TavernMessage,
-} from "../../../types";
-import {
-  escapePromptXmlAttribute,
-  escapePromptXmlText,
-} from "../shared/text";
+import { getTavernPresentationContractForMessageKind } from "../../../presentation/presentation-contracts";
+import { getTavernProtocolHistoryPrivateThoughtTag } from "../../../message/protocol/schema";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { escapePromptXmlAttribute, escapePromptXmlText } from "../shared/text";
 
 export const tavernMessagesToRuntimeMessages = ({
   messages,
@@ -83,21 +74,12 @@ export const tavernMessagesToRuntimeMessages = ({
       ...message,
       content,
     });
-    const canSeeThought = Boolean(
-      visibleThoughtCharacterId && message.characterId === visibleThoughtCharacterId,
-    );
-    const thought = canSeeThought
-      ? message.thought?.trim() || parsedReply?.thought?.trim()
-      : "";
-    const publicHistoryTag =
-      getTavernPresentationContractForMessageKind(message.kind).historyContentTag;
+    const canSeeThought = Boolean(visibleThoughtCharacterId && message.characterId === visibleThoughtCharacterId);
+    const thought = canSeeThought ? message.thought?.trim() || parsedReply?.thought?.trim() : "";
+    const publicHistoryTag = getTavernPresentationContractForMessageKind(message.kind).historyContentTag;
     const privateThoughtTag = getTavernProtocolHistoryPrivateThoughtTag();
     const thoughtLines = thought
-      ? [
-          `<${privateThoughtTag} visibility="self_only">`,
-          escapePromptXmlText(thought),
-          `</${privateThoughtTag}>`,
-        ]
+      ? [`<${privateThoughtTag} visibility="self_only">`, escapePromptXmlText(thought), `</${privateThoughtTag}>`]
       : [];
 
     return {

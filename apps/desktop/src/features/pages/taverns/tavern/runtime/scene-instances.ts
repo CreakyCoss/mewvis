@@ -1,15 +1,6 @@
-import {
-  createEmptyCharacterMemoryLayers,
-  createEmptySceneMemoryLayers,
-} from "./memory-layers";
-import {
-  normalizeScenePromptOverrides,
-} from "./scene-prompt-overrides";
-import {
-  createRouteScopedSceneInstanceId,
-  resolveActiveRun,
-  resolveRunNodePrefix,
-} from "./story-runtime";
+import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
+import { normalizeScenePromptOverrides } from "./scene-prompt-overrides";
+import { createRouteScopedSceneInstanceId, resolveActiveRun, resolveRunNodePrefix } from "./story-runtime";
 import type {
   TavernRoom,
   TavernScene,
@@ -17,7 +8,7 @@ import type {
   TavernStoryGraph,
   TavernStoryNode,
   TavernStoryRun,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 export const resolveActiveSceneInstance = (
   room: Pick<
@@ -25,21 +16,15 @@ export const resolveActiveSceneInstance = (
     "id" | "activeRunId" | "activeSceneInstanceId" | "storyRuns" | "storyGraph" | "sceneInstances"
   >,
 ) => {
-  const explicitInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  );
+  const explicitInstance = room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId);
   if (explicitInstance) {
     return explicitInstance;
   }
 
   const activeRun = resolveActiveRun(room.storyRuns, room.activeRunId);
   const pathNodeIds = resolveRunNodePrefix(activeRun, room.storyGraph.activeNodeId);
-  const scopedInstanceId = pathNodeIds.length > 0
-    ? createRouteScopedSceneInstanceId(room.id, pathNodeIds)
-    : "";
-  return room.sceneInstances.find((instance) => instance.id === scopedInstanceId) ??
-    room.sceneInstances[0] ??
-    null;
+  const scopedInstanceId = pathNodeIds.length > 0 ? createRouteScopedSceneInstanceId(room.id, pathNodeIds) : "";
+  return room.sceneInstances.find((instance) => instance.id === scopedInstanceId) ?? room.sceneInstances[0] ?? null;
 };
 
 const createSceneInstanceFromScene = ({
@@ -115,14 +100,17 @@ export const buildSceneInstancesForRuns = ({
       const instanceId = createRouteScopedSceneInstanceId(roomId, pathNodeIds);
       const existing = existingById.get(instanceId);
       const current = instanceById.get(instanceId);
-      const instance = current ?? existing ?? createSceneInstanceFromScene({
-        roomId,
-        scene,
-        node,
-        runId: run.id,
-        pathNodeIds,
-        pathEdgeIds,
-      });
+      const instance =
+        current ??
+        existing ??
+        createSceneInstanceFromScene({
+          roomId,
+          scene,
+          node,
+          runId: run.id,
+          pathNodeIds,
+          pathEdgeIds,
+        });
 
       instanceById.set(instanceId, {
         ...instance,

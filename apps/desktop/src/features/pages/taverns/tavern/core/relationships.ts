@@ -6,25 +6,19 @@ import type {
   TavernSceneRelationshipOverride,
   TavernStatusSnapshot,
   TavernStatusValue,
-} from "../types";
-import {
-  tavernRelationshipKey,
-} from "./progress-engine";
+} from "@/features/pages/taverns/manage/model";
+import { tavernRelationshipKey } from "./progress-engine";
 
 type CharacterLookup = Map<string, TavernCharacter> | TavernCharacter[];
 
 const asCharacterMap = (characters?: CharacterLookup) =>
-  characters instanceof Map
-    ? characters
-    : new Map((characters ?? []).map((character) => [character.id, character]));
+  characters instanceof Map ? characters : new Map((characters ?? []).map((character) => [character.id, character]));
 
 export const tavernRelationshipTargetKey = (target: TavernRelationshipTarget) =>
   target.type === "user" ? "user" : `character:${target.characterId}`;
 
-export const tavernRelationshipTargetsEqual = (
-  left: TavernRelationshipTarget,
-  right: TavernRelationshipTarget,
-) => tavernRelationshipTargetKey(left) === tavernRelationshipTargetKey(right);
+export const tavernRelationshipTargetsEqual = (left: TavernRelationshipTarget, right: TavernRelationshipTarget) =>
+  tavernRelationshipTargetKey(left) === tavernRelationshipTargetKey(right);
 
 export const tavernRelationshipTargetLabel = (
   target: TavernRelationshipTarget,
@@ -38,15 +32,11 @@ export const tavernRelationshipTargetLabel = (
   return asCharacterMap(characters).get(target.characterId)?.name ?? target.characterId;
 };
 
-export const tavernRelationshipStatusKey = (
-  subjectCharacterId: string,
-  target: TavernRelationshipTarget,
-) => tavernRelationshipKey(
-  { type: "character", characterId: subjectCharacterId },
-  target.type === "user"
-    ? { type: "user", userId: "user" }
-    : { type: "character", characterId: target.characterId },
-);
+export const tavernRelationshipStatusKey = (subjectCharacterId: string, target: TavernRelationshipTarget) =>
+  tavernRelationshipKey(
+    { type: "character", characterId: subjectCharacterId },
+    target.type === "user" ? { type: "user", userId: "user" } : { type: "character", characterId: target.characterId },
+  );
 
 const formatStatusValue = (value: TavernStatusValue) => {
   if (value === null) {
@@ -70,9 +60,7 @@ export const formatTavernRelationshipStatuses = ({
   target: TavernRelationshipTarget;
   statusSnapshot?: TavernStatusSnapshot;
 }) => {
-  const statuses = statusSnapshot?.relationships[
-    tavernRelationshipStatusKey(subjectCharacterId, target)
-  ];
+  const statuses = statusSnapshot?.relationships[tavernRelationshipStatusKey(subjectCharacterId, target)];
   if (!statuses) {
     return "";
   }
@@ -97,19 +85,20 @@ const relationshipLineParts = ({
   sceneOverride?: TavernSceneRelationshipOverride;
   statusText?: string;
   includePrivate?: boolean;
-}) => [
-  `对 ${targetLabel}`,
-  relationship?.label ? `关系：${relationship.label}` : "",
-  relationship?.attitude ? `态度：${relationship.attitude}` : "",
-  relationship?.publicNote ? `明面：${relationship.publicNote}` : "",
-  includePrivate && relationship?.privateNote ? `私下：${relationship.privateNote}` : "",
-  relationship?.tags.length ? `标签：${relationship.tags.join("、")}` : "",
-  sceneOverride?.label ? `本场景：${sceneOverride.label}` : "",
-  sceneOverride?.publicNote ? `场景明面：${sceneOverride.publicNote}` : "",
-  includePrivate && sceneOverride?.privateNote ? `场景私下：${sceneOverride.privateNote}` : "",
-  sceneOverride?.tags.length ? `场景标签：${sceneOverride.tags.join("、")}` : "",
-  statusText ? `动态状态：${statusText}` : "",
-].filter(Boolean);
+}) =>
+  [
+    `对 ${targetLabel}`,
+    relationship?.label ? `关系：${relationship.label}` : "",
+    relationship?.attitude ? `态度：${relationship.attitude}` : "",
+    relationship?.publicNote ? `明面：${relationship.publicNote}` : "",
+    includePrivate && relationship?.privateNote ? `私下：${relationship.privateNote}` : "",
+    relationship?.tags.length ? `标签：${relationship.tags.join("、")}` : "",
+    sceneOverride?.label ? `本场景：${sceneOverride.label}` : "",
+    sceneOverride?.publicNote ? `场景明面：${sceneOverride.publicNote}` : "",
+    includePrivate && sceneOverride?.privateNote ? `场景私下：${sceneOverride.privateNote}` : "",
+    sceneOverride?.tags.length ? `场景标签：${sceneOverride.tags.join("、")}` : "",
+    statusText ? `动态状态：${statusText}` : "",
+  ].filter(Boolean);
 
 export const formatTavernCharacterRelationships = ({
   character,
@@ -128,9 +117,7 @@ export const formatTavernCharacterRelationships = ({
 }) => {
   const characterMap = asCharacterMap(characters);
   const baseRelationships = character.relationships ?? [];
-  const matchingOverrides = relationshipOverrides.filter(
-    (override) => override.subjectCharacterId === character.id,
-  );
+  const matchingOverrides = relationshipOverrides.filter((override) => override.subjectCharacterId === character.id);
   const mergedTargets = [
     ...baseRelationships.map((relationship) => relationship.target),
     ...matchingOverrides.map((override) => override.target),
@@ -141,12 +128,8 @@ export const formatTavernCharacterRelationships = ({
 
   return uniqueTargets
     .map((target) => {
-      const relationship = baseRelationships.find((item) =>
-        tavernRelationshipTargetsEqual(item.target, target)
-      );
-      const sceneOverride = matchingOverrides.find((item) =>
-        tavernRelationshipTargetsEqual(item.target, target)
-      );
+      const relationship = baseRelationships.find((item) => tavernRelationshipTargetsEqual(item.target, target));
+      const sceneOverride = matchingOverrides.find((item) => tavernRelationshipTargetsEqual(item.target, target));
       const statusText = formatTavernRelationshipStatuses({
         subjectCharacterId: character.id,
         target,

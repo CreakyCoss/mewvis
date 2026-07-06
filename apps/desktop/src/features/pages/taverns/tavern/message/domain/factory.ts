@@ -1,18 +1,8 @@
-import {
-  createTavernId,
-  now,
-} from "../../ids";
-import type {
-  TavernMessage,
-} from "../../types";
-import {
-  buildTavernMessageSegments,
-  inferTavernMessageKind,
-} from "./segments";
+import { createTavernId, now } from "../../ids";
+import type { TavernMessage } from "../../types";
+import { buildTavernMessageSegments, inferTavernMessageKind } from "./segments";
 
-export const createTavernMessage = (
-  input: Omit<TavernMessage, "id" | "createdAt">,
-): TavernMessage => {
+export const createTavernMessage = (input: Omit<TavernMessage, "id" | "createdAt">): TavernMessage => {
   const message = {
     ...input,
     id: createTavernId("message"),
@@ -33,10 +23,12 @@ export const materializeTavernMessage = (
 
   return {
     ...nextMessage,
-    kind: nextMessage.kind ?? inferTavernMessageKind({
-      role: nextMessage.role,
-      presentationProfileId: nextMessage.presentationProfileId,
-    }),
+    kind:
+      nextMessage.kind ??
+      inferTavernMessageKind({
+        role: nextMessage.role,
+        presentationProfileId: nextMessage.presentationProfileId,
+      }),
     segments: nextMessage.segments ?? buildTavernMessageSegments(nextMessage),
   };
 };

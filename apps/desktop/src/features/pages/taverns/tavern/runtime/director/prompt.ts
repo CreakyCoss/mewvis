@@ -1,16 +1,8 @@
-import {
-  appendReferencesToPrompt,
-} from "@/features/ai/components/context-tools";
+import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernReferencedFile,
-  TavernRoom,
-} from "../../types";
-import {
-  tavernMessagesToRuntimeMessages,
-} from "../prompt";
+import type { TavernMessage, TavernReferencedFile } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { tavernMessagesToRuntimeMessages } from "../prompt";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryGraphContext,
@@ -30,9 +22,7 @@ import {
   formatTavernInteractionQualityRulesForTarget,
   formatTavernPromptBlocksForTarget,
 } from "../../prompt-registry/text-blocks";
-import {
-  shouldOfferTavernDirectorRandomEvent,
-} from "./decision";
+import { shouldOfferTavernDirectorRandomEvent } from "./decision";
 import { buildTavernDirectorContextSections } from "./prompt/context-sections";
 import { buildTavernDirectorOutputContract } from "./prompt/contract";
 
@@ -65,27 +55,24 @@ export const buildTavernDirectorPromptContext = ({
   storyContext: inputStoryContext,
 }: BuildTavernDirectorPromptContextInput) => {
   const isSceneDriveTurn = turnTrigger.type === "scene_drive";
-  const sceneDriveDirective = (
-    turnTrigger.directive?.trim() ||
-    currentUserText.trim() ||
-    "继续推进当前场景。"
-  );
+  const sceneDriveDirective = turnTrigger.directive?.trim() || currentUserText.trim() || "继续推进当前场景。";
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
     characters,
     userPersonaName: room.userPersonaName,
   });
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
-  const lorebookText = formatTavernStoryLorebookEntries(selectTavernStoryLorebookEntries({
-    storyContext,
-    currentUserText,
-  }));
+  const lorebookText = formatTavernStoryLorebookEntries(
+    selectTavernStoryLorebookEntries({
+      storyContext,
+      currentUserText,
+    }),
+  );
   const storyGraphText = formatTavernStoryGraphContext(storyContext);
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
   const promptBlocksText = [
     formatTavernPromptBlocksForTarget({
       prompt: room.prompt,
@@ -99,7 +86,9 @@ export const buildTavernDirectorPromptContext = ({
       qualityRuleIds: room.settings.interactionQualityRuleIds,
       target: "director",
     }),
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
   const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
   const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
@@ -119,10 +108,7 @@ export const buildTavernDirectorPromptContext = ({
     signals: schedulingSignals,
     characters,
   });
-  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
-    room,
-    selectedTargetCharacterIds,
-  );
+  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds);
   const directorPrompt = [
     buildTavernDirectorOutputContract({
       maxSpeakers,
@@ -169,33 +155,34 @@ export const buildTavernDirectorPromptContext = ({
 
 export type TavernDirectorPromptContext = ReturnType<typeof buildTavernDirectorPromptContext>;
 
-export const buildTavernDirectorRuntimeInstruction = (
-  directorPromptContext: TavernDirectorPromptContext,
-) => [
-  "你是酒馆模式的导演 Agent。",
-  directorPromptContext.isSceneDriveTurn
-    ? "你的职责是在没有用户角色发言时，根据场景目标、剧情结构、近期对话和角色状态，推进下一轮公开场景。"
-    : "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定下一轮谁应该发言。",
-  directorPromptContext.isSceneDriveTurn
-    ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
-    : "",
-  `当前呈现规则：${directorPromptContext.presentationProfile.label}。${directorPromptContext.presentationProfile.directorAddendum}`,
-  "当前系统叙事、酒馆风格和写作规则来自 requestContext 中 target=\"director\" 的 prompt_block；这些是用户保存后的文本，必须按文本执行。",
-  "必须输出 supervisor.dispatch-loop JSON：给所有候选 worker 评分，每轮最多选择一个 selectedTargetId。",
-  "可以通过 artifacts 插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
-  directorPromptContext.canConsiderRandomEvent
-    ? "本轮可以考虑 randomEvent artifact；如果触发，只写公开可观察且不解决主线的小事件。"
-    : "本轮不要触发随机事件，不要输出 randomEvent artifact。",
-  directorPromptContext.canRequestIllustrationHints
-    ? "本轮可以给出 illustrationHint artifact；插图提示只描述公开可见画面，不参与角色发言。"
-    : "本轮不要生成插图提示，不要输出 illustrationHint artifact。",
-  "ambientAction artifact 只用于未被 selectedTargetId 选中的角色公开可观察动作，不是角色对白，也不要写心理。",
-  directorPromptContext.directorOnlyAllowed
-    ? "当前阶段允许 status=complete 且 selectedTargetId 为空；只有确实需要公开角色发言或非语言近景反应时才选择 worker。"
-    : directorPromptContext.selectedTargetsCanStaySilent
-    ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应选择该 worker，并在 selectedInstruction 中说明只输出心理和可观察动作。"
-    : "只要有可用 worker，就必须选择一个 selectedTargetId；不要用 complete 表达沉默。",
-  directorPromptContext.schedulingInstruction,
-  "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
-  "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",
-].filter(Boolean).join("\n");
+export const buildTavernDirectorRuntimeInstruction = (directorPromptContext: TavernDirectorPromptContext) =>
+  [
+    "你是酒馆模式的导演 Agent。",
+    directorPromptContext.isSceneDriveTurn
+      ? "你的职责是在没有用户角色发言时，根据场景目标、剧情结构、近期对话和角色状态，推进下一轮公开场景。"
+      : "你的职责是根据用户输入、场景目标、剧情结构和角色状态，决定下一轮谁应该发言。",
+    directorPromptContext.isSceneDriveTurn
+      ? "不要替用户角色说话、回答、行动或下决定；如果需要用户选择，应让剧情停在可介入的位置。"
+      : "",
+    `当前呈现规则：${directorPromptContext.presentationProfile.label}。${directorPromptContext.presentationProfile.directorAddendum}`,
+    '当前系统叙事、酒馆风格和写作规则来自 requestContext 中 target="director" 的 prompt_block；这些是用户保存后的文本，必须按文本执行。',
+    "必须输出 supervisor.dispatch-loop JSON：给所有候选 worker 评分，每轮最多选择一个 selectedTargetId。",
+    "可以通过 artifacts 插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
+    directorPromptContext.canConsiderRandomEvent
+      ? "本轮可以考虑 randomEvent artifact；如果触发，只写公开可观察且不解决主线的小事件。"
+      : "本轮不要触发随机事件，不要输出 randomEvent artifact。",
+    directorPromptContext.canRequestIllustrationHints
+      ? "本轮可以给出 illustrationHint artifact；插图提示只描述公开可见画面，不参与角色发言。"
+      : "本轮不要生成插图提示，不要输出 illustrationHint artifact。",
+    "ambientAction artifact 只用于未被 selectedTargetId 选中的角色公开可观察动作，不是角色对白，也不要写心理。",
+    directorPromptContext.directorOnlyAllowed
+      ? "当前阶段允许 status=complete 且 selectedTargetId 为空；只有确实需要公开角色发言或非语言近景反应时才选择 worker。"
+      : directorPromptContext.selectedTargetsCanStaySilent
+        ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应选择该 worker，并在 selectedInstruction 中说明只输出心理和可观察动作。"
+        : "只要有可用 worker，就必须选择一个 selectedTargetId；不要用 complete 表达沉默。",
+    directorPromptContext.schedulingInstruction,
+    "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
+    "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",
+  ]
+    .filter(Boolean)
+    .join("\n");

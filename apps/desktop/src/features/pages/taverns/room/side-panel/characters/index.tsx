@@ -1,11 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
-import {
-  HoverCard,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/tavern/types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import type { ResolvedStatusMetric } from "../types";
 import { CharacterDetail } from "./detail";
 import { CharacterMetricView } from "./status-metric";
@@ -33,9 +30,7 @@ const CharacterCardContent = ({
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center">
-              <span className="truncate text-sm font-semibold leading-tight">
-                {character.name}
-              </span>
+              <span className="truncate text-sm font-semibold leading-tight">{character.name}</span>
             </span>
             <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-current/65">
               {character.speakingStyle || character.description || "当前默认发言角色"}
@@ -45,11 +40,7 @@ const CharacterCardContent = ({
         {compactMetrics.length > 0 ? (
           <span className="grid grid-cols-2 gap-2">
             {compactMetrics.map((metric) => (
-              <CharacterMetricView
-                key={metric.key}
-                metric={metric}
-                variant="featured"
-              />
+              <CharacterMetricView key={metric.key} metric={metric} variant="featured" />
             ))}
           </span>
         ) : (
@@ -73,9 +64,7 @@ const CharacterCardContent = ({
       </span>
       <span className="grid min-w-0 flex-1 grid-cols-2 gap-2.5">
         {compactMetrics.length > 0 ? (
-          compactMetrics.map((metric) => (
-            <CharacterMetricView key={metric.key} metric={metric} />
-          ))
+          compactMetrics.map((metric) => <CharacterMetricView key={metric.key} metric={metric} />)
         ) : (
           <span className="col-span-2 text-[11px] text-current/65">暂无可见状态</span>
         )}
@@ -129,11 +118,7 @@ export const CharacterStatusRow = ({
         disabled={disabled}
         onClick={onClick}
       >
-        <CharacterCardContent
-          character={character}
-          isActive={isActive}
-          metrics={metrics}
-        />
+        <CharacterCardContent character={character} isActive={isActive} metrics={metrics} />
       </button>
     </HoverCardTrigger>
     <CharacterDetail

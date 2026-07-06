@@ -27,13 +27,8 @@ import {
   buildTavernSpeakerCollaborationInput,
   runTavernCollaboration,
 } from "@/features/pages/taverns/tavern/runtime/collaboration";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernReferencedFile,
-  TavernReplyOption,
-  TavernRoom,
-} from "@/features/pages/taverns/tavern/types";
+import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import type { TavernCharacter, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   getErrorMessage,
   requireTavernRuntimeModelInput,
@@ -43,24 +38,21 @@ import {
   type TavernPendingInteractions,
   type TurnMode,
 } from "./shared";
-import {
-  applyTavernCollaborationTraceEvent,
-} from "./collaboration-trace";
+import { applyTavernCollaborationTraceEvent } from "./collaboration-trace";
 
 type ParsedTavernReply = ReturnType<typeof parseTavernReplyText>;
 
 const tavernSpeakerReplyOutputKey = (speaker: TavernCharacter) => `reply:${speaker.id}`;
 
 const normalizeNarratorEchoText = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
+  text.toLowerCase().replace(/[\s*_`~"'“”‘’「」『』《》【】（）()[\]{}<>.,，。!?！？;；:：、—\-]/g, "");
 
 const isNarratorEchoReply = (replyText: string, narratorTexts: string[]) => {
   const normalizedReply = normalizeNarratorEchoText(replyText);
 
-  return normalizedReply.length > 0 && narratorTexts.some((narratorText) =>
-    normalizeNarratorEchoText(narratorText) === normalizedReply
+  return (
+    normalizedReply.length > 0 &&
+    narratorTexts.some((narratorText) => normalizeNarratorEchoText(narratorText) === normalizedReply)
   );
 };
 
@@ -74,22 +66,23 @@ const buildRetryTurnInstruction = ({
   nonverbalReplyAllowed: boolean;
   presentationContract: TavernPresentationRuntimeContract;
   speaker: TavernCharacter;
-}) => [
-  effectiveTurnInstruction,
-  "",
-  "<retry_instruction>",
-  presentationContract.buildRetryMissingLine(nonverbalReplyAllowed),
-  presentationContract.buildRetryTemplateLine(speaker, nonverbalReplyAllowed),
-  presentationContract.buildRetryGuidanceLine(nonverbalReplyAllowed),
-  "</retry_instruction>",
-].filter(Boolean).join("\n");
+}) =>
+  [
+    effectiveTurnInstruction,
+    "",
+    "<retry_instruction>",
+    presentationContract.buildRetryMissingLine(nonverbalReplyAllowed),
+    presentationContract.buildRetryTemplateLine(speaker, nonverbalReplyAllowed),
+    presentationContract.buildRetryGuidanceLine(nonverbalReplyAllowed),
+    "</retry_instruction>",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-const isFinalReplyUsable = (
-  reply: ParsedTavernReply,
-  contentOnlyReplyAllowed: boolean,
-) => contentOnlyReplyAllowed
-  ? Boolean(reply.content.trim())
-  : Boolean(reply.content.trim() && hasTavernReplyDialogueText(reply.content));
+const isFinalReplyUsable = (reply: ParsedTavernReply, contentOnlyReplyAllowed: boolean) =>
+  contentOnlyReplyAllowed
+    ? Boolean(reply.content.trim())
+    : Boolean(reply.content.trim() && hasTavernReplyDialogueText(reply.content));
 
 const resolveFinalReplyText = ({
   finalReply,
@@ -101,13 +94,14 @@ const resolveFinalReplyText = ({
   contentOnlyReplyAllowed: boolean;
   presentationContract: TavernPresentationRuntimeContract;
   speaker: TavernCharacter;
-}) => contentOnlyReplyAllowed
-  ? (finalReply.content.trim()
+}) =>
+  contentOnlyReplyAllowed
+    ? finalReply.content.trim()
       ? finalReply.content
-      : presentationContract.buildEmptyContentFallback(speaker))
-  : finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
-  ? finalReply.content
-  : "（对方短暂沉默，杯沿映着灯光。）";
+      : presentationContract.buildEmptyContentFallback(speaker)
+    : finalReply.content.trim() && hasTavernReplyDialogueText(finalReply.content)
+      ? finalReply.content
+      : "（对方短暂沉默，杯沿映着灯光。）";
 
 const generateMissingInnerThought = async ({
   ctx,
@@ -187,9 +181,7 @@ const compactSpeakerKnowledgeIfNeeded = async ({
     });
     ctx.patchExecutionStep(compactStepId, {
       status: "done",
-      detail: compactResult?.compacted === false
-        ? "底层 session 暂无可压缩内容。"
-        : "底层压缩已完成。",
+      detail: compactResult?.compacted === false ? "底层 session 暂无可压缩内容。" : "底层压缩已完成。",
     });
   } catch (compactError) {
     ctx.patchExecutionStep(compactStepId, {
@@ -321,26 +313,23 @@ const buildSpeakerReplyPlan = ({
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
 }): SpeakerReplyPlan => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
-  const directorReasonForCharacter = runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
-      runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
-      runtimeRoom.settings.informationPolicy.mode === "mystery"
-    ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
-    : directorReason;
+  const directorReasonForCharacter =
+    runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
+    runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
+    runtimeRoom.settings.informationPolicy.mode === "mystery"
+      ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
+      : directorReason;
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
     room: runtimeRoom,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
     currentUserText: text,
-    directorReason: [
-      directorReasonForCharacter,
-      continuationInstruction,
-    ].filter(Boolean).join("\n"),
+    directorReason: [directorReasonForCharacter, continuationInstruction].filter(Boolean).join("\n"),
   });
   const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
-  const contentOnlyReplyAllowed =
-    nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
+  const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
   const turnInstruction = buildTavernCharacterTurnInstruction({
     room,
     speaker,
@@ -361,7 +350,7 @@ const buildSpeakerReplyPlan = ({
         "这是一次自动续调度，只回应对应待回应事项；不要替其他角色或用户发言，回答后把控制权留给现场。",
         "</continuation_instruction>",
       ].join("\n")
-    : turnInstruction ?? "";
+    : (turnInstruction ?? "");
 
   return {
     speaker,
@@ -400,9 +389,7 @@ const ensureSpeakerReplyRuntimeStarted = ({
   }
 
   const { speaker } = runtime;
-  ctx.setTurnStatus(mode.isDirectorLikeMode
-    ? `${speaker.name} 正在按导演调度回应...`
-    : `${speaker.name} 正在回应...`);
+  ctx.setTurnStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
   ctx.appendExecutionStep({
     id: runtime.speakerStepId,
     label: `${speaker.name} 回复`,
@@ -417,9 +404,8 @@ const ensureSpeakerReplyRuntimeStarted = ({
     presentationProfileId: runtimeRoom.presentation?.profileId,
     content: "",
     status: "streaming",
-    respondsToInteractionIds: activeContinuationInteractionIds.length > 0
-      ? activeContinuationInteractionIds
-      : undefined,
+    respondsToInteractionIds:
+      activeContinuationInteractionIds.length > 0 ? activeContinuationInteractionIds : undefined,
   });
   runtime.replyMessage = replyMessage;
   runtime.streamedText = "";
@@ -551,13 +537,14 @@ const finalizeSpeakerReplyRuntime = async ({
       }),
       allowNonverbalReply: runtime.nonverbalReplyAllowed,
       storyContext,
-      onTextDelta: (delta) => appendSpeakerReplyDelta({
-        activeReplyRef,
-        ctx,
-        delta,
-        runtime,
-        runtimeRoom,
-      }),
+      onTextDelta: (delta) =>
+        appendSpeakerReplyDelta({
+          activeReplyRef,
+          ctx,
+          delta,
+          runtime,
+          runtimeRoom,
+        }),
     });
     finalReply = parseTavernReplyText({
       text: retryResult.text || runtime.streamedText,
@@ -584,16 +571,18 @@ const finalizeSpeakerReplyRuntime = async ({
     return null;
   }
 
-  const finalThought = finalReply.thought || await generateMissingInnerThought({
-    ctx,
-    runtimeRoom,
-    speaker: runtime.speaker,
-    runtimeModel: runtime.speakerRuntimeModel,
-    turnMessages,
-    text: currentUserText,
-    finalText,
-    storyContext,
-  });
+  const finalThought =
+    finalReply.thought ||
+    (await generateMissingInnerThought({
+      ctx,
+      runtimeRoom,
+      speaker: runtime.speaker,
+      runtimeModel: runtime.speakerRuntimeModel,
+      turnMessages,
+      text: currentUserText,
+      finalText,
+      storyContext,
+    }));
   const finalizedMessage: TavernMessage = {
     ...replyMessage,
     content: finalText,
@@ -691,20 +680,15 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
     replyMessage: null,
     streamedText: "",
   }));
-  const runtimeByAgentRoleId = new Map(runtimes.map((runtime) => [
-    tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker),
-    runtime,
-  ]));
-  const agentRoleLabelById = Object.fromEntries(
-    runtimes.map((runtime) => [
-      tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker),
-      runtime.speaker.name,
-    ]),
+  const runtimeByAgentRoleId = new Map(
+    runtimes.map((runtime) => [tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker), runtime]),
   );
-  const runtimeByOutputKey = new Map(runtimes.map((runtime) => [
-    tavernSpeakerReplyOutputKey(runtime.speaker),
-    runtime,
-  ]));
+  const agentRoleLabelById = Object.fromEntries(
+    runtimes.map((runtime) => [tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker), runtime.speaker.name]),
+  );
+  const runtimeByOutputKey = new Map(
+    runtimes.map((runtime) => [tavernSpeakerReplyOutputKey(runtime.speaker), runtime]),
+  );
   const firstRuntime = runtimes[0];
   if (!firstRuntime) {
     return {
@@ -724,10 +708,7 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
     currentUserText,
     storyContext,
     turnInstructionByCharacterId: Object.fromEntries(
-      runtimes.map((runtime) => [
-        runtime.speaker.id,
-        runtime.effectiveTurnInstruction,
-      ]),
+      runtimes.map((runtime) => [runtime.speaker.id, runtime.effectiveTurnInstruction]),
     ),
     allowNonverbalReplyCharacterIds: runtimes
       .filter((runtime) => runtime.nonverbalReplyAllowed)
@@ -759,10 +740,7 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
       });
     },
     onAgentEvent: (event) => {
-      if (
-        event.event.type !== "text_delta" ||
-        typeof event.event.delta !== "string"
-      ) {
+      if (event.event.type !== "text_delta" || typeof event.event.delta !== "string") {
         return;
       }
 
@@ -893,29 +871,24 @@ const runSingleSpeakerReply = async ({
   // 角色阶段只关心单个角色的流式回复、兜底重试、心理补全和知识压缩。
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const speakerStepId = `speaker-${speaker.id}-${currentSpeakerRunIndex}`;
-  const directorReasonForCharacter = runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
-      runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
-      runtimeRoom.settings.informationPolicy.mode === "mystery"
-    ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
-    : directorReason;
+  const directorReasonForCharacter =
+    runtimeRoom.settings.informationPolicy.hiddenFacts.enabled ||
+    runtimeRoom.settings.informationPolicy.mode === "social_deduction" ||
+    runtimeRoom.settings.informationPolicy.mode === "mystery"
+      ? "导演根据当前公开流程安排本轮发言；只依据自己可见信息回应，不要泄露身份、阵营或私密事实。"
+      : directorReason;
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
     room: runtimeRoom,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
     currentUserText: text,
-    directorReason: [
-      directorReasonForCharacter,
-      continuationInstruction,
-    ].filter(Boolean).join("\n"),
+    directorReason: [directorReasonForCharacter, continuationInstruction].filter(Boolean).join("\n"),
   });
   const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
-  const contentOnlyReplyAllowed =
-    nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
-  ctx.setTurnStatus(mode.isDirectorLikeMode
-    ? `${speaker.name} 正在按导演调度回应...`
-    : `${speaker.name} 正在回应...`);
+  const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
+  ctx.setTurnStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
   ctx.appendExecutionStep({
     id: speakerStepId,
     label: `${speaker.name} 回复`,
@@ -930,9 +903,8 @@ const runSingleSpeakerReply = async ({
     presentationProfileId: runtimeRoom.presentation?.profileId,
     content: "",
     status: "streaming",
-    respondsToInteractionIds: activeContinuationInteractionIds.length > 0
-      ? activeContinuationInteractionIds
-      : undefined,
+    respondsToInteractionIds:
+      activeContinuationInteractionIds.length > 0 ? activeContinuationInteractionIds : undefined,
   });
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
@@ -958,7 +930,7 @@ const runSingleSpeakerReply = async ({
         "这是一次自动续调度，只回应对应待回应事项；不要替其他角色或用户发言，回答后把控制权留给现场。",
         "</continuation_instruction>",
       ].join("\n")
-    : turnInstruction ?? "";
+    : (turnInstruction ?? "");
 
   let streamedText = "";
   const handleReplyTextDelta = (delta: string) => {
@@ -1054,16 +1026,18 @@ const runSingleSpeakerReply = async ({
     return null;
   }
 
-  const finalThought = finalReply.thought || await generateMissingInnerThought({
-    ctx,
-    runtimeRoom,
-    speaker,
-    runtimeModel: speakerRuntimeModel,
-    turnMessages,
-    text,
-    finalText,
-    storyContext,
-  });
+  const finalThought =
+    finalReply.thought ||
+    (await generateMissingInnerThought({
+      ctx,
+      runtimeRoom,
+      speaker,
+      runtimeModel: speakerRuntimeModel,
+      turnMessages,
+      text,
+      finalText,
+      storyContext,
+    }));
   const finalizedMessage: TavernMessage = {
     ...replyMessage,
     content: finalText,
@@ -1166,10 +1140,12 @@ export const runSpeakerReplyFlow = async ({
     const activeContinuationInteractionIds = currentContinuationInteractionIds;
     currentContinuationInteractionIds = [];
 
-    if (shouldRunSpeakerRoundThroughCollaboration({
-      continuationRound,
-      speakers: currentSpeakers,
-    })) {
+    if (
+      shouldRunSpeakerRoundThroughCollaboration({
+        continuationRound,
+        speakers: currentSpeakers,
+      })
+    ) {
       const speakerRound = await runSpeakerReplyRoundThroughCollaboration({
         ctx,
         room,
@@ -1232,22 +1208,22 @@ export const runSpeakerReplyFlow = async ({
       userPersonaName: runtimeRoom.userPersonaName,
       turnId: userMessage.turnId ?? userMessage.id,
     }).filter((interaction) => !closedInteractionIds.has(interaction.id));
-    const continuationPlan = room.settings.continuation.enabled &&
-        !shouldSuppressTavernAutoContinuation(runtimeRoom)
-      ? planTavernContinuation({
-          pendingInteractions: latestPendingInteractions,
-          characters: availableRoomCharacters,
-          continuationRound,
-          maxAutoContinuationRounds: room.settings.continuation.maxAutoContinuationRounds,
-          maxSpeakersPerContinuation: room.settings.continuation.maxSpeakersPerContinuation,
-          stopWhenUserTargeted: room.settings.continuation.stopWhenUserTargeted,
-        })
-      : {
-          shouldContinue: false,
-          speakerIds: [],
-          interactionIds: [],
-          reason: "none" as const,
-        };
+    const continuationPlan =
+      room.settings.continuation.enabled && !shouldSuppressTavernAutoContinuation(runtimeRoom)
+        ? planTavernContinuation({
+            pendingInteractions: latestPendingInteractions,
+            characters: availableRoomCharacters,
+            continuationRound,
+            maxAutoContinuationRounds: room.settings.continuation.maxAutoContinuationRounds,
+            maxSpeakersPerContinuation: room.settings.continuation.maxSpeakersPerContinuation,
+            stopWhenUserTargeted: room.settings.continuation.stopWhenUserTargeted,
+          })
+        : {
+            shouldContinue: false,
+            speakerIds: [],
+            interactionIds: [],
+            reason: "none" as const,
+          };
 
     if (!continuationPlan.shouldContinue) {
       break;
@@ -1259,7 +1235,7 @@ export const runSpeakerReplyFlow = async ({
       closedInteractionIds.add(interactionId);
     }
     const interactionText = latestPendingInteractions.find((interaction) =>
-      continuationPlan.interactionIds.includes(interaction.id)
+      continuationPlan.interactionIds.includes(interaction.id),
     )?.text;
     speakerQueue = continuationPlan.speakerIds
       .map((characterId) => availableRoomCharacters.find((character) => character.id === characterId))
@@ -1267,9 +1243,7 @@ export const runSpeakerReplyFlow = async ({
     for (const speaker of speakerQueue) {
       continuationInstructionBySpeakerId.set(
         speaker.id,
-        interactionText
-          ? `回应刚才指向你的待回应事项：「${interactionText}」。`
-          : "回应刚才指向你的待回应事项。",
+        interactionText ? `回应刚才指向你的待回应事项：「${interactionText}」。` : "回应刚才指向你的待回应事项。",
       );
     }
     if (speakerQueue.length > 0) {
@@ -1286,8 +1260,8 @@ export const runSpeakerReplyFlow = async ({
   return {
     runtimeMessages,
     turnMessages,
-    openPendingInteractions: latestPendingInteractions.filter((interaction) =>
-      !closedInteractionIds.has(interaction.id)
+    openPendingInteractions: latestPendingInteractions.filter(
+      (interaction) => !closedInteractionIds.has(interaction.id),
     ),
   };
 };

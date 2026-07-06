@@ -1,8 +1,4 @@
-import type {
-  TavernRoom,
-  TavernScene,
-  TavernSceneInstance,
-} from "../types";
+import type { TavernRoom, TavernScene, TavernSceneInstance } from "@/features/pages/taverns/manage/model";
 
 export type TavernProjectableScene = Pick<
   TavernScene,
@@ -37,9 +33,7 @@ export type TavernProjectableScene = Pick<
   | "activeCharacterId"
 >;
 
-const projectSceneNarrativeFieldsToRoom = (
-  scene: TavernProjectableScene,
-) => ({
+const projectSceneNarrativeFieldsToRoom = (scene: TavernProjectableScene) => ({
   scenePresetId: scene.scenePresetId,
   scene: scene.scene,
   sceneGoal: scene.sceneGoal,
@@ -50,9 +44,7 @@ const projectSceneNarrativeFieldsToRoom = (
   relationshipOverrides: scene.relationshipOverrides,
 });
 
-const projectSceneInteractionFieldsToRoom = (
-  scene: TavernProjectableScene,
-) => ({
+const projectSceneInteractionFieldsToRoom = (scene: TavernProjectableScene) => ({
   sceneStatus: scene.sceneStatus,
   characterPublicStatuses: scene.characterPublicStatuses,
   characterPrivateStatuses: scene.characterPrivateStatuses,
@@ -60,9 +52,7 @@ const projectSceneInteractionFieldsToRoom = (
   replyOptions: scene.replyOptions,
 });
 
-const projectSceneProgressFieldsToRoom = (
-  scene: TavernProjectableScene,
-) => ({
+const projectSceneProgressFieldsToRoom = (scene: TavernProjectableScene) => ({
   factEvents: scene.factEvents,
   statusEvents: scene.statusEvents,
   statusSnapshot: scene.statusSnapshot,
@@ -75,25 +65,19 @@ const projectSceneProgressFieldsToRoom = (
   outcomeEvents: scene.outcomeEvents,
 });
 
-const projectSceneAssetFieldsToRoom = (
-  scene: TavernProjectableScene,
-) => ({
+const projectSceneAssetFieldsToRoom = (scene: TavernProjectableScene) => ({
   illustrationHints: scene.illustrationHints,
   assetDrafts: scene.assetDrafts,
 });
 
-const projectSceneCharacterFieldsToRoom = (
-  scene: TavernProjectableScene,
-) => ({
+const projectSceneCharacterFieldsToRoom = (scene: TavernProjectableScene) => ({
   characterConfigs: scene.characterConfigs ?? {},
   characterMemories: scene.characterMemories,
   characterIds: scene.characterIds,
   activeCharacterId: scene.activeCharacterId,
 });
 
-export const projectTavernSceneFieldsOntoRoom = (
-  scene: TavernProjectableScene,
-) => ({
+export const projectTavernSceneFieldsOntoRoom = (scene: TavernProjectableScene) => ({
   ...projectSceneNarrativeFieldsToRoom(scene),
   ...projectSceneInteractionFieldsToRoom(scene),
   ...projectSceneProgressFieldsToRoom(scene),
@@ -101,9 +85,7 @@ export const projectTavernSceneFieldsOntoRoom = (
   ...projectSceneCharacterFieldsToRoom(scene),
 });
 
-const projectRoomNarrativeFieldsToScene = (
-  room: TavernRoom,
-) => ({
+const projectRoomNarrativeFieldsToScene = (room: TavernRoom) => ({
   scenePresetId: room.scenePresetId,
   scene: room.scene,
   sceneGoal: room.sceneGoal,
@@ -114,9 +96,7 @@ const projectRoomNarrativeFieldsToScene = (
   relationshipOverrides: room.relationshipOverrides,
 });
 
-const projectRoomInteractionFieldsToScene = (
-  room: TavernRoom,
-) => ({
+const projectRoomInteractionFieldsToScene = (room: TavernRoom) => ({
   sceneStatus: room.sceneStatus,
   characterPublicStatuses: room.characterPublicStatuses,
   characterPrivateStatuses: room.characterPrivateStatuses,
@@ -124,9 +104,7 @@ const projectRoomInteractionFieldsToScene = (
   replyOptions: room.replyOptions,
 });
 
-const projectRoomProgressFieldsToScene = (
-  room: TavernRoom,
-) => ({
+const projectRoomProgressFieldsToScene = (room: TavernRoom) => ({
   factEvents: room.factEvents,
   statusEvents: room.statusEvents,
   statusSnapshot: room.statusSnapshot,
@@ -139,16 +117,12 @@ const projectRoomProgressFieldsToScene = (
   outcomeEvents: room.outcomeEvents,
 });
 
-const projectRoomAssetFieldsToScene = (
-  room: TavernRoom,
-) => ({
+const projectRoomAssetFieldsToScene = (room: TavernRoom) => ({
   illustrationHints: room.illustrationHints,
   assetDrafts: room.assetDrafts,
 });
 
-const projectRoomCharacterFieldsToScene = (
-  room: TavernRoom,
-) => ({
+const projectRoomCharacterFieldsToScene = (room: TavernRoom) => ({
   characterConfigs: room.characterConfigs ?? {},
   characterMemories: room.characterMemories,
   characterIds: room.characterIds,

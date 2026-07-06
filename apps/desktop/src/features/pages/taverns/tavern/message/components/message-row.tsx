@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
-import type { TavernCharacter, TavernMessage, TavernRoom } from "../../types";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { CharacterMessage } from "./character-message";
@@ -18,10 +19,7 @@ type MessageRoleRendererContext = {
   visualPreset: ReturnType<typeof useTavernRoomContext>["visualPreset"];
 };
 
-const messageRoleRenderers: Record<
-  TavernMessage["role"],
-  (context: MessageRoleRendererContext) => ReactElement
-> = {
+const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleRendererContext) => ReactElement> = {
   narrator: ({ message, visualPreset }) => (
     <NarratorMessage
       content={message.content}
@@ -57,20 +55,13 @@ const messageRoleRenderers: Record<
   ),
 };
 
-export const MessageRow = ({
-  message,
-}: MessageRowProps) => {
-  const {
-    activeRoom,
-    characterById,
-    isSending,
-    visualPreset,
-  } = useTavernRoomContext();
+export const MessageRow = ({ message }: MessageRowProps) => {
+  const { activeRoom, characterById, isSending, visualPreset } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }
 
-  const character = message.characterId ? characterById.get(message.characterId) ?? null : null;
+  const character = message.characterId ? (characterById.get(message.characterId) ?? null) : null;
   const renderMessage = messageRoleRenderers[message.role];
 
   return renderMessage({

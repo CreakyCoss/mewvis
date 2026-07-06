@@ -30,16 +30,8 @@ import {
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   advanceTavernProgressFromFactEvents,
   filterTavernFactEventsForAudience,
@@ -80,23 +72,12 @@ import type {
   TavernStatusValue,
   TavernTaskDefinition,
   TavernTaskState,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
-import {
-  compactText,
-  MeterBar,
-} from "../shared";
+import { compactText, MeterBar } from "../shared";
 import { buildTavernMemoryOverviewSummary } from "../memory-summary";
-import {
-  createResolvedStatusMetric,
-  getProgressStatusItems,
-  numericStatusPercent,
-} from "../status-utils";
-import type {
-  ResolvedStatusMetric,
-  TaskCardData,
-  TaskValueDisplay,
-} from "../types";
+import { createResolvedStatusMetric, getProgressStatusItems, numericStatusPercent } from "../status-utils";
+import type { ResolvedStatusMetric, TaskCardData, TaskValueDisplay } from "../types";
 
 type TaskCardDisplayData = {
   data: TaskCardData;
@@ -162,10 +143,7 @@ const taskStatusLabels = {
   failed: "已失败",
 } as const;
 
-const conditionReferencesStatus = (
-  condition: TavernCondition | undefined,
-  statusId: string,
-): boolean => {
+const conditionReferencesStatus = (condition: TavernCondition | undefined, statusId: string): boolean => {
   if (!condition) {
     return false;
   }
@@ -185,30 +163,25 @@ const conditionReferencesStatus = (
 };
 
 const isDefaultSceneThreatMetric = (metric: ResolvedStatusMetric) =>
-  metric.definition.id === "threat_level" &&
-  metric.definition.scope === "scene" &&
-  metric.definition.label === "威胁";
+  metric.definition.id === "threat_level" && metric.definition.scope === "scene" && metric.definition.label === "威胁";
 
-const roomHasActiveTaskForStatus = (
-  room: TavernRoom,
-  statusId: string,
-) => room.taskDefinitions.some((task) => {
-  if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
-    return false;
-  }
-  const status = room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
-  if (status === "inactive") {
-    return false;
-  }
-  return conditionReferencesStatus(task.lifecycle.startCondition, statusId) ||
-    conditionReferencesStatus(task.lifecycle.completeCondition, statusId) ||
-    conditionReferencesStatus(task.lifecycle.failCondition, statusId);
-});
+const roomHasActiveTaskForStatus = (room: TavernRoom, statusId: string) =>
+  room.taskDefinitions.some((task) => {
+    if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
+      return false;
+    }
+    const status = room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
+    if (status === "inactive") {
+      return false;
+    }
+    return (
+      conditionReferencesStatus(task.lifecycle.startCondition, statusId) ||
+      conditionReferencesStatus(task.lifecycle.completeCondition, statusId) ||
+      conditionReferencesStatus(task.lifecycle.failCondition, statusId)
+    );
+  });
 
-const shouldUseSituationMetric = (
-  metric: ResolvedStatusMetric,
-  room: TavernRoom,
-) => {
+const shouldUseSituationMetric = (metric: ResolvedStatusMetric, room: TavernRoom) => {
   if (typeof metric.value !== "number") {
     return false;
   }
@@ -218,10 +191,7 @@ const shouldUseSituationMetric = (
   return roomHasActiveTaskForStatus(room, metric.definition.id);
 };
 
-const formatConditionTargetLabel = (
-  target: TavernStatusTargetRef,
-  characterNameById: Map<string, string>,
-) => {
+const formatConditionTargetLabel = (target: TavernStatusTargetRef, characterNameById: Map<string, string>) => {
   switch (target.type) {
     case "global":
       return "全局";
@@ -232,12 +202,14 @@ const formatConditionTargetLabel = (
     case "character":
       return characterNameById.get(target.characterId) ?? target.characterId;
     case "relationship": {
-      const subject = target.subject.type === "character"
-        ? characterNameById.get(target.subject.characterId) ?? target.subject.characterId
-        : "你";
-      const object = target.object.type === "character"
-        ? characterNameById.get(target.object.characterId) ?? target.object.characterId
-        : "你";
+      const subject =
+        target.subject.type === "character"
+          ? (characterNameById.get(target.subject.characterId) ?? target.subject.characterId)
+          : "你";
+      const object =
+        target.object.type === "character"
+          ? (characterNameById.get(target.object.characterId) ?? target.object.characterId)
+          : "你";
       return `${subject}对${object}`;
     }
   }
@@ -252,14 +224,14 @@ const formatTaskConditionCardText = (
     return "无额外条件";
   }
   if ("all" in condition) {
-    return condition.all.map((item) =>
-      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
-    ).join(" 且 ");
+    return condition.all
+      .map((item) => formatTaskConditionCardText(item, characterNameById, statusDefinitionById))
+      .join(" 且 ");
   }
   if ("any" in condition) {
-    return condition.any.map((item) =>
-      formatTaskConditionCardText(item, characterNameById, statusDefinitionById)
-    ).join(" 或 ");
+    return condition.any
+      .map((item) => formatTaskConditionCardText(item, characterNameById, statusDefinitionById))
+      .join(" 或 ");
   }
   if ("not" in condition) {
     return `非 ${formatTaskConditionCardText(condition.not, characterNameById, statusDefinitionById)}`;
@@ -311,13 +283,9 @@ const findTaskStatusCondition = (
   return null;
 };
 
-const formatTaskNumber = (value: number) =>
-  Number.isInteger(value) ? String(value) : value.toFixed(1);
+const formatTaskNumber = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
-const formatTaskMetricValue = (
-  value: TavernStatusValue,
-  definition: TavernStatusDefinition,
-) => {
+const formatTaskMetricValue = (value: TavernStatusValue, definition: TavernStatusDefinition) => {
   if (typeof value !== "number") {
     return formatStatusValue(value);
   }
@@ -348,12 +316,8 @@ const resolveTaskTargetPercent = (
   definition: TavernStatusDefinition,
 ) => {
   const targetValue =
-    condition.lte ??
-    condition.gte ??
-    (typeof condition.equals === "number" ? condition.equals : undefined);
-  return typeof targetValue === "number"
-    ? numericStatusPercent(targetValue, definition)
-    : undefined;
+    condition.lte ?? condition.gte ?? (typeof condition.equals === "number" ? condition.equals : undefined);
+  return typeof targetValue === "number" ? numericStatusPercent(targetValue, definition) : undefined;
 };
 
 const resolveTaskConditionMetric = ({
@@ -377,11 +341,8 @@ const resolveTaskConditionMetric = ({
     return null;
   }
 
-  const value = getTavernStatusSnapshotValue(
-    activeRoom.statusSnapshot,
-    condition.target,
-    definition.id,
-  ) ?? definition.defaultValue;
+  const value =
+    getTavernStatusSnapshotValue(activeRoom.statusSnapshot, condition.target, definition.id) ?? definition.defaultValue;
   const targetLabel = formatConditionTargetLabel(condition.target, characterNameById);
   const metricLabel = `${targetLabel}${definition.label}` || definition.label;
 
@@ -541,9 +502,7 @@ const OverviewHeader = ({
   <header className="space-y-2">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="text-sm font-semibold leading-tight text-current">
-          场景概览
-        </div>
+        <div className="text-sm font-semibold leading-tight text-current">场景概览</div>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-current/70">
           <span className="min-w-0 truncate">{sceneTitle}</span>
           <span className="size-1.5 shrink-0 rounded-full bg-primary" />
@@ -579,25 +538,15 @@ const OverviewHeader = ({
   </header>
 );
 
-const SectionCard = ({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) => (
-  <div className={`rounded-xl border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] text-current shadow-sm ${className}`}>
+const SectionCard = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
+  <div
+    className={`rounded-xl border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] text-current shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
 
-const CardHeading = ({
-  icon: Icon,
-  children,
-}: {
-  icon: LucideIcon;
-  children: ReactNode;
-}) => (
+const CardHeading = ({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) => (
   <div className="flex items-center gap-2 text-[13px] font-semibold">
     <Icon className="size-4 shrink-0 text-primary" />
     <span className="min-w-0 truncate">{children}</span>
@@ -616,34 +565,20 @@ const GoalTargetIcon = () => (
   </span>
 );
 
-const GoalCard = ({
-  sceneGoal,
-}: {
-  sceneGoal: string | undefined;
-}) => (
+const GoalCard = ({ sceneGoal }: { sceneGoal: string | undefined }) => (
   <SectionCard className="overflow-hidden px-3 py-3">
     <div className="flex items-center gap-2.5">
       <GoalTargetIcon />
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-semibold text-primary">
-          当前目标
-        </div>
-        <div className="mt-1 line-clamp-2 text-[13px] font-semibold leading-5">
-          {compactText(sceneGoal)}
-        </div>
-        <div className="mt-0.5 text-[11px] leading-4 text-current/65">
-          当前回合最优先处理事项
-        </div>
+        <div className="text-[11px] font-semibold text-primary">当前目标</div>
+        <div className="mt-1 line-clamp-2 text-[13px] font-semibold leading-5">{compactText(sceneGoal)}</div>
+        <div className="mt-0.5 text-[11px] leading-4 text-current/65">当前回合最优先处理事项</div>
       </div>
     </div>
   </SectionCard>
 );
 
-const SituationCard = ({
-  metric,
-}: {
-  metric: ResolvedStatusMetric;
-}) => {
+const SituationCard = ({ metric }: { metric: ResolvedStatusMetric }) => {
   const valueText = formatMetricValue(metric.value);
   const maxText = statusMaxValue(metric.definition);
 
@@ -651,10 +586,11 @@ const SituationCard = ({
     <SectionCard className="px-3 py-3">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <CardHeading icon={ShieldCheck}>当前局势</CardHeading>
-        <span className={[
-          "shrink-0 rounded-md border px-2 py-1 text-[11px] font-medium leading-none",
-          situationToneClassName(metric),
-        ].join(" ")}
+        <span
+          className={[
+            "shrink-0 rounded-md border px-2 py-1 text-[11px] font-medium leading-none",
+            situationToneClassName(metric),
+          ].join(" ")}
         >
           {situationToneLabel(metric)}
         </span>
@@ -663,27 +599,16 @@ const SituationCard = ({
       <div className="mt-3 rounded-lg border border-current/10 bg-current/5 px-3 py-2.5">
         <div className="flex min-w-0 items-end justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] leading-none text-current/60">
-              关注指标
-            </div>
-            <div className="mt-1 truncate text-[13px] font-semibold">
-              {situationStatusName(metric)}
-            </div>
+            <div className="text-[11px] leading-none text-current/60">关注指标</div>
+            <div className="mt-1 truncate text-[13px] font-semibold">{situationStatusName(metric)}</div>
           </div>
           <div className="shrink-0 text-right">
-            <span className="text-lg font-semibold leading-none text-primary tabular-nums">
-              {valueText}
-            </span>
-            <span className="ml-0.5 text-xs text-current/60 tabular-nums">
-              /{maxText}
-            </span>
+            <span className="text-lg font-semibold leading-none text-primary tabular-nums">{valueText}</span>
+            <span className="ml-0.5 text-xs text-current/60 tabular-nums">/{maxText}</span>
           </div>
         </div>
         <div className="mt-2.5">
-          <MeterBar
-            percent={metric.percent}
-            className={situationMeterClassName(metric)}
-          />
+          <MeterBar percent={metric.percent} className={situationMeterClassName(metric)} />
         </div>
         <div className="mt-1 flex items-center justify-between text-[10px] leading-none text-current/65">
           <span>低</span>
@@ -691,9 +616,7 @@ const SituationCard = ({
         </div>
       </div>
 
-      <div className="mt-2 text-[11px] leading-4 text-current/60">
-        {situationToneText(metric)}
-      </div>
+      <div className="mt-2 text-[11px] leading-4 text-current/60">{situationToneText(metric)}</div>
     </SectionCard>
   );
 };
@@ -724,25 +647,22 @@ const PendingStatusEvents = ({
           <div key={event.id} className="space-y-2 rounded-lg bg-current/5 px-2.5 py-2">
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="truncate text-xs font-medium">
-                  {definition?.label ?? event.statusId}
-                </div>
+                <div className="truncate text-xs font-medium">{definition?.label ?? event.statusId}</div>
                 <div className="mt-0.5 text-[11px] tabular-nums text-current/65">
-                  {before}{" -> "}{after}
+                  {before}
+                  {" -> "}
+                  {after}
                   {typeof event.delta === "number" && (
                     <span className={event.delta > 0 ? "ml-1 text-emerald-500" : "ml-1 text-destructive"}>
-                      {event.delta > 0 ? "+" : ""}{event.delta}
+                      {event.delta > 0 ? "+" : ""}
+                      {event.delta}
                     </span>
                   )}
                 </div>
               </div>
-              <div className="shrink-0 text-[11px] text-current/65">
-                {Math.round(event.confidence * 100)}%
-              </div>
+              <div className="shrink-0 text-[11px] text-current/65">{Math.round(event.confidence * 100)}%</div>
             </div>
-            <div className="line-clamp-2 text-[11px] leading-4 text-current/65">
-              {event.reason}
-            </div>
+            <div className="line-clamp-2 text-[11px] leading-4 text-current/65">{event.reason}</div>
             <div className="grid grid-cols-2 gap-1.5">
               <Button
                 type="button"
@@ -774,11 +694,7 @@ const PendingStatusEvents = ({
   );
 };
 
-const TaskStatusPill = ({
-  status,
-}: {
-  status: TaskCardData["status"];
-}) => (
+const TaskStatusPill = ({ status }: { status: TaskCardData["status"] }) => (
   <span
     className={[
       "rounded-full px-2 py-0.5 text-[11px] font-medium leading-none",
@@ -786,14 +702,18 @@ const TaskStatusPill = ({
       status === "completed" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "",
       status === "failed" ? "bg-destructive/10 text-destructive" : "",
       status === "inactive" ? "bg-current/10 text-current/60" : "",
-    ].filter(Boolean).join(" ")}
+    ]
+      .filter(Boolean)
+      .join(" ")}
   >
-    {{
-      inactive: "未激活",
-      active: "进行中",
-      completed: "已完成",
-      failed: "已失败",
-    }[status]}
+    {
+      {
+        inactive: "未激活",
+        active: "进行中",
+        completed: "已完成",
+        failed: "已失败",
+      }[status]
+    }
   </span>
 );
 
@@ -807,24 +727,15 @@ const taskMetricFillClassName = (status: TaskCardData["status"]) => {
   return "bg-primary";
 };
 
-const TaskMetricTrack = ({
-  metric,
-  status,
-}: {
-  metric: TaskValueDisplay;
-  status: TaskCardData["status"];
-}) => {
+const TaskMetricTrack = ({ metric, status }: { metric: TaskValueDisplay; status: TaskCardData["status"] }) => {
   const valuePercent = Math.max(0, Math.min(100, metric.percent));
-  const targetPercent = metric.targetPercent === undefined
-    ? undefined
-    : Math.max(1, Math.min(99, metric.targetPercent));
+  const targetPercent =
+    metric.targetPercent === undefined ? undefined : Math.max(1, Math.min(99, metric.targetPercent));
 
   return (
     <span className="mt-2.5 block space-y-1.5">
       <span className="flex min-w-0 items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] leading-4 text-current/65">
-          {metric.label}
-        </span>
+        <span className="min-w-0 truncate text-[11px] leading-4 text-current/65">{metric.label}</span>
         {metric.targetText && (
           <span className="shrink-0 rounded-md border border-current/10 bg-current/5 px-1.5 py-0.5 text-[11px] leading-none text-current/65">
             {metric.targetText}
@@ -868,14 +779,10 @@ const TaskCard = ({
     <span className="flex min-w-0 items-start justify-between gap-3">
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[13px] font-semibold leading-5">
-            {data.task.title}
-          </span>
+          <span className="truncate text-[13px] font-semibold leading-5">{data.task.title}</span>
           <TaskStatusPill status={data.status} />
         </span>
-        <span className="mt-1 block truncate text-xs leading-5 text-current/60">
-          条件：{conditionText}
-        </span>
+        <span className="mt-1 block truncate text-xs leading-5 text-current/60">条件：{conditionText}</span>
       </span>
       {data.metric && (
         <span className="shrink-0 text-right">
@@ -886,9 +793,7 @@ const TaskCard = ({
         </span>
       )}
     </span>
-    {data.metric && (
-      <TaskMetricTrack metric={data.metric} status={data.status} />
-    )}
+    {data.metric && <TaskMetricTrack metric={data.metric} status={data.status} />}
   </button>
 );
 
@@ -941,9 +846,7 @@ const DetailRow = ({
     </span>
     <span className="min-w-0 flex-1">
       <span className="block truncate text-[13px] font-semibold leading-5">{title}</span>
-      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-4 text-current/60">
-        {summary}
-      </span>
+      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-4 text-current/60">{summary}</span>
     </span>
     <ChevronDown className="size-4 shrink-0 text-current/60" />
   </button>
@@ -976,9 +879,7 @@ const SceneDetailsSection = ({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-semibold leading-5">沉浸描写</span>
-        <span className="mt-0.5 block truncate text-[11px] leading-4 text-current/60">
-          动作、神态、感官与环境互动
-        </span>
+        <span className="mt-0.5 block truncate text-[11px] leading-4 text-current/60">动作、神态、感官与环境互动</span>
       </span>
       <Switch
         size="sm"
@@ -988,23 +889,16 @@ const SceneDetailsSection = ({
         onCheckedChange={onImmersiveDescriptionChange}
       />
     </div>
-    <DetailRow
-      icon={FileText}
-      title="场景描述"
-      summary={compactText(scene)}
-      onClick={onOpenTipsDetail}
-    />
-    <DetailRow
-      icon={Brain}
-      title="节点记忆"
-      summary={compactText(memorySummary)}
-      onClick={onOpenTipsDetail}
-    />
+    <DetailRow icon={FileText} title="场景描述" summary={compactText(scene)} onClick={onOpenTipsDetail} />
+    <DetailRow icon={Brain} title="节点记忆" summary={compactText(memorySummary)} onClick={onOpenTipsDetail} />
     {identityFactEvents.length > 0 && (
       <DetailRow
         icon={ShieldCheck}
         title="我的身份"
-        summary={identityFactEvents.slice(0, 2).map((event) => event.evidence).join("；")}
+        summary={identityFactEvents
+          .slice(0, 2)
+          .map((event) => event.evidence)
+          .join("；")}
         onClick={onOpenScriptReviewDetail}
       />
     )}
@@ -1029,13 +923,8 @@ type PromptOverrideDraft = {
   character: string;
 };
 
-const createMemoryEditorDraft = (
-  target: MemoryEditorTarget,
-  activeRoom: TavernRoom,
-): MemoryEditorDraft => {
-  const activeInstance = activeRoom.sceneInstances.find((instance) =>
-    instance.id === activeRoom.activeSceneInstanceId
-  );
+const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernRoom): MemoryEditorDraft => {
+  const activeInstance = activeRoom.sceneInstances.find((instance) => instance.id === activeRoom.activeSceneInstanceId);
   if (target === "scene") {
     const layers = activeInstance?.memoryLayers;
     return {
@@ -1062,12 +951,9 @@ const createMemoryEditorDraft = (
 };
 
 const createPromptOverrideDraft = (activeRoom: TavernRoom): PromptOverrideDraft => {
-  const activeInstance = activeRoom.sceneInstances.find((instance) =>
-    instance.id === activeRoom.activeSceneInstanceId
-  );
+  const activeInstance = activeRoom.sceneInstances.find((instance) => instance.id === activeRoom.activeSceneInstanceId);
   const blockByTarget = new Map(
-    (activeInstance?.promptOverrides?.blocks ?? [])
-      .map((block) => [block.target, block.text] as const),
+    (activeInstance?.promptOverrides?.blocks ?? []).map((block) => [block.target, block.text] as const),
   );
 
   return {
@@ -1077,30 +963,29 @@ const createPromptOverrideDraft = (activeRoom: TavernRoom): PromptOverrideDraft 
   };
 };
 
-const createPromptOverrideBlocks = (
-  draft: PromptOverrideDraft,
-): TavernPromptBlock[] => ([
-  ["bridge", "底层会话"] as const,
-  ["director", "导演"] as const,
-  ["character", "角色"] as const,
-]).flatMap(([target, label], index) => {
-  const text = draft[target].trim();
-  return text
-    ? [{
-        id: `node-prompt-override:${target}`,
-        target,
-        label: `节点风格补充：${label}`,
-        text,
-        enabled: true,
-        order: 9000 + index,
-        source: {
-          type: "custom",
-          id: "node-prompt-override",
-          label: "节点风格补充",
-        },
-      }]
-    : [];
-});
+const createPromptOverrideBlocks = (draft: PromptOverrideDraft): TavernPromptBlock[] =>
+  [["bridge", "底层会话"] as const, ["director", "导演"] as const, ["character", "角色"] as const].flatMap(
+    ([target, label], index) => {
+      const text = draft[target].trim();
+      return text
+        ? [
+            {
+              id: `node-prompt-override:${target}`,
+              target,
+              label: `节点风格补充：${label}`,
+              text,
+              enabled: true,
+              order: 9000 + index,
+              source: {
+                type: "custom",
+                id: "node-prompt-override",
+                label: "节点风格补充",
+              },
+            },
+          ]
+        : [];
+    },
+  );
 
 const ToolActionsSection = ({
   isBusy,
@@ -1134,11 +1019,7 @@ const ToolActionsSection = ({
         disabled={isBusy}
         onClick={onTrackRecentProgress}
       >
-        {isTrackingProgress ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <Sparkles className="size-3.5" />
-        )}
+        {isTrackingProgress ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
         更新状态
       </Button>
       <Button
@@ -1251,9 +1132,12 @@ export const SceneOverviewSection = ({
     onBusyChange?.(isTrackingProgress);
   }, [isTrackingProgress, onBusyChange]);
 
-  useEffect(() => () => {
-    onBusyChange?.(false);
-  }, [onBusyChange]);
+  useEffect(
+    () => () => {
+      onBusyChange?.(false);
+    },
+    [onBusyChange],
+  );
 
   if (!activeRoom) {
     return null;
@@ -1292,19 +1176,18 @@ export const SceneOverviewSection = ({
     })
     .slice(-6);
   const sidePanelStatusItems = getProgressStatusItems(activeRoom.progressViews, "sidePanel");
-  const sidePanelSituationMetrics = sidePanelStatusItems
-    .flatMap((item) => {
-      const definition = statusDefinitionById.get(item.statusId);
-      if (
-        !definition ||
-        !isTavernProgressVisibilityVisibleToUser(definition.visibility) ||
-        !["global", "scene", "party"].includes(definition.scope)
-      ) {
-        return [];
-      }
-      const metric = createResolvedStatusMetric({ activeRoom, definition, item });
-      return metric ? [metric] : [];
-    });
+  const sidePanelSituationMetrics = sidePanelStatusItems.flatMap((item) => {
+    const definition = statusDefinitionById.get(item.statusId);
+    if (
+      !definition ||
+      !isTavernProgressVisibilityVisibleToUser(definition.visibility) ||
+      !["global", "scene", "party"].includes(definition.scope)
+    ) {
+      return [];
+    }
+    const metric = createResolvedStatusMetric({ activeRoom, definition, item });
+    return metric ? [metric] : [];
+  });
   const situationMetric =
     sidePanelSituationMetrics
       .filter((metric) => shouldUseSituationMetric(metric, activeRoom))
@@ -1312,7 +1195,7 @@ export const SceneOverviewSection = ({
     sidePanelSituationMetrics.find((metric) => shouldUseSituationMetric(metric, activeRoom)) ??
     null;
   const visibleTaskDefinitions = activeRoom.taskDefinitions.filter((task) =>
-    isTavernProgressVisibilityVisibleToUser(task.visibility)
+    isTavernProgressVisibilityVisibleToUser(task.visibility),
   );
   const activeTaskCards: TaskCardData[] = visibleTaskDefinitions
     .map((task) => {
@@ -1338,7 +1221,9 @@ export const SceneOverviewSection = ({
     factEvents: activeRoom.factEvents,
     room: activeRoom,
     audience: { type: "user" },
-  }).filter((event) => event.visibleToUser || event.visibility !== "public").filter(isIdentityFactEvent);
+  })
+    .filter((event) => event.visibleToUser || event.visibility !== "public")
+    .filter(isIdentityFactEvent);
   const sceneOverviewTaskCards = activeTaskCards.map((data) => ({
     data,
     conditionText: formatTaskConditionCardText(
@@ -1368,8 +1253,8 @@ export const SceneOverviewSection = ({
       return;
     }
 
-    const availableMessages = roomMessages.filter((message) =>
-      message.status !== "streaming" && message.status !== "error"
+    const availableMessages = roomMessages.filter(
+      (message) => message.status !== "streaming" && message.status !== "error",
     );
     const contextMessages = availableMessages.slice(-30);
     const sourceMessages = availableMessages.slice(-12);
@@ -1383,12 +1268,14 @@ export const SceneOverviewSection = ({
     reportError("");
     if (activeRoom.settings.showExecutionTrace) {
       setExecutionTraceAnchorMessageId(sourceMessages.at(-1)?.id ?? "");
-      resetExecutionTrace([{
-        id: "manual-progress-tracking",
-        label: "手动更新状态",
-        detail: "从最近对话中抽取事实事件并应用状态规则。",
-        status: "running",
-      }]);
+      resetExecutionTrace([
+        {
+          id: "manual-progress-tracking",
+          label: "手动更新状态",
+          detail: "从最近对话中抽取事实事件并应用状态规则。",
+          status: "running",
+        },
+      ]);
     }
 
     try {
@@ -1473,10 +1360,7 @@ export const SceneOverviewSection = ({
     toast.success("状态面板已从 checkpoint 和事件历史重建。");
   };
 
-  const resolvePendingStatusEvent = (
-    statusEventId: string,
-    resolution: "applied" | "rejected",
-  ) => {
+  const resolvePendingStatusEvent = (statusEventId: string, resolution: "applied" | "rejected") => {
     const progressPatch = resolveTavernPendingStatusEvent({
       room: activeRoom,
       statusEventId,
@@ -1582,7 +1466,7 @@ export const SceneOverviewSection = ({
     setSelectedSecretId((current) =>
       branchSecretOptions.some((option) => option.secretId === current)
         ? current
-        : branchSecretOptions[0]?.secretId ?? ""
+        : (branchSecretOptions[0]?.secretId ?? ""),
     );
     setRevealVisibility("public");
     setRevealCharacterId(roomCharacters[0]?.id ?? "");
@@ -1590,9 +1474,7 @@ export const SceneOverviewSection = ({
   };
   const recordSecretMemory = () => {
     const result = addTavernSecretMemoryEntry(activeRoom, {
-      target: secretDraftTarget === "scene"
-        ? { type: "scene" }
-        : { type: "character", characterId: secretDraftTarget },
+      target: secretDraftTarget === "scene" ? { type: "scene" } : { type: "character", characterId: secretDraftTarget },
       text: secretDraftText,
     });
     if (!result.entry) {
@@ -1631,19 +1513,14 @@ export const SceneOverviewSection = ({
         sceneStatusItems={sceneStatusItems}
       />
       <GoalCard sceneGoal={activeRoom.sceneGoal} />
-      {situationMetric && (
-        <SituationCard metric={situationMetric} />
-      )}
+      {situationMetric && <SituationCard metric={situationMetric} />}
       <PendingStatusEvents
         events={pendingStatusEvents}
         statusDefinitionById={statusDefinitionById}
         isBusy={isBusy}
         onResolve={resolvePendingStatusEvent}
       />
-      <TasksSection
-        taskCards={sceneOverviewTaskCards}
-        onOpenTasksDetail={onOpenTasksDetail}
-      />
+      <TasksSection taskCards={sceneOverviewTaskCards} onOpenTasksDetail={onOpenTasksDetail} />
       <SceneDetailsSection
         immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
         scene={activeRoom.scene}
@@ -1652,12 +1529,14 @@ export const SceneOverviewSection = ({
         isSending={isSending}
         onOpenTipsDetail={onOpenTipsDetail}
         onOpenScriptReviewDetail={onOpenScriptReviewDetail}
-        onImmersiveDescriptionChange={(checked) => patchRoom(activeRoom.id, {
-          settings: {
-            ...activeRoom.settings,
-            immersiveDescriptionEnabled: checked,
-          },
-        })}
+        onImmersiveDescriptionChange={(checked) =>
+          patchRoom(activeRoom.id, {
+            settings: {
+              ...activeRoom.settings,
+              immersiveDescriptionEnabled: checked,
+            },
+          })
+        }
       />
       <ToolActionsSection
         isBusy={isBusy}
@@ -1705,10 +1584,12 @@ export const SceneOverviewSection = ({
                 <Textarea
                   value={memoryEditorDraft.required}
                   className="min-h-24 resize-none"
-                  onChange={(event) => setMemoryEditorDraft((draft) => ({
-                    ...draft,
-                    required: event.target.value,
-                  }))}
+                  onChange={(event) =>
+                    setMemoryEditorDraft((draft) => ({
+                      ...draft,
+                      required: event.target.value,
+                    }))
+                  }
                 />
               </label>
               <label className="space-y-1.5">
@@ -1718,10 +1599,12 @@ export const SceneOverviewSection = ({
                 <Textarea
                   value={memoryEditorDraft.public}
                   className="min-h-24 resize-none"
-                  onChange={(event) => setMemoryEditorDraft((draft) => ({
-                    ...draft,
-                    public: event.target.value,
-                  }))}
+                  onChange={(event) =>
+                    setMemoryEditorDraft((draft) => ({
+                      ...draft,
+                      public: event.target.value,
+                    }))
+                  }
                 />
               </label>
               {memoryEditorTarget === "scene" ? (
@@ -1731,10 +1614,12 @@ export const SceneOverviewSection = ({
                     <Textarea
                       value={memoryEditorDraft.upstream}
                       className="min-h-24 resize-none"
-                      onChange={(event) => setMemoryEditorDraft((draft) => ({
-                        ...draft,
-                        upstream: event.target.value,
-                      }))}
+                      onChange={(event) =>
+                        setMemoryEditorDraft((draft) => ({
+                          ...draft,
+                          upstream: event.target.value,
+                        }))
+                      }
                     />
                   </label>
                   <label className="space-y-1.5">
@@ -1742,10 +1627,12 @@ export const SceneOverviewSection = ({
                     <Textarea
                       value={memoryEditorDraft.private}
                       className="min-h-24 resize-none"
-                      onChange={(event) => setMemoryEditorDraft((draft) => ({
-                        ...draft,
-                        private: event.target.value,
-                      }))}
+                      onChange={(event) =>
+                        setMemoryEditorDraft((draft) => ({
+                          ...draft,
+                          private: event.target.value,
+                        }))
+                      }
                     />
                   </label>
                 </>
@@ -1756,10 +1643,12 @@ export const SceneOverviewSection = ({
                     <Textarea
                       value={memoryEditorDraft.known}
                       className="min-h-24 resize-none"
-                      onChange={(event) => setMemoryEditorDraft((draft) => ({
-                        ...draft,
-                        known: event.target.value,
-                      }))}
+                      onChange={(event) =>
+                        setMemoryEditorDraft((draft) => ({
+                          ...draft,
+                          known: event.target.value,
+                        }))
+                      }
                     />
                   </label>
                   <label className="space-y-1.5">
@@ -1767,10 +1656,12 @@ export const SceneOverviewSection = ({
                     <Textarea
                       value={memoryEditorDraft.privateSelf}
                       className="min-h-24 resize-none"
-                      onChange={(event) => setMemoryEditorDraft((draft) => ({
-                        ...draft,
-                        privateSelf: event.target.value,
-                      }))}
+                      onChange={(event) =>
+                        setMemoryEditorDraft((draft) => ({
+                          ...draft,
+                          privateSelf: event.target.value,
+                        }))
+                      }
                     />
                   </label>
                 </>
@@ -1781,10 +1672,12 @@ export const SceneOverviewSection = ({
               <Textarea
                 value={memoryEditorDraft.directorSecret}
                 className="min-h-20 resize-none"
-                onChange={(event) => setMemoryEditorDraft((draft) => ({
-                  ...draft,
-                  directorSecret: event.target.value,
-                }))}
+                onChange={(event) =>
+                  setMemoryEditorDraft((draft) => ({
+                    ...draft,
+                    directorSecret: event.target.value,
+                  }))
+                }
               />
             </label>
           </div>
@@ -1821,10 +1714,12 @@ export const SceneOverviewSection = ({
               <Textarea
                 value={promptOverrideDraft.character}
                 className="min-h-24 resize-none"
-                onChange={(event) => setPromptOverrideDraft((draft) => ({
-                  ...draft,
-                  character: event.target.value,
-                }))}
+                onChange={(event) =>
+                  setPromptOverrideDraft((draft) => ({
+                    ...draft,
+                    character: event.target.value,
+                  }))
+                }
               />
             </label>
             <label className="space-y-1.5">
@@ -1832,10 +1727,12 @@ export const SceneOverviewSection = ({
               <Textarea
                 value={promptOverrideDraft.director}
                 className="min-h-24 resize-none"
-                onChange={(event) => setPromptOverrideDraft((draft) => ({
-                  ...draft,
-                  director: event.target.value,
-                }))}
+                onChange={(event) =>
+                  setPromptOverrideDraft((draft) => ({
+                    ...draft,
+                    director: event.target.value,
+                  }))
+                }
               />
             </label>
             <label className="space-y-1.5">
@@ -1843,10 +1740,12 @@ export const SceneOverviewSection = ({
               <Textarea
                 value={promptOverrideDraft.bridge}
                 className="min-h-20 resize-none"
-                onChange={(event) => setPromptOverrideDraft((draft) => ({
-                  ...draft,
-                  bridge: event.target.value,
-                }))}
+                onChange={(event) =>
+                  setPromptOverrideDraft((draft) => ({
+                    ...draft,
+                    bridge: event.target.value,
+                  }))
+                }
               />
             </label>
           </div>
@@ -1877,10 +1776,7 @@ export const SceneOverviewSection = ({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <NativeSelect
-              value={secretDraftTarget}
-              onChange={(event) => setSecretDraftTarget(event.target.value)}
-            >
+            <NativeSelect value={secretDraftTarget} onChange={(event) => setSecretDraftTarget(event.target.value)}>
               <NativeSelectOption value="scene">场景秘密</NativeSelectOption>
               {roomCharacters.map((character) => (
                 <NativeSelectOption key={character.id} value={character.id}>
@@ -1899,11 +1795,7 @@ export const SceneOverviewSection = ({
             <Button type="button" variant="outline" onClick={closeSecretDialog}>
               取消
             </Button>
-            <Button
-              type="button"
-              disabled={!secretDraftText.trim()}
-              onClick={recordSecretMemory}
-            >
+            <Button type="button" disabled={!secretDraftText.trim()} onClick={recordSecretMemory}>
               <Check className="size-3.5" />
               记录
             </Button>
@@ -1926,14 +1818,12 @@ export const SceneOverviewSection = ({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <NativeSelect
-              value={selectedSecretId}
-              onChange={(event) => setSelectedSecretId(event.target.value)}
-            >
+            <NativeSelect value={selectedSecretId} onChange={(event) => setSelectedSecretId(event.target.value)}>
               {branchSecretOptions.map((option) => (
                 <NativeSelectOption key={`${option.sourceInstanceId}:${option.secretId}`} value={option.secretId}>
-                  {option.sourceTitle} · {option.target === "character"
-                    ? characterNameById.get(option.characterId ?? "") ?? "角色秘密"
+                  {option.sourceTitle} ·{" "}
+                  {option.target === "character"
+                    ? (characterNameById.get(option.characterId ?? "") ?? "角色秘密")
                     : "场景秘密"}
                 </NativeSelectOption>
               ))}
@@ -1943,18 +1833,13 @@ export const SceneOverviewSection = ({
             </div>
             <NativeSelect
               value={revealVisibility}
-              onChange={(event) => setRevealVisibility(
-                event.target.value === "character" ? "character" : "public",
-              )}
+              onChange={(event) => setRevealVisibility(event.target.value === "character" ? "character" : "public")}
             >
               <NativeSelectOption value="public">公开给当前分支</NativeSelectOption>
               <NativeSelectOption value="character">只对指定角色解密</NativeSelectOption>
             </NativeSelect>
             {revealVisibility === "character" && (
-              <NativeSelect
-                value={revealCharacterId}
-                onChange={(event) => setRevealCharacterId(event.target.value)}
-              >
+              <NativeSelect value={revealCharacterId} onChange={(event) => setRevealCharacterId(event.target.value)}>
                 {roomCharacters.map((character) => (
                   <NativeSelectOption key={character.id} value={character.id}>
                     {character.name}

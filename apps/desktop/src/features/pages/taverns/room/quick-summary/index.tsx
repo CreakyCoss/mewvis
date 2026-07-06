@@ -2,18 +2,14 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernRoom } from "@/features/pages/taverns/tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import {
   getTavernRuntimeStoryProjection,
   submitTavernStoryManuscript,
 } from "@/features/pages/taverns/tavern/adapters/story";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
-import {
-  generateQuickNovel,
-  generateQuickSummary,
-  getQuickSummarySourceMessages,
-} from "./actions";
+import { generateQuickNovel, generateQuickSummary, getQuickSummarySourceMessages } from "./actions";
 import {
   loadQuickSummaryCache,
   saveQuickSummaryCache,
@@ -21,11 +17,7 @@ import {
   writeQuickSummaryCacheEntry,
 } from "./cache";
 import { QuickSummaryDialog } from "./dialog";
-import type {
-  QuickNovelExportFormat,
-  QuickSummaryCacheState,
-  QuickSummaryTab,
-} from "./types";
+import type { QuickNovelExportFormat, QuickSummaryCacheState, QuickSummaryTab } from "./types";
 import {
   createQuickNovelExportContent,
   createQuickSummarySignature,
@@ -46,11 +38,13 @@ const getRoomActiveSceneId = (room: TavernRoom) =>
 
 const getRoomActiveStoryNodeId = (room: TavernRoom) => {
   const storyProjection = getTavernRuntimeStoryProjection(room);
-  return storyProjection.activeSceneInstance?.nodeId ||
+  return (
+    storyProjection.activeSceneInstance?.nodeId ||
     storyProjection.graph.activeNodeId ||
     storyProjection.graph.entryNodeId ||
     storyProjection.graph.nodes[0]?.id ||
-    "";
+    ""
+  );
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -68,9 +62,7 @@ const getErrorMessage = (error: unknown) => {
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
-export const QuickSummary = ({
-  bind,
-}: QuickSummaryProps) => {
+export const QuickSummary = ({ bind }: QuickSummaryProps) => {
   const {
     workspace,
     activeRoom,
@@ -88,30 +80,28 @@ export const QuickSummary = ({
   const [isSubmittingNovelToStory, setIsSubmittingNovelToStory] = useState(false);
   const [exportFormat, setExportFormat] = useState<QuickNovelExportFormat>("md");
   const [error, setError] = useState("");
-  const [cacheState, setCacheState] = useState<QuickSummaryCacheState>(
-    () => ({
-      workspaceId: workspace.id,
-      entries: loadQuickSummaryCache(workspace.id),
-    }),
-  );
+  const [cacheState, setCacheState] = useState<QuickSummaryCacheState>(() => ({
+    workspaceId: workspace.id,
+    entries: loadQuickSummaryCache(workspace.id),
+  }));
 
-  const signature = useMemo(() => (
-    activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""
-  ), [activeRoom, roomMessages]);
-  const activeCache = useMemo(() => (
-    activeRoom ? cacheState.entries[getRoomActiveSceneId(activeRoom)] ?? null : null
-  ), [activeRoom, cacheState.entries]);
-  const isSummaryFresh = Boolean(activeCache && activeCache.signature === signature);
-  const isNovelFresh = Boolean(
-    activeCache?.novelContent?.trim() &&
-    activeCache.novelSignature === signature,
+  const signature = useMemo(
+    () => (activeRoom ? createQuickSummarySignature(activeRoom, roomMessages) : ""),
+    [activeRoom, roomMessages],
   );
+  const activeCache = useMemo(
+    () => (activeRoom ? (cacheState.entries[getRoomActiveSceneId(activeRoom)] ?? null) : null),
+    [activeRoom, cacheState.entries],
+  );
+  const isSummaryFresh = Boolean(activeCache && activeCache.signature === signature);
+  const isNovelFresh = Boolean(activeCache?.novelContent?.trim() && activeCache.novelSignature === signature);
   const summaryGeneratedAtText = activeCache?.content.trim()
     ? formatQuickSummaryGeneratedAt(activeCache.generatedAt)
     : "";
-  const novelGeneratedAtText = activeCache?.novelContent?.trim() && activeCache.novelGeneratedAt
-    ? formatQuickSummaryGeneratedAt(activeCache.novelGeneratedAt)
-    : "";
+  const novelGeneratedAtText =
+    activeCache?.novelContent?.trim() && activeCache.novelGeneratedAt
+      ? formatQuickSummaryGeneratedAt(activeCache.novelGeneratedAt)
+      : "";
 
   useEffect(() => {
     setCacheState({
@@ -148,83 +138,84 @@ export const QuickSummary = ({
     setIsQuickSummaryBusy(isGeneratingSummary || isGeneratingNovel);
   }, [isGeneratingNovel, isGeneratingSummary, setIsQuickSummaryBusy]);
 
-  const open = useCallback(({
-    force = false,
-  }: {
-    force?: boolean;
-  } = {}) => {
-    if (!activeRoom) {
-      return;
-    }
+  const open = useCallback(
+    ({
+      force = false,
+    }: {
+      force?: boolean;
+    } = {}) => {
+      if (!activeRoom) {
+        return;
+      }
 
-    setActiveTab("summary");
+      setActiveTab("summary");
 
-    if (isGeneratingSummary) {
+      if (isGeneratingSummary) {
+        setIsOpen(true);
+        return;
+      }
+
+      if (!force && activeCache?.content.trim()) {
+        setError("");
+        setIsOpen(true);
+        return;
+      }
+
       setIsOpen(true);
-      return;
-    }
-
-    if (!force && activeCache?.content.trim()) {
       setError("");
-      setIsOpen(true);
-      return;
-    }
 
-    setIsOpen(true);
-    setError("");
+      if (isSending) {
+        setError("请等待本轮回应完成后再总结当前进展。");
+        return;
+      }
 
-    if (isSending) {
-      setError("请等待本轮回应完成后再总结当前进展。");
-      return;
-    }
+      if (!runtimeModel) {
+        setError("请先在设置中选择模型，再总结当前进展。");
+        return;
+      }
 
-    if (!runtimeModel) {
-      setError("请先在设置中选择模型，再总结当前进展。");
-      return;
-    }
+      const summaryMessages = getQuickSummarySourceMessages(roomMessages);
+      const sceneId = getRoomActiveSceneId(activeRoom);
 
-    const summaryMessages = getQuickSummarySourceMessages(roomMessages);
-    const sceneId = getRoomActiveSceneId(activeRoom);
-
-    setIsGeneratingSummary(true);
-    void generateQuickSummary({
-      workspacePath: workspace.path,
-      runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-      room: activeRoom,
-      characters: roomCharacters,
-      messages: summaryMessages,
-    })
-      .then((content) => {
-        setCacheState((current) => ({
-          workspaceId: workspace.id,
-          entries: writeQuickSummaryCacheEntry({
-            entries: current.workspaceId === workspace.id
-              ? current.entries
-              : loadQuickSummaryCache(workspace.id),
-            sceneId,
-            signature,
-            content,
-          }),
-        }));
+      setIsGeneratingSummary(true);
+      void generateQuickSummary({
+        workspacePath: workspace.path,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: summaryMessages,
       })
-      .catch((summaryError) => {
-        setError(`总结当前进展失败：${getErrorMessage(summaryError)}`);
-      })
-      .finally(() => {
-        setIsGeneratingSummary(false);
-      });
-  }, [
-    activeCache,
-    activeRoom,
-    isGeneratingSummary,
-    isSending,
-    roomCharacters,
-    roomMessages,
-    runtimeModel,
-    signature,
-    workspace.id,
-    workspace.path,
-  ]);
+        .then((content) => {
+          setCacheState((current) => ({
+            workspaceId: workspace.id,
+            entries: writeQuickSummaryCacheEntry({
+              entries: current.workspaceId === workspace.id ? current.entries : loadQuickSummaryCache(workspace.id),
+              sceneId,
+              signature,
+              content,
+            }),
+          }));
+        })
+        .catch((summaryError) => {
+          setError(`总结当前进展失败：${getErrorMessage(summaryError)}`);
+        })
+        .finally(() => {
+          setIsGeneratingSummary(false);
+        });
+    },
+    [
+      activeCache,
+      activeRoom,
+      isGeneratingSummary,
+      isSending,
+      roomCharacters,
+      roomMessages,
+      runtimeModel,
+      signature,
+      workspace.id,
+      workspace.path,
+    ],
+  );
 
   useImperativeHandle(bind, () => open);
 
@@ -268,9 +259,7 @@ export const QuickSummary = ({
         setCacheState((current) => ({
           workspaceId: workspace.id,
           entries: writeQuickNovelCacheEntry({
-            entries: current.workspaceId === workspace.id
-              ? current.entries
-              : loadQuickSummaryCache(workspace.id),
+            entries: current.workspaceId === workspace.id ? current.entries : loadQuickSummaryCache(workspace.id),
             sceneId,
             signature,
             novelContent,
@@ -320,9 +309,7 @@ export const QuickSummary = ({
         content: novelContent,
       });
       const blob = new Blob([exportContent], {
-        type: exportFormat === "md"
-          ? "text/markdown;charset=utf-8"
-          : "text/plain;charset=utf-8",
+        type: exportFormat === "md" ? "text/markdown;charset=utf-8" : "text/plain;charset=utf-8",
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -338,12 +325,7 @@ export const QuickSummary = ({
     } catch (exportError) {
       setError(`导出小说失败：${getErrorMessage(exportError)}`);
     }
-  }, [
-    activeCache?.novelContent,
-    activeCache?.novelGeneratedAt,
-    activeRoom,
-    exportFormat,
-  ]);
+  }, [activeCache?.novelContent, activeCache?.novelGeneratedAt, activeRoom, exportFormat]);
 
   const submitNovelToStory = useCallback(() => {
     if (!activeRoom) {
@@ -403,14 +385,7 @@ export const QuickSummary = ({
       .finally(() => {
         setIsSubmittingNovelToStory(false);
       });
-  }, [
-    activeCache?.content,
-    activeCache?.novelContent,
-    activeRoom,
-    roomMessages,
-    workspace.id,
-    workspace.path,
-  ]);
+  }, [activeCache?.content, activeCache?.novelContent, activeRoom, roomMessages, workspace.id, workspace.path]);
 
   const canSubmitNovelToStory = Boolean(
     activeRoom?.storyBinding?.storyId &&

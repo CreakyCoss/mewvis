@@ -1,6 +1,4 @@
-import type {
-  TavernRoomCharacterConfig,
-} from "../types";
+import type { TavernRoomCharacterConfig } from "@/features/pages/taverns/manage/model";
 
 export const normalizeRoomCharacterConfigs = (
   value: unknown,
@@ -29,16 +27,15 @@ export const normalizeRoomCharacterConfigs = (
     }
 
     const candidate = item as Partial<TavernRoomCharacterConfig>;
-    const characterId = typeof candidate.characterId === "string"
-      ? candidate.characterId.trim()
-      : key;
+    const characterId = typeof candidate.characterId === "string" ? candidate.characterId.trim() : key;
     if (!characterId) {
       continue;
     }
 
-    const memory = typeof candidate.memory === "string"
-      ? candidate.memory.trim()
-      : configs[characterId]?.memory ?? fallbackMemories[characterId]?.trim() ?? "";
+    const memory =
+      typeof candidate.memory === "string"
+        ? candidate.memory.trim()
+        : (configs[characterId]?.memory ?? fallbackMemories[characterId]?.trim() ?? "");
     configs[characterId] = {
       characterId,
       memory: memory || undefined,
@@ -48,11 +45,10 @@ export const normalizeRoomCharacterConfigs = (
   return configs;
 };
 
-export const roomCharacterMemoriesFromConfigs = (
-  configs: Record<string, TavernRoomCharacterConfig>,
-) => Object.fromEntries(
-  Object.entries(configs).flatMap(([characterId, config]) => {
-    const memory = config.memory?.trim() ?? "";
-    return memory ? [[characterId, memory]] : [];
-  }),
-);
+export const roomCharacterMemoriesFromConfigs = (configs: Record<string, TavernRoomCharacterConfig>) =>
+  Object.fromEntries(
+    Object.entries(configs).flatMap(([characterId, config]) => {
+      const memory = config.memory?.trim() ?? "";
+      return memory ? [[characterId, memory]] : [];
+    }),
+  );

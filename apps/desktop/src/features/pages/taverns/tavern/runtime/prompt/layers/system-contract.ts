@@ -1,13 +1,7 @@
-import type { TavernCharacter } from "../../../types";
-import {
-  formatTavernProtocolTagPair,
-  openTavernProtocolTag,
-} from "../../../message/protocol/schema";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { formatTavernProtocolTagPair, openTavernProtocolTag } from "../../../message/protocol/schema";
 import type { TavernPromptSection } from "../shared/sections";
-import {
-  escapePromptXmlText,
-  limitPromptText,
-} from "../shared/text";
+import { escapePromptXmlText, limitPromptText } from "../shared/text";
 
 const buildPromptHierarchyRules = () => [
   "规则优先级：system_contract > presentation_profile > saved_prompt_blocks(system_narrative/room_style/rules/custom) > tavern_context > character_context > turn_instruction > reference_data。",
@@ -33,9 +27,10 @@ const buildNarrativeCoreRules = ({
 }) => {
   const characterName = escapePromptXmlText(activeCharacter.name);
   const speakingStyle = escapePromptXmlText(limitPromptText(activeCharacter.speakingStyle, 220));
-  const dialogueRule = dialoguePolicy === "indirect"
-    ? "- 禁止直接第一人称对白和引号对白；需要表达说话内容时，转成“某某低声表示/承认/追问...”这类间接叙述。"
-    : "- 可以包含所有在场角色的少量自然对白；对白必须嵌入动作、环境和因果承接中，不要退回对话气泡写法；其他角色只写公开可见的短反应、回应或追问，不写未公开心理或完整行动闭环。";
+  const dialogueRule =
+    dialoguePolicy === "indirect"
+      ? "- 禁止直接第一人称对白和引号对白；需要表达说话内容时，转成“某某低声表示/承认/追问...”这类间接叙述。"
+      : "- 可以包含所有在场角色的少量自然对白；对白必须嵌入动作、环境和因果承接中，不要退回对话气泡写法；其他角色只写公开可见的短反应、回应或追问，不写未公开心理或完整行动闭环。";
 
   return [
     `- 这轮只允许围绕「${characterName}」贡献下一段第三人称正文；不要替用户完成关键选择，不要替其他角色完整行动闭环。`,

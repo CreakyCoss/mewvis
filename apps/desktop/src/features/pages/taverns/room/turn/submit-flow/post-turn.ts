@@ -5,17 +5,12 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
-import {
-  createTavernAssetDraft,
-} from "@/features/pages/taverns/tavern/factories/asset-factories";
+import { createTavernAssetDraft } from "@/features/pages/taverns/tavern/factories/asset-factories";
 import { advanceTavernProgressFromFactEvents } from "@/features/pages/taverns/tavern/core";
 import { runTavernAssetExtraction } from "@/features/pages/taverns/tavern/runtime/assistants";
 import { runTavernProgressTracking } from "@/features/pages/taverns/tavern/runtime/assistants";
-import type {
-  TavernMessage,
-  TavernReferencedFile,
-  TavernRoom,
-} from "@/features/pages/taverns/tavern/types";
+import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   getErrorMessage,
   getRoomActiveSceneInstanceId,
@@ -43,7 +38,7 @@ export const syncOpenPendingInteractions = ({
             pendingInteractions: openPendingInteractions,
             updatedAt: Date.now(),
           })
-        : currentRoom
+        : currentRoom,
     ),
   }));
 };
@@ -138,17 +133,18 @@ export const runProgressTrackingStep = async ({
                   "after_turn",
                   progressTurnId,
                 )
-              : currentRoom
+              : currentRoom,
           ),
-          messagesByInstance: actionMessages.length > 0
-            ? {
-                ...current.messagesByInstance,
-                [sceneInstanceId]: [
-                  ...(current.messagesByInstance[sceneInstanceId] ?? []),
-                  ...materializedActionMessages,
-                ],
-              }
-            : current.messagesByInstance,
+          messagesByInstance:
+            actionMessages.length > 0
+              ? {
+                  ...current.messagesByInstance,
+                  [sceneInstanceId]: [
+                    ...(current.messagesByInstance[sceneInstanceId] ?? []),
+                    ...materializedActionMessages,
+                  ],
+                }
+              : current.messagesByInstance,
         };
       });
     }
@@ -156,9 +152,8 @@ export const runProgressTrackingStep = async ({
     if (shouldShowProgressTrace) {
       ctx.patchExecutionStep("progress-tracking", {
         status: "done",
-        detail: progressFactEvents.length > 0
-          ? `已抽取 ${progressFactEvents.length} 个事实事件。`
-          : "本轮没有明确状态事件。",
+        detail:
+          progressFactEvents.length > 0 ? `已抽取 ${progressFactEvents.length} 个事实事件。` : "本轮没有明确状态事件。",
       });
     }
   } catch (progressError) {
@@ -226,8 +221,9 @@ export const runAssetExtractionStep = async ({
           currentRoom.id === room.id
             ? syncTavernRoomActiveScene({
                 ...projectTavernSceneOntoRoom(currentRoom),
-                assetDrafts: [...projectTavernSceneOntoRoom(currentRoom).assetDrafts, assetDraft]
-                  .slice(-currentRoom.settings.maxAssetDrafts),
+                assetDrafts: [...projectTavernSceneOntoRoom(currentRoom).assetDrafts, assetDraft].slice(
+                  -currentRoom.settings.maxAssetDrafts,
+                ),
                 updatedAt: Date.now(),
               })
             : currentRoom,

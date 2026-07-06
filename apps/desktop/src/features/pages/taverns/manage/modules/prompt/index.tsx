@@ -23,7 +23,7 @@ import type {
   TavernPromptBlockSourceType,
   TavernPromptBlockTarget,
   TavernRoom,
-} from "../../../tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import {
   EditorMetricStrip,
   EditorSection,

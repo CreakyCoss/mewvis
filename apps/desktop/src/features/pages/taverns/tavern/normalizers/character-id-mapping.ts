@@ -1,7 +1,4 @@
-import {
-  normalizeSceneOutcomes,
-  normalizeTaskDefinitions,
-} from "./status-normalizers";
+import { normalizeSceneOutcomes, normalizeTaskDefinitions } from "./status-normalizers";
 import type {
   TavernCharacterRelationship,
   TavernCondition,
@@ -15,41 +12,42 @@ import type {
   TavernStatusTargetRef,
   TavernTaskDefinition,
   TavernRelationshipTarget,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernCharacterIdMapper = (characterId: string) => string | undefined;
 
-export const mapCharacterId = (
-  characterId: string,
-  mapper: TavernCharacterIdMapper,
-) => mapper(characterId) ?? characterId;
+export const mapCharacterId = (characterId: string, mapper: TavernCharacterIdMapper) =>
+  mapper(characterId) ?? characterId;
 
 const mapTavernRelationshipTarget = (
   target: TavernRelationshipTarget,
   mapper: TavernCharacterIdMapper,
-): TavernRelationshipTarget => target.type === "character"
-  ? {
-      type: "character",
-      characterId: mapCharacterId(target.characterId, mapper),
-    }
-  : target;
+): TavernRelationshipTarget =>
+  target.type === "character"
+    ? {
+        type: "character",
+        characterId: mapCharacterId(target.characterId, mapper),
+      }
+    : target;
 
 export const mapTavernCharacterRelationships = (
   relationships: TavernCharacterRelationship[] | undefined,
   mapper: TavernCharacterIdMapper,
-): TavernCharacterRelationship[] => (relationships ?? []).map((relationship) => ({
-  ...relationship,
-  target: mapTavernRelationshipTarget(relationship.target, mapper),
-}));
+): TavernCharacterRelationship[] =>
+  (relationships ?? []).map((relationship) => ({
+    ...relationship,
+    target: mapTavernRelationshipTarget(relationship.target, mapper),
+  }));
 
 export const mapTavernSceneRelationshipOverrides = (
   overrides: TavernSceneRelationshipOverride[] | undefined,
   mapper: TavernCharacterIdMapper,
-): TavernSceneRelationshipOverride[] => (overrides ?? []).map((override) => ({
-  ...override,
-  subjectCharacterId: mapCharacterId(override.subjectCharacterId, mapper),
-  target: mapTavernRelationshipTarget(override.target, mapper),
-}));
+): TavernSceneRelationshipOverride[] =>
+  (overrides ?? []).map((override) => ({
+    ...override,
+    subjectCharacterId: mapCharacterId(override.subjectCharacterId, mapper),
+    target: mapTavernRelationshipTarget(override.target, mapper),
+  }));
 
 const tavernEntityRefKey = (entity: TavernEntityRef): string => {
   switch (entity.type) {
@@ -70,10 +68,8 @@ const tavernEntityRefKey = (entity: TavernEntityRef): string => {
   }
 };
 
-const tavernRelationshipStatusKey = (
-  subject: TavernEntityRef,
-  object: TavernEntityRef,
-) => `relationship:${tavernEntityRefKey(subject)}->${tavernEntityRefKey(object)}`;
+const tavernRelationshipStatusKey = (subject: TavernEntityRef, object: TavernEntityRef) =>
+  `relationship:${tavernEntityRefKey(subject)}->${tavernEntityRefKey(object)}`;
 
 const parseTavernEntityRefKey = (value: string): TavernEntityRef | null => {
   if (value === "global") {
@@ -120,10 +116,7 @@ const parseTavernRelationshipStatusKey = (value: string) => {
   return subject && object ? { subject, object } : null;
 };
 
-const mapTavernEntityRef = (
-  entity: TavernEntityRef,
-  mapper: TavernCharacterIdMapper,
-): TavernEntityRef => {
+const mapTavernEntityRef = (entity: TavernEntityRef, mapper: TavernCharacterIdMapper): TavernEntityRef => {
   if (entity.type === "character") {
     return {
       type: "character",
@@ -153,10 +146,7 @@ const mapTavernStatusTargetRef = (
   return target;
 };
 
-const mapTavernCondition = (
-  condition: TavernCondition,
-  mapper: TavernCharacterIdMapper,
-): TavernCondition => {
+const mapTavernCondition = (condition: TavernCondition, mapper: TavernCharacterIdMapper): TavernCondition => {
   if ("all" in condition) {
     return { ...condition, all: condition.all.map((item) => mapTavernCondition(item, mapper)) };
   }
@@ -188,20 +178,12 @@ const mapTavernCondition = (
   return condition;
 };
 
-const mapTavernReplyOption = (
-  option: TavernReplyOption,
-  mapper: TavernCharacterIdMapper,
-): TavernReplyOption => ({
+const mapTavernReplyOption = (option: TavernReplyOption, mapper: TavernCharacterIdMapper): TavernReplyOption => ({
   ...option,
-  targetCharacterIds: option.targetCharacterIds.map((characterId) =>
-    mapCharacterId(characterId, mapper)
-  ),
+  targetCharacterIds: option.targetCharacterIds.map((characterId) => mapCharacterId(characterId, mapper)),
 });
 
-const mapTavernStatusEvent = (
-  event: TavernStatusEvent,
-  mapper: TavernCharacterIdMapper,
-): TavernStatusEvent => ({
+const mapTavernStatusEvent = (event: TavernStatusEvent, mapper: TavernCharacterIdMapper): TavernStatusEvent => ({
   ...event,
   target: mapTavernStatusTargetRef(event.target, mapper),
 });
@@ -238,20 +220,16 @@ const mapTavernTaskDefinition = (
       ? mapTavernCondition(task.lifecycle.startCondition, mapper)
       : undefined,
     completeCondition: mapTavernCondition(task.lifecycle.completeCondition, mapper),
-    failCondition: task.lifecycle.failCondition
-      ? mapTavernCondition(task.lifecycle.failCondition, mapper)
-      : undefined,
+    failCondition: task.lifecycle.failCondition ? mapTavernCondition(task.lifecycle.failCondition, mapper) : undefined,
   },
   onComplete: task.onComplete?.map((action) => mapTavernProgressAction(action, mapper)),
   onFail: task.onFail?.map((action) => mapTavernProgressAction(action, mapper)),
 });
 
-export const mapTavernTaskDefinitions = (
-  value: unknown,
-  mapper: TavernCharacterIdMapper,
-) => Array.isArray(value)
-  ? normalizeTaskDefinitions(value, []).map((item) => mapTavernTaskDefinition(item, mapper))
-  : value;
+export const mapTavernTaskDefinitions = (value: unknown, mapper: TavernCharacterIdMapper) =>
+  Array.isArray(value)
+    ? normalizeTaskDefinitions(value, []).map((item) => mapTavernTaskDefinition(item, mapper))
+    : value;
 
 const mapTavernSceneOutcomeDefinition = (
   outcome: TavernSceneOutcomeDefinition,
@@ -264,17 +242,12 @@ const mapTavernSceneOutcomeDefinition = (
   onAchieved: outcome.onAchieved?.map((action) => mapTavernProgressAction(action, mapper)),
 });
 
-export const mapTavernSceneOutcomeDefinitions = (
-  value: unknown,
-  mapper: TavernCharacterIdMapper,
-) => Array.isArray(value)
-  ? normalizeSceneOutcomes(value, []).map((item) => mapTavernSceneOutcomeDefinition(item, mapper))
-  : value;
+export const mapTavernSceneOutcomeDefinitions = (value: unknown, mapper: TavernCharacterIdMapper) =>
+  Array.isArray(value)
+    ? normalizeSceneOutcomes(value, []).map((item) => mapTavernSceneOutcomeDefinition(item, mapper))
+    : value;
 
-export const mapTavernStatusSnapshot = (
-  value: unknown,
-  mapper: TavernCharacterIdMapper,
-) => {
+export const mapTavernStatusSnapshot = (value: unknown, mapper: TavernCharacterIdMapper) => {
   if (!value || typeof value !== "object") {
     return value;
   }

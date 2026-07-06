@@ -1,6 +1,6 @@
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernFactEvent } from "../../types";
+import type { TavernFactEvent } from "@/features/pages/taverns/manage/model";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 
@@ -10,12 +10,7 @@ type NarratorMessageProps = {
   isStreaming: boolean;
   visualPreset: VisualPresetDefinition;
 };
-export const NarratorMessage = ({
-  content,
-  factEvents,
-  isStreaming,
-  visualPreset,
-}: NarratorMessageProps) => (
+export const NarratorMessage = ({ content, factEvents, isStreaming, visualPreset }: NarratorMessageProps) => (
   <div className="group/message mx-auto flex max-w-xl flex-col items-center gap-1">
     <div
       className={cn(

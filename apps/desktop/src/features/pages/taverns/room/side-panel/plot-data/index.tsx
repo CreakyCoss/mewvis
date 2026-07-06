@@ -1,38 +1,17 @@
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type Ref,
-  type RefObject,
-} from "react";
-import {
-  Activity,
-  BookOpen,
-  Check,
-  Loader2,
-  MessageSquare,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref, type RefObject } from "react";
+import { Activity, BookOpen, Check, Loader2, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import {
   filterTavernFactEventsForAudience,
   isTavernProgressVisibilityVisibleToUser,
   resolveTavernInformationView,
 } from "@/features/pages/taverns/tavern/core";
 import { runTavernAssetExtraction } from "@/features/pages/taverns/tavern/runtime/assistants";
-import {
-  createTavernAssetDraft,
-} from "@/features/pages/taverns/tavern/factories/asset-factories";
-import type { TavernAssetDraft } from "@/features/pages/taverns/tavern/types";
+import { createTavernAssetDraft } from "@/features/pages/taverns/tavern/factories/asset-factories";
+import type { TavernAssetDraft } from "@/features/pages/taverns/manage/model";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { DetailPanelKey } from "../types";
 import {
@@ -46,11 +25,7 @@ import {
   TasksOutcomesDialog,
   type PlotDataDialogHandle,
 } from "./dialogs";
-import {
-  informationViewLabels,
-  isHiddenFactEvent,
-  isIdentityFactEvent,
-} from "./helpers";
+import { informationViewLabels, isHiddenFactEvent, isIdentityFactEvent } from "./helpers";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -91,11 +66,7 @@ type PlotDataCardData = {
   bindRef: RefObject<PlotDataDialogHandle | null>;
 };
 
-const PlotDataCard = ({
-  data,
-}: {
-  data: PlotDataCardData;
-}) => {
+const PlotDataCard = ({ data }: { data: PlotDataCardData }) => {
   const Icon = data.icon;
 
   return (
@@ -110,9 +81,7 @@ const PlotDataCard = ({
         <Icon className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold leading-5">
-          {data.title}
-        </span>
+        <span className="block truncate text-[13px] font-semibold leading-5">{data.title}</span>
         <span className="mt-1 block h-px w-10 bg-current/10" />
       </span>
     </button>
@@ -141,21 +110,13 @@ const PlotDataHeader = ({
       disabled={isBusy}
       onClick={onExtractRecentAssets}
     >
-      {isExtractingAssets ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : (
-        <Sparkles className="size-3.5" />
-      )}
+      {isExtractingAssets ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
       整理最近
     </Button>
   </div>
 );
 
-export const PlotDataSection = ({
-  bind,
-  externalBusy,
-  onBusyChange,
-}: PlotDataSectionProps) => {
+export const PlotDataSection = ({ bind, externalBusy, onBusyChange }: PlotDataSectionProps) => {
   const {
     activeRoom,
     workspace,
@@ -211,9 +172,12 @@ export const PlotDataSection = ({
     onBusyChange?.(isExtractingAssets);
   }, [isExtractingAssets, onBusyChange]);
 
-  useEffect(() => () => {
-    onBusyChange?.(false);
-  }, [onBusyChange]);
+  useEffect(
+    () => () => {
+      onBusyChange?.(false);
+    },
+    [onBusyChange],
+  );
 
   if (!activeRoom) {
     return null;
@@ -240,8 +204,8 @@ export const PlotDataSection = ({
       return;
     }
 
-    const availableMessages = roomMessages.filter((message) =>
-      message.status !== "streaming" && message.status !== "error"
+    const availableMessages = roomMessages.filter(
+      (message) => message.status !== "streaming" && message.status !== "error",
     );
     const contextMessages = availableMessages.slice(-30);
     const sourceMessages = availableMessages.slice(-12);
@@ -254,12 +218,14 @@ export const PlotDataSection = ({
     reportError("");
     if (activeRoom.settings.showExecutionTrace) {
       setExecutionTraceAnchorMessageId(roomMessages.at(-1)?.id ?? "");
-      resetExecutionTrace([{
-        id: "manual-asset-extraction",
-        label: "整理最近对话",
-        detail: "从最近对话中提取待确认剧情资产。",
-        status: "running",
-      }]);
+      resetExecutionTrace([
+        {
+          id: "manual-asset-extraction",
+          label: "整理最近对话",
+          detail: "从最近对话中提取待确认剧情资产。",
+          status: "running",
+        },
+      ]);
     }
 
     try {
@@ -284,8 +250,7 @@ export const PlotDataSection = ({
       }
 
       patchRoom(activeRoom.id, {
-        assetDrafts: [...activeRoom.assetDrafts, assetDraft]
-          .slice(-activeRoom.settings.maxAssetDrafts),
+        assetDrafts: [...activeRoom.assetDrafts, assetDraft].slice(-activeRoom.settings.maxAssetDrafts),
       });
       patchExecutionStep("manual-asset-extraction", {
         status: "done",
@@ -306,7 +271,7 @@ export const PlotDataSection = ({
   const enabledLorebookCount = activeRoom.lorebookEntries.filter((entry) => entry.enabled).length;
   const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
   const visibleStatusDefinitionCount = activeRoom.statusDefinitions.filter((definition) =>
-    isTavernProgressVisibilityVisibleToUser(definition.visibility)
+    isTavernProgressVisibilityVisibleToUser(definition.visibility),
   ).length;
   const visibleStatusRuleCount = activeRoom.statusRules.filter((rule) => {
     const definition = statusDefinitionById.get(rule.apply.statusId);
@@ -317,13 +282,12 @@ export const PlotDataSection = ({
     .filter((event) => {
       const visibility = statusDefinitionById.get(event.statusId)?.visibility;
       return isTavernProgressVisibilityVisibleToUser(visibility ?? "public");
-    })
-    .length;
+    }).length;
   const visibleTaskDefinitionCount = activeRoom.taskDefinitions.filter((task) =>
-    isTavernProgressVisibilityVisibleToUser(task.visibility)
+    isTavernProgressVisibilityVisibleToUser(task.visibility),
   ).length;
   const visibleSceneOutcomeCount = activeRoom.sceneOutcomes.filter((outcome) =>
-    isTavernProgressVisibilityVisibleToUser(outcome.visibility)
+    isTavernProgressVisibilityVisibleToUser(outcome.visibility),
   ).length;
   const pendingOutcomeEventCount = activeRoom.outcomeEvents.filter((event) => event.status === "pending").length;
   const privateIntelEvents = filterTavernFactEventsForAudience({
@@ -349,27 +313,29 @@ export const PlotDataSection = ({
       key: "asset-drafts",
       icon: Sparkles,
       title: "资产草稿",
-      summary: activeRoom.assetDrafts.length > 0
-        ? `${activeRoom.assetDrafts.length} 个待确认草稿`
-        : "暂无待确认草稿",
+      summary: activeRoom.assetDrafts.length > 0 ? `${activeRoom.assetDrafts.length} 个待确认草稿` : "暂无待确认草稿",
       bindRef: assetDraftsDialogRef,
     },
     {
       key: "lorebook",
       icon: BookOpen,
       title: "世界书",
-      summary: activeRoom.lorebookEntries.length > 0
-        ? `${activeRoom.lorebookEntries.length} 条设定，${enabledLorebookCount} 条启用`
-        : "暂无世界书",
+      summary:
+        activeRoom.lorebookEntries.length > 0
+          ? `${activeRoom.lorebookEntries.length} 条设定，${enabledLorebookCount} 条启用`
+          : "暂无世界书",
       bindRef: lorebookDialogRef,
     },
     {
       key: "illustration-hints",
       icon: Sparkles,
       title: "插图提示",
-      summary: activeRoom.illustrationHints.length > 0
-        ? `${activeRoom.illustrationHints.length} 条画面提示`
-        : activeRoom.settings.illustrationHints.enabled ? "等待导演生成" : "未开启",
+      summary:
+        activeRoom.illustrationHints.length > 0
+          ? `${activeRoom.illustrationHints.length} 条画面提示`
+          : activeRoom.settings.illustrationHints.enabled
+            ? "等待导演生成"
+            : "未开启",
       bindRef: illustrationHintsDialogRef,
     },
     {
@@ -397,9 +363,10 @@ export const PlotDataSection = ({
       key: "private-intel",
       icon: MessageSquare,
       title: "我的情报",
-      summary: privateIntelEvents.length > 0
-        ? `${privateIntelEvents.length} 条事实${identityFactCount > 0 ? `，${identityFactCount} 条身份/阵营` : ""}`
-        : "暂无仅你可知事实",
+      summary:
+        privateIntelEvents.length > 0
+          ? `${privateIntelEvents.length} 条事实${identityFactCount > 0 ? `，${identityFactCount} 条身份/阵营` : ""}`
+          : "暂无仅你可知事实",
       bindRef: privateIntelDialogRef,
     },
     {
@@ -421,10 +388,7 @@ export const PlotDataSection = ({
         />
         <div className="grid grid-cols-2 gap-2.5">
           {cards.map((card) => (
-            <PlotDataCard
-              key={card.key}
-              data={card}
-            />
+            <PlotDataCard key={card.key} data={card} />
           ))}
         </div>
       </section>

@@ -1,21 +1,15 @@
 import { KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { TavernFactEvent } from "../../types";
+import type { TavernFactEvent } from "@/features/pages/taverns/manage/model";
 
 type MessagePrivateIntelProps = {
   align: "left" | "right" | "center";
   factEvents?: TavernFactEvent[];
 };
 
-const formatFactType = (type: string) =>
-  type
-    .replace(/[_-]+/g, " ")
-    .trim();
+const formatFactType = (type: string) => type.replace(/[_-]+/g, " ").trim();
 
-export const MessagePrivateIntel = ({
-  align,
-  factEvents,
-}: MessagePrivateIntelProps) => {
+export const MessagePrivateIntel = ({ align, factEvents }: MessagePrivateIntelProps) => {
   if (!factEvents || factEvents.length === 0) {
     return null;
   }
@@ -44,9 +38,7 @@ export const MessagePrivateIntel = ({
               </span>
             )}
           </div>
-          <p className="whitespace-pre-wrap break-words opacity-85">
-            {factEvent.evidence}
-          </p>
+          <p className="whitespace-pre-wrap break-words opacity-85">{factEvent.evidence}</p>
         </div>
       ))}
     </div>

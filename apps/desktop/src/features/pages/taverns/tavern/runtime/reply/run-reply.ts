@@ -1,27 +1,16 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../types";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   cleanTavernThoughtText,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "../../message";
-import {
-  buildTavernBridgeSystemPrompt,
-} from "../conversation";
-import {
-  formatTavernCharacterRelationships,
-  tavernBridgeSessionRootDir,
-  tavernCharacterAgentRoleId,
-} from "../../core";
+import { buildTavernBridgeSystemPrompt } from "../conversation";
+import { formatTavernCharacterRelationships, tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";
-import {
-  getActiveTavernScene,
-} from "../scene-selectors";
+import { getActiveTavernScene } from "../scene-selectors";
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
@@ -34,18 +23,14 @@ export type RunTavernInnerThoughtInput = {
   storyContext?: TavernStoryContextPackage;
 };
 
-const resolveInnerThoughtSceneText = (
-  room: TavernRoom,
-  storyContext?: TavernStoryContextPackage,
-) => {
+const resolveInnerThoughtSceneText = (room: TavernRoom, storyContext?: TavernStoryContextPackage) => {
   const storyScene = storyContext?.graph.activeScene;
   if (storyScene) {
     return storyScene.scene;
   }
 
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
   if (activeInstance) {
     return activeInstance.scene;
   }
@@ -75,16 +60,17 @@ export const runTavernInnerThought = async ({
     userPersonaName: room.userPersonaName,
     audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
   const characterMemoryLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
   const characterMemory = [
     characterMemoryLayers?.required?.trim() ?? "",
     characterMemoryLayers?.public?.trim() ?? "",
     characterMemoryLayers?.known?.trim() ?? "",
     characterMemoryLayers?.privateSelf?.trim() ?? "",
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const relationshipText = formatTavernCharacterRelationships({
     character: activeCharacter,
     characters,
@@ -100,31 +86,33 @@ export const runTavernInnerThought = async ({
     systemPrompt: buildTavernBridgeSystemPrompt(room),
     userMessage: "请只输出当前角色此刻没有说出口的一句内心想法。",
     requestContext: [
-        "<active_character>",
-        `name: ${activeCharacter.name}`,
-        `description: ${activeCharacter.description}`,
-        `speakingStyle: ${activeCharacter.speakingStyle}`,
-        activeCharacter.goals ? `goals: ${activeCharacter.goals}` : "",
-        relationshipText ? `relationships: ${relationshipText}` : "",
-        characterMemory ? `memory: ${characterMemory}` : "",
-        "</active_character>",
-        "",
-        `<room title="${room.title}">`,
-        resolveInnerThoughtSceneText(room, storyContext),
-        "</room>",
-        "",
-        "<current_user_input>",
-        currentUserText,
-        "</current_user_input>",
-        "",
-        "<recent_conversation>",
-        formatTavernVisibleMessagesForRequestContext(visibleMessages) || "（无）",
-        "</recent_conversation>",
-        "",
-        "<generated_reply>",
-        replyContent,
-        "</generated_reply>",
-      ].filter(Boolean).join("\n"),
+      "<active_character>",
+      `name: ${activeCharacter.name}`,
+      `description: ${activeCharacter.description}`,
+      `speakingStyle: ${activeCharacter.speakingStyle}`,
+      activeCharacter.goals ? `goals: ${activeCharacter.goals}` : "",
+      relationshipText ? `relationships: ${relationshipText}` : "",
+      characterMemory ? `memory: ${characterMemory}` : "",
+      "</active_character>",
+      "",
+      `<room title="${room.title}">`,
+      resolveInnerThoughtSceneText(room, storyContext),
+      "</room>",
+      "",
+      "<current_user_input>",
+      currentUserText,
+      "</current_user_input>",
+      "",
+      "<recent_conversation>",
+      formatTavernVisibleMessagesForRequestContext(visibleMessages) || "（无）",
+      "</recent_conversation>",
+      "",
+      "<generated_reply>",
+      replyContent,
+      "</generated_reply>",
+    ]
+      .filter(Boolean)
+      .join("\n"),
     runtimeInstruction: [
       "你是酒馆模式的角色内心独白补写器。",
       "只为当前角色补一条会显示在聊天气泡里的内心想法，不是模型推理过程。",

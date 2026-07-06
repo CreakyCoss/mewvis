@@ -13,7 +13,7 @@ import type {
   TavernStatusDefinition,
   TavernStatusTargetRef,
   TavernStatusValue,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 
@@ -78,9 +78,10 @@ const toneClass = (
   if (typeof value !== "number") {
     return "bg-primary";
   }
-  const tone = item.thresholds?.find((threshold) =>
-    (typeof threshold.lte !== "number" || value <= threshold.lte) &&
-    (typeof threshold.gte !== "number" || value >= threshold.gte)
+  const tone = item.thresholds?.find(
+    (threshold) =>
+      (typeof threshold.lte !== "number" || value <= threshold.lte) &&
+      (typeof threshold.gte !== "number" || value >= threshold.gte),
   )?.tone;
   switch (tone) {
     case "danger":
@@ -163,11 +164,13 @@ const resolveStatusTargets = ({
     return [{ key: "global", label: "全局", target: { type: "global" } }];
   }
   if (definition.scope === "scene") {
-    return [{
-      key: `scene:${activeRoom.activeSceneId ?? "current"}`,
-      label: "场景",
-      target: { type: "scene", sceneId: activeRoom.activeSceneId },
-    }];
+    return [
+      {
+        key: `scene:${activeRoom.activeSceneId ?? "current"}`,
+        label: "场景",
+        target: { type: "scene", sceneId: activeRoom.activeSceneId },
+      },
+    ];
   }
   if (definition.scope === "party" && view.ownerBinding === "party") {
     return [{ key: "party:main", label: "队伍", target: { type: "party", partyId: "main" } }];
@@ -176,10 +179,10 @@ const resolveStatusTargets = ({
     const characters = ownerCharacter
       ? [ownerCharacter]
       : view.ownerBinding === "allCharacters"
-      ? roomCharacters
-      : activeCharacter
-      ? [activeCharacter]
-      : [];
+        ? roomCharacters
+        : activeCharacter
+          ? [activeCharacter]
+          : [];
     return characters.map((character) => ({
       key: `character:${character.id}`,
       label: character.name,
@@ -204,16 +207,18 @@ const resolveStatusTargets = ({
       }));
     }
     if (view.ownerBinding === "activeCharacterToUser" && activeCharacter) {
-      return [{
-        key: `relationship:${activeCharacter.id}->user`,
-        label: `${activeCharacter.name} 对你`,
-        character: activeCharacter,
-        target: {
-          type: "relationship",
-          subject: characterRef(activeCharacter),
-          object: userRef,
+      return [
+        {
+          key: `relationship:${activeCharacter.id}->user`,
+          label: `${activeCharacter.name} 对你`,
+          character: activeCharacter,
+          target: {
+            type: "relationship",
+            subject: characterRef(activeCharacter),
+            object: userRef,
+          },
         },
-      }];
+      ];
     }
     if (view.ownerBinding === "activeCharacterOutgoing" && activeCharacter) {
       return roomCharacters
@@ -254,32 +259,28 @@ const resolveStatusTargets = ({
               subject: characterRef(subject),
               object: characterRef(object),
             },
-          }))
+          })),
       );
     }
     if (ownerCharacter) {
-      return [{
-        key: `relationship:${ownerCharacter.id}->user`,
-        label: `${ownerCharacter.name} 对你`,
-        character: ownerCharacter,
-        target: {
-          type: "relationship",
-          subject: characterRef(ownerCharacter),
-          object: userRef,
+      return [
+        {
+          key: `relationship:${ownerCharacter.id}->user`,
+          label: `${ownerCharacter.name} 对你`,
+          character: ownerCharacter,
+          target: {
+            type: "relationship",
+            subject: characterRef(ownerCharacter),
+            object: userRef,
+          },
         },
-      }];
+      ];
     }
   }
   return [];
 };
 
-const TaskBadge = ({
-  title,
-  status,
-}: {
-  title: string;
-  status: string;
-}) => {
+const TaskBadge = ({ title, status }: { title: string; status: string }) => {
   const done = status === "completed";
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
@@ -294,11 +295,7 @@ const TaskBadge = ({
   );
 };
 
-const StatusMetric = ({
-  item,
-}: {
-  item: ResolvedStatusItem;
-}) => {
+const StatusMetric = ({ item }: { item: ResolvedStatusItem }) => {
   const showMeter = item.item.display === "bar" || item.item.display === "meter";
   return (
     <div className="min-w-0 flex-1 space-y-1.5">
@@ -308,7 +305,8 @@ const StatusMetric = ({
           {formatStatusValue(item.value)}
           {item.item.showDelta && item.delta !== 0 && (
             <span className={cn("ml-1", item.delta > 0 ? "text-emerald-500" : "text-destructive")}>
-              {item.delta > 0 ? "+" : ""}{item.delta}
+              {item.delta > 0 ? "+" : ""}
+              {item.delta}
             </span>
           )}
         </span>
@@ -333,8 +331,7 @@ const isFavorabilityMetric = (metric: ResolvedStatusItem) =>
 const isHostilityMetric = (metric: ResolvedStatusItem) =>
   metric.definition.id === "hostility" || /敌对|仇恨|威胁/.test(metric.definition.label);
 
-const numericMetricValue = (metric: ResolvedStatusItem) =>
-  typeof metric.value === "number" ? metric.value : null;
+const numericMetricValue = (metric: ResolvedStatusItem) => (typeof metric.value === "number" ? metric.value : null);
 
 const isRelationshipCardDanger = (metrics: ResolvedStatusItem[]) =>
   metrics.some((metric) => {
@@ -387,19 +384,12 @@ const RelationshipCompactCard = ({
       />
       <div className="relative z-10 mr-1.5 size-6 shrink-0 overflow-hidden rounded-full border border-current/10 bg-muted">
         {avatar ? (
-          <img
-            src={avatar}
-            alt=""
-            className="size-full object-cover"
-            draggable={false}
-          />
+          <img src={avatar} alt="" className="size-full object-cover" draggable={false} />
         ) : (
           <div className="size-full bg-primary/10" />
         )}
       </div>
-      <span className="relative z-10 max-w-20 truncate pr-1.5 text-[12px] font-semibold">
-        {displayLabel}
-      </span>
+      <span className="relative z-10 max-w-20 truncate pr-1.5 text-[12px] font-semibold">{displayLabel}</span>
       <div className="relative z-10 h-4 w-px shrink-0 bg-current/10" />
       <div className="relative z-10 flex items-center">
         {metrics.map((metric) => {
@@ -420,28 +410,25 @@ const RelationshipCompactCard = ({
                     isFavorability && (value ?? 0) < 0
                       ? "text-destructive/75"
                       : isHostility && (value ?? 0) > 0
-                      ? "text-destructive/75"
-                      : undefined
+                        ? "text-destructive/75"
+                        : undefined,
                   )}
                 >
-                  <Icon
-                    className="size-3"
-                    fill="currentColor"
-                    strokeWidth={isHostility ? 2.7 : 0}
-                  />
+                  <Icon className="size-3" fill="currentColor" strokeWidth={isHostility ? 2.7 : 0} />
                 </span>
                 <span className="whitespace-nowrap tabular-nums font-medium text-current">
                   {formatStatusValue(metric.value)}
                   {metric.item.showDelta && metric.delta !== 0 && (
-                    <span className={cn("ml-1 tabular-nums", metric.delta > 0 ? "text-emerald-500" : "text-destructive")}>
-                      {metric.delta > 0 ? "+" : ""}{metric.delta}
+                    <span
+                      className={cn("ml-1 tabular-nums", metric.delta > 0 ? "text-emerald-500" : "text-destructive")}
+                    >
+                      {metric.delta > 0 ? "+" : ""}
+                      {metric.delta}
                     </span>
                   )}
                 </span>
               </span>
-              {metric !== metrics[metrics.length - 1] && (
-                <div className="h-4 w-px shrink-0 bg-current/10" />
-              )}
+              {metric !== metrics[metrics.length - 1] && <div className="h-4 w-px shrink-0 bg-current/10" />}
             </div>
           );
         })}
@@ -453,11 +440,9 @@ const RelationshipCompactCard = ({
 const isGroupedRelationshipView = (view: TavernProgressView) =>
   view.kind === "status" &&
   view.items.some((item) => item.type === "status") &&
-  (
-    view.ownerBinding === "allCharactersToUser" ||
+  (view.ownerBinding === "allCharactersToUser" ||
     view.ownerBinding === "activeCharacterToUser" ||
-    view.ownerBinding === "currentUser"
-  );
+    view.ownerBinding === "currentUser");
 
 const createGroupedRelationshipRows = ({
   view,
@@ -476,11 +461,14 @@ const createGroupedRelationshipRows = ({
   definitionById: Map<string, TavernStatusDefinition>;
   visualPreset: VisualPresetDefinition;
 }) => {
-  const grouped = new Map<string, {
-    label: string;
-    character?: TavernCharacter;
-    metrics: ResolvedStatusItem[];
-  }>();
+  const grouped = new Map<
+    string,
+    {
+      label: string;
+      character?: TavernCharacter;
+      metrics: ResolvedStatusItem[];
+    }
+  >();
 
   for (const item of view.items) {
     if (item.type !== "status") {
@@ -505,11 +493,7 @@ const createGroupedRelationshipRows = ({
       ownerCharacter,
     });
     for (const target of targets) {
-      const current = getTavernStatusSnapshotValue(
-        activeRoom.statusSnapshot,
-        target.target,
-        definition.id,
-      );
+      const current = getTavernStatusSnapshotValue(activeRoom.statusSnapshot, target.target, definition.id);
       const previous = activeRoom.previousStatusSnapshot
         ? getTavernStatusSnapshotValue(activeRoom.previousStatusSnapshot, target.target, definition.id)
         : null;
@@ -518,9 +502,7 @@ const createGroupedRelationshipRows = ({
         continue;
       }
 
-      const delta = typeof value === "number" && typeof previous === "number"
-        ? value - previous
-        : 0;
+      const delta = typeof value === "number" && typeof previous === "number" ? value - previous : 0;
       const group = grouped.get(target.key) ?? {
         label: target.label,
         character: target.character,
@@ -546,54 +528,51 @@ const createGroupedRelationshipRows = ({
     if (groups.length === 0) {
       return [];
     }
-    return [{
-      key: `${view.id}:relationship-compact-strip`,
-      content: (
-        <div className="min-w-0 overflow-x-auto pb-0.5">
-          <div className="flex min-w-max gap-2 pr-1">
-            {groups.map(([key, group]) => (
-              <RelationshipCompactCard
-                key={key}
-                label={group.label}
-                character={group.character}
-                metrics={group.metrics}
-                visualPreset={visualPreset}
-              />
-            ))}
+    return [
+      {
+        key: `${view.id}:relationship-compact-strip`,
+        content: (
+          <div className="min-w-0 overflow-x-auto pb-0.5">
+            <div className="flex min-w-max gap-2 pr-1">
+              {groups.map(([key, group]) => (
+                <RelationshipCompactCard
+                  key={key}
+                  label={group.label}
+                  character={group.character}
+                  metrics={group.metrics}
+                  visualPreset={visualPreset}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ),
-    }];
+        ),
+      },
+    ];
   }
 
-  return groups.map(([key, group]) => {
-    return [{
-      key: `${view.id}:relationship-group:${key}`,
-      content: (
-        <div className="rounded-md bg-current/5 px-2.5 py-2 text-current">
-          <div className="mb-2 truncate text-xs font-medium">{group.label}</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {group.metrics.map((metric) => (
-              <StatusMetric key={metric.key} item={metric} />
-            ))}
-          </div>
-        </div>
-      ),
-    }];
-  }).flat();
+  return groups
+    .map(([key, group]) => {
+      return [
+        {
+          key: `${view.id}:relationship-group:${key}`,
+          content: (
+            <div className="rounded-md bg-current/5 px-2.5 py-2 text-current">
+              <div className="mb-2 truncate text-xs font-medium">{group.label}</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {group.metrics.map((metric) => (
+                  <StatusMetric key={metric.key} item={metric} />
+                ))}
+              </div>
+            </div>
+          ),
+        },
+      ];
+    })
+    .flat();
 };
 
-export const ProgressPanel = ({
-  placement,
-  ownerCharacter,
-  className,
-}: ProgressPanelProps) => {
-  const {
-    activeRoom,
-    roomCharacters,
-    activeCharacter,
-    visualPreset,
-  } = useTavernRoomContext();
+export const ProgressPanel = ({ placement, ownerCharacter, className }: ProgressPanelProps) => {
+  const { activeRoom, roomCharacters, activeCharacter, visualPreset } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }
@@ -622,155 +601,171 @@ export const ProgressPanel = ({
           visualPreset,
         })
       : [];
-    const explicitRows = groupedRelationshipRows.length > 0 ? [] : view.items.flatMap((item) => {
-      if (item.type === "status") {
-        const definition = definitionById.get(item.statusId);
-        if (!definition || !isTavernProgressVisibilityVisibleToUser(definition.visibility)) {
-          return [];
-        }
-        return resolveStatusTargets({
-          view,
-          definition,
-          activeRoom,
-          roomCharacters,
-          activeCharacter,
-          ownerCharacter,
-        }).flatMap((resolvedTarget) => {
-          const current = getTavernStatusSnapshotValue(
-            activeRoom.statusSnapshot,
-            resolvedTarget.target,
-            definition.id,
-          );
-          const previous = activeRoom.previousStatusSnapshot
-            ? getTavernStatusSnapshotValue(activeRoom.previousStatusSnapshot, resolvedTarget.target, definition.id)
-            : null;
-          const value = current ?? definition.defaultValue;
-          if (item.hiddenWhenDefault && valueEquals(value, definition.defaultValue)) {
-            return [];
-          }
-          const delta = typeof value === "number" && typeof previous === "number"
-            ? value - previous
-            : 0;
-          const showMeter = item.display === "bar" || item.display === "meter";
-          const label = resolvedTarget.label === "场景" || resolvedTarget.label === "全局"
-            ? definition.label
-            : `${resolvedTarget.label} · ${definition.label}`;
-          return [{
-            key: `${view.id}:${definition.id}:${statusTargetKey(resolvedTarget.target)}`,
-            content: (
-              <div className="space-y-1.5 rounded-md bg-current/5 px-2.5 py-2 text-current">
-                <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate font-medium">{label}</span>
-                  <span className="shrink-0 tabular-nums opacity-75">
-                    {formatStatusValue(value)}
-                    {item.showDelta && delta !== 0 && (
-                      <span className={cn("ml-1", delta > 0 ? "text-emerald-500" : "text-destructive")}>
-                        {delta > 0 ? "+" : ""}{delta}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {showMeter && (
-                  <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
-                    <div
-                      className={cn("h-full rounded-full", toneClass(value, item))}
-                      style={{ width: `${numericPercent(value, definition)}%` }}
-                    />
+    const explicitRows =
+      groupedRelationshipRows.length > 0
+        ? []
+        : view.items.flatMap((item) => {
+            if (item.type === "status") {
+              const definition = definitionById.get(item.statusId);
+              if (!definition || !isTavernProgressVisibilityVisibleToUser(definition.visibility)) {
+                return [];
+              }
+              return resolveStatusTargets({
+                view,
+                definition,
+                activeRoom,
+                roomCharacters,
+                activeCharacter,
+                ownerCharacter,
+              }).flatMap((resolvedTarget) => {
+                const current = getTavernStatusSnapshotValue(
+                  activeRoom.statusSnapshot,
+                  resolvedTarget.target,
+                  definition.id,
+                );
+                const previous = activeRoom.previousStatusSnapshot
+                  ? getTavernStatusSnapshotValue(
+                      activeRoom.previousStatusSnapshot,
+                      resolvedTarget.target,
+                      definition.id,
+                    )
+                  : null;
+                const value = current ?? definition.defaultValue;
+                if (item.hiddenWhenDefault && valueEquals(value, definition.defaultValue)) {
+                  return [];
+                }
+                const delta = typeof value === "number" && typeof previous === "number" ? value - previous : 0;
+                const showMeter = item.display === "bar" || item.display === "meter";
+                const label =
+                  resolvedTarget.label === "场景" || resolvedTarget.label === "全局"
+                    ? definition.label
+                    : `${resolvedTarget.label} · ${definition.label}`;
+                return [
+                  {
+                    key: `${view.id}:${definition.id}:${statusTargetKey(resolvedTarget.target)}`,
+                    content: (
+                      <div className="space-y-1.5 rounded-md bg-current/5 px-2.5 py-2 text-current">
+                        <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
+                          <span className="min-w-0 truncate font-medium">{label}</span>
+                          <span className="shrink-0 tabular-nums opacity-75">
+                            {formatStatusValue(value)}
+                            {item.showDelta && delta !== 0 && (
+                              <span className={cn("ml-1", delta > 0 ? "text-emerald-500" : "text-destructive")}>
+                                {delta > 0 ? "+" : ""}
+                                {delta}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        {showMeter && (
+                          <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
+                            <div
+                              className={cn("h-full rounded-full", toneClass(value, item))}
+                              style={{ width: `${numericPercent(value, definition)}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ];
+              });
+            }
+            if (item.type === "task") {
+              const task = taskById.get(item.taskId);
+              if (!task || !isTavernProgressVisibilityVisibleToUser(task.visibility)) {
+                return [];
+              }
+              const state = activeRoom.taskSnapshot[item.taskId];
+              const status = state?.status ?? task.lifecycle.initialStatus;
+              if (status === "inactive") {
+                return [];
+              }
+              return [
+                {
+                  key: `${view.id}:task:${item.taskId}`,
+                  content: <TaskBadge title={task.title} status={status} />,
+                },
+              ];
+            }
+            const outcome = outcomeById.get(item.outcomeId);
+            const event = activeRoom.outcomeEvents.find(
+              (candidate) => candidate.outcomeId === item.outcomeId && candidate.status !== "dismissed",
+            );
+            if (!outcome || !event || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
+              return [];
+            }
+            return [
+              {
+                key: `${view.id}:outcome:${item.outcomeId}`,
+                content: (
+                  <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
+                    <Trophy className="size-3.5 shrink-0 text-amber-500" />
+                    <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
+                    <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
                   </div>
-                )}
-              </div>
-            ),
-          }];
-        });
-      }
-      if (item.type === "task") {
-        const task = taskById.get(item.taskId);
-        if (!task || !isTavernProgressVisibilityVisibleToUser(task.visibility)) {
-          return [];
-        }
-        const state = activeRoom.taskSnapshot[item.taskId];
-        const status = state?.status ?? task.lifecycle.initialStatus;
-        if (status === "inactive") {
-          return [];
-        }
-        return [{
-          key: `${view.id}:task:${item.taskId}`,
-          content: <TaskBadge title={task.title} status={status} />,
-        }];
-      }
-      const outcome = outcomeById.get(item.outcomeId);
-      const event = activeRoom.outcomeEvents.find((candidate) =>
-        candidate.outcomeId === item.outcomeId && candidate.status !== "dismissed"
-      );
-      if (!outcome || !event || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
-        return [];
-      }
-      return [{
-        key: `${view.id}:outcome:${item.outcomeId}`,
-        content: (
-          <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
-            <Trophy className="size-3.5 shrink-0 text-amber-500" />
-            <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
-            <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
-          </div>
-        ),
-      }];
-    });
-    const dynamicTaskRows = view.items.length === 0 && (view.kind === "task" || view.kind === "mixed")
-      ? activeRoom.taskDefinitions.flatMap((task) => {
-          if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
-            return [];
-          }
-          const state = activeRoom.taskSnapshot[task.id];
-          const status = state?.status ?? task.lifecycle.initialStatus;
-          if (status === "inactive") {
-            return [];
-          }
-          return [{
-            key: `${view.id}:dynamic-task:${task.id}`,
-            content: <TaskBadge title={task.title} status={status} />,
-          }];
-        })
-      : [];
-    const dynamicOutcomeRows = view.items.length === 0 && (view.kind === "outcome" || view.kind === "mixed")
-      ? activeRoom.outcomeEvents.flatMap((event) => {
-          if (event.status === "dismissed") {
-            return [];
-          }
-          const outcome = outcomeById.get(event.outcomeId);
-          if (!outcome || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
-            return [];
-          }
-          return [{
-            key: `${view.id}:dynamic-outcome:${event.outcomeId}:${event.id}`,
-            content: (
-              <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
-                <Trophy className="size-3.5 shrink-0 text-amber-500" />
-                <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
-                <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
-              </div>
-            ),
-          }];
-        })
-      : [];
-    const rows = [
-      ...groupedRelationshipRows,
-      ...explicitRows,
-      ...dynamicTaskRows,
-      ...dynamicOutcomeRows,
-    ];
+                ),
+              },
+            ];
+          });
+    const dynamicTaskRows =
+      view.items.length === 0 && (view.kind === "task" || view.kind === "mixed")
+        ? activeRoom.taskDefinitions.flatMap((task) => {
+            if (!isTavernProgressVisibilityVisibleToUser(task.visibility)) {
+              return [];
+            }
+            const state = activeRoom.taskSnapshot[task.id];
+            const status = state?.status ?? task.lifecycle.initialStatus;
+            if (status === "inactive") {
+              return [];
+            }
+            return [
+              {
+                key: `${view.id}:dynamic-task:${task.id}`,
+                content: <TaskBadge title={task.title} status={status} />,
+              },
+            ];
+          })
+        : [];
+    const dynamicOutcomeRows =
+      view.items.length === 0 && (view.kind === "outcome" || view.kind === "mixed")
+        ? activeRoom.outcomeEvents.flatMap((event) => {
+            if (event.status === "dismissed") {
+              return [];
+            }
+            const outcome = outcomeById.get(event.outcomeId);
+            if (!outcome || !isTavernProgressVisibilityVisibleToUser(outcome.visibility)) {
+              return [];
+            }
+            return [
+              {
+                key: `${view.id}:dynamic-outcome:${event.outcomeId}:${event.id}`,
+                content: (
+                  <div className="flex min-w-0 items-center gap-2 rounded-md bg-current/5 px-2.5 py-2 text-xs">
+                    <Trophy className="size-3.5 shrink-0 text-amber-500" />
+                    <span className="min-w-0 flex-1 truncate">{outcome.label}</span>
+                    <span className="shrink-0 opacity-65">{outcomeStatusLabel(event.status)}</span>
+                  </div>
+                ),
+              },
+            ];
+          })
+        : [];
+    const rows = [...groupedRelationshipRows, ...explicitRows, ...dynamicTaskRows, ...dynamicOutcomeRows];
 
     if (rows.length === 0) {
       return [];
     }
 
-    return [{
-      id: view.id,
-      label: view.label,
-      layout: view.layout,
-      hideLabel: placement === "composerBelow" && groupedRelationshipRows.length > 0,
-      rows,
-    }];
+    return [
+      {
+        id: view.id,
+        label: view.label,
+        layout: view.layout,
+        hideLabel: placement === "composerBelow" && groupedRelationshipRows.length > 0,
+        rows,
+      },
+    ];
   });
 
   if (renderedViews.length === 0) {
@@ -787,11 +782,13 @@ export const ProgressPanel = ({
               {view.label}
             </div>
           )}
-          <div className={cn(
-            view.layout === "grid" || view.layout === "matrix"
-              ? "grid grid-cols-1 gap-2 sm:grid-cols-2"
-              : "space-y-2",
-          )}>
+          <div
+            className={cn(
+              view.layout === "grid" || view.layout === "matrix"
+                ? "grid grid-cols-1 gap-2 sm:grid-cols-2"
+                : "space-y-2",
+            )}
+          >
             {view.rows.map((row) => (
               <div key={row.key}>{row.content}</div>
             ))}

@@ -1,13 +1,7 @@
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../../types";
-import {
-  buildTavernUserReplyConversationSections,
-  buildTavernUserReplySceneSections,
-} from "./context";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { buildTavernUserReplyConversationSections, buildTavernUserReplySceneSections } from "./context";
 
 export const buildTavernManagedUserReplyPrompt = ({
   room,
@@ -22,9 +16,7 @@ export const buildTavernManagedUserReplyPrompt = ({
   currentDraft?: string;
   storyContext?: TavernStoryContextPackage;
 }) => {
-  const characterList = characters.map((character) =>
-    `${character.name}: ${character.description}`
-  ).join("\n");
+  const characterList = characters.map((character) => `${character.name}: ${character.description}`).join("\n");
 
   return [
     "<task>",
@@ -56,17 +48,18 @@ export const buildTavernManagedUserReplyPrompt = ({
     characterList,
     "</characters>",
     "",
-    currentDraft?.trim()
-      ? `<managed_direction_hint>\n${currentDraft.trim()}\n</managed_direction_hint>`
-      : "",
+    currentDraft?.trim() ? `<managed_direction_hint>\n${currentDraft.trim()}\n</managed_direction_hint>` : "",
     "",
     ...buildTavernUserReplyConversationSections({ room, characters, messages }),
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
-export const buildTavernManagedUserReplySystemPrompt = () => [
-  "你是酒馆模式的全托管导演。",
-  "你负责代用户生成下一句可发送回复，让剧情自然继续。",
-  "reply 字段必须非空，且不得包含工具调用、函数调用、XML/HTML 标签或系统标记。",
-  "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
-].join("\n");
+export const buildTavernManagedUserReplySystemPrompt = () =>
+  [
+    "你是酒馆模式的全托管导演。",
+    "你负责代用户生成下一句可发送回复，让剧情自然继续。",
+    "reply 字段必须非空，且不得包含工具调用、函数调用、XML/HTML 标签或系统标记。",
+    "只输出符合 schema 的严格合法 JSON 对象，不要代码块。",
+  ].join("\n");

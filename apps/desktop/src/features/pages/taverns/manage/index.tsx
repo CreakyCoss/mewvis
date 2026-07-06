@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "../tavern/adapters/story";
 import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
 import { projectTavernSceneOntoRoom } from "../tavern/runtime/active-scene-runtime";
-import type { TavernCharacter, TavernRoom, TavernRoomSettings } from "../tavern/types";
+import type { TavernCharacter, TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";

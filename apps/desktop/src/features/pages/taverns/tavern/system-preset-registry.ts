@@ -1,9 +1,9 @@
 import systemPresetData from "./system-presets/default-taverns.json";
+import type { TavernMessage } from "./types";
 import type {
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
   TavernCharacterRelationship,
-  TavernMessage,
   TavernPresentationSettings,
   TavernProgressTrackerSettings,
   TavernProgressView,
@@ -16,7 +16,7 @@ import type {
   TavernStatusRule,
   TavernStatusSnapshot,
   TavernTaskDefinition,
-} from "./types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernSystemPresetCharacter = {
   id: string;
@@ -169,9 +169,7 @@ const tavernSystemPresetCollection = systemPresetData as unknown as TavernSystem
 
 export const tavernSystemPresets = tavernSystemPresetCollection.presets;
 
-const tavernSystemPresetById = new Map(
-  tavernSystemPresets.map((preset) => [preset.id, preset]),
-);
+const tavernSystemPresetById = new Map(tavernSystemPresets.map((preset) => [preset.id, preset]));
 
 export const getTavernSystemPreset = (presetId: string | null | undefined) =>
   tavernSystemPresetById.get(presetId ?? "") ?? null;
@@ -184,17 +182,12 @@ export const normalizeSystemPresetId = (presetId: unknown) => {
   return getTavernSystemPreset(presetId)?.id;
 };
 
-export const normalizeSystemPresetCharacterId = (
-  presetId: string | undefined,
-  characterId: unknown,
-) => {
+export const normalizeSystemPresetCharacterId = (presetId: string | undefined, characterId: unknown) => {
   if (!presetId || typeof characterId !== "string") {
     return undefined;
   }
 
-  return getTavernSystemPreset(presetId)?.characters.some((character) =>
-    character.id === characterId
-  )
+  return getTavernSystemPreset(presetId)?.characters.some((character) => character.id === characterId)
     ? characterId
     : undefined;
 };

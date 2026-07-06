@@ -1,14 +1,7 @@
-import {
-  getTavernPresentationProfile,
-} from "../../prompt-registry/presentation-rules";
+import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../../presentation/presentation-contracts";
-import type {
-  TavernMessage,
-  TavernMessageActorRef,
-  TavernMessageKind,
-  TavernMessageSegment,
-  TavernPresentationProfileId,
-} from "../../types";
+import type { TavernMessage, TavernMessageActorRef, TavernMessageKind, TavernMessageSegment } from "../../types";
+import type { TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
 
 const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {
   if (message.role === "user") {
@@ -28,17 +21,12 @@ const isStandaloneActionLine = (line: string) => {
     return false;
   }
 
-  return (
-    (trimmed.startsWith("*") && trimmed.endsWith("*")) ||
-    (trimmed.startsWith("_") && trimmed.endsWith("_"))
-  );
+  return (trimmed.startsWith("*") && trimmed.endsWith("*")) || (trimmed.startsWith("_") && trimmed.endsWith("_"));
 };
 
 const stripActionMarkers = (line: string) => line.trim().slice(1, -1).trim();
 
-const mergeAdjacentSegments = (
-  segments: TavernMessageSegment[],
-): TavernMessageSegment[] => {
+const mergeAdjacentSegments = (segments: TavernMessageSegment[]): TavernMessageSegment[] => {
   const merged: TavernMessageSegment[] = [];
 
   for (const segment of segments) {
@@ -130,7 +118,10 @@ export const buildTavernMessageSegments = ({
   content,
   thought,
   presentationProfileId,
-}: Pick<TavernMessage, "role" | "characterId" | "content" | "thought" | "presentationProfileId">): TavernMessageSegment[] => {
+}: Pick<
+  TavernMessage,
+  "role" | "characterId" | "content" | "thought" | "presentationProfileId"
+>): TavernMessageSegment[] => {
   const actor = createActorForMessage({ role, characterId });
   const trimmedContent = content.trim();
   const segments: TavernMessageSegment[] = [];
@@ -157,10 +148,12 @@ export const buildTavernMessageSegments = ({
         text: trimmedContent,
       });
     } else {
-      segments.push(...buildDialogueAndActionSegments({
-        actor,
-        content: trimmedContent,
-      }));
+      segments.push(
+        ...buildDialogueAndActionSegments({
+          actor,
+          content: trimmedContent,
+        }),
+      );
     }
   }
 
@@ -177,9 +170,7 @@ export const buildTavernMessageSegments = ({
   return segments;
 };
 
-export const normalizeTavernMessageSegments = (
-  value: unknown,
-): TavernMessageSegment[] => {
+export const normalizeTavernMessageSegments = (value: unknown): TavernMessageSegment[] => {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -196,36 +187,44 @@ export const normalizeTavernMessageSegments = (
     }
 
     if (candidate.type === "narration") {
-      return [{
-        type: "narration",
-        text,
-        actor: candidate.actor,
-      }];
+      return [
+        {
+          type: "narration",
+          text,
+          actor: candidate.actor,
+        },
+      ];
     }
 
     if (candidate.type === "dialogue" && candidate.speaker) {
-      return [{
-        type: "dialogue",
-        text,
-        speaker: candidate.speaker,
-      }];
+      return [
+        {
+          type: "dialogue",
+          text,
+          speaker: candidate.speaker,
+        },
+      ];
     }
 
     if (candidate.type === "action") {
-      return [{
-        type: "action",
-        text,
-        actor: candidate.actor,
-      }];
+      return [
+        {
+          type: "action",
+          text,
+          actor: candidate.actor,
+        },
+      ];
     }
 
     if (candidate.type === "thought" && candidate.owner) {
-      return [{
-        type: "thought",
-        text,
-        owner: candidate.owner,
-        visibility: candidate.visibility === "public" ? "public" : "private",
-      }];
+      return [
+        {
+          type: "thought",
+          text,
+          owner: candidate.owner,
+          visibility: candidate.visibility === "public" ? "public" : "private",
+        },
+      ];
     }
 
     if (candidate.type === "text") {
@@ -236,13 +235,9 @@ export const normalizeTavernMessageSegments = (
   });
 };
 
-export const resolveTavernMessageSegments = (
-  message: TavernMessage,
-): TavernMessageSegment[] => {
+export const resolveTavernMessageSegments = (message: TavernMessage): TavernMessageSegment[] => {
   const normalizedSegments = normalizeTavernMessageSegments(message.segments);
-  return normalizedSegments.length > 0
-    ? normalizedSegments
-    : buildTavernMessageSegments(message);
+  return normalizedSegments.length > 0 ? normalizedSegments : buildTavernMessageSegments(message);
 };
 
 export const formatTavernMessageSegmentsForDisplay = (
@@ -252,21 +247,22 @@ export const formatTavernMessageSegmentsForDisplay = (
   }: {
     includeThoughts?: boolean;
   } = {},
-) => segments
-  .filter((segment) => includeThoughts || segment.type !== "thought")
-  .map((segment) => {
-    if (segment.type === "action") {
-      return `*${segment.text}*`;
-    }
+) =>
+  segments
+    .filter((segment) => includeThoughts || segment.type !== "thought")
+    .map((segment) => {
+      if (segment.type === "action") {
+        return `*${segment.text}*`;
+      }
 
-    if (segment.type === "thought") {
-      return `（${segment.text}）`;
-    }
+      if (segment.type === "thought") {
+        return `（${segment.text}）`;
+      }
 
-    return segment.text;
-  })
-  .filter(Boolean)
-  .join("\n\n");
+      return segment.text;
+    })
+    .filter(Boolean)
+    .join("\n\n");
 
 export const formatTavernMessageSegmentsForPrompt = (
   segments: TavernMessageSegment[],
@@ -277,22 +273,23 @@ export const formatTavernMessageSegmentsForPrompt = (
     escapeText?: (text: string) => string;
     includeThoughts?: boolean;
   } = {},
-) => segments
-  .filter((segment) => includeThoughts || segment.type !== "thought")
-  .map((segment) => {
-    const text = escapeText(segment.text);
-    if (segment.type === "dialogue") {
-      return `<dialogue>${text}</dialogue>`;
-    }
-    if (segment.type === "action") {
-      return `<action>${text}</action>`;
-    }
-    if (segment.type === "thought") {
-      return `<thought visibility="${segment.visibility}">${text}</thought>`;
-    }
-    if (segment.type === "narration") {
-      return `<narration>${text}</narration>`;
-    }
-    return `<text>${text}</text>`;
-  })
-  .join("\n");
+) =>
+  segments
+    .filter((segment) => includeThoughts || segment.type !== "thought")
+    .map((segment) => {
+      const text = escapeText(segment.text);
+      if (segment.type === "dialogue") {
+        return `<dialogue>${text}</dialogue>`;
+      }
+      if (segment.type === "action") {
+        return `<action>${text}</action>`;
+      }
+      if (segment.type === "thought") {
+        return `<thought visibility="${segment.visibility}">${text}</thought>`;
+      }
+      if (segment.type === "narration") {
+        return `<narration>${text}</narration>`;
+      }
+      return `<text>${text}</text>`;
+    })
+    .join("\n");

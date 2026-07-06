@@ -20,7 +20,7 @@ import {
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernRoom, TavernRoomSettings } from "../../../tavern/types";
+import type { TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 import {
   EditorMetricStrip,
   EditorProgressCard,

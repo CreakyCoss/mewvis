@@ -3,10 +3,7 @@ import { resolveAvatar } from "@/assets/avatars";
 import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type {
-  TavernCharacter,
-  TavernFactEvent,
-} from "../../types";
+import type { TavernCharacter, TavernFactEvent } from "@/features/pages/taverns/manage/model";
 import { stripTavernImmersiveDescriptionText } from "../protocol/parse-reply";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
@@ -35,16 +32,10 @@ export const CharacterMessage = ({
   visualPreset,
 }: CharacterMessageProps) => {
   const avatar = resolveAvatar(character?.avatar);
-  const displayThought = immersiveDescriptionEnabled ? thought?.trim() ?? "" : "";
-  const displayContent = immersiveDescriptionEnabled
-    ? content
-    : stripTavernImmersiveDescriptionText(content);
-  const copyContent = displayThought
-    ? `心想：${displayThought}\n\n${displayContent}`
-    : displayContent;
-  const immersiveDescriptionClassName = immersiveDescriptionEnabled
-    ? "tavern-immersive-em"
-    : undefined;
+  const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
+  const displayContent = immersiveDescriptionEnabled ? content : stripTavernImmersiveDescriptionText(content);
+  const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
+  const immersiveDescriptionClassName = immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined;
 
   if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
     return null;
@@ -53,11 +44,7 @@ export const CharacterMessage = ({
   return (
     <div className="group/message flex justify-start">
       <div className="flex w-full max-w-[min(84%,720px)] gap-3">
-        <img
-          src={avatar.src}
-          alt=""
-          className="size-10 shrink-0 rounded-md"
-        />
+        <img src={avatar.src} alt="" className="size-10 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-current">
             <span className="font-medium">{character?.name ?? "角色"}</span>

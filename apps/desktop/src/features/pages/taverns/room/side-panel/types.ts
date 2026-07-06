@@ -5,7 +5,7 @@ import type {
   TavernStatusValue,
   TavernTaskDefinition,
   TavernTaskState,
-} from "@/features/pages/taverns/tavern/types";
+} from "@/features/pages/taverns/manage/model";
 
 export type SidePanelHandle = {
   show: () => void;

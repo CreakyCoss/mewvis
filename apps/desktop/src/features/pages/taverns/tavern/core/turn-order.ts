@@ -1,8 +1,4 @@
-import type {
-  TavernCharacter,
-  TavernRoom,
-  TavernStatusValue,
-} from "../types";
+import type { TavernCharacter, TavernRoom, TavernStatusValue } from "@/features/pages/taverns/manage/model";
 import { getTavernStatusSnapshotValue } from "./progress-engine";
 
 export type TavernRoundParticipant =
@@ -18,12 +14,7 @@ export type TavernRoundParticipant =
       character: TavernCharacter;
     };
 
-const speechStateStatusIds = new Set([
-  "player_state",
-  "alive_state",
-  "life_state",
-  "survival_state",
-]);
+const speechStateStatusIds = new Set(["player_state", "alive_state", "life_state", "survival_state"]);
 
 const unavailableSpeechStates = new Set([
   "dead",
@@ -38,8 +29,7 @@ const unavailableSpeechStates = new Set([
   "离场",
 ]);
 
-const normalizeSpeechState = (value: string) =>
-  value.trim().toLowerCase().replace(/\s+/g, "");
+const normalizeSpeechState = (value: string) => value.trim().toLowerCase().replace(/\s+/g, "");
 
 const statusValueDisablesSpeech = (value: TavernStatusValue) => {
   if (typeof value === "boolean") {
@@ -63,11 +53,12 @@ export const isTavernCharacterAvailableForSpeech = (
       continue;
     }
 
-    const value = getTavernStatusSnapshotValue(
-      room.statusSnapshot,
-      { type: "character", characterId: character.id },
-      definition.id,
-    ) ?? definition.defaultValue;
+    const value =
+      getTavernStatusSnapshotValue(
+        room.statusSnapshot,
+        { type: "character", characterId: character.id },
+        definition.id,
+      ) ?? definition.defaultValue;
 
     if (definition.id === "health" && typeof value === "number" && value <= 0) {
       return false;
@@ -90,9 +81,7 @@ export const orderTavernRoundSpeakers = ({
   characters: TavernCharacter[];
   activeCharacterId?: string;
 }) => {
-  const availableCharacters = characters.filter((character) =>
-    isTavernCharacterAvailableForSpeech(room, character)
-  );
+  const availableCharacters = characters.filter((character) => isTavernCharacterAvailableForSpeech(room, character));
 
   if (!activeCharacterId) {
     return availableCharacters;
@@ -103,10 +92,7 @@ export const orderTavernRoundSpeakers = ({
     return availableCharacters;
   }
 
-  return [
-    ...availableCharacters.slice(activeIndex),
-    ...availableCharacters.slice(0, activeIndex),
-  ];
+  return [...availableCharacters.slice(activeIndex), ...availableCharacters.slice(0, activeIndex)];
 };
 
 export const orderTavernRoundParticipants = ({

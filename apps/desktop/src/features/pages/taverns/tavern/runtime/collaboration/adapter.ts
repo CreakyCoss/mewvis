@@ -2,7 +2,7 @@ import { buildTavernBridgeSystemPrompt } from "../conversation";
 import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
 import { buildTavernReplyAgentRequest } from "../reply/request";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "../../core";
-import type { TavernCharacter } from "../../types";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type {
   TavernDirectorLoopCollaborationInput,
   TavernSpeakerCollaborationInput,

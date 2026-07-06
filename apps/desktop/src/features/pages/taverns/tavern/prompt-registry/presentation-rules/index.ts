@@ -1,9 +1,9 @@
+import type { TavernMessage } from "../../types";
 import type {
-  TavernMessage,
   TavernPresentationProfile,
   TavernPresentationProfileId,
   TavernPresentationSettings,
-} from "../../types";
+} from "@/features/pages/taverns/manage/model";
 import {
   getRegisteredTavernPresentationRules,
   getSelectableTavernPresentationRules,
@@ -21,8 +21,7 @@ export {
 } from "./registry";
 export type { TavernPresentationRuleRegistration } from "./registry";
 
-export const DEFAULT_TAVERN_PRESENTATION_PROFILE_ID: TavernPresentationProfileId =
-  "dialogue-chat";
+export const DEFAULT_TAVERN_PRESENTATION_PROFILE_ID: TavernPresentationProfileId = "dialogue-chat";
 
 registerTavernPresentationRules([
   dialogueChatPresentationRule,
@@ -33,15 +32,11 @@ registerTavernPresentationRules([
 export const TAVERN_PRESENTATION_PROFILES = getRegisteredTavernPresentationRules();
 export const TAVERN_PRESENTATION_PROFILE_OPTIONS = getSelectableTavernPresentationRules();
 
-const presentationProfileIds = new Set(
-  TAVERN_PRESENTATION_PROFILES.map((profile) => profile.id),
-);
+const presentationProfileIds = new Set(TAVERN_PRESENTATION_PROFILES.map((profile) => profile.id));
 
-export const normalizeTavernPresentationProfileId = (
-  value: unknown,
-): TavernPresentationProfileId =>
+export const normalizeTavernPresentationProfileId = (value: unknown): TavernPresentationProfileId =>
   typeof value === "string" && presentationProfileIds.has(value as TavernPresentationProfileId)
-    ? value as TavernPresentationProfileId
+    ? (value as TavernPresentationProfileId)
     : DEFAULT_TAVERN_PRESENTATION_PROFILE_ID;
 
 export const createDefaultTavernPresentation = (): TavernPresentationSettings => ({
@@ -49,34 +44,27 @@ export const createDefaultTavernPresentation = (): TavernPresentationSettings =>
   profileVersion: 1,
 });
 
-export const normalizeTavernPresentation = (
-  value: unknown,
-): TavernPresentationSettings => {
-  const candidate = value && typeof value === "object"
-    ? value as Partial<TavernPresentationSettings>
-    : {};
+export const normalizeTavernPresentation = (value: unknown): TavernPresentationSettings => {
+  const candidate = value && typeof value === "object" ? (value as Partial<TavernPresentationSettings>) : {};
 
   return {
     profileId: normalizeTavernPresentationProfileId(candidate.profileId),
     profileVersion: 1,
     lockedAt: typeof candidate.lockedAt === "number" ? candidate.lockedAt : undefined,
-    lockedSceneId: typeof candidate.lockedSceneId === "string" && candidate.lockedSceneId.trim()
-      ? candidate.lockedSceneId
-      : undefined,
+    lockedSceneId:
+      typeof candidate.lockedSceneId === "string" && candidate.lockedSceneId.trim()
+        ? candidate.lockedSceneId
+        : undefined,
   };
 };
 
-export const getTavernPresentationProfile = (
-  value: unknown,
-): TavernPresentationProfile => {
+export const getTavernPresentationProfile = (value: unknown): TavernPresentationProfile => {
   const id = normalizeTavernPresentationProfileId(value);
-  return TAVERN_PRESENTATION_PROFILES.find((profile) => profile.id === id) ??
-    TAVERN_PRESENTATION_PROFILES[0];
+  return TAVERN_PRESENTATION_PROFILES.find((profile) => profile.id === id) ?? TAVERN_PRESENTATION_PROFILES[0];
 };
 
-export const hasTavernPresentationStarted = (
-  messages: Array<Pick<TavernMessage, "role">>,
-) => messages.some((message) => message.role === "user" || message.role === "character");
+export const hasTavernPresentationStarted = (messages: Array<Pick<TavernMessage, "role">>) =>
+  messages.some((message) => message.role === "user" || message.role === "character");
 
 export const isTavernPresentationLocked = ({
   presentation,

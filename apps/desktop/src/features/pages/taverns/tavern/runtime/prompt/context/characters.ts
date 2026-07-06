@@ -1,14 +1,6 @@
-import {
-  formatTavernCharacterRelationships,
-} from "../../../core";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
-import {
-  escapePromptXmlText,
-  limitPromptText,
-} from "../shared/text";
+import { formatTavernCharacterRelationships } from "../../../core";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { escapePromptXmlText, limitPromptText } from "../shared/text";
 
 const formatField = (label: string, value: string, maxChars: number) =>
   `${label}: ${escapePromptXmlText(limitPromptText(value, maxChars))}`;
@@ -41,7 +33,9 @@ export const formatTavernPromptCharacter = (
       formatField("role", character.description, 140),
       character.goals ? formatField("goals", character.goals, 100) : "",
       relationships ? formatField("relationships", relationships, 120) : "",
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   return [
@@ -52,5 +46,7 @@ export const formatTavernPromptCharacter = (
     character.replyStylePrompt ? formatField("replyStylePrompt", character.replyStylePrompt, 320) : "",
     character.goals ? formatField("goals", character.goals, 260) : "",
     relationships ? formatField("relationships", relationships, 320) : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };

@@ -1,24 +1,9 @@
-import {
-  normalizeVisualPresetId,
-} from "../visual-presets";
-import {
-  createTavernId as createId,
-  now,
-} from "../ids";
-import {
-  normalizeStringRecord,
-} from "../normalizers/normalization";
-import {
-  normalizeAssetDraft,
-  normalizeIllustrationHints,
-} from "../normalizers/asset-normalizers";
-import {
-  normalizeRoomCharacterConfigs,
-  roomCharacterMemoriesFromConfigs,
-} from "../normalizers/room-character-configs";
-import {
-  normalizeSceneRelationshipOverrides,
-} from "../normalizers/relationships";
+import { normalizeVisualPresetId } from "../visual-presets";
+import { createTavernId as createId, now } from "../ids";
+import { normalizeStringRecord } from "../normalizers/normalization";
+import { normalizeAssetDraft, normalizeIllustrationHints } from "../normalizers/asset-normalizers";
+import { normalizeRoomCharacterConfigs, roomCharacterMemoriesFromConfigs } from "../normalizers/room-character-configs";
+import { normalizeSceneRelationshipOverrides } from "../normalizers/relationships";
 import {
   normalizeCharacterPrivateStatuses,
   normalizeCharacterPublicStatuses,
@@ -42,7 +27,7 @@ import type {
   TavernPendingInteraction,
   TavernReplyOption,
   TavernScene,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 export const defaultSceneTitle = "默认场景";
 
@@ -50,9 +35,7 @@ export type TavernSceneInput = Partial<Omit<TavernScene, "scenePresetId">> & {
   scenePresetId?: unknown;
 };
 
-const normalizeSceneCharacterIds = (
-  characterIds: unknown,
-) => {
+const normalizeSceneCharacterIds = (characterIds: unknown) => {
   const ids = Array.isArray(characterIds)
     ? characterIds.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
@@ -60,10 +43,7 @@ const normalizeSceneCharacterIds = (
   return [...new Set(ids)];
 };
 
-const numberOrDefault = (
-  value: unknown,
-  defaultValue: number,
-) => typeof value === "number" ? value : defaultValue;
+const numberOrDefault = (value: unknown, defaultValue: number) => (typeof value === "number" ? value : defaultValue);
 
 const trimmedText = (value: unknown) => {
   if (typeof value !== "string") {
@@ -74,47 +54,28 @@ const trimmedText = (value: unknown) => {
   return text.length > 0 ? text : undefined;
 };
 
-const pickText = (
-  value: unknown,
-  defaultValue = "",
-) => trimmedText(value) ?? defaultValue;
+const pickText = (value: unknown, defaultValue = "") => trimmedText(value) ?? defaultValue;
 
-const normalizeArray = (value: unknown) => Array.isArray(value) ? value : [];
+const normalizeArray = (value: unknown) => (Array.isArray(value) ? value : []);
 
-const normalizeItems = <T>(
-  items: unknown[],
-  normalize: (item: unknown) => T | null | undefined,
-) => items
-  .map(normalize)
-  .filter((item): item is T => Boolean(item));
+const normalizeItems = <T>(items: unknown[], normalize: (item: unknown) => T | null | undefined) =>
+  items.map(normalize).filter((item): item is T => Boolean(item));
 
-const pickActiveCharacterId = (
-  inputCharacterId: unknown,
-  characterIds: string[],
-) => {
-  const matchedId = typeof inputCharacterId === "string" && characterIds.includes(inputCharacterId)
-    ? inputCharacterId
-    : undefined;
+const pickActiveCharacterId = (inputCharacterId: unknown, characterIds: string[]) => {
+  const matchedId =
+    typeof inputCharacterId === "string" && characterIds.includes(inputCharacterId) ? inputCharacterId : undefined;
 
   return matchedId ?? characterIds[0] ?? "";
 };
 
-export const buildTavernScene = (
-  input: TavernSceneInput = {},
-): TavernScene => {
+export const buildTavernScene = (input: TavernSceneInput = {}): TavernScene => {
   const timestampNow = now();
   const updatedAt = numberOrDefault(input.updatedAt, timestampNow);
   const createdAt = numberOrDefault(input.createdAt, updatedAt);
   const inputCharacterMemories = normalizeStringRecord(input.characterMemories);
-  const characterConfigs = normalizeRoomCharacterConfigs(
-    input.characterConfigs,
-    inputCharacterMemories,
-  );
+  const characterConfigs = normalizeRoomCharacterConfigs(input.characterConfigs, inputCharacterMemories);
   const characterIds = normalizeSceneCharacterIds(input.characterIds);
-  const activeCharacterId = pickActiveCharacterId(
-    input.activeCharacterId,
-    characterIds,
-  );
+  const activeCharacterId = pickActiveCharacterId(input.activeCharacterId, characterIds);
 
   return {
     id: input.id || createId("scene"),
@@ -127,10 +88,7 @@ export const buildTavernScene = (
     storyDirection: pickText(input.storyDirection),
     transition: pickText(input.transition),
     memory: pickText(input.memory),
-    relationshipOverrides: normalizeSceneRelationshipOverrides(
-      input.relationshipOverrides,
-      updatedAt,
-    ),
+    relationshipOverrides: normalizeSceneRelationshipOverrides(input.relationshipOverrides, updatedAt),
     sceneStatus: normalizeSceneStatus(input.sceneStatus, updatedAt),
     characterPublicStatuses: normalizeCharacterPublicStatuses(
       input.characterPublicStatuses,
@@ -148,50 +106,23 @@ export const buildTavernScene = (
       normalizeArray(input.pendingInteractions),
       normalizePendingInteraction,
     ),
-    replyOptions: normalizeItems<TavernReplyOption>(
-      normalizeArray(input.replyOptions),
-      normalizeReplyOption,
-    ),
-    factEvents: normalizeFactEvents(
-      input.factEvents,
-    ),
-    statusEvents: normalizeStatusEvents(
-      input.statusEvents,
-    ),
-    statusSnapshot: normalizeStatusSnapshot(
-      input.statusSnapshot,
-      updatedAt,
-    ),
+    replyOptions: normalizeItems<TavernReplyOption>(normalizeArray(input.replyOptions), normalizeReplyOption),
+    factEvents: normalizeFactEvents(input.factEvents),
+    statusEvents: normalizeStatusEvents(input.statusEvents),
+    statusSnapshot: normalizeStatusSnapshot(input.statusSnapshot, updatedAt),
     previousStatusSnapshot: input.previousStatusSnapshot
       ? normalizeStatusSnapshot(input.previousStatusSnapshot, updatedAt)
       : undefined,
-    statusCheckpoints: normalizeProgressCheckpoints(
-      input.statusCheckpoints,
-    ),
-    taskDefinitions: normalizeTaskDefinitions(
-      input.taskDefinitions,
-    ),
-    taskEvents: normalizeTaskEvents(
-      input.taskEvents,
-    ),
-    taskSnapshot: normalizeTaskSnapshot(
-      input.taskSnapshot,
-    ),
-    sceneOutcomes: normalizeSceneOutcomes(
-      input.sceneOutcomes,
-    ),
-    outcomeEvents: normalizeOutcomeEvents(
-      input.outcomeEvents,
-    ),
+    statusCheckpoints: normalizeProgressCheckpoints(input.statusCheckpoints),
+    taskDefinitions: normalizeTaskDefinitions(input.taskDefinitions),
+    taskEvents: normalizeTaskEvents(input.taskEvents),
+    taskSnapshot: normalizeTaskSnapshot(input.taskSnapshot),
+    sceneOutcomes: normalizeSceneOutcomes(input.sceneOutcomes),
+    outcomeEvents: normalizeOutcomeEvents(input.outcomeEvents),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
-    illustrationHints: normalizeIllustrationHints(
-      input.illustrationHints,
-    ),
-    assetDrafts: normalizeItems<TavernAssetDraft>(
-      normalizeArray(input.assetDrafts),
-      normalizeAssetDraft,
-    ),
+    illustrationHints: normalizeIllustrationHints(input.illustrationHints),
+    assetDrafts: normalizeItems<TavernAssetDraft>(normalizeArray(input.assetDrafts), normalizeAssetDraft),
     characterIds,
     activeCharacterId,
     createdAt,
@@ -199,6 +130,4 @@ export const buildTavernScene = (
   };
 };
 
-export const createTavernScene = (
-  input: TavernSceneInput = {},
-): TavernScene => buildTavernScene(input);
+export const createTavernScene = (input: TavernSceneInput = {}): TavernScene => buildTavernScene(input);

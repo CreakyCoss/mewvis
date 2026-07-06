@@ -1,29 +1,13 @@
-import {
-  appendReferencesToPrompt,
-} from "@/features/ai/components/context-tools";
+import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import {
-  tavernBridgeSessionRootDir,
-  tavernProgressTrackerAgentRoleId,
-} from "../../core";
-import type {
-  TavernCharacter,
-  TavernFactEvent,
-  TavernMessage,
-  TavernReferencedFile,
-  TavernRoom,
-} from "../../types";
-import {
-  buildTavernBridgeSystemPrompt,
-} from "../conversation";
+import { tavernBridgeSessionRootDir, tavernProgressTrackerAgentRoleId } from "../../core";
+import type { TavernMessage, TavernReferencedFile } from "../../types";
+import type { TavernCharacter, TavernFactEvent, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { buildTavernBridgeSystemPrompt } from "../conversation";
 import { runTavernRuntimeAgent } from "../agent";
-import {
-  parseTavernProgressFactEvents,
-} from "./progress-tracker/parsing";
-import {
-  buildTavernProgressTrackingPrompt,
-} from "./progress-tracker/prompt";
+import { parseTavernProgressFactEvents } from "./progress-tracker/parsing";
+import { buildTavernProgressTrackingPrompt } from "./progress-tracker/prompt";
 
 export type RunTavernProgressTrackingInput = {
   workspacePath: string;

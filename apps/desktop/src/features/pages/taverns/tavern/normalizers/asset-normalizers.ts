@@ -1,6 +1,4 @@
-import {
-  now,
-} from "../ids";
+import { now } from "../ids";
 import type {
   TavernAssetDraft,
   TavernCharacterMemoryDraft,
@@ -8,17 +6,12 @@ import type {
   TavernLorebookDraft,
   TavernLorebookEntry,
   TavernSceneMemoryDraft,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
-export const normalizeLorebookKeywords = (value: unknown) => Array.isArray(value)
-  ? value
-      .flatMap((item) => typeof item === "string" ? [item.trim()] : [])
-      .filter(Boolean)
-  : [];
+export const normalizeLorebookKeywords = (value: unknown) =>
+  Array.isArray(value) ? value.flatMap((item) => (typeof item === "string" ? [item.trim()] : [])).filter(Boolean) : [];
 
-export const normalizeLorebookEntry = (
-  value: unknown,
-): TavernLorebookEntry | null => {
+export const normalizeLorebookEntry = (value: unknown): TavernLorebookEntry | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -46,19 +39,13 @@ export const normalizeLorebookEntry = (
 
 export const normalizeCharacterMemoryDraftVisibility = (
   value: unknown,
-): TavernCharacterMemoryDraft["visibility"] | null => (
-  value === "public" || value === "hidden" || value === "character" ? value : null
-);
+): TavernCharacterMemoryDraft["visibility"] | null =>
+  value === "public" || value === "hidden" || value === "character" ? value : null;
 
-export const normalizeSceneMemoryDraftVisibility = (
-  value: unknown,
-): TavernSceneMemoryDraft["visibility"] | null => (
-  value === "public" || value === "hidden" || value === "director" ? value : null
-);
+export const normalizeSceneMemoryDraftVisibility = (value: unknown): TavernSceneMemoryDraft["visibility"] | null =>
+  value === "public" || value === "hidden" || value === "director" ? value : null;
 
-const normalizeSceneMemoryDraft = (
-  value: unknown,
-): TavernSceneMemoryDraft | null => {
+const normalizeSceneMemoryDraft = (value: unknown): TavernSceneMemoryDraft | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -78,9 +65,7 @@ const normalizeSceneMemoryDraft = (
   };
 };
 
-const normalizeCharacterMemoryDraft = (
-  value: unknown,
-): TavernCharacterMemoryDraft | null => {
+const normalizeCharacterMemoryDraft = (value: unknown): TavernCharacterMemoryDraft | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -90,8 +75,8 @@ const normalizeCharacterMemoryDraft = (
   const note = typeof candidate.note === "string" ? candidate.note.trim() : "";
   const visibility = normalizeCharacterMemoryDraftVisibility(candidate.visibility);
   const revealToCharacterIds = Array.isArray(candidate.revealToCharacterIds)
-    ? candidate.revealToCharacterIds.filter((item): item is string =>
-        typeof item === "string" && item.trim().length > 0
+    ? candidate.revealToCharacterIds.filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
       )
     : [];
   if (
@@ -114,9 +99,7 @@ const normalizeCharacterMemoryDraft = (
   };
 };
 
-const normalizeLorebookDraft = (
-  value: unknown,
-): TavernLorebookDraft | null => {
+const normalizeLorebookDraft = (value: unknown): TavernLorebookDraft | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -137,9 +120,7 @@ const normalizeLorebookDraft = (
   };
 };
 
-export const normalizeAssetDraft = (
-  value: unknown,
-): TavernAssetDraft | null => {
+export const normalizeAssetDraft = (value: unknown): TavernAssetDraft | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -169,11 +150,7 @@ export const normalizeAssetDraft = (
         .filter((draft): draft is TavernLorebookDraft => Boolean(draft))
     : [];
 
-  if (
-    sceneMemories.length === 0 &&
-    characterMemories.length === 0 &&
-    lorebookEntries.length === 0
-  ) {
+  if (sceneMemories.length === 0 && characterMemories.length === 0 && lorebookEntries.length === 0) {
     return null;
   }
 
@@ -188,9 +165,7 @@ export const normalizeAssetDraft = (
   };
 };
 
-const normalizeIllustrationHint = (
-  value: unknown,
-): TavernIllustrationHint | null => {
+const normalizeIllustrationHint = (value: unknown): TavernIllustrationHint | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -203,9 +178,7 @@ const normalizeIllustrationHint = (
 
   return {
     id: candidate.id,
-    turnId: typeof candidate.turnId === "string" && candidate.turnId.trim()
-      ? candidate.turnId
-      : undefined,
+    turnId: typeof candidate.turnId === "string" && candidate.turnId.trim() ? candidate.turnId : undefined,
     source: "director",
     prompt,
     sourceMessageIds: Array.isArray(candidate.sourceMessageIds)
@@ -215,8 +188,7 @@ const normalizeIllustrationHint = (
   };
 };
 
-export const normalizeIllustrationHints = (value: unknown): TavernIllustrationHint[] => Array.isArray(value)
-  ? value
-      .map(normalizeIllustrationHint)
-      .filter((hint): hint is TavernIllustrationHint => Boolean(hint))
-  : [];
+export const normalizeIllustrationHints = (value: unknown): TavernIllustrationHint[] =>
+  Array.isArray(value)
+    ? value.map(normalizeIllustrationHint).filter((hint): hint is TavernIllustrationHint => Boolean(hint))
+    : [];

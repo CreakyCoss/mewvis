@@ -1,4 +1,4 @@
-import type { TavernRoom } from "../../../tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import type {
   TavernPromptPreviewWarning,
   TavernPromptPreviewWarningLocation,

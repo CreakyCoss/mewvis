@@ -4,7 +4,8 @@ import type {
   RuntimeModelInput,
 } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type { TavernCharacter, TavernMessage, TavernReferencedFile, TavernRoom } from "../../types";
+import type { TavernMessage, TavernReferencedFile } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export type TavernCollaborationInput = AgentClientCollaborationInput | AgentClientCollaborationModeInput;
 

@@ -1,14 +1,7 @@
-import {
-  now,
-} from "../ids";
-import type {
-  TavernStoryBinding,
-} from "../types";
+import { now } from "../ids";
+import type { TavernStoryBinding } from "@/features/pages/taverns/manage/model";
 
-export const createTavernStoryBinding = (
-  storyId: string,
-  boundAt = now(),
-): TavernStoryBinding => ({
+export const createTavernStoryBinding = (storyId: string, boundAt = now()): TavernStoryBinding => ({
   version: 1,
   storyId,
   source: "story",
@@ -20,15 +13,9 @@ export const normalizeTavernStoryBinding = (
   fallbackStoryId: string,
   boundAt = now(),
 ): TavernStoryBinding => {
-  const candidate = value && typeof value === "object"
-    ? value as Partial<TavernStoryBinding>
-    : {};
-  const storyId = typeof candidate.storyId === "string" && candidate.storyId.trim()
-    ? candidate.storyId.trim()
-    : fallbackStoryId;
+  const candidate = value && typeof value === "object" ? (value as Partial<TavernStoryBinding>) : {};
+  const storyId =
+    typeof candidate.storyId === "string" && candidate.storyId.trim() ? candidate.storyId.trim() : fallbackStoryId;
 
-  return createTavernStoryBinding(
-    storyId,
-    typeof candidate.boundAt === "number" ? candidate.boundAt : boundAt,
-  );
+  return createTavernStoryBinding(storyId, typeof candidate.boundAt === "number" ? candidate.boundAt : boundAt);
 };

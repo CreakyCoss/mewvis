@@ -1,12 +1,6 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../types";
-import {
-  tavernBridgeSessionRootDir,
-  tavernDirectorAgentRoleId,
-} from "../../core";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { tavernBridgeSessionRootDir, tavernDirectorAgentRoleId } from "../../core";
 import { buildTavernBridgeSystemPrompt } from "../conversation";
 import { runTavernRuntimeAgent } from "../agent";
 import { parseTavernDirectorRoleAssignmentText } from "./role-assignment/parsing";

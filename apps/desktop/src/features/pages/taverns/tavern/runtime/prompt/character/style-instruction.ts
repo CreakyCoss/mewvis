@@ -1,7 +1,4 @@
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { joinPromptLines } from "../shared/sections";
 
 export const buildCharacterTurnStyleInstruction = ({

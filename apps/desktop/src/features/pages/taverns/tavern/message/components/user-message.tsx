@@ -1,13 +1,8 @@
-import {
-  FileText,
-  UserRound,
-} from "lucide-react";
+import { FileText, UserRound } from "lucide-react";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type {
-  TavernFactEvent,
-  TavernMessage,
-} from "../../types";
+import type { TavernMessage } from "../../types";
+import type { TavernFactEvent } from "@/features/pages/taverns/manage/model";
 import { MessageControls } from "./message-controls";
 import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";
@@ -67,9 +62,7 @@ export const UserMessage = ({
           </div>
         )}
       </div>
-      <span className="text-[11px] text-current opacity-70">
-        {formatTavernMessageTime(createdAt)}
-      </span>
+      <span className="text-[11px] text-current opacity-70">{formatTavernMessageTime(createdAt)}</span>
       <MessagePrivateIntel align="right" factEvents={factEvents} />
       <MessageControls content={content} disabled={isSending || isStreaming} />
     </div>

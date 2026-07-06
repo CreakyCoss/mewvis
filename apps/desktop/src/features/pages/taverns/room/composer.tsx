@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
-import type { TavernReplyOption } from "@/features/pages/taverns/tavern/types";
+import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 
@@ -51,18 +51,15 @@ export const Composer = ({
   const placeholder = isManagedAutoRunning
     ? "全托管运行中，关闭托管可重新手动发言..."
     : isManagedModeEnabled
-    ? "全托管：首次留空发送启动，后续自动运行；自推按钮会把这里当导演方向..."
-    : presentationProfile.userInputMode !== "speech"
-    ? presentationProfile.composerPlaceholder
-    : "写给导演的方向，或留空点自推...";
+      ? "全托管：首次留空发送启动，后续自动运行；自推按钮会把这里当导演方向..."
+      : presentationProfile.userInputMode !== "speech"
+        ? presentationProfile.composerPlaceholder
+        : "写给导演的方向，或留空点自推...";
   const canSubmit = (isManagedModeEnabled && !isManagedAutoRunning) || Boolean(draft.trim());
 
   return (
     <form
-      className={cn(
-        "border-t px-4 py-3 sm:px-5",
-        visualPreset.tavern.composer,
-      )}
+      className={cn("border-t px-4 py-3 sm:px-5", visualPreset.tavern.composer)}
       onSubmit={(event) => onSubmit(event)}
     >
       <div className="mx-auto max-w-3xl space-y-2">
@@ -88,10 +85,7 @@ export const Composer = ({
         )}
         {(replySuggestions.length > 0 || isGeneratingReplySuggestions) && (
           <div
-            className={cn(
-              "space-y-2 rounded-md border p-2.5 text-current shadow-sm",
-              visualPreset.tavern.sceneCard,
-            )}
+            className={cn("space-y-2 rounded-md border p-2.5 text-current shadow-sm", visualPreset.tavern.sceneCard)}
             role="list"
             aria-label="候选回复"
           >
@@ -162,10 +156,7 @@ export const Composer = ({
             ref={inputRef}
             value={draft}
             placeholder={placeholder}
-            className={cn(
-              "min-h-[92px] resize-none pr-24 text-sm leading-6",
-              visualPreset.tavern.composerInput,
-            )}
+            className={cn("min-h-[92px] resize-none pr-24 text-sm leading-6", visualPreset.tavern.composerInput)}
             onChange={(event) => {
               setDraft(event.target.value);
               setDraftCursor(event.target.selectionStart ?? event.target.value.length);
@@ -195,15 +186,27 @@ export const Composer = ({
             type="submit"
             size="icon"
             className="absolute right-3 bottom-3 size-9"
-            title={isSending ? "正在回应" : isManagedAutoRunning ? "全托管运行中" : isManagedModeEnabled ? "启动全托管" : "发送"}
-            aria-label={isSending ? "正在回应" : isManagedAutoRunning ? "全托管运行中" : isManagedModeEnabled ? "启动全托管" : "发送"}
+            title={
+              isSending
+                ? "正在回应"
+                : isManagedAutoRunning
+                  ? "全托管运行中"
+                  : isManagedModeEnabled
+                    ? "启动全托管"
+                    : "发送"
+            }
+            aria-label={
+              isSending
+                ? "正在回应"
+                : isManagedAutoRunning
+                  ? "全托管运行中"
+                  : isManagedModeEnabled
+                    ? "启动全托管"
+                    : "发送"
+            }
             disabled={isSending || isManagedAutoRunning || !canSubmit}
           >
-            {isSending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </div>
       </div>

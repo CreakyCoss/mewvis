@@ -1,14 +1,16 @@
-import type { TavernRoom } from "../types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const getActiveTavernStoryNode = (room: TavernRoom | null | undefined) => {
   if (!room?.storyGraph?.nodes.length) {
     return null;
   }
 
-  return room.storyGraph.nodes.find((node) => node.id === room.storyGraph.activeNodeId) ??
+  return (
+    room.storyGraph.nodes.find((node) => node.id === room.storyGraph.activeNodeId) ??
     room.storyGraph.nodes.find((node) => node.id === room.storyGraph.entryNodeId) ??
     room.storyGraph.nodes[0] ??
-    null;
+    null
+  );
 };
 
 export const getActiveTavernScene = (room: TavernRoom | null | undefined) => {
@@ -36,10 +38,7 @@ export const getTavernSceneDisplayTitle = (
     return fallback;
   }
 
-  const boundNodeTitle = room?.storyGraph?.nodes
-    .find((node) => node.sceneId === sceneId)
-    ?.title
-    ?.trim();
+  const boundNodeTitle = room?.storyGraph?.nodes.find((node) => node.sceneId === sceneId)?.title?.trim();
   if (boundNodeTitle) {
     return boundNodeTitle;
   }
@@ -62,13 +61,12 @@ export const getTavernSceneInstanceDisplayTitle = (
   }
 
   const nodeById = new Map(room.storyGraph.nodes.map((node) => [node.id, node]));
-  const currentNodeTitle = nodeById.get(instance.nodeId)?.title.trim() ||
-    getTavernSceneDisplayTitle(room, instance.sceneId, fallback);
+  const currentNodeTitle =
+    nodeById.get(instance.nodeId)?.title.trim() || getTavernSceneDisplayTitle(room, instance.sceneId, fallback);
   const pathTitles = instance.pathNodeIds
     .map((nodeId) => {
       const node = nodeById.get(nodeId);
-      return node?.title.trim() ||
-        getTavernSceneDisplayTitle(room, node?.sceneId, "");
+      return node?.title.trim() || getTavernSceneDisplayTitle(room, node?.sceneId, "");
     })
     .filter((title): title is string => Boolean(title));
 

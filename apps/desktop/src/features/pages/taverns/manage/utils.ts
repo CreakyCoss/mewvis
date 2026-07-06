@@ -13,7 +13,7 @@ import type {
   TavernStatusDefinition,
   TavernStatusRule,
   TavernTaskDefinition,
-} from "../tavern/types";
+} from "@/features/pages/taverns/manage/model";
 
 export const replyModeOptions: Array<{
   value: TavernReplyMode;

@@ -1,4 +1,4 @@
-import type { TavernPresentationRenderStyle } from "../../types";
+import type { TavernPresentationRenderStyle } from "@/features/pages/taverns/manage/model";
 import { chatConversationRenderer } from "./chat";
 import { proseConversationRenderer } from "./prose";
 import type { TavernConversationRenderer } from "./types";
@@ -8,11 +8,7 @@ const conversationRenderers: Record<TavernPresentationRenderStyle, TavernConvers
   prose: proseConversationRenderer,
 };
 
-export const resolveTavernConversationRenderer = (
-  renderStyle: TavernPresentationRenderStyle,
-) => conversationRenderers[renderStyle] ?? chatConversationRenderer;
+export const resolveTavernConversationRenderer = (renderStyle: TavernPresentationRenderStyle) =>
+  conversationRenderers[renderStyle] ?? chatConversationRenderer;
 
-export type {
-  TavernConversationRenderer,
-  TavernConversationRendererProps,
-} from "./types";
+export type { TavernConversationRenderer, TavernConversationRendererProps } from "./types";

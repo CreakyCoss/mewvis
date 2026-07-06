@@ -1,4 +1,4 @@
-import type { TavernCharacter } from "../../types";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   getTavernProtocolFieldLabels,
   getTavernProtocolFieldTagNames,
@@ -9,9 +9,10 @@ import {
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const uniqueLabels = (labels: string[]) => [
-  ...new Set(labels.map((label) => label.trim()).filter(Boolean)),
-].sort((first, second) => second.length - first.length);
+const uniqueLabels = (labels: string[]) =>
+  [...new Set(labels.map((label) => label.trim()).filter(Boolean))].sort(
+    (first, second) => second.length - first.length,
+  );
 
 export const cleanTavernReplyText = ({
   text,
@@ -24,10 +25,7 @@ export const cleanTavernReplyText = ({
   characters: TavernCharacter[];
   userPersonaName: string;
 }) => {
-  const labels = uniqueLabels([
-    activeCharacter.name,
-    "角色",
-  ]);
+  const labels = uniqueLabels([activeCharacter.name, "角色"]);
   if (labels.length === 0) {
     return text.trim();
   }
@@ -59,18 +57,13 @@ const thoughtTagNames = getTavernProtocolFieldTagNames("privateThought");
 const replyTagNames = getTavernProtocolFieldTagNames("publicReply");
 const narrativeBeatTagNames = getTavernProtocolFieldTagNames("narrativeBeat");
 const publicContentTagNames = getTavernProtocolPublicContentTagNames();
-const canonicalProtocolTagNames = [
-  ...thoughtTagNames,
-  ...publicContentTagNames,
-];
-const compactMalformedProtocolTagNames = [
-  "innerthought",
-  "publicreply",
-  "narrativebeat",
-];
+const canonicalProtocolTagNames = [...thoughtTagNames, ...publicContentTagNames];
+const compactMalformedProtocolTagNames = ["innerthought", "publicreply", "narrativebeat"];
 
 const labelPattern = (labels: readonly string[]) =>
-  `(?:${uniqueLabels([...labels]).map(escapeRegExp).join("|")})`;
+  `(?:${uniqueLabels([...labels])
+    .map(escapeRegExp)
+    .join("|")})`;
 
 const thoughtLabelPattern = labelPattern(getTavernProtocolFieldLabels("privateThought"));
 const narrativeBeatLabelPattern = labelPattern(getTavernProtocolFieldLabels("narrativeBeat"));
@@ -83,13 +76,9 @@ type TaggedBlock = {
   closed: boolean;
 };
 
-const tagNamePattern = (tagNames: readonly string[]) =>
-  tagNames.map(escapeRegExp).join("|");
+const tagNamePattern = (tagNames: readonly string[]) => tagNames.map(escapeRegExp).join("|");
 
-const extractTaggedBlock = (
-  text: string,
-  tagNames: readonly string[],
-): TaggedBlock | null => {
+const extractTaggedBlock = (text: string, tagNames: readonly string[]): TaggedBlock | null => {
   const pattern = tagNamePattern(tagNames);
   const closedTagPattern = new RegExp(
     `<\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>\\s*([\\s\\S]*?)\\s*<\\s*/\\s*(?:${pattern})\\s*>`,
@@ -100,10 +89,7 @@ const extractTaggedBlock = (
   if (closedMatch?.index !== undefined) {
     return {
       value: closedMatch[1] ?? "",
-      rest: [
-        text.slice(0, closedMatch.index),
-        text.slice(closedMatch.index + closedMatch[0].length),
-      ].join("\n").trim(),
+      rest: [text.slice(0, closedMatch.index), text.slice(closedMatch.index + closedMatch[0].length)].join("\n").trim(),
       closed: true,
     };
   }
@@ -122,21 +108,17 @@ const extractTaggedBlock = (
   };
 };
 
-const stripOuterQuotes = (text: string) =>
-  text.replace(/^\s*["“”'‘’]+|["“”'‘’]+\s*$/g, "").trim();
+const stripOuterQuotes = (text: string) => text.replace(/^\s*["“”'‘’]+|["“”'‘’]+\s*$/g, "").trim();
 
 const stripPairedOuterBrackets = (text: string) => {
   const trimmed = text.trim();
   const hasChineseBrackets = trimmed.startsWith("（") && trimmed.endsWith("）");
   const hasAsciiBrackets = trimmed.startsWith("(") && trimmed.endsWith(")");
 
-  return hasChineseBrackets || hasAsciiBrackets
-    ? trimmed.slice(1, -1).trim()
-    : trimmed;
+  return hasChineseBrackets || hasAsciiBrackets ? trimmed.slice(1, -1).trim() : trimmed;
 };
 
-const normalizeThoughtText = (text: string) =>
-  stripPairedOuterBrackets(stripOuterQuotes(text));
+const normalizeThoughtText = (text: string) => stripPairedOuterBrackets(stripOuterQuotes(text));
 
 export const cleanTavernThoughtText = (text: string) => {
   const tagged = extractTaggedBlock(text, thoughtTagNames);
@@ -168,16 +150,11 @@ const stripUnpairedMarkdownMarker = (text: string, marker: "*" | "_") => {
   }
 
   const markerIndex = text.lastIndexOf(marker);
-  return markerIndex >= 0
-    ? `${text.slice(0, markerIndex)}${text.slice(markerIndex + marker.length)}`.trim()
-    : text;
+  return markerIndex >= 0 ? `${text.slice(0, markerIndex)}${text.slice(markerIndex + marker.length)}`.trim() : text;
 };
 
 const normalizeMarkdownMarkers = (text: string) =>
-  stripUnpairedMarkdownMarker(
-    stripUnpairedMarkdownMarker(stripDanglingMarkdownMarkers(text), "*"),
-    "_",
-  );
+  stripUnpairedMarkdownMarker(stripUnpairedMarkdownMarker(stripDanglingMarkdownMarkers(text), "*"), "_");
 
 export const stripTavernStandaloneActionBlocks = (text: string) =>
   text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
@@ -190,17 +167,13 @@ export const stripTavernImmersiveDescriptionText = (text: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-export const hasTavernReplyDialogueText = (text: string) =>
-  stripTavernStandaloneActionBlocks(text).trim().length > 0;
+export const hasTavernReplyDialogueText = (text: string) => stripTavernStandaloneActionBlocks(text).trim().length > 0;
 
 const stripKnownTagBlocks = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
 
   return text.replace(
-    new RegExp(
-      `<\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>[\\s\\S]*?<\\s*/\\s*(?:${pattern})\\s*>`,
-      "gi",
-    ),
+    new RegExp(`<\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>[\\s\\S]*?<\\s*/\\s*(?:${pattern})\\s*>`, "gi"),
     "",
   );
 };
@@ -208,10 +181,7 @@ const stripKnownTagBlocks = (text: string, tagNames: readonly string[]) => {
 const stripKnownWrapperTags = (text: string, tagNames: readonly string[]) => {
   const pattern = tagNamePattern(tagNames);
 
-  return text.replace(
-    new RegExp(`<\\s*/?\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>`, "gi"),
-    "",
-  );
+  return text.replace(new RegExp(`<\\s*/?\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>`, "gi"), "");
 };
 
 const stripMalformedProtocolWrapperTags = (text: string) => {
@@ -223,17 +193,12 @@ const stripMalformedProtocolWrapperTags = (text: string) => {
     .replace(new RegExp(`<\\s*/?\\s*(?:${compactPattern})(?:\\s*["']|\\s+[^>]*)?\\s*>`, "gi"), "");
 };
 
-const stripContextWrapperTags = (
-  text: string,
-  { stripReplyTags = true }: { stripReplyTags?: boolean } = {},
-) => {
+const stripContextWrapperTags = (text: string, { stripReplyTags = true }: { stripReplyTags?: boolean } = {}) => {
   const withoutHiddenBlocks = stripKnownTagBlocks(
     stripKnownTagBlocks(text, ["narration", "history_narration"]),
     thoughtTagNames,
   );
-  const withoutOuterWrappers = stripKnownWrapperTags(withoutHiddenBlocks, [
-    ...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
-  ]);
+  const withoutOuterWrappers = stripKnownWrapperTags(withoutHiddenBlocks, [...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS]);
 
   const withoutReplyWrappers = stripReplyTags
     ? stripKnownWrapperTags(withoutOuterWrappers, publicContentTagNames)
@@ -291,13 +256,11 @@ const extractPublicContentBlock = (text: string) => {
 
 const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
   const thoughtBlock = extractTaggedBlock(text, thoughtTagNames);
-  const looseThought = thoughtBlock && !thoughtBlock.closed
-    ? splitLooseThoughtValue(thoughtBlock.value)
-    : null;
+  const looseThought = thoughtBlock && !thoughtBlock.closed ? splitLooseThoughtValue(thoughtBlock.value) : null;
   const textWithoutThought = stripContextWrapperTags(
     looseThought
       ? [thoughtBlock?.rest ?? "", looseThought.rest].filter(Boolean).join("\n")
-      : thoughtBlock?.rest ?? text,
+      : (thoughtBlock?.rest ?? text),
     {
       stripReplyTags: false,
     },
@@ -313,9 +276,7 @@ const parseTaggedReplyParts = (text: string): TavernReplyParts | null => {
       ? stripContextWrapperTags(publicContentBlock.block.value).trim()
       : stripDanglingTagPrefix(stripContextWrapperTags(textWithoutThought)),
     contentKind: publicContentBlock?.contentKind,
-    thought: thoughtBlock
-      ? cleanTavernThoughtText(looseThought?.thought ?? thoughtBlock.value)
-      : undefined,
+    thought: thoughtBlock ? cleanTavernThoughtText(looseThought?.thought ?? thoughtBlock.value) : undefined,
   };
 };
 
@@ -381,22 +342,15 @@ const isOtherCharacterNarrationBlock = (
   activeCharacter: TavernCharacter,
   characters: TavernCharacter[],
 ) => {
-  const source = block
-    .replace(/^\s*(?:>\s*)?/, "")
-    .trimStart();
+  const source = block.replace(/^\s*(?:>\s*)?/, "").trimStart();
 
   if (!/^[_*（(]/.test(source)) {
     return false;
   }
 
-  const normalized = source
-    .replace(/^[_*（(]+/, "")
-    .trimStart();
+  const normalized = source.replace(/^[_*（(]+/, "").trimStart();
 
-  return characters.some((character) =>
-    character.id !== activeCharacter.id &&
-    normalized.startsWith(character.name)
-  );
+  return characters.some((character) => character.id !== activeCharacter.id && normalized.startsWith(character.name));
 };
 
 const extractActiveSpeakerSegment = ({
@@ -428,11 +382,7 @@ const extractActiveSpeakerSegment = ({
   const segmentTail = text.slice(segmentStart);
   const nextSpeakerMatch = allSpeakerPattern?.exec(segmentTail);
 
-  return (
-    nextSpeakerMatch
-      ? segmentTail.slice(0, nextSpeakerMatch.index)
-      : segmentTail
-  ).trim();
+  return (nextSpeakerMatch ? segmentTail.slice(0, nextSpeakerMatch.index) : segmentTail).trim();
 };
 
 const sanitizeTavernReplyContent = ({
@@ -455,9 +405,7 @@ const sanitizeTavernReplyContent = ({
   const source = activeSegment ?? text;
   const activePrefix = speakerPrefixPattern([activeCharacter.name, "角色"]);
   const foreignPrefix = speakerPrefixPattern([
-    ...characters
-      .filter((character) => character.id !== activeCharacter.id)
-      .map((character) => character.name),
+    ...characters.filter((character) => character.id !== activeCharacter.id).map((character) => character.name),
     userPersonaName,
     "旁白",
     "用户",

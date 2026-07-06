@@ -1,13 +1,9 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
-import {
-  buildTavernStoryContextPackage,
-} from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernReferencedFile,
-  TavernReplyOption,
-} from "@/features/pages/taverns/tavern/types";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
+import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {
   abortTurnSubmission,
   beginTurnSubmission,
@@ -78,9 +74,7 @@ export const submitRoomTurn = async ({
   } = ctx;
   const triggerType = trigger.type;
   const draftText = (
-    trigger.type === "scene_drive"
-      ? trigger.directive ?? submittedText ?? draft
-      : submittedText ?? draft
+    trigger.type === "scene_drive" ? (trigger.directive ?? submittedText ?? draft) : (submittedText ?? draft)
   ).trim();
 
   // 1. 前置校验只做“能不能提交”的判断，不改动房间数据。
@@ -108,18 +102,12 @@ export const submitRoomTurn = async ({
     characters: roomCharacters,
     activeCharacter,
   });
-  if (
-    speakerPlan.candidateSpeakers.length === 0 &&
-    !speakerPlan.canSubmitFixedOrderUserOnlyTurn
-  ) {
+  if (speakerPlan.candidateSpeakers.length === 0 && !speakerPlan.canSubmitFixedOrderUserOnlyTurn) {
     setError("当前房间还没有可回应的角色。");
     return;
   }
 
-  const missingModelSpeaker = findMissingSpeakerModel(
-    speakerPlan.candidateSpeakers,
-    runtimeModel,
-  );
+  const missingModelSpeaker = findMissingSpeakerModel(speakerPlan.candidateSpeakers, runtimeModel);
   if (missingModelSpeaker) {
     setError(`角色 ${missingModelSpeaker.name} 还没有可用模型。`);
     return;
@@ -195,10 +183,12 @@ export const submitRoomTurn = async ({
         referencedFilePreviews: currentReferencedFilePreviews,
         selectedReplyOption,
       });
-  const turnAnchorMessage = visibleUserMessage ?? createSceneDriveTurnAnchorMessage({
-    room: activeRoom,
-    directive: text,
-  });
+  const turnAnchorMessage =
+    visibleUserMessage ??
+    createSceneDriveTurnAnchorMessage({
+      room: activeRoom,
+      directive: text,
+    });
   let runtime = createInitialTurnRuntime({
     room: activeRoom,
     roomMessages,

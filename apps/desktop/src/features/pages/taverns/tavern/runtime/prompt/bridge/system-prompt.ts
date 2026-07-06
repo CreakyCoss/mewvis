@@ -3,12 +3,9 @@ import {
   formatTavernInteractionQualityRulesForTarget,
   formatTavernPromptBlocksForTarget,
 } from "../../../prompt-registry/text-blocks";
-import type { TavernRoom } from "../../../types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { buildPresentationProfileSection } from "../layers/presentation";
-import {
-  renderTavernPromptSections,
-  type TavernPromptSection,
-} from "../shared/sections";
+import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
 
 const buildBridgeSystemContractSection = (): TavernPromptSection => ({
   id: "bridge-system-contract",
@@ -24,9 +21,8 @@ const buildBridgeSystemContractSection = (): TavernPromptSection => ({
 
 export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
   const sections: TavernPromptSection[] = [
     buildBridgeSystemContractSection(),
     buildPresentationProfileSection({
@@ -49,7 +45,9 @@ export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
           qualityRuleIds: room.settings.interactionQualityRuleIds,
           target: "bridge",
         }),
-      ].filter(Boolean).join("\n\n"),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     },
   ];
 

@@ -1,3 +1,4 @@
+import type { TavernMessage } from "../types";
 import type {
   TavernCharacter,
   TavernDirectorCharacterProfile,
@@ -5,26 +6,17 @@ import type {
   TavernDirectorReplyModePreference,
   TavernDirectorSpeechBias,
   TavernFactEvent,
-  TavernMessage,
   TavernRoom,
   TavernSchedulingSignal,
   TavernStatusDefinition,
   TavernStatusValue,
   TavernTaskDefinition,
   TavernTaskState,
-} from "../types";
-import {
-  isTavernDirectorOnlyPhase,
-  isTavernFixedOrderPhase,
-} from "./director-scheduling";
+} from "@/features/pages/taverns/manage/model";
+import { isTavernDirectorOnlyPhase, isTavernFixedOrderPhase } from "./director-scheduling";
 import { filterTavernFactEventsForAudience } from "./information-policy";
-import {
-  getTavernStatusSnapshotValue,
-  tavernRelationshipKey,
-} from "./progress-engine";
-import {
-  formatTavernCharacterRelationships,
-} from "./relationships";
+import { getTavernStatusSnapshotValue, tavernRelationshipKey } from "./progress-engine";
+import { formatTavernCharacterRelationships } from "./relationships";
 
 const PROFILE_TAG_LIMIT = 12;
 const PROFILE_TEXT_LIMIT = 160;
@@ -32,39 +24,30 @@ const SIGNAL_REASON_LIMIT = 6;
 const RECENT_MESSAGE_SIGNAL_LIMIT = 8;
 const RECENT_FACT_SIGNAL_LIMIT = 18;
 
-const speechBiasValues: TavernDirectorSpeechBias[] = [
-  "very_low",
-  "low",
-  "balanced",
-  "high",
-  "very_high",
-];
+const speechBiasValues: TavernDirectorSpeechBias[] = ["very_low", "low", "balanced", "high", "very_high"];
 
-const normalizeText = (value: string) =>
-  value.toLowerCase().replace(/\s+/g, " ").trim();
+const normalizeText = (value: string) => value.toLowerCase().replace(/\s+/g, " ").trim();
 
 const trimLimited = (value: unknown, maxLength = PROFILE_TEXT_LIMIT) =>
   typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 
-const normalizeStringList = (
-  value: unknown,
-  maxItems = PROFILE_TAG_LIMIT,
-  maxLength = 36,
-) => Array.isArray(value)
-  ? [...new Set(value.flatMap((item) => {
-      const text = trimLimited(item, maxLength);
-      return text ? [text] : [];
-    }))]
-      .slice(0, maxItems)
-  : [];
+const normalizeStringList = (value: unknown, maxItems = PROFILE_TAG_LIMIT, maxLength = 36) =>
+  Array.isArray(value)
+    ? [
+        ...new Set(
+          value.flatMap((item) => {
+            const text = trimLimited(item, maxLength);
+            return text ? [text] : [];
+          }),
+        ),
+      ].slice(0, maxItems)
+    : [];
 
 const normalizeSpeechBias = (
   value: unknown,
   fallback: TavernDirectorSpeechBias = "balanced",
 ): TavernDirectorSpeechBias =>
-  speechBiasValues.includes(value as TavernDirectorSpeechBias)
-    ? value as TavernDirectorSpeechBias
-    : fallback;
+  speechBiasValues.includes(value as TavernDirectorSpeechBias) ? (value as TavernDirectorSpeechBias) : fallback;
 
 const biasScore = (bias: TavernDirectorSpeechBias | undefined) => {
   switch (bias) {
@@ -105,29 +88,17 @@ const uniquePush = (target: string[], value: string) => {
   }
 };
 
-const entityMatchesCharacter = (
-  entity: TavernFactEvent["actor"] | TavernFactEvent["target"],
-  characterId: string,
-) => entity?.type === "character" && entity.characterId === characterId;
+const entityMatchesCharacter = (entity: TavernFactEvent["actor"] | TavernFactEvent["target"], characterId: string) =>
+  entity?.type === "character" && entity.characterId === characterId;
 
-const taskEntityMatchesCharacter = (
-  entity: TavernTaskDefinition["owner"],
-  characterId: string,
-) => entity.type === "character" && entity.characterId === characterId;
+const taskEntityMatchesCharacter = (entity: TavernTaskDefinition["owner"], characterId: string) =>
+  entity.type === "character" && entity.characterId === characterId;
 
-const taskIncludesCharacter = (
-  task: TavernTaskDefinition,
-  characterId: string,
-) =>
+const taskIncludesCharacter = (task: TavernTaskDefinition, characterId: string) =>
   taskEntityMatchesCharacter(task.owner, characterId) ||
-  (task.participants ?? []).some((participant) =>
-    taskEntityMatchesCharacter(participant, characterId)
-  );
+  (task.participants ?? []).some((participant) => taskEntityMatchesCharacter(participant, characterId));
 
-const isActiveTask = (
-  task: TavernTaskDefinition,
-  taskSnapshot: Record<string, TavernTaskState>,
-) => {
+const isActiveTask = (task: TavernTaskDefinition, taskSnapshot: Record<string, TavernTaskState>) => {
   const status = taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
   return status === "active";
 };
@@ -159,23 +130,30 @@ const textMatchesAnyTag = (text: string, tags: string[]) => {
 };
 
 const extractLooseTags = (text: string, maxItems = 6) =>
-  [...new Set(text
-    .split(/[，,。；;、/｜|：:\n\r\t（）()[\]{}<>《》【】"'“”‘’!?！？\s]+/u)
-    .map((item) => item.trim())
-    .filter((item) => item.length >= 2 && item.length <= 12)
-    .filter((item) => !/^(一个|一种|当前|自己|角色|目标|关系|公开|回应|自然|保持)$/u.test(item))
-  )].slice(0, maxItems);
+  [
+    ...new Set(
+      text
+        .split(/[，,。；;、/｜|：:\n\r\t（）()[\]{}<>《》【】"'“”‘’!?！？\s]+/u)
+        .map((item) => item.trim())
+        .filter((item) => item.length >= 2 && item.length <= 12)
+        .filter((item) => !/^(一个|一种|当前|自己|角色|目标|关系|公开|回应|自然|保持)$/u.test(item)),
+    ),
+  ].slice(0, maxItems);
 
 const inferSpeechBias = (character: TavernCharacter): TavernDirectorSpeechBias => {
   const relationshipText = formatTavernCharacterRelationships({ character });
-  const text = normalizeText([
-    character.description,
-    character.speakingStyle,
-    character.writingStyle,
-    character.replyStylePrompt,
-    character.goals,
-    relationshipText,
-  ].filter(Boolean).join(" "));
+  const text = normalizeText(
+    [
+      character.description,
+      character.speakingStyle,
+      character.writingStyle,
+      character.replyStylePrompt,
+      character.goals,
+      relationshipText,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
   if (/沉默|寡言|冷淡|克制|谨慎|观察者|少言|不轻易|内敛|回避/u.test(text)) {
     return "low";
   }
@@ -185,9 +163,7 @@ const inferSpeechBias = (character: TavernCharacter): TavernDirectorSpeechBias =
   return "balanced";
 };
 
-export const createTavernDirectorCharacterProfile = (
-  character: TavernCharacter,
-): TavernDirectorCharacterProfile => {
+export const createTavernDirectorCharacterProfile = (character: TavernCharacter): TavernDirectorCharacterProfile => {
   const speechBias = inferSpeechBias(character);
   const descriptionTags = extractLooseTags(character.description);
   const goalTags = extractLooseTags(character.goals ?? "");
@@ -202,15 +178,12 @@ export const createTavernDirectorCharacterProfile = (
     interestTags: descriptionTags,
     goalTags,
     knowledgeTags: relationshipTags,
-    conflictStyle: /回避|克制|谨慎|冷淡/u.test([
-      character.description,
-      relationshipText,
-    ].join(" ")) ? "克制或回避" : undefined,
+    conflictStyle: /回避|克制|谨慎|冷淡/u.test([character.description, relationshipText].join(" "))
+      ? "克制或回避"
+      : undefined,
     socialStrategy: character.goals?.trim() || undefined,
     speechTriggers: goalTags,
-    silenceTriggers: speechBias === "low" || speechBias === "very_low"
-      ? ["未被点名", "无关键事实", "弱利益相关"]
-      : [],
+    silenceTriggers: speechBias === "low" || speechBias === "very_low" ? ["未被点名", "无关键事实", "弱利益相关"] : [],
     notes: character.replyStylePrompt?.trim() || undefined,
   };
 };
@@ -228,27 +201,22 @@ export const createTavernDirectorProfileFromCharacters = ({
 }): TavernDirectorProfile => ({
   version: 1,
   source,
-  globalGoals: [
-    room?.storyGoal?.trim() ?? "",
-    room?.sceneGoal?.trim() ?? "",
-  ].filter(Boolean).slice(0, 6),
+  globalGoals: [room?.storyGoal?.trim() ?? "", room?.sceneGoal?.trim() ?? ""].filter(Boolean).slice(0, 6),
   globalRules: [
     ...(room?.settings.directorScheduling.instruction.trim()
       ? [room.settings.directorScheduling.instruction.trim()]
       : []),
     ...(room?.settings.directorScheduling.speakerMotivation.rules.map((rule) => rule.label) ?? []),
-  ].filter(Boolean).slice(0, 12),
-  characterProfiles: Object.fromEntries(characters.map((character) => [
-    character.id,
-    createTavernDirectorCharacterProfile(character),
-  ])),
+  ]
+    .filter(Boolean)
+    .slice(0, 12),
+  characterProfiles: Object.fromEntries(
+    characters.map((character) => [character.id, createTavernDirectorCharacterProfile(character)]),
+  ),
   updatedAt,
 });
 
-const normalizeCharacterProfile = (
-  value: unknown,
-  characterId: string,
-): TavernDirectorCharacterProfile | null => {
+const normalizeCharacterProfile = (value: unknown, characterId: string): TavernDirectorCharacterProfile | null => {
   if (!characterId || !value || typeof value !== "object") {
     return null;
   }
@@ -258,9 +226,7 @@ const normalizeCharacterProfile = (
     characterId,
     temperament: trimLimited(candidate.temperament) || undefined,
     speechBias: normalizeSpeechBias(candidate.speechBias),
-    nonverbalBias: candidate.nonverbalBias === undefined
-      ? undefined
-      : normalizeSpeechBias(candidate.nonverbalBias),
+    nonverbalBias: candidate.nonverbalBias === undefined ? undefined : normalizeSpeechBias(candidate.nonverbalBias),
     interestTags: normalizeStringList(candidate.interestTags),
     goalTags: normalizeStringList(candidate.goalTags),
     knowledgeTags: normalizeStringList(candidate.knowledgeTags),
@@ -282,14 +248,12 @@ export const normalizeTavernDirectorProfile = (
     updatedAt?: number;
   } = {},
 ): TavernDirectorProfile | undefined => {
-  const allowedIds = new Set([
-    ...(options.characterIds ?? []),
-    ...(options.characters?.map((character) => character.id) ?? []),
-  ].filter(Boolean));
-  const fallbackProfiles = Object.fromEntries((options.characters ?? []).map((character) => [
-    character.id,
-    createTavernDirectorCharacterProfile(character),
-  ]));
+  const allowedIds = new Set(
+    [...(options.characterIds ?? []), ...(options.characters?.map((character) => character.id) ?? [])].filter(Boolean),
+  );
+  const fallbackProfiles = Object.fromEntries(
+    (options.characters ?? []).map((character) => [character.id, createTavernDirectorCharacterProfile(character)]),
+  );
 
   if (!value || typeof value !== "object") {
     return options.characters?.length
@@ -305,22 +269,26 @@ export const normalizeTavernDirectorProfile = (
   }
 
   const candidate = value as Partial<TavernDirectorProfile>;
-  const source = candidate.source === "preset" ||
-      candidate.source === "generated" ||
-      candidate.source === "manual" ||
-      candidate.source === "system"
-    ? candidate.source
-    : options.source ?? "manual";
-  const rawProfiles = candidate.characterProfiles && typeof candidate.characterProfiles === "object"
-    ? Object.entries(candidate.characterProfiles as Record<string, unknown>)
-    : [];
+  const source =
+    candidate.source === "preset" ||
+    candidate.source === "generated" ||
+    candidate.source === "manual" ||
+    candidate.source === "system"
+      ? candidate.source
+      : (options.source ?? "manual");
+  const rawProfiles =
+    candidate.characterProfiles && typeof candidate.characterProfiles === "object"
+      ? Object.entries(candidate.characterProfiles as Record<string, unknown>)
+      : [];
   const mappedProfiles: Record<string, TavernDirectorCharacterProfile> = {};
 
   for (const [key, rawProfile] of rawProfiles) {
-    const rawCharacterId = typeof (rawProfile as Partial<TavernDirectorCharacterProfile>)?.characterId === "string"
-      ? (rawProfile as Partial<TavernDirectorCharacterProfile>).characterId?.trim() ?? ""
-      : key.trim();
-    const mappedCharacterId = options.mapCharacterId?.(rawCharacterId) ??
+    const rawCharacterId =
+      typeof (rawProfile as Partial<TavernDirectorCharacterProfile>)?.characterId === "string"
+        ? ((rawProfile as Partial<TavernDirectorCharacterProfile>).characterId?.trim() ?? "")
+        : key.trim();
+    const mappedCharacterId =
+      options.mapCharacterId?.(rawCharacterId) ??
       (allowedIds.size === 0 || allowedIds.has(rawCharacterId) ? rawCharacterId : undefined);
     if (!mappedCharacterId) {
       continue;
@@ -348,26 +316,18 @@ export const normalizeTavernDirectorProfile = (
     globalGoals: normalizeStringList(candidate.globalGoals, 10, 120),
     globalRules: normalizeStringList(candidate.globalRules, 16, 180),
     characterProfiles: mappedProfiles,
-    updatedAt: typeof candidate.updatedAt === "number"
-      ? candidate.updatedAt
-      : options.updatedAt,
+    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : options.updatedAt,
   };
 };
 
-const profileForCharacter = (
-  room: Pick<TavernRoom, "settings">,
-  character: TavernCharacter,
-) =>
+const profileForCharacter = (room: Pick<TavernRoom, "settings">, character: TavernCharacter) =>
   room.settings.directorScheduling.profile?.characterProfiles[character.id] ??
   createTavernDirectorCharacterProfile(character);
 
-const recentCharacterMessageCount = (
-  messages: TavernMessage[],
-  characterId: string,
-) => messages
-  .slice(-RECENT_MESSAGE_SIGNAL_LIMIT)
-  .filter((message) => message.role === "character" && message.characterId === characterId)
-  .length;
+const recentCharacterMessageCount = (messages: TavernMessage[], characterId: string) =>
+  messages
+    .slice(-RECENT_MESSAGE_SIGNAL_LIMIT)
+    .filter((message) => message.role === "character" && message.characterId === characterId).length;
 
 const characterHasRelatedVisibleFact = ({
   room,
@@ -394,8 +354,8 @@ const characterHasRelatedVisibleFact = ({
       return true;
     }
 
-    return currentKeywords.some((keyword) =>
-      keyword.length >= 2 && normalizeText(`${fact.type} ${fact.evidence}`).includes(keyword)
+    return currentKeywords.some(
+      (keyword) => keyword.length >= 2 && normalizeText(`${fact.type} ${fact.evidence}`).includes(keyword),
     );
   });
 };
@@ -409,21 +369,29 @@ const characterHasRelationshipStake = ({
 }) => {
   const userRef = { type: "user", userId: "user" } as const;
   const characterRef = { type: "character", characterId } as const;
-  const motivatingDefinitions = room.statusDefinitions.filter((definition) =>
-    definition.scope === "relationship" && relationshipStatusLooksMotivating(definition)
+  const motivatingDefinitions = room.statusDefinitions.filter(
+    (definition) => definition.scope === "relationship" && relationshipStatusLooksMotivating(definition),
   );
 
   return motivatingDefinitions.some((definition) => {
-    const towardUser = getTavernStatusSnapshotValue(room.statusSnapshot, {
-      type: "relationship",
-      subject: characterRef,
-      object: userRef,
-    }, definition.id);
-    const fromUser = getTavernStatusSnapshotValue(room.statusSnapshot, {
-      type: "relationship",
-      subject: userRef,
-      object: characterRef,
-    }, definition.id);
+    const towardUser = getTavernStatusSnapshotValue(
+      room.statusSnapshot,
+      {
+        type: "relationship",
+        subject: characterRef,
+        object: userRef,
+      },
+      definition.id,
+    );
+    const fromUser = getTavernStatusSnapshotValue(
+      room.statusSnapshot,
+      {
+        type: "relationship",
+        subject: userRef,
+        object: characterRef,
+      },
+      definition.id,
+    );
     return statusValueHasStake(towardUser) || statusValueHasStake(fromUser);
   });
 };
@@ -434,12 +402,12 @@ const characterHasActiveTaskStake = ({
 }: {
   room: Pick<TavernRoom, "taskDefinitions" | "taskSnapshot">;
   characterId: string;
-}) => room.taskDefinitions.some((task) =>
-  taskIncludesCharacter(task, characterId) && isActiveTask(task, room.taskSnapshot)
-);
+}) =>
+  room.taskDefinitions.some(
+    (task) => taskIncludesCharacter(task, characterId) && isActiveTask(task, room.taskSnapshot),
+  );
 
-const clampScore = (score: number) =>
-  Math.max(0, Math.min(100, Math.round(score)));
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
 
 const signalModes = ({
   score,
@@ -476,7 +444,8 @@ export const buildTavernSchedulingSignals = ({
   currentUserText,
   selectedTargetCharacterIds = [],
 }: {
-  room: Pick<TavernRoom,
+  room: Pick<
+    TavernRoom,
     | "settings"
     | "statusDefinitions"
     | "statusSnapshot"
@@ -539,11 +508,13 @@ export const buildTavernSchedulingSignals = ({
       matchedRuleIds.push("goal-competes-for-user-attention");
     }
 
-    if (characterHasRelatedVisibleFact({
-      room,
-      characterId: character.id,
-      currentText: currentUserText,
-    })) {
+    if (
+      characterHasRelatedVisibleFact({
+        room,
+        characterId: character.id,
+        currentText: currentUserText,
+      })
+    ) {
       score += 14;
       uniquePush(reasons, "角色掌握或关联近期可见事实");
       matchedRuleIds.push("knowledge-holder-helps-or-misdirects");
@@ -569,10 +540,7 @@ export const buildTavernSchedulingSignals = ({
     }
 
     const hasStrongReason = score >= 55 || isDirectTarget || fixedOrder;
-    if (
-      !hasStrongReason &&
-      (profile.speechBias === "low" || profile.speechBias === "very_low")
-    ) {
+    if (!hasStrongReason && (profile.speechBias === "low" || profile.speechBias === "very_low")) {
       score -= 8;
       uniquePush(reasons, "沉默人设且无强动机");
       matchedRuleIds.push("quiet-temperament-brake");
@@ -603,34 +571,40 @@ export const formatTavernDirectorProfileForPrompt = ({
   characters: TavernCharacter[];
 }) => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
-  const normalizedProfile = profile ?? createTavernDirectorProfileFromCharacters({
-    characters,
-    source: "system",
-  });
+  const normalizedProfile =
+    profile ??
+    createTavernDirectorProfileFromCharacters({
+      characters,
+      source: "system",
+    });
 
-  return JSON.stringify({
-    version: normalizedProfile.version,
-    source: normalizedProfile.source,
-    globalGoals: normalizedProfile.globalGoals,
-    globalRules: normalizedProfile.globalRules,
-    characterProfiles: Object.values(normalizedProfile.characterProfiles)
-      .filter((characterProfile) => characterById.has(characterProfile.characterId))
-      .map((characterProfile) => ({
-        characterId: characterProfile.characterId,
-        name: characterById.get(characterProfile.characterId)?.name ?? characterProfile.characterId,
-        temperament: characterProfile.temperament ?? "",
-        speechBias: characterProfile.speechBias,
-        nonverbalBias: characterProfile.nonverbalBias ?? "balanced",
-        interestTags: characterProfile.interestTags,
-        goalTags: characterProfile.goalTags,
-        knowledgeTags: characterProfile.knowledgeTags,
-        conflictStyle: characterProfile.conflictStyle ?? "",
-        socialStrategy: characterProfile.socialStrategy ?? "",
-        speechTriggers: characterProfile.speechTriggers,
-        silenceTriggers: characterProfile.silenceTriggers,
-        notes: characterProfile.notes ?? "",
-      })),
-  }, null, 2);
+  return JSON.stringify(
+    {
+      version: normalizedProfile.version,
+      source: normalizedProfile.source,
+      globalGoals: normalizedProfile.globalGoals,
+      globalRules: normalizedProfile.globalRules,
+      characterProfiles: Object.values(normalizedProfile.characterProfiles)
+        .filter((characterProfile) => characterById.has(characterProfile.characterId))
+        .map((characterProfile) => ({
+          characterId: characterProfile.characterId,
+          name: characterById.get(characterProfile.characterId)?.name ?? characterProfile.characterId,
+          temperament: characterProfile.temperament ?? "",
+          speechBias: characterProfile.speechBias,
+          nonverbalBias: characterProfile.nonverbalBias ?? "balanced",
+          interestTags: characterProfile.interestTags,
+          goalTags: characterProfile.goalTags,
+          knowledgeTags: characterProfile.knowledgeTags,
+          conflictStyle: characterProfile.conflictStyle ?? "",
+          socialStrategy: characterProfile.socialStrategy ?? "",
+          speechTriggers: characterProfile.speechTriggers,
+          silenceTriggers: characterProfile.silenceTriggers,
+          notes: characterProfile.notes ?? "",
+        })),
+    },
+    null,
+    2,
+  );
 };
 
 export const formatTavernSchedulingSignalsForPrompt = ({
@@ -641,14 +615,18 @@ export const formatTavernSchedulingSignalsForPrompt = ({
   characters: TavernCharacter[];
 }) => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
-  return JSON.stringify(signals.map((signal) => ({
-    characterId: signal.characterId,
-    name: characterById.get(signal.characterId)?.name ?? signal.characterId,
-    score: signal.score,
-    reasons: signal.reasons,
-    suggestedModes: signal.suggestedModes,
-    matchedRuleIds: signal.matchedRuleIds,
-  })), null, 2);
+  return JSON.stringify(
+    signals.map((signal) => ({
+      characterId: signal.characterId,
+      name: characterById.get(signal.characterId)?.name ?? signal.characterId,
+      score: signal.score,
+      reasons: signal.reasons,
+      suggestedModes: signal.suggestedModes,
+      matchedRuleIds: signal.matchedRuleIds,
+    })),
+    null,
+    2,
+  );
 };
 
 export const formatTavernRelationshipKeyForScheduling = tavernRelationshipKey;

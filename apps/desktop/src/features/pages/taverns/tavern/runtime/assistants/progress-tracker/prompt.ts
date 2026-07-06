@@ -1,13 +1,7 @@
-import {
-  formatTavernVisibleMessagesForRequestContext,
-  normalizeTavernMessagesForAudience,
-} from "../../../message";
+import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../../types";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryGraphContext,
@@ -30,11 +24,11 @@ const formatAllowedEvents = (room: TavernRoom) => {
 };
 
 const characterBrief = (characters: TavernCharacter[]) =>
-  characters.map((character) => [
-    `id: ${character.id}`,
-    `name: ${character.name}`,
-    `description: ${character.description}`,
-  ].join("\n")).join("\n\n---\n\n");
+  characters
+    .map((character) =>
+      [`id: ${character.id}`, `name: ${character.name}`, `description: ${character.description}`].join("\n"),
+    )
+    .join("\n\n---\n\n");
 
 export const buildTavernProgressTrackingPrompt = ({
   room,
@@ -53,10 +47,12 @@ export const buildTavernProgressTrackingPrompt = ({
 }) => {
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const activeScene = storyContext.graph.activeScene;
-  const lorebookText = formatTavernStoryLorebookEntries(selectTavernStoryLorebookEntries({
-    storyContext,
-    currentUserText,
-  }));
+  const lorebookText = formatTavernStoryLorebookEntries(
+    selectTavernStoryLorebookEntries({
+      storyContext,
+      currentUserText,
+    }),
+  );
   const visibleSourceMessages = formatTavernVisibleMessagesForRequestContext(
     normalizeTavernMessagesForAudience({
       messages: sourceMessages,
@@ -78,20 +74,20 @@ export const buildTavernProgressTrackingPrompt = ({
     "<output_schema>",
     [
       "{",
-      "\"factEvents\":[{",
-      "\"type\":\"damage|healing|help|betrayal|...\",",
-      "\"actor\":{\"type\":\"user|character|global|scene\",\"userId\":\"user\",\"characterId\":\"角色 id\"},",
-      "\"target\":{\"type\":\"character|user|global|scene\",\"characterId\":\"角色 id\"},",
-      "\"intensity\":\"trivial|minor|moderate|major|critical\",",
-      "\"value\":0,",
-      "\"sourceMessageIds\":[\"message id\"],",
-      "\"evidence\":\"本轮公开可观察证据\",",
-      "\"visibility\":\"public|private|director|hidden\",",
-      "\"revealWhen\":\"manual|sceneOutcome|never\",",
-      "\"visibleToUser\":false,",
-      "\"visibleToCharacterIds\":[\"character id\"],",
-      "\"visibleToFactionIds\":[\"faction id\"],",
-      "\"confidence\":0.0",
+      '"factEvents":[{',
+      '"type":"damage|healing|help|betrayal|...",',
+      '"actor":{"type":"user|character|global|scene","userId":"user","characterId":"角色 id"},',
+      '"target":{"type":"character|user|global|scene","characterId":"角色 id"},',
+      '"intensity":"trivial|minor|moderate|major|critical",',
+      '"value":0,',
+      '"sourceMessageIds":["message id"],',
+      '"evidence":"本轮公开可观察证据",',
+      '"visibility":"public|private|director|hidden",',
+      '"revealWhen":"manual|sceneOutcome|never",',
+      '"visibleToUser":false,',
+      '"visibleToCharacterIds":["character id"],',
+      '"visibleToFactionIds":["faction id"],',
+      '"confidence":0.0',
       "}]}",
     ].join(""),
     "</output_schema>",
@@ -107,7 +103,7 @@ export const buildTavernProgressTrackingPrompt = ({
     "如果事实不是所有人都应知道，visibility 必须是 private/director/hidden，并填写可知角色或阵营；evidence 只写可作为记录的简短证据。",
     "actor/target 只能使用用户、角色 id、global 或 scene；角色 id 必须来自角色列表。",
     "如果事件会改变有向关系，actor 是行动者，target 是受影响者。例如用户帮助阿洛：actor=user，target=char-a。",
-    "如果没有明确事件，输出 {\"factEvents\":[]}。",
+    '如果没有明确事件，输出 {"factEvents":[]}。',
     "只输出严格合法 JSON 对象，不要 Markdown、代码块或解释。",
     "</rules>",
     "",
@@ -119,7 +115,9 @@ export const buildTavernProgressTrackingPrompt = ({
       ? `<story_arc>\n${[
           storyContext.story.outline.trim(),
           storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
-        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+        ]
+          .filter(Boolean)
+          .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
     `<room title="${storyContext.story.title}">`,

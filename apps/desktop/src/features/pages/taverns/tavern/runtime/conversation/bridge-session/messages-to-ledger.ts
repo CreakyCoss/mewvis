@@ -1,13 +1,7 @@
 import type { LedgerMessageInput } from "@/features/ai/components/conversation-ledger/types";
-import {
-  formatTavernVisibleMessagesForRequestContext,
-  normalizeTavernMessagesForAudience,
-} from "../../../message";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../../types";
+import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const toLedgerRole = (role: TavernMessage["role"]) => {
   if (role === "character" || role === "narrator") {
@@ -33,24 +27,25 @@ export const tavernMessagesToLedgerMessages = ({
   });
 
   return visibleMessages.flatMap((message) => {
-    const content = [
-      `speaker: ${message.speakerName}`,
-      formatTavernVisibleMessagesForRequestContext([message]),
-    ].join("\n").trim();
+    const content = [`speaker: ${message.speakerName}`, formatTavernVisibleMessagesForRequestContext([message])]
+      .join("\n")
+      .trim();
     return content
-      ? [{
-        role: toLedgerRole(message.role),
-        content,
-        timestamp: message.createdAt,
-        metadata: {
-          tavernRoomId: room.id,
-          tavernSceneId: room.activeSceneId ?? null,
-          tavernSceneInstanceId: room.activeSceneInstanceId ?? null,
-          tavernMessageId: message.id,
-          tavernRole: message.role,
-          tavernCharacterId: message.characterId ?? null,
-        },
-      }]
+      ? [
+          {
+            role: toLedgerRole(message.role),
+            content,
+            timestamp: message.createdAt,
+            metadata: {
+              tavernRoomId: room.id,
+              tavernSceneId: room.activeSceneId ?? null,
+              tavernSceneInstanceId: room.activeSceneInstanceId ?? null,
+              tavernMessageId: message.id,
+              tavernRole: message.role,
+              tavernCharacterId: message.characterId ?? null,
+            },
+          },
+        ]
       : [];
   });
 };

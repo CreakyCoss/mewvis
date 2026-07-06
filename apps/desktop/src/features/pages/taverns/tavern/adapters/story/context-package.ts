@@ -1,6 +1,4 @@
-import {
-  formatTavernCharacterRelationships,
-} from "../../core";
+import { formatTavernCharacterRelationships } from "../../core";
 import type {
   TavernCharacter,
   TavernCharacterMemoryLayers,
@@ -12,15 +10,17 @@ import type {
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-} from "../../types";
+} from "@/features/pages/taverns/manage/model";
 import {
   getTavernRuntimeStoryProjection,
   type TavernRuntimeStoryProjection,
   type TavernRuntimeStorySceneProjection,
 } from "./projection";
 
-export type TavernStoryContextLorebookEntry =
-  Pick<TavernLorebookEntry, "id" | "title" | "content" | "keywords" | "enabled" | "alwaysOn">;
+export type TavernStoryContextLorebookEntry = Pick<
+  TavernLorebookEntry,
+  "id" | "title" | "content" | "keywords" | "enabled" | "alwaysOn"
+>;
 
 export type TavernStoryContextScene = {
   id: string;
@@ -34,22 +34,19 @@ export type TavernStoryContextScene = {
   status?: TavernSceneStatus;
 };
 
-export type TavernStoryContextMemoryLayers =
-  Pick<TavernSceneMemoryLayers, "required" | "upstream" | "public" | "private" | "directorSecret">;
+export type TavernStoryContextMemoryLayers = Pick<
+  TavernSceneMemoryLayers,
+  "required" | "upstream" | "public" | "private" | "directorSecret"
+>;
 
-export type TavernStoryContextCharacterMemory =
-  Pick<TavernCharacterMemoryLayers, "required" | "public" | "known" | "privateSelf" | "directorSecret">;
+export type TavernStoryContextCharacterMemory = Pick<
+  TavernCharacterMemoryLayers,
+  "required" | "public" | "known" | "privateSelf" | "directorSecret"
+>;
 
 export type TavernStoryContextCharacter = Pick<
   TavernCharacter,
-  | "id"
-  | "name"
-  | "avatar"
-  | "description"
-  | "speakingStyle"
-  | "writingStyle"
-  | "replyStylePrompt"
-  | "goals"
+  "id" | "name" | "avatar" | "description" | "speakingStyle" | "writingStyle" | "replyStylePrompt" | "goals"
 > & {
   relationshipSummary?: string;
   publicRelationshipSummary?: string;
@@ -137,9 +134,7 @@ const createEmptySceneLayers = (
 const sceneTitle = (scene: Pick<TavernScene, "title" | "scene">, fallback: string) =>
   scene.title?.trim() || scene.scene.trim().split("\n")[0]?.slice(0, 40) || fallback;
 
-const mapTavernLorebookEntry = (
-  entry: TavernLorebookEntry,
-): TavernStoryContextLorebookEntry => ({
+const mapTavernLorebookEntry = (entry: TavernLorebookEntry): TavernStoryContextLorebookEntry => ({
   id: entry.id,
   title: entry.title,
   content: entry.content,
@@ -148,10 +143,7 @@ const mapTavernLorebookEntry = (
   alwaysOn: entry.alwaysOn,
 });
 
-const mapTavernScene = (
-  scene: TavernScene,
-  fallbackTitle: string,
-): TavernStoryContextScene => ({
+const mapTavernScene = (scene: TavernScene, fallbackTitle: string): TavernStoryContextScene => ({
   id: scene.id,
   title: sceneTitle(scene, fallbackTitle),
   scene: scene.scene,
@@ -163,9 +155,7 @@ const mapTavernScene = (
   status: scene.sceneStatus,
 });
 
-const mapTavernRuntimeSceneProjection = (
-  scene: TavernRuntimeStorySceneProjection,
-): TavernStoryContextScene => ({
+const mapTavernRuntimeSceneProjection = (scene: TavernRuntimeStorySceneProjection): TavernStoryContextScene => ({
   id: scene.id,
   title: scene.title,
   scene: scene.scene,
@@ -225,17 +215,14 @@ const mapTavernCharacter = ({
   };
 };
 
-const buildTavernStoryContextPackageFromInput = (
-  input: TavernStoryContextPackageInput,
-): TavernStoryContextPackage => {
-  const activeNode = input.graph.nodes.find((node) => node.id === input.graph.activeNodeId) ??
+const buildTavernStoryContextPackageFromInput = (input: TavernStoryContextPackageInput): TavernStoryContextPackage => {
+  const activeNode =
+    input.graph.nodes.find((node) => node.id === input.graph.activeNodeId) ??
     input.graph.nodes.find((node) => node.id === input.graph.entryNodeId) ??
     input.graph.nodes[0];
-  const activeScene = (
-    activeNode?.sceneId
-      ? input.scenes.find((scene) => scene.id === activeNode.sceneId)
-      : undefined
-  ) ?? input.activeScene;
+  const activeScene =
+    (activeNode?.sceneId ? input.scenes.find((scene) => scene.id === activeNode.sceneId) : undefined) ??
+    input.activeScene;
 
   return {
     version: 1,
@@ -279,13 +266,9 @@ export const buildTavernStoryContextPackage = ({
   const activeScene = mapTavernRuntimeSceneProjection(projection.activeScene);
   const scenes = [
     ...projection.scenes.map((scene, index) =>
-      scene.id === activeScene.id ? activeScene : mapTavernScene(scene, `场景 ${index + 1}`)
+      scene.id === activeScene.id ? activeScene : mapTavernScene(scene, `场景 ${index + 1}`),
     ),
-    ...(
-      projection.scenes.some((scene) => scene.id === activeScene.id)
-        ? []
-        : [activeScene]
-    ),
+    ...(projection.scenes.some((scene) => scene.id === activeScene.id) ? [] : [activeScene]),
   ];
 
   return buildTavernStoryContextPackageFromInput({
@@ -294,12 +277,14 @@ export const buildTavernStoryContextPackage = ({
     scenes,
     activeScene,
     lorebookEntries: projection.lorebookEntries.map(mapTavernLorebookEntry),
-    characters: projection.characters.map((character) => mapTavernCharacter({
-      character,
-      room,
-      characters: projection.characters,
-      projection,
-    })),
+    characters: projection.characters.map((character) =>
+      mapTavernCharacter({
+        character,
+        room,
+        characters: projection.characters,
+        projection,
+      }),
+    ),
     memory: {
       manual: projection.activeScene.memory,
       sceneLayers: projection.activeSceneInstance?.memoryLayers,
@@ -357,26 +342,30 @@ export const selectTavernStoryLorebookEntries = ({
     ? context.characters.find((character) => character.id === activeCharacterId)
     : undefined;
   const activeScene = context.graph.activeScene;
-  const matchText = normalizeSearchText([
-    currentText,
-    context.story.title,
-    context.story.outline,
-    context.story.goal,
-    activeScene?.scene ?? "",
-    activeScene?.goal ?? "",
-    activeScene?.plot ?? "",
-    activeCharacter?.name ?? "",
-    context.characters.map((character) => [
-      character.name,
-      character.description,
-      character.goals ?? "",
-      character.publicRelationshipSummary ?? character.relationshipSummary ?? "",
-    ].join("\n")).join("\n\n"),
-  ].join("\n\n"));
+  const matchText = normalizeSearchText(
+    [
+      currentText,
+      context.story.title,
+      context.story.outline,
+      context.story.goal,
+      activeScene?.scene ?? "",
+      activeScene?.goal ?? "",
+      activeScene?.plot ?? "",
+      activeCharacter?.name ?? "",
+      context.characters
+        .map((character) =>
+          [
+            character.name,
+            character.description,
+            character.goals ?? "",
+            character.publicRelationshipSummary ?? character.relationshipSummary ?? "",
+          ].join("\n"),
+        )
+        .join("\n\n"),
+    ].join("\n\n"),
+  );
 
   return context.world.lorebookEntries
     .filter((entry) => entry.enabled)
-    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) =>
-      matchText.includes(keyword.toLowerCase())
-    ));
+    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) => matchText.includes(keyword.toLowerCase())));
 };

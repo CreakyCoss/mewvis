@@ -4,10 +4,7 @@ import {
   selectTavernStoryLorebookEntries,
   type TavernStoryContextLorebookEntry,
 } from "../../../adapters/story";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const selectTavernLorebookEntries = ({
   room,
@@ -38,7 +35,8 @@ export const formatTavernLorebookEntries = (
     maxEntries?: number;
     maxContentChars?: number;
   } = {},
-) => formatTavernStoryLorebookEntries(entries, {
-  maxEntries,
-  maxContentChars,
-});
+) =>
+  formatTavernStoryLorebookEntries(entries, {
+    maxEntries,
+    maxContentChars,
+  });

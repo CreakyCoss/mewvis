@@ -1,24 +1,11 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../types";
-import {
-  buildTavernBridgeSystemPrompt,
-} from "../conversation";
-import {
-  tavernBridgeSessionRootDir,
-  tavernManagedUserAgentRoleId,
-  tavernQuickReplyAgentRoleId,
-} from "../../core";
+import type { TavernMessage } from "../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import { buildTavernBridgeSystemPrompt } from "../conversation";
+import { tavernBridgeSessionRootDir, tavernManagedUserAgentRoleId, tavernQuickReplyAgentRoleId } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";
-import {
-  createManagedReplyFallback,
-  parseManagedReply,
-  parseSuggestions,
-} from "./user-reply/parsing";
+import { createManagedReplyFallback, parseManagedReply, parseSuggestions } from "./user-reply/parsing";
 import {
   buildTavernManagedUserReplyPrompt,
   buildTavernManagedUserReplySystemPrompt,
@@ -117,13 +104,15 @@ export const runTavernManagedUserReply = async ({
     return firstReply;
   }
 
-  const retryReply = await runManagedReplyRequest([
-    prompt,
-    "",
-    "<retry_instruction>",
-    "上一次输出没有可发送的 reply。现在必须生成一个非空 reply 字符串；只输出 JSON，不要解释。",
-    "</retry_instruction>",
-  ].join("\n"));
+  const retryReply = await runManagedReplyRequest(
+    [
+      prompt,
+      "",
+      "<retry_instruction>",
+      "上一次输出没有可发送的 reply。现在必须生成一个非空 reply 字符串；只输出 JSON，不要解释。",
+      "</retry_instruction>",
+    ].join("\n"),
+  );
   if (retryReply) {
     return retryReply;
   }

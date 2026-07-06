@@ -1,61 +1,55 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import {
-  tavernMessagesToRuntimeMessages,
-} from "../../prompt";
+import { tavernMessagesToRuntimeMessages } from "../../prompt";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
 } from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
-import type {
-  TavernCharacter,
-  TavernRoom,
-} from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 import type { TavernQuickSummaryInput } from "./types";
 
 const RECENT_MESSAGE_LIMIT = 80;
 
 const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
   characters
-    .map((character) => [
-      `- ${character.name}`,
-      `设定：${character.description}`,
-      character.goals ? `目标：${character.goals}` : "",
-      (() => {
-        const relationships = formatTavernCharacterRelationships({
-          character,
-          characters,
-          userPersonaName: room.userPersonaName,
-          relationshipOverrides: room.relationshipOverrides,
-          statusSnapshot: room.statusSnapshot,
-        });
-        return relationships ? `关系：${relationships}` : "";
-      })(),
-    ].filter(Boolean).join("\n"))
+    .map((character) =>
+      [
+        `- ${character.name}`,
+        `设定：${character.description}`,
+        character.goals ? `目标：${character.goals}` : "",
+        (() => {
+          const relationships = formatTavernCharacterRelationships({
+            character,
+            characters,
+            userPersonaName: room.userPersonaName,
+            relationshipOverrides: room.relationshipOverrides,
+            statusSnapshot: room.statusSnapshot,
+          });
+          return relationships ? `关系：${relationships}` : "";
+        })(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
     .join("\n\n");
 
-const characterMemories = (
-  room: TavernRoom,
-  characters: TavernCharacter[],
-) => {
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+const characterMemories = (room: TavernRoom, characters: TavernCharacter[]) => {
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
 
-  return characters.map((character) => {
-    const layers = activeInstance?.characterMemoryLayers?.[character.id];
-    const memory = [
-      layers?.required,
-      layers?.public,
-      layers?.known,
-      layers?.privateSelf,
-    ].map((value) => value?.trim()).filter(Boolean).join("\n");
-    return memory ? `## ${character.name}\n${memory}` : "";
-  })
-  .filter(Boolean)
-  .join("\n\n");
+  return characters
+    .map((character) => {
+      const layers = activeInstance?.characterMemoryLayers?.[character.id];
+      const memory = [layers?.required, layers?.public, layers?.known, layers?.privateSelf]
+        .map((value) => value?.trim())
+        .filter(Boolean)
+        .join("\n");
+      return memory ? `## ${character.name}\n${memory}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
 };
 
 const quickNovelLengthInstruction = (messageCount: number) => {
@@ -89,9 +83,8 @@ export const buildTavernQuickContext = ({
     characters,
     userPersonaName: room.userPersonaName,
   });
-  const conversationMessages = conversationScope === "full"
-    ? runtimeMessages
-    : runtimeMessages.slice(-RECENT_MESSAGE_LIMIT);
+  const conversationMessages =
+    conversationScope === "full" ? runtimeMessages : runtimeMessages.slice(-RECENT_MESSAGE_LIMIT);
   const conversationText = formatTavernRuntimeMessagesForSummary(conversationMessages);
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const activeScene = storyContext.graph.activeScene;
@@ -106,7 +99,9 @@ export const buildTavernQuickContext = ({
       ? `<story_arc>\n${[
           storyContext.story.outline.trim(),
           storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
-        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+        ]
+          .filter(Boolean)
+          .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
     `<room title="${storyContext.story.title}">`,
@@ -153,9 +148,7 @@ export const buildTavernQuickContext = ({
       ? `<full_scene_conversation message_count="${runtimeMessages.length}">`
       : `<recent_conversation message_count="${conversationMessages.length}" total_message_count="${runtimeMessages.length}">`,
     conversationText || "（无）",
-    conversationScope === "full"
-      ? "</full_scene_conversation>"
-      : "</recent_conversation>",
+    conversationScope === "full" ? "</full_scene_conversation>" : "</recent_conversation>",
   ].join("\n");
 };
 

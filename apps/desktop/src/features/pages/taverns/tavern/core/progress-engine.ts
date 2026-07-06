@@ -1,8 +1,8 @@
+import type { TavernMessage } from "../types";
 import type {
   TavernCondition,
   TavernEntityRef,
   TavernFactEvent,
-  TavernMessage,
   TavernRoom,
   TavernOutcomeEvent,
   TavernProgressCheckpoint,
@@ -18,7 +18,7 @@ import type {
   TavernTaskEvent,
   TavernTaskState,
   TavernReplyOption,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 const createProgressId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -42,10 +42,8 @@ export const tavernEntityRefKey = (entity: TavernEntityRef): string => {
   }
 };
 
-export const tavernRelationshipKey = (
-  subject: TavernEntityRef,
-  object: TavernEntityRef,
-) => `relationship:${tavernEntityRefKey(subject)}->${tavernEntityRefKey(object)}`;
+export const tavernRelationshipKey = (subject: TavernEntityRef, object: TavernEntityRef) =>
+  `relationship:${tavernEntityRefKey(subject)}->${tavernEntityRefKey(object)}`;
 
 export const tavernStatusTargetKey = (target: TavernStatusTargetRef) => {
   switch (target.type) {
@@ -62,10 +60,7 @@ export const tavernStatusTargetKey = (target: TavernStatusTargetRef) => {
   }
 };
 
-export const createEmptyTavernStatusSnapshot = (
-  turnId = "initial",
-  updatedAt = Date.now(),
-): TavernStatusSnapshot => ({
+export const createEmptyTavernStatusSnapshot = (turnId = "initial", updatedAt = Date.now()): TavernStatusSnapshot => ({
   turnId,
   global: {},
   scene: {},
@@ -176,10 +171,8 @@ export const setTavernStatusSnapshotValue = (
 const statusDefinitionById = (definitions: TavernStatusDefinition[]) =>
   new Map(definitions.map((definition) => [definition.id, definition]));
 
-const defaultStatusValue = (
-  definitions: Map<string, TavernStatusDefinition>,
-  statusId: string,
-) => definitions.get(statusId)?.defaultValue ?? null;
+const defaultStatusValue = (definitions: Map<string, TavernStatusDefinition>, statusId: string) =>
+  definitions.get(statusId)?.defaultValue ?? null;
 
 export const applyTavernStatusEventsToSnapshot = ({
   snapshot,
@@ -187,19 +180,16 @@ export const applyTavernStatusEventsToSnapshot = ({
 }: {
   snapshot: TavernStatusSnapshot;
   events: TavernStatusEvent[];
-}): TavernStatusSnapshot => events
-  .filter((event) => event.status === "applied")
-  .reduce((currentSnapshot, event) => setTavernStatusSnapshotValue(
-    currentSnapshot,
-    event.target,
-    event.statusId,
-    event.after,
-  ), snapshot);
+}): TavernStatusSnapshot =>
+  events
+    .filter((event) => event.status === "applied")
+    .reduce(
+      (currentSnapshot, event) =>
+        setTavernStatusSnapshotValue(currentSnapshot, event.target, event.statusId, event.after),
+      snapshot,
+    );
 
-const resolveRuleTarget = (
-  factEvent: TavernFactEvent,
-  rule: TavernStatusRule,
-): TavernStatusTargetRef | null => {
+const resolveRuleTarget = (factEvent: TavernFactEvent, rule: TavernStatusRule): TavernStatusTargetRef | null => {
   const targetMode = rule.apply.target ?? "eventTarget";
 
   if (targetMode === "eventTarget") {
@@ -260,7 +250,8 @@ const computeRuleValue = ({
   factEvent: TavernFactEvent;
   rule: TavernStatusRule;
 }) => {
-  const rawValue = factEvent.value ??
+  const rawValue =
+    factEvent.value ??
     (factEvent.intensity ? rule.apply.valueByIntensity?.[factEvent.intensity] : undefined) ??
     rule.apply.value;
 
@@ -271,8 +262,8 @@ const computeRuleValue = ({
   const numericBefore = isNumberValue(before)
     ? before
     : isNumberValue(definition.defaultValue)
-    ? definition.defaultValue
-    : 0;
+      ? definition.defaultValue
+      : 0;
   const numericDelta = typeof rawValue === "number" ? rawValue : 0;
   const [ruleMin, ruleMax] = rule.apply.clamp ?? [];
   return clampNumber(
@@ -298,76 +289,79 @@ export const deriveTavernStatusEventsFromFacts = ({
   createdAt?: number;
 }): TavernStatusEvent[] => {
   const definitionsById = statusDefinitionById(definitions);
-  return factEvents.flatMap((factEvent) => rules.flatMap((rule): TavernStatusEvent[] => {
-    if (rule.when.eventType !== factEvent.type) {
-      return [];
-    }
+  return factEvents.flatMap((factEvent) =>
+    rules.flatMap((rule): TavernStatusEvent[] => {
+      if (rule.when.eventType !== factEvent.type) {
+        return [];
+      }
 
-    const definition = definitionsById.get(rule.apply.statusId);
-    if (!definition || definition.scope !== rule.when.targetScope) {
-      return [];
-    }
+      const definition = definitionsById.get(rule.apply.statusId);
+      if (!definition || definition.scope !== rule.when.targetScope) {
+        return [];
+      }
 
-    if (
-      definition.updatePolicy.allowedEventTypes?.length &&
-      !definition.updatePolicy.allowedEventTypes.includes(factEvent.type)
-    ) {
-      return [];
-    }
+      if (
+        definition.updatePolicy.allowedEventTypes?.length &&
+        !definition.updatePolicy.allowedEventTypes.includes(factEvent.type)
+      ) {
+        return [];
+      }
 
-    const threshold = definition.updatePolicy.confidenceThreshold ?? 0;
-    if (factEvent.confidence < threshold) {
-      return [];
-    }
+      const threshold = definition.updatePolicy.confidenceThreshold ?? 0;
+      if (factEvent.confidence < threshold) {
+        return [];
+      }
 
-    if (rule.safeguards?.requireExplicitEvidence && !factEvent.evidence.trim()) {
-      return [];
-    }
+      if (rule.safeguards?.requireExplicitEvidence && !factEvent.evidence.trim()) {
+        return [];
+      }
 
-    const target = resolveRuleTarget(factEvent, rule);
-    if (!target) {
-      return [];
-    }
+      const target = resolveRuleTarget(factEvent, rule);
+      if (!target) {
+        return [];
+      }
 
-    const before = getTavernStatusSnapshotValue(snapshot, target, definition.id) ??
-      defaultStatusValue(definitionsById, definition.id);
-    const after = computeRuleValue({
-      before,
-      definition,
-      factEvent,
-      rule,
-    });
-    const delta = isNumberValue(after) && isNumberValue(before)
-      ? after - before
-      : undefined;
-    const maxDelta = rule.safeguards?.maxDeltaPerTurn ?? definition.updatePolicy.maxDeltaPerTurn;
-    const requiresReview = typeof delta === "number" && (
-      (typeof maxDelta === "number" && Math.abs(delta) > maxDelta) ||
-      (typeof rule.safeguards?.manualReviewAboveDelta === "number" &&
-        Math.abs(delta) >= rule.safeguards.manualReviewAboveDelta) ||
-      (typeof definition.updatePolicy.manualReviewAboveDelta === "number" &&
-        Math.abs(delta) >= definition.updatePolicy.manualReviewAboveDelta)
-    );
+      const before =
+        getTavernStatusSnapshotValue(snapshot, target, definition.id) ??
+        defaultStatusValue(definitionsById, definition.id);
+      const after = computeRuleValue({
+        before,
+        definition,
+        factEvent,
+        rule,
+      });
+      const delta = isNumberValue(after) && isNumberValue(before) ? after - before : undefined;
+      const maxDelta = rule.safeguards?.maxDeltaPerTurn ?? definition.updatePolicy.maxDeltaPerTurn;
+      const requiresReview =
+        typeof delta === "number" &&
+        ((typeof maxDelta === "number" && Math.abs(delta) > maxDelta) ||
+          (typeof rule.safeguards?.manualReviewAboveDelta === "number" &&
+            Math.abs(delta) >= rule.safeguards.manualReviewAboveDelta) ||
+          (typeof definition.updatePolicy.manualReviewAboveDelta === "number" &&
+            Math.abs(delta) >= definition.updatePolicy.manualReviewAboveDelta));
 
-    return [{
-      id: createProgressId("status-event"),
-      turnId,
-      sourceFactEventIds: [factEvent.id],
-      sourceMessageIds: factEvent.sourceMessageIds,
-      target,
-      statusId: definition.id,
-      before,
-      after,
-      ...(typeof delta === "number" ? { delta } : {}),
-      reason: `${factEvent.evidence} -> ${rule.label}`,
-      confidence: factEvent.confidence,
-      visibility: definition.visibility,
-      ruleId: rule.id,
-      status: requiresReview ? "pending" : "applied",
-      createdBy: "rule_engine",
-      createdAt,
-    }];
-  }));
+      return [
+        {
+          id: createProgressId("status-event"),
+          turnId,
+          sourceFactEventIds: [factEvent.id],
+          sourceMessageIds: factEvent.sourceMessageIds,
+          target,
+          statusId: definition.id,
+          before,
+          after,
+          ...(typeof delta === "number" ? { delta } : {}),
+          reason: `${factEvent.evidence} -> ${rule.label}`,
+          confidence: factEvent.confidence,
+          visibility: definition.visibility,
+          ruleId: rule.id,
+          status: requiresReview ? "pending" : "applied",
+          createdBy: "rule_engine",
+          createdAt,
+        },
+      ];
+    }),
+  );
 };
 
 const entityMatches = (left: TavernEntityRef | undefined, right: TavernEntityRef | undefined) =>
@@ -386,9 +380,7 @@ type TavernStatusCondition = {
 const isTavernStatusCondition = (condition: TavernCondition): condition is TavernStatusCondition =>
   "status" in condition && "target" in condition && !("task" in condition);
 
-const isTavernTaskCondition = (
-  condition: TavernCondition,
-): condition is Extract<TavernCondition, { task: string }> =>
+const isTavernTaskCondition = (condition: TavernCondition): condition is Extract<TavernCondition, { task: string }> =>
   "task" in condition && typeof condition.task === "string";
 
 const compareStatusValue = (
@@ -409,14 +401,10 @@ const compareStatusValue = (
     return false;
   }
   if (condition.crossing === "up" && typeof condition.gte === "number") {
-    return isNumberValue(previous) && isNumberValue(current) &&
-      previous < condition.gte &&
-      current >= condition.gte;
+    return isNumberValue(previous) && isNumberValue(current) && previous < condition.gte && current >= condition.gte;
   }
   if (condition.crossing === "down" && typeof condition.lte === "number") {
-    return isNumberValue(previous) && isNumberValue(current) &&
-      previous > condition.lte &&
-      current <= condition.lte;
+    return isNumberValue(previous) && isNumberValue(current) && previous > condition.lte && current <= condition.lte;
   }
   return true;
 };
@@ -437,24 +425,28 @@ export const evaluateTavernCondition = ({
   flags?: Record<string, TavernStatusValue>;
 }): boolean => {
   if ("all" in condition) {
-    return condition.all.every((item) => evaluateTavernCondition({
-      condition: item,
-      snapshot,
-      previousSnapshot,
-      factEvents,
-      taskSnapshot,
-      flags,
-    }));
+    return condition.all.every((item) =>
+      evaluateTavernCondition({
+        condition: item,
+        snapshot,
+        previousSnapshot,
+        factEvents,
+        taskSnapshot,
+        flags,
+      }),
+    );
   }
   if ("any" in condition) {
-    return condition.any.some((item) => evaluateTavernCondition({
-      condition: item,
-      snapshot,
-      previousSnapshot,
-      factEvents,
-      taskSnapshot,
-      flags,
-    }));
+    return condition.any.some((item) =>
+      evaluateTavernCondition({
+        condition: item,
+        snapshot,
+        previousSnapshot,
+        factEvents,
+        taskSnapshot,
+        flags,
+      }),
+    );
   }
   if ("not" in condition) {
     return !evaluateTavernCondition({
@@ -469,17 +461,16 @@ export const evaluateTavernCondition = ({
   if (isTavernStatusCondition(condition)) {
     return compareStatusValue(
       getTavernStatusSnapshotValue(snapshot, condition.target, condition.status),
-      previousSnapshot
-        ? getTavernStatusSnapshotValue(previousSnapshot, condition.target, condition.status)
-        : null,
+      previousSnapshot ? getTavernStatusSnapshotValue(previousSnapshot, condition.target, condition.status) : null,
       condition,
     );
   }
   if ("factEvent" in condition) {
-    const matches = factEvents.filter((event) =>
-      event.type === condition.factEvent &&
-      entityMatches(event.actor, condition.actor) &&
-      entityMatches(event.target, condition.target)
+    const matches = factEvents.filter(
+      (event) =>
+        event.type === condition.factEvent &&
+        entityMatches(event.actor, condition.actor) &&
+        entityMatches(event.target, condition.target),
     );
     return matches.length >= (condition.countGte ?? 1);
   }
@@ -496,16 +487,11 @@ export const evaluateTavernCondition = ({
   return false;
 };
 
-const createInitialTaskState = (
-  task: TavernTaskDefinition,
-  createdAt: number,
-): TavernTaskState => ({
+const createInitialTaskState = (task: TavernTaskDefinition, createdAt: number): TavernTaskState => ({
   taskId: task.id,
   owner: task.owner,
   status: task.lifecycle.initialStatus,
-  progress: task.progress?.target
-    ? { current: 0, target: task.progress.target }
-    : undefined,
+  progress: task.progress?.target ? { current: 0, target: task.progress.target } : undefined,
   updatedAt: createdAt,
 });
 
@@ -664,25 +650,29 @@ export const evaluateTavernSceneOutcomes = ({
   const firedOutcomeIds = new Set(existingOutcomeEvents.map((event) => event.outcomeId));
   return outcomes
     .filter((outcome) => !outcome.exclusive || !firedOutcomeIds.has(outcome.id))
-    .filter((outcome) => evaluateTavernCondition({
-      condition: outcome.condition,
-      snapshot,
-      previousSnapshot,
-      factEvents,
-      taskSnapshot,
-    }))
+    .filter((outcome) =>
+      evaluateTavernCondition({
+        condition: outcome.condition,
+        snapshot,
+        previousSnapshot,
+        factEvents,
+        taskSnapshot,
+      }),
+    )
     .sort((left, right) => right.priority - left.priority)
-    .flatMap((outcome): TavernOutcomeEvent[] => [{
-      id: createProgressId("outcome-event"),
-      turnId,
-      outcomeId: outcome.id,
-      winners: outcome.winner ?? [],
-      losers: outcome.loser ?? [],
-      sourceTaskEventIds,
-      sourceStatusEventIds,
-      status: outcome.endScene === "auto" ? "applied" : "pending",
-      createdAt,
-    }]);
+    .flatMap((outcome): TavernOutcomeEvent[] => [
+      {
+        id: createProgressId("outcome-event"),
+        turnId,
+        outcomeId: outcome.id,
+        winners: outcome.winner ?? [],
+        losers: outcome.loser ?? [],
+        sourceTaskEventIds,
+        sourceStatusEventIds,
+        status: outcome.endScene === "auto" ? "applied" : "pending",
+        createdAt,
+      },
+    ]);
 };
 
 const sortByCreatedAt = <T extends { createdAt: number }>(items: T[]) =>
@@ -690,11 +680,7 @@ const sortByCreatedAt = <T extends { createdAt: number }>(items: T[]) =>
 
 export type TavernProgressActionResult = Pick<
   TavernRoom,
-  | "statusEvents"
-  | "statusSnapshot"
-  | "replyOptions"
-  | "sceneDirection"
-  | "sceneTransition"
+  "statusEvents" | "statusSnapshot" | "replyOptions" | "sceneDirection" | "sceneTransition"
 > & {
   actionMessages: TavernMessage[];
 };
@@ -754,57 +740,59 @@ const progressActionMessage = ({
   createdAt,
 });
 
-const normalizeProgressReplyOptions = (
-  options: TavernReplyOption[],
-): TavernReplyOption[] => options.flatMap((option, index): TavernReplyOption[] => {
-  const text = typeof option.text === "string" ? option.text.trim() : "";
-  if (!text) {
-    return [];
-  }
-  const intent = option.intent === "answer" ||
+const normalizeProgressReplyOptions = (options: TavernReplyOption[]): TavernReplyOption[] =>
+  options.flatMap((option, index): TavernReplyOption[] => {
+    const text = typeof option.text === "string" ? option.text.trim() : "";
+    if (!text) {
+      return [];
+    }
+    const intent =
+      option.intent === "answer" ||
       option.intent === "ask" ||
       option.intent === "act" ||
       option.intent === "interrupt" ||
       option.intent === "wait" ||
       option.intent === "inspect"
-    ? option.intent
-    : "act";
+        ? option.intent
+        : "act";
 
-  return [{
-    id: typeof option.id === "string" && option.id.trim()
-      ? option.id.trim()
-      : createProgressId(`reply-option-${index + 1}`),
-    text,
-    respondsToInteractionId: typeof option.respondsToInteractionId === "string" &&
-        option.respondsToInteractionId.trim()
-      ? option.respondsToInteractionId.trim()
-      : undefined,
-    targetCharacterIds: Array.isArray(option.targetCharacterIds)
-      ? option.targetCharacterIds.flatMap((characterId) =>
-          typeof characterId === "string" && characterId.trim() ? [characterId.trim()] : []
-        )
-      : [],
-    intent,
-  }];
-});
+    return [
+      {
+        id:
+          typeof option.id === "string" && option.id.trim()
+            ? option.id.trim()
+            : createProgressId(`reply-option-${index + 1}`),
+        text,
+        respondsToInteractionId:
+          typeof option.respondsToInteractionId === "string" && option.respondsToInteractionId.trim()
+            ? option.respondsToInteractionId.trim()
+            : undefined,
+        targetCharacterIds: Array.isArray(option.targetCharacterIds)
+          ? option.targetCharacterIds.flatMap((characterId) =>
+              typeof characterId === "string" && characterId.trim() ? [characterId.trim()] : [],
+            )
+          : [],
+        intent,
+      },
+    ];
+  });
 
-const mergeReplyOptions = (
-  existingOptions: TavernReplyOption[],
-  actionOptions: TavernReplyOption[],
-) => {
+const mergeReplyOptions = (existingOptions: TavernReplyOption[], actionOptions: TavernReplyOption[]) => {
   if (actionOptions.length === 0) {
     return existingOptions;
   }
 
   const seen = new Set<string>();
-  return [...actionOptions, ...existingOptions].filter((option) => {
-    const key = `${option.intent}:${option.text.trim()}`;
-    if (!option.text.trim() || seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  }).slice(0, 8);
+  return [...actionOptions, ...existingOptions]
+    .filter((option) => {
+      const key = `${option.intent}:${option.text.trim()}`;
+      if (!option.text.trim() || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
 };
 
 const appendProgressDirective = (current: string, directive: string) => {
@@ -851,22 +839,23 @@ const applyProgressStatusPatchActions = ({
       if (!event.target || typeof event.statusId !== "string" || typeof event.after === "undefined") {
         return [];
       }
-      return [{
-        ...event,
-        id: typeof event.id === "string" && event.id.trim()
-          ? event.id.trim()
-          : createProgressId(`status-action-${index + 1}`),
-        turnId: typeof event.turnId === "string" && event.turnId.trim()
-          ? event.turnId.trim()
-          : turnId,
-        sourceFactEventIds: Array.isArray(event.sourceFactEventIds) ? event.sourceFactEventIds : [],
-        sourceMessageIds: Array.isArray(event.sourceMessageIds) ? event.sourceMessageIds : [],
-        before: typeof event.before === "undefined" ? null : event.before,
-        after: event.after ?? null,
-        status: event.status ?? "applied",
-        createdBy: event.createdBy ?? "system",
-        createdAt: typeof event.createdAt === "number" ? event.createdAt : createdAt,
-      }];
+      return [
+        {
+          ...event,
+          id:
+            typeof event.id === "string" && event.id.trim()
+              ? event.id.trim()
+              : createProgressId(`status-action-${index + 1}`),
+          turnId: typeof event.turnId === "string" && event.turnId.trim() ? event.turnId.trim() : turnId,
+          sourceFactEventIds: Array.isArray(event.sourceFactEventIds) ? event.sourceFactEventIds : [],
+          sourceMessageIds: Array.isArray(event.sourceMessageIds) ? event.sourceMessageIds : [],
+          before: typeof event.before === "undefined" ? null : event.before,
+          after: event.after ?? null,
+          status: event.status ?? "applied",
+          createdBy: event.createdBy ?? "system",
+          createdAt: typeof event.createdAt === "number" ? event.createdAt : createdAt,
+        },
+      ];
     });
   });
 
@@ -927,12 +916,14 @@ const applyTavernProgressActions = ({
     if (action.type === "messageInline") {
       const text = typeof action.text === "string" ? action.text.trim() : "";
       if (text && shouldPublishInlineAction(action.visibility)) {
-        actionMessages.push(progressActionMessage({
-          room,
-          turnId,
-          content: text,
-          createdAt,
-        }));
+        actionMessages.push(
+          progressActionMessage({
+            room,
+            turnId,
+            content: text,
+            createdAt,
+          }),
+        );
       }
       continue;
     }
@@ -953,17 +944,17 @@ const applyTavernProgressActions = ({
       const targetLabel = targetScene?.title.trim() || targetSceneId;
       const text = `阶段转换建议：${action.requiresUserConfirm ? "确认后" : "可以"}进入「${targetLabel}」。`;
       sceneTransition = appendProgressDirective(sceneTransition, text);
-      actionMessages.push(progressActionMessage({
-        room,
-        turnId,
-        content: text,
-        createdAt,
-      }));
+      actionMessages.push(
+        progressActionMessage({
+          room,
+          turnId,
+          content: text,
+          createdAt,
+        }),
+      );
       actionReplyOptions.push({
         id: createProgressId("reply-option-transition"),
-        text: action.requiresUserConfirm
-          ? `确认进入「${targetLabel}」`
-          : `推进到「${targetLabel}」`,
+        text: action.requiresUserConfirm ? `确认进入「${targetLabel}」` : `推进到「${targetLabel}」`,
         targetCharacterIds: [],
         intent: "act",
       });
@@ -1007,9 +998,7 @@ const collectProgressActions = ({
       }
       return [];
     }),
-    ...outcomeEvents.flatMap((event): TavernProgressAction[] =>
-      outcomeById.get(event.outcomeId)?.onAchieved ?? []
-    ),
+    ...outcomeEvents.flatMap((event): TavernProgressAction[] => outcomeById.get(event.outcomeId)?.onAchieved ?? []),
   ];
 };
 
@@ -1021,12 +1010,7 @@ export const createTavernProgressCheckpoint = ({
 }: {
   room: Pick<
     TavernRoom,
-    | "factEvents"
-    | "statusEvents"
-    | "statusSnapshot"
-    | "taskEvents"
-    | "taskSnapshot"
-    | "outcomeEvents"
+    "factEvents" | "statusEvents" | "statusSnapshot" | "taskEvents" | "taskSnapshot" | "outcomeEvents"
   >;
   turnId?: string;
   reason: TavernProgressCheckpoint["reason"];
@@ -1044,10 +1028,7 @@ export const createTavernProgressCheckpoint = ({
   createdAt,
 });
 
-const getLatestProgressCheckpoint = (
-  checkpoints: TavernProgressCheckpoint[],
-  checkpointId?: string,
-) => {
+const getLatestProgressCheckpoint = (checkpoints: TavernProgressCheckpoint[], checkpointId?: string) => {
   if (checkpointId) {
     return checkpoints.find((checkpoint) => checkpoint.id === checkpointId) ?? null;
   }
@@ -1062,12 +1043,7 @@ export const rebuildTavernProgressFromHistory = ({
   room: TavernRoom;
   checkpointId?: string;
   createdAt?: number;
-}): Pick<
-  TavernRoom,
-  | "previousStatusSnapshot"
-  | "statusSnapshot"
-  | "taskSnapshot"
-> => {
+}): Pick<TavernRoom, "previousStatusSnapshot" | "statusSnapshot" | "taskSnapshot"> => {
   const checkpoint = getLatestProgressCheckpoint(room.statusCheckpoints, checkpointId);
   const includedStatusEventIds = new Set(checkpoint?.includedStatusEventIds ?? []);
   const includedTaskEventIds = new Set(checkpoint?.includedTaskEventIds ?? []);
@@ -1089,9 +1065,7 @@ export const rebuildTavernProgressFromHistory = ({
   }
 
   let taskSnapshot = { ...(checkpoint?.taskSnapshot ?? {}) };
-  for (const taskEvent of sortByCreatedAt(
-    room.taskEvents.filter((event) => !includedTaskEventIds.has(event.id)),
-  )) {
+  for (const taskEvent of sortByCreatedAt(room.taskEvents.filter((event) => !includedTaskEventIds.has(event.id)))) {
     taskSnapshot = {
       ...taskSnapshot,
       [taskEvent.taskId]: taskEvent.after,
@@ -1128,9 +1102,7 @@ export const resolveTavernPendingStatusEvent = ({
     ...pendingEvent,
     status: resolution,
   };
-  const statusEvents = room.statusEvents.map((event) =>
-    event.id === statusEventId ? resolvedEvent : event
-  );
+  const statusEvents = room.statusEvents.map((event) => (event.id === statusEventId ? resolvedEvent : event));
 
   if (resolution === "rejected") {
     return {
@@ -1224,9 +1196,7 @@ export const resolveTavernPendingOutcomeEvent = ({
 
   return {
     outcomeEvents: room.outcomeEvents.map((event) =>
-      event.id === outcomeEventId
-        ? { ...event, status: resolution }
-        : event
+      event.id === outcomeEventId ? { ...event, status: resolution } : event,
     ),
   };
 };
@@ -1251,11 +1221,12 @@ export const advanceTavernProgressFromFactEvents = ({
     turnId,
     createdAt,
   });
-  const statusEvents = room.progressTracker.applyMode === "auto"
-    ? derivedStatusEvents.map((event) => (
-        event.status === "pending" ? { ...event, status: "applied" as const } : event
-      ))
-    : derivedStatusEvents;
+  const statusEvents =
+    room.progressTracker.applyMode === "auto"
+      ? derivedStatusEvents.map((event) =>
+          event.status === "pending" ? { ...event, status: "applied" as const } : event,
+        )
+      : derivedStatusEvents;
   const statusSnapshot = {
     ...applyTavernStatusEventsToSnapshot({
       snapshot: previousStatusSnapshot,

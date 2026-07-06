@@ -1,53 +1,51 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import {
-  tavernMessagesToRuntimeMessages,
-} from "../../prompt";
+import { tavernMessagesToRuntimeMessages } from "../../prompt";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import {
-  buildTavernStoryContextPackage,
-  formatTavernStoryLorebookEntries,
-} from "../../../adapters/story";
+import { buildTavernStoryContextPackage, formatTavernStoryLorebookEntries } from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../../types";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
-  characters.map((character) => [
-    `id: ${character.id}`,
-    `name: ${character.name}`,
-    `description: ${character.description}`,
-    character.goals ? `goals: ${character.goals}` : "",
-    (() => {
-      const relationships = formatTavernCharacterRelationships({
-        character,
-        characters,
-        userPersonaName: room.userPersonaName,
-        relationshipOverrides: room.relationshipOverrides,
-        statusSnapshot: room.statusSnapshot,
-      });
-      return relationships ? `relationships: ${relationships}` : "";
-    })(),
-  ].filter(Boolean).join("\n")).join("\n\n---\n\n");
+  characters
+    .map((character) =>
+      [
+        `id: ${character.id}`,
+        `name: ${character.name}`,
+        `description: ${character.description}`,
+        character.goals ? `goals: ${character.goals}` : "",
+        (() => {
+          const relationships = formatTavernCharacterRelationships({
+            character,
+            characters,
+            userPersonaName: room.userPersonaName,
+            relationshipOverrides: room.relationshipOverrides,
+            statusSnapshot: room.statusSnapshot,
+          });
+          return relationships ? `relationships: ${relationships}` : "";
+        })(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n---\n\n");
 
 const characterMemoryBrief = (room: TavernRoom, characters: TavernCharacter[]) => {
-  const activeInstance = room.sceneInstances.find((instance) =>
-    instance.id === room.activeSceneInstanceId
-  ) ?? room.sceneInstances[0];
+  const activeInstance =
+    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
 
-  return characters.map((character) => {
-    const layers = activeInstance?.characterMemoryLayers?.[character.id];
-    const memory = [
-      layers?.required,
-      layers?.public,
-      layers?.known,
-      layers?.privateSelf,
-    ].map((value) => value?.trim()).filter(Boolean).join("\n");
+  return characters
+    .map((character) => {
+      const layers = activeInstance?.characterMemoryLayers?.[character.id];
+      const memory = [layers?.required, layers?.public, layers?.known, layers?.privateSelf]
+        .map((value) => value?.trim())
+        .filter(Boolean)
+        .join("\n");
 
-    return memory ? `## ${character.name}\n${memory}` : "";
-  }).filter(Boolean).join("\n\n");
+      return memory ? `## ${character.name}\n${memory}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
 };
 
 export const buildTavernAssetExtractionPrompt = ({
@@ -77,27 +75,34 @@ export const buildTavernAssetExtractionPrompt = ({
   });
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const activeScene = storyContext.graph.activeScene;
-  const pendingDraftsText = room.assetDrafts.map((draft, index) => [
-    `# draft ${index + 1}`,
-    draft.sceneMemories.map((memory) =>
-      `scene-memory\nvisibility: ${memory.visibility}\n${memory.note}`
-    ).join("\n"),
-    draft.characterMemories.map((memory) => {
-      const characterName = characters.find((character) =>
-        character.id === memory.characterId
-      )?.name ?? memory.characterId;
-      return `memory: ${characterName}\nvisibility: ${memory.visibility}\n${memory.note}`;
-    }).join("\n"),
-    draft.lorebookEntries.map((entry) => `lore: ${entry.title}\n${entry.content}`).join("\n"),
-  ].filter(Boolean).join("\n")).join("\n\n");
+  const pendingDraftsText = room.assetDrafts
+    .map((draft, index) =>
+      [
+        `# draft ${index + 1}`,
+        draft.sceneMemories
+          .map((memory) => `scene-memory\nvisibility: ${memory.visibility}\n${memory.note}`)
+          .join("\n"),
+        draft.characterMemories
+          .map((memory) => {
+            const characterName =
+              characters.find((character) => character.id === memory.characterId)?.name ?? memory.characterId;
+            return `memory: ${characterName}\nvisibility: ${memory.visibility}\n${memory.note}`;
+          })
+          .join("\n"),
+        draft.lorebookEntries.map((entry) => `lore: ${entry.title}\n${entry.content}`).join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n");
 
   return [
     "<output_schema>",
     [
       "{",
-      "\"sceneMemories\":[{\"note\":\"当前场景/节点需要长期记住的事实\",\"visibility\":\"public|hidden|director\",\"secretId\":\"可选稳定秘密 id\"}],",
-      "\"characterMemories\":[{\"characterId\":\"角色 id\",\"note\":\"这个角色需要长期记住的事实\",\"visibility\":\"public|hidden|character\",\"secretId\":\"可选稳定秘密 id\",\"revealToCharacterIds\":[\"可选角色 id\"]}],",
-      "\"lorebookEntries\":[{\"title\":\"设定名\",\"content\":\"稳定世界设定\",\"keywords\":[\"关键词\"],\"alwaysOn\":false}]",
+      '"sceneMemories":[{"note":"当前场景/节点需要长期记住的事实","visibility":"public|hidden|director","secretId":"可选稳定秘密 id"}],',
+      '"characterMemories":[{"characterId":"角色 id","note":"这个角色需要长期记住的事实","visibility":"public|hidden|character","secretId":"可选稳定秘密 id","revealToCharacterIds":["可选角色 id"]}],',
+      '"lorebookEntries":[{"title":"设定名","content":"稳定世界设定","keywords":["关键词"],"alwaysOn":false}]',
       "}",
     ].join(""),
     "</output_schema>",
@@ -121,7 +126,9 @@ export const buildTavernAssetExtractionPrompt = ({
       ? `<story_arc>\n${[
           storyContext.story.outline.trim(),
           storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
-        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+        ]
+          .filter(Boolean)
+          .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
     `<room title="${storyContext.story.title}">`,

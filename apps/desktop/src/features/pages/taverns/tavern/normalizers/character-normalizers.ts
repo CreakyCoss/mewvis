@@ -1,22 +1,13 @@
 import { normalizeTavernAvatarId } from "@/assets/avatars";
-import {
-  createTavernId as createId,
-  now,
-} from "../ids";
-import {
-  normalizeCharacterRelationships,
-} from "./relationships";
+import { createTavernId as createId, now } from "../ids";
+import { normalizeCharacterRelationships } from "./relationships";
 import {
   getTavernSystemPreset,
   normalizeSystemPresetCharacterId,
   normalizeSystemPresetId,
 } from "../system-preset-registry";
-import type {
-  TavernCharacter,
-} from "../types";
-import type {
-  TavernSystemPresetCharacter,
-} from "../system-preset-registry";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import type { TavernSystemPresetCharacter } from "../system-preset-registry";
 
 export const createTavernCharacterFromSystemPresetCharacter = (
   character: TavernSystemPresetCharacter,
@@ -64,17 +55,20 @@ export const normalizeTavernCharacter = (
     avatar: normalizeTavernAvatarId(character.avatar),
     systemPresetId: normalizedSystemPresetId,
     systemPresetCharacterId,
-    systemPresetVersion: systemPreset && normalizedSystemPresetId
-      ? typeof (character as Partial<TavernCharacter>).systemPresetVersion === "number"
-        ? (character as Partial<TavernCharacter>).systemPresetVersion
-        : systemPreset.version
-      : undefined,
-    writingStyle: typeof character.writingStyle === "string" && character.writingStyle.trim()
-      ? character.writingStyle.trim()
-      : undefined,
-    replyStylePrompt: typeof character.replyStylePrompt === "string" && character.replyStylePrompt.trim()
-      ? character.replyStylePrompt.trim()
-      : undefined,
+    systemPresetVersion:
+      systemPreset && normalizedSystemPresetId
+        ? typeof (character as Partial<TavernCharacter>).systemPresetVersion === "number"
+          ? (character as Partial<TavernCharacter>).systemPresetVersion
+          : systemPreset.version
+        : undefined,
+    writingStyle:
+      typeof character.writingStyle === "string" && character.writingStyle.trim()
+        ? character.writingStyle.trim()
+        : undefined,
+    replyStylePrompt:
+      typeof character.replyStylePrompt === "string" && character.replyStylePrompt.trim()
+        ? character.replyStylePrompt.trim()
+        : undefined,
     relationships: normalizeCharacterRelationships(
       (character as Partial<TavernCharacter>).relationships,
       typeof character.updatedAt === "number" ? character.updatedAt : now(),

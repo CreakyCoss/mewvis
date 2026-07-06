@@ -1,18 +1,10 @@
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
-import {
-  buildTavernStoryContextPackage,
-} from "../../../adapters/story";
-import {
-  formatTavernVisibleMessagesForRequestContext,
-  normalizeTavernMessagesForAudience,
-} from "../../../message";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-} from "../../../types";
+import { buildTavernStoryContextPackage } from "../../../adapters/story";
+import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
+import type { TavernMessage } from "../../../types";
+import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const SUGGESTION_COUNT = 3;
 export const RECENT_MESSAGE_LIMIT = 12;
@@ -34,7 +26,9 @@ export const buildTavernUserReplySceneSections = ({
       ? `<story_arc>\n${[
           storyContext.story.outline.trim(),
           storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
-        ].filter(Boolean).join("\n\n")}\n</story_arc>`
+        ]
+          .filter(Boolean)
+          .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
     `<room title="${storyContext.story.title}">`,
@@ -73,9 +67,7 @@ export const buildTavernUserReplyConversationSections = ({
     characters,
     userPersonaName: room.userPersonaName,
   });
-  const recentConversation = formatTavernRuntimeMessagesForSummary(
-    runtimeMessages.slice(-RECENT_MESSAGE_LIMIT),
-  );
+  const recentConversation = formatTavernRuntimeMessagesForSummary(runtimeMessages.slice(-RECENT_MESSAGE_LIMIT));
 
   return [
     "<recent_conversation>",
@@ -95,35 +87,36 @@ export const buildTavernUserReplyConversationSections = ({
   ];
 };
 
-export const formatPendingInteractionsForPrompt = (
-  room: TavernRoom,
-  characters: TavernCharacter[],
-) => {
+export const formatPendingInteractionsForPrompt = (room: TavernRoom, characters: TavernCharacter[]) => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
-  const openInteractions = room.pendingInteractions.filter((interaction) =>
-    interaction.status === "open" && interaction.requiresResponse
+  const openInteractions = room.pendingInteractions.filter(
+    (interaction) => interaction.status === "open" && interaction.requiresResponse,
   );
 
   if (openInteractions.length === 0) {
     return "（无）";
   }
 
-  return openInteractions.map((interaction) => {
-    const source = interaction.source.type === "character"
-      ? characterById.get(interaction.source.characterId ?? "")?.name ?? "角色"
-      : room.userPersonaName || "我";
-    const target = interaction.target.type === "character"
-      ? (interaction.target.characterIds ?? [])
-          .map((characterId) => characterById.get(characterId)?.name ?? characterId)
-          .join("、")
-      : interaction.target.type;
+  return openInteractions
+    .map((interaction) => {
+      const source =
+        interaction.source.type === "character"
+          ? (characterById.get(interaction.source.characterId ?? "")?.name ?? "角色")
+          : room.userPersonaName || "我";
+      const target =
+        interaction.target.type === "character"
+          ? (interaction.target.characterIds ?? [])
+              .map((characterId) => characterById.get(characterId)?.name ?? characterId)
+              .join("、")
+          : interaction.target.type;
 
-    return [
-      `id: ${interaction.id}`,
-      `source: ${source}`,
-      `target: ${target || interaction.target.type}`,
-      `kind: ${interaction.kind}`,
-      `text: ${interaction.text}`,
-    ].join("\n");
-  }).join("\n\n---\n\n");
+      return [
+        `id: ${interaction.id}`,
+        `source: ${source}`,
+        `target: ${target || interaction.target.type}`,
+        `kind: ${interaction.kind}`,
+        `text: ${interaction.text}`,
+      ].join("\n");
+    })
+    .join("\n\n---\n\n");
 };

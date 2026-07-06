@@ -6,30 +6,13 @@ import {
   resolveCharacterMemoryEntryText,
   resolveSceneMemoryEntryText,
 } from "./branch-memory";
-import {
-  createTavernId as createId,
-} from "../ids";
-import {
-  createEmptyCharacterMemoryLayers,
-  createEmptySceneMemoryLayers,
-} from "./memory-layers";
-import {
-  projectTavernSceneOntoRoom,
-} from "./active-scene-runtime";
-import {
-  ensureTavernRoomRuntimeScopes,
-} from "./room-runtime-scopes";
-import {
-  resolveActiveSceneInstance,
-} from "./scene-instances";
-import {
-  getTavernSceneInstanceDisplayTitle,
-} from "./scene-selectors";
-import type {
-  TavernMemoryEntry,
-  TavernRoom,
-  TavernSecretReveal,
-} from "../types";
+import { createTavernId as createId } from "../ids";
+import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
+import { projectTavernSceneOntoRoom } from "./active-scene-runtime";
+import { ensureTavernRoomRuntimeScopes } from "./room-runtime-scopes";
+import { resolveActiveSceneInstance } from "./scene-instances";
+import { getTavernSceneInstanceDisplayTitle } from "./scene-selectors";
+import type { TavernMemoryEntry, TavernRoom, TavernSecretReveal } from "@/features/pages/taverns/manage/model";
 
 export type TavernBranchUpstreamMemoryLoadResult = {
   room: TavernRoom;
@@ -39,9 +22,7 @@ export type TavernBranchUpstreamMemoryLoadResult = {
   revealedSecretIds: string[];
 };
 
-export const loadTavernBranchUpstreamMemory = (
-  room: TavernRoom,
-): TavernBranchUpstreamMemoryLoadResult => {
+export const loadTavernBranchUpstreamMemory = (room: TavernRoom): TavernBranchUpstreamMemoryLoadResult => {
   const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
   const activeInstance = resolveActiveSceneInstance(runtimeRoom);
   if (!activeInstance) {
@@ -58,55 +39,49 @@ export const loadTavernBranchUpstreamMemory = (
   const reveals = getTavernBranchSecretReveals(pathInstances);
   const revealedSecretIds = Array.from(new Set(reveals.map((reveal) => reveal.secretId)));
 
-  const sceneMemory = formatTavernMemoryBlocks(upstreamInstances.map((instance) => {
-    const layers = createEmptySceneMemoryLayers(instance.memoryLayers);
-    const entryLines = (layers.entries ?? [])
-      .map((entry) => resolveSceneMemoryEntryText(entry, reveals))
-      .filter(Boolean);
-
-    return {
-      title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
-      lines: [
-        layers.required,
-        instance.memory,
-        layers.public,
-        layers.private,
-        ...entryLines,
-      ],
-    };
-  }));
-
-  const characterIds = Array.from(new Set([
-    ...runtimeRoom.characterIds,
-    ...activeInstance.characterIds,
-    ...upstreamInstances.flatMap((instance) => [
-      ...instance.characterIds,
-      ...Object.keys(instance.characterMemoryLayers ?? {}),
-    ]),
-  ]));
-  const characterMemories = Object.fromEntries(characterIds.flatMap((characterId) => {
-    const memory = formatTavernMemoryBlocks(upstreamInstances.map((instance) => {
-      const layers = createEmptyCharacterMemoryLayers(
-        instance.characterMemoryLayers?.[characterId],
-      );
+  const sceneMemory = formatTavernMemoryBlocks(
+    upstreamInstances.map((instance) => {
+      const layers = createEmptySceneMemoryLayers(instance.memoryLayers);
       const entryLines = (layers.entries ?? [])
-        .map((entry) => resolveCharacterMemoryEntryText(entry, reveals, characterId))
+        .map((entry) => resolveSceneMemoryEntryText(entry, reveals))
         .filter(Boolean);
 
       return {
         title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
-        lines: [
-          layers.required,
-          layers.public,
-          layers.known,
-          layers.privateSelf,
-          ...entryLines,
-        ],
+        lines: [layers.required, instance.memory, layers.public, layers.private, ...entryLines],
       };
-    }));
+    }),
+  );
 
-    return memory.trim() ? [[characterId, memory]] : [];
-  }));
+  const characterIds = Array.from(
+    new Set([
+      ...runtimeRoom.characterIds,
+      ...activeInstance.characterIds,
+      ...upstreamInstances.flatMap((instance) => [
+        ...instance.characterIds,
+        ...Object.keys(instance.characterMemoryLayers ?? {}),
+      ]),
+    ]),
+  );
+  const characterMemories = Object.fromEntries(
+    characterIds.flatMap((characterId) => {
+      const memory = formatTavernMemoryBlocks(
+        upstreamInstances.map((instance) => {
+          const layers = createEmptyCharacterMemoryLayers(instance.characterMemoryLayers?.[characterId]);
+          const entryLines = (layers.entries ?? [])
+            .map((entry) => resolveCharacterMemoryEntryText(entry, reveals, characterId))
+            .filter(Boolean);
+
+          return {
+            title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
+            lines: [layers.required, layers.public, layers.known, layers.privateSelf, ...entryLines],
+          };
+        }),
+      );
+
+      return memory.trim() ? [[characterId, memory]] : [];
+    }),
+  );
   const updatedAt = Date.now();
   const nextInstances = runtimeRoom.sceneInstances.map((instance) => {
     if (instance.id !== activeInstance.id) {
@@ -158,9 +133,7 @@ export type TavernBranchSecretMemoryOption = {
   ownerCharacterId?: string;
 };
 
-export const listTavernBranchSecretMemoryEntries = (
-  room: TavernRoom,
-): TavernBranchSecretMemoryOption[] => {
+export const listTavernBranchSecretMemoryEntries = (room: TavernRoom): TavernBranchSecretMemoryOption[] => {
   const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
   const activeInstance = resolveActiveSceneInstance(runtimeRoom);
   if (!activeInstance) {
@@ -179,25 +152,27 @@ export const listTavernBranchSecretMemoryEntries = (
         return [];
       }
       seen.add(`scene:${secretId}`);
-      return [{
-        secretId,
-        text,
-        sourceInstanceId: instance.id,
-        sourceTitle,
-        target: "scene" as const,
-        ownerCharacterId: entry.ownerCharacterId,
-      }];
+      return [
+        {
+          secretId,
+          text,
+          sourceInstanceId: instance.id,
+          sourceTitle,
+          target: "scene" as const,
+          ownerCharacterId: entry.ownerCharacterId,
+        },
+      ];
     });
-    const characterEntries = Object.entries(instance.characterMemoryLayers ?? {})
-      .flatMap(([characterId, layers]) =>
-        (layers.entries ?? []).flatMap((entry) => {
-          const secretId = entry.secretId?.trim();
-          const text = entry.text.trim();
-          if (!secretId || !text || seen.has(`character:${characterId}:${secretId}`)) {
-            return [];
-          }
-          seen.add(`character:${characterId}:${secretId}`);
-          return [{
+    const characterEntries = Object.entries(instance.characterMemoryLayers ?? {}).flatMap(([characterId, layers]) =>
+      (layers.entries ?? []).flatMap((entry) => {
+        const secretId = entry.secretId?.trim();
+        const text = entry.text.trim();
+        if (!secretId || !text || seen.has(`character:${characterId}:${secretId}`)) {
+          return [];
+        }
+        seen.add(`character:${characterId}:${secretId}`);
+        return [
+          {
             secretId,
             text,
             sourceInstanceId: instance.id,
@@ -205,17 +180,16 @@ export const listTavernBranchSecretMemoryEntries = (
             target: "character" as const,
             characterId,
             ownerCharacterId: entry.ownerCharacterId,
-          }];
-        })
-      );
+          },
+        ];
+      }),
+    );
 
     return [...sceneEntries, ...characterEntries];
   });
 };
 
-export type TavernSecretMemoryTarget =
-  | { type: "scene" }
-  | { type: "character"; characterId: string };
+export type TavernSecretMemoryTarget = { type: "scene" } | { type: "character"; characterId: string };
 
 export const addTavernSecretMemoryEntry = (
   room: TavernRoom,
@@ -306,9 +280,8 @@ export const revealTavernSecretMemory = (
   }
 
   const revealedAt = Date.now();
-  const targetCharacterIds = input.visibility === "character"
-    ? Array.from(new Set((input.targetCharacterIds ?? []).filter(Boolean)))
-    : [];
+  const targetCharacterIds =
+    input.visibility === "character" ? Array.from(new Set((input.targetCharacterIds ?? []).filter(Boolean))) : [];
   const reveal: TavernSecretReveal = {
     id: createId("secret-reveal"),
     secretId,
@@ -325,35 +298,33 @@ export const revealTavernSecretMemory = (
       return instance;
     }
 
-    const existingReveals = instance.secretReveals.filter((item) =>
-      !(
-        item.secretId === reveal.secretId &&
-        item.scope.type === "sceneInstance" &&
-        item.scope.sceneInstanceId === activeInstance.id &&
-        item.visibility === reveal.visibility &&
-        item.targetCharacterIds.join("|") === reveal.targetCharacterIds.join("|")
-      )
+    const existingReveals = instance.secretReveals.filter(
+      (item) =>
+        !(
+          item.secretId === reveal.secretId &&
+          item.scope.type === "sceneInstance" &&
+          item.scope.sceneInstanceId === activeInstance.id &&
+          item.visibility === reveal.visibility &&
+          item.targetCharacterIds.join("|") === reveal.targetCharacterIds.join("|")
+        ),
     );
 
     const matchingSceneEntryTexts = (instance.memoryLayers.entries ?? [])
       .filter((entry) => entry.secretId === reveal.secretId)
       .map((entry) => entry.text.trim())
       .filter(Boolean);
-    const matchingCharacterEntryTexts = Object.values(instance.characterMemoryLayers ?? {})
-      .flatMap((layers) => (layers.entries ?? [])
+    const matchingCharacterEntryTexts = Object.values(instance.characterMemoryLayers ?? {}).flatMap((layers) =>
+      (layers.entries ?? [])
         .filter((entry) => entry.secretId === reveal.secretId)
         .map((entry) => entry.text.trim())
-        .filter(Boolean)
-      );
+        .filter(Boolean),
+    );
     let nextMemoryLayers = createEmptySceneMemoryLayers(instance.memoryLayers);
     let nextCharacterMemoryLayers = { ...instance.characterMemoryLayers };
     if (reveal.visibility === "public") {
       nextMemoryLayers = {
         ...nextMemoryLayers,
-        public: collectUniqueTrimmedLines([
-          nextMemoryLayers.public,
-          ...matchingSceneEntryTexts,
-        ]).join("\n"),
+        public: collectUniqueTrimmedLines([nextMemoryLayers.public, ...matchingSceneEntryTexts]).join("\n"),
         updatedAt: revealedAt,
       };
       nextCharacterMemoryLayers = Object.fromEntries(
@@ -367,10 +338,7 @@ export const revealTavernSecretMemory = (
             characterId,
             {
               ...normalizedLayers,
-              public: collectUniqueTrimmedLines([
-                normalizedLayers.public,
-                ...entryTexts,
-              ]).join("\n"),
+              public: collectUniqueTrimmedLines([normalizedLayers.public, ...entryTexts]).join("\n"),
               updatedAt: entryTexts.length > 0 ? revealedAt : normalizedLayers.updatedAt,
             },
           ];

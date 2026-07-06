@@ -4,7 +4,7 @@ import type {
   TavernOutcomeEvent,
   TavernRoom,
   TavernRoomSettings,
-} from "../types";
+} from "@/features/pages/taverns/manage/model";
 
 export type TavernInformationView = "public" | "reveal" | "director";
 export type TavernFactAudience =
@@ -13,9 +13,8 @@ export type TavernFactAudience =
   | { type: "director" }
   | { type: "character"; characterId: string; factionIds?: string[] };
 
-export const hasAppliedTavernSceneOutcome = (
-  outcomeEvents?: TavernOutcomeEvent[] | null,
-) => (outcomeEvents ?? []).some((event) => event.status === "applied");
+export const hasAppliedTavernSceneOutcome = (outcomeEvents?: TavernOutcomeEvent[] | null) =>
+  (outcomeEvents ?? []).some((event) => event.status === "applied");
 
 export const resolveTavernInformationView = ({
   policy,
@@ -61,11 +60,7 @@ export const shouldShowTavernCharacterThoughts = ({
   return view === "reveal" || view === "director";
 };
 
-export const shouldShowTavernHiddenFacts = ({
-  room,
-}: {
-  room: Pick<TavernRoom, "settings" | "outcomeEvents">;
-}) => {
+export const shouldShowTavernHiddenFacts = ({ room }: { room: Pick<TavernRoom, "settings" | "outcomeEvents"> }) => {
   const policy = room.settings.informationPolicy;
   if (!policy.hiddenFacts.enabled) {
     return true;
@@ -78,10 +73,7 @@ export const shouldShowTavernHiddenFacts = ({
   return view === "reveal" || view === "director";
 };
 
-const audienceIsExplicitlyAllowed = (
-  factEvent: TavernFactEvent,
-  audience: TavernFactAudience,
-) => {
+const audienceIsExplicitlyAllowed = (factEvent: TavernFactEvent, audience: TavernFactAudience) => {
   if (audience.type !== "character") {
     return audience.type === "user" && factEvent.visibleToUser === true;
   }
@@ -137,11 +129,12 @@ export const filterTavernFactEventsForAudience = ({
   factEvents: TavernFactEvent[];
   room: Pick<TavernRoom, "settings" | "outcomeEvents">;
   audience: TavernFactAudience;
-}) => factEvents.filter((factEvent) =>
-  canTavernAudienceSeeFactEvent({
-    factEvent,
-    policy: room.settings.informationPolicy,
-    outcomeEvents: room.outcomeEvents,
-    audience,
-  })
-);
+}) =>
+  factEvents.filter((factEvent) =>
+    canTavernAudienceSeeFactEvent({
+      factEvent,
+      policy: room.settings.informationPolicy,
+      outcomeEvents: room.outcomeEvents,
+      audience,
+    }),
+  );

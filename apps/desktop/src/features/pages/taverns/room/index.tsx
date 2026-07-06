@@ -51,13 +51,8 @@ import {
 } from "../tavern/core";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
-import type {
-  TavernFactEvent,
-  TavernReferencedFile,
-  TavernReplyOption,
-  TavernRoom,
-  TavernState,
-} from "../tavern/types";
+import type { TavernReferencedFile, TavernState } from "../tavern/types";
+import type { TavernFactEvent, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
 import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
 import { runTavernDirectorRoleAssignment } from "../tavern/runtime/director";
 import { uniqueFilesByPath } from "../tavern/utils";

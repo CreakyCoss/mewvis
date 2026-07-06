@@ -26,7 +26,7 @@ import type {
   TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomSettings,
-} from "../../../tavern/types";
+} from "@/features/pages/taverns/manage/model";
 import {
   applyInformationPolicyModePreset,
   cloneTavernRoomSettings,

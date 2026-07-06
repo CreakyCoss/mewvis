@@ -1,9 +1,5 @@
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-  TavernStatusValue,
-} from "../types";
+import type { TavernMessage } from "../types";
+import type { TavernCharacter, TavernRoom, TavernStatusValue } from "@/features/pages/taverns/manage/model";
 import { getTavernStatusSnapshotValue } from "./progress-engine";
 import { orderTavernRoundSpeakers } from "./turn-order";
 
@@ -40,9 +36,7 @@ const defaultDirectorNarrativeControl: TavernRoom["settings"]["directorNarrative
   qnaBreak: "auto",
 };
 
-const getDirectorScheduling = (
-  room: Pick<TavernRoom, "settings">,
-) => {
+const getDirectorScheduling = (room: Pick<TavernRoom, "settings">) => {
   const candidate = room.settings.directorScheduling;
   if (!candidate) {
     return defaultDirectorScheduling;
@@ -65,30 +59,22 @@ const getDirectorScheduling = (
   };
 };
 
-const getDirectorNarrativeControl = (
-  room: Pick<TavernRoom, "settings">,
-) => ({
+const getDirectorNarrativeControl = (room: Pick<TavernRoom, "settings">) => ({
   ...defaultDirectorNarrativeControl,
   ...room.settings.directorNarrativeControl,
 });
 
-const normalizeStatusValue = (value: TavernStatusValue) =>
-  typeof value === "string" ? value.trim() : "";
+const normalizeStatusValue = (value: TavernStatusValue) => (typeof value === "string" ? value.trim() : "");
 
-const getPhaseValue = (
-  room: Pick<TavernRoom, "settings" | "statusSnapshot">,
-  statusId?: string,
-) => {
+const getPhaseValue = (room: Pick<TavernRoom, "settings" | "statusSnapshot">, statusId?: string) => {
   const normalizedStatusId = statusId?.trim();
   if (!normalizedStatusId) {
     return "";
   }
 
-  return normalizeStatusValue(getTavernStatusSnapshotValue(
-    room.statusSnapshot,
-    { type: "global" },
-    normalizedStatusId,
-  ));
+  return normalizeStatusValue(
+    getTavernStatusSnapshotValue(room.statusSnapshot, { type: "global" }, normalizedStatusId),
+  );
 };
 
 const phaseMatches = ({
@@ -108,16 +94,17 @@ export const isTavernFixedOrderPhase = (
   room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
 ) => {
   const fixedOrder = getDirectorScheduling(room).fixedOrder;
-  return fixedOrder.enabled && phaseMatches({
-    room,
-    statusId: fixedOrder.phaseStatusId,
-    values: fixedOrder.phaseValues,
-  });
+  return (
+    fixedOrder.enabled &&
+    phaseMatches({
+      room,
+      statusId: fixedOrder.phaseStatusId,
+      values: fixedOrder.phaseValues,
+    })
+  );
 };
 
-export const isTavernDirectorOnlyTurnAllowed = (
-  room: Pick<TavernRoom, "settings" | "statusSnapshot">,
-) => {
+export const isTavernDirectorOnlyTurnAllowed = (room: Pick<TavernRoom, "settings" | "statusSnapshot">) => {
   const scheduling = getDirectorScheduling(room);
   if (!scheduling.allowDirectorOnly) {
     return false;
@@ -134,17 +121,17 @@ export const isTavernDirectorOnlyTurnAllowed = (
   });
 };
 
-export const isTavernDirectorOnlyPhase = (
-  room: Pick<TavernRoom, "settings" | "statusSnapshot">,
-) => {
+export const isTavernDirectorOnlyPhase = (room: Pick<TavernRoom, "settings" | "statusSnapshot">) => {
   const scheduling = getDirectorScheduling(room);
-  return scheduling.allowDirectorOnly &&
+  return (
+    scheduling.allowDirectorOnly &&
     Boolean(scheduling.directorOnlyPhaseStatusId && scheduling.directorOnlyPhaseValues.length > 0) &&
     phaseMatches({
       room,
       statusId: scheduling.directorOnlyPhaseStatusId,
       values: scheduling.directorOnlyPhaseValues,
-    });
+    })
+  );
 };
 
 export const canTavernSelectedTargetsStaySilent = (
@@ -159,7 +146,9 @@ export const canTavernSelectedTargetsStaySilent = (
 };
 
 export const hasTavernNonverbalTargetCue = (text: string) =>
-  /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)|保持沉默|沉默回应|没有开口|不出声/u.test(text);
+  /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)|保持沉默|沉默回应|没有开口|不出声/u.test(
+    text,
+  );
 
 const userQuestionPattern =
   /[?？]|(?:谁|什么|为何|为什么|怎么|怎样|是否|是不是|哪里|哪儿|能不能|可以吗|告诉|解释|确认|问)/u;
@@ -239,8 +228,7 @@ export const buildTavernSceneDriveGuidance = ({
   const hasRecentConsequence = consequencePattern.test(recent);
   const hasRecentInterruption = interruptionPattern.test(recent);
   const hasRecentMainHook = mainHookPattern.test(recent);
-  const hasSceneGoal =
-    Boolean(room.sceneGoal.trim() || room.storyGoal.trim() || room.scenePlot.trim());
+  const hasSceneGoal = Boolean(room.sceneGoal.trim() || room.storyGoal.trim() || room.scenePlot.trim());
   const qnaQuestionThreshold = controls.qnaBreak === "aggressive" ? 1 : 2;
   const qnaChainRisk =
     controls.qnaBreak !== "off" &&
@@ -249,10 +237,10 @@ export const buildTavernSceneDriveGuidance = ({
     !hasRecentInterruption;
   const needsUserActionConsequence =
     controls.userActionConsequence === "strict"
-      ? (currentMove === "action" || (hasSceneGoal && !hasRecentConsequence))
+      ? currentMove === "action" || (hasSceneGoal && !hasRecentConsequence)
       : controls.userActionConsequence === "visible"
-      ? (currentMove === "action" || (currentMove === "continue" && !hasRecentConsequence && hasSceneGoal))
-      : currentMove === "action";
+        ? currentMove === "action" || (currentMove === "continue" && !hasRecentConsequence && hasSceneGoal)
+        : currentMove === "action";
   const needsEventInterruption =
     controls.eventInterruption !== "off" &&
     (qnaChainRisk ||
@@ -274,9 +262,7 @@ export const buildTavernSceneDriveGuidance = ({
       (controls.mainHook === "forceOnStall" && currentMove === "question"));
   const needsSceneDriveProgression = currentMove === "scene_drive" && hasSceneGoal;
   const suggestedPublicPressure = [
-    room.sceneStatus?.immediateThreat
-      ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}`
-      : "",
+    room.sceneStatus?.immediateThreat ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}` : "",
     room.sceneStatus?.weather ? `让天气影响线索或行动：${room.sceneStatus.weather}` : "",
     room.sceneStatus?.timeLabel ? `体现时间压力：${room.sceneStatus.timeLabel}` : "",
     room.sceneStatus?.location ? `利用当前地点制造空间变化：${room.sceneStatus.location}` : "",
@@ -294,9 +280,7 @@ export const buildTavernSceneDriveGuidance = ({
     needsMainHook
       ? "本轮必须把局部信息接回主线目标、长期代价、势力压力、路线阻断或阶段目标，但不能新增关键真相或替用户选择。"
       : "",
-    qnaChainRisk
-      ? "如果用户继续点名问询，角色可以先答关键点，再把压力推回现场行动，而不是完整讲解报告。"
-      : "",
+    qnaChainRisk ? "如果用户继续点名问询，角色可以先答关键点，再把压力推回现场行动，而不是完整讲解报告。" : "",
   ].filter(Boolean);
 
   return {
@@ -312,9 +296,7 @@ export const buildTavernSceneDriveGuidance = ({
   };
 };
 
-const formatAgencyModeInstruction = (
-  agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"],
-) => {
+const formatAgencyModeInstruction = (agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"]) => {
   if (agencyMode === "scene_drive") {
     return [
       "用户控制权：scene_drive。用户短确认、空输入或续写信号表示希望场景自推动；导演应根据场景目标、近期矛盾、角色动机和公开压力主动调度合适角色互相推进。",
@@ -353,8 +335,7 @@ export const canTavernCharacterUseNonverbalReply = ({
   Boolean(directorNonverbalReplyIds?.includes(characterId)) ||
   (canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
     Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
-    (hasTavernNonverbalTargetCue(currentUserText ?? "") ||
-      hasTavernNonverbalTargetCue(directorReason ?? "")));
+    (hasTavernNonverbalTargetCue(currentUserText ?? "") || hasTavernNonverbalTargetCue(directorReason ?? "")));
 
 export const shouldSuppressTavernAutoContinuation = (
   room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
@@ -378,9 +359,7 @@ const uniqueCharacters = (characters: TavernCharacter[]) => {
   });
 };
 
-export const mergeTavernCharacterIds = (
-  ...characterIdLists: Array<readonly string[] | undefined | null>
-) => {
+export const mergeTavernCharacterIds = (...characterIdLists: Array<readonly string[] | undefined | null>) => {
   const seen = new Set<string>();
   return characterIdLists
     .flatMap((list) => list ?? [])
@@ -439,10 +418,9 @@ export const resolveTavernScheduledSpeakers = ({
   const scheduling = getDirectorScheduling(room);
   const targetedReplyPolicy = scheduling.targetedReplyPolicy;
   const targetIds = new Set(targetSpeakers.map((speaker) => speaker.id));
-  const shouldScheduleTargetsForNonverbalReply = canTavernSelectedTargetsStaySilent(
-    room,
-    selectedTargetCharacterIds,
-  ) && hasTavernNonverbalTargetCue(currentUserText ?? "");
+  const shouldScheduleTargetsForNonverbalReply =
+    canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
+    hasTavernNonverbalTargetCue(currentUserText ?? "");
   const directedSpeakers = rawDirectedSpeakers;
 
   if (targetSpeakers.length > 0 && targetedReplyPolicy === "exclusive") {
@@ -477,9 +455,7 @@ export const resolveTavernScheduledSpeakers = ({
     return [];
   }
 
-  return fallbackCharacter
-    ? [fallbackCharacter]
-    : availableCharacters.slice(0, 1);
+  return fallbackCharacter ? [fallbackCharacter] : availableCharacters.slice(0, 1);
 };
 
 export const formatTavernDirectorSchedulingInstruction = (
@@ -496,70 +472,92 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push(customInstruction);
   }
 
-  lines.push([
-    "导演操作策略由应用设置控制，优先级高于呈现风格提示。",
-    formatAgencyModeInstruction(narrativeControl.agencyMode),
-    `调度规模：${narrativeControl.responseScale}。focused=通常 1 个关键角色；balanced=1-2 个角色；ensemble=冲突/会议/多人目标时可接近上限，但仍不得凑人数。`,
-    `旁白压力：${narrativeControl.narratorPressure}。low=少旁白；balanced=用短旁白承接场景压力；high=更积极用 narrator 整合环境变化、未发言动作和公开压力。`,
-    `问答链打断：${narrativeControl.qnaBreak}；事件打断：${narrativeControl.eventInterruption}；用户行动后果：${narrativeControl.userActionConsequence}；主线钩子：${narrativeControl.mainHook}。`,
-  ].join("\n"));
+  lines.push(
+    [
+      "导演操作策略由应用设置控制，优先级高于呈现风格提示。",
+      formatAgencyModeInstruction(narrativeControl.agencyMode),
+      `调度规模：${narrativeControl.responseScale}。focused=通常 1 个关键角色；balanced=1-2 个角色；ensemble=冲突/会议/多人目标时可接近上限，但仍不得凑人数。`,
+      `旁白压力：${narrativeControl.narratorPressure}。low=少旁白；balanced=用短旁白承接场景压力；high=更积极用 narrator 整合环境变化、未发言动作和公开压力。`,
+      `问答链打断：${narrativeControl.qnaBreak}；事件打断：${narrativeControl.eventInterruption}；用户行动后果：${narrativeControl.userActionConsequence}；主线钩子：${narrativeControl.mainHook}。`,
+    ].join("\n"),
+  );
 
   if (isTavernFixedOrderPhase(room)) {
-    lines.push([
-      "当前处于固定顺序发言阶段。",
-      fixedOrderPhaseValue ? `当前阶段值：${fixedOrderPhaseValue}。` : "",
-      "导演可以给出公开旁白和未发言角色动作；角色 worker 仍按应用侧固定座次逐个进入回环调度。",
-      scheduling.fixedOrder.includeUser
-        ? `本阶段固定顺序包含用户座位，用户位置：${scheduling.fixedOrder.userPosition === "last" ? "末位" : "首位"}；当前用户消息视为用户自己的座次发言。`
-        : "",
-      "如果需要先公布夜晚结果或阶段信息，把内容写进 narrator artifact；不要因此把本阶段误判为导演-only。",
-      "若发言中点名其他角色，只记录为发言内容；不要把被点名者追加为本轮自动回应者。",
-      scheduling.fixedOrder.stopAfterRound
-        ? "固定顺序一轮结束后应停在下一阶段入口，例如投票、结算或等待用户操作。"
-        : "",
-    ].filter(Boolean).join(""));
+    lines.push(
+      [
+        "当前处于固定顺序发言阶段。",
+        fixedOrderPhaseValue ? `当前阶段值：${fixedOrderPhaseValue}。` : "",
+        "导演可以给出公开旁白和未发言角色动作；角色 worker 仍按应用侧固定座次逐个进入回环调度。",
+        scheduling.fixedOrder.includeUser
+          ? `本阶段固定顺序包含用户座位，用户位置：${scheduling.fixedOrder.userPosition === "last" ? "末位" : "首位"}；当前用户消息视为用户自己的座次发言。`
+          : "",
+        "如果需要先公布夜晚结果或阶段信息，把内容写进 narrator artifact；不要因此把本阶段误判为导演-only。",
+        "若发言中点名其他角色，只记录为发言内容；不要把被点名者追加为本轮自动回应者。",
+        scheduling.fixedOrder.stopAfterRound
+          ? "固定顺序一轮结束后应停在下一阶段入口，例如投票、结算或等待用户操作。"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(""),
+    );
   }
 
   if (isTavernDirectorOnlyTurnAllowed(room)) {
-    lines.push([
-      "当前阶段允许导演只推进公开流程，不调用角色公开发言。",
-      directorOnlyPhaseValue ? `当前阶段值：${directorOnlyPhaseValue}。` : "",
-      "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator/randomEvent/illustrationHint artifacts。",
-    ].filter(Boolean).join(""));
+    lines.push(
+      [
+        "当前阶段允许导演只推进公开流程，不调用角色公开发言。",
+        directorOnlyPhaseValue ? `当前阶段值：${directorOnlyPhaseValue}。` : "",
+        "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator/randomEvent/illustrationHint artifacts。",
+      ]
+        .filter(Boolean)
+        .join(""),
+    );
   }
 
   if (scheduling.targetedReplyPolicy === "exclusive") {
-    lines.push("当用户选择或指定回复对象时，本轮优先把被指定角色设为 selectedTargetId；如果有多个目标，每次只选一个最需要回应的 worker，其余交给后续回环判断。");
+    lines.push(
+      "当用户选择或指定回复对象时，本轮优先把被指定角色设为 selectedTargetId；如果有多个目标，每次只选一个最需要回应的 worker，其余交给后续回环判断。",
+    );
   } else if (scheduling.targetedReplyPolicy === "include") {
-    lines.push(`当用户选择或指定回复对象时，必须优先评估被指定角色；其他角色最多在后续回环中追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。每一轮 supervisor JSON 仍只能选择一个 selectedTargetId。`);
+    lines.push(
+      `当用户选择或指定回复对象时，必须优先评估被指定角色；其他角色最多在后续回环中追加 ${scheduling.maxExtraSpeakersOnTargetedReply} 个，且必须有明确戏剧必要性。每一轮 supervisor JSON 仍只能选择一个 selectedTargetId。`,
+    );
   } else if (scheduling.targetedReplyPolicy === "prefer") {
-    lines.push("当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其说出口对白；关系差、问题冒犯、沉默人设或策略性回避时，仍可选择该 worker，并在 selectedInstruction 中要求只输出心理和可观察动作。");
-    lines.push("如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应选择该目标 worker 并写清非语言任务；不要改用旁白替角色完成这类近景反应。");
+    lines.push(
+      "当用户选择或指定回复对象时，导演必须优先评估被指定角色，但不强制其说出口对白；关系差、问题冒犯、沉默人设或策略性回避时，仍可选择该 worker，并在 selectedInstruction 中要求只输出心理和可观察动作。",
+    );
+    lines.push(
+      "如果用户明确表示“不要回答/不用开口/只用动作或神态回应”，应选择该目标 worker 并写清非语言任务；不要改用旁白替角色完成这类近景反应。",
+    );
   }
 
-  lines.push([
-    "如果最近多轮都只是用户点名问询、角色逐一解释线索，导演不要机械延续问答链。",
-    "应重新评估 sceneGoal、scenePlot、immediateThreat、角色目标和待回应事项，优先安排能带来局势变化、时间压力、关系冲突、风险暴露或下一步行动压力的角色。",
-    "此时 narrator 应优先让公开场景状态发生变化，例如线索被雨水冲淡、脚步靠近、灯火变暗、门闩受力、路线时间被压缩；这些变化不能替用户做选择，但要打破纯问答。",
-    "可以让未被点名但有强动机/关键现场职责的角色插入异议、提醒、打断或行动提议；不要让用户长期沦为只负责点名提问的提词器。",
-  ].join(""));
+  lines.push(
+    [
+      "如果最近多轮都只是用户点名问询、角色逐一解释线索，导演不要机械延续问答链。",
+      "应重新评估 sceneGoal、scenePlot、immediateThreat、角色目标和待回应事项，优先安排能带来局势变化、时间压力、关系冲突、风险暴露或下一步行动压力的角色。",
+      "此时 narrator 应优先让公开场景状态发生变化，例如线索被雨水冲淡、脚步靠近、灯火变暗、门闩受力、路线时间被压缩；这些变化不能替用户做选择，但要打破纯问答。",
+      "可以让未被点名但有强动机/关键现场职责的角色插入异议、提醒、打断或行动提议；不要让用户长期沦为只负责点名提问的提词器。",
+    ].join(""),
+  );
 
   if (scheduling.speakerMotivation.enabled) {
     const rulesText = scheduling.speakerMotivation.rules
       .slice()
       .sort((left, right) => right.priority - left.priority)
-      .map((rule) => [
-        `- [${rule.priority}] ${rule.label}`,
-        `  触发：${rule.when}`,
-        `  调度倾向：${rule.instruction}`,
-      ].join("\n"))
+      .map((rule) =>
+        [`- [${rule.priority}] ${rule.label}`, `  触发：${rule.when}`, `  调度倾向：${rule.instruction}`].join("\n"),
+      )
       .join("\n");
-    lines.push([
-      `自由调度时先评估角色发言动机；除被点名/候选回复目标外，最多额外加入 ${scheduling.speakerMotivation.maxMotivatedSpeakers} 个强动机角色。`,
-      "发言动机不是随机概率，而是上下文倾向：角色目标、胜利条件、好感/敌对/任务状态、是否知道相关事实、是否想误导或保护秘密、以及人设是否寡言都会影响 candidates 评分与 selectedTargetId。",
-      "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientAction artifact 保持在场。被明确要求动作回应的目标角色不属于弱动机旁观者，应选择该 worker 并写清非语言任务。",
-      rulesText,
-    ].filter(Boolean).join("\n"));
+    lines.push(
+      [
+        `自由调度时先评估角色发言动机；除被点名/候选回复目标外，最多额外加入 ${scheduling.speakerMotivation.maxMotivatedSpeakers} 个强动机角色。`,
+        "发言动机不是随机概率，而是上下文倾向：角色目标、胜利条件、好感/敌对/任务状态、是否知道相关事实、是否想误导或保护秘密、以及人设是否寡言都会影响 candidates 评分与 selectedTargetId。",
+        "同一轮不要为了热闹让所有人发言；弱动机角色优先用 ambientAction artifact 保持在场。被明确要求动作回应的目标角色不属于弱动机旁观者，应选择该 worker 并写清非语言任务。",
+        rulesText,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
   }
 
   if (shouldSuppressTavernAutoContinuation(room)) {

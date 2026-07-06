@@ -12,7 +12,8 @@ import { parseTavernRouteSearch } from "@/features/pages/taverns/navigation";
 import { useTavernManagement } from "@/features/pages/taverns/store";
 import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
 import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "@/features/pages/taverns/storage";
-import type { TavernRoom, TavernState } from "@/features/pages/taverns/tavern/types";
+import type { TavernState } from "@/features/pages/taverns/tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
 

@@ -2,7 +2,7 @@ import { Activity, PanelTop, MessageSquareText, ScrollText } from "lucide-react"
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getActiveTavernScene, getTavernSceneDisplayTitle } from "../../../tavern/runtime/scene-selectors";
-import type { TavernRoom } from "../../../tavern/types";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { emptyValueText, getReplyModeLabel } from "../../utils";
 
 const getPreviewText = (value: string, fallback = emptyValueText) => value.trim() || fallback;
